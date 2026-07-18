@@ -335,10 +335,21 @@ try {
     const indexSource = readFileSync("routes/index.js", "utf8");
     assert("connect exposes explicit onboarding-state route",
       routeSource.includes('router.get("/connect/onboarding-state"') && routeSource.includes('workspace_required'));
-    assert("connect exposes tenantless-safe workspace creation and escalation routes",
+    assert("connect exposes tenantless-safe workspace creation, bootstrap, and escalation routes",
+      routeSource.includes('router.post("/connect/bootstrap"') &&
+      routeSource.includes('orchestrateTenantConnectBootstrap') &&
+      routeSource.includes('activateManagedConnectionForTenant') &&
       routeSource.includes('router.post("/connect/workspace"') &&
       routeSource.includes('router.post("/connect/escalate"') &&
       routeSource.includes('onboarding_escalations'));
+    const bootstrapMigration = readFileSync("migrations/20260718_tenant_connect_bootstrap_tool.sql", "utf8");
+    assert("tenant tool registry migration exposes connect_bootstrap with managed-only idempotent readback contract",
+      bootstrapMigration.includes("'connect_bootstrap'") &&
+      bootstrapMigration.includes("'/connect/bootstrap'") &&
+      bootstrapMigration.includes("'managed'") &&
+      bootstrapMigration.includes("idempotent") &&
+      bootstrapMigration.includes("same_cycle_readback") &&
+      bootstrapMigration.includes("no_secrets"));
     assert("connect exposes minimal /me workspace/capability control-plane",
       routeSource.includes('router.get("/me"') &&
       routeSource.includes('router.get("/me/workspaces"') &&
