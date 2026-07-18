@@ -5,6 +5,8 @@ import {
   resolvePrivatePlatformPluginContribution,
 } from "./platformPluginContribution.js";
 
+// frontend-surface-operation: POST /platform/plugins/contributions/resolve-private
+
 const baseContributionRow = {
   contribution_id: "contrib-1",
   plugin_key: "tenant.custom_crm",

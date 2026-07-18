@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
 import { resolveActionManifestDiagnostic } from "./actionManifestDiagnostic.js";
 
+// frontend-surface-operation: POST /platform/action-manifest/resolve
+// frontend-surface-operation: POST /platform/execution-readiness/dry-run
+
 function surfaceRow(surfaceId, name, schemaRef) {
   return {
     surface_id: surfaceId,

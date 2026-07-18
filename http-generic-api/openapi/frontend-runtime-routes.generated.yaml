@@ -9475,29 +9475,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /platform/session-insight-promotions/remaining-scope-completions/list:
-    post:
-      operationId: postPlatformSessionInsightPromotionsRemainingScopeCompletionsList745bdafc
-      summary: POST /platform/session-insight-promotions/remaining-scope-completions/list (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionInsightRemainingScopeCompletionRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /platform/session-insight-promotions/review/decision:
     post:
       operationId: postPlatformSessionInsightPromotionsReviewDecisionb9f67311
