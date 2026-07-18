@@ -79,11 +79,9 @@ surfaces:
         - tenantPlatformPluginInstall
         - tenantPlatformPluginCredentialIntakeSessionCreate
         - tenantPlatformPluginResolve
-        - listSessions
         - listTenantSkillApprovals
         - decideTenantSkillApproval
         - writeSessionTurn
-        - writeGptSessionTurns
         - endSession
 
   tenant_activation:
@@ -114,6 +112,8 @@ surfaces:
         - runTenantResolutionDiagnosticAction
         - previewTenantTaskSourceRepair
         - readTenantActivationDynamicTabDetail
+        - listSessions
+        - writeGptSessionTurns
 
   local_connector_admin:
     mode: canonical_copy

@@ -154,6 +154,18 @@ for (const contract of [
   ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_gate_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_gate_status"],
   ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_policy_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_policy_status"],
   ["284_sprint68_session_insight_backlog_target_write_executor.sql", "target_write_status", "BacklogTargetWrite", "target_write_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_status", "RemainingScopeCompletion", "completion_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_policy_status", "RemainingScopeCompletion", "completion_policy_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "adapter_apply_dispatch_gate_status", "RemainingScopeCompletion", "adapter_apply_dispatch_gate_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "adapter_apply_readback_status", "RemainingScopeCompletion", "adapter_apply_readback_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "target_write_gate_status", "RemainingScopeCompletion", "target_write_gate_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "target_write_readback_status", "RemainingScopeCompletion", "target_write_readback_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "rollback_plan_status", "RemainingScopeCompletion", "rollback_plan_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "generalized_registry_status", "RemainingScopeCompletion", "generalized_registry_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "ui_review_queue_status", "RemainingScopeCompletion", "ui_review_queue_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "orchestration_test_status", "RemainingScopeCompletion", "orchestration_test_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_status", "RemainingScopeCompletionSummary", "completion_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_policy_status", "RemainingScopeCompletionSummary", "completion_policy_status"],
 ]) {
   const [migrationFile, migrationColumn, schemaName, propertyName] = contract;
   assert.deepEqual(

@@ -28,6 +28,17 @@ const TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST = new Set([
   "tab",
   "tab_key",
 ]);
+const TENANT_ACTIVATION_SESSION_LIST_QUERY_ALLOWLIST = new Set([
+  "limit",
+  "session_status",
+]);
+const TENANT_ACTIVATION_SESSION_STATUSES = new Set([
+  "pending",
+  "active",
+  "completed",
+  "failed",
+]);
+
 function compactError(error, fallback) {
   return {
     code: error?.code || fallback,
@@ -47,6 +58,130 @@ export function buildTenantActivationOverlayRoutes({
   const router = Router();
   const guards = [requireBackendApiKey].filter(Boolean);
 
+  function tenantActivationSubject(req) {
+    if (
+      req.auth?.mode !== "user_jwt"
+      || req.auth?.is_admin === true
+      || !req.auth?.tenant_id
+      || !req.auth?.user_id
+    ) {
+      return null;
+    }
+    return {
+      tenant_id: req.auth.tenant_id,
+      user_id: req.auth.user_id,
+      is_admin: false,
+    };
+  }
+
+  function requireTenantUserJwt(req, res, next) {
+    if (tenantActivationSubject(req)) return next();
+    return res.status(401).json({
+      ok: false,
+      error: {
+        code: "tenant_activation_subject_required",
+        message: "A signed non-admin tenant user JWT with tenant_id and user_id is required.",
+      },
+      secrets_included: false,
+    });
+  }
+
+  function rejectUnsupportedQueryParameters(req, res, allowlist) {
+    const unsupported = Object.keys(req.query || {}).filter((key) => !allowlist.has(key));
+    if (unsupported.length === 0) return false;
+    res.status(400).json({
+      ok: false,
+      error: {
+        code: "tenant_activation_query_parameter_not_allowed",
+        message: "One or more query parameters are not allowed for the tenant Activation session surface.",
+        details: unsupported.map((field) => ({ field, issue: "unsupported" })),
+      },
+      secrets_included: false,
+    });
+    return true;
+  }
+
+  async function handleTenantActivationSessionList(req, res) {
+    const subject = tenantActivationSubject(req);
+    if (!subject) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "tenant_activation_subject_required",
+          message: "A signed non-admin tenant user JWT with tenant_id and user_id is required.",
+        },
+        secrets_included: false,
+      });
+    }
+    if (rejectUnsupportedQueryParameters(req, res, TENANT_ACTIVATION_SESSION_LIST_QUERY_ALLOWLIST)) {
+      return undefined;
+    }
+
+    const sessionStatus = String(req.query.session_status || "").trim().toLowerCase() || null;
+    if (sessionStatus && !TENANT_ACTIVATION_SESSION_STATUSES.has(sessionStatus)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "tenant_activation_session_status_invalid",
+          message: "session_status must be pending, active, completed, or failed.",
+        },
+        secrets_included: false,
+      });
+    }
+    const requestedLimit = req.query.limit === undefined ? 50 : Number(req.query.limit);
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 50) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "tenant_activation_session_limit_invalid",
+          message: "limit must be an integer between 1 and 50.",
+        },
+        secrets_included: false,
+      });
+    }
+
+    try {
+      let sql = `SELECT session_id, originator, session_status, brand_key, workspace_key,
+                        turn_count, started_at, ended_at, created_at
+                   FROM \`customer_sessions\`
+                  WHERE tenant_id = ? AND user_id = ?`;
+      const params = [subject.tenant_id, subject.user_id];
+      if (sessionStatus) {
+        sql += " AND session_status = ?";
+        params.push(sessionStatus);
+      }
+      sql += " ORDER BY started_at DESC, created_at DESC LIMIT ?";
+      params.push(requestedLimit);
+
+      const [rows] = await getRuntimePool().query(sql, params);
+      const sessions = (rows || []).map((row) => ({
+        session_id: row.session_id,
+        originator: row.originator ?? null,
+        session_status: row.session_status,
+        brand_key: row.brand_key ?? null,
+        workspace_key: row.workspace_key ?? null,
+        turn_count: Number(row.turn_count || 0),
+        started_at: row.started_at ?? null,
+        ended_at: row.ended_at ?? null,
+        created_at: row.created_at ?? null,
+      }));
+      return res.status(200).json({
+        ok: true,
+        activation_layer: "session_list",
+        subject,
+        sessions,
+        total: sessions.length,
+        secrets_included: false,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        ok: false,
+        error: compactError(error, "tenant_activation_session_list_failed"),
+        secrets_included: false,
+      });
+    }
+  }
+
   async function handleTenantActivationSessionContext(req, res, next, { allowFallthrough }) {
     if (req.auth?.mode !== "user_jwt" || req.auth?.is_admin === true) {
       if (allowFallthrough) return next();
@@ -60,18 +195,7 @@ export function buildTenantActivationOverlayRoutes({
       });
     }
     if (!allowFallthrough) {
-      const unsupported = Object.keys(req.query || {}).filter((key) => !TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST.has(key));
-      if (unsupported.length > 0) {
-        return res.status(400).json({
-          ok: false,
-          error: {
-            code: "tenant_activation_query_parameter_not_allowed",
-            message: "One or more query parameters are not allowed for the tenant Activation session surface.",
-            details: unsupported.map((field) => ({ field, issue: "unsupported" })),
-          },
-          secrets_included: false,
-        });
-      }
+      if (rejectUnsupportedQueryParameters(req, res, TENANT_ACTIVATION_SESSION_QUERY_ALLOWLIST)) return undefined;
     }
     if (!req.auth?.tenant_id || !req.auth?.user_id) {
       return res.status(401).json({
@@ -162,8 +286,9 @@ export function buildTenantActivationOverlayRoutes({
     }
   }
 
-  router.get("/tenant/activation/session-context", ...guards, (req, res, next) =>
+  router.get("/tenant/activation/session-context", ...guards, requireTenantUserJwt, (req, res, next) =>
     handleTenantActivationSessionContext(req, res, next, { allowFallthrough: false }));
+  router.get("/tenant/activation/sessions", ...guards, requireTenantUserJwt, handleTenantActivationSessionList);
   router.get("/activation/session-context", ...guards, (req, res, next) =>
     handleTenantActivationSessionContext(req, res, next, { allowFallthrough: true }));
 

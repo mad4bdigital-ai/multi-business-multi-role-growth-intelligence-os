@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /gpt/sessions/{id}/turns
 import { readFileSync } from "node:fs";
 
 const routes = readFileSync(new URL("./routes/gptSessionRoutes.js", import.meta.url), "utf8");
