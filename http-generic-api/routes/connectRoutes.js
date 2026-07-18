@@ -410,6 +410,38 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
   }
 }
 
+async function activateManagedConnectionForTenant({ userId, tenantId } = {}) {
+  const pool = getPool();
+  const existing = await fetchTenantConnection(tenantId);
+  if (existing?.status === "active" && existing?.connection_mode === "managed") {
+    return { activated: false, connection: existing };
+  }
+
+  const connectionId = randomUUID();
+  await pool.query(
+    `INSERT INTO \`tenant_backend_connections\`
+       (connection_id, tenant_id, connection_mode, cloudflare_mode, google_auth_mode, n8n_activation_mode, status, activated_at)
+     VALUES (?, ?, 'managed', 'managed', 'managed', 'managed_main_server', 'active', NOW())
+     ON DUPLICATE KEY UPDATE
+       connection_mode = 'managed',
+       cloudflare_mode = 'managed',
+       google_auth_mode = 'managed',
+       n8n_activation_mode = 'managed_main_server',
+       status = 'active',
+       activated_at = COALESCE(activated_at, NOW()),
+       updated_at = NOW()`,
+    [connectionId, tenantId]
+  );
+  await upsertTenantIntegrationPolicies({
+    tenantId,
+    userId,
+    integrationModes: {},
+    source: "connect_bootstrap",
+  });
+  const connection = await fetchTenantConnection(tenantId);
+  return { activated: true, connection };
+}
+
 function cleanEscalationPriority(value) {
   const normalized = String(value || "urgent").trim().toLowerCase();
   return ["low", "normal", "high", "urgent"].includes(normalized) ? normalized : "urgent";
