@@ -7,6 +7,8 @@ const activeMigrationName = "20260716_github_list_repository_issues_array_contra
 const activeMigration = readFileSync(new URL(`./migrations/${activeMigrationName}`, import.meta.url), "utf8");
 const reconciliationMigrationName = "20260717_runtime_contract_root_cause_reconciliation.sql";
 const reconciliationMigration = readFileSync(new URL(`./migrations/${reconciliationMigrationName}`, import.meta.url), "utf8");
+const repairMigrationName = "20260718_repair_activation_session_context_tool_registration.sql";
+const repairMigration = readFileSync(new URL(`./migrations/${repairMigrationName}`, import.meta.url), "utf8");
 const verifyRuntime = readFileSync(new URL("./verify-runtime.mjs", import.meta.url), "utf8");
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 
@@ -52,6 +54,26 @@ for (const marker of [
   assert.ok(reconciliationMigration.includes(marker), `reconciliation migration missing ${marker}`);
 }
 
+const registrationStart = reconciliationMigration.indexOf("INSERT INTO admin_platform_endpoint_tools");
+const registrationEnd = reconciliationMigration.indexOf("ON DUPLICATE KEY UPDATE", registrationStart);
+assert.ok(registrationStart >= 0 && registrationEnd > registrationStart, "session-context tool registration must exist");
+const registrationSql = reconciliationMigration.slice(registrationStart, registrationEnd);
+assert.doesNotMatch(registrationSql, /^\s*id\s*,/mi);
+assert.doesNotMatch(registrationSql, /\bUUID\s*\(/i);
+
+for (const marker of [
+  "WHERE tool_key = 'health_check'",
+  "'Health Check'",
+  "'/health'",
+  "activation_session_context_read_only",
+  "/activation/session-context/read-only",
+  "INSERT INTO admin_platform_endpoint_tools",
+]) {
+  assert.ok(repairMigration.includes(marker), `repair migration missing ${marker}`);
+}
+assert.doesNotMatch(repairMigration, /^\s*id\s*,/mi);
+assert.doesNotMatch(repairMigration, /\bUUID\s*\(/i);
+
 assert.match(activationRoutes, /\/session-context\/read-only/);
 assert.match(verifyRuntime, /function isBotVerificationResponse\(response\)/);
 assert.doesNotMatch(verifyRuntime, /return response\?\.status === 403 && \(/);
@@ -61,6 +83,7 @@ assert.match(verifyRuntime, /250 \* attempt/);
 for (const [migrationName, migration] of [
   [activeMigrationName, activeMigration],
   [reconciliationMigrationName, reconciliationMigration],
+  [repairMigrationName, repairMigration],
 ]) {
   assert.doesNotMatch(migration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
   assert.doesNotMatch(migration, /private_key|refresh_token|client_secret|access_token|value_ciphertext/i);
