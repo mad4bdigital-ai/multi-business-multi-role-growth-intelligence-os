@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 95.34,
+  "docs_completion_percent": 95.17,
   "docs_complete_count": 512,
-  "docs_gap_count": 25,
-  "queue_items": 25,
-  "blocking_new_item_count": 25,
+  "docs_gap_count": 26,
+  "queue_items": 26,
+  "blocking_new_item_count": 26,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -29,13 +29,19 @@
     {
       "migration_file": "20260715_dynamic_container_canary_runtime_observability.sql",
       "queue_class": "critical_review",
-      "score": 888,
+      "score": 887,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
       "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
       "queue_class": "critical_review",
       "score": 870,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
+      "queue_class": "critical_review",
+      "score": 850,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -61,24 +67,18 @@
       "queue_class": "critical_review",
       "score": 788,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
-      "queue_class": "critical_review",
-      "score": 783,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 661,
-  "total_sql_route_like_count": 683,
-  "safety_marker_gap_migrations": 1,
+  "total_sql_route_like_count": 684,
+  "safety_marker_gap_migrations": 2,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 25,
-    "warning_new_item_count": 25
+    "blocking_new_item_count": 26,
+    "warning_new_item_count": 26
   },
   "safety": {
     "executes_provider_calls": false,
