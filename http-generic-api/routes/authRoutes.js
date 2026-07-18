@@ -834,7 +834,18 @@ export function buildAuthRoutes(deps) {
       await connection.commit();
     } catch (error) {
       await connection.rollback();
-      throw error;
+      if (!isDuplicateEntryError(error)) throw error;
+
+      const recovered = await recoverGoogleJitIdentityAfterDuplicate({
+        pool,
+        connection,
+        provider_id,
+        email,
+        display_name,
+        ensureWorkspace: ensureDefaultWorkspaceForUser,
+      });
+      if (!recovered?.user_id) throw error;
+      user_id = recovered.user_id;
     } finally {
       connection.release();
     }
