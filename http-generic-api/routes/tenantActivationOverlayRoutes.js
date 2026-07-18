@@ -144,7 +144,7 @@ export function buildTenantActivationOverlayRoutes({
       const maxChars = Math.min(Math.max(Number(req.query.max_response_chars || 40000), 5000), 150000);
       const chunkTtlMinutes = Math.min(Math.max(Number(req.query.chunk_ttl_minutes || 20), 5), 120);
       const transportBody = responseBytes > maxChars
-        ? await maybeChunkToolResponseBody(responseBody, {
+        ? await chunkResponse(responseBody, {
             response_options: {
               max_chars: maxChars,
               chunk_ttl_minutes: chunkTtlMinutes,
