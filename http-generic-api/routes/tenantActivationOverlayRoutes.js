@@ -135,7 +135,7 @@ export function buildTenantActivationOverlayRoutes({
         },
       }).catch(() => {});
       res.on("finish", () => {
-        markActivationRunDelivered(getPool(), {
+        markRunDelivered(getRuntimePool(), {
           runId: context.run_id || null,
           statusCode: res.statusCode,
           deliveryState: res.statusCode < 500 ? "delivered" : "delivery_failed",
