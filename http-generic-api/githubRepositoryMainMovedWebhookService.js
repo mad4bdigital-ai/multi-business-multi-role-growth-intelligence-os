@@ -99,13 +99,24 @@ async function resolveWebhookSecret(deps = {}) {
   return result.secret;
 }
 
-export async function handleGitHubRepositoryMainMovedWebhook(request = {}, deps = {}) {
+export async function verifyGitHubRepositoryMainMovedWebhookRequest(request = {}, deps = {}) {
   const secret = await resolveWebhookSecret(deps);
   verifyGitHubWebhookSignature({
     rawBody: request.rawBody,
     signature: header(request.headers, "x-hub-signature-256"),
     secret,
   });
+  return {
+    signature_verified: true,
+    credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
+    secrets_included: false,
+  };
+}
+
+export async function handleGitHubRepositoryMainMovedWebhook(request = {}, deps = {}) {
+  if (request.signature_verified !== true) {
+    await verifyGitHubRepositoryMainMovedWebhookRequest(request, deps);
+  }
   const normalized = normalizeGitHubRepositoryMainMovedWebhook(request);
   if (normalized.event_type === "ping") {
     return {
