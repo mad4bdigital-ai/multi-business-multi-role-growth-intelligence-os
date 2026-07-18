@@ -90,6 +90,7 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Reject protected default branch
+        working-directory: .
         run: |
           if [[ "${GITHUB_REF_NAME}" == "${{ github.event.repository.default_branch }}" ]]; then
             echo "::error::Generated evidence sync must target a non-default branch."
