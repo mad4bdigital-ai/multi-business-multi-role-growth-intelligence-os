@@ -18,7 +18,7 @@ flowchart TD
   n_Frontend_surface_dispatch["Frontend surface dispatch"]
   n_HTTP_Generic_API_Fanout_Relocation["HTTP Generic API Fanout Relocation"]
   n_Build_Local_Manager_Windows_EXE["Build Local Manager Windows EXE"]
-  n_OpenAPI_Auto_Sync["OpenAPI Auto Sync"]
+  n_T050_Artifact_Generation_Helper["T050 Artifact Generation Helper"]
   n_Platform_Completion_Cleanup_Readback["Platform Completion Cleanup Readback"]
   n_Platform_Remaining_Scope_Scorecard["Platform Remaining Scope Scorecard"]
   n_PR_Risk_Labeler["PR Risk Labeler"]
@@ -33,7 +33,7 @@ flowchart TD
   Change --> n_Frontend_surface_dispatch
   Change --> n_HTTP_Generic_API_Fanout_Relocation
   Change --> n_Build_Local_Manager_Windows_EXE
-  Change --> n_OpenAPI_Auto_Sync
+  Change --> n_T050_Artifact_Generation_Helper
   Change --> n_Platform_Completion_Cleanup_Readback
   Change --> n_Platform_Remaining_Scope_Scorecard
   Change --> n_PR_Risk_Labeler
@@ -60,7 +60,7 @@ flowchart TD
 | Frontend surface dispatch | `.github/workflows/frontend-surface-dispatch.yml` | `workflow_dispatch`, `pull_request` |
 | HTTP Generic API Fanout Relocation | `.github/workflows/http-generic-api-fanout-relocation.yml` | `workflow_dispatch`, `pull_request` |
 | Build Local Manager Windows EXE | `.github/workflows/local-manager-windows.yml` | `workflow_dispatch`, `pull_request`, `push` |
-| OpenAPI Auto Sync | `.github/workflows/openapi-auto-sync.yml` | `workflow_dispatch`, `push` |
+| T050 Artifact Generation Helper | `.github/workflows/openapi-auto-sync.yml` | `workflow_dispatch` |
 | Platform Completion Cleanup Readback | `.github/workflows/platform-completion-cleanup-readback.yml` | `workflow_dispatch`, `pull_request`, `push`, `schedule` |
 | Platform Remaining Scope Scorecard | `.github/workflows/platform-remaining-scope-scorecard.yml` | `workflow_dispatch`, `pull_request`, `push`, `schedule` |
 | PR Risk Labeler | `.github/workflows/pr-risk-labeler.yml` | manual/other |
