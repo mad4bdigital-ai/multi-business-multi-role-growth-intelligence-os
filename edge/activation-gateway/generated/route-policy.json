@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "bef83669b0e0ec66ed56652f4ad0d5ed3ad75dbef6c571d729f0fcf8b8b15c3d",
+  "content_hash_sha256": "44aed31487f6cc693bdfbff2e0e05dae4d6a863ad21aa3966cdf731a39217e93",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -357,6 +357,45 @@
         "activateSession"
       ],
       "path": "/tenant/activation/session-context",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [
+        "limit",
+        "session_status"
+      ],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "GET",
+      "mutation": false,
+      "operation_ids": [
+        "listSessions"
+      ],
+      "path": "/tenant/activation/sessions",
+      "request_body_limit_bytes": 1048576,
+      "response_body_limit_bytes": 5242880,
+      "surfaces": [
+        "tenant_activation"
+      ],
+      "timeout_ms": 30000
+    },
+    {
+      "allowed_query_parameters": [],
+      "auth_profiles": [
+        "tenant_oauth"
+      ],
+      "method": "POST",
+      "mutation": true,
+      "operation_ids": [
+        "writeGptSessionTurns"
+      ],
+      "path": "/tenant/activation/sessions/{id}/turns",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [

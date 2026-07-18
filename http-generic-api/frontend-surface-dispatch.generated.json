@@ -2,16 +2,16 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5d391c917205a8bbc21609028523cb1e6681dd07f82329e334fca4fc9b130d3b",
+    "source_digest": "b301c29d89fe63b2a36747c8b01ba523854634216c3a703a815f5cb3d4b7a500",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "b4270707af6cda659d010eb510d396afbea5c49bcdd31a12790cbe30bf543522",
+        "sha256": "6555cc38fa054ac444f0435b6e34b9241387250569aaa9dd0220d97002cae597",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "3e9338c594d25122e825be047b69c0a70c098874a95ae922115512629bdd8964",
+        "sha256": "7d46b226442d6989276f37133093ac70225f62929a0cb59ed54182e2cdf90ff8",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "006a6a227373fcfc2d5acc8681f7e633b16fd8b4c823d515474fbba6d15618a9",
+        "sha256": "94475ff66ad35a964d815901dae23be6be108306875b97388663658777588022",
         "present": true
       },
       {
@@ -41,7 +41,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "3fde436efd2f317c4e49adee5d19ae80d9f0bbec3e556b04f43aa674f1217c31",
+        "sha256": "910e2de8b8ab81d3e49ea55ec43089359faaacda2d4255653da6afc4c318c3ec",
         "present": true
       },
       {
@@ -106,7 +106,7 @@
       },
       {
         "file": "openapi/session-insight-promotion-read-models.yaml",
-        "sha256": "f8f629bcca64eb66b87c6a2ea55993f797ba4e4f26dd5489d45fba7e83cd1f43",
+        "sha256": "5ed861f969dd4467f1023964d389029f480459d426d7cec49116dd37d6736968",
         "present": true
       },
       {
@@ -216,12 +216,12 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "34c3683b9fe6011e79ec2f74a17b73de62da38bf84126bbb6d9fd0309c35b91a",
+        "sha256": "9e69510393562acaa628a4651a1412e4bf4e4998b341c7eef09587ccb2ab942c",
         "present": true
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
+        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
         "present": true
       },
       {
@@ -426,7 +426,7 @@
       },
       {
         "file": "routes/gptSessionRoutes.js",
-        "sha256": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
+        "sha256": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
         "present": true
       },
       {
@@ -621,7 +621,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+        "sha256": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
         "present": true
       },
       {
@@ -781,7 +781,7 @@
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+        "sha256": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
         "present": true
       },
       {
@@ -846,7 +846,12 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "5c694f29dfd1c62f4a3d1ec2ab7aabd7f94ff9159af702532fdf880131967f42",
+        "sha256": "d931010173ced0b4115c79c7695a6e863622f7034905c80aff84c1f8288a5ae8",
+        "present": true
+      },
+      {
+        "file": "test-gpt-session-turn-batch-capture.mjs",
+        "sha256": "b9f86fcb979a7cc3a51474a0398f4a5fe930912c75b70009420bd964d06314b8",
         "present": true
       },
       {
@@ -855,8 +860,13 @@
         "present": true
       },
       {
+        "file": "test-platform-plugin-public-rest-dispatch.mjs",
+        "sha256": "608de995411ec3bf744e4684a14f28819718c45bdc2b487291477cc1f0d52102",
+        "present": true
+      },
+      {
         "file": "test-platform-routes.mjs",
-        "sha256": "1e3da1eea7ec8e55d96478f10a0d36ad62802309fe6bb24db3ee9ba98ee52347",
+        "sha256": "afc50b0e59a76219ffd91253ef31c8547e498711f54766a39c429ad507f309a8",
         "present": true
       },
       {
@@ -930,6 +940,11 @@
         "present": true
       },
       {
+        "file": "test-session-insight-remaining-scope-completion-service.mjs",
+        "sha256": "b3e6f6b2c0f20921d6ebc00053ffa2b0f09f0d2ae1ae3e473d41ae44f19808ad",
+        "present": true
+      },
+      {
         "file": "test-session-insight-target-adapter-registry-service.mjs",
         "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
         "present": true
@@ -937,6 +952,11 @@
       {
         "file": "test-session-insight-target-write-readback-service.mjs",
         "sha256": "0028f8f91f08b07ae9383fba74945d8cc201d959fbe794e2d827603420e04b5a",
+        "present": true
+      },
+      {
+        "file": "test-tenant-activation-session-alias.mjs",
+        "sha256": "b64d003f9d19280cbc2c19101ec4bcdf74066bfcfa658c55da35c153d3423c0c",
         "present": true
       },
       {
@@ -966,33 +986,33 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 159,
+    "mounted_family_count": 161,
     "mounted_route_file_count": 129,
-    "mixed_scope_route_file_count": 22,
-    "operation_count": 959,
-    "openapi_documented_count": 943,
-    "openapi_canonical_documented_count": 564,
-    "openapi_generated_index_count": 379,
+    "mixed_scope_route_file_count": 24,
+    "operation_count": 961,
+    "openapi_documented_count": 945,
+    "openapi_canonical_documented_count": 567,
+    "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 379,
+    "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 943,
+      "equivalent": 945,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 583,
-    "unresolved_operation_class_count": 551,
-    "classified_mutation_count": 4,
-    "governed_mutation_operation_count": 0,
+    "non_get_candidate_count": 584,
+    "unresolved_operation_class_count": 546,
+    "classified_mutation_count": 6,
+    "governed_mutation_operation_count": 2,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 148,
-    "test_owned_family_count": 4,
+    "unresolved_surface_decision_count": 146,
+    "test_owned_family_count": 6,
     "untested_family_count": 155,
-    "test_owned_operation_count": 26,
-    "untested_operation_count": 933,
-    "ready_task_count": 1,
+    "test_owned_operation_count": 34,
+    "untested_operation_count": 927,
+    "ready_task_count": 3,
     "blocked_task_count": 158,
     "coverage_complete": false
   },
@@ -6265,7 +6285,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -6450,7 +6470,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -6796,7 +6816,7 @@
       "family_key": "root-discovery.unresolved",
       "label": "root discovery (unresolved)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -12183,41 +12203,40 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "tenant-activation-overlay",
-      "label": "tenant activation overlay",
+      "family_key": "tenant-activation-overlay.tenant",
+      "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+      "source_digest": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
       "mount_prefix": "/",
       "mount_order": 13176,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "agents",
-      "scope": "unresolved",
+      "scope": "tenant",
       "operations": [
         {
           "method": "GET",
           "path": "/tenant/activation/session-context",
           "signature": "GET /tenant/activation/session-context",
           "source_file": "routes/tenantActivationOverlayRoutes.js",
-          "scope": "unresolved",
+          "scope": "tenant",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "user_jwt",
             "alternatives": [
               [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "userJwtAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "tenant_user",
             "guard_chain": [
-              "requireBackendApiKey"
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -12229,10 +12248,7 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
+                "userJwtAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -12249,7 +12265,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -12262,6 +12280,128 @@
           "mutation_candidate": false,
           "mutation": false
         },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/sessions",
+          "signature": "GET /tenant/activation/sessions",
+          "source_file": "routes/tenantActivationOverlayRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "untested_operations": [],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/tenantActivationOverlayRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "surface_decision": {
+        "decision": "api_only",
+        "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+        "owner": "activation-platform",
+        "rule_id": "tenant-activation-session-api-surface",
+        "evidence_refs": [
+          "openapi/openapi.tenant-gpt.activation.yaml",
+          "routes/tenantActivationOverlayRoutes.js",
+          "test-tenant-activation-session-alias.mjs"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 0,
+        "class": "low"
+      },
+      "wave": "F1-tenant-shell"
+    },
+    {
+      "family_key": "tenant-activation-overlay.unresolved",
+      "label": "tenant activation overlay (unresolved)",
+      "source_file": "routes/tenantActivationOverlayRoutes.js",
+      "source_digest": "3b130c2c7bd16d25a2961cfaa2c7c3d4fb2bc825ce394ed37d78ff33bef35fc4",
+      "mount_prefix": "/",
+      "mount_order": 13176,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "agents",
+      "scope": "unresolved",
+      "operations": [
         {
           "method": "GET",
           "path": "/activation/session-context",
@@ -12337,7 +12477,6 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "GET /tenant/activation/session-context",
         "GET /activation/session-context"
       ],
       "resources": [],
@@ -12356,14 +12495,20 @@
         "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+        "owner": "activation-platform",
+        "rule_id": "tenant-activation-session-api-surface",
+        "evidence_refs": [
+          "openapi/openapi.tenant-gpt.activation.yaml",
+          "routes/tenantActivationOverlayRoutes.js",
+          "test-tenant-activation-session-alias.mjs"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
-        "class": "critical"
+        "score": 7,
+        "class": "high"
       },
       "wave": "F0-authority-resolution"
     },
@@ -13806,7 +13951,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "4a6e1bfc4b8f40b7389a7d2e3b8e263daf3361441b874114b04f8918264588ef",
+      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
@@ -35270,13 +35415,13 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "gpt-session",
-      "label": "gpt session",
+      "family_key": "gpt-session.admin",
+      "label": "gpt session (admin)",
       "source_file": "routes/gptSessionRoutes.js",
-      "source_digest": "55e784f96285bbdfd04d5ef391a6736ee56235b655e3fbf8fa5ad5e5ce449d9f",
+      "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
       "mount_prefix": "/",
       "mount_order": 15553,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "agents",
@@ -35612,20 +35757,48 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-gpt-session-turn-batch-capture.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "path.id",
+              "turns": "request.body.turns",
+              "turn_ids": "response.turns[].turn_id"
+            },
+            "blockers": [],
+            "rule_id": "gpt-session-turn-batch-capability-governance",
+            "owner": "session-archive",
+            "rationale": "The bounded batch appends transcript turns to the governed SQL and Drive archive only after session_archive_write capability-family authorization enforces the caller, exact tenant and user scope, active session, and a 20-item maximum; each appended turn returns same-cycle archive identifiers and status.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/gptSessionRoutes.js",
+              "test-gpt-session-turn-batch-capture.mjs",
+              "test-session-archive-capability-family-policy.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -35706,13 +35879,14 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-gpt-session-turn-batch-capture.mjs"
+      ],
       "untested_operations": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
         "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
         "POST /gpt/sessions/{id}/turn",
-        "POST /gpt/sessions/{id}/turns",
         "POST /gpt/sessions/{id}/end"
       ],
       "resources": [],
@@ -35729,12 +35903,19 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-gpt-session-turn-batch-capture.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+        "owner": "session-archive",
+        "rule_id": "gpt-session-archive-api-surface",
+        "evidence_refs": [
+          "routes/gptSessionRoutes.js",
+          "test-gpt-session-turn-batch-capture.mjs",
+          "test-tenant-activation-session-alias.mjs"
+        ]
       },
       "operation_blockers": [
         {
@@ -35762,12 +35943,6 @@
           ]
         },
         {
-          "signature": "POST /gpt/sessions/{id}/turns",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /gpt/sessions/{id}/end",
           "blockers": [
             "operation_classification_gap"
@@ -35779,6 +35954,156 @@
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "gpt-session.tenant",
+      "label": "gpt session (tenant)",
+      "source_file": "routes/gptSessionRoutes.js",
+      "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
+      "mount_prefix": "/",
+      "mount_order": 15553,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "agents",
+      "scope": "tenant",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/tenant/activation/sessions/{id}/turns",
+          "signature": "POST /tenant/activation/sessions/{id}/turns",
+          "source_file": "routes/gptSessionRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
+          "governance": {
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "path.id",
+              "turns": "request.body.turns",
+              "turn_ids": "response.turns[].turn_id"
+            },
+            "blockers": [],
+            "rule_id": "tenant-activation-session-turn-batch-capability-governance",
+            "owner": "session-archive",
+            "rationale": "The Activation alias additionally requires a signed non-admin tenant JWT, then reuses the same bounded session_archive_write capability-family authorization, exact tenant and user scope, active-session check, append pipeline, and per-turn archive readback as the canonical writer.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/gptSessionRoutes.js",
+              "test-session-archive-capability-family-policy.mjs",
+              "test-tenant-activation-session-alias.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "untested_operations": [],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptSessionRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "surface_decision": {
+        "decision": "api_only",
+        "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+        "owner": "session-archive",
+        "rule_id": "gpt-session-archive-api-surface",
+        "evidence_refs": [
+          "routes/gptSessionRoutes.js",
+          "test-gpt-session-turn-batch-capture.mjs",
+          "test-tenant-activation-session-alias.mjs"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 4,
+        "class": "medium"
+      },
+      "wave": "F1-tenant-shell"
     },
     {
       "family_key": "gpt-tools",
@@ -44834,8 +45159,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44851,24 +45176,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-remaining-scope-completion-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightRemainingScopeCompletionService.js",
+              "test-session-insight-remaining-scope-completion-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44877,15 +45210,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-remaining-scope-completion-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44897,11 +45230,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44911,12 +45246,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -46577,17 +46906,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-certification-status-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeCertification.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46649,17 +46986,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46721,17 +47066,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48764,7 +49117,9 @@
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-platform-plugin-public-rest-dispatch.mjs"
+      ],
       "untested_operations": [
         "GET /platform/plugins/catalog",
         "POST /platform/plugins/resolve",
@@ -48781,9 +49136,6 @@
         "POST /platform/orchestration/support-ticket/snapshot-propose",
         "POST /platform/orchestration/support-ticket/snapshot-record",
         "POST /platform/plugins/smoke-certifications/certify",
-        "POST /platform/plugins/smoke-certifications/status",
-        "POST /platform/plugins/smoke-certifications/policies/resolve",
-        "POST /platform/plugins/smoke-certifications/policies/list",
         "POST /platform/plugins/smoke-certifications/policies/upsert",
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
@@ -48827,7 +49179,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48915,24 +49268,6 @@
         },
         {
           "signature": "POST /platform/plugins/smoke-certifications/certify",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/status",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -78753,14 +79088,13 @@
       ]
     },
     {
-      "task_key": "frontend.tenant-activation-overlay",
-      "title": "Resolve and deliver tenant activation overlay",
+      "task_key": "frontend.tenant-activation-overlay.unresolved",
+      "title": "Resolve and deliver tenant activation overlay (unresolved)",
       "wave": "F0-authority-resolution",
       "state": "blocked",
       "blockers": [
         "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline"
@@ -78787,6 +79121,47 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.gpt-session.tenant",
+      "title": "Resolve and deliver gpt session (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptSessionRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-activation-session-alias.mjs"
       ]
     },
     {
@@ -78837,6 +79212,42 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-platform-frontend-routes.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.tenant-activation-overlay.tenant",
+      "title": "Resolve and deliver tenant activation overlay (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/tenantActivationOverlayRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-activation-session-alias.mjs"
       ]
     },
     {
@@ -81678,20 +82089,21 @@
       ]
     },
     {
-      "task_key": "frontend.gpt-session",
-      "title": "Resolve and deliver gpt session",
+      "task_key": "frontend.gpt-session.admin",
+      "title": "Resolve and deliver gpt session (admin)",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
         "test_ownership_gap",
-        "surface_policy_decision_required",
         "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-surface-policy.json",
@@ -81704,7 +82116,8 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-gpt-session-turn-batch-capture.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -81712,11 +82125,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-gpt-session-turn-batch-capture.mjs"
       ]
     },
     {
@@ -82563,7 +82978,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82575,7 +82991,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-platform-plugin-public-rest-dispatch.mjs"
       ]
     },
     {
@@ -84004,11 +84421,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -84020,7 +84439,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-remaining-scope-completion-service.mjs"
       ]
     },
     {
