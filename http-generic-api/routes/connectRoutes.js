@@ -348,17 +348,33 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
     }
 
     const [existing] = await connection.query(
-      `SELECT m.tenant_id, m.role, t.display_name AS tenant_display_name
+      `SELECT m.tenant_id,
+              m.role,
+              m.status AS membership_status,
+              t.status AS tenant_status,
+              t.display_name AS tenant_display_name
          FROM memberships m
-         JOIN tenants t ON t.tenant_id = m.tenant_id
-        WHERE m.user_id = ? AND m.status = 'active'
-        ORDER BY m.granted_at ASC
-        LIMIT 1`,
+         LEFT JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ?
+        ORDER BY m.granted_at ASC`,
       [userId]
     );
-    if (existing[0]) {
+    const activeMembership = existing.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+    if (activeMembership) {
       await connection.commit();
-      return { created: false, user, tenant_id: existing[0].tenant_id, display_name: existing[0].tenant_display_name, role: existing[0].role };
+      return { created: false, user, tenant_id: activeMembership.tenant_id, display_name: activeMembership.tenant_display_name, role: activeMembership.role };
+    }
+    if (existing.some((row) => row.membership_status !== "active")) {
+      const err = new Error("The existing workspace membership is not active.");
+      err.status = 403;
+      err.code = "membership_revoked";
+      throw err;
+    }
+    if (existing.some((row) => row.tenant_status !== "active")) {
+      const err = new Error("The existing workspace is not active.");
+      err.status = 403;
+      err.code = "tenant_suspended";
+      throw err;
     }
 
     const tenantId = randomUUID();
