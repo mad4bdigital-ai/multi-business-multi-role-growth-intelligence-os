@@ -40,6 +40,16 @@ The foundation adds:
 
 Compatibility views remain available during cutover. Migration 314 backfills the canonical graph from current live registries without deleting or rewriting legacy authority rows.
 
+## Virtual governed tools
+
+Migrations `20260717_virtual_tool_capability_projection.sql` and `20260717_virtual_tool_readback_readiness.sql` project active `platform_tool_dispatch_bindings` into the canonical assurance graph. Tool names and aliases are provenance and export descriptors only; they never create authority.
+
+The projection resolves one canonical capability identity, operation class, risk class, and exposure scope per virtual tool. Missing or conflicting identity, scope, operation semantics, readback policy, or source ownership becomes persistent typed debt and fails closed. Virtual Admin and Admin CLI surfaces cannot be projected to Tenant scope.
+
+State-changing virtual capabilities require resource authority, audit evidence, and an explicit readback contract. Shadow readback readiness is separate from generic certification, and every projected capability remains `apply_allowed=0` until certification plus shadow/canary evidence authorize promotion.
+
+`platformVirtualToolCapabilityReconciler.js` maintains the projection, source links, shadow readback contracts, and debt inside the existing capability-assurance transaction. It performs no provider call, credential payload read, external write, or secret return.
+
 ## Readiness vector
 
 `v_platform_capability_readiness_vector` reports independent dimensions instead of a single misleading score:

@@ -171,6 +171,8 @@ Rules:
 ## Capability Assurance Graph source
 
 For migration 314_sprint69_capability_assurance_graph.sql, use docs/platform-capability-assurance-graph.md and the four canonical source fragments as authoritative documentation inputs. Generated reports must not infer authority from HTTP method or admin exposure alone.
+
+For the Spec 007 virtual-tool projection migrations, treat `platform_tool_dispatch_bindings` as a provenance source only. Tool aliases do not authorize execution; ambiguous identity, scope, operation, readback, or source ownership remains fail-closed debt, and projected mutations remain shadow-only with `apply_allowed=0` until separately certified.
 ### Local Connector Transient Retry Policy
 
 `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.
