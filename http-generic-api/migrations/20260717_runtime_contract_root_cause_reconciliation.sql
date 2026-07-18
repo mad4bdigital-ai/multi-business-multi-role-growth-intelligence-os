@@ -31,7 +31,6 @@ WHERE tool_key = 'admin_hostinger';
 -- Export the existing non-mutating activation session-context route so retries
 -- and diagnostics do not open duplicate sessions.
 INSERT INTO admin_platform_endpoint_tools (
-  id,
   tool_key,
   display_name,
   description,
@@ -45,7 +44,6 @@ INSERT INTO admin_platform_endpoint_tools (
   sort_order
 )
 VALUES (
-  UUID(),
   'activation_session_context_read_only',
   'Activation Session Context Read Only',
   'Read the authorized activation session context without opening or mutating a session.',
