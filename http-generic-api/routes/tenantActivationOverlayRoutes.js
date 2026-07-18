@@ -85,7 +85,7 @@ export function buildTenantActivationOverlayRoutes({
     }
 
     try {
-      const context = await buildActivationSessionContext(req);
+      const context = await buildSessionContext(req);
       const responseProfile = normalizeActivationResponseProfile(req.query.response_profile || "evidence");
       const productGuidance = await buildTenantGrowthDashboard({
         tenantId: req.auth.tenant_id,
