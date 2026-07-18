@@ -115,7 +115,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(source.includes("session_status = 'completed'"), true);
   assert.equal(source.includes("deferred_until_first_turn"), true);
   assert.equal(source.includes("archive_allocation: \"lazy_on_first_turn\""), true);
-  assert.equal(source.includes("VALUES (?, ?, ?, 'gpt_action', 'active', ?, ?)"), true);
+  assert.equal(source.includes("VALUES (?, ?, ?, ?, ?, 'gpt_action', 'active', ?, ?)"), true);
   assert.equal(source.includes("ensureSessionArchive(pool"), false);
   assert.equal(source.includes("close_previous_sessions: asBoolean(req.query.close_previous_sessions)"), true);
   assert.equal(source.includes("conversation_memory: conversationMemory"), true);

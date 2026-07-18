@@ -1,6 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
+import { enqueuePlatformOutboxEvent } from "./platformOutbox.js";
 
 const WORKFLOW_KEY = "tenant_brand_growth_intelligence_pilot_v1";
+const OUTBOX_EVENT_TYPE = "growth_intelligence.report_persisted";
+const OUTBOX_MODES = new Set(["disabled", "dev_transactional"]);
 
 function json(value) {
   return JSON.stringify(value ?? null);
@@ -42,6 +45,45 @@ function qualityMetrics(report) {
   };
 }
 
+function normalizeOutboxMode(value = "disabled") {
+  const mode = String(value || "disabled").trim().toLowerCase();
+  if (!OUTBOX_MODES.has(mode)) {
+    const error = new Error("outboxMode must be disabled or dev_transactional.");
+    error.code = "growth_pilot_outbox_mode_invalid";
+    throw error;
+  }
+  return mode;
+}
+
+async function assertDevOutboxDatabase(connection) {
+  const [rows] = await connection.query("SELECT DATABASE() AS db_name");
+  const dbName = String(rows?.[0]?.db_name || "").trim();
+  if (!dbName.endsWith("_dev")) {
+    const error = new Error("Growth Intelligence outbox producer mode is restricted to a _dev database.");
+    error.code = "growth_pilot_outbox_dev_database_required";
+    throw error;
+  }
+  return dbName;
+}
+
+function growthIntelligenceOutboxPayload({ report, runId, quality, qualityStatus, approvalHoldCount }) {
+  const payload = {
+    report_id: report.report_id,
+    workflow_run_id: runId,
+    brand_key: report.brand_key,
+    report_type: report.report_type,
+    report_schema_version: report.schema_version,
+    status: "approval_pending",
+    quality_status: qualityStatus,
+    insight_count: quality.insight_count,
+    action_count: quality.action_count,
+    approval_hold_count: approvalHoldCount,
+  };
+  const activityKey = String(report.activity_intelligence?.businessActivityTypeKey || "").trim();
+  if (activityKey) payload.business_activity_type_key = activityKey;
+  return payload;
+}
+
 async function withTransaction(pool, operation) {
   if (typeof pool.getConnection !== "function") return operation(pool);
   const connection = await pool.getConnection();
@@ -58,7 +100,11 @@ async function withTransaction(pool, operation) {
   }
 }
 
-export async function persistGrowthIntelligencePilot(result, { pool, requestedBy = null } = {}) {
+export async function persistGrowthIntelligencePilot(result, {
+  pool,
+  requestedBy = null,
+  outboxMode = "disabled",
+} = {}) {
   if (!pool || typeof pool.query !== "function") throw new Error("A database pool is required.");
   if (!result?.ok || !result?.report?.report_id) throw new Error("A completed Growth Intelligence pilot result is required.");
   if (result.readback?.provider_writes !== 0 || result.readback?.external_sends !== 0 || result.secrets_included !== false) {
@@ -66,8 +112,10 @@ export async function persistGrowthIntelligencePilot(result, { pool, requestedBy
     error.code = "growth_pilot_persistence_boundary_failed";
     throw error;
   }
+  const normalizedOutboxMode = normalizeOutboxMode(outboxMode);
 
   return withTransaction(pool, async (connection) => {
+    if (normalizedOutboxMode === "dev_transactional") await assertDevOutboxDatabase(connection);
     const report = result.report;
     const quality = qualityMetrics(report);
     const qualityStatus = quality.evidence_coverage >= 0.8 && quality.assumption_count === 0 ? "pass" : quality.evidence_coverage >= 0.5 ? "warn" : "fail";
@@ -180,8 +228,38 @@ export async function persistGrowthIntelligencePilot(result, { pool, requestedBy
       );
     }
 
+    let outboxEvent = null;
+    if (normalizedOutboxMode === "dev_transactional") {
+      outboxEvent = await enqueuePlatformOutboxEvent({
+        connection,
+        eventType: OUTBOX_EVENT_TYPE,
+        schemaVersion: 1,
+        aggregateType: "growth_intelligence_report",
+        aggregateId: report.report_id,
+        tenantId: report.tenant_id,
+        workspaceId: null,
+        sourceEnvironment: "development",
+        occurredAt: new Date(report.generated_at),
+        payload: growthIntelligenceOutboxPayload({
+          report,
+          runId,
+          quality,
+          qualityStatus,
+          approvalHoldCount: holds.length,
+        }),
+        metadata: {
+          producer_key: "growth_intelligence_registry",
+          workflow_key: WORKFLOW_KEY,
+          correlation_id: correlationId,
+        },
+        secretsIncluded: false,
+      });
+    }
+
     return {
       persistence_mode: "internal_registry",
+      outbox_mode: normalizedOutboxMode,
+      outbox_event_id: outboxEvent?.event_id || null,
       report_id: report.report_id,
       workflow_run_id: runId,
       insight_count: report.growth_opportunities.length,

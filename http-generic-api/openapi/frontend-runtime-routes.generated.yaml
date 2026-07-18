@@ -3551,29 +3551,6 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
-  /sessions:
-    get:
-      operationId: getSessions8e284b9c
-      summary: GET /sessions (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/sessionRoutes.js
-      x-mad4b-runtime-auth:
-        profile: backend_or_user
-        principal: authenticated
-        guard_chain:
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-          - JWT_SECRET
   /sessions/{id}:
     get:
       operationId: getSessionsById351ccc35
@@ -8129,36 +8106,6 @@ paths:
     post:
       operationId: postGptSessionsByIdConversationRefMarkPrimary1f13242a
       summary: POST /gpt/sessions/{id}/conversation-ref/mark-primary (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/gptSessionRoutes.js
-      x-mad4b-runtime-auth:
-        profile: backend_or_user
-        principal: authenticated
-        guard_chain:
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-          - JWT_SECRET
-  /gpt/sessions/{id}/turns:
-    post:
-      operationId: postGptSessionsByIdTurns7fbd190c
-      summary: POST /gpt/sessions/{id}/turns (runtime operation index)
       description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
       tags:
         - runtime-route-index

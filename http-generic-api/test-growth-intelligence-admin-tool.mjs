@@ -65,6 +65,14 @@ async function expectCode(promise, code) {
 }
 
 assert.doesNotThrow(() => assertGrowthIntelligencePilotAdminSafety({ persistence_mode: "internal_registry" }));
+assert.doesNotThrow(() => assertGrowthIntelligencePilotAdminSafety({
+  persistence_mode: "internal_registry",
+  outbox_mode: "dev_transactional",
+}));
+assert.throws(
+  () => assertGrowthIntelligencePilotAdminSafety({ outbox_mode: "production" }),
+  (error) => error?.code === "growth_pilot_admin_outbox_mode_invalid"
+);
 assert.throws(
   () => assertGrowthIntelligencePilotAdminSafety({ persistence_mode: "none" }),
   (error) => error?.code === "growth_pilot_admin_persistence_mode_invalid"
@@ -79,15 +87,18 @@ assert.throws(
 );
 
 let persistedPilot = null;
+let persistedOptions = null;
 const result = await runGrowthIntelligencePilotAdmin({
   tenant_id: tenant.tenant_id,
   brand_key: "arab_cooling",
   business_activity_type_key: "business_and_industrial_products",
   persistence_mode: "internal_registry",
+  outbox_mode: "dev_transactional",
 }, {
   pool: fakePool(),
-  async persistPilot(pilot) {
+  async persistPilot(pilot, options) {
     persistedPilot = pilot;
+    persistedOptions = options;
     return {
       persistence_mode: "internal_registry",
       report_id: pilot.report.report_id,
@@ -128,6 +139,7 @@ assert.equal(result.brand_key, "arab_cooling");
 assert.equal(result.business_activity_type_key, "business_and_industrial_products");
 assert.equal(result.resolution.brand_core_asset_count, 2);
 assert.equal(result.registry.approval_holds.length, 3);
+assert.equal(persistedOptions.outboxMode, "dev_transactional");
 assert.equal(result.readback.persisted_report_found, true);
 assert.equal(result.readback.persisted_insight_count, 3);
 assert.equal(result.readback.persisted_action_count, 3);
