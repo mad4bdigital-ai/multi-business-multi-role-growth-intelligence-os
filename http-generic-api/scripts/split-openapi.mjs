@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { assertOpenApiResponseObjects } from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
