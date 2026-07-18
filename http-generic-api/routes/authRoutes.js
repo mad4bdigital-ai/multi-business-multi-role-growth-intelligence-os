@@ -14,6 +14,15 @@ import {
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
+import { hasVerifiedGoogleIdentity, normalizeAuthEmail } from "../authIdentityNormalization.js";
+import {
+  consumeTenantGptOAuthAuthorizationCode,
+  persistTenantGptOAuthAuthorizationCode,
+} from "../tenantGptOAuthAuthorizationCodeStore.js";
+import {
+  isDuplicateEntryError,
+  recoverGoogleJitIdentityAfterDuplicate,
+} from "../tenantGptGoogleJitRecovery.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -99,22 +108,6 @@ async function ensurePasswordResetTables() {
       KEY \`idx_auth_email_outbox_recipient\` (\`recipient_email\`, \`created_at\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
-}
-
-// Single-use OAuth code tracking: jti → expiry ms. Lazily cleaned.
-const _usedOAuthCodeJtis = new Map();
-function _markOAuthCodeUsed(jti, expSecs) {
-  _usedOAuthCodeJtis.set(jti, expSecs * 1000);
-  if (_usedOAuthCodeJtis.size > 1000) {
-    const now = Date.now();
-    for (const [k, e] of _usedOAuthCodeJtis) {
-      if (e <= now) _usedOAuthCodeJtis.delete(k);
-    }
-  }
-}
-function _isOAuthCodeUsed(jti) {
-  const exp = _usedOAuthCodeJtis.get(jti);
-  return exp !== undefined && exp > Date.now();
 }
 
 function cleanOption(value, allowed, fallback = null) {
@@ -224,11 +217,12 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
   const hasUserId = typeof user_id === "string" && user_id.trim();
-  const hasEmail = typeof email === "string" && email.trim();
+  const normalizedEmail = normalizeAuthEmail(email);
+  const hasEmail = Boolean(normalizedEmail);
   if (!hasUserId && !hasEmail) return null;
 
   const where = hasUserId ? "u.user_id = ?" : "u.email = ?";
-  const param = hasUserId ? user_id.trim() : email.trim();
+  const param = hasUserId ? user_id.trim() : normalizedEmail;
   const [rows] = await pool.query(
     `SELECT u.user_id, u.email, u.display_name, u.status
        FROM \`users\` u
@@ -267,14 +261,24 @@ async function fetchJwtClientMembership(pool, userId, requestedTenantId) {
 
 async function ensureDefaultWorkspaceForUser(connection, { userId, email, displayName, source }) {
   const [memberships] = await connection.query(
-    `SELECT m.tenant_id
+    `SELECT m.tenant_id,
+            m.status AS membership_status,
+            t.status AS tenant_status
        FROM \`memberships\` m
-      WHERE m.user_id = ? AND m.status = 'active'
-      ORDER BY m.granted_at ASC
-      LIMIT 1`,
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ?
+      ORDER BY m.granted_at ASC`,
     [userId]
   );
-  if (memberships.length) return { created: false, tenant_id: memberships[0].tenant_id };
+
+  const activeMembership = memberships.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+  if (activeMembership) return { created: false, tenant_id: activeMembership.tenant_id };
+  if (memberships.some((row) => row.membership_status !== "active")) {
+    throw authRouteFailure(403, "membership_revoked", "The existing workspace membership is not active.");
+  }
+  if (memberships.some((row) => row.tenant_status !== "active")) {
+    throw authRouteFailure(403, "tenant_suspended", "The existing workspace is not active.");
+  }
 
   const tenantId = randomUUID();
   const tenantName = `${displayName || email || "User"}'s workspace`;
@@ -538,7 +542,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
 <body>
   <main>
     <h1>Growth Intelligence Platform</h1>
-    <p>Sign in to connect this GPT to your tenant workspace and continue activation.</p>
+    <p>Sign in or create your workspace to continue securely in ChatGPT.</p>
     <nav aria-label="Sign-in options">
       ${showGoogle ? '<button type="button" data-panel="google">Google</button>' : ''}
       ${showEmail ? '<button type="button" data-panel="email">Existing account</button>' : ''}
@@ -563,8 +567,6 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     </section>` : ''}
     <div id="error" class="error" role="alert"></div>
     <div class="links">
-      <a href="https://auth.mad4b.com/connect" target="_blank" rel="noopener">Open setup page</a>
-      <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
       <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
@@ -665,7 +667,8 @@ export function buildAuthRoutes(deps) {
   const oauthGoogleClient = deps?.googleClient || googleClient;
 
   async function registerUserCredential(input = {}) {
-    const { email, password, display_name, tenant_display_name } = input;
+    const { email: rawEmail, password, display_name, tenant_display_name } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password || !display_name) {
       throw authRouteFailure(400, "missing_fields", "email, password, and display_name are required.");
     }
@@ -715,7 +718,8 @@ export function buildAuthRoutes(deps) {
   }
 
   async function loginUserCredential(input = {}) {
-    const { email, password } = input;
+    const { email: rawEmail, password } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password) {
       throw authRouteFailure(400, "missing_fields", "email and password are required.");
     }
@@ -772,10 +776,12 @@ export function buildAuthRoutes(deps) {
       throw authRouteFailure(401, "invalid_token", "Invalid Google ID token.");
     }
 
-    const { sub: provider_id, email, name: display_name } = payload || {};
-    if (!provider_id || !email) {
-      throw authRouteFailure(401, "invalid_token", "Google ID token is missing the required identity claims.");
+    if (!hasVerifiedGoogleIdentity(payload)) {
+      throw authRouteFailure(401, "google_identity_not_verified", "Google ID token must include a verified email identity.");
     }
+    const provider_id = String(payload.sub).trim();
+    const email = normalizeAuthEmail(payload.email);
+    const display_name = cleanText(payload.name || email, 120);
 
     const pool = resolvePool();
     const connection = await pool.getConnection();
@@ -828,7 +834,18 @@ export function buildAuthRoutes(deps) {
       await connection.commit();
     } catch (error) {
       await connection.rollback();
-      throw error;
+      if (!isDuplicateEntryError(error)) throw error;
+
+      const recovered = await recoverGoogleJitIdentityAfterDuplicate({
+        pool,
+        connection,
+        provider_id,
+        email,
+        display_name,
+        ensureWorkspace: ensureDefaultWorkspaceForUser,
+      });
+      if (!recovered?.user_id) throw error;
+      user_id = recovered.user_id;
     } finally {
       connection.release();
     }
@@ -1009,19 +1026,31 @@ export function buildAuthRoutes(deps) {
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
+      const codeJti = randomUUID();
+      const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
+      const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
       const code = jwt.sign(
         {
           purpose: "custom_gpt_oauth_code",
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri: canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri,
+          redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
           activation_context,
         },
         JWT_SECRET,
-        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: randomUUID() }
+        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+      await persistTenantGptOAuthAuthorizationCode({
+        query,
+        jti: codeJti,
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id || null,
+        client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+        redirect_uri: canonicalRedirectUri,
+        expires_at: codeExpiresAt,
+      });
 
       return res.status(200).json({
         ok: true,
@@ -1110,11 +1139,16 @@ export function buildAuthRoutes(deps) {
         logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
-      if (_isOAuthCodeUsed(codePayload.jti)) {
-        logTokenExchange("failed", "oauth_code_reuse", 400);
-        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used." });
+      const codeConsumption = await consumeTenantGptOAuthAuthorizationCode({
+        query: tokenQuery,
+        jti: codePayload.jti,
+        client_id: clientValidation.client_id,
+        redirect_uri: codePayload.redirect_uri,
+      });
+      if (!codeConsumption.consumed) {
+        logTokenExchange("failed", "oauth_code_reuse_or_binding_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used or does not match this client." });
       }
-      _markOAuthCodeUsed(codePayload.jti, codePayload.exp);
 
       const pool = resolvePool();
       const [userRows] = await pool.query(

@@ -37,6 +37,16 @@ OpenAI GPT Actions require the OAuth fields to be configured in the GPT Builder 
 
 The popup may use Google as upstream identity proof, but `/auth/oauth/token` must mint a fresh Mad4B-signed tenant JWT for ChatGPT. ChatGPT then sends that JWT as `Authorization: Bearer <token>` on tenant action calls. The Tenant GPT must not ask users for passwords, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or registration credentials in chat.
 
+## JIT onboarding and activation contract
+
+Tenant account creation, password sign-in, and Google sign-in stay inside the ChatGPT OAuth popup. Normal onboarding must not redirect to `/connect`; that surface remains optional for support, administration, and device recovery only.
+
+Google JIT identity requires a stable subject plus `email_verified=true`, and email values are normalized before lookup or persistence. Duplicate signup races must recover the canonical active user and workspace without creating replacement resources for inactive accounts, revoked memberships, or suspended tenants.
+
+OAuth authorization-code replay protection is durable across processes and restarts. Store only hashes and bounded binding metadata, bind each code to its client and redirect URI, enforce expiry, and consume it atomically once. A replay or binding mismatch returns `invalid_grant` without exposing raw code material.
+
+Tenant onboarding should prefer `connect_bootstrap`. It derives user and tenant identity from the signed JWT, supports Managed mode by default, creates one eligible workspace only when needed, refuses ambiguous or blocked workspace states, activates Managed mode idempotently, and performs final state readback. Activation is successful only when readback confirms `connection_mode=managed` and `status=active`; responses must include no secrets.
+
 ## Google Sign-In localization
 
 Google Identity Services localization must remain account/browser-driven by default. Do not hardcode or dynamically inject `locale` into `google.accounts.id.renderButton`, and do not append `hl` to the `gsi/client` script URL for the standard Tenant GPT, Connect, or Local Manager sign-in surfaces. Omitting both lets Google select the language from the signed-in Google Account or browser settings and avoids conflicting locale state across the button, account chooser, and consent flow.
