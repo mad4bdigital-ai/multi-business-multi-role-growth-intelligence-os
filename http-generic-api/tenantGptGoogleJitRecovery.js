@@ -94,6 +94,6 @@ export async function recoverGoogleJitIdentityAfterDuplicate({
     await connection.rollback();
     throw error;
   } finally {
-    connection.release();
+    if (ownsConnection) connection.release();
   }
 }
