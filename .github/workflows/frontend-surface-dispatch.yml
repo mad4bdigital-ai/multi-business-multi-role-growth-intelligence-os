@@ -55,25 +55,6 @@ jobs:
       - run: npm ci
       - name: Generate source-pinned dispatch plan
         run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}"
-      - name: Emit generated evidence for governed readback
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const files = [
-            ['dispatch-json', 'frontend-surface-dispatch.generated.json'],
-            ['runtime-openapi', 'openapi/frontend-runtime-routes.generated.yaml'],
-          ];
-          const chunkSize = 20000;
-          for (const [label, file] of files) {
-            const encoded = fs.readFileSync(file).toString('base64');
-            const total = Math.ceil(encoded.length / chunkSize);
-            for (let index = 0; index < total; index += 1) {
-              const chunk = encoded.slice(index * chunkSize, (index + 1) * chunkSize);
-              const sequence = String(index).padStart(3, '0');
-              console.log(`::notice title=${label}-${sequence}-of-${total}::${chunk}`);
-            }
-          }
-          NODE
       - name: Verify generator contract
         run: |
           node test-frontend-surface-dispatch.mjs
