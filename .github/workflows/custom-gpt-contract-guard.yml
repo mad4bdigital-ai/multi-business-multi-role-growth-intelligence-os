@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "http-generic-api/openapi*.yaml"
+      - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "http-generic-api/package.json"
