@@ -5,6 +5,7 @@ const READ_ONLY_TOOLS = new Set([
   "admin_tool_catalog_search",
   "governed_migration_schema_readback",
   "governance_resolve_context",
+  "growth_intelligence_report_read",
 ]);
 
 const MUTATING_TOOLS = new Set([
@@ -128,6 +129,26 @@ export function validateGovernanceResolveContextArgs(toolArgs) {
     if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs[key] || ""))) {
       throw new Error(`Invalid governance context ${key}.`);
     }
+  }
+  return toolArgs;
+}
+
+const GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+]);
+
+export function validateGrowthIntelligenceReportReadArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence report read arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence report read argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error("Growth Intelligence report read requires a tenant UUID.");
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error("Invalid Growth Intelligence report_id.");
   }
   return toolArgs;
 }
@@ -329,6 +350,7 @@ export async function runClient(args = parseArgs()) {
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
     if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
     if (target === "governance_resolve_context") validateGovernanceResolveContextArgs(toolArgs);
+    if (target === "growth_intelligence_report_read") validateGrowthIntelligenceReportReadArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
     if (mutationRequested) {
       applyAuthoritySource = requireApplyAuthorization({
