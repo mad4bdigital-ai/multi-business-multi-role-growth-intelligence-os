@@ -112,7 +112,7 @@ paths:
           required: true
           schema: { type: string, enum: [pr_2474_generated_docs_conflict] }
       responses:
-        '200': { description: "Case-study analysis, plan, dry-run, and comment preview", content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '200': { description: Case-study analysis, plan, dry-run, and comment preview, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

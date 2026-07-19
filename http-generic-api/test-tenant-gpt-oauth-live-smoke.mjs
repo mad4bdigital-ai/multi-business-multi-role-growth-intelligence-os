@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import jwt from "jsonwebtoken";
 import { LIVE_SMOKE_CONFIRMATION, runTenantGptOAuthLiveSmoke } from "./scripts/tenant-gpt-oauth-live-smoke.mjs";
 
@@ -69,4 +70,12 @@ assert.deepEqual(cleanupParams, ["access-jti", "code-jti"]);
 const serialized = JSON.stringify(result);
 for (const secret of [clientSecret, userToken, code, accessToken, "backend-key"]) assert.equal(serialized.includes(secret), false);
 await assert.rejects(() => runTenantGptOAuthLiveSmoke({ user_id: userId, tenant_id: tenantId, confirm: "NO" }), (error) => error?.code === "live_smoke_confirmation_required");
+
+const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
+assert.match(adminCli, /tenant_gpt_oauth_live_smoke:\s*\{\s*command:\s*process\.execPath/);
+assert.match(adminCli, /tenant-gpt-oauth-live-smoke\.mjs/);
+assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}allow_extra_args:\s*true/);
+assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}max_extra_args:\s*3/);
+assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}built_in:\s*true/);
+assert.doesNotMatch(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}(client_secret|backend_api_key|jwt_secret)/i);
 console.log("PASS tenant-gpt-oauth-live-smoke");

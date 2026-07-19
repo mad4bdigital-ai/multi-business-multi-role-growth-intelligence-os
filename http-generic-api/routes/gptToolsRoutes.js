@@ -77,6 +77,7 @@ import {
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
+import { normalizeRegistryTags } from "../registryTagParser.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -2269,7 +2270,7 @@ async function fetchTools(callerType) {
     description: r.description,
     method: r.http_method,
     path: r.http_path,
-    tags: r.tags ? r.tags.split(",").map((t) => t.trim()) : [],
+    tags: normalizeRegistryTags(r.tags),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
@@ -2300,7 +2301,7 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     if (!rows?.[0]) continue;
     return {
       method: rows[0].http_method || "",
-      tags: String(rows[0].tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      tags: normalizeRegistryTags(rows[0].tags),
       source: table,
     };
   }

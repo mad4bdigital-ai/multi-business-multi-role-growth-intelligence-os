@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a84e1af70e47abe7b5252fd1ec286f0f16d9d14b0fc4cadb8e9fc6b7e98b6514",
+    "source_digest": "e4ec9e1079bc54d9d645577c901840150164f4e28790179b7093ce47a650e73f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -21,12 +21,12 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "5e59d8ba3d5db6f994863ec198df65c3df59fc6287ce49fd18738714be7e5008",
+        "sha256": "423239751b20fefcfd4b5829b59d5fcc4165e2642e8af4d282bebd6e6c798275",
         "present": true
       },
       {
         "file": "openapi/async-release-deploy.yaml",
-        "sha256": "08cf9f809403a5dca9f2f635b4bafa164b466ef33107b0e6200e4e660600047f",
+        "sha256": "f7411e9433cb8efc0b368e791a094a435a9a7a981d87170299255db689079bc3",
         "present": true
       },
       {
@@ -91,7 +91,7 @@
       },
       {
         "file": "openapi/repo-conflict-intelligence.yaml",
-        "sha256": "6494bd0dc56f170d24f788e4ede47db95b3f8ba28dff8f609bebdbfb6f08c4db",
+        "sha256": "808aa76d004e823dc84eecd0ac731d3204bbed11da17b1c9a7540acacb3dd763",
         "present": true
       },
       {
@@ -286,7 +286,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
+        "sha256": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
         "present": true
       },
       {
@@ -10127,7 +10127,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10254,7 +10254,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10767,7 +10767,7 @@
       "family_key": "auth.unresolved",
       "label": "auth (unresolved)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "ba16da261a16f8f54539515c4215e02aa5295d9b0bf13a3cea3c794142e794d9",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
