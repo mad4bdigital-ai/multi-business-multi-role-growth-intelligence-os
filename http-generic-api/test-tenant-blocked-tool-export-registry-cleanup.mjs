@@ -34,8 +34,9 @@ const inClause = migration.match(/t\.tool_key IN \(([\s\S]*?)\)\s*;/)?.[1] || ""
 const coveredKeys = [...inClause.matchAll(/'([a-z0-9_]+)'/g)].map((match) => match[1]);
 assert.deepEqual(coveredKeys, expectedToolKeys);
 
-const updateStatements = migration.match(/\bUPDATE\b/gi) || [];
-assert.equal(updateStatements.length, 1, "cleanup migration must contain exactly one UPDATE statement");
+const executableSql = migration.replace(/^\s*--.*$/gm, "");
+const updateStatements = executableSql.match(/\bUPDATE\b/gi) || [];
+assert.equal(updateStatements.length, 1, "cleanup migration must contain exactly one executable UPDATE statement");
 
 for (const forbidden of [
   /\bDROP\b/i,
