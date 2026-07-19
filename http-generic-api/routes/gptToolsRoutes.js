@@ -16,6 +16,11 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import {
+  assertTenantToolManifestAllows,
+  filterTenantToolsByManifest,
+  loadTenantToolManifestBlocks,
+} from "../tenantToolManifestGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
