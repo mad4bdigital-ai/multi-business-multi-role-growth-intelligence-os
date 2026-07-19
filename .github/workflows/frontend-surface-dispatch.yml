@@ -137,14 +137,20 @@ jobs:
           function quoteUnquotedFlowDescriptions(file) {
             const lines = fs.readFileSync(file, 'utf8').split('\n');
             let changed = 0;
-            const normalized = lines.map((line) => line.replace(
-              /description:\s*([^"'\[{][^{}]*?,[^{}]*?)(?=,\s*(?:content|headers|links):\s*\{)/g,
-              (match, description) => {
-                const escaped = description.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-                changed += 1;
-                return `description: "${escaped}"`;
-              },
-            ));
+            const quoteDescription = (match, description) => {
+              const escaped = description.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              changed += 1;
+              return `description: "${escaped}"`;
+            };
+            const normalized = lines.map((line) => line
+              .replace(
+                /description:\s*([^"'\[{][^{}\n]*?,[^{}\n]*?)(?=,\s*(?:content|headers|links):\s*\{)/g,
+                quoteDescription,
+              )
+              .replace(
+                /description:\s*([^"'\[{][^{}\n]*?,[^{}\n]*?)(?=\s*})/g,
+                quoteDescription,
+              ));
             if (changed === 0) throw new Error(`No malformed flow descriptions found in ${file}`);
             fs.writeFileSync(file, normalized.join('\n'));
             console.log(`Quoted ${changed} malformed OpenAPI flow descriptions in ${file}.`);
