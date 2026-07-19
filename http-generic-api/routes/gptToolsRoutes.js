@@ -16,6 +16,11 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import {
+  assertTenantToolManifestAllows,
+  filterTenantToolsByManifest,
+  loadTenantToolManifestBlocks,
+} from "../tenantToolManifestGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
@@ -77,6 +82,7 @@ import {
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
 import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
+import { normalizeRegistryTags } from "../registryTagParser.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -2247,7 +2253,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v1"),
+    sqlCacheKey("tools", callerType, "list", "v2"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
@@ -2260,8 +2266,14 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
+  const blockedTenantManifests = callerType === "tenant"
+    ? await loadTenantToolManifestBlocks(getPool())
+    : new Map();
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key))
+    ? filterTenantToolsByManifest(
+        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+        blockedTenantManifests
+      )
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
@@ -2269,7 +2281,7 @@ async function fetchTools(callerType) {
     description: r.description,
     method: r.http_method,
     path: r.http_path,
-    tags: r.tags ? r.tags.split(",").map((t) => t.trim()) : [],
+    tags: normalizeRegistryTags(r.tags),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
@@ -2300,7 +2312,7 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     if (!rows?.[0]) continue;
     return {
       method: rows[0].http_method || "",
-      tags: String(rows[0].tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      tags: normalizeRegistryTags(rows[0].tags),
       source: table,
     };
   }
@@ -2336,6 +2348,10 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  if (callerType === "tenant") {
+    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+  }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
@@ -4051,7 +4067,12 @@ export function buildGptToolsRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "tool_call_failed", message: err.message }
+        error: {
+        code: err.code || "tool_call_failed",
+        message: err.message,
+        ...(err.details ? { details: err.details } : {}),
+      },
+      secrets_included: false
       });
     }
   });

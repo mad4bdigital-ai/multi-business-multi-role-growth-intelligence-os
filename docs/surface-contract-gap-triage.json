@@ -3,12 +3,12 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 28,
+  "total_triaged_items": 31,
   "class_counts": {
-    "new_surface_immediate_review": 27,
+    "new_surface_immediate_review": 30,
     "safety_marker_review": 1
   },
-  "gate_candidate_count": 27,
+  "gate_candidate_count": 30,
   "gate_candidate_files": [
     "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
     "20260717_tenant_task_source_repair_apply_gate.sql",
@@ -17,11 +17,12 @@
     "20260718_github_list_issue_comments_endpoint.sql",
     "20260718_tenant_connect_bootstrap_tool.sql",
     "20260714_tenant_connection_shadow_contract_bootstrap.sql",
+    "20260719_fix_growth_intelligence_report_read_tool_path.sql",
     "20260715_capability_envelope_template_resolver.sql",
     "20260715_dynamic_container_canary_promotion_tool.sql",
     "20260714_async_release_deploy_contract.sql",
-    "20260716_self_healing_release_advisor.sql",
     "20260716_repository_main_moved_trigger_coordinator.sql",
+    "20260716_self_healing_release_advisor.sql",
     "20260717_virtual_tool_capability_projection.sql",
     "20260717_runtime_contract_root_cause_reconciliation.sql",
     "20260718_growth_intelligence_report_read_tool.sql",
@@ -30,7 +31,9 @@
     "20260718_repair_activation_session_context_tool_registration.sql",
     "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
     "1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
+    "20260718_virtual_tool_single_file_mutation_classification.sql",
     "20260718_expand_resource_authority_shell_alias_contract.sql",
+    "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql",
     "20260717_virtual_tool_readback_readiness.sql",
     "20260716_self_healing_release_advisor_mutation_policy.sql",
     "20260715_dynamic_container_rollout_readiness_current_evidence.sql",
@@ -129,7 +132,7 @@
     },
     {
       "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
-      "score": 984,
+      "score": 983,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -211,7 +214,7 @@
     },
     {
       "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
-      "score": 870,
+      "score": 869,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -253,7 +256,7 @@
     },
     {
       "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
-      "score": 851,
+      "score": 850,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -333,8 +336,50 @@
       }
     },
     {
+      "migration_file": "20260719_fix_growth_intelligence_report_read_tool_path.sql",
+      "score": 833,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260715_capability_envelope_template_resolver.sql",
-      "score": 817,
+      "score": 816,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -457,8 +502,8 @@
       }
     },
     {
-      "migration_file": "20260716_self_healing_release_advisor.sql",
-      "score": 783,
+      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
+      "score": 782,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -501,7 +546,7 @@
       }
     },
     {
-      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
+      "migration_file": "20260716_self_healing_release_advisor.sql",
       "score": 782,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
@@ -860,8 +905,51 @@
       }
     },
     {
+      "migration_file": "20260718_virtual_tool_single_file_mutation_classification.sql",
+      "score": 648,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260718_expand_resource_authority_shell_alias_contract.sql",
-      "score": 588,
+      "score": 587,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -880,6 +968,50 @@
         "no_raw_secrets",
         "no_external_send",
         "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql",
+      "score": 567,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send"
       ],
       "remediation_action_keys": [
         "document_surface_contract",
@@ -948,7 +1080,7 @@
     },
     {
       "migration_file": "20260716_self_healing_release_advisor_mutation_policy.sql",
-      "score": 549,
+      "score": 548,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1115,7 +1247,7 @@
     },
     {
       "migration_file": "20260715_supervisor_behavioral_certification_capability_policy.sql",
-      "score": 518,
+      "score": 517,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",

@@ -15,6 +15,38 @@ function requireText(name, value) {
   return normalized;
 }
 
+const CREATE_AUTHORIZATION_CODE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS \`tenant_gpt_oauth_authorization_codes\` (
+  \`code_jti_hash\` CHAR(64) NOT NULL,
+  \`user_id\` VARCHAR(64) NOT NULL,
+  \`tenant_id\` VARCHAR(64) NULL,
+  \`client_id\` VARCHAR(191) NOT NULL,
+  \`redirect_uri_hash\` CHAR(64) NOT NULL,
+  \`status\` ENUM('issued','consumed','expired','revoked') NOT NULL DEFAULT 'issued',
+  \`expires_at\` DATETIME NOT NULL,
+  \`consumed_at\` DATETIME NULL,
+  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (\`code_jti_hash\`),
+  KEY \`idx_tenant_gpt_oauth_codes_status_expiry\` (\`status\`, \`expires_at\`),
+  KEY \`idx_tenant_gpt_oauth_codes_user_created\` (\`user_id\`, \`created_at\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
+
+function isMissingAuthorizationCodeTable(error) {
+  return error?.code === "ER_NO_SUCH_TABLE"
+    || Number(error?.errno) === 1146
+    || /tenant_gpt_oauth_authorization_codes[^\n]*(?:doesn't exist|does not exist)/i.test(String(error?.message || ""));
+}
+
+async function runWithAuthorizationCodeTableRecovery(execute, operation) {
+  try {
+    return { result: await operation(), table_recovered: false };
+  } catch (error) {
+    if (!isMissingAuthorizationCodeTable(error)) throw error;
+    await execute(CREATE_AUTHORIZATION_CODE_TABLE_SQL);
+    return { result: await operation(), table_recovered: true };
+  }
+}
+
 export async function persistTenantGptOAuthAuthorizationCode({
   query,
   jti,
@@ -32,21 +64,22 @@ export async function persistTenantGptOAuthAuthorizationCode({
   const expiresAt = expires_at instanceof Date ? expires_at : new Date(expires_at);
   if (Number.isNaN(expiresAt.getTime())) throw new TypeError("expires_at must be a valid date.");
 
-  await execute(
+  const params = [
+    sha256(normalizedJti),
+    normalizedUserId,
+    tenant_id ? String(tenant_id).trim() : null,
+    normalizedClientId,
+    sha256(normalizedRedirectUri),
+    expiresAt,
+  ];
+  const persisted = await runWithAuthorizationCodeTableRecovery(execute, () => execute(
     `INSERT INTO \`tenant_gpt_oauth_authorization_codes\`
       (code_jti_hash, user_id, tenant_id, client_id, redirect_uri_hash, status, expires_at)
      VALUES (?, ?, ?, ?, ?, 'issued', ?)`,
-    [
-      sha256(normalizedJti),
-      normalizedUserId,
-      tenant_id ? String(tenant_id).trim() : null,
-      normalizedClientId,
-      sha256(normalizedRedirectUri),
-      expiresAt,
-    ],
-  );
+    params,
+  ));
 
-  return { stored: true };
+  return { stored: true, table_recovered: persisted.table_recovered };
 }
 
 export async function consumeTenantGptOAuthAuthorizationCode({
@@ -60,7 +93,8 @@ export async function consumeTenantGptOAuthAuthorizationCode({
   const normalizedClientId = requireText("client_id", client_id);
   const normalizedRedirectUri = requireText("redirect_uri", redirect_uri);
 
-  const [result] = await execute(
+  const params = [sha256(normalizedJti), normalizedClientId, sha256(normalizedRedirectUri)];
+  const consumed = await runWithAuthorizationCodeTableRecovery(execute, () => execute(
     `UPDATE \`tenant_gpt_oauth_authorization_codes\`
         SET status = 'consumed', consumed_at = CURRENT_TIMESTAMP
       WHERE code_jti_hash = ?
@@ -69,8 +103,12 @@ export async function consumeTenantGptOAuthAuthorizationCode({
         AND status = 'issued'
         AND consumed_at IS NULL
         AND expires_at > CURRENT_TIMESTAMP`,
-    [sha256(normalizedJti), normalizedClientId, sha256(normalizedRedirectUri)],
-  );
+    params,
+  ));
+  const [result] = consumed.result;
 
-  return { consumed: Number(result?.affectedRows || 0) === 1 };
+  return {
+    consumed: Number(result?.affectedRows || 0) === 1,
+    table_recovered: consumed.table_recovered,
+  };
 }
