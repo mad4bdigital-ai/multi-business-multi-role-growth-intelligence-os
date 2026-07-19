@@ -10,6 +10,9 @@
 - [ ] `repo_patch_batch_apply` remains an Admin alias, Tenant projection is absent, and the compiled manifest keeps `apply_allowed=0`.
 - [ ] Shadow readback contract reports `shadow_only` or ready independently from generic certification; certification and shadow/canary promotion remain separately gated.
 - [ ] No provider call, credential payload read, raw-secret output, external send/write, deployment, or automatic callable activation occurred during migration apply or parity verification; `secrets_included=false`.
+- [ ] Corrective migration `20260718_virtual_tool_single_file_mutation_classification.sql` is checksum-bound, zero-risk, additive, and applied after the original projection/readback migrations.
+- [ ] `single_file_mutation` and `atomic_change_set` both classify as `state_changing` when they resolve to one canonical capability, and `OPERATION_CLASS_AMBIGUOUS` plus `MUTATION_CLASSIFICATION_REQUIRED` debt is resolved.
+- [ ] Registry tool tags normalize equivalently from arrays, JSON-array strings, and legacy CSV before mutation-policy, typed-confirmation, and readback checks.
 
 
 ## GitHub Actions diagnostics endpoint parity
