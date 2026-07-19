@@ -5,7 +5,11 @@ const correction = readFileSync(
   new URL("./migrations/20260718_virtual_tool_single_file_mutation_classification.sql", import.meta.url),
   "utf8",
 );
-const bindingMigration = readFileSync(
+const singleFileBindingMigration = readFileSync(
+  new URL("./migrations/1036_sprint69_capability_enablement_virtual_admin_tool_bridge.sql", import.meta.url),
+  "utf8",
+);
+const batchBindingMigration = readFileSync(
   new URL("./migrations/311_sprint69_platform_tool_dispatch_binding_integrity.sql", import.meta.url),
   "utf8",
 );
@@ -28,8 +32,8 @@ for (const marker of [
   assert.match(correction, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
 
-assert.match(bindingMigration, /'repo_patch_apply'[\s\S]*?'github_file_patch_apply'[\s\S]*?'single_file_mutation'/);
-assert.match(bindingMigration, /'repo_patch_batch_apply'[\s\S]*?'github_file_patch_apply'[\s\S]*?'atomic_change_set'/);
+assert.match(singleFileBindingMigration, /'repo_patch_apply'[\s\S]*?'github_file_patch_apply'[\s\S]*?'single_file_mutation'/);
+assert.match(batchBindingMigration, /'repo_patch_batch_apply'[\s\S]*?'github_file_patch_apply'[\s\S]*?'atomic_change_set'/);
 assert.doesNotMatch(correction, /repo_patch_(?:apply|batch_apply)|github_file_patch_apply/i);
 assert.doesNotMatch(correction, /\bDROP\s+(?:TABLE|DATABASE)|\bTRUNCATE\s+TABLE|\bDELETE\s+FROM/i);
 
