@@ -5,6 +5,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const GITHUB_RE = /^github:\/\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/;
 const SHELL_ALIAS_RE = /^shell:\/\/([A-Za-z0-9._-]+)$/;
+const PRINCIPAL_ID_RE = /^[A-Za-z0-9._:-]{1,64}$/;
+const PRINCIPAL_TYPES = new Set(["user", "service", "backend_api_key"]);
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod", "staging", "release"]);
 
 const RECIPES = Object.freeze({
@@ -56,6 +58,62 @@ function requireUuid(value, field) {
     throw badRequest("platform_resource_authority_grant_invalid_uuid", `${field} must be a UUID.`, { field });
   }
   return normalized;
+}
+
+function normalizePrincipal(args = {}) {
+  const rawPrincipal = args.principal && typeof args.principal === "object" && !Array.isArray(args.principal)
+    ? args.principal
+    : null;
+  const legacyUserIdInput = text(args.user_id, 64);
+  const legacyUserId = legacyUserIdInput ? requireUuid(legacyUserIdInput, "user_id") : "";
+
+  if (!rawPrincipal) {
+    if (!legacyUserId) {
+      throw badRequest(
+        "platform_resource_authority_grant_principal_required",
+        "principal or legacy user_id is required."
+      );
+    }
+    return {
+      principal_type: "user",
+      principal_id: legacyUserId,
+      legacy_user_id: legacyUserId,
+    };
+  }
+
+  const principalType = text(rawPrincipal.principal_type, 32);
+  if (!PRINCIPAL_TYPES.has(principalType)) {
+    throw badRequest(
+      "platform_resource_authority_grant_invalid_principal_type",
+      "principal.principal_type must be user, service, or backend_api_key.",
+      { principal_type: principalType, allowed_principal_types: [...PRINCIPAL_TYPES] }
+    );
+  }
+
+  let principalId = text(rawPrincipal.principal_id, 64);
+  if (!principalId) {
+    throw badRequest(
+      "platform_resource_authority_grant_principal_id_required",
+      "principal.principal_id is required.",
+      { field: "principal.principal_id" }
+    );
+  }
+  if (principalType === "user") principalId = requireUuid(principalId, "principal.principal_id");
+  else if (!PRINCIPAL_ID_RE.test(principalId)) {
+    throw badRequest(
+      "platform_resource_authority_grant_invalid_principal_id",
+      "principal.principal_id contains unsupported characters.",
+      { field: "principal.principal_id" }
+    );
+  }
+  if (legacyUserId && (principalType !== "user" || legacyUserId !== principalId)) {
+    throw badRequest(
+      "platform_resource_authority_grant_principal_conflict",
+      "user_id may only accompany a matching user principal."
+    );
+  }
+
+  return { principal_type: principalType, principal_id: principalId, legacy_user_id: legacyUserId || null };
 }
 
 function requireSha(value, field) {
@@ -135,7 +193,8 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
 
   const tenant_id = requireUuid(args.tenant_id, "tenant_id");
   const workspace_id = requireUuid(args.workspace_id, "workspace_id");
-  const user_id = requireUuid(args.user_id, "user_id");
+  const principal = normalizePrincipal(args);
+  const user_id = principal.principal_id;
 
   const recipe_key = text(args.recipe_key, 128);
   const recipe = RECIPES[recipe_key];
@@ -191,6 +250,10 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
       secrets_included: false,
     };
   }
+  normalizedResourceRef.principal = {
+    principal_type: principal.principal_type,
+    principal_id: principal.principal_id,
+  };
 
   const permission_level = text(args.permission_level || recipe.permission_level, 32);
   if (permission_level !== recipe.permission_level) {
@@ -212,6 +275,7 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
     tenant_id,
     workspace_id,
     user_id,
+    principal,
     resource_type,
     resource_uri: normalizedUri.resource_uri,
     recipe_key,
@@ -268,7 +332,7 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
 
   const [[row]] = await pool.query(
     `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, recipe_key,
-            permission_level, allowed_modes_json, authority_source, expires_at, status, created_at
+            permission_level, allowed_modes_json, authority_source, resource_ref_json, expires_at, status, created_at
        FROM platform_resource_authority_bindings
       WHERE binding_id = ?
       LIMIT 1`,
@@ -281,10 +345,29 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
     throw err;
   }
 
+  let storedResourceRef;
+  try {
+    storedResourceRef = typeof row.resource_ref_json === "string" ? JSON.parse(row.resource_ref_json) : row.resource_ref_json || {};
+  } catch {
+    storedResourceRef = {};
+  }
+  const storedPrincipal = storedResourceRef.principal;
+  if (
+    storedPrincipal?.principal_type !== plan.principal.principal_type ||
+    storedPrincipal?.principal_id !== plan.principal.principal_id
+  ) {
+    const err = new Error("Resource authority principal readback failed after insert.");
+    err.code = "platform_resource_authority_grant_principal_readback_failed";
+    err.statusCode = 500;
+    throw err;
+  }
+  const binding = { ...row, principal: storedPrincipal };
+  delete binding.resource_ref_json;
+
   return {
     ok: true,
     mode: "apply",
-    binding: row,
+    binding,
     readback_verified: true,
     expected_confirm: plan.expected_confirm,
     secrets_included: false,
