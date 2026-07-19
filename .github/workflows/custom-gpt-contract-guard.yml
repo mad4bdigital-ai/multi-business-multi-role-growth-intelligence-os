@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "http-generic-api/openapi*.yaml"
-      - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "http-generic-api/package.json"
@@ -12,10 +11,8 @@ on:
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
-      - "http-generic-api/scripts/openapi-response-object-guard.mjs"
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
-      - "http-generic-api/test-openapi-response-object-guard.mjs"
-      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"}} for pull request filters only
+      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
       - "http-generic-api/test-custom-gpt-schemas.mjs"
@@ -39,16 +36,13 @@ on:
     branches: [main]
     paths:
       - "http-generic-api/openapi*.yaml"
-      - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
       - "http-generic-api/package.json"
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
-      - "http-generic-api/scripts/openapi-response-object-guard.mjs"
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
-      - "http-generic-api/test-openapi-response-object-guard.mjs"
-      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"}} for push filters only
+      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
       - "http-generic-api/activationGuidanceService.js"

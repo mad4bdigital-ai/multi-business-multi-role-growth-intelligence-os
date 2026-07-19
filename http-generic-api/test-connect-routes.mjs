@@ -7,6 +7,8 @@
  * Run: node test-connect-routes.mjs
  */
 
+// frontend-surface-operation: POST /connect/bootstrap
+
 import express from "express";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";

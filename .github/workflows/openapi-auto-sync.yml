@@ -11,8 +11,7 @@ on:
       - "http-generic-api/test-openapi-builder-schema-guard.mjs"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi.*.yaml"
-      - "http-generic-api/openapi/**/*.yaml"
-      - "http-generic-api/openapi-route-coverage.allowlist.json"}}
+      - "http-generic-api/openapi-route-coverage.allowlist.json"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/openapi-*.mjs"
@@ -91,7 +90,7 @@ jobs:
         id: diff
         shell: bash
         run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
+          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
 
           if [ -z "$CHANGED_FILES" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"

@@ -135,7 +135,8 @@ await stage("runtime_overlay_isolation", async () => {
     source: "tenant-activation-test-pool",
     async query(sql, params) {
       assert.match(sql, /SELECT session_id, originator, session_status, brand_key, workspace_key/);
-      assert.match(sql, /WHERE tenant_id = \? AND user_id = \?/);
+      assert.match(sql, /WHERE tenant_id = \?\s+AND user_id = \?/);
+      assert.match(sql, /AND originator = 'gpt_action'/);
       assert.doesNotMatch(sql, /SELECT\s+\*|cs\.\*|base_instructions|git_|metadata_json|email/i);
       sessionListQueries.push({ sql, params: [...params] });
       const [tenantId, userId] = params;

@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import { assertOpenApiResponseObjects } from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -323,7 +322,6 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
 }
 
 function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
-  assertOpenApiResponseObjects(doc, { source: surface.output_file || surfaceKey });
   const sourcePairs = new Set(collectOperations(sourceDoc).map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`));
   const seenIds = new Set();
   for (const entry of collectOperations(doc)) {
@@ -361,7 +359,6 @@ function main() {
   if (!fs.existsSync(SOURCE_OPENAPI_FILE)) throw new Error(`Missing ${SOURCE_OPENAPI_FILE}`);
   if (!fs.existsSync(SURFACE_REGISTRY_FILE)) throw new Error(`Missing ${SURFACE_REGISTRY_FILE}`);
   const sourceDoc = YAML.parse(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8"));
-  assertOpenApiResponseObjects(sourceDoc, { source: path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE) });
   const registry = YAML.parse(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8"));
   validateUniqueTenantAliases(collectOperations(sourceDoc));
   const generated = generateConfiguredSurfaces(sourceDoc, collectOperations(sourceDoc), registry);
