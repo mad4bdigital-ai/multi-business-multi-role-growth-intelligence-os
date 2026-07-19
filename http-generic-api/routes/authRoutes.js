@@ -203,7 +203,12 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID(), compact = false } = {}) {
+function issueTenantGptAccessToken(payload, {
+  clientId = TENANT_GPT_OAUTH_CLIENT_ID,
+  jwtid = randomUUID(),
+  compact = false,
+  resource = "",
+} = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -214,15 +219,20 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
   const email = payload?.email ? String(payload.email).trim() : null;
   const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  const normalizedResource = cleanTenantGptOAuthResource(resource);
   const claims = {
     iss: PLATFORM_JWT_ISSUER,
-    aud: TENANT_GPT_JWT_AUDIENCE,
+    aud: normalizedResource
+      ? [TENANT_GPT_JWT_AUDIENCE, normalizedResource]
+      : TENANT_GPT_JWT_AUDIENCE,
     sub: subject,
     user_id: userId,
     tenant_id: tenantId,
     scope: TENANT_GPT_SCOPE,
     purpose: "tenant_gpt_access",
   };
+
+  if (normalizedResource) claims.resource = normalizedResource;
 
   if (!compact) {
     claims.email = email;
