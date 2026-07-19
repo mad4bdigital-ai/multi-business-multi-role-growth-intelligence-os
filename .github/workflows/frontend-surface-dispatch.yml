@@ -221,8 +221,8 @@ jobs:
         run: |
           mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //' | sort)
           allowed=(
-            "../.github/workflows/custom-gpt-contract-guard.yml"
-            "../.github/workflows/openapi-auto-sync.yml"
+            ".github/workflows/custom-gpt-contract-guard.yml"
+            ".github/workflows/openapi-auto-sync.yml"
             "frontend-surface-dispatch.generated.json"
             "openapi.yaml"
             "openapi/async-release-deploy.yaml"
