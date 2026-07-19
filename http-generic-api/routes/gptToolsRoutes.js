@@ -2347,6 +2347,10 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  if (callerType === "tenant") {
+    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+  }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
