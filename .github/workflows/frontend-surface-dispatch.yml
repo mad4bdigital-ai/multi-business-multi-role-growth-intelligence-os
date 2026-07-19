@@ -225,8 +225,10 @@ jobs:
             "../.github/workflows/openapi-auto-sync.yml"
             "frontend-surface-dispatch.generated.json"
             "openapi.yaml"
+            "openapi/async-release-deploy.yaml"
             "openapi/frontend-runtime-routes.generated.yaml"
             "openapi/openapi.tenant-gpt.activation.yaml"
+            "openapi/repo-conflict-intelligence.yaml"}} phenom typo? No close? Let's see. In JSON string valid.
             "package.json"
             "scripts/generate-custom-gpt-schemas.mjs"
             "scripts/split-openapi.mjs"
