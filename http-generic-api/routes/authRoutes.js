@@ -339,13 +339,20 @@ function callbackPatternToRegExp(pattern) {
   return new RegExp(`^${escaped}$`, "i");
 }
 
-async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
+async function resolveTenantGptRedirectUriDecision(redirectUri, queryFn) {
   const url = parseOAuthRedirectUri(redirectUri);
-  if (!url) return false;
+  if (!url) return { allowed: false, configuration_available: true, error_code: null };
 
   const normalized = url.toString();
   const canonical = canonicalizeTenantGptRedirectUri(normalized);
   const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
+  if (!resolved.ok) {
+    return {
+      allowed: false,
+      configuration_available: false,
+      error_code: String(resolved.error || "oauth_configuration_unavailable").slice(0, 64),
+    };
+  }
   const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
     ? resolved.config.callback_urls_to_allow
     : [];
@@ -355,9 +362,11 @@ async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
     return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(candidate);
   }
 
-  return callbacks.some((callback) => {
-    return matches(callback, normalized) || matches(callback, canonical);
-  });
+  return {
+    allowed: callbacks.some((callback) => matches(callback, normalized) || matches(callback, canonical)),
+    configuration_available: true,
+    error_code: null,
+  };
 }
 
 function appendOAuthParams(redirectUri, params) {
@@ -595,7 +604,10 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
         body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
-      if (!codeRes.ok || !codeData.redirect_to) throw new Error(codeData?.error?.message || "Could not complete OAuth sign-in.");
+      if (!codeRes.ok || !codeData.redirect_to) {
+        const reference = codeData?.error?.request_id ? " Reference: " + codeData.error.request_id : "";
+        throw new Error((codeData?.error?.message || "Could not complete OAuth sign-in.") + reference);
+      }
       window.location.assign(codeData.redirect_to);
     }
     async function submitCredentials(kind, form){
@@ -657,6 +669,35 @@ function sendAuthRouteFailure(res, error, fallbackCode) {
   return res.status(500).json({
     ok: false,
     error: { code: fallbackCode, message: error?.message || "Authentication failed." },
+  });
+}
+
+function sendOAuthInfrastructureFailure(res, {
+  requestId,
+  stage,
+  error,
+  code,
+  message,
+}) {
+  const diagnosticCode = String(error?.code || "").trim().slice(0, 64) || null;
+  const diagnosticSqlState = String(error?.sqlState || "").trim().slice(0, 16) || null;
+  const diagnosticErrno = Number.isInteger(Number(error?.errno)) ? Number(error.errno) : null;
+  console.error("tenant_gpt_oauth_code_issue_failed", {
+    request_id: requestId,
+    stage,
+    error_code: diagnosticCode,
+    error_errno: diagnosticErrno,
+    sql_state: diagnosticSqlState,
+    secrets_included: false,
+  });
+  res.setHeader("x-request-id", requestId);
+  return res.status(503).json({
+    ok: false,
+    error: {
+      code,
+      message,
+      request_id: requestId,
+    },
   });
 }
 
@@ -991,7 +1032,11 @@ export function buildAuthRoutes(deps) {
     }
 
     const query = (sql, params) => resolvePool().query(sql, params);
-    if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
+    const redirectDecision = await resolveTenantGptRedirectUriDecision(redirectUri, query);
+    if (!redirectDecision.configuration_available) {
+      return res.status(503).type("text/plain").send("OAuth configuration is temporarily unavailable. Please retry.");
+    }
+    if (!redirectDecision.allowed) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
@@ -1003,6 +1048,8 @@ export function buildAuthRoutes(deps) {
   });
 
   router.post("/oauth/code", async (req, res) => {
+    const requestId = randomUUID();
+    let stage = "request_validation";
     try {
       const { token, credential, redirect_uri, state } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
@@ -1016,10 +1063,18 @@ export function buildAuthRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
-      if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
+      stage = "oauth_client_config";
+      const redirectDecision = await resolveTenantGptRedirectUriDecision(redirect_uri, query);
+      if (!redirectDecision.configuration_available) {
+        const error = new Error("OAuth client configuration is unavailable.");
+        error.code = redirectDecision.error_code || "oauth_configuration_unavailable";
+        throw error;
+      }
+      if (!redirectDecision.allowed) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
 
+      stage = "identity_resolution";
       const payload = token
         ? jwt.verify(token, JWT_SECRET)
         : await resolveTenantGptOAuthCredential(credential);
@@ -1029,6 +1084,7 @@ export function buildAuthRoutes(deps) {
       const codeJti = randomUUID();
       const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
       const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
+      stage = "authorization_code_sign";
       const code = jwt.sign(
         {
           purpose: "custom_gpt_oauth_code",
@@ -1042,6 +1098,7 @@ export function buildAuthRoutes(deps) {
         JWT_SECRET,
         { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+      stage = "authorization_code_store";
       await persistTenantGptOAuthAuthorizationCode({
         query,
         jti: codeJti,
@@ -1063,10 +1120,43 @@ export function buildAuthRoutes(deps) {
       if (Number.isInteger(error?.auth_status) && error?.auth_code) {
         return sendAuthRouteFailure(res, error, "oauth_identity_failed");
       }
-      if (!req.body?.token) {
-        return res.status(500).json({ ok: false, error: { code: "oauth_identity_failed", message: "OAuth identity could not be resolved." } });
+      if (stage === "oauth_client_config") {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_configuration_unavailable",
+          message: "OAuth configuration is temporarily unavailable. Please retry.",
+        });
       }
-      return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
+      if (stage === "authorization_code_store") {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_code_store_unavailable",
+          message: "OAuth sign-in is temporarily unavailable. Please retry.",
+        });
+      }
+      if (stage === "identity_resolution" && !req.body?.token) {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_identity_unavailable",
+          message: "OAuth identity service is temporarily unavailable. Please retry.",
+        });
+      }
+      if (stage === "identity_resolution" && req.body?.token) {
+        return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
+      }
+      return sendOAuthInfrastructureFailure(res, {
+        requestId,
+        stage,
+        error,
+        code: "oauth_code_issue_unavailable",
+        message: "OAuth sign-in is temporarily unavailable. Please retry.",
+      });
     }
   });
 
