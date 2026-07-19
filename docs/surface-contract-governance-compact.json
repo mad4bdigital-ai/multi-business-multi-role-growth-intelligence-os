@@ -1,17 +1,17 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 95.17,
+  "docs_completion_percent": 94.81,
   "docs_complete_count": 512,
-  "docs_gap_count": 26,
-  "queue_items": 26,
-  "blocking_new_item_count": 26,
+  "docs_gap_count": 28,
+  "queue_items": 28,
+  "blocking_new_item_count": 28,
   "gate_ok": false,
   "top_actionable": [
     {
       "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
       "queue_class": "critical_review",
-      "score": 1077,
+      "score": 1076,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
@@ -41,13 +41,13 @@
     {
       "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
       "queue_class": "critical_review",
-      "score": 850,
+      "score": 851,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
       "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
       "queue_class": "critical_review",
-      "score": 839,
+      "score": 838,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -70,15 +70,15 @@
     }
   ],
   "openapi_missing_sql_route_count": 2,
-  "openapi_exempt_sql_route_count": 661,
-  "total_sql_route_like_count": 684,
-  "safety_marker_gap_migrations": 2,
+  "openapi_exempt_sql_route_count": 662,
+  "total_sql_route_like_count": 685,
+  "safety_marker_gap_migrations": 3,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 26,
-    "warning_new_item_count": 26
+    "blocking_new_item_count": 28,
+    "warning_new_item_count": 28
   },
   "safety": {
     "executes_provider_calls": false,

@@ -10,6 +10,7 @@ import {
   sanitizeResult,
   validateDevBaseUrl,
   validateGovernanceResolveContextArgs,
+  validateGrowthIntelligenceReportReadArgs,
   validateGrowthIntelligencePilotArgs,
   validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
@@ -104,6 +105,22 @@ for (const blockedContextArgs of [
   { business_type_key: "hvac_air_conditioning_services", brand_key: "arab_cooling" },
 ]) {
   assert.throws(() => validateGovernanceResolveContextArgs(blockedContextArgs));
+}
+
+const safeReportReadArgs = {
+  tenant_id: "4bc39fca-270e-4daa-b373-db75e1f36ccd",
+  report_id: "pilot-allroyalegypt-20260718-1",
+};
+assert.equal(validateGrowthIntelligenceReportReadArgs(safeReportReadArgs), safeReportReadArgs);
+assert.equal(isToolMutation("growth_intelligence_report_read", safeReportReadArgs), false);
+for (const blockedReportReadArgs of [
+  { ...safeReportReadArgs, decision: "accepted" },
+  { ...safeReportReadArgs, tenant_id: "not-a-uuid" },
+  { ...safeReportReadArgs, report_id: "" },
+  { ...safeReportReadArgs, report_id: "../report" },
+  { tenant_id: safeReportReadArgs.tenant_id },
+]) {
+  assert.throws(() => validateGrowthIntelligenceReportReadArgs(blockedReportReadArgs));
 }
 
 const capabilityEnvelopeId = "70891f74-0200-4942-843e-18cf4ba6643a";
