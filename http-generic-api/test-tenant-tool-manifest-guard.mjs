@@ -76,8 +76,9 @@ assert.match(routeSource, /filterTenantToolsByManifest\(/);
 assert.match(routeSource, /assertTenantToolManifestAllows\(callerType, toolKey, blockedTenantManifests\)/);
 assert.match(routeSource, /secrets_included: false/);
 
-const dispatchGuardIndex = routeSource.indexOf("assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)");
-const preflightIndex = routeSource.indexOf("resolveToolPreflightDescriptor(callerType, toolKey)");
+const dispatchSource = routeSource.slice(routeSource.indexOf("async function dispatchTool(callerType, toolKey, args, req)"));
+const dispatchGuardIndex = dispatchSource.indexOf("assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)");
+const preflightIndex = dispatchSource.indexOf("resolveToolPreflightDescriptor(callerType, toolKey)");
 assert.ok(dispatchGuardIndex >= 0 && dispatchGuardIndex < preflightIndex, "manifest guard must run before dispatch preflight");
 
 console.log("Tenant tool manifest guard tests passed.");
