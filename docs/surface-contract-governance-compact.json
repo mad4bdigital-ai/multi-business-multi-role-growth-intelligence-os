@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 95.17,
+  "docs_completion_percent": 94.99,
   "docs_complete_count": 512,
-  "docs_gap_count": 26,
-  "queue_items": 26,
-  "blocking_new_item_count": 26,
+  "docs_gap_count": 27,
+  "queue_items": 27,
+  "blocking_new_item_count": 27,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -47,7 +47,7 @@
     {
       "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
       "queue_class": "critical_review",
-      "score": 839,
+      "score": 838,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 26,
-    "warning_new_item_count": 26
+    "blocking_new_item_count": 27,
+    "warning_new_item_count": 27
   },
   "safety": {
     "executes_provider_calls": false,
