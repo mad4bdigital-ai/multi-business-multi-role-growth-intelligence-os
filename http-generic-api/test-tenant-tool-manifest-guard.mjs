@@ -67,7 +67,7 @@ assert.equal(loaded.get("blocked_tool"), "blocked");
 assert.equal(loaded.has("shadow_tool"), false);
 assert.match(observedSql, /platform_capability_compiled_manifests/);
 assert.match(observedSql, /is_current = 1/);
-assert.deepEqual(observedParams, ["tenant_tool.", "tenant_tool.%"]);
+assert.deepEqual(observedParams, ["tenant_tool.", "tenant_tool.", "tenant_tool."]);
 
 const routeSource = fs.readFileSync("./routes/gptToolsRoutes.js", "utf8");
 assert.match(routeSource, /sqlCacheKey\("tools", callerType, "list", "v2"\)/);
