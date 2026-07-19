@@ -157,6 +157,8 @@ jobs:
           }
 
           quoteUnquotedFlowDescriptions('openapi.yaml');
+          quoteUnquotedFlowDescriptions('openapi/async-release-deploy.yaml');
+          quoteUnquotedFlowDescriptions('openapi/repo-conflict-intelligence.yaml');
 
           replaceRequired(
             'scripts/split-openapi.mjs',
