@@ -143,6 +143,19 @@ function cleanTenantGptRequestedScope(value) {
   return granted.length ? granted.join(" ") : "";
 }
 
+function cleanTenantGptOAuthResource(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return "";
+    if (url.pathname.replace(/\/+$/, "")) return "";
+    return TENANT_GPT_ALLOWED_RESOURCES.has(url.origin) ? url.origin : "";
+  } catch {
+    return "";
+  }
+}
+
 function safeOAuthScopeEvidence(value) {
   const scopes = String(value || "").split(/\s+/).filter(Boolean);
   return {
