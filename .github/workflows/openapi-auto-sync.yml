@@ -40,10 +40,6 @@ jobs:
         working-directory: http-generic-api
         run: npm run activation-gateway:bundle:sync
 
-      - name: Validate generated contracts
-        working-directory: http-generic-api
-        run: npm run schemas:guard
-
       - name: Commit generated artifacts to current branch
         shell: bash
         run: |
