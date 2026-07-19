@@ -6,36 +6,36 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 541,
+    "migrations_with_surfaces": 542,
     "docs_complete_count": 512,
-    "docs_gap_count": 29,
-    "docs_completion_percent": 94.64,
+    "docs_gap_count": 30,
+    "docs_completion_percent": 94.46,
     "gap_severity_counts": {
       "high": 18,
-      "medium": 10,
+      "medium": 11,
       "low": 1,
       "none": 512
     },
     "surface_totals": {
       "plugins": 13,
-      "tools": 2524,
-      "views": 465,
+      "tools": 2530,
+      "views": 471,
       "policies": 188,
       "routes": 686
     },
     "migrations_by_surface_type": {
       "plugins": 10,
-      "tools": 459,
-      "views": 184,
+      "tools": 460,
+      "views": 185,
       "policies": 127,
       "routes": 279
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 27,
       "deployment_parity_checklist.md": 27,
-      "docs/ai-docs-agent-governance.md": 27,
-      "docs/auto-docs-agent/README.md": 29,
-      "docs/change-documentation-governance.md": 29
+      "docs/ai-docs-agent-governance.md": 28,
+      "docs/auto-docs-agent/README.md": 30,
+      "docs/change-documentation-governance.md": 30
     },
     "safety_marker_counts": {
       "no_provider_call": 524,
@@ -43,7 +43,7 @@
       "no_raw_secrets": 519,
       "no_external_send": 519,
       "no_external_write": 525,
-      "secrets_included_false": 537
+      "secrets_included_false": 538
     },
     "safety_marker_gap_migrations": 4,
     "route_coverage": {
@@ -66,27 +66,27 @@
     }
   },
   "queue": {
-    "total_items": 29,
+    "total_items": 30,
     "class_counts": {
       "critical_review": 20,
-      "high_review": 8,
+      "high_review": 9,
       "medium_review": 1,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 29,
+    "total_items": 30,
     "class_counts": {
-      "new_surface_immediate_review": 28,
+      "new_surface_immediate_review": 29,
       "safety_marker_review": 1
     },
-    "gate_candidate_count": 28
+    "gate_candidate_count": 29
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 29,
-    "blocking_new_item_count": 29
+    "new_item_count": 30,
+    "blocking_new_item_count": 30
   },
   "top_immediate_items": [
     {
@@ -426,7 +426,7 @@
     },
     {
       "migration_file": "20260715_capability_envelope_template_resolver.sql",
-      "score": 817,
+      "score": 816,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
