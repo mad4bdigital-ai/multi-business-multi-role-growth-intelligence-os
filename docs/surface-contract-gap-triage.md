@@ -4,14 +4,15 @@
 
 ## Summary
 
-- Triaged items: 26
+- Triaged items: 27
 - Gate candidates: 26
 - New-gap gate: fail
-- Blocking new items: 26
+- Blocking new items: 27
 
 ## Class counts
 
 - new_surface_immediate_review: 26
+- safety_marker_review: 1
 
 ## Immediate review candidates
 
@@ -21,12 +22,12 @@
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 887; next: add targeted patch-index, parity, and governance documentation
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, score 870; next: add targeted patch-index, parity, and governance documentation
 - `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 850; next: add targeted patch-index, parity, and governance documentation
-- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 839; next: add targeted patch-index, parity, and governance documentation
+- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 838; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 817; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 805; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 788; next: add targeted patch-index, parity, and governance documentation
-- `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 783; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 783; next: add targeted patch-index, parity, and governance documentation
+- `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 782; next: add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_capability_projection.sql` — critical_review, score 741; next: add targeted patch-index, parity, and governance documentation
 - `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, score 737; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation

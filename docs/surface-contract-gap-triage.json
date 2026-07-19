@@ -3,9 +3,10 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 26,
+  "total_triaged_items": 27,
   "class_counts": {
-    "new_surface_immediate_review": 26
+    "new_surface_immediate_review": 26,
+    "safety_marker_review": 1
   },
   "gate_candidate_count": 26,
   "gate_candidate_files": [
@@ -19,8 +20,8 @@
     "20260715_capability_envelope_template_resolver.sql",
     "20260715_dynamic_container_canary_promotion_tool.sql",
     "20260714_async_release_deploy_contract.sql",
-    "20260716_repository_main_moved_trigger_coordinator.sql",
     "20260716_self_healing_release_advisor.sql",
+    "20260716_repository_main_moved_trigger_coordinator.sql",
     "20260717_virtual_tool_capability_projection.sql",
     "20260717_runtime_contract_root_cause_reconciliation.sql",
     "20260715_dynamic_container_canary_probe_sampler_tool.sql",
@@ -295,7 +296,7 @@
     },
     {
       "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
-      "score": 839,
+      "score": 838,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -455,7 +456,7 @@
       }
     },
     {
-      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
+      "migration_file": "20260716_self_healing_release_advisor.sql",
       "score": 783,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
@@ -499,8 +500,8 @@
       }
     },
     {
-      "migration_file": "20260716_self_healing_release_advisor.sql",
-      "score": 783,
+      "migration_file": "20260716_repository_main_moved_trigger_coordinator.sql",
+      "score": 782,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1096,6 +1097,49 @@
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260718_repair_resource_authority_grant_tags_csv.sql",
+      "score": 380,
+      "queue_class": "medium_review",
+      "triage_class": "safety_marker_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "low",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "db-readback-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
