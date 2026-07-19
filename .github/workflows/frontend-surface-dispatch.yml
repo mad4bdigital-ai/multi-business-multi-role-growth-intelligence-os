@@ -234,9 +234,13 @@ jobs:
             "scripts/split-openapi.mjs"
           )
           for file in "${changed[@]}"; do
+            candidate="$file"
+            if [[ "$candidate" == http-generic-api/* ]]; then
+              candidate="${candidate#http-generic-api/}"
+            fi
             matched=false
             for expected in "${allowed[@]}"; do
-              if [[ "$file" == "$expected" ]]; then matched=true; break; fi
+              if [[ "$candidate" == "$expected" ]]; then matched=true; break; fi
             done
             if [[ "$matched" != true ]]; then
               echo "::error::Unexpected generated or patched file: $file"
