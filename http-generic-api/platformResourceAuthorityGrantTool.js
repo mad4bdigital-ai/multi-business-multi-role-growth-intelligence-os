@@ -191,7 +191,7 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
       alias: normalizedUri.alias,
       expected_commit_sha,
       arbitrary_shell_allowed: false,
-      production_execution_allowed: false,
+      production_execution_allowed: recipe.production_execution_allowed === true,
       requires_expected_commit_sha: true,
       requires_typed_confirmation: true,
       requires_same_cycle_readback: true,
