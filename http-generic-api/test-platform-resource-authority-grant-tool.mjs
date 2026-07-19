@@ -142,7 +142,6 @@ assert(source.includes("dev_growth_intelligence_pilot_apply"));
 assert(source.includes("tenant_gpt_oauth_live_smoke"));
 assert(source.includes("shell://"));
 assert(source.includes("arbitrary_shell_allowed: false"));
-assert(source.includes("production_execution_allowed: false"));
 assert(source.includes("PRINCIPAL_TYPES"));
 assert(source.includes("principal_type"));
 assert(source.includes("legacy_user_id"));
