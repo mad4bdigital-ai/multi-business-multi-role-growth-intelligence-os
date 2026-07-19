@@ -10,6 +10,8 @@ import {
   scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
 
+// frontend-surface-operation: POST /admin/repository-automation/plan
+
 const expectedCapabilities = [
   "pr_lifecycle_orchestrator",
   "migration_release_orchestrator",

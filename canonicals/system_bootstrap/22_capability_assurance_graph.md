@@ -14,6 +14,8 @@ Canonical capability authority is represented by:
 
 Compatibility projections remain valid during cutover and must not be removed until canonical parity, dispatch, readback, and rollback evidence pass.
 
+Active virtual governed tools are projected generically from `platform_tool_dispatch_bindings` through deterministic identity, operation, scope, export, provenance, and readback-contract views. Tool aliases never create authority. Missing or conflicting identity, scope, operation class, readback, or source ownership fails closed into persistent capability debt. Virtual Admin surfaces cannot become Tenant projections, and projected state-changing capabilities remain `apply_allowed=0` until generic certification and shadow/canary evidence authorize promotion.
+
 Evidence authority is `platform_evidence_events`. Envelope evidence and resource bindings are linked through `platform_capability_envelope_evidence_links` and `platform_capability_envelope_binding_links`. Evidence must preserve freshness, revocation, supersession, payload hashes, and bounded no-secret metadata.
 
 Authority requirement types are `none`, `invocation`, `resource`, `approval`, `quota`, and `combined`. Admin or Tenant exposure alone does not create permanent external-resource authority requirements. External resource mutation requires a capability-specific effective resource binding. Destructive or high-risk execution may additionally require approval, quota, readback, and rollback evidence.

@@ -4,11 +4,29 @@
 
 Production Tenant GPT OAuth verification uses `http-generic-api/scripts/tenant-gpt-oauth-live-smoke.mjs` only after CI, merge, and production deployment readback. It requires typed confirmation plus an active user and tenant membership, resolves credentials internally, verifies `authorize -> code -> token`, tenant binding and replay rejection, cleans transient activation context, and returns no raw token, code, credential, or secret. See `docs/tenant-gpt-oauth-live-smoke.md`.
 
+### Tenant GPT JIT onboarding authority
+
+Tenant account creation and sign-in remain inside the ChatGPT OAuth popup. Normal onboarding must not redirect to `/connect`; `/connect` is optional support, administration, or device-recovery infrastructure only. Google JIT identity requires a stable subject and verified normalized email, and duplicate races must recover the canonical active account without creating replacement workspaces for blocked principals.
+
+Tenant GPT OAuth authorization codes use durable hash-only persistence with client, redirect, expiry, and one-time atomic-consumption bindings. Process-local replay maps are not sufficient. Reuse, expiry, or binding mismatch must fail as `invalid_grant` without logging or returning raw code material.
+
+Tenant onboarding should call `connect_bootstrap` when available. The operation derives identity from the signed JWT, provisions one eligible workspace when absent, activates Managed mode idempotently, and performs final `connect_status`-equivalent readback. Never report activation success unless readback confirms Managed and active; multiple eligible workspaces require explicit selection, while inactive accounts, revoked memberships, and suspended tenants remain blocked.
+
 `activation.mad4b.com` is the distinct GPT Builder Action server URL for Tenant and Admin Activation schemas. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only and must not be treated as the runtime gateway. The Node application mounted on the Hostinger app enforces the activation host boundary through `http-generic-api/routes/activationHostGatewayRoutes.js` before normal route registration.
 
 Activation host requests may serve only `/`, `/health`, Activation OpenAPI schemas, `/activation/*`, `/tenant/activation/*`, and the exact Tenant GPT OAuth handoffs `GET /auth/oauth/authorize`, `POST /auth/oauth/code`, and `POST /auth/oauth/token`. The in-app gateway serves `openapi.tenant-gpt.activation.yaml`, `openapi.custom-gpt.activation-admin.yaml`, and the extensionless Tenant Activation import URL `/tenant-gpt/activation-openapi` directly before root-level protected routers. Tenant GPT builders should import Tenant Activation from `https://activation.mad4b.com/tenant-gpt/activation-openapi`; that schema uses activation-host authorization and token URLs, while the three handoffs enter the same shared `authRoutes` implementation backed by `auth.mad4b.com`. Wrong methods, wildcard OAuth paths, `/auth/login`, `/auth/register`, `/auth/google`, admin auth, and unrelated core routes remain blocked. The gateway strips cookies, preserves bearer-token activation transport, returns `secrets_included=false`, and must not itself mint tokens, perform business authorization, call providers, or transform Activation business responses.
 
 This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
+
+## Tenant Activation Session Context Isolation
+
+`GET /tenant/activation/session-context` is the Tenant-safe alias for opening or reusing Activation session context. Tenant and user identity, plus any workspace and brand context, must come from the signed OAuth JWT and authenticated membership context; Tenant callers must not override `tenant_id`, `user_id`, `workspace_id`, `workspace_key`, or `brand_key` through query parameters. The shared subject resolver rejects cross-user and cross-tenant overrides with structured `403` errors.
+
+Tenant Activation does not expose raw turn content by default. The Tenant schema and route policy must not expose `include_turns` or `context_scope`; unknown query parameters are rejected. Stored turn availability, bounded session summaries, graph memory, and product guidance remain scoped to the signed Tenant/User/Workspace/Brand context, and responses must keep `secrets_included=false`. Admin-only `/activation/session-context` remains a separate surface with `admin_service` authorization.
+
+`buildTenantActivationOverlayRoutes` accepts injectable route dependencies only to support deterministic regression tests. Production defaults remain `buildActivationSessionContext`, `buildTenantGrowthDashboard`, the runtime SQL pool, activation run lifecycle writers, and governed chunking. Dependency injection must not become caller-controlled configuration, widen Tenant permissions, expose raw turns, bypass OAuth, call providers, or change production behavior.
+
+Regression coverage must prove cross-tenant isolation, rejection of identity and raw-turn query overrides, Tenant/Admin OpenAPI separation, gateway auth-profile separation, no-secret responses, and preservation of production defaults. No per-Tenant migration or duplicated route implementation is required because the shared resolver and Tenant overlay enforce the contract centrally.
 
 ## Dynamic Container Projection Closeout Authority
 
@@ -58,6 +76,7 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `hosting_accounts` | Per-target credentials |
 | `connected_systems` | MCP/external connectors |
 | `v_activation_connected_app_connections` | Active app-level connections used by Activation auth-gap classification when no traditional `connected_systems` row exists; traditional connector counts remain unchanged |
+| `runtime_deployment_parity_status` | Production parity ledger; production `main` startup reconciles a new deployment-manifest SHA through the governed `repository.main_moved` coordinator, never by direct ledger mutation |
 | `business_type_profiles` | Business-type knowledge and engine compatibility |
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
@@ -380,6 +399,8 @@ Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certi
 
 Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
 
+Virtual governed tools must be projected from `platform_tool_dispatch_bindings` through deterministic registry reconciliation. Tool names and aliases are not authority. Identity, scope, operation, readback, or source conflicts create persistent debt and block execution. Virtual Admin surfaces must not project to Tenant, shadow readback readiness remains separate from generic certification, and all projected state-changing capabilities remain `apply_allowed=0` until certification and shadow/canary evidence pass.
+
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 
 Use `v_platform_capability_readiness_vector` for independent readiness dimensions and `v_platform_capability_assurance_gaps` for typed gaps. A maturity score must never override a failed resource, approval, quota, credential, readback, or certification gate. Resource readiness requires a capability-specific envelope-to-binding relationship; an unrelated active binding is never sufficient.
@@ -424,6 +445,11 @@ Do not use oversized `admin_control`, `connector_ps`, or `connector_github` call
 Managed and dedicated activation modes are governed by `activationModePolicy.js`. Tenant GPTs must call `connect_activate` with `tool_args.mode` set to `managed` or `dedicated`; aliases may be normalized server-side, but stored mode is canonical. Managed uses platform-managed infrastructure and credentials. Dedicated uses tenant-owned credentials/local runtime defaults, including `self_hosted_local` n8n where applicable. Mixed/hybrid behavior is per-app, not a third activation mode: use `integration_modes` or `connect_integration_policy_update` to set apps like Cloudflare/Hostinger to `dedicated` while keeping Google apps `managed`. Dedicated app secrets must be entered only through OAuth or credential intake, never pasted into GPT chat. Device install must not proceed until all integrations configured as dedicated and required for device install are active.
 
 ### Development environment governance
+
+Growth Intelligence development pilots must run only through the fixed `dev_governed_migration_client` and `dev_governed_migration_client_apply` aliases after deployment readback proves the expected commit and a database name ending in `_dev`. Dynamic authority for these aliases must use the dedicated `dev_growth_intelligence_pilot_read` or `dev_growth_intelligence_pilot_apply` recipe, an exact `shell://<alias>` resource URI, the matching single operation mode, a pinned commit SHA, bounded TTL, typed confirmation, and same-cycle readback. These recipes never authorize arbitrary shell commands, production execution, provider writes, external sends, consumer activation, or transport activation.
+
+The apply alias may dispatch only the allowlisted `growth_intelligence_pilot_run` contract with `persistence_mode=internal_registry` and `outbox_mode=dev_transactional`. Capture database and Outbox baselines before execution, require exactly one report/event outcome, confirm delivery counts remain unchanged, and keep consumer and transport states disabled/noop unless a separate governed rollout is explicitly approved.
+
 
 `dev.mad4b.com` is the governed development/staging environment for testing repo-branch deployments before production. It is not a brand site and must not be treated as production. Its active evidence should include GitHub branch, commit SHA, deployment mode, Hostinger root, and latest validation result.
 
@@ -614,6 +640,10 @@ For example, `/activation/session-context` is a runtime/admin-and-customer activ
 ### Engineering guardrails
 
 API contracts must follow OpenAPI 3.1. Public and Custom GPT schemas should use stable structured error envelopes, normally `ErrorResponse` with nested `ErrorObject` carrying machine-readable `code`, human-readable `message`, optional HTTP `status`, and optional bounded `details`.
+
+Checked-in contracts must pass deterministic lint and any applicable checked-in compatibility baseline before merge. Compatibility checks must fail closed for removed operations or success responses, changed `operationId` values, newly required parameters or request properties, removed required response properties, incompatible schema-reference or property-type changes, removed component properties, and removed enum values. Additive optional properties, operations, success responses, descriptions, examples, and enum values remain compatible unless a stricter contract policy applies.
+
+For Feature 006, the authoritative contract is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml` and its reviewed baseline is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json`. Run `npm run openapi:lint:compat` and `npm run test:openapi:lint:compat` from `http-generic-api`; both remain included in `npm run schemas:guard`. Baseline regeneration requires explicit confirmation after lint passes, and must never be used solely to silence CI. Approved breaking changes require a documented migration or deprecation plan before the baseline is accepted.
 
 When implementing layered application code, preserve folder boundaries:
 

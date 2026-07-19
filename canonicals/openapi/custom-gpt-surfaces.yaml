@@ -112,6 +112,8 @@ surfaces:
         - runTenantResolutionDiagnosticAction
         - previewTenantTaskSourceRepair
         - readTenantActivationDynamicTabDetail
+        - listSessions
+        - writeGptSessionTurns
 
   local_connector_admin:
     mode: canonical_copy

@@ -24,7 +24,7 @@
 - [x] Relationship, grant, capability, binding, endpoint, export and certification revision vectors are resolved and bound into the decision manifest.
 - [x] Grant and contextual policy composition is exposed through the resolver output.
 - [x] Obligation output and mismatch taxonomy are exposed through the resolver output.
-- [ ] Root OpenAPI, generated clients, and acceptance tests are updated during later public API implementation.
+- [x] N/A — Root OpenAPI and generated clients were not changed because Feature 006 retained its internal checked-in contract and did not alter a public API; contract lint, compatibility, and acceptance coverage passed in CI.
 
 ## Pre-PR2 and remaining-task readiness
 
@@ -44,5 +44,5 @@
 - [x] PR1 handoff evidence PR #1967 is merged.
 - [x] Pre-PR2 readiness PR #1976 is merged.
 - [x] T010 through T015 evidence is recorded.
-- [ ] Enforcement, adapter, pilot, migration, rollout, and closeout evidence is recorded.
-- [ ] Production verification and post-merge audit are complete.
+- [x] Enforcement, adapter, pilot, migration, rollout, and closeout evidence is recorded, including explicit non-authorization or non-execution where applicable.
+- [x] Production verification and post-merge audit are complete.

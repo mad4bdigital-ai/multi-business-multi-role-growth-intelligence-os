@@ -7,12 +7,15 @@
  * Run: node test-connect-routes.mjs
  */
 
+// frontend-surface-operation: POST /connect/bootstrap
+
 import express from "express";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildConnectApiRoutes } from "./routes/connectApiRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
+await import("./test-tenant-connect-bootstrap-service.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -334,10 +337,21 @@ try {
     const indexSource = readFileSync("routes/index.js", "utf8");
     assert("connect exposes explicit onboarding-state route",
       routeSource.includes('router.get("/connect/onboarding-state"') && routeSource.includes('workspace_required'));
-    assert("connect exposes tenantless-safe workspace creation and escalation routes",
+    assert("connect exposes tenantless-safe workspace creation, bootstrap, and escalation routes",
+      routeSource.includes('router.post("/connect/bootstrap"') &&
+      routeSource.includes('orchestrateTenantConnectBootstrap') &&
+      routeSource.includes('activateManagedConnectionForTenant') &&
       routeSource.includes('router.post("/connect/workspace"') &&
       routeSource.includes('router.post("/connect/escalate"') &&
       routeSource.includes('onboarding_escalations'));
+    const bootstrapMigration = readFileSync("migrations/20260718_tenant_connect_bootstrap_tool.sql", "utf8");
+    assert("tenant tool registry migration exposes connect_bootstrap with managed-only idempotent readback contract",
+      bootstrapMigration.includes("'connect_bootstrap'") &&
+      bootstrapMigration.includes("'/connect/bootstrap'") &&
+      bootstrapMigration.includes("'managed'") &&
+      bootstrapMigration.includes("idempotent") &&
+      bootstrapMigration.includes("same_cycle_readback") &&
+      bootstrapMigration.includes("no_secrets"));
     assert("connect exposes minimal /me workspace/capability control-plane",
       routeSource.includes('router.get("/me"') &&
       routeSource.includes('router.get("/me/workspaces"') &&
@@ -1032,7 +1046,7 @@ assert("Local Manager privileged installer guard returns structured fresh-auth e
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.22.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.23.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

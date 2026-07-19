@@ -232,7 +232,7 @@ export function buildRootDiscoveryRoutes() {
 
   router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
-    if (host !== "auth.mad4b.com") {
+    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com") {
       return res.status(404).json({
         ok: false,
         error: {
@@ -250,7 +250,12 @@ export function buildRootDiscoveryRoutes() {
     return res.status(200).json({
       ok: true,
       source: clientConfig.source,
-      preset: buildTenantGptOAuthPreset({ callbackUrlsToAllow }),
+      preset: buildTenantGptOAuthPreset({
+        callbackUrlsToAllow,
+        ...(host === "activation.mad4b.com" ? {
+          baseUrl: "https://activation.mad4b.com",
+        } : {}),
+      }),
     });
   });
 

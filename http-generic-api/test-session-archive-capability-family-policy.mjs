@@ -23,6 +23,6 @@ const sessionRoutes=await readFile(new URL("./routes/gptSessionRoutes.js",import
 const releaseRoutes=await readFile(new URL("./routes/releaseRoutes.js",import.meta.url),"utf8");assert.match(releaseRoutes,/release_session_archive_smoke/);assert.match(releaseRoutes,/Session archive smoke capability-family authorization denied/);assert.match(releaseRoutes,/markCapabilityEnvelopeReferenced/);
 const migration=await readFile(new URL("./migrations/20260702_session_archive_capability_family_authorization.sql",import.meta.url),"utf8"); const captureGateMigration=await readFile(new URL("./migrations/20260705_session_archive_capture_gate_and_smoke_policy.sql",import.meta.url),"utf8");for(const value of ["session_archive_write_capability_family_v1","capability_family:session_archive_write","APPLY_SESSION_ARCHIVE_BACKFILL","accepted_capability_keys"])assert.ok(migration.includes(value)); for(const value of ["gpt_session_pre_final_capture_gate_policy_v1","release_session_archive_smoke","RUN_SESSION_ARCHIVE_SMOKE","session_archive_capture_gate","capability_family:session_archive_write"])assert.ok(captureGateMigration.includes(value));
 assert.doesNotMatch(`${migration}\n${captureGateMigration}`,/CAST\s*\([^)]*AS\s+JSON/i);
-assert.match(migration,/'audit_required',TRUE\)\)\)\)\s*,\s*'provider_call_allowed'/);
-assert.doesNotMatch(migration,/'audit_required',TRUE\)\)\)\s*,\s*'provider_call_allowed'/);
+assert.match(migration,/'gpt_session_end',\s*JSON_OBJECT\([\s\S]*?'secrets_included',\s*FALSE\s*\)\s*\)\s*,\s*'provider_call_allowed',\s*FALSE/);
+assert.doesNotMatch(migration,/'gpt_session_end',\s*JSON_OBJECT\([\s\S]*?'provider_call_allowed',\s*FALSE\s*\)\s*,\s*'external_send_allowed'/);
 console.log("session archive capability-family authorization tests passed");

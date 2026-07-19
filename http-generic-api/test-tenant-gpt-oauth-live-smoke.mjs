@@ -25,7 +25,7 @@ let tokenCalls = 0;
 const fetchImpl = async (url, options = {}) => {
   const path = new URL(String(url)).pathname;
   if (path === "/auth/oauth/authorize") {
-    return response(200, '<a href="https://auth.mad4b.com/connect"></a><a href="https://auth.mad4b.com/privacy-policy"></a><a href="https://auth.mad4b.com/terms-of-use"></a>');
+    return response(200, '<a href="https://auth.mad4b.com/privacy-policy"></a><a href="https://auth.mad4b.com/terms-of-use"></a>');
   }
   if (path === "/auth/platform-jwt/issue") return response(200, { access_token: userToken });
   if (path === "/auth/oauth/code") {
@@ -58,7 +58,8 @@ const result = await runTenantGptOAuthLiveSmoke({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.authorize.absolute_links_present, true);
+assert.equal(result.authorize.policy_links_present, true);
+assert.equal(result.authorize.setup_links_absent, true);
 assert.equal(result.token_exchange.token_type, "bearer");
 assert.equal(result.token_exchange.user_id_matches, true);
 assert.equal(result.token_exchange.tenant_id_matches, true);

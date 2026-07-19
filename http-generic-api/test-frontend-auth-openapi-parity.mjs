@@ -118,6 +118,17 @@ for (const signature of resourceMutationSignatures) {
 }
 
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");
+const authContractGaps = operations
+  .filter((entry) => entry.auth_parity?.state === "unknown")
+  .map((entry) => ({
+    signature: entry.signature,
+    source_file: entry.source_file,
+    runtime_auth: entry.runtime_auth,
+    auth_parity: entry.auth_parity,
+  }));
+if (authContractGaps.length > 0) {
+  console.error("frontend auth parity gaps", JSON.stringify(authContractGaps, null, 2));
+}
 assert.equal(plan.coverage.auth_contract_gap_count, 0, "runtime and canonical OpenAPI authentication must have complete parity");
 assert.equal(plan.coverage.operation_policy_issue_count, 0, "all exact auth and operation rules must resolve uniquely");
 assert(plan.coverage.openapi_generated_index_count > 0, "high-confidence runtime operations must be represented in the generated OpenAPI index");

@@ -1,17 +1,17 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "6ea87be48d656e138a8862c0edebf773d5bbef37",
-    "source_digest": "3e512440931499c8fe9734c21e0221d857889f6f87f909dc8462aa38a2be5b29",
+    "ref": "main",
+    "source_digest": "e4ec9e1079bc54d9d645577c901840150164f4e28790179b7093ce47a650e73f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "431cee85ee253aebd7eb452f33af29781ffacaee5c360258efeed7722fcc5b93",
+        "sha256": "6555cc38fa054ac444f0435b6e34b9241387250569aaa9dd0220d97002cae597",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "3e9338c594d25122e825be047b69c0a70c098874a95ae922115512629bdd8964",
+        "sha256": "6383ccb13104f512314e66b4a948b2b83eeb92c9abbaf5ebf0eab8810e1d84cb",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "3790fd7850d85fd8a45e9e10fd9c718c412d183c6bee2731e50ee14aa57aaada",
+        "sha256": "423239751b20fefcfd4b5829b59d5fcc4165e2642e8af4d282bebd6e6c798275",
         "present": true
       },
       {
@@ -41,12 +41,17 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "9331120f6bf83879b49cef9f5a00ad9641e5ccfb29e2b79b550db3cd7270a898",
+        "sha256": "910e2de8b8ab81d3e49ea55ec43089359faaacda2d4255653da6afc4c318c3ec",
         "present": true
       },
       {
         "file": "openapi/github-actions-diagnostics.yaml",
         "sha256": "6b6b16507e24d10cebb5c1fe192892339d1a082be848366b124e05db87213f37",
+        "present": true
+      },
+      {
+        "file": "openapi/github-repository-main-moved-webhook.yaml",
+        "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
         "present": true
       },
       {
@@ -101,7 +106,7 @@
       },
       {
         "file": "openapi/session-insight-promotion-read-models.yaml",
-        "sha256": "f8f629bcca64eb66b87c6a2ea55993f797ba4e4f26dd5489d45fba7e83cd1f43",
+        "sha256": "5ed861f969dd4467f1023964d389029f480459d426d7cec49116dd37d6736968",
         "present": true
       },
       {
@@ -196,7 +201,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+        "sha256": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
         "present": true
       },
       {
@@ -211,12 +216,12 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "34c3683b9fe6011e79ec2f74a17b73de62da38bf84126bbb6d9fd0309c35b91a",
+        "sha256": "9e69510393562acaa628a4651a1412e4bf4e4998b341c7eef09587ccb2ab942c",
         "present": true
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
         "present": true
       },
       {
@@ -281,7 +286,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+        "sha256": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
         "present": true
       },
       {
@@ -316,7 +321,7 @@
       },
       {
         "file": "routes/connectRoutes.js",
-        "sha256": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+        "sha256": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
         "present": true
       },
       {
@@ -421,12 +426,12 @@
       },
       {
         "file": "routes/gptSessionRoutes.js",
-        "sha256": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+        "sha256": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
         "present": true
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+        "sha256": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
         "present": true
       },
       {
@@ -466,7 +471,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+        "sha256": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
         "present": true
       },
       {
@@ -481,7 +486,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+        "sha256": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
         "present": true
       },
       {
@@ -601,7 +606,7 @@
       },
       {
         "file": "routes/repositoryMainMovedTriggerRoutes.js",
-        "sha256": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+        "sha256": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
         "present": true
       },
       {
@@ -616,7 +621,7 @@
       },
       {
         "file": "routes/rootDiscoveryRoutes.js",
-        "sha256": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+        "sha256": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
         "present": true
       },
       {
@@ -746,7 +751,7 @@
       },
       {
         "file": "routes/sessionRoutes.js",
-        "sha256": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+        "sha256": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
         "present": true
       },
       {
@@ -776,7 +781,7 @@
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+        "sha256": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
         "present": true
       },
       {
@@ -836,12 +841,42 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "50f8877b50b3717b157f07f3b733c7a0b75fbc84fb6349440ba4ca544dda5f09",
+        "sha256": "eadbafcff8c1bc7d16b225267132e9202cd082637083b6cb50b88d327e13fbb7",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "a2a1d843c0e75aff6fcae3914ece6b575092787318d022bbc5bac8cf2d9a8b91",
+        "sha256": "d931010173ced0b4115c79c7695a6e863622f7034905c80aff84c1f8288a5ae8",
+        "present": true
+      },
+      {
+        "file": "test-action-endpoint-tool-manifest-resolver.mjs",
+        "sha256": "ecf338e9f724535bdfa9a8ef8f50f57ff4efb99fcbad42dbe1c644ae073b1aef",
+        "present": true
+      },
+      {
+        "file": "test-ads-governance-snapshot-proposal.mjs",
+        "sha256": "c341f0159e9cea3153bcac871b04866589dcfb9e219fee717be6cd9e0a9f3a38",
+        "present": true
+      },
+      {
+        "file": "test-agent-intelligence-runtime.mjs",
+        "sha256": "06559c86c2f4213f38f606c01bcd2702f316fdf097f734d6784316cd52ecc966",
+        "present": true
+      },
+      {
+        "file": "test-connect-routes.mjs",
+        "sha256": "2c67eee9a8967d4a2fc7ae26ede865185c055c8e603e4bdf25ec62afc5a0c5c5",
+        "present": true
+      },
+      {
+        "file": "test-gpt-session-turn-batch-capture.mjs",
+        "sha256": "b9f86fcb979a7cc3a51474a0398f4a5fe930912c75b70009420bd964d06314b8",
+        "present": true
+      },
+      {
+        "file": "test-orchestration-readback-surface.mjs",
+        "sha256": "a2d402998c5dc5a03b252f80a007fcf22346ecafe290408257d3387da6f60c3a",
         "present": true
       },
       {
@@ -850,8 +885,28 @@
         "present": true
       },
       {
+        "file": "test-platform-plugin-private-runtime.mjs",
+        "sha256": "41de935403a87a7ae8c57dc327fd1a4e69baa7805867ec810560d20f24ab074f",
+        "present": true
+      },
+      {
+        "file": "test-platform-plugin-public-rest-dispatch.mjs",
+        "sha256": "a0eadd9e833d23df6a05d8b49f8fcbafaaba80252a17539321ca096654f59c4d",
+        "present": true
+      },
+      {
         "file": "test-platform-routes.mjs",
-        "sha256": "1e3da1eea7ec8e55d96478f10a0d36ad62802309fe6bb24db3ee9ba98ee52347",
+        "sha256": "afc50b0e59a76219ffd91253ef31c8547e498711f54766a39c429ad507f309a8",
+        "present": true
+      },
+      {
+        "file": "test-remote-runtime-catalog-probe.mjs",
+        "sha256": "1869379cac484fa665670de3662d5b22e6d62c3ec27fb4ecb864ad9b9ca69b39",
+        "present": true
+      },
+      {
+        "file": "test-repository-automation-control-plane.mjs",
+        "sha256": "91cd708eafc3b659f47547948c2b3461bd9e904b2e4ea413bb241d72ae0ce582",
         "present": true
       },
       {
@@ -925,6 +980,11 @@
         "present": true
       },
       {
+        "file": "test-session-insight-remaining-scope-completion-service.mjs",
+        "sha256": "b3e6f6b2c0f20921d6ebc00053ffa2b0f09f0d2ae1ae3e473d41ae44f19808ad",
+        "present": true
+      },
+      {
         "file": "test-session-insight-target-adapter-registry-service.mjs",
         "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
         "present": true
@@ -932,6 +992,16 @@
       {
         "file": "test-session-insight-target-write-readback-service.mjs",
         "sha256": "0028f8f91f08b07ae9383fba74945d8cc201d959fbe794e2d827603420e04b5a",
+        "present": true
+      },
+      {
+        "file": "test-support-ticket-lifecycle-snapshot-proposal.mjs",
+        "sha256": "d78c3bcabd333392449016b652861e593a67c76f0e69cd73f27dfd0391c55235",
+        "present": true
+      },
+      {
+        "file": "test-tenant-activation-session-alias.mjs",
+        "sha256": "a0859e12c49019c3f719b9b3b869f3e90580699d4e59b10ccf044c79b8f33960",
         "present": true
       },
       {
@@ -961,34 +1031,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 158,
+    "mounted_family_count": 161,
     "mounted_route_file_count": 129,
-    "mixed_scope_route_file_count": 21,
-    "operation_count": 958,
-    "openapi_documented_count": 942,
-    "openapi_canonical_documented_count": 561,
-    "openapi_generated_index_count": 381,
+    "mixed_scope_route_file_count": 24,
+    "operation_count": 962,
+    "openapi_documented_count": 946,
+    "openapi_canonical_documented_count": 568,
+    "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 381,
+    "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 942,
+      "equivalent": 946,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 582,
-    "unresolved_operation_class_count": 550,
-    "classified_mutation_count": 4,
-    "governed_mutation_operation_count": 0,
+    "non_get_candidate_count": 585,
+    "unresolved_operation_class_count": 529,
+    "classified_mutation_count": 7,
+    "governed_mutation_operation_count": 2,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 147,
-    "test_owned_family_count": 4,
-    "untested_family_count": 154,
-    "test_owned_operation_count": 26,
-    "untested_operation_count": 932,
-    "ready_task_count": 1,
-    "blocked_task_count": 157,
+    "unresolved_surface_decision_count": 146,
+    "test_owned_family_count": 6,
+    "untested_family_count": 155,
+    "test_owned_operation_count": 52,
+    "untested_operation_count": 910,
+    "ready_task_count": 3,
+    "blocked_task_count": 158,
     "coverage_complete": false
   },
   "waves": [
@@ -2848,7 +2918,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -2974,7 +3044,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3347,7 +3417,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -3990,7 +4060,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "5665942d0315aa4877f737b0ebf0c08bd0e23cfedc741894e1d19a1df6f50d2d",
+      "source_digest": "a25e0fccef21a22f7b782ccfc625e2ea84ce20194a393f69ebc2235f32a45362",
       "mount_prefix": "/",
       "mount_order": 11743,
       "split_from_mixed_scope_file": true,
@@ -4606,7 +4676,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -4959,7 +5029,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5071,7 +5141,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a5d5a15bb43a0abe02d25714289563e9dd735930caf2d766608856de29500fe6",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -6260,7 +6330,7 @@
       "family_key": "root-discovery.developer",
       "label": "root discovery (developer)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -6445,7 +6515,7 @@
       "family_key": "root-discovery.public",
       "label": "root discovery (public)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -6791,7 +6861,7 @@
       "family_key": "root-discovery.unresolved",
       "label": "root discovery (unresolved)",
       "source_file": "routes/rootDiscoveryRoutes.js",
-      "source_digest": "264e74feaac2c9bac8d0ed52514ec9369291bc99a32940bce4df5c3797045ad9",
+      "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
       "mount_order": 12490,
       "split_from_mixed_scope_file": true,
@@ -6886,7 +6956,7 @@
       "family_key": "connect.public.connect-assets",
       "label": "connect (public) [connect-assets]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -6992,7 +7062,7 @@
       "family_key": "connect.public.default",
       "label": "connect (public) [default]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -7159,7 +7229,7 @@
       "family_key": "connect.tenant",
       "label": "connect (tenant)",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "b37e1f25a1dc0a45aed95897ed6ebf0093a123a64623546ab6beba84673f454e",
+      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
       "mount_prefix": "/",
       "mount_order": 12529,
       "split_from_mixed_scope_file": true,
@@ -7287,6 +7357,96 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/connect/bootstrap",
+          "signature": "POST /connect/bootstrap",
+          "source_file": "routes/connectRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-connect-routes.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": null
+            },
+            "parameter_bindings": {
+              "user_id": "auth.user_id",
+              "tenant_id": "auth.tenant_id|response.principal.workspace_key",
+              "mode": "request.body.mode|managed"
+            },
+            "blockers": [
+              "mutation_rollback_gap"
+            ],
+            "rule_id": "tenant-connect-bootstrap-governance",
+            "owner": "tenant-activation",
+            "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/connectRoutes.js",
+              "tenantConnectBootstrapService.js",
+              "test-connect-routes.mjs",
+              "test-tenant-connect-bootstrap-service.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         },
         {
           "method": "POST",
@@ -7910,7 +8070,9 @@
       "evidence_routes": [
         "GET /connect/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-connect-routes.mjs"
+      ],
       "untested_operations": [
         "GET /connect/status",
         "GET /connect/onboarding-state",
@@ -7938,7 +8100,8 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-connect-routes.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -7946,6 +8109,12 @@
         "owner": null
       },
       "operation_blockers": [
+        {
+          "signature": "POST /connect/bootstrap",
+          "blockers": [
+            "mutation_rollback_gap"
+          ]
+        },
         {
           "signature": "POST /connect/workspace",
           "blockers": [
@@ -7990,7 +8159,7 @@
         }
       ],
       "risk": {
-        "score": 6,
+        "score": 8,
         "class": "high"
       },
       "wave": "F1-tenant-shell"
@@ -9958,7 +10127,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10085,7 +10254,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -10598,7 +10767,7 @@
       "family_key": "auth.unresolved",
       "label": "auth (unresolved)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "587221dea9b575d238fb6df05bd27a643134213f09b0f5c704b212d758f7be3d",
+      "source_digest": "98ac1482d61838014ba62fd256a5eaea28ac87e562100dd29c6c98be73a4cd46",
       "mount_prefix": "/auth",
       "mount_order": 12847,
       "split_from_mixed_scope_file": true,
@@ -12178,41 +12347,40 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "tenant-activation-overlay",
-      "label": "tenant activation overlay",
+      "family_key": "tenant-activation-overlay.tenant",
+      "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "d23a6ef955367f466b93cd944fa3988222f4904c14fa337c3bb15118f2f88719",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
       "mount_prefix": "/",
       "mount_order": 13176,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "agents",
-      "scope": "unresolved",
+      "scope": "tenant",
       "operations": [
         {
           "method": "GET",
           "path": "/tenant/activation/session-context",
           "signature": "GET /tenant/activation/session-context",
           "source_file": "routes/tenantActivationOverlayRoutes.js",
-          "scope": "unresolved",
+          "scope": "tenant",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "user_jwt",
             "alternatives": [
               [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
+                "userJwtAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "tenant_user",
             "guard_chain": [
-              "requireBackendApiKey"
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -12224,10 +12392,7 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
+                "userJwtAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -12244,7 +12409,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -12257,6 +12424,128 @@
           "mutation_candidate": false,
           "mutation": false
         },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/sessions",
+          "signature": "GET /tenant/activation/sessions",
+          "source_file": "routes/tenantActivationOverlayRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "untested_operations": [],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/tenantActivationOverlayRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "surface_decision": {
+        "decision": "api_only",
+        "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+        "owner": "activation-platform",
+        "rule_id": "tenant-activation-session-api-surface",
+        "evidence_refs": [
+          "openapi/openapi.tenant-gpt.activation.yaml",
+          "routes/tenantActivationOverlayRoutes.js",
+          "test-tenant-activation-session-alias.mjs"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 0,
+        "class": "low"
+      },
+      "wave": "F1-tenant-shell"
+    },
+    {
+      "family_key": "tenant-activation-overlay.unresolved",
+      "label": "tenant activation overlay (unresolved)",
+      "source_file": "routes/tenantActivationOverlayRoutes.js",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+      "mount_prefix": "/",
+      "mount_order": 13176,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "agents",
+      "scope": "unresolved",
+      "operations": [
         {
           "method": "GET",
           "path": "/activation/session-context",
@@ -12332,7 +12621,6 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "GET /tenant/activation/session-context",
         "GET /activation/session-context"
       ],
       "resources": [],
@@ -12351,14 +12639,20 @@
         "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+        "owner": "activation-platform",
+        "rule_id": "tenant-activation-session-api-surface",
+        "evidence_refs": [
+          "openapi/openapi.tenant-gpt.activation.yaml",
+          "routes/tenantActivationOverlayRoutes.js",
+          "test-tenant-activation-session-alias.mjs"
+        ]
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
-        "class": "critical"
+        "score": 7,
+        "class": "high"
       },
       "wave": "F0-authority-resolution"
     },
@@ -12366,7 +12660,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13251,7 +13545,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "2e096f0106c80c58d05c9285dd9160246053714f40b3d52f2b3331f9d0749c20",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13801,7 +14095,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "29023d9ac7b4c9e989ac0fbba7a6bc39001983f3cca931b2167cf2b4c898d518",
+      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
       "mount_prefix": "/",
       "mount_order": 13390,
       "split_from_mixed_scope_file": false,
@@ -16938,13 +17232,13 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "repository-main-moved-trigger",
-      "label": "repository main moved trigger",
+      "family_key": "repository-main-moved-trigger.admin",
+      "label": "repository main moved trigger (admin)",
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
-      "source_digest": "eae46c543aad555f8387b28e5f1d6706a1ce5e09de911394d2bdad7bfed78f3d",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
       "mount_order": 13990,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "platform-core",
@@ -17133,6 +17427,126 @@
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "repository-main-moved-trigger.developer",
+      "label": "repository main moved trigger (developer)",
+      "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+      "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
+      "mount_prefix": "/",
+      "mount_order": 13990,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "platform-core",
+      "scope": "developer",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/webhooks/github/repository-main-moved",
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "github_webhook_hmac",
+            "alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "principal": "github_webhook",
+            "guard_chain": [
+              "requireGitHubWebhookSignature"
+            ],
+            "evidence": [
+              "route:requireGitHubWebhookSignature"
+            ],
+            "configuration_dependencies": [
+              "GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/github-repository-main-moved-webhook.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "githubWebhookSignature"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /webhooks/github/repository-main-moved"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /webhooks/github/repository-main-moved",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 6,
+        "class": "high"
+      },
+      "wave": "F5-developer-evidence"
     },
     {
       "family_key": "operational-console",
@@ -22992,17 +23406,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repository-automation-control-plane.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "repository-automation-plan-read-action",
+            "owner": "repository-automation",
+            "rationale": "The endpoint deterministically builds and hashes an automation plan in memory. It does not persist a run, dispatch a repository tool, update a branch, execute CI, deploy, or clean up resources.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "repositoryAutomationControlPlane.js",
+              "test-repository-automation-control-plane.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -23231,9 +23653,10 @@
       "evidence_routes": [
         "POST /admin/repository-automation/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-repository-automation-control-plane.mjs"
+      ],
       "untested_operations": [
-        "POST /admin/repository-automation/plan",
         "POST /admin/repository-automation/run",
         "POST /admin/repository-automation/status",
         "POST /admin/repository-automation/hygiene-scan"
@@ -23251,7 +23674,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repository-automation-control-plane.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -23259,12 +23683,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /admin/repository-automation/plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /admin/repository-automation/run",
           "blockers": [
@@ -35145,13 +35563,13 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "gpt-session",
-      "label": "gpt session",
+      "family_key": "gpt-session.admin",
+      "label": "gpt session (admin)",
       "source_file": "routes/gptSessionRoutes.js",
-      "source_digest": "c27bde1848b0e7acdd6af6df6e1579eab12f56fc4748081257f1ab5a11ac29b1",
+      "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
       "mount_prefix": "/",
       "mount_order": 15553,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "agents",
@@ -35463,7 +35881,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -35480,27 +35898,55 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-gpt-session-turn-batch-capture.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "path.id",
+              "turns": "request.body.turns",
+              "turn_ids": "response.turns[].turn_id"
+            },
+            "blockers": [],
+            "rule_id": "gpt-session-turn-batch-capability-governance",
+            "owner": "session-archive",
+            "rationale": "The bounded batch appends transcript turns to the governed SQL and Drive archive only after session_archive_write capability-family authorization enforces the caller, exact tenant and user scope, active session, and a 20-item maximum; each appended turn returns same-cycle archive identifiers and status.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/gptSessionRoutes.js",
+              "test-gpt-session-turn-batch-capture.mjs",
+              "test-session-archive-capability-family-policy.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -35577,18 +36023,18 @@
       "openapi_detail_gaps": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
-        "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
-        "POST /gpt/sessions/{id}/turns"
+        "POST /gpt/sessions/{id}/conversation-ref/mark-primary"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-gpt-session-turn-batch-capture.mjs"
+      ],
       "untested_operations": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
         "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
         "POST /gpt/sessions/{id}/turn",
-        "POST /gpt/sessions/{id}/turns",
         "POST /gpt/sessions/{id}/end"
       ],
       "resources": [],
@@ -35605,12 +36051,19 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-gpt-session-turn-batch-capture.mjs"
       ],
       "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
+        "decision": "api_only",
+        "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+        "owner": "session-archive",
+        "rule_id": "gpt-session-archive-api-surface",
+        "evidence_refs": [
+          "routes/gptSessionRoutes.js",
+          "test-gpt-session-turn-batch-capture.mjs",
+          "test-tenant-activation-session-alias.mjs"
+        ]
       },
       "operation_blockers": [
         {
@@ -35638,12 +36091,6 @@
           ]
         },
         {
-          "signature": "POST /gpt/sessions/{id}/turns",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /gpt/sessions/{id}/end",
           "blockers": [
             "operation_classification_gap"
@@ -35657,10 +36104,160 @@
       "wave": "F3-admin-workspaces"
     },
     {
+      "family_key": "gpt-session.tenant",
+      "label": "gpt session (tenant)",
+      "source_file": "routes/gptSessionRoutes.js",
+      "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
+      "mount_prefix": "/",
+      "mount_order": 15553,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "agents",
+      "scope": "tenant",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/tenant/activation/sessions/{id}/turns",
+          "signature": "POST /tenant/activation/sessions/{id}/turns",
+          "source_file": "routes/gptSessionRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireBackendApiKey",
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey",
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-tenant-activation-session-alias.mjs"
+          ],
+          "governance": {
+            "classification": "external_effect",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "inline_capability_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "inline_post_commit",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "not_required",
+                "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns."
+              }
+            },
+            "parameter_bindings": {
+              "session_id": "path.id",
+              "turns": "request.body.turns",
+              "turn_ids": "response.turns[].turn_id"
+            },
+            "blockers": [],
+            "rule_id": "tenant-activation-session-turn-batch-capability-governance",
+            "owner": "session-archive",
+            "rationale": "The Activation alias additionally requires a signed non-admin tenant JWT, then reuses the same bounded session_archive_write capability-family authorization, exact tenant and user scope, active-session check, append pipeline, and per-turn archive readback as the canonical writer.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "routes/gptSessionRoutes.js",
+              "test-session-archive-capability-family-policy.mjs",
+              "test-tenant-activation-session-alias.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "untested_operations": [],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptSessionRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "surface_decision": {
+        "decision": "api_only",
+        "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+        "owner": "session-archive",
+        "rule_id": "gpt-session-archive-api-surface",
+        "evidence_refs": [
+          "routes/gptSessionRoutes.js",
+          "test-gpt-session-turn-batch-capture.mjs",
+          "test-tenant-activation-session-alias.mjs"
+        ]
+      },
+      "operation_blockers": [],
+      "risk": {
+        "score": 4,
+        "class": "medium"
+      },
+      "wave": "F1-tenant-shell"
+    },
+    {
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "6785d914533a9a4b1a82f428b7bfbb70e414db14322d8bf11c098d019c0bd64d",
+      "source_digest": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
@@ -44710,8 +45307,8 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
+            "source_file": "openapi/session-insight-promotion-read-models.yaml",
+            "security_declared": false,
             "security_alternatives": [
               [
                 "adminBearerAuth"
@@ -44727,24 +45324,32 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-remaining-scope-completion-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+            "owner": "platform-intelligence",
+            "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+            "evidence_refs": [
+              "openapi/session-insight-promotion-read-models.yaml",
+              "sessionInsightRemainingScopeCompletionService.js",
+              "test-session-insight-remaining-scope-completion-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -44753,15 +45358,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-session-insight-remaining-scope-completion-service.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -44773,11 +45378,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -44787,12 +45394,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -45517,17 +46118,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-action-endpoint-tool-manifest-resolver.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-action-manifest-resolve-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint resolves the action, endpoint, and tool authority manifest and evaluates the dispatch guard as an in-memory preview. Its response fixes will_execute=false and it neither dispatches a tool nor persists a decision.",
+            "evidence_refs": [
+              "actionManifestDiagnostic.js",
+              "openapi.yaml",
+              "test-action-endpoint-tool-manifest-resolver.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45589,17 +46198,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-action-endpoint-tool-manifest-resolver.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-execution-readiness-dry-run-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint performs bounded registry and graph SELECT reads, combines them with the manifest guard preview, and always returns will_execute=false. It cannot dispatch a tool, call a provider, or mutate readiness state.",
+            "evidence_refs": [
+              "executionReadinessDryRun.js",
+              "openapi.yaml",
+              "test-action-endpoint-tool-manifest-resolver.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45661,17 +46278,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-orchestration-readback-surface.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-orchestration-readback-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads bounded orchestration graph, readiness, snapshot, and recommendation views. Its contract explicitly forbids provider calls, credential payload reads, spend changes, external writes, deploys, and publishing.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformOrchestrationReadback.js",
+              "test-orchestration-readback-surface.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45733,17 +46358,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45877,17 +46510,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-remediation-plan-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the bounded remediation-plan view and returns recommendation-only safety evidence. It does not record a scorecard snapshot or execute remediation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -45949,17 +46590,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-tenant-rollout-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads tenant rollout-readiness rows and summarizes eligibility in memory. It cannot enable a tenant rollout, change policy, or perform an external write.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46021,17 +46670,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-health-scorecard-ledger-hygiene-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads the ledger-hygiene view and returns bounded diagnostics only. It does not delete, rewrite, compact, or repair ledger rows.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformHealthScorecard.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46093,17 +46750,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ads-governance-snapshot-proposal.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "ads-provider-governance-snapshot-proposal-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint uses bounded SELECT queries to build snapshot and recommendation candidates, reports writes_database=false, and cannot call a provider, read credential payloads, change spend, record a snapshot, deploy, or publish.",
+            "evidence_refs": [
+              "adsProviderGovernanceSnapshotProposal.js",
+              "openapi.yaml",
+              "test-ads-governance-snapshot-proposal.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46237,17 +46902,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "support-ticket-lifecycle-snapshot-proposal-read-action",
+            "owner": "platform-runtime",
+            "rationale": "The endpoint reads ticket lifecycle and linked workflow evidence to build proposal objects, reports writes_database=false, and cannot mutate the ticket, dispatch a workflow, decide approval, send externally, record a snapshot, deploy, or publish.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "supportTicketLifecycleSnapshotProposal.js",
+              "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46453,17 +47126,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-certification-status-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeCertification.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46525,17 +47206,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46597,17 +47286,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicy.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46741,17 +47438,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-history-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint executes a bounded SELECT over execution-log audit rows, projects sanitized before and after policy summaries, and filters them in memory. It cannot upsert or roll back a policy.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicyHistory.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46813,17 +47518,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-policy-rollback-preview-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads one sanitized audit snapshot and the current policy, computes changed fields in memory, and explicitly does not replay notes content. Applying rollback is a separate consequential operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertificationPolicyHistory.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -46957,17 +47670,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-public-rest-dispatch.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-smoke-recertification-queue-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads bounded certification, endpoint, connection-metadata, and policy rows and classifies recertification needs in memory. Recertification dispatch and certification updates are confined to the separate batch operation.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginSmokeRecertification.js",
+              "test-platform-plugin-public-rest-dispatch.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -47603,17 +48324,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-remote-runtime-catalog-probe.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "remote-runtime-target-catalog-read-action",
+            "owner": "remote-runtime",
+            "rationale": "The endpoint performs bounded SELECT queries over remote-runtime targets and command allowlists and returns safe public projections. It cannot validate, probe, execute, deploy, or update a target.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "remoteRuntime.js",
+              "test-remote-runtime-catalog-probe.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48395,17 +49124,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-plugin-private-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "platform-plugin-private-contribution-resolve-read-action",
+            "owner": "platform-plugins",
+            "rationale": "The endpoint reads one safe contribution projection and evaluates owner scope, action binding, status, and credential-scope policy in memory. It cannot activate, promote, certify, dispatch, or mutate the platform base.",
+            "evidence_refs": [
+              "openapi.yaml",
+              "platformPluginContribution.js",
+              "test-platform-plugin-private-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -48640,31 +49377,24 @@
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+      ],
       "untested_operations": [
         "GET /platform/plugins/catalog",
         "POST /platform/plugins/resolve",
-        "POST /platform/action-manifest/resolve",
-        "POST /platform/execution-readiness/dry-run",
-        "POST /platform/orchestration/readback",
-        "POST /platform/health/scorecard",
         "POST /platform/health/scorecard/snapshot-record",
-        "POST /platform/health/scorecard/remediation-plan",
-        "POST /platform/health/scorecard/tenant-rollout",
-        "POST /platform/health/scorecard/ledger-hygiene",
-        "POST /platform/orchestration/ads-provider/snapshot-propose",
         "POST /platform/orchestration/ads-provider/snapshot-record",
-        "POST /platform/orchestration/support-ticket/snapshot-propose",
         "POST /platform/orchestration/support-ticket/snapshot-record",
         "POST /platform/plugins/smoke-certifications/certify",
-        "POST /platform/plugins/smoke-certifications/status",
-        "POST /platform/plugins/smoke-certifications/policies/resolve",
-        "POST /platform/plugins/smoke-certifications/policies/list",
         "POST /platform/plugins/smoke-certifications/policies/upsert",
-        "POST /platform/plugins/smoke-certifications/policies/history",
-        "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
         "POST /platform/plugins/smoke-certifications/policies/rollback-apply",
-        "POST /platform/plugins/smoke-certifications/recertification-queue",
         "POST /platform/plugins/smoke-certifications/recertification-batch",
         "POST /platform/remote-runtime/targets/upsert",
         "POST /platform/remote-runtime/targets/validate",
@@ -48673,7 +49403,6 @@
         "POST /platform/remote-runtime/hosting/deploy-release",
         "GET /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}",
         "POST /platform/remote-runtime/local-path/execute-readonly",
-        "POST /platform/remote-runtime/targets/catalog",
         "POST /platform/remote-runtime/probe",
         "POST /platform/plugins/install-policy",
         "POST /platform/plugins/action-templates",
@@ -48684,7 +49413,6 @@
         "POST /platform/plugins/contributions/certify",
         "POST /platform/plugins/contributions/promote",
         "POST /platform/plugins/contributions/activate-private",
-        "POST /platform/plugins/contributions/resolve-private",
         "POST /platform/plugins/contributions/dispatch-rest",
         "GET /platform/plugins/contributions",
         "GET /platform/plugins/contributions/{contribution_id}"
@@ -48703,7 +49431,14 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48718,67 +49453,13 @@
           ]
         },
         {
-          "signature": "POST /platform/action-manifest/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/execution-readiness/dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/readback",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/health/scorecard/snapshot-record",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /platform/health/scorecard/remediation-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard/tenant-rollout",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/health/scorecard/ledger-hygiene",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/ads-provider/snapshot-propose",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/orchestration/ads-provider/snapshot-record",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/orchestration/support-ticket/snapshot-propose",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -48796,49 +49477,13 @@
           ]
         },
         {
-          "signature": "POST /platform/plugins/smoke-certifications/status",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/list",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/plugins/smoke-certifications/policies/upsert",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/history",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /platform/plugins/smoke-certifications/policies/rollback-apply",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/smoke-certifications/recertification-queue",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -48881,12 +49526,6 @@
         },
         {
           "signature": "POST /platform/remote-runtime/local-path/execute-readonly",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/remote-runtime/targets/catalog",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -48947,12 +49586,6 @@
         },
         {
           "signature": "POST /platform/plugins/contributions/activate-private",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/plugins/contributions/resolve-private",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -50965,17 +51598,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-intelligence-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "agent-model-run-plan-read-action",
+            "owner": "agent-runtime",
+            "rationale": "The endpoint builds a canonical model-run plan entirely in memory and returns dry_run_only=true. The plan fixes will_call_model=false and keeps model execution and tool execution disabled.",
+            "evidence_refs": [
+              "agentIntelligenceRuntime.js",
+              "openapi.yaml",
+              "test-agent-intelligence-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -51107,17 +51748,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-intelligence-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "agent-tool-search-read-action",
+            "owner": "agent-runtime",
+            "rationale": "The endpoint filters a supplied tool list or reads the derived tool index with SELECT queries and returns normalized metadata only. It does not expose the raw catalog, execute a tool, call a model, or mutate registry state.",
+            "evidence_refs": [
+              "agentIntelligenceRuntime.js",
+              "openapi.yaml",
+              "test-agent-intelligence-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -51128,11 +51777,11 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-agent-intelligence-runtime.mjs"
+      ],
       "untested_operations": [
-        "POST /ai/model-runs",
-        "GET /ai/model-runs/{id}/events",
-        "POST /ai/tool-search"
+        "GET /ai/model-runs/{id}/events"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -51147,27 +51796,15 @@
         "resource-api-coverage.manifest.json",
         "routes/agentIntelligenceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-intelligence-runtime.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /ai/model-runs",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /ai/tool-search",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 11,
         "class": "critical"
@@ -65234,7 +65871,7 @@
       "family_key": "session",
       "label": "session",
       "source_file": "routes/sessionRoutes.js",
-      "source_digest": "c1f9598ba99186c1358159ad596f1ad3451fb7e5f008c96950d727d81355bb66",
+      "source_digest": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
       "mount_prefix": "/",
       "mount_order": 19255,
       "split_from_mixed_scope_file": false,
@@ -65411,7 +66048,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -65428,9 +66065,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -66136,7 +66773,6 @@
       "openapi_detail_gaps": [
         "POST /sessions/ingest",
         "POST /sessions/{id}/complete",
-        "GET /sessions",
         "GET /sessions/{id}",
         "GET /sessions/{id}/turns",
         "GET /sessions/{id}/events",
@@ -78630,14 +79266,13 @@
       ]
     },
     {
-      "task_key": "frontend.tenant-activation-overlay",
-      "title": "Resolve and deliver tenant activation overlay",
+      "task_key": "frontend.tenant-activation-overlay.unresolved",
+      "title": "Resolve and deliver tenant activation overlay (unresolved)",
       "wave": "F0-authority-resolution",
       "state": "blocked",
       "blockers": [
         "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline"
@@ -78664,6 +79299,47 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.gpt-session.tenant",
+      "title": "Resolve and deliver gpt session (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptSessionRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-activation-session-alias.mjs"
       ]
     },
     {
@@ -78714,6 +79390,42 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-platform-frontend-routes.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.tenant-activation-overlay.tenant",
+      "title": "Resolve and deliver tenant activation overlay (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/tenantActivationOverlayRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-tenant-activation-session-alias.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-activation-session-alias.mjs"
       ]
     },
     {
@@ -79101,12 +79813,15 @@
       "blockers": [
         "test_ownership_gap",
         "surface_policy_decision_required",
+        "mutation_rollback_gap",
         "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-surface-policy.json",
@@ -79118,7 +79833,8 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-connect-routes.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -79126,11 +79842,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-connect-routes.mjs"
       ]
     },
     {
@@ -80413,8 +81131,7 @@
       "state": "blocked",
       "blockers": [
         "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -80431,7 +81148,8 @@
         "resource-api-coverage.manifest.json",
         "routes/agentIntelligenceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-intelligence-runtime.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -80443,7 +81161,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-agent-intelligence-runtime.mjs"
       ]
     },
     {
@@ -81555,20 +82274,21 @@
       ]
     },
     {
-      "task_key": "frontend.gpt-session",
-      "title": "Resolve and deliver gpt session",
+      "task_key": "frontend.gpt-session.admin",
+      "title": "Resolve and deliver gpt session (admin)",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
         "test_ownership_gap",
-        "surface_policy_decision_required",
         "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-surface-policy.json",
@@ -81581,7 +82301,8 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-gpt-session-turn-batch-capture.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -81589,11 +82310,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-gpt-session-turn-batch-capture.mjs"
       ]
     },
     {
@@ -82440,7 +83163,14 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-action-endpoint-tool-manifest-resolver.mjs",
+        "test-ads-governance-snapshot-proposal.mjs",
+        "test-orchestration-readback-surface.mjs",
+        "test-platform-plugin-private-runtime.mjs",
+        "test-platform-plugin-public-rest-dispatch.mjs",
+        "test-remote-runtime-catalog-probe.mjs",
+        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82452,7 +83182,14 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-action-endpoint-tool-manifest-resolver.mjs",
+        "node test-ads-governance-snapshot-proposal.mjs",
+        "node test-orchestration-readback-surface.mjs",
+        "node test-platform-plugin-private-runtime.mjs",
+        "node test-platform-plugin-public-rest-dispatch.mjs",
+        "node test-remote-runtime-catalog-probe.mjs",
+        "node test-support-ticket-lifecycle-snapshot-proposal.mjs"
       ]
     },
     {
@@ -82685,7 +83422,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repository-automation-control-plane.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82697,12 +83435,13 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-repository-automation-control-plane.mjs"
       ]
     },
     {
-      "task_key": "frontend.repository-main-moved-trigger",
-      "title": "Resolve and deliver repository main moved trigger",
+      "task_key": "frontend.repository-main-moved-trigger.admin",
+      "title": "Resolve and deliver repository main moved trigger (admin)",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
@@ -83881,11 +84620,13 @@
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/session-insight-promotion-read-models.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-remaining-scope-completion-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83897,7 +84638,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-remaining-scope-completion-service.mjs"
       ]
     },
     {
@@ -84670,6 +85412,47 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/mcpRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.repository-main-moved-trigger.developer",
+      "title": "Resolve and deliver repository main moved trigger (developer)",
+      "wave": "F5-developer-evidence",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryMainMovedTriggerRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [

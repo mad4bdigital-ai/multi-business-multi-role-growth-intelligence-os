@@ -4,10 +4,13 @@ import {
   listSessionInsightRemainingScopeCompletions,
 } from "./sessionInsightRemainingScopeCompletionService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/remaining-scope-completions/list
+
 const REQUIRED_TYPED_CONFIRM = "COMPLETE_REMAINING_SCOPE_AS_GATED_NO_EXECUTION";
 
 function makePool() {
   const state = {
+    calls: [],
     insert: null,
     completion: null,
     gate: {
@@ -36,6 +39,7 @@ function makePool() {
     state,
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ").trim();
+      state.calls.push({ sql: compact, params });
       if (compact.startsWith("SELECT g.* FROM session_insight_capability_envelope_adapter_execution_gates")) {
         return [[{ ...state.gate }]];
       }
@@ -151,6 +155,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightRemainingScopeCompletion({ pool, input: { adapter_execution_gate_id: "adapter_gate_1", typed_confirm: REQUIRED_TYPED_CONFIRM } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightRemainingScopeCompletions({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -161,6 +166,11 @@ function makePool() {
   assert.equal(result.issues.length, 0);
   assert.equal(result.remaining_scope_policy.requires_typed_confirm, REQUIRED_TYPED_CONFIRM);
   assert.equal(result.remaining_scope_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "remaining-scope completion list read action must execute SELECT statements only"
+  );
 }
 
 {

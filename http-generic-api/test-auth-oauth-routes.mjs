@@ -15,7 +15,10 @@ import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
+const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
 await import("./test-tenant-gpt-oauth-live-smoke.mjs");
+await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
+await import("./test-tenant-gpt-google-jit-recovery.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -43,6 +46,19 @@ function section(name) {
   console.log(`\n== ${name}`);
 }
 
+section("identity normalization");
+assert("email normalization trims and lowercases", normalizeAuthEmail("  User@Example.COM  ") === "user@example.com");
+assert("verified Google identity is accepted", hasVerifiedGoogleIdentity({ sub: "google-sub", email: "User@Example.COM", email_verified: true }));
+assert("unverified Google identity is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com", email_verified: false }));
+assert("missing Google verification claim is rejected", !hasVerifiedGoogleIdentity({ sub: "google-sub", email: "user@example.com" }));
+assert("missing Google subject is rejected", !hasVerifiedGoogleIdentity({ email: "user@example.com", email_verified: true }));
+
+const identityHardeningMigration = readFileSync(new URL("./migrations/20260717_tenant_gpt_jit_identity_hardening.sql", import.meta.url), "utf8");
+assert("identity migration fails closed on duplicate subjects", identityHardeningMigration.includes("SIGNAL SQLSTATE ''45000''"));
+assert("identity migration ignores empty provider subjects", identityHardeningMigration.includes("TRIM(provider_id) <> ''"));
+assert("identity migration adds provider subject uniqueness", identityHardeningMigration.includes("UNIQUE KEY uq_user_credentials_provider_subject (auth_provider, provider_id)"));
+assert("identity migration is idempotent", identityHardeningMigration.includes("information_schema.statistics"));
+
 function startServer(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, () => {
@@ -67,7 +83,7 @@ async function postJson(baseUrl, path, body, { headers = {} } = {}) {
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
-  return { status: response.status, body: await readJson(response) };
+  return { status: response.status, headers: response.headers, body: await readJson(response) };
 }
 
 async function postForm(baseUrl, path, body, { headers = {} } = {}) {
@@ -92,9 +108,27 @@ async function getText(baseUrl, path, { headers = {} } = {}) {
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
+const durableOAuthCodes = new Map();
 
 const oauthClientPool = {
   async query(sql, params) {
+    if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+      durableOAuthCodes.set(params[0], {
+        client_id: params[3],
+        redirect_uri_hash: params[4],
+        status: "issued",
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.includes("UPDATE `tenant_gpt_oauth_authorization_codes`")) {
+      const record = durableOAuthCodes.get(params[0]);
+      const canConsume = record
+        && record.client_id === params[1]
+        && record.redirect_uri_hash === params[2]
+        && record.status === "issued";
+      if (canConsume) record.status = "consumed";
+      return [{ affectedRows: canConsume ? 1 : 0 }];
+    }
     if (sql.includes("INSERT INTO `execution_log`")) {
       oauthTokenDiagnostics.push({
         execution_status: params[4],
@@ -195,10 +229,10 @@ try {
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
-    assert("authorize setup link always targets auth host", result.text.includes('href="https://auth.mad4b.com/connect"'));
+    assert("authorize does not emit application onboarding link", !result.text.includes('href="https://auth.mad4b.com/connect"'));
     assert("authorize privacy link always targets auth host", result.text.includes('href="https://auth.mad4b.com/privacy-policy"'));
     assert("authorize terms link always targets auth host", result.text.includes('href="https://auth.mad4b.com/terms-of-use"'));
-    assert("authorize does not emit activation-host setup link", !result.text.includes('href="/connect"'));
+    assert("authorize does not emit relative setup link", !result.text.includes('href="/connect"'));
     assert("authorize includes configured Google client", result.text.includes(process.env.GOOGLE_CLIENT_ID));
     assert("authorize preserves requested ChatGPT callback", result.text.includes(redirectUri));
     assert("authorize does not rewrite callback before ChatGPT state validation", !result.text.includes('const REDIRECT_URI = "https://chatgpt.com'));
@@ -253,6 +287,220 @@ try {
   }
 
   section("code issuance and token exchange");
+
+  const googleFlowCalls = [];
+  let googleCodeStoreInsertAttempts = 0;
+  const googleConnection = {
+    async beginTransaction() { googleFlowCalls.push("begin"); },
+    async query(sql, params) {
+      googleFlowCalls.push({ target: "connection", sql, params });
+      if (sql.includes("FROM `user_credentials`")) return [[{ user_id: "google-user-1" }]];
+      if (sql.includes("FROM `memberships`")) {
+        return [[{ tenant_id: "google-tenant-1", membership_status: "active", tenant_status: "active" }]];
+      }
+      throw new Error(`Unexpected Google connection query: ${sql}`);
+    },
+    async commit() { googleFlowCalls.push("commit"); },
+    async rollback() { googleFlowCalls.push("rollback"); },
+    release() { googleFlowCalls.push("release"); },
+  };
+  const googleFlowPool = {
+    async getConnection() { return googleConnection; },
+    async query(sql, params) {
+      googleFlowCalls.push({ target: "pool", sql, params });
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        return [[{
+          config_json: JSON.stringify({
+            client_id: "mad4b-tenant-gpt",
+            client_secret: "test-client-secret",
+            callback_urls_to_allow: [canonicalRedirectUri],
+          }),
+        }]];
+      }
+      if (sql.includes("FROM `memberships`")) {
+        return [[{ tenant_id: "google-tenant-1", role: "owner", status: "active", tenant_display_name: "Google Tenant" }]];
+      }
+      if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+        googleCodeStoreInsertAttempts += 1;
+        if (googleCodeStoreInsertAttempts === 1) {
+          const error = new Error("Table 'platform.tenant_gpt_oauth_authorization_codes' doesn't exist");
+          error.code = "ER_NO_SUCH_TABLE";
+          error.errno = 1146;
+          throw error;
+        }
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_oauth_authorization_codes`")) {
+        return [{ affectedRows: 0 }];
+      }
+      throw new Error(`Unexpected Google pool query: ${sql}`);
+    },
+  };
+  const verifiedGoogleTokens = [];
+  const googleFlowApp = express();
+  googleFlowApp.use(express.json());
+  googleFlowApp.use("/auth", buildAuthRoutes({
+    getPool: () => googleFlowPool,
+    googleClient: {
+      async verifyIdToken(input) {
+        verifiedGoogleTokens.push(input);
+        return {
+          getPayload() {
+            return {
+              sub: "google-subject-1",
+              email: "Google.User@Example.COM",
+              email_verified: true,
+              name: "Google User",
+            };
+          },
+        };
+      },
+    },
+  }));
+  const googleFlowServer = await startServer(googleFlowApp);
+  try {
+    const googleCodeResult = await postJson(googleFlowServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "google-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("Google popup issues an authorization code through the default identity resolver", googleCodeResult.status === 200, JSON.stringify(googleCodeResult.body));
+    assert("Google ID token is verified for the configured audience", verifiedGoogleTokens[0]?.audience === process.env.GOOGLE_CLIENT_ID, JSON.stringify(verifiedGoogleTokens));
+    assert("Google identity reuses the bound platform user", jwt.decode(googleCodeResult.body.code)?.user_id === "google-user-1", JSON.stringify(googleCodeResult.body));
+    assert("Google identity normalizes email before code issuance", jwt.decode(googleCodeResult.body.code)?.email === "google.user@example.com", JSON.stringify(googleCodeResult.body));
+    assert("missing durable code table is created once", googleFlowCalls.filter((call) => typeof call === "object" && call.sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_oauth_authorization_codes`")).length === 1, JSON.stringify(googleFlowCalls));
+    assert("authorization-code insert is retried after table recovery", googleCodeStoreInsertAttempts === 2, String(googleCodeStoreInsertAttempts));
+    assert("Google identity transaction commits", googleFlowCalls.includes("commit"), JSON.stringify(googleFlowCalls));
+    assert("Google OAuth state survives the recovered code flow", String(googleCodeResult.body.redirect_to || "").includes("state=google-state"), googleCodeResult.body.redirect_to);
+  } finally {
+    await new Promise((resolve) => googleFlowServer.server.close(resolve));
+  }
+
+  const unavailableStorePool = {
+    async query(sql) {
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        return [[{
+          config_json: JSON.stringify({
+            client_id: "mad4b-tenant-gpt",
+            client_secret: "test-client-secret",
+            callback_urls_to_allow: [canonicalRedirectUri],
+          }),
+        }]];
+      }
+      if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+        const error = new Error("sensitive database connection detail");
+        error.code = "ECONNREFUSED";
+        error.errno = 111;
+        throw error;
+      }
+      throw new Error(`Unexpected unavailable-store query: ${sql}`);
+    },
+  };
+  const unavailableStoreApp = express();
+  unavailableStoreApp.use(express.json());
+  unavailableStoreApp.use("/auth", buildAuthRoutes({
+    getPool: () => unavailableStorePool,
+    async resolveTenantGptOAuthCredential(credential) {
+      if (credential?.id_token === "identity-outage") {
+        const error = new Error("sensitive identity database detail");
+        error.code = "ER_BAD_FIELD_ERROR";
+        error.errno = 1054;
+        throw error;
+      }
+      return {
+        user_id: "user-1",
+        email: "user@example.com",
+        tenant_id: "tenant-1",
+        memberships: [{ tenant_id: "tenant-1", role: "owner", status: "active" }],
+      };
+    },
+  }));
+  const unavailableStoreServer = await startServer(unavailableStoreApp);
+  const infrastructureLogs = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => infrastructureLogs.push(args);
+  try {
+    const unavailableCodeResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "unavailable-store-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("code-store outages return a retryable service response", unavailableCodeResult.status === 503, JSON.stringify(unavailableCodeResult.body));
+    assert("code-store outages are not mislabeled as identity failures", unavailableCodeResult.body.error?.code === "oauth_code_store_unavailable", JSON.stringify(unavailableCodeResult.body));
+    assert("code-store outage response includes a correlation reference", unavailableCodeResult.headers.get("x-request-id") === unavailableCodeResult.body.error?.request_id, JSON.stringify(unavailableCodeResult.body));
+    assert("code-store diagnostics identify the failed stage", infrastructureLogs[0]?.[1]?.stage === "authorization_code_store", JSON.stringify(infrastructureLogs));
+    assert("code-store diagnostics exclude raw database messages", !JSON.stringify(infrastructureLogs).includes("sensitive database connection detail"), JSON.stringify(infrastructureLogs));
+    assert("code-store diagnostics mark secrets excluded", infrastructureLogs[0]?.[1]?.secrets_included === false, JSON.stringify(infrastructureLogs));
+
+    const unavailableIdentityResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "identity-outage" },
+      redirect_uri: redirectUri,
+      state: "unavailable-identity-state",
+      scope: TENANT_SCOPE,
+    });
+    const identityDiagnostic = infrastructureLogs.find((entry) => entry?.[1]?.stage === "identity_resolution");
+    assert("identity infrastructure outages return a retryable service response", unavailableIdentityResult.status === 503, JSON.stringify(unavailableIdentityResult.body));
+    assert("identity infrastructure outages are classified separately", unavailableIdentityResult.body.error?.code === "oauth_identity_unavailable", JSON.stringify(unavailableIdentityResult.body));
+    assert("identity outage response includes a correlation reference", unavailableIdentityResult.headers.get("x-request-id") === unavailableIdentityResult.body.error?.request_id, JSON.stringify(unavailableIdentityResult.body));
+    assert("identity diagnostics identify the failed stage", identityDiagnostic?.[1]?.error_code === "ER_BAD_FIELD_ERROR", JSON.stringify(infrastructureLogs));
+    assert("identity diagnostics exclude raw database messages", !JSON.stringify(infrastructureLogs).includes("sensitive identity database detail"), JSON.stringify(infrastructureLogs));
+  } finally {
+    console.error = originalConsoleError;
+    await new Promise((resolve) => unavailableStoreServer.server.close(resolve));
+  }
+
+  let unavailableConfigResolverCalled = false;
+  const unavailableConfigPool = {
+    async query(sql) {
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        const error = new Error("sensitive OAuth configuration database detail");
+        error.code = "ECONNREFUSED";
+        error.errno = 111;
+        throw error;
+      }
+      throw new Error(`Unexpected unavailable-config query: ${sql}`);
+    },
+  };
+  const unavailableConfigApp = express();
+  unavailableConfigApp.use(express.json());
+  unavailableConfigApp.use("/auth", buildAuthRoutes({
+    getPool: () => unavailableConfigPool,
+    async resolveTenantGptOAuthCredential() {
+      unavailableConfigResolverCalled = true;
+      return { user_id: "must-not-resolve" };
+    },
+  }));
+  const unavailableConfigServer = await startServer(unavailableConfigApp);
+  const configurationLogs = [];
+  const originalConfigurationConsoleError = console.error;
+  console.error = (...args) => configurationLogs.push(args);
+  try {
+    const unavailableConfigResult = await postJson(unavailableConfigServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "unavailable-config-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("OAuth configuration outages return a retryable service response", unavailableConfigResult.status === 503, JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration outages are not mislabeled as redirect mismatches", unavailableConfigResult.body.error?.code === "oauth_configuration_unavailable", JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration outage response includes a correlation reference", unavailableConfigResult.headers.get("x-request-id") === unavailableConfigResult.body.error?.request_id, JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration failure stops before identity resolution", unavailableConfigResolverCalled === false, String(unavailableConfigResolverCalled));
+    const configurationDiagnostic = configurationLogs.find((entry) => entry?.[1]?.stage === "oauth_client_config");
+    assert("OAuth configuration diagnostics identify the failed stage", Boolean(configurationDiagnostic), JSON.stringify(configurationLogs));
+    assert("OAuth configuration diagnostics exclude raw database messages", !JSON.stringify(configurationLogs).includes("sensitive OAuth configuration database detail"), JSON.stringify(configurationLogs));
+
+    const unavailableAuthorizeResult = await getText(
+      unavailableConfigServer.baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=unavailable-config-authorize-state`,
+    );
+    assert("authorize returns 503 when OAuth configuration is unavailable", unavailableAuthorizeResult.status === 503, `${unavailableAuthorizeResult.status}`);
+    assert("authorize reports a retryable configuration outage", unavailableAuthorizeResult.text.includes("temporarily unavailable"), unavailableAuthorizeResult.text);
+  } finally {
+    console.error = originalConfigurationConsoleError;
+    await new Promise((resolve) => unavailableConfigServer.server.close(resolve));
+  }
 
   const userToken = jwt.sign(
     { user_id: "user-1", email: "user@example.com", tenant_id: "tenant-1" },
@@ -344,6 +592,16 @@ try {
   assert("OAuth access JWT omits duplicated client id", accessPayload.client_id === undefined, JSON.stringify(accessPayload));
   assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
+
+  const replay = await postForm(baseUrl, "/auth/oauth/token", {
+    grant_type: "authorization_code",
+    code: codeResult.body.code,
+    redirect_uri: redirectUri,
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "test-client-secret",
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("token endpoint rejects authorization code replay", replay.status === 400, `${replay.status}`);
+  assert("authorization code replay reports invalid_grant", replay.body.error === "invalid_grant", JSON.stringify(replay.body));
 
   const mismatch = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",

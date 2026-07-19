@@ -4,10 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assertDevDbStatus,
+  isToolMutation,
   parseArgs,
   resolveApplyAuthoritySource,
   sanitizeResult,
   validateDevBaseUrl,
+  validateGovernanceResolveContextArgs,
+  validateGrowthIntelligenceReportReadArgs,
+  validateGrowthIntelligencePilotArgs,
   validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
 
@@ -49,6 +53,75 @@ assert.deepEqual(parseArgs([
   tool: "governed_migration_execute",
   apply: true,
 });
+
+const safePilotArgs = {
+  tenant_id: "11111111-1111-4111-8111-111111111111",
+  brand_key: "pilot_brand",
+  business_activity_type_key: "saas",
+  persistence_mode: "internal_registry",
+  outbox_mode: "dev_transactional",
+  evidence_limit: 20,
+  report_id: "pilot-report-1",
+  requested_by: "growth-platform-admin",
+};
+assert.equal(validateGrowthIntelligencePilotArgs(safePilotArgs), safePilotArgs);
+assert.equal(isToolMutation("growth_intelligence_pilot_run", safePilotArgs), true);
+assert.equal(resolveApplyAuthoritySource({
+  args: { apply: true },
+  action: "tool-call",
+  target: "growth_intelligence_pilot_run",
+  payload: safePilotArgs,
+  env: { DEV_MIGRATION_APPLY_ENABLED: "true" },
+}), "environment_flag");
+assert.throws(() => resolveApplyAuthoritySource({
+  args: {},
+  action: "tool-call",
+  target: "growth_intelligence_pilot_run",
+  payload: safePilotArgs,
+  env: { DEV_MIGRATION_APPLY_ENABLED: "true" },
+}), /requires --apply/);
+for (const blockedPilotArgs of [
+  { ...safePilotArgs, persistence_mode: "external" },
+  { ...safePilotArgs, outbox_mode: "disabled" },
+  { ...safePilotArgs, external_send: true },
+  { ...safePilotArgs, tenant_id: "not-a-uuid" },
+  { ...safePilotArgs, evidence_limit: 51 },
+]) {
+  assert.throws(() => validateGrowthIntelligencePilotArgs(blockedPilotArgs));
+}
+
+const safeGovernanceContextArgs = {
+  business_type_key: "hvac_air_conditioning_services",
+  brand_key: "arab_cooling",
+  target_key: "arab_cooling",
+};
+assert.equal(validateGovernanceResolveContextArgs(safeGovernanceContextArgs), safeGovernanceContextArgs);
+assert.equal(isToolMutation("governance_resolve_context", safeGovernanceContextArgs), false);
+for (const blockedContextArgs of [
+  { ...safeGovernanceContextArgs, data_source: "sql" },
+  { ...safeGovernanceContextArgs, business_type_key: "" },
+  { ...safeGovernanceContextArgs, brand_key: "bad brand" },
+  { ...safeGovernanceContextArgs, target_key: "../target" },
+  { business_type_key: "hvac_air_conditioning_services", brand_key: "arab_cooling" },
+]) {
+  assert.throws(() => validateGovernanceResolveContextArgs(blockedContextArgs));
+}
+
+const safeReportReadArgs = {
+  tenant_id: "4bc39fca-270e-4daa-b373-db75e1f36ccd",
+  report_id: "pilot-allroyalegypt-20260718-1",
+};
+assert.equal(validateGrowthIntelligenceReportReadArgs(safeReportReadArgs), safeReportReadArgs);
+assert.equal(isToolMutation("growth_intelligence_report_read", safeReportReadArgs), false);
+for (const blockedReportReadArgs of [
+  { ...safeReportReadArgs, decision: "accepted" },
+  { ...safeReportReadArgs, tenant_id: "not-a-uuid" },
+  { ...safeReportReadArgs, report_id: "" },
+  { ...safeReportReadArgs, report_id: "../report" },
+  { tenant_id: safeReportReadArgs.tenant_id },
+]) {
+  assert.throws(() => validateGrowthIntelligenceReportReadArgs(blockedReportReadArgs));
+}
 
 const capabilityEnvelopeId = "70891f74-0200-4942-843e-18cf4ba6643a";
 assert.equal(resolveApplyAuthoritySource({
