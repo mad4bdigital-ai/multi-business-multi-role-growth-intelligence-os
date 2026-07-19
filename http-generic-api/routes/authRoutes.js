@@ -1048,6 +1048,8 @@ export function buildAuthRoutes(deps) {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
     const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
+    const requestedResource = String(req.query.resource || "").trim();
+    const oauthResource = cleanTenantGptOAuthResource(requestedResource);
     const activationContext = parseActivationContext(req.query);
 
     if (oauthClientId !== TENANT_GPT_OAUTH_CLIENT_ID) {
