@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 29,
+  "total_items": 30,
   "class_counts": {
     "critical_review": 20,
-    "high_review": 8,
+    "high_review": 9,
     "medium_review": 1,
     "low_review": 0
   },
@@ -650,7 +650,7 @@
     },
     {
       "migration_file": "20260715_capability_envelope_template_resolver.sql",
-      "score": 817,
+      "score": 816,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1564,8 +1564,94 @@
       }
     },
     {
+      "migration_file": "20260718_virtual_tool_single_file_mutation_classification.sql",
+      "score": 649,
+      "queue_class": "high_review",
+      "gap_severity": "medium",
+      "documentation_complete": false,
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 6,
+        "views": 6,
+        "policies": 0,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "platform_tool_dispatch_bindings",
+            "same_cycle_readback",
+            "tool_dispatch_binding",
+            "v_platform_virtual_tool_capability_gaps",
+            "virtual_tool",
+            "virtual_tool_registry"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "verify_readback_view",
+          "owner_hint": "db-readback-review",
+          "targets": [
+            "v_platform_virtual_tool_bindings_classified",
+            "v_platform_virtual_tool_bindings_current",
+            "v_platform_virtual_tool_capabilities_current",
+            "v_platform_virtual_tool_capability_gaps",
+            "v_platform_virtual_tool_exports_current",
+            "v_platform_virtual_tool_identity_resolution"
+          ],
+          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260718_expand_resource_authority_shell_alias_contract.sql",
-      "score": 588,
+      "score": 587,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1729,7 +1815,7 @@
     },
     {
       "migration_file": "20260716_self_healing_release_advisor_mutation_policy.sql",
-      "score": 549,
+      "score": 548,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,

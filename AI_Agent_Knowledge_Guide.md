@@ -18,6 +18,14 @@ Activation host requests may serve only `/`, `/health`, Activation OpenAPI schem
 
 This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
 
+## Tenant Tool Manifest Export Authority
+
+Tenant GPT tool exposure and execution are governed by both the Tenant tool registry and the current compiled capability manifest. `tenant_platform_endpoint_tools.is_enabled=1` is necessary but not sufficient authority to expose or dispatch a Tenant tool. The Tenant GPT tool catalog and direct `/gpt/tools/call` dispatch must resolve `platform_capability_compiled_manifests` for `tenant_tool.<tool_key>` and fail closed when the current manifest status is not exportable.
+
+The current exportable manifest statuses are `shadow_ready`, `active`, and `certified`. A current `blocked` or unknown manifest status must hide the tool from Tenant listing and reject direct dispatch with `403 tenant_tool_capability_blocked`, structured details, and `secrets_included=false`. Admin tools remain outside this Tenant-specific guard. Tools without a compiled manifest retain temporary compatibility until the manifest cutover policy explicitly changes; adding a new manifest status requires updating the guard and regression tests in the same change.
+
+Listing may use a versioned cache, but direct dispatch must read the current manifest without relying on stale listing state. Cache versions must be advanced whenever visibility policy changes. Capability-key matching must use exact `tenant_tool.` prefix semantics rather than SQL wildcard matching. Regression coverage must prove hidden listing, direct-dispatch denial, Admin non-interference, compatibility for unmanifested tools, exact prefix matching, structured errors, and guard execution before dispatch preflight.
+
 ## Tenant Activation Session Context Isolation
 
 `GET /tenant/activation/session-context` is the Tenant-safe alias for opening or reusing Activation session context. Tenant and user identity, plus any workspace and brand context, must come from the signed OAuth JWT and authenticated membership context; Tenant callers must not override `tenant_id`, `user_id`, `workspace_id`, `workspace_key`, or `brand_key` through query parameters. The shared subject resolver rejects cross-user and cross-tenant overrides with structured `403` errors.
@@ -400,6 +408,8 @@ Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certi
 Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
 
 Virtual governed tools must be projected from `platform_tool_dispatch_bindings` through deterministic registry reconciliation. Tool names and aliases are not authority. Identity, scope, operation, readback, or source conflicts create persistent debt and block execution. Virtual Admin surfaces must not project to Tenant, shadow readback readiness remains separate from generic certification, and all projected state-changing capabilities remain `apply_allowed=0` until certification and shadow/canary evidence pass.
+
+Treat bounded mutation atomicity modes such as `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` as one `state_changing` operation family for canonical capability projection. Do not infer authority from aliases. Normalize registry tool tags from arrays, JSON-array strings, or legacy CSV before evaluating mutation, confirmation, and readback policy tags.
 
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 
