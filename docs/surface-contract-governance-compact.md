@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 29
-- Docs completion: 512/541 (94.64%)
-- Queue items: 29
+- Blocking new items: 30
+- Docs completion: 512/542 (94.46%)
+- Queue items: 30
 - OpenAPI missing SQL routes: 2
 - OpenAPI-exempt SQL route-like literals: 662/686
 - Safety marker gap migrations: 4
@@ -19,5 +19,5 @@
 - `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 850; add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 838; add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 833; add targeted patch-index, parity, and governance documentation
-- `20260715_capability_envelope_template_resolver.sql` — critical_review, score 817; add targeted patch-index, parity, and governance documentation
+- `20260715_capability_envelope_template_resolver.sql` — critical_review, score 816; add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 805; add targeted patch-index, parity, and governance documentation
