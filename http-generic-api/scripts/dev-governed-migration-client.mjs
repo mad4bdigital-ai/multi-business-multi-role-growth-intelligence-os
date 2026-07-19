@@ -156,6 +156,83 @@ export function validateGrowthIntelligenceReportReadArgs(toolArgs) {
   return toolArgs;
 }
 
+const GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "insight_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "action_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "assessed_by",
+]);
+
+function validateGrowthIntelligenceReviewObject(toolArgs, allowedKeys, label) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error(`${label} arguments must be a JSON object.`);
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !allowedKeys.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported ${label} argument: ${unknownKeys[0]}`);
+  if (!UUID_PATTERN.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error(`${label} requires a tenant UUID.`);
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error(`Invalid ${label} report_id.`);
+  }
+}
+
+function validateGrowthIntelligenceDecisionMetadata(toolArgs, label) {
+  if (toolArgs.decision_by !== undefined && !UUID_PATTERN.test(String(toolArgs.decision_by || ""))) {
+    throw new Error(`${label} decision_by must be a UUID.`);
+  }
+  if (toolArgs.decision_note !== undefined) {
+    const note = toolArgs.decision_note;
+    if (typeof note !== "string" || note.length < 1 || note.length > 512 || /[\u0000-\u001F\u007F]/.test(note)) {
+      throw new Error(`${label} decision_note must be a printable string up to 512 characters.`);
+    }
+  }
+}
+
+export function validateGrowthIntelligenceInsightDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence insight decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.insight_id || ""))) throw new Error(`Invalid ${label} insight_id.`);
+  if (!["accepted", "rejected", "stale"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceActionDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence action decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.action_id || ""))) throw new Error(`Invalid ${label} action_id.`);
+  if (!["approved", "rejected"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceReadinessRefreshArgs(toolArgs) {
+  const label = "Growth Intelligence readiness refresh";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS, label);
+  if (toolArgs.assessed_by !== undefined && !/^[A-Za-z0-9._:@-]{1,128}$/.test(String(toolArgs.assessed_by || ""))) {
+    throw new Error(`Invalid ${label} assessed_by.`);
+  }
+  return toolArgs;
+}
+
 const SENSITIVE_KEY_PATTERN = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
 
 export function parseArgs(argv = process.argv.slice(2)) {
