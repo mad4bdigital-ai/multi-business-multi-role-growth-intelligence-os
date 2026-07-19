@@ -1085,8 +1085,10 @@ export function buildAuthRoutes(deps) {
     const requestId = randomUUID();
     let stage = "request_validation";
     try {
-      const { token, credential, redirect_uri, state } = req.body || {};
+      const { token, credential, redirect_uri, state, resource } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
+      const requested_resource = String(resource || "").trim();
+      const oauth_resource = cleanTenantGptOAuthResource(requested_resource);
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
