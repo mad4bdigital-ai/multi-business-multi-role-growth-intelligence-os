@@ -451,6 +451,57 @@ try {
     await new Promise((resolve) => unavailableStoreServer.server.close(resolve));
   }
 
+  let unavailableConfigResolverCalled = false;
+  const unavailableConfigPool = {
+    async query(sql) {
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        const error = new Error("sensitive OAuth configuration database detail");
+        error.code = "ECONNREFUSED";
+        error.errno = 111;
+        throw error;
+      }
+      throw new Error(`Unexpected unavailable-config query: ${sql}`);
+    },
+  };
+  const unavailableConfigApp = express();
+  unavailableConfigApp.use(express.json());
+  unavailableConfigApp.use("/auth", buildAuthRoutes({
+    getPool: () => unavailableConfigPool,
+    async resolveTenantGptOAuthCredential() {
+      unavailableConfigResolverCalled = true;
+      return { user_id: "must-not-resolve" };
+    },
+  }));
+  const unavailableConfigServer = await startServer(unavailableConfigApp);
+  const configurationLogs = [];
+  const originalConfigurationConsoleError = console.error;
+  console.error = (...args) => configurationLogs.push(args);
+  try {
+    const unavailableConfigResult = await postJson(unavailableConfigServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "unavailable-config-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("OAuth configuration outages return a retryable service response", unavailableConfigResult.status === 503, JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration outages are not mislabeled as redirect mismatches", unavailableConfigResult.body.error?.code === "oauth_configuration_unavailable", JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration outage response includes a correlation reference", unavailableConfigResult.headers.get("x-request-id") === unavailableConfigResult.body.error?.request_id, JSON.stringify(unavailableConfigResult.body));
+    assert("OAuth configuration failure stops before identity resolution", unavailableConfigResolverCalled === false, String(unavailableConfigResolverCalled));
+    const configurationDiagnostic = configurationLogs.find((entry) => entry?.[1]?.stage === "oauth_client_config");
+    assert("OAuth configuration diagnostics identify the failed stage", Boolean(configurationDiagnostic), JSON.stringify(configurationLogs));
+    assert("OAuth configuration diagnostics exclude raw database messages", !JSON.stringify(configurationLogs).includes("sensitive OAuth configuration database detail"), JSON.stringify(configurationLogs));
+
+    const unavailableAuthorizeResult = await getText(
+      unavailableConfigServer.baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=unavailable-config-authorize-state`,
+    );
+    assert("authorize returns 503 when OAuth configuration is unavailable", unavailableAuthorizeResult.status === 503, `${unavailableAuthorizeResult.status}`);
+    assert("authorize reports a retryable configuration outage", unavailableAuthorizeResult.text.includes("temporarily unavailable"), unavailableAuthorizeResult.text);
+  } finally {
+    console.error = originalConfigurationConsoleError;
+    await new Promise((resolve) => unavailableConfigServer.server.close(resolve));
+  }
+
   const userToken = jwt.sign(
     { user_id: "user-1", email: "user@example.com", tenant_id: "tenant-1" },
     process.env.JWT_SECRET,

@@ -339,13 +339,20 @@ function callbackPatternToRegExp(pattern) {
   return new RegExp(`^${escaped}$`, "i");
 }
 
-async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
+async function resolveTenantGptRedirectUriDecision(redirectUri, queryFn) {
   const url = parseOAuthRedirectUri(redirectUri);
-  if (!url) return false;
+  if (!url) return { allowed: false, configuration_available: true, error_code: null };
 
   const normalized = url.toString();
   const canonical = canonicalizeTenantGptRedirectUri(normalized);
   const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
+  if (!resolved.ok) {
+    return {
+      allowed: false,
+      configuration_available: false,
+      error_code: String(resolved.error || "oauth_configuration_unavailable").slice(0, 64),
+    };
+  }
   const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
     ? resolved.config.callback_urls_to_allow
     : [];
@@ -355,9 +362,11 @@ async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
     return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(candidate);
   }
 
-  return callbacks.some((callback) => {
-    return matches(callback, normalized) || matches(callback, canonical);
-  });
+  return {
+    allowed: callbacks.some((callback) => matches(callback, normalized) || matches(callback, canonical)),
+    configuration_available: true,
+    error_code: null,
+  };
 }
 
 function appendOAuthParams(redirectUri, params) {
@@ -1023,7 +1032,11 @@ export function buildAuthRoutes(deps) {
     }
 
     const query = (sql, params) => resolvePool().query(sql, params);
-    if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
+    const redirectDecision = await resolveTenantGptRedirectUriDecision(redirectUri, query);
+    if (!redirectDecision.configuration_available) {
+      return res.status(503).type("text/plain").send("OAuth configuration is temporarily unavailable. Please retry.");
+    }
+    if (!redirectDecision.allowed) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
@@ -1051,7 +1064,13 @@ export function buildAuthRoutes(deps) {
       }
       const query = (sql, params) => resolvePool().query(sql, params);
       stage = "oauth_client_config";
-      if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
+      const redirectDecision = await resolveTenantGptRedirectUriDecision(redirect_uri, query);
+      if (!redirectDecision.configuration_available) {
+        const error = new Error("OAuth client configuration is unavailable.");
+        error.code = redirectDecision.error_code || "oauth_configuration_unavailable";
+        throw error;
+      }
+      if (!redirectDecision.allowed) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
 
