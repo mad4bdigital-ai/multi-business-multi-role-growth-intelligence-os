@@ -36,8 +36,12 @@ export async function loadTenantToolManifestBlocks(pool) {
        status AS manifest_status
      FROM platform_capability_compiled_manifests
      WHERE is_current = 1
-       AND capability_key LIKE ?`,
-    [TENANT_TOOL_CAPABILITY_PREFIX, `${TENANT_TOOL_CAPABILITY_PREFIX}%`]
+       AND LEFT(capability_key, CHAR_LENGTH(?)) = ?`,
+    [
+      TENANT_TOOL_CAPABILITY_PREFIX,
+      TENANT_TOOL_CAPABILITY_PREFIX,
+      TENANT_TOOL_CAPABILITY_PREFIX,
+    ]
   );
   return buildTenantToolManifestBlocks(rows);
 }
