@@ -37,6 +37,13 @@ const RECIPES = Object.freeze({
     allowed_modes: ["dev_governed_migration_client_apply"],
     allowed_aliases: ["dev_governed_migration_client_apply"],
   },
+  tenant_gpt_oauth_live_smoke: {
+    resource_type: "shell_alias",
+    permission_level: "diagnostic",
+    allowed_modes: ["tenant_gpt_oauth_live_smoke"],
+    allowed_aliases: ["tenant_gpt_oauth_live_smoke"],
+    production_execution_allowed: true,
+  },
 });
 
 function badRequest(code, message, details = undefined) {
@@ -243,7 +250,7 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
       alias: normalizedUri.alias,
       expected_commit_sha,
       arbitrary_shell_allowed: false,
-      production_execution_allowed: false,
+      production_execution_allowed: recipe.production_execution_allowed === true,
       requires_expected_commit_sha: true,
       requires_typed_confirmation: true,
       requires_same_cycle_readback: true,
