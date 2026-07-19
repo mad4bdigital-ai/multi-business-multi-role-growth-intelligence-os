@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "d881c1146d4832ae68829e5d75ae6be467a33cac809c2dfd44406cc208539e16",
+    "source_digest": "514402e228593839fbfd9ec9df828fed0bfc1c876a89bc68df324f8a1da89e4f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -431,7 +431,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "18992d8884334d4bd0764043143a1e4a3756b777fb201ecd72b44153b6111288",
+        "sha256": "a87751ba1631198a40a83bdb857a418578ef8d40358ff0862fce9dbf9ddbd0ef",
         "present": true
       },
       {
@@ -846,7 +846,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "e55fbca0433446e3e41a82ad11e8fc0879a6fbf8c9fd77c1546f359bc8557865",
+        "sha256": "3ff7eee04bef1c687d97fb7f82f6e2ee563a6d26bf12edad790a2ec137d10c68",
         "present": true
       },
       {
@@ -36257,7 +36257,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "18992d8884334d4bd0764043143a1e4a3756b777fb201ecd72b44153b6111288",
+      "source_digest": "a87751ba1631198a40a83bdb857a418578ef8d40358ff0862fce9dbf9ddbd0ef",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
