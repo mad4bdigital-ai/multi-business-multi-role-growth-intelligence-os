@@ -1098,6 +1098,9 @@ export function buildAuthRoutes(deps) {
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
+      if (requested_resource && !oauth_resource) {
+        return res.status(400).json({ ok: false, error: { code: "invalid_resource", message: "resource is not allowed for the Tenant GPT client." } });
+      }
       const query = (sql, params) => resolvePool().query(sql, params);
       stage = "oauth_client_config";
       const redirectDecision = await resolveTenantGptRedirectUriDecision(redirect_uri, query);
