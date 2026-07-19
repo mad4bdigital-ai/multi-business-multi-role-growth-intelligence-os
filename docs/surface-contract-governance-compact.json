@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 94.81,
+  "docs_completion_percent": 94.12,
   "docs_complete_count": 512,
-  "docs_gap_count": 28,
-  "queue_items": 28,
-  "blocking_new_item_count": 28,
+  "docs_gap_count": 32,
+  "queue_items": 32,
+  "blocking_new_item_count": 32,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -23,7 +23,7 @@
     {
       "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
       "queue_class": "critical_review",
-      "score": 984,
+      "score": 983,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -35,13 +35,13 @@
     {
       "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
       "queue_class": "critical_review",
-      "score": 870,
+      "score": 869,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
       "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
       "queue_class": "critical_review",
-      "score": 851,
+      "score": 850,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -51,9 +51,15 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
+      "migration_file": "20260719_fix_growth_intelligence_report_read_tool_path.sql",
+      "queue_class": "critical_review",
+      "score": 833,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "20260715_capability_envelope_template_resolver.sql",
       "queue_class": "critical_review",
-      "score": 817,
+      "score": 816,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -61,24 +67,18 @@
       "queue_class": "critical_review",
       "score": 805,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260714_async_release_deploy_contract.sql",
-      "queue_class": "critical_review",
-      "score": 788,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 662,
-  "total_sql_route_like_count": 685,
-  "safety_marker_gap_migrations": 3,
+  "total_sql_route_like_count": 686,
+  "safety_marker_gap_migrations": 5,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 28,
-    "warning_new_item_count": 28
+    "blocking_new_item_count": 32,
+    "warning_new_item_count": 32
   },
   "safety": {
     "executes_provider_calls": false,

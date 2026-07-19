@@ -48,7 +48,7 @@ VALUES (
     'additionalProperties', FALSE
   ),
   JSON_OBJECT(),
-  JSON_ARRAY('activation', 'session', 'read_only', 'diagnostic'),
+  'activation,session,read_only,diagnostic',
   1,
   91
 )

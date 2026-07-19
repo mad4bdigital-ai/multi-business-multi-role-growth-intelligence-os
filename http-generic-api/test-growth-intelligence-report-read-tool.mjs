@@ -21,6 +21,20 @@ assert.match(migration, /ON DUPLICATE KEY UPDATE/);
 assert(!/\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(migration));
 assert(!/\bPOST\b|\bPATCH\b|\bPUT\b/i.test(migration));
 
+const pathCorrection = fs.readFileSync(
+  new URL("./migrations/20260719_fix_growth_intelligence_report_read_tool_path.sql", import.meta.url),
+  "utf8"
+);
+assert.match(pathCorrection, /UPDATE admin_platform_endpoint_tools/);
+assert.match(pathCorrection, /tool_key = 'growth_intelligence_report_read'/);
+assert.match(pathCorrection, /http_method = 'GET'/);
+assert.match(pathCorrection, /\/tenants\/\{tenant_id\}\/growth-intelligence\/reports\/\{report_id\}/);
+assert.match(pathCorrection, /JSON_ARRAY\('tenant_id', 'report_id'\)/);
+assert.match(pathCorrection, /JSON_LENGTH\(path_param_keys\) <> 2/);
+assert.match(pathCorrection, /JSON_EXTRACT\(path_param_keys, '\$\[0\]'\)/);
+assert.match(pathCorrection, /JSON_EXTRACT\(path_param_keys, '\$\[1\]'\)/);
+assert(!/\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(pathCorrection));
+
 const clientSource = fs.readFileSync(
   new URL("./scripts/dev-governed-migration-client.mjs", import.meta.url),
   "utf8"
