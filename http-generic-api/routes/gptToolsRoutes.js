@@ -4066,7 +4066,12 @@ export function buildGptToolsRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "tool_call_failed", message: err.message }
+        error: {
+        code: err.code || "tool_call_failed",
+        message: err.message,
+        ...(err.details ? { details: err.details } : {}),
+      },
+      secrets_included: false
       });
     }
   });
