@@ -134,6 +134,24 @@ jobs:
             'quoted 409 description',
           );
 
+          function quoteUnquotedFlowDescriptions(file) {
+            const lines = fs.readFileSync(file, 'utf8').split('\n');
+            let changed = 0;
+            const normalized = lines.map((line) => line.replace(
+              /description:\s*([^"'\[{][^{}]*?,[^{}]*?)(?=,\s*(?:content|headers|links):\s*\{)/g,
+              (match, description) => {
+                const escaped = description.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                changed += 1;
+                return `description: "${escaped}"`;
+              },
+            ));
+            if (changed === 0) throw new Error(`No malformed flow descriptions found in ${file}`);
+            fs.writeFileSync(file, normalized.join('\n'));
+            console.log(`Quoted ${changed} malformed OpenAPI flow descriptions in ${file}.`);
+          }
+
+          quoteUnquotedFlowDescriptions('openapi.yaml');
+
           replaceRequired(
             'scripts/split-openapi.mjs',
             'import YAML from "yaml";\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));',
