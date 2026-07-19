@@ -48,6 +48,8 @@ The projection resolves one canonical capability identity, operation class, risk
 
 State-changing virtual capabilities require resource authority, audit evidence, and an explicit readback contract. Shadow readback readiness is separate from generic certification, and every projected capability remains `apply_allowed=0` until certification plus shadow/canary evidence authorize promotion.
 
+Bounded mutation atomicity modes must classify consistently before aliases are aggregated into a canonical capability. `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` are state-changing. Unclassified or conflicting mutation semantics remain fail-closed debt. Tool-catalog tags accept arrays, JSON-array strings, and legacy CSV only after deterministic normalization.
+
 `platformVirtualToolCapabilityReconciler.js` maintains the projection, source links, shadow readback contracts, and debt inside the existing capability-assurance transaction. It performs no provider call, credential payload read, external write, or secret return.
 
 ## Readiness vector
