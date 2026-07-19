@@ -16,6 +16,11 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import {
+  assertTenantToolManifestAllows,
+  filterTenantToolsByManifest,
+  loadTenantToolManifestBlocks,
+} from "../tenantToolManifestGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
@@ -2248,7 +2253,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v1"),
+    sqlCacheKey("tools", callerType, "list", "v2"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
@@ -2261,8 +2266,14 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
+  const blockedTenantManifests = callerType === "tenant"
+    ? await loadTenantToolManifestBlocks(getPool())
+    : new Map();
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key))
+    ? filterTenantToolsByManifest(
+        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+        blockedTenantManifests
+      )
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
@@ -2337,6 +2348,10 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  if (callerType === "tenant") {
+    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+  }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
@@ -4052,7 +4067,12 @@ export function buildGptToolsRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "tool_call_failed", message: err.message }
+        error: {
+        code: err.code || "tool_call_failed",
+        message: err.message,
+        ...(err.details ? { details: err.details } : {}),
+      },
+      secrets_included: false
       });
     }
   });
