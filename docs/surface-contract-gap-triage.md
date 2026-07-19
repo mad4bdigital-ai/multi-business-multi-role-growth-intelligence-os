@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 31
-- Gate candidates: 30
+- Triaged items: 32
+- Gate candidates: 31
 - New-gap gate: fail
-- Blocking new items: 31
+- Blocking new items: 32
 
 ## Class counts
 
-- new_surface_immediate_review: 30
+- new_surface_immediate_review: 31
 - safety_marker_review: 1
 
 ## Immediate review candidates
@@ -30,19 +30,19 @@
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 782; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 782; next: add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_capability_projection.sql` — critical_review, score 741; next: add targeted patch-index, parity, and governance documentation
-- `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, score 737; next: add targeted patch-index, parity, and governance documentation
+- `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, score 736; next: add targeted patch-index, parity, and governance documentation
 - `20260718_growth_intelligence_report_read_tool.sql` — critical_review, score 732; next: add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation
+- `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 728; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 722; next: add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, score 720; next: add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 712; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 677; next: add targeted patch-index, parity, and governance documentation
 - `20260718_virtual_tool_single_file_mutation_classification.sql` — high_review, score 648; next: add targeted patch-index, parity, and governance documentation
 - `20260718_expand_resource_authority_shell_alias_contract.sql` — high_review, score 587; next: add targeted patch-index, parity, and governance documentation
-- `20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql` — high_review, score 567; next: add targeted patch-index, parity, and governance documentation
+- `20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql` — high_review, score 566; next: add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_readback_readiness.sql` — high_review, score 563; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor_mutation_policy.sql` — high_review, score 548; next: add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_rollout_readiness_current_evidence.sql` — high_review, score 543; next: add targeted patch-index, parity, and governance documentation
 - `20260716_github_list_repository_issues_array_contract.sql` — high_review, score 536; next: add targeted patch-index, parity, and governance documentation
-- `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, score 533; next: add targeted patch-index, parity, and governance documentation
-- `20260715_supervisor_behavioral_certification_capability_policy.sql` — high_review, score 517; next: add targeted patch-index, parity, and governance documentation
+- `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, score 532; next: add targeted patch-index, parity, and governance documentation
+- `20260719_tenant_blocked_tool_exports_fail_closed.sql` — high_review, score 521; next: add targeted patch-index, parity, and governance documentation
