@@ -2265,8 +2265,14 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
+  const blockedTenantManifests = callerType === "tenant"
+    ? await loadTenantToolManifestBlocks(getPool())
+    : new Map();
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key))
+    ? filterTenantToolsByManifest(
+        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+        blockedTenantManifests
+      )
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
