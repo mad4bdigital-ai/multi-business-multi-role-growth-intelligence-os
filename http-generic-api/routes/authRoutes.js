@@ -1061,6 +1061,9 @@ export function buildAuthRoutes(deps) {
     if (!state) {
       return res.status(400).type("text/plain").send("OAuth state is required for the Tenant GPT client.");
     }
+    if (requestedResource && !oauthResource) {
+      return res.status(400).type("text/plain").send("OAuth resource is not allowed for the Tenant GPT client.");
+    }
 
     const query = (sql, params) => resolvePool().query(sql, params);
     const redirectDecision = await resolveTenantGptRedirectUriDecision(redirectUri, query);
