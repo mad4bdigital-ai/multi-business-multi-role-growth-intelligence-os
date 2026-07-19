@@ -14,6 +14,9 @@ const MUTATING_TOOLS = new Set([
   "capability_resolution_envelope_apply_authorize",
   "capability_resolution_envelope_lifecycle",
   "growth_intelligence_pilot_run",
+  "growth_intelligence_insight_decide",
+  "growth_intelligence_action_decide",
+  "growth_intelligence_readiness_refresh",
 ]);
 
 const ALLOWED_TOOLS = new Set([
