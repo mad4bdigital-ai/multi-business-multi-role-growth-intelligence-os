@@ -83,7 +83,7 @@ async function postJson(baseUrl, path, body, { headers = {} } = {}) {
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
-  return { status: response.status, body: await readJson(response) };
+  return { status: response.status, headers: response.headers, body: await readJson(response) };
 }
 
 async function postForm(baseUrl, path, body, { headers = {} } = {}) {
@@ -287,6 +287,169 @@ try {
   }
 
   section("code issuance and token exchange");
+
+  const googleFlowCalls = [];
+  let googleCodeStoreInsertAttempts = 0;
+  const googleConnection = {
+    async beginTransaction() { googleFlowCalls.push("begin"); },
+    async query(sql, params) {
+      googleFlowCalls.push({ target: "connection", sql, params });
+      if (sql.includes("FROM `user_credentials`")) return [[{ user_id: "google-user-1" }]];
+      if (sql.includes("FROM `memberships`")) {
+        return [[{ tenant_id: "google-tenant-1", membership_status: "active", tenant_status: "active" }]];
+      }
+      throw new Error(`Unexpected Google connection query: ${sql}`);
+    },
+    async commit() { googleFlowCalls.push("commit"); },
+    async rollback() { googleFlowCalls.push("rollback"); },
+    release() { googleFlowCalls.push("release"); },
+  };
+  const googleFlowPool = {
+    async getConnection() { return googleConnection; },
+    async query(sql, params) {
+      googleFlowCalls.push({ target: "pool", sql, params });
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        return [[{
+          config_json: JSON.stringify({
+            client_id: "mad4b-tenant-gpt",
+            client_secret: "test-client-secret",
+            callback_urls_to_allow: [canonicalRedirectUri],
+          }),
+        }]];
+      }
+      if (sql.includes("FROM `memberships`")) {
+        return [[{ tenant_id: "google-tenant-1", role: "owner", status: "active", tenant_display_name: "Google Tenant" }]];
+      }
+      if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+        googleCodeStoreInsertAttempts += 1;
+        if (googleCodeStoreInsertAttempts === 1) {
+          const error = new Error("Table 'platform.tenant_gpt_oauth_authorization_codes' doesn't exist");
+          error.code = "ER_NO_SUCH_TABLE";
+          error.errno = 1146;
+          throw error;
+        }
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_oauth_authorization_codes`")) {
+        return [{ affectedRows: 0 }];
+      }
+      throw new Error(`Unexpected Google pool query: ${sql}`);
+    },
+  };
+  const verifiedGoogleTokens = [];
+  const googleFlowApp = express();
+  googleFlowApp.use(express.json());
+  googleFlowApp.use("/auth", buildAuthRoutes({
+    getPool: () => googleFlowPool,
+    googleClient: {
+      async verifyIdToken(input) {
+        verifiedGoogleTokens.push(input);
+        return {
+          getPayload() {
+            return {
+              sub: "google-subject-1",
+              email: "Google.User@Example.COM",
+              email_verified: true,
+              name: "Google User",
+            };
+          },
+        };
+      },
+    },
+  }));
+  const googleFlowServer = await startServer(googleFlowApp);
+  try {
+    const googleCodeResult = await postJson(googleFlowServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "google-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("Google popup issues an authorization code through the default identity resolver", googleCodeResult.status === 200, JSON.stringify(googleCodeResult.body));
+    assert("Google ID token is verified for the configured audience", verifiedGoogleTokens[0]?.audience === process.env.GOOGLE_CLIENT_ID, JSON.stringify(verifiedGoogleTokens));
+    assert("Google identity reuses the bound platform user", jwt.decode(googleCodeResult.body.code)?.user_id === "google-user-1", JSON.stringify(googleCodeResult.body));
+    assert("Google identity normalizes email before code issuance", jwt.decode(googleCodeResult.body.code)?.email === "google.user@example.com", JSON.stringify(googleCodeResult.body));
+    assert("missing durable code table is created once", googleFlowCalls.filter((call) => typeof call === "object" && call.sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_oauth_authorization_codes`")).length === 1, JSON.stringify(googleFlowCalls));
+    assert("authorization-code insert is retried after table recovery", googleCodeStoreInsertAttempts === 2, String(googleCodeStoreInsertAttempts));
+    assert("Google identity transaction commits", googleFlowCalls.includes("commit"), JSON.stringify(googleFlowCalls));
+    assert("Google OAuth state survives the recovered code flow", String(googleCodeResult.body.redirect_to || "").includes("state=google-state"), googleCodeResult.body.redirect_to);
+  } finally {
+    await new Promise((resolve) => googleFlowServer.server.close(resolve));
+  }
+
+  const unavailableStorePool = {
+    async query(sql) {
+      if (sql.includes("FROM `platform_runtime_config`")) {
+        return [[{
+          config_json: JSON.stringify({
+            client_id: "mad4b-tenant-gpt",
+            client_secret: "test-client-secret",
+            callback_urls_to_allow: [canonicalRedirectUri],
+          }),
+        }]];
+      }
+      if (sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")) {
+        const error = new Error("sensitive database connection detail");
+        error.code = "ECONNREFUSED";
+        error.errno = 111;
+        throw error;
+      }
+      throw new Error(`Unexpected unavailable-store query: ${sql}`);
+    },
+  };
+  const unavailableStoreApp = express();
+  unavailableStoreApp.use(express.json());
+  unavailableStoreApp.use("/auth", buildAuthRoutes({
+    getPool: () => unavailableStorePool,
+    async resolveTenantGptOAuthCredential(credential) {
+      if (credential?.id_token === "identity-outage") {
+        const error = new Error("sensitive identity database detail");
+        error.code = "ER_BAD_FIELD_ERROR";
+        error.errno = 1054;
+        throw error;
+      }
+      return {
+        user_id: "user-1",
+        email: "user@example.com",
+        tenant_id: "tenant-1",
+        memberships: [{ tenant_id: "tenant-1", role: "owner", status: "active" }],
+      };
+    },
+  }));
+  const unavailableStoreServer = await startServer(unavailableStoreApp);
+  const infrastructureLogs = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => infrastructureLogs.push(args);
+  try {
+    const unavailableCodeResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "verified-google-id-token" },
+      redirect_uri: redirectUri,
+      state: "unavailable-store-state",
+      scope: TENANT_SCOPE,
+    });
+    assert("code-store outages return a retryable service response", unavailableCodeResult.status === 503, JSON.stringify(unavailableCodeResult.body));
+    assert("code-store outages are not mislabeled as identity failures", unavailableCodeResult.body.error?.code === "oauth_code_store_unavailable", JSON.stringify(unavailableCodeResult.body));
+    assert("code-store outage response includes a correlation reference", unavailableCodeResult.headers.get("x-request-id") === unavailableCodeResult.body.error?.request_id, JSON.stringify(unavailableCodeResult.body));
+    assert("code-store diagnostics identify the failed stage", infrastructureLogs[0]?.[1]?.stage === "authorization_code_store", JSON.stringify(infrastructureLogs));
+    assert("code-store diagnostics exclude raw database messages", !JSON.stringify(infrastructureLogs).includes("sensitive database connection detail"), JSON.stringify(infrastructureLogs));
+    assert("code-store diagnostics mark secrets excluded", infrastructureLogs[0]?.[1]?.secrets_included === false, JSON.stringify(infrastructureLogs));
+
+    const unavailableIdentityResult = await postJson(unavailableStoreServer.baseUrl, "/auth/oauth/code", {
+      credential: { kind: "google", id_token: "identity-outage" },
+      redirect_uri: redirectUri,
+      state: "unavailable-identity-state",
+      scope: TENANT_SCOPE,
+    });
+    const identityDiagnostic = infrastructureLogs.find((entry) => entry?.[1]?.stage === "identity_resolution");
+    assert("identity infrastructure outages return a retryable service response", unavailableIdentityResult.status === 503, JSON.stringify(unavailableIdentityResult.body));
+    assert("identity infrastructure outages are classified separately", unavailableIdentityResult.body.error?.code === "oauth_identity_unavailable", JSON.stringify(unavailableIdentityResult.body));
+    assert("identity outage response includes a correlation reference", unavailableIdentityResult.headers.get("x-request-id") === unavailableIdentityResult.body.error?.request_id, JSON.stringify(unavailableIdentityResult.body));
+    assert("identity diagnostics identify the failed stage", identityDiagnostic?.[1]?.error_code === "ER_BAD_FIELD_ERROR", JSON.stringify(infrastructureLogs));
+    assert("identity diagnostics exclude raw database messages", !JSON.stringify(infrastructureLogs).includes("sensitive identity database detail"), JSON.stringify(infrastructureLogs));
+  } finally {
+    console.error = originalConsoleError;
+    await new Promise((resolve) => unavailableStoreServer.server.close(resolve));
+  }
 
   const userToken = jwt.sign(
     { user_id: "user-1", email: "user@example.com", tenant_id: "tenant-1" },
