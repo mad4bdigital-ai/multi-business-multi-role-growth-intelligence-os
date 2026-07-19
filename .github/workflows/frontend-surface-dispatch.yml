@@ -255,6 +255,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- ../.github/workflows/custom-gpt-contract-guard.yml ../.github/workflows/openapi-auto-sync.yml openapi.yaml openapi/async-release-deploy.yaml openapi/openapi.tenant-gpt.activation.yaml openapi/repo-conflict-intelligence.yaml package.json scripts/generate-custom-gpt-schemas.mjs scripts/split-openapi.mjs frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git add -- openapi.yaml openapi/async-release-deploy.yaml openapi/openapi.tenant-gpt.activation.yaml openapi/repo-conflict-intelligence.yaml package.json scripts/generate-custom-gpt-schemas.mjs scripts/split-openapi.mjs frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
           git commit -m "fix: enforce OpenAPI Response Object generation"
           git push origin "HEAD:${GITHUB_REF_NAME}"
