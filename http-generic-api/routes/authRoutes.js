@@ -1161,7 +1161,7 @@ export function buildAuthRoutes(deps) {
         jti: codeJti,
         user_id: payload.user_id,
         tenant_id: payload.tenant_id || null,
-        client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+        client_id: resourceProfile.client_id,
         redirect_uri: canonicalRedirectUri,
         expires_at: codeExpiresAt,
       });
