@@ -1,5 +1,9 @@
 export function inspectTenantToolInputSchema(inputSchema) {
-  if (inputSchema === null || inputSchema === undefined || String(inputSchema).trim() === "") {
+  if (
+    inputSchema === null
+    || inputSchema === undefined
+    || (typeof inputSchema === "string" && inputSchema.trim() === "")
+  ) {
     return { strict: false, reason: "missing_input_schema" };
   }
 
