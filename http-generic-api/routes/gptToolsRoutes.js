@@ -2360,8 +2360,12 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 
 async function dispatchTool(callerType, toolKey, args, req) {
   if (callerType === "tenant") {
-    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+    assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
