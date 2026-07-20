@@ -2,6 +2,8 @@ import { Router } from "express";
 import { spawn } from "child_process";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
+import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
+import { finalizeCloudflareEnvelopeLifecycle } from "../cloudflareEnvelopeLifecycle.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -2682,7 +2684,22 @@ export function buildAdminCliRoutes(deps) {
         payload: { method: body.method || "GET", path: body.path },
       });
       const result = await executeCloudflareControl(body);
-      return res.status(200).json({ ok: true, result });
+      const envelopeLifecycle = await finalizeCloudflareEnvelopeLifecycle({
+        body,
+        mutationResult: result,
+        executeReadback: executeCloudflareControl,
+        consumeEnvelope: ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return res.status(200).json({
+        ok: true,
+        result: { ...result, envelope_lifecycle: envelopeLifecycle },
+      });
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
