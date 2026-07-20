@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// frontend-surface-operation: POST /platform/orchestration/readback
+
 const migration = readFileSync("migrations/262_sprint68_orchestration_readback_surface.sql", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const service = readFileSync("platformOrchestrationReadback.js", "utf8");

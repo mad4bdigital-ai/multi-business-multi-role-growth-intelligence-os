@@ -84,21 +84,7 @@ SET description = 'Create a bounded resource authority binding for governed GitH
       ),
       'additionalProperties', FALSE
     ),
-    tags = JSON_ARRAY(
-      'admin',
-      'resource_authority',
-      'state_changing',
-      'dry_run_default',
-      'typed_confirmation',
-      'readback',
-      'github_repo',
-      'shell_alias',
-      'dev_only',
-      'no_arbitrary_shell',
-      'no_provider_call',
-      'no_external_write',
-      'no_secrets'
-    )
+    tags = 'admin,resource_authority,state_changing,dry_run_default,typed_confirmation,readback,github_repo,shell_alias,dev_only,no_arbitrary_shell,no_provider_call,no_external_write,no_secrets'
 WHERE tool_key = 'platform_resource_authority_grant_apply';
 
 -- no_provider_call=true

@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+## Dynamic Container read-only canary promotion parity
+
+Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-complete when the governed migration ledger records run `2b2015d2-73d0-40a2-af33-57678af0389a`, checksum `1c0327e8a8c5533683f92a4906d221af052ba633421464605a68488d3e5b665f`, statement count `4`, and zero-risk preflight; registry readback confirms `dynamic_container_canary_promotion_policy_v1`, the `dynamic_container_canary_promotion` Admin tool, and its app integration binding; and runtime readback confirms global mode remains `shadow`, enforcement remains disabled, and no more than one `read_only_canary` is active. Any apply requires a fresh plan-bound Capability Envelope, exact typed confirmation, transactional envelope consumption, and same-cycle readback. Merge, deployment, or documentation alone never authorizes global or mutation enforcement. No provider call, credential payload read, raw-secret access, external send/write, or secret inclusion is introduced; `secrets_included=false`.
+
 ## Spec 007 virtual-tool capability projection parity
 
 - [ ] Repository `main` contains `20260717_virtual_tool_capability_projection.sql`, `20260717_virtual_tool_readback_readiness.sql`, and the focused reconciler at the reviewed merge SHA.
@@ -10,6 +14,12 @@
 - [ ] `repo_patch_batch_apply` remains an Admin alias, Tenant projection is absent, and the compiled manifest keeps `apply_allowed=0`.
 - [ ] Shadow readback contract reports `shadow_only` or ready independently from generic certification; certification and shadow/canary promotion remain separately gated.
 - [ ] No provider call, credential payload read, raw-secret output, external send/write, deployment, or automatic callable activation occurred during migration apply or parity verification; `secrets_included=false`.
+- [ ] Corrective migration `20260718_virtual_tool_single_file_mutation_classification.sql` is checksum-bound, zero-risk, additive, and applied after the original projection/readback migrations.
+- [ ] `single_file_mutation` and `atomic_change_set` both classify as `state_changing` when they resolve to one canonical capability, and `OPERATION_CLASS_AMBIGUOUS` plus `MUTATION_CLASSIFICATION_REQUIRED` debt is resolved.
+- [ ] Registry tool tags normalize equivalently from arrays, JSON-array strings, and legacy CSV before mutation-policy, typed-confirmation, and readback checks.
+- [ ] Corrective migration `20260719_virtual_tool_export_shadow_alignment.sql` is checksum-bound, additive, zero-risk, and applied after the mutation-classification correction.
+- [ ] Virtual-tool capability-export aliases are `shadow` while the canonical manifest is blocked or uncertified; `UNSAFE_ACTIVE_ADMIN_EXPORT` is absent and Tenant exports remain zero.
+- [ ] Admin tool catalog rows and `platform_tool_dispatch_bindings` remain unchanged, and `apply_allowed=0` remains enforced.
 
 
 ## GitHub Actions diagnostics endpoint parity

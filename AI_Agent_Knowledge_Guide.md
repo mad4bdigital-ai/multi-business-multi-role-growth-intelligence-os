@@ -4,11 +4,27 @@
 
 Production Tenant GPT OAuth verification uses `http-generic-api/scripts/tenant-gpt-oauth-live-smoke.mjs` only after CI, merge, and production deployment readback. It requires typed confirmation plus an active user and tenant membership, resolves credentials internally, verifies `authorize -> code -> token`, tenant binding and replay rejection, cleans transient activation context, and returns no raw token, code, credential, or secret. See `docs/tenant-gpt-oauth-live-smoke.md`.
 
+### Tenant GPT JIT onboarding authority
+
+Tenant account creation and sign-in remain inside the ChatGPT OAuth popup. Normal onboarding must not redirect to `/connect`; `/connect` is optional support, administration, or device-recovery infrastructure only. Google JIT identity requires a stable subject and verified normalized email, and duplicate races must recover the canonical active account without creating replacement workspaces for blocked principals.
+
+Tenant GPT OAuth authorization codes use durable hash-only persistence with client, redirect, expiry, and one-time atomic-consumption bindings. Process-local replay maps are not sufficient. Reuse, expiry, or binding mismatch must fail as `invalid_grant` without logging or returning raw code material.
+
+Tenant onboarding should call `connect_bootstrap` when available. The operation derives identity from the signed JWT, provisions one eligible workspace when absent, activates Managed mode idempotently, and performs final `connect_status`-equivalent readback. Never report activation success unless readback confirms Managed and active; multiple eligible workspaces require explicit selection, while inactive accounts, revoked memberships, and suspended tenants remain blocked.
+
 `activation.mad4b.com` is the distinct GPT Builder Action server URL for Tenant and Admin Activation schemas. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only and must not be treated as the runtime gateway. The Node application mounted on the Hostinger app enforces the activation host boundary through `http-generic-api/routes/activationHostGatewayRoutes.js` before normal route registration.
 
 Activation host requests may serve only `/`, `/health`, Activation OpenAPI schemas, `/activation/*`, `/tenant/activation/*`, and the exact Tenant GPT OAuth handoffs `GET /auth/oauth/authorize`, `POST /auth/oauth/code`, and `POST /auth/oauth/token`. The in-app gateway serves `openapi.tenant-gpt.activation.yaml`, `openapi.custom-gpt.activation-admin.yaml`, and the extensionless Tenant Activation import URL `/tenant-gpt/activation-openapi` directly before root-level protected routers. Tenant GPT builders should import Tenant Activation from `https://activation.mad4b.com/tenant-gpt/activation-openapi`; that schema uses activation-host authorization and token URLs, while the three handoffs enter the same shared `authRoutes` implementation backed by `auth.mad4b.com`. Wrong methods, wildcard OAuth paths, `/auth/login`, `/auth/register`, `/auth/google`, admin auth, and unrelated core routes remain blocked. The gateway strips cookies, preserves bearer-token activation transport, returns `secrets_included=false`, and must not itself mint tokens, perform business authorization, call providers, or transform Activation business responses.
 
 This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
+
+## Tenant Tool Manifest Export Authority
+
+Tenant GPT tool exposure and execution are governed by both the Tenant tool registry and the current compiled capability manifest. `tenant_platform_endpoint_tools.is_enabled=1` is necessary but not sufficient authority to expose or dispatch a Tenant tool. The Tenant GPT tool catalog and direct `/gpt/tools/call` dispatch must resolve `platform_capability_compiled_manifests` for `tenant_tool.<tool_key>` and fail closed when the current manifest status is not exportable.
+
+The current exportable manifest statuses are `shadow_ready`, `active`, and `certified`. A current `blocked` or unknown manifest status must hide the tool from Tenant listing and reject direct dispatch with `403 tenant_tool_capability_blocked`, structured details, and `secrets_included=false`. Admin tools remain outside this Tenant-specific guard. Tools without a compiled manifest retain temporary compatibility until the manifest cutover policy explicitly changes; adding a new manifest status requires updating the guard and regression tests in the same change.
+
+Listing may use a versioned cache, but direct dispatch must read the current manifest without relying on stale listing state. Cache versions must be advanced whenever visibility policy changes. Capability-key matching must use exact `tenant_tool.` prefix semantics rather than SQL wildcard matching. Regression coverage must prove hidden listing, direct-dispatch denial, Admin non-interference, compatibility for unmanifested tools, exact prefix matching, structured errors, and guard execution before dispatch preflight.
 
 ## Tenant Activation Session Context Isolation
 
@@ -392,6 +408,10 @@ Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certi
 Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
 
 Virtual governed tools must be projected from `platform_tool_dispatch_bindings` through deterministic registry reconciliation. Tool names and aliases are not authority. Identity, scope, operation, readback, or source conflicts create persistent debt and block execution. Virtual Admin surfaces must not project to Tenant, shadow readback readiness remains separate from generic certification, and all projected state-changing capabilities remain `apply_allowed=0` until certification and shadow/canary evidence pass.
+
+Treat bounded mutation atomicity modes such as `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` as one `state_changing` operation family for canonical capability projection. Do not infer authority from aliases. Normalize registry tool tags from arrays, JSON-array strings, or legacy CSV before evaluating mutation, confirmation, and readback policy tags.
+
+Treat virtual-tool rows in `platform_plugin_capability_exports` as shadow assurance aliases until canonical certification and promotion complete. An `active` runtime Admin tool or dispatch binding does not authorize an active capability export. Export shadow alignment must not alter Admin tool catalogs, runtime dispatch bindings, Tenant scope, certification status, or `apply_allowed`.
 
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 

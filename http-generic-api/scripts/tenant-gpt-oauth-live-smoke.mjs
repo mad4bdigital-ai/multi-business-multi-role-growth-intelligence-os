@@ -144,13 +144,13 @@ export async function runTenantGptOAuthLiveSmoke(options = {}, dependencies = {}
     const authorizeResponse = await fetchImpl(authorizeUrl, { method: "GET", redirect: "manual" });
     const authorizeHtml = await authorizeResponse.text();
     if (!authorizeResponse.ok) throw fail("authorize_failed", `authorize returned HTTP ${authorizeResponse.status}.`);
-    const absoluteLinksPresent = [
-      'href="https://auth.mad4b.com/connect"',
+    const policyLinksPresent = [
       'href="https://auth.mad4b.com/privacy-policy"',
       'href="https://auth.mad4b.com/terms-of-use"',
     ].every((needle) => authorizeHtml.includes(needle));
-    const relativeSetupLinkAbsent = !authorizeHtml.includes('href="/connect"');
-    if (!absoluteLinksPresent || !relativeSetupLinkAbsent) throw fail("authorize_link_contract_failed", "Authorize link contract failed.");
+    const setupLinksAbsent = !authorizeHtml.includes('href="https://auth.mad4b.com/connect"')
+      && !authorizeHtml.includes('href="/connect"');
+    if (!policyLinksPresent || !setupLinksAbsent) throw fail("authorize_link_contract_failed", "Authorize link contract failed.");
 
     const issueResponse = await fetchImpl(`${origin}/auth/platform-jwt/issue`, {
       method: "POST",
@@ -221,7 +221,7 @@ export async function runTenantGptOAuthLiveSmoke(options = {}, dependencies = {}
 
     result = {
       ok: true,
-      authorize: { status: authorizeResponse.status, absolute_links_present: absoluteLinksPresent, relative_setup_link_absent: relativeSetupLinkAbsent },
+      authorize: { status: authorizeResponse.status, policy_links_present: policyLinksPresent, setup_links_absent: setupLinksAbsent },
       code_issue: { status: codeResponse.status, state_preserved: true, code_jti_present: Boolean(codeJti) },
       token_exchange: {
         status: tokenResponse.status,

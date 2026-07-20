@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Session Insight Promotion Read Models API
-  version: 1.4.0
+  version: 1.5.0
   description: Canonical, secret-free contracts for administrative session-insight promotion read models. The POST methods accept bounded filter documents but execute SELECT-only read actions.
 servers:
   - url: https://auth.mad4b.com
@@ -308,6 +308,27 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/remaining-scope-completions/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightRemainingScopeCompletions
+      summary: List remaining-scope completion ledgers
+      description: Runs three secret-filtered SELECT queries only. It reads gated no-execution completion rows, aggregate states, and issue evidence but cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RemainingScopeCompletionListRequest' }
+      responses:
+        '200':
+          description: Bounded remaining-scope completion ledgers with aggregate state and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemainingScopeCompletionListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
     adminBearerAuth:
@@ -487,6 +508,15 @@ components:
         target_item_id: { type: string, minLength: 1, maxLength: 128 }
         promotion_id: { type: string, minLength: 1, maxLength: 96 }
         target_surface: { type: string, enum: [development_backlog, integration_backlog, runtime_repair_backlog] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    RemainingScopeCompletionListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        remaining_scope_completion_id: { type: string, minLength: 1, maxLength: 128 }
+        adapter_execution_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
         limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
     AdapterContractListResponse:
       type: object
@@ -1551,6 +1581,97 @@ components:
         provider_call_executed: { type: boolean, const: false }
         credential_payload_read: { type: boolean, const: false }
         external_write_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletionListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, remaining_scope_completions, summary, issues, remaining_scope_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        remaining_scope_completions:
+          type: array
+          items: { $ref: '#/components/schemas/RemainingScopeCompletion' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/RemainingScopeCompletionSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        remaining_scope_policy: { $ref: '#/components/schemas/RemainingScopeCompletionPolicy' }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletion:
+      type: object
+      additionalProperties: false
+      required: [remaining_scope_completion_id, adapter_execution_gate_id, dispatch_readback_id, approval_decision_id, actual_request_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, completion_status, completion_policy_status, typed_confirm, adapter_apply_dispatch_gate_status, adapter_apply_readback_status, target_write_gate_status, target_write_readback_status, rollback_plan_status, generalized_registry_status, ui_review_queue_status, orchestration_test_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, promotion_allowed, completion_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        remaining_scope_completion_id: { type: string }
+        adapter_execution_gate_id: { type: string }
+        dispatch_readback_id: { type: string }
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        completion_status: { type: string, enum: [remaining_scope_completed_as_gated_no_execution, remaining_scope_blocked, superseded] }
+        completion_policy_status: { type: string, enum: [all_remaining_stages_gated_no_execution, blocked] }
+        typed_confirm: { type: string }
+        adapter_apply_dispatch_gate_status: { type: string, enum: [ready_but_not_requested, blocked] }
+        adapter_apply_readback_status: { type: string, enum: [blocked_until_adapter_apply_dispatch, not_applicable_no_execution] }
+        target_write_gate_status: { type: string, enum: [blocked_until_adapter_apply_readback, not_applicable_no_execution] }
+        target_write_readback_status: { type: string, enum: [blocked_until_target_write, not_applicable_no_execution] }
+        rollback_plan_status: { type: string, enum: [required_before_target_write, not_applicable_no_write] }
+        generalized_registry_status: { type: string, enum: [ready_for_multi_target_extension, blocked] }
+        ui_review_queue_status: { type: string, enum: [ready_for_admin_queue_surface, blocked] }
+        orchestration_test_status: { type: string, enum: [ready_for_e2e_no_write_tests, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        completion_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletionSummary:
+      type: object
+      additionalProperties: false
+      required: [completion_status, completion_policy_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, promotion_allowed, count]
+      properties:
+        completion_status: { type: string, enum: [remaining_scope_completed_as_gated_no_execution, remaining_scope_blocked, superseded] }
+        completion_policy_status: { type: string, enum: [all_remaining_stages_gated_no_execution, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    RemainingScopeCompletionPolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, covers, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: COMPLETE_REMAINING_SCOPE_AS_GATED_NO_EXECUTION }
+        covers:
+          type: array
+          minItems: 8
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+            enum: [adapter_apply_dispatch_gate, adapter_apply_readback, target_write_gate, target_write_readback, rollback_plan, multi_target_registry, ui_review_queue, e2e_orchestration_tests]
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
         raw_transcript_included: { type: boolean, const: false }
         secrets_included: { type: boolean, const: false }
     ErrorEnvelope:

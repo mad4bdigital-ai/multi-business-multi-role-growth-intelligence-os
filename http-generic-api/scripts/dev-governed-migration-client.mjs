@@ -5,6 +5,7 @@ const READ_ONLY_TOOLS = new Set([
   "admin_tool_catalog_search",
   "governed_migration_schema_readback",
   "governance_resolve_context",
+  "growth_intelligence_report_read",
 ]);
 
 const MUTATING_TOOLS = new Set([
@@ -13,6 +14,9 @@ const MUTATING_TOOLS = new Set([
   "capability_resolution_envelope_apply_authorize",
   "capability_resolution_envelope_lifecycle",
   "growth_intelligence_pilot_run",
+  "growth_intelligence_insight_decide",
+  "growth_intelligence_action_decide",
+  "growth_intelligence_readiness_refresh",
 ]);
 
 const ALLOWED_TOOLS = new Set([
@@ -128,6 +132,103 @@ export function validateGovernanceResolveContextArgs(toolArgs) {
     if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs[key] || ""))) {
       throw new Error(`Invalid governance context ${key}.`);
     }
+  }
+  return toolArgs;
+}
+
+const GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+]);
+
+export function validateGrowthIntelligenceReportReadArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence report read arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence report read argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error("Growth Intelligence report read requires a tenant UUID.");
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error("Invalid Growth Intelligence report_id.");
+  }
+  return toolArgs;
+}
+
+const GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "insight_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "action_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "assessed_by",
+]);
+
+function validateGrowthIntelligenceReviewObject(toolArgs, allowedKeys, label) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error(`${label} arguments must be a JSON object.`);
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !allowedKeys.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported ${label} argument: ${unknownKeys[0]}`);
+  if (!UUID_PATTERN.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error(`${label} requires a tenant UUID.`);
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error(`Invalid ${label} report_id.`);
+  }
+}
+
+function validateGrowthIntelligenceDecisionMetadata(toolArgs, label) {
+  if (toolArgs.decision_by !== undefined && !UUID_PATTERN.test(String(toolArgs.decision_by || ""))) {
+    throw new Error(`${label} decision_by must be a UUID.`);
+  }
+  if (toolArgs.decision_note !== undefined) {
+    const note = toolArgs.decision_note;
+    if (typeof note !== "string" || note.length < 1 || note.length > 512 || /[\u0000-\u001F\u007F]/.test(note)) {
+      throw new Error(`${label} decision_note must be a printable string up to 512 characters.`);
+    }
+  }
+}
+
+export function validateGrowthIntelligenceInsightDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence insight decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.insight_id || ""))) throw new Error(`Invalid ${label} insight_id.`);
+  if (!["accepted", "rejected", "stale"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceActionDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence action decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.action_id || ""))) throw new Error(`Invalid ${label} action_id.`);
+  if (!["approved", "rejected"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceReadinessRefreshArgs(toolArgs) {
+  const label = "Growth Intelligence readiness refresh";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS, label);
+  if (toolArgs.assessed_by !== undefined && !/^[A-Za-z0-9._:@-]{1,128}$/.test(String(toolArgs.assessed_by || ""))) {
+    throw new Error(`Invalid ${label} assessed_by.`);
   }
   return toolArgs;
 }
@@ -329,6 +430,10 @@ export async function runClient(args = parseArgs()) {
     if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
     if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
     if (target === "governance_resolve_context") validateGovernanceResolveContextArgs(toolArgs);
+    if (target === "growth_intelligence_report_read") validateGrowthIntelligenceReportReadArgs(toolArgs);
+    if (target === "growth_intelligence_insight_decide") validateGrowthIntelligenceInsightDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_action_decide") validateGrowthIntelligenceActionDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_readiness_refresh") validateGrowthIntelligenceReadinessRefreshArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
     if (mutationRequested) {
       applyAuthoritySource = requireApplyAuthorization({

@@ -45,6 +45,7 @@ export function buildTenantGptOAuthPreset({
     notes: [
       "Configure both Tenant Core and Tenant Activation Custom GPT Actions with the same governed OAuth client.",
       "Tenant Core uses auth.mad4b.com; Tenant Activation uses activation.mad4b.com and forwards to auth.mad4b.com.",
+      "Reconnect OAuth after changing an Action server host so ChatGPT attaches the tenant access token to the new Action configuration.",
       "Use the governed client_secret_ref stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",
       "The public preset endpoint does not reveal the raw client secret.",
       "ChatGPT sends the returned Mad4B tenant JWT as Authorization: Bearer <token> on action calls.",

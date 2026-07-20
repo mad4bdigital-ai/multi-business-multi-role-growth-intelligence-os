@@ -85,7 +85,7 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
   const actionKey = compact(input.action_key || input.actionKey, 128);
   const mockProvider = compact(input.mock_provider || input.mockProvider || input.provider || "", 128);
   const mockResource = compact(input.mock_resource || input.mockResource || input.resource || "", 128);
-  const where = ["1=1"];
+  const where = ["secrets_included = 0"];
   const params = [];
   if (pluginKey) { where.push("plugin_key = ?"); params.push(pluginKey); }
   if (actionKey) { where.push("action_key = ?"); params.push(actionKey); }
@@ -98,7 +98,7 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
             last_response_ok, last_smoke_execution_log_id, last_smoke_trace_id,
             certification_status, certified_at, certification_expires_at,
             last_recertification_required_at, recertification_reason,
-            certified_by, notes, metadata_json,
+            certified_by,
             secrets_included, created_at, updated_at
        FROM platform_plugin_smoke_certifications
       WHERE ${where.join(" AND ")}
@@ -109,10 +109,9 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
   return {
     ok: true,
     count: rows.length,
-    certifications: rows.map((row) => ({
+    certifications: rows.map(({ notes: _notes, metadata_json: _metadataJson, ...row }) => ({
       ...row,
       expired: row.certification_expires_at ? new Date(row.certification_expires_at).getTime() <= Date.now() : false,
-      metadata_json: parseJson(row.metadata_json, {}),
       secrets_included: false,
     })),
     secrets_included: false,
