@@ -2826,7 +2826,7 @@ x-gpt-action-auth-preset:
   client_secret: <resolved-from-governed-platform-secret>
   client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
   client_secret_config_key: tenant_gpt.oauth.client
-  authorization_url: https://activation.mad4b.com/auth/oauth/authorize
+  authorization_url: https://activation.mad4b.com/auth/oauth/authorize?resource=https%3A%2F%2Factivation.mad4b.com
   token_url: https://activation.mad4b.com/auth/oauth/token
   token_exchange_method: Default (POST request)
   callback_urls_to_allow:
