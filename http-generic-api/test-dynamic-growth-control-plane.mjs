@@ -87,7 +87,15 @@ const fakeRepository = {
   },
   async getConfigurationDefinition(key) { return stored.definitions.get(key) || null; },
   async createConfigurationVersion(record) {
-    const saved = { ...record, versionNumber: 1, versionRevision: 1, lifecycle: "draft", secretsIncluded: false };
+    const saved = {
+      ...record,
+      scopeKey: record.scope.scopeKey,
+      scopeType: record.scope.scopeType,
+      versionNumber: 1,
+      versionRevision: 1,
+      lifecycle: "draft",
+      secretsIncluded: false
+    };
     stored.versions.push(saved);
     return saved;
   },
