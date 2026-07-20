@@ -37,7 +37,7 @@ const ALLOWED_TENANT_RESOLUTION_ROUTES = [
   { methods: new Set(["GET", "POST"]), pattern: /^\/tenant\/resolution\/cases$/ },
   { methods: new Set(["GET"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+$/ },
   { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/(?:transitions|diagnostics)$/ },
-  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/task-source-repair\/(?:preview|apply|verify)$/ },
+  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/task-source-repair\/preview$/ },
 ];
 
 const TENANT_GPT_OAUTH_HANDOFF_ROUTES = new Map([

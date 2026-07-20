@@ -2,11 +2,11 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "04707044a96a4646c98fe979251d6dc944cdfc4bf4f6f744d03b69922a46c484",
+    "source_digest": "e4ec9e1079bc54d9d645577c901840150164f4e28790179b7093ce47a650e73f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "f064819fb034e472a0c7b084f88618e25d7432519aaf6f0edb2bd30d32a07edd",
+        "sha256": "6555cc38fa054ac444f0435b6e34b9241387250569aaa9dd0220d97002cae597",
         "present": true
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "ba5427e8d03a915c55eeaaabfbafbd4fbc39ae21ab038f6a5c715e7aab871f57",
+        "sha256": "423239751b20fefcfd4b5829b59d5fcc4165e2642e8af4d282bebd6e6c798275",
         "present": true
       },
       {
@@ -201,7 +201,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "c09b6723990d3bcdee7a8d2aa9437af1c16c072552703994067459ca82454b08",
+        "sha256": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
         "present": true
       },
       {
@@ -216,7 +216,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "118bd9cee6d8a0c24d8724aebe5e46cff111d3940c091dfa8ec492e6d1de124b",
+        "sha256": "9e69510393562acaa628a4651a1412e4bf4e4998b341c7eef09587ccb2ab942c",
         "present": true
       },
       {
@@ -226,7 +226,7 @@
       },
       {
         "file": "routes/adminCliRoutes.js",
-        "sha256": "d6b4bab9018a24e9c0ed5098d99996f457d555f450e707005219c50477370777",
+        "sha256": "02de4a893214f134fb8f7fd85294344186a7020ba971d12a7a35810a8de6fcab",
         "present": true
       },
       {
@@ -431,7 +431,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "1b5e58f5d0525b7caac0c9fe86ceccbf9b788249ed495bab0096f5bfb3b522e3",
+        "sha256": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
         "present": true
       },
       {
@@ -471,7 +471,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+        "sha256": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
         "present": true
       },
       {
@@ -846,7 +846,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "40c2e25288bb7e8c2d45690e3cfeaf38c564dc47484dc0b1b15e2fa948f64d3e",
+        "sha256": "d931010173ced0b4115c79c7695a6e863622f7034905c80aff84c1f8288a5ae8",
         "present": true
       },
       {
@@ -896,7 +896,7 @@
       },
       {
         "file": "test-platform-routes.mjs",
-        "sha256": "31be43a564168e665c08951dbb58a243ec2ae99e01c0578ee00ba4b3804ead83",
+        "sha256": "afc50b0e59a76219ffd91253ef31c8547e498711f54766a39c429ad507f309a8",
         "present": true
       },
       {
@@ -1001,7 +1001,7 @@
       },
       {
         "file": "test-tenant-activation-session-alias.mjs",
-        "sha256": "057edb5d3079cc5458e1aa022f63a53b38c3c1b5348941da99e476e12c7ae456",
+        "sha256": "a0859e12c49019c3f719b9b3b869f3e90580699d4e59b10ccf044c79b8f33960",
         "present": true
       },
       {
@@ -1034,21 +1034,21 @@
     "mounted_family_count": 161,
     "mounted_route_file_count": 129,
     "mixed_scope_route_file_count": 24,
-    "operation_count": 964,
-    "openapi_documented_count": 948,
-    "openapi_canonical_documented_count": 570,
+    "operation_count": 962,
+    "openapi_documented_count": 946,
+    "openapi_canonical_documented_count": 568,
     "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 948,
+      "equivalent": 946,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 587,
-    "unresolved_operation_class_count": 531,
+    "non_get_candidate_count": 585,
+    "unresolved_operation_class_count": 529,
     "classified_mutation_count": 7,
     "governed_mutation_operation_count": 2,
     "embedded_ui_family_count": 7,
@@ -1056,7 +1056,7 @@
     "test_owned_family_count": 6,
     "untested_family_count": 155,
     "test_owned_operation_count": 52,
-    "untested_operation_count": 912,
+    "untested_operation_count": 910,
     "ready_task_count": 3,
     "blocked_task_count": 158,
     "coverage_complete": false
@@ -4676,7 +4676,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5029,7 +5029,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5141,7 +5141,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -12660,7 +12660,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "c09b6723990d3bcdee7a8d2aa9437af1c16c072552703994067459ca82454b08",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -13218,130 +13218,6 @@
           "mutation": false
         },
         {
-          "method": "POST",
-          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/apply",
-          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
-          "source_file": "routes/activationAwarenessRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireTenantUserJwt"
-            ],
-            "evidence": [
-              "route:requireTenantUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/verify",
-          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
-          "source_file": "routes/activationAwarenessRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireTenantUserJwt"
-            ],
-            "evidence": [
-              "route:requireTenantUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
           "method": "GET",
           "path": "/tenant/resolution/skill-approvals",
           "signature": "GET /tenant/resolution/skill-approvals",
@@ -13602,8 +13478,6 @@
         "POST /tenant/resolution/cases/{caseId}/transitions",
         "POST /tenant/resolution/cases/{caseId}/diagnostics",
         "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview",
-        "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
-        "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
         "GET /tenant/resolution/skill-approvals",
         "POST /tenant/resolution/skill-approvals/{approvalKey}/decision",
         "GET /tenant/activation/dynamic-tabs/detail",
@@ -13655,18 +13529,6 @@
           ]
         },
         {
-          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /tenant/resolution/skill-approvals/{approvalKey}/decision",
           "blockers": [
             "operation_classification_gap"
@@ -13683,7 +13545,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "c09b6723990d3bcdee7a8d2aa9437af1c16c072552703994067459ca82454b08",
+      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
       "mount_prefix": "/",
       "mount_order": 13285,
       "split_from_mixed_scope_file": true,
@@ -36395,7 +36257,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "1b5e58f5d0525b7caac0c9fe86ceccbf9b788249ed495bab0096f5bfb3b522e3",
+      "source_digest": "0ebf6603ebddc18a21d0ff1ba7d7239669c4acfae8b271c164e25eda90cda7dd",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
@@ -78096,7 +77958,7 @@
       "family_key": "admin-cli",
       "label": "admin cli",
       "source_file": "routes/adminCliRoutes.js",
-      "source_digest": "d6b4bab9018a24e9c0ed5098d99996f457d555f450e707005219c50477370777",
+      "source_digest": "02de4a893214f134fb8f7fd85294344186a7020ba971d12a7a35810a8de6fcab",
       "mount_prefix": "/admin/cli",
       "mount_order": 20606,
       "split_from_mixed_scope_file": false,

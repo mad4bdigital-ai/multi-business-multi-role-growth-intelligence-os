@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "d4b36387c0be1c4ce7318590ee2aec259a7475fb8121757550e3f62534ac30bf",
+  "content_hash_sha256": "44aed31487f6cc693bdfbff2e0e05dae4d6a863ad21aa3966cdf731a39217e93",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -493,45 +493,9 @@
       "method": "POST",
       "mutation": true,
       "operation_ids": [
-        "applyTenantTaskSourceRepair"
-      ],
-      "path": "/tenant/resolution/cases/{caseId}/task-source-repair/apply",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
-      "surfaces": [
-        "tenant_activation"
-      ],
-      "timeout_ms": 30000
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "tenant_oauth"
-      ],
-      "method": "POST",
-      "mutation": true,
-      "operation_ids": [
         "previewTenantTaskSourceRepair"
       ],
       "path": "/tenant/resolution/cases/{caseId}/task-source-repair/preview",
-      "request_body_limit_bytes": 1048576,
-      "response_body_limit_bytes": 5242880,
-      "surfaces": [
-        "tenant_activation"
-      ],
-      "timeout_ms": 30000
-    },
-    {
-      "allowed_query_parameters": [],
-      "auth_profiles": [
-        "tenant_oauth"
-      ],
-      "method": "POST",
-      "mutation": true,
-      "operation_ids": [
-        "verifyTenantTaskSourceRepair"
-      ],
-      "path": "/tenant/resolution/cases/{caseId}/task-source-repair/verify",
       "request_body_limit_bytes": 1048576,
       "response_body_limit_bytes": 5242880,
       "surfaces": [
