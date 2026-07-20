@@ -2271,13 +2271,19 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
-  const blockedTenantManifests = callerType === "tenant"
-    ? await loadTenantToolManifestBlocks(getPool())
-    : new Map();
+  const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
+    ? await Promise.all([
+        loadTenantToolManifestBlocks(getPool()),
+        loadTenantToolSchemaBlocks(getPool()),
+      ])
+    : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
-    ? filterTenantToolsByManifest(
-        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
-        blockedTenantManifests
+    ? filterTenantToolsByStrictSchema(
+        filterTenantToolsByManifest(
+          rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+          blockedTenantManifests
+        ),
+        blockedTenantSchemas
       )
     : rows;
   const dbTools = visibleRows.map((r) => ({
