@@ -1153,6 +1153,7 @@ export function buildAuthRoutes(deps) {
         ok: true,
         code,
         expires_in: OAUTH_CODE_TTL_SECONDS,
+        resource: oauth_resource || null,
         activation_context,
         redirect_to: appendOAuthParams(canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri, { code, state }),
       });
