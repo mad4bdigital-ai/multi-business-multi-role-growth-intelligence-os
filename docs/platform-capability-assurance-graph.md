@@ -52,6 +52,8 @@ Bounded mutation atomicity modes must classify consistently before aliases are a
 
 Capability-export aliases derived from virtual-tool bindings remain `shadow` until the canonical capability is certified and explicitly promoted. Runtime Admin tool catalogs and dispatch bindings are separate authorities and remain unchanged. Projection preview must report no active Admin capability export while the canonical manifest is blocked, and Tenant exports must remain absent.
 
+The `github_file_patch_apply` shadow-certification stage is intentionally narrower than runtime promotion. It verifies consumed smoke envelopes and branch-scoped resource authority, activates the canonical readback adapter, records acknowledgement and same-cycle verification evidence, and certifies the current readback contract. Target runtime dispatch/apply, active exports, Tenant authority, and protected-branch writes remain blocked until a later independently governed promotion decision.
+
 `platformVirtualToolCapabilityReconciler.js` maintains the projection, source links, shadow readback contracts, and debt inside the existing capability-assurance transaction. It performs no provider call, credential payload read, external write, or secret return.
 
 ## Readiness vector
