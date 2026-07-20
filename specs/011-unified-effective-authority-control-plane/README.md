@@ -9,22 +9,26 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
 - Specification: complete
 - Implementation: pending
 - Delivery: multi-PR, additive, shadow-first
-- Runtime effect of this commit: none
+- Runtime effect of this branch: none
 - Provider calls or external writes: none
 
-## Core documents
+## Documents
 
 - `spec.md` — normative requirements and success criteria
-- `adr-001-unified-effective-authority-control-plane.md` — architectural decision
-- `architecture.md` — control-plane/data-plane design
-- `formal-decision-model.md` — typed decision and invariants
+- `adr-001-unified-effective-authority-control-plane.md` — architecture decision
+- `architecture.md` — Control Plane/Data Plane and PDP/PIP/PAP/PEP design
+- `formal-decision-model.md` — typed states, set invariants, and revalidation
 - `data-model.md` — logical SQL authority model
 - `use-cases.md` — Admin, Tenant, agency, support, agent, and connector scenarios
 - `threat-model.md` — threats, controls, and residual risks
-- `api-contracts.md` — proposed OpenAPI-facing contracts and error taxonomy
-- `migration-and-rollout.md` — additive migration and cutover sequence
-- `testing-and-reconciliation.md` — parity, drift, synthetic-principal, and release gates
-- `concerns-and-tradeoffs.md` — operational and architectural concerns
+- `api-contracts.md` and `contracts/openapi.yaml` — additive API draft
+- `migration-and-rollout.md` — phased migration and rollback
+- `testing-and-reconciliation.md` — parity, drift, synthetic principals, and release gates
+- `concerns-and-tradeoffs.md` — architectural and operational concerns
+- `research.md` — alternatives and deferred technology choices
+- `quickstart.md` — implementation sequencing guide
+- `plan.md` and `tasks.md` — delivery plan and work breakdown
+- `checklists/` — requirements and security gates
 
 ## Relationship to existing specifications
 

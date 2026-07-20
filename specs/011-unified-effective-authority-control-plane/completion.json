@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "specification_complete_implementation_pending",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-20T17:35:00Z",
+  "last_updated_at": "2026-07-20T18:22:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -22,10 +22,16 @@
     "specification": {
       "status": "complete",
       "architecture_decision": "documented",
-      "use_cases": "planned_in_same_spec_kit",
-      "threat_model": "planned_in_same_spec_kit",
-      "migration_plan": "planned_in_same_spec_kit",
-      "test_strategy": "planned_in_same_spec_kit"
+      "architecture": "documented",
+      "formal_decision_model": "documented",
+      "data_model": "documented",
+      "use_cases": "documented",
+      "threat_model": "documented",
+      "api_contract_draft": "documented",
+      "migration_plan": "documented",
+      "test_strategy": "documented",
+      "tradeoffs": "documented",
+      "task_plan": "documented"
     },
     "ci": {"status": "not_run"},
     "release_readiness": {"status": "not_started"},

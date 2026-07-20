@@ -1,0 +1,242 @@
+openapi: 3.1.0
+info:
+  title: Unified Effective Authority Control Plane API
+  version: 0.1.0-draft
+  description: Draft additive contracts for authority decisions, projections, diagnostics, and delegation. No implementation is implied by this file.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+paths:
+  /authority/decisions/resolve:
+    post:
+      operationId: resolveEffectiveAuthority
+      summary: Resolve an effective authority manifest
+      tags: [Authority]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAuthorityRequest'
+      responses:
+        '200':
+          description: Authority decision resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveAuthorityManifest'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /authority/decisions/{decisionId}:
+    get:
+      operationId: getAuthorityDecision
+      summary: Read authorized decision evidence
+      tags: [Authority]
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Decision evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveAuthorityManifest'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /authority/diagnostics/projections:
+    get:
+      operationId: listAuthorityProjectionDiagnostics
+      summary: Compare registered, authorized, projected, executable, and observed sets
+      tags: [Authority Diagnostics]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: surface
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: Cursor-paginated projection diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectionDiagnosticsResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /authority/projections/connectors:
+    get:
+      operationId: listConnectorAuthorityProjection
+      summary: List connector readiness dimensions within effective scope
+      tags: [Authority Projections]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: Connector readiness projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorProjectionResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ResolveAuthorityRequest:
+      type: object
+      required: [capabilityKey, operation, context]
+      properties:
+        subject:
+          $ref: '#/components/schemas/SubjectScopeRequest'
+        capabilityKey: {type: string, minLength: 1, maxLength: 191}
+        operation: {type: string, minLength: 1, maxLength: 100}
+        resource:
+          $ref: '#/components/schemas/ResourceReference'
+        context:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    SubjectScopeRequest:
+      type: object
+      required: [scopeMode]
+      properties:
+        scopeMode:
+          type: string
+          enum: [signed_membership, platform_global, explicit_tenant_diagnostic, delegated_support, agency_assignment, agent_assignment, break_glass]
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        delegationId: {type: string, format: uuid}
+      additionalProperties: false
+    ResourceReference:
+      type: object
+      required: [type, key]
+      properties:
+        type: {type: string, minLength: 1, maxLength: 100}
+        key: {type: string, minLength: 1, maxLength: 255}
+      additionalProperties: false
+    EffectiveAuthorityManifest:
+      type: object
+      required: [decisionId, decision, readiness, projectionEligibility, gaps, versions, evaluatedAt, expiresAt, secretsIncluded]
+      properties:
+        decisionId: {type: string}
+        decision:
+          type: string
+          enum: [ready, shadow_ready, canary_ready, blocked, authorization_gated, degraded, ambiguous, stale, not_applicable]
+        readiness:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ready, blocked, authorization_gated, ambiguous, stale, not_applicable, unknown]
+        projectionEligibility:
+          type: object
+          additionalProperties: {type: boolean}
+        gaps:
+          type: array
+          items:
+            type: object
+            required: [code, layer]
+            properties:
+              code: {type: string}
+              layer: {type: string}
+              message: {type: string}
+        versions:
+          type: object
+          additionalProperties: {type: string}
+        evaluatedAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+        secretsIncluded: {type: boolean, const: false}
+    ProjectionDiagnosticsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        page:
+          $ref: '#/components/schemas/Page'
+    ConnectorProjectionResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [systemId, registryStatus, authorizationStatus, executionReadiness]
+            properties:
+              systemId: {type: string}
+              registryStatus: {type: string}
+              authorizationStatus: {type: string}
+              configurationStatus: {type: string}
+              installationStatus: {type: string}
+              credentialStatus: {type: string}
+              connectivityStatus: {type: string}
+              certificationStatus: {type: string}
+              freshnessStatus: {type: string}
+              executionReadiness: {type: string}
+              blockedReasonCodes:
+                type: array
+                items: {type: string}
+        page:
+          $ref: '#/components/schemas/Page'
+    Page:
+      type: object
+      required: [hasMore]
+      properties:
+        nextCursor: {type: [string, 'null']}
+        hasMore: {type: boolean}
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details:
+              type: array
+              items: {type: object, additionalProperties: true}
+            requestId: {type: string}
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Forbidden:
+      description: Authenticated but not authorized
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    NotFound:
+      description: Resource not found within visible scope
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Conflict:
+      description: Ambiguous, stale, consumed, or revision-conflicting decision
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Unprocessable:
+      description: Semantically invalid authority request
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Unavailable:
+      description: Required authority dependency unavailable
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
