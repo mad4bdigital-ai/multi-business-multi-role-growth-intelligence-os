@@ -211,6 +211,11 @@ export function buildActivationHostGatewayRoutes({
       enforced: true,
       secrets_included: false,
     };
+
+    if (isTenantGptProtectedPath(pathname, req.method)) {
+      return requireActivationTenantGptAccessToken(req, res, next);
+    }
+
     return next();
   });
 
