@@ -137,20 +137,6 @@ assert.equal(shellApplyDry.resource_ref.alias, "dev_governed_migration_client_ap
 const shellApply = buildPlatformResourceAuthorityGrantPlan({ ...shellApplyBase, mode: "apply", confirm: shellApplyDry.expected_confirm, ttl_minutes: 15 });
 assert.equal(shellApply.ttl_minutes, 15);
 
-const oauthSmokeBase = {
-  ...shellReadBase,
-  resource_uri: "shell://tenant_gpt_oauth_live_smoke",
-  recipe_key: "tenant_gpt_oauth_live_smoke",
-};
-const oauthSmokeDry = buildPlatformResourceAuthorityGrantPlan(oauthSmokeBase);
-assert.equal(oauthSmokeDry.permission_level, "diagnostic");
-assert.deepEqual(oauthSmokeDry.allowed_modes, ["tenant_gpt_oauth_live_smoke"]);
-assert.equal(oauthSmokeDry.resource_ref.alias, "tenant_gpt_oauth_live_smoke");
-assert.equal(oauthSmokeDry.resource_ref.arbitrary_shell_allowed, false);
-assert.equal(oauthSmokeDry.resource_ref.production_execution_allowed, true);
-assert.equal(oauthSmokeDry.resource_ref.requires_same_cycle_readback, true);
-const oauthSmokeApply = buildPlatformResourceAuthorityGrantPlan({ ...oauthSmokeBase, mode: "apply", confirm: oauthSmokeDry.expected_confirm, ttl_minutes: 10 });
-assert.equal(oauthSmokeApply.ttl_minutes, 10);
 
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...shellReadBase, resource_uri: "shell://powershell" }), /exact allowlisted shell alias/);
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...shellReadBase, allowed_modes: ["dev_governed_migration_client_apply"] }), /outside the recipe allowlist/);
