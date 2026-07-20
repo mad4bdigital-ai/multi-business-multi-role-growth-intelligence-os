@@ -1305,7 +1305,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Accept, reject, or mark stale one persisted Growth Intelligence insight. Records an internal decision only; no provider write, external send, or execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-insight-decide",
-    tags: ["growth_intelligence", "decision", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "decision", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "insight_id", "decision"],
