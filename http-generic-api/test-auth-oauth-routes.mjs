@@ -262,6 +262,25 @@ try {
     assert("Arabic browser language does not inject hl", !result.text.includes("gsi/client?hl="));
   }
 
+  section("OAuth metadata");
+
+  {
+    const authorizationMetadataResult = await getText(baseUrl, "/.well-known/oauth-authorization-server");
+    const authorizationMetadata = JSON.parse(authorizationMetadataResult.text);
+    assert("authorization metadata is public", authorizationMetadataResult.status === 200, `${authorizationMetadataResult.status}`);
+    assert("authorization metadata publishes the platform issuer", authorizationMetadata.issuer === AUTH_RESOURCE, JSON.stringify(authorizationMetadata));
+    assert("authorization metadata publishes the authorization endpoint", authorizationMetadata.authorization_endpoint === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata publishes the token endpoint", authorizationMetadata.token_endpoint === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata declares resource support", authorizationMetadata.resource_parameter_supported === true, JSON.stringify(authorizationMetadata));
+
+    const protectedResourceResult = await getText(baseUrl, "/.well-known/oauth-protected-resource");
+    const protectedResource = JSON.parse(protectedResourceResult.text);
+    assert("protected resource metadata is public", protectedResourceResult.status === 200, `${protectedResourceResult.status}`);
+    assert("protected resource metadata identifies Activation", protectedResource.resource === ACTIVATION_RESOURCE, JSON.stringify(protectedResource));
+    assert("protected resource metadata links the authorization server", protectedResource.authorization_servers?.includes(AUTH_RESOURCE), JSON.stringify(protectedResource));
+    assert("protected resource metadata requires bearer header usage", protectedResource.bearer_methods_supported?.includes("header"), JSON.stringify(protectedResource));
+  }
+
   section("Google Identity Services locale policy");
   for (const relativePath of [
     "./routes/authRoutes.js",
