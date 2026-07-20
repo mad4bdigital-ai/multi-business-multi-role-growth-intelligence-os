@@ -266,11 +266,38 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
 const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
 assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/);
 assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
+const boundedEvidenceFilter = frontendDispatchWorkflow.split("\n").find((line) => line.includes("UNEXPECTED=")) || "";
+assert.ok(
+  boundedEvidenceFilter.includes("frontend-surface-dispatch\\.generated\\.json"),
+  "bounded evidence filter must include the dispatch evidence file",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("openapi/frontend-runtime-routes\\.generated\\.yaml"),
+  "bounded evidence filter must include the generated OpenAPI index",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("yaml)" + "$" + "' || true)"),
+  "manual evidence refresh must use a closed and end-anchored bounded-file filter",
+);
 if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
   assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
   assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
   assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
 }
+
+const repositorySurfacePolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
+const repositoryDispatchSource = fs.readFileSync(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url), "utf8");
+const repositoryWebhookOpenApi = YAML.parse(fs.readFileSync(new URL("./openapi/github-repository-main-moved-webhook.yaml", import.meta.url), "utf8"));
+const repositoryWebhookAuthRule = repositorySurfacePolicy.auth_rules.find(
+  (rule) => rule.operation === "POST /webhooks/github/repository-main-moved",
+);
+assert.equal(repositoryWebhookAuthRule?.profile, "github_webhook_hmac", "webhook auth policy must use the resolver profile");
+assert.match(repositoryDispatchSource, /github_webhook_hmac:\s*\{[^}]*githubWebhookSignature/s);
+assert.deepEqual(
+  repositoryWebhookOpenApi.paths["/webhooks/github/repository-main-moved"].post.security,
+  [{ githubWebhookSignature: [] }],
+  "webhook OpenAPI security must match the runtime HMAC profile",
+);
 
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
