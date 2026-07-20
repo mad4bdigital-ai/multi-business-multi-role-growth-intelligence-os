@@ -820,6 +820,9 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
     };
   });
   const degraded = [tiles, callbacks, systems, freshness].filter((result) => result.ok === false).map((result) => result.error);
+  if (ciGuardSlo.overall_status === "unavailable") {
+    degraded.push(ciGuardSlo.error || { code: "ci_guard_slo_unavailable", message: "CI guard SLO source is unavailable." });
+  }
   return {
     attempted: true,
     ok: degraded.length === 0,
