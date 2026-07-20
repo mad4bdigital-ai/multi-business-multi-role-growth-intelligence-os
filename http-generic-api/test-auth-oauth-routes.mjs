@@ -603,6 +603,17 @@ try {
   assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
 
+  const wrongTarget = await postForm(baseUrl, "/auth/oauth/token", {
+    grant_type: "authorization_code",
+    code: codeResult.body.code,
+    redirect_uri: redirectUri,
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "test-client-secret",
+    resource: AUTH_RESOURCE,
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("token endpoint rejects a resource that does not match the Activation host", wrongTarget.status === 400, `${wrongTarget.status}`);
+  assert("resource mismatch reports invalid_target", wrongTarget.body.error === "invalid_target", JSON.stringify(wrongTarget.body));
+
   const exchange = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
     code: codeResult.body.code,
