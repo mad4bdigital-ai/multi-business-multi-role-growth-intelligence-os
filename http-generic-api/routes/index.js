@@ -120,6 +120,7 @@ import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
+import { buildDynamicGrowthControlPlaneRoutes } from "./dynamicGrowthControlPlaneRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
