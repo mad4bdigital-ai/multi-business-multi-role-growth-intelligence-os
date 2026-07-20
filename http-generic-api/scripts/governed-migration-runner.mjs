@@ -252,6 +252,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "256_sprint68_dynamic_audit_pipeline_readiness.sql",
   "257_sprint68_agent_runtime_ledger_readiness.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
+  "20260720_credential_intake_platform_secret_governance_hardening.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
   "225_sprint67_gpt_session_conversation_ref_primary.sql",

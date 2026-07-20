@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const service = readFileSync(new URL("./services/platformSecretPromotionService.js", import.meta.url), "utf8");
+const routes = readFileSync(new URL("./routes/credentialIntakeRoutes.js", import.meta.url), "utf8");
+assert(service.includes("getConnection()"));
+assert(service.includes("beginTransaction"));
+assert(service.includes("FOR UPDATE"));
+assert(service.includes("referenceRows.length !== 1"));
+assert(service.includes("referenceUpdate?.affectedRows"));
+assert(service.includes("platform_secret_promotion_invariant_failed"));
+assert(service.includes("rotation_status = 'provisioned_pending_validation'"));
+assert(service.includes("commit()") && service.includes("rollback()") && service.includes("transaction.release()"));
+assert(routes.includes("promoteCredentialIntakePlatformSecrets"));
+console.log("credential intake auto platform secret promotion hardening tests passed");
