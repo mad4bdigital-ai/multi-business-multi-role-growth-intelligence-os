@@ -1,7 +1,7 @@
 import { Router, urlencoded } from "express";
 import { randomUUID, createHash, randomBytes } from "node:crypto";
 import { getPool } from "../db.js";
-import { encryptCredentials, encryptToken } from "../tokenEncryption.js";
+import { encryptCredentials } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
 import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
