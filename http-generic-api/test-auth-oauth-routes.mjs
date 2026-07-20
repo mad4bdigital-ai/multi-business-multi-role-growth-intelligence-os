@@ -308,6 +308,23 @@ try {
   }
 
   {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=${encodedRedirect}&resource=${encodeURIComponent(AUTH_RESOURCE)}`,
+    );
+    assert("authorize rejects a resource that does not match the Activation host", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=${encodedRedirect}`,
+      { headers: { "x-forwarded-host": "unregistered.example" } },
+    );
+    assert("authorize rejects an unregistered request host", result.status === 400, `${result.status}`);
+  }
+
+  {
     const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}`);
     assert("authorize requires state before rendering popup", result.status === 400, `${result.status}`);
   }
