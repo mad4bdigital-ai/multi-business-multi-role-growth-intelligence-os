@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "009-platform-request-execution-hardening",
   "delivery_mode": "single_pr",
-  "status": "review_ready_pending_merge",
+  "status": "in_progress",
   "requirements": {
     "migration": true,
     "production_verification": false,
