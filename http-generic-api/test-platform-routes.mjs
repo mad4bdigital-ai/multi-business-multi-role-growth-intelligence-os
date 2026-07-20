@@ -177,7 +177,7 @@ section("GET /openapi*.yaml - public scoped schemas");
   const tenantActivationSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "auth.mad4b.com");
   ok("auth host serves tenant Activation schema", tenantActivationSchema.status === 200, `got ${tenantActivationSchema.status}`);
   ok("tenant Activation schema targets activation host", tenantActivationSchema.text.includes("url: https://activation.mad4b.com"));
-  ok("tenant Activation schema authorizes through activation host", tenantActivationSchema.text.includes("authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize"));
+  ok("tenant Activation schema authorizes through activation host with an explicit resource", tenantActivationSchema.text.includes("authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize?resource=https%3A%2F%2Factivation.mad4b.com"));
   ok("tenant Activation schema exchanges tokens through activation host", tenantActivationSchema.text.includes("tokenUrl: https://activation.mad4b.com/auth/oauth/token"));
 
   const adminActivationSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "auth.mad4b.com");
