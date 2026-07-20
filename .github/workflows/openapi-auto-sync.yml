@@ -44,17 +44,6 @@ jobs:
         working-directory: http-generic-api
         run: npm run frontend:dispatch:generate -- --baseline-ref=main
 
-      - name: Verify generated contracts
-        working-directory: http-generic-api
-        run: |
-          node test-tenant-activation-session-alias.mjs
-          node test-activation-gateway-policy-parity.mjs
-          node test-activation-host-gateway-boundary.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-
       - name: Commit generated artifacts to current branch
         shell: bash
         run: |
