@@ -73,7 +73,7 @@ await assert.rejects(() => runTenantGptOAuthLiveSmoke({ user_id: userId, tenant_
 
 const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 assert.match(adminCli, /tenant_gpt_oauth_live_smoke:\s*\{\s*command:\s*process\.execPath/);
-assert.match(adminCli, /tenant-gpt-oauth-live-smoke\.mjs/);
+assert.match(adminCli, /tenant-gpt-oauth-live-smoke-capture\.mjs/);
 assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}allow_extra_args:\s*true/);
 assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}max_extra_args:\s*3/);
 assert.match(adminCli, /tenant_gpt_oauth_live_smoke:[\s\S]{0,320}built_in:\s*true/);
