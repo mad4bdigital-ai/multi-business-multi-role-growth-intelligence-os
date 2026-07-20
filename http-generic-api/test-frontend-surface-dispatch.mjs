@@ -272,6 +272,20 @@ if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
   assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
 }
 
+const repositorySurfacePolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
+const repositoryDispatchSource = fs.readFileSync(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url), "utf8");
+const repositoryWebhookOpenApi = YAML.parse(fs.readFileSync(new URL("./openapi/github-repository-main-moved-webhook.yaml", import.meta.url), "utf8"));
+const repositoryWebhookAuthRule = repositorySurfacePolicy.auth_rules.find(
+  (rule) => rule.operation === "POST /webhooks/github/repository-main-moved",
+);
+assert.equal(repositoryWebhookAuthRule?.profile, "github_webhook_hmac", "webhook auth policy must use the resolver profile");
+assert.match(repositoryDispatchSource, /github_webhook_hmac:\s*\{[^}]*githubWebhookSignature/s);
+assert.deepEqual(
+  repositoryWebhookOpenApi.paths["/webhooks/github/repository-main-moved"].post.security,
+  [{ githubWebhookSignature: [] }],
+  "webhook OpenAPI security must match the runtime HMAC profile",
+);
+
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
 assert.deepEqual(expandRoutePaths("/runtime/parity/:environmentKey?"), ["/runtime/parity", "/runtime/parity/{environmentKey}"]);
