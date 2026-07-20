@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "evidence_key": "spec009_rollout_pilots_2026_07_15",
+  "feature_key": "009-platform-request-execution-hardening",
+  "executed_at": "2026-07-15T21:49:00Z",
+  "mode": "shadow_read_only_ci_pilot",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+  "pull_number": 2551,
+  "validated_head_sha": "f33623541eac45ef8187639802f0f383f52d4cb4",
+  "base_sha": "d6656a0e521095dec050b0a3cd6add86268adb45",
+  "behind_by": 0,
+  "cases": {
+    "shadow_preview": {
+      "status": "passed",
+      "assertion": "Admin and authorized Tenant produce equivalent stable dry-run plans."
+    },
+    "admin_preview": {
+      "status": "passed",
+      "assertion": "No Tenant SQL and mutations_executed=false."
+    },
+    "tenant_preview": {
+      "status": "passed",
+      "assertion": "Membership and resource-authority checks are required and bounded."
+    },
+    "admin_observability": {
+      "status": "passed",
+      "assertion": "Aggregate latency, internal calls, discovery, retries, and failures."
+    },
+    "tenant_observability": {
+      "status": "passed",
+      "assertion": "Tenant projection is isolated and aggregate-only."
+    },
+    "security": {
+      "status": "passed",
+      "assertion": "No secrets, authorization material, raw payloads, provider writes, or deployment."
+    }
+  },
+  "required_checks": {
+    "Syntax Check": "success",
+    "Architecture Drift Detection": "success",
+    "Execution Resolver Gate": "success",
+    "Unit & Integration Tests": "success"
+  },
+  "artifacts": [
+    "http-generic-api/scripts/test-operation-rollout-pilots.mjs",
+    "http-generic-api/scripts/test-operation-orchestrator.mjs"
+  ],
+  "provider_writes": false,
+  "deployment": false,
+  "production_traffic": false,
+  "migrations_applied": false,
+  "secrets_included": false
+}
