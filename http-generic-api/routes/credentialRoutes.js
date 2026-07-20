@@ -534,85 +534,39 @@ export function buildCredentialRoutes(deps) {
         });
       }
 
-      const promoted = [];
-      for (const mapping of normalizedMappings) {
-        const value = credentialValueToSecretString(credentials[mapping.credential_field]);
-        const ciphertext = encryptToken(value);
-        const hash = sha256(value);
-        const secretType = mapping.secret_type || mapping.credential_field;
-        const metadata = JSON.stringify({
-          provisioning_status: "stored",
-          stored_at: new Date().toISOString(),
-          provider_family: providerFamily,
-          connector_family: connectorFamily,
-          credential_type: secretType,
-          source: "credential_intake_platform_secret_promotion",
-          connection_id: connectionId,
-          target_key: targetKey,
-          promotion_reason: promotionReason,
-        });
-
-        await pool.query(
-          `INSERT INTO platform_secrets
-             (secret_key, secret_type, storage_backend, secret_ref, value_sha256, value_ciphertext, metadata_json, status, created_by)
-           VALUES (?, ?, 'db_encrypted', NULL, ?, ?, ?, 'active', ?)
-           ON DUPLICATE KEY UPDATE
-             secret_type = VALUES(secret_type),
-             storage_backend = 'db_encrypted',
-             secret_ref = NULL,
-             value_sha256 = VALUES(value_sha256),
-             value_ciphertext = VALUES(value_ciphertext),
-             metadata_json = VALUES(metadata_json),
-             status = 'active',
-             updated_at = CURRENT_TIMESTAMP`,
-          [mapping.secret_key, secretType, hash, ciphertext, metadata, createdBy]
-        );
-
-        const [secretReferenceUpdate] = await pool.query(
-          `UPDATE secret_references
-              SET owner_type = 'platform',
-                  owner_id = ?,
-                  system_id = COALESCE(?, system_id),
-                  provider_family = ?,
-                  connector_family = ?,
-                  credential_type = ?,
-                  store_type = 'db_encrypted',
-                  env_var_name = NULL,
-                  vault_path = NULL,
-                  validation_status = 'stored',
-                  status = 'active'
-            WHERE secret_key = ?
-              AND owner_type = 'platform'`,
-          [ownerId, systemId || null, providerFamily, connectorFamily, secretType, mapping.secret_key]
-        );
-        if (!secretReferenceUpdate?.affectedRows) {
-          await pool.query(
-            `INSERT INTO secret_references
-               (ref_id, tenant_id, owner_type, owner_id, system_id, secret_key, store_type, env_var_name, vault_path,
-                description, provider_family, connector_family, credential_type, consent_status, validation_status, status, created_at)
-             VALUES (UUID(), ?, 'platform', ?, ?, ?, 'db_encrypted', NULL, NULL, ?, ?, ?, ?, 'not_required', 'stored', 'active', NOW())`,
-            [
-              connection.tenant_id || 'f2795a7f-8d06-4053-8bee-35ca9af8b460',
-              ownerId,
-              systemId || null,
-              mapping.secret_key,
-              `Platform secret promoted from ${connection.app_key}/${connection.auth_type} intake connection`,
-              providerFamily,
-              connectorFamily,
-              secretType,
-            ]
-          );
-        }
-
-        promoted.push({ secret_key: mapping.secret_key, credential_field: mapping.credential_field, value_sha256: hash });
-      }
-
-      await pool.query(
-        `UPDATE user_app_connections
-            SET validation_status = 'promoted_to_platform_secrets', last_used_at = NOW()
-          WHERE connection_id = ?`,
-        [connectionId]
-      ).catch(() => {});
+      const promotionCredentials = Object.fromEntries(
+        normalizedMappings.map((mapping) => [
+          mapping.credential_field,
+          credentialValueToSecretString(credentials[mapping.credential_field]),
+        ])
+      );
+      const promotion = await promoteCredentialIntakePlatformSecrets({
+        session: {
+          user_id: connection.user_id,
+          tenant_id: connection.tenant_id,
+          auth_type: connection.auth_type,
+        },
+        credentials: promotionCredentials,
+        metadata: { created_by: createdBy },
+        mappings: normalizedMappings,
+        connectionId,
+        req,
+        context: {
+          systemId: systemId || null,
+          ownerId,
+          providerFamily,
+          connectorFamily,
+          targetKey,
+          promotionReason,
+          createMissingReference: true,
+          referenceTenantId: connection.tenant_id || "f2795a7f-8d06-4053-8bee-35ca9af8b460",
+          referenceDescription: `Platform secret promoted from ${connection.app_key}/${connection.auth_type} intake connection`,
+          metadataSource: "credential_intake_platform_secret_promotion",
+          auditAction: "credential_intake.platform_secrets_promoted",
+          actorType: "backend_admin",
+        },
+      });
+      const promoted = promotion.promoted || [];
 
       return res.json({
         ok: true,
