@@ -69,6 +69,8 @@
 - `growth_dashboard_instruction_registry` (table)
 - `growth_dashboard_metric_registry` (table)
 - `growth_dashboard_tab_profile_registry` (table)
+- `operation_generated_artifacts` (table)
+- `operation_run_ownership` (table)
 - `operational_alert_lifecycle_events` (table)
 - `operational_alert_notification_outbox` (table)
 - `operational_alert_rule_registry` (table)

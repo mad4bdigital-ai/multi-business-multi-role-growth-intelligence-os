@@ -275,6 +275,9 @@ flowchart LR
 | `onboarding_escalations` | table | Activation & onboarding | 1 | 15 | `tenants`, `tickets`, `users` |
 | `onboarding_states` | table | Activation & onboarding | 1 | 11 | `tenants` |
 | `openapi_endpoint_inventory_sync_runs` | table | Developer & API | 1 | - | - |
+| `operation_generated_artifacts` | table | Other / uncategorized | 1 | - | `repository_automation_runs` |
+| `operation_managed_git_worker_leases` | table | Repository & development | 1 | - | `repository_automation_runs` |
+| `operation_run_ownership` | table | Other / uncategorized | 1 | - | `repository_automation_runs` |
 | `operational_alert_lifecycle_events` | table | Other / uncategorized | 1 | - | `operational_alerts` |
 | `operational_alert_notification_outbox` | table | Other / uncategorized | 1 | - | `operational_alerts` |
 | `operational_alert_rule_registry` | table | Other / uncategorized | 1 | - | - |
