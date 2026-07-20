@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+## Dynamic Container read-only canary promotion parity
+
+Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-complete when the governed migration ledger records run `2b2015d2-73d0-40a2-af33-57678af0389a`, checksum `1c0327e8a8c5533683f92a4906d221af052ba633421464605a68488d3e5b665f`, statement count `4`, and zero-risk preflight; registry readback confirms `dynamic_container_canary_promotion_policy_v1`, the `dynamic_container_canary_promotion` Admin tool, and its app integration binding; and runtime readback confirms global mode remains `shadow`, enforcement remains disabled, and no more than one `read_only_canary` is active. Any apply requires a fresh plan-bound Capability Envelope, exact typed confirmation, transactional envelope consumption, and same-cycle readback. Merge, deployment, or documentation alone never authorizes global or mutation enforcement. No provider call, credential payload read, raw-secret access, external send/write, or secret inclusion is introduced; `secrets_included=false`.
+
 ## Spec 007 virtual-tool capability projection parity
 
 - [ ] Repository `main` contains `20260717_virtual_tool_capability_projection.sql`, `20260717_virtual_tool_readback_readiness.sql`, and the focused reconciler at the reviewed merge SHA.

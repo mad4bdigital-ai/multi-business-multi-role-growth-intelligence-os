@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 34
-- Triaged items: 34
-- Gate candidates: 33
+- Queue items: 33
+- Triaged items: 33
+- Gate candidates: 32
 - New-gap gate: fail
-- Blocking new items: 34
-- Docs completion: 93.77%
+- Blocking new items: 33
+- Docs completion: 93.96%
 - SQL route OpenAPI coverage: 91.67%
 
 ## Top immediate items
@@ -23,7 +23,6 @@
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, add targeted patch-index, parity, and governance documentation
@@ -34,3 +33,4 @@
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, add targeted patch-index, parity, and governance documentation
