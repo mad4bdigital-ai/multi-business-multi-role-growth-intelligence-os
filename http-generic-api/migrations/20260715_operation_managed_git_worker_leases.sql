@@ -2,14 +2,6 @@ CREATE TABLE IF NOT EXISTS operation_managed_git_worker_leases (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   worker_id CHAR(36) NOT NULL,
   lease_key_sha256 CHAR(64) NOT NULL,
-  active_lease_key CHAR(64)
-    GENERATED ALWAYS AS (
-      CASE
-        WHEN worker_status IN ('allocated','ready','running','cleaning')
-        THEN lease_key_sha256
-        ELSE NULL
-      END
-    ) STORED,
   run_id CHAR(36) NULL,
   principal_scope ENUM('admin','tenant') NOT NULL,
   tenant_id CHAR(36) NULL,
@@ -25,6 +17,14 @@ CREATE TABLE IF NOT EXISTS operation_managed_git_worker_leases (
   worker_status ENUM(
     'allocated','ready','running','cleaning','cleaned','failed','expired'
   ) NOT NULL DEFAULT 'allocated',
+  active_lease_key CHAR(64)
+    GENERATED ALWAYS AS (
+      CASE
+        WHEN worker_status IN ('allocated','ready','running','cleaning')
+        THEN lease_key_sha256
+        ELSE NULL
+      END
+    ) STORED,
   lease_expires_at TIMESTAMP NOT NULL,
   readback_json LONGTEXT NULL,
   error_json LONGTEXT NULL,
