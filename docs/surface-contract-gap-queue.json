@@ -1,9 +1,9 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 34,
+  "total_items": 33,
   "class_counts": {
-    "critical_review": 20,
+    "critical_review": 19,
     "high_review": 13,
     "medium_review": 1,
     "low_review": 0
@@ -717,73 +717,6 @@
             "no_external_write"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260715_dynamic_container_canary_promotion_tool.sql",
-      "score": 804,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 6,
-        "views": 0,
-        "policies": 1,
-        "routes": 1
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "admin_platform_tool",
-            "bind_tool_dynamic_container_canary_promotion",
-            "requires_dispatch_allowed",
-            "requires_readback",
-            "requires_ready_for_dispatch",
-            "same_cycle_readback_required"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "verify_policy_seed_readiness",
-          "owner_hint": "runtime-policy-review",
-          "targets": [
-            "dynamic_container_canary_promotion_policy_v1"
-          ],
-          "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
         }
       ],
       "safety": {
