@@ -94,6 +94,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
   ).map(v => v.toLowerCase());
 
   const currentContentType = String(contentType || "").toLowerCase();
+  const rawTextResponse = isRawTextResponseRequest(requestPayload, currentContentType);
 
   const responseContent =
     schemaOperationInfo.operation?.responses?.[String(upstream.status)]?.content ||
@@ -105,9 +106,13 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     responseContent["application/problem+json"]?.schema ||
     null;
 
-  const contentTypeEligible = enforcedContentTypes.length
-    ? enforcedContentTypes.some(ct => currentContentType.includes(ct))
-    : currentContentType.includes("application/json");
+  const contentTypeEligible = !rawTextResponse && (
+    enforcedContentTypes.length
+      ? enforcedContentTypes.some(ct => currentContentType.includes(ct))
+      : currentContentType.includes("application/json")
+  );
+
+  if (rawTextResponse) responseSchemaAlignmentStatus = "not_applicable_raw_text";
 
   if (responseSchemaEnforcementEnabled && contentTypeEligible) {
     if (!responseJsonSchema) {
