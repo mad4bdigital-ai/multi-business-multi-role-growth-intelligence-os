@@ -1,33 +1,36 @@
 {
   "spec_key": "009-platform-request-execution-hardening",
-  "status": "proposed",
+  "status": "implemented_pending_merge",
   "scope": [
     "admin",
     "tenant_user"
   ],
-  "design_only": true,
-  "runtime_changes": false,
-  "database_migrations": false,
+  "design_only": false,
+  "runtime_changes": true,
+  "database_migrations": true,
   "deployment": false,
   "merge": false,
-  "source_main_sha": "95721d2d98e72e4f59cf0329d82c27a29c0f6607",
+  "source_main_sha": "ae772d80d7f73300a5e39dece31b689dbdf6e514",
+  "validated_implementation_head_sha": "3e623ce8973aa3c27ec384ad7e8a0715468d23c9",
   "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
   "pull_request": 2551,
   "deliverables": [
+    "runtime_implementation",
+    "database_migrations",
     "spec",
     "plan",
     "tasks",
     "completion_evidence",
     "requirements_checklist",
-    "openapi_contract",
+    "openapi_contracts",
     "quickstart",
     "integration_index"
   ],
   "constraints": [
-    "no_runtime_change",
-    "no_database_migration",
     "no_provider_write",
-    "no_deployment",
+    "migrations_included_not_applied",
+    "no_production_deployment",
+    "no_force_push",
     "no_merge"
   ]
 }

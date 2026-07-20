@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "009-platform-request-execution-hardening",
   "delivery_mode": "single_pr",
-  "status": "in_progress",
+  "status": "review_ready_pending_merge",
   "requirements": {
     "migration": true,
     "production_verification": false,
@@ -16,7 +16,7 @@
       "number": 2551,
       "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
       "role": "runtime_implementation_and_spec",
-      "status": "ready_for_final_gate"
+      "status": "review_ready_pending_merge"
     }
   },
   "evidence": {
@@ -57,9 +57,10 @@
     ],
     "tests": {
       "status": "passing",
-      "implementation_validation_head_sha": "f33623541eac45ef8187639802f0f383f52d4cb4",
-      "base_sha": "d6656a0e521095dec050b0a3cd6add86268adb45",
+      "validated_implementation_head_sha": "3e623ce8973aa3c27ec384ad7e8a0715468d23c9",
+      "base_sha": "ae772d80d7f73300a5e39dece31b689dbdf6e514",
       "behind_by": 0,
+      "validation_scope": "runtime implementation and main-branch reconciliation before the documentation-only evidence synchronization commit",
       "required_checks": {
         "Syntax Check": "success",
         "Architecture Drift Detection": "success",
@@ -116,8 +117,13 @@
       "production_traffic": false
     },
     "release_readiness": {
-      "status": "ready_for_final_gate",
-      "remaining": []
+      "status": "review_ready_pending_merge",
+      "remaining": [
+        "required reviewer approval",
+        "merge",
+        "separately approved migration application and production verification",
+        "post-merge audit"
+      ]
     }
   },
   "constraints": {
