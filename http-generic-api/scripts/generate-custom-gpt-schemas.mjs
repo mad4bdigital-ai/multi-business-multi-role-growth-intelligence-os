@@ -7,6 +7,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { validateOpenApiFiles } from "./openapi-builder-schema-guard.mjs";
+import {
+  formatOpenApiResponseObjectIssue,
+  validateOpenApiResponseFiles,
+} from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -238,6 +242,15 @@ function main() {
     const artifacts = [...schemaArtifacts, ...policyArtifacts];
 
     const schemaPaths = schemaArtifacts.map((artifact) => path.join(schemaOutputDir, artifact.tempRelative));
+    const responseObjectIssues = validateOpenApiResponseFiles(schemaPaths);
+    if (responseObjectIssues.length > 0) {
+      fail(
+        "Generated Custom GPT schemas failed OpenAPI Response Object validation.",
+        responseObjectIssues.map(formatOpenApiResponseObjectIssue),
+      );
+      return;
+    }
+
     const issues = validateOpenApiFiles(schemaPaths);
     if (issues.length > 0) {
       fail("Generated Custom GPT schemas failed Builder validation.", issues.map((issue) => `${issue.file} ${issue.path} [${issue.code}] ${issue.message}`));
