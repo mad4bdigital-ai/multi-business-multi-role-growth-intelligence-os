@@ -7,7 +7,7 @@ import {
   runGovernedMigrationExecution,
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
-import { splitSqlStatements } from "./releaseReadiness.js";
+import { assessMigrationSqlPreflight, splitSqlStatements } from "./releaseReadiness.js";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
@@ -16,12 +16,45 @@ const STATEMENT_COUNT = splitGovernedMigrationStatements(SQL).length;
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
 const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql";
 const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
+const TRIGGER_MIGRATION = "20260720_tenant_export_manifest_eligibility_hardening.sql";
+const TRIGGER_SQL = readFileSync(`migrations/${TRIGGER_MIGRATION}`, "utf8");
 
 {
   const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
   const readinessStatements = splitSqlStatements(PARITY_SQL);
   assert.equal(executionStatements.length, 10);
   assert.deepEqual(executionStatements, readinessStatements);
+}
+
+{
+  const executionStatements = splitGovernedMigrationStatements(TRIGGER_SQL);
+  const readinessStatements = splitSqlStatements(TRIGGER_SQL);
+  assert.equal(executionStatements.length, 7);
+  assert.deepEqual(executionStatements, readinessStatements);
+  assert.match(executionStatements[0], /^CREATE OR REPLACE VIEW v_platform_exports_current/i);
+  assert.match(executionStatements[1], /^UPDATE platform_plugin_capability_exports e/i);
+
+  const expectedTriggerNames = [
+    "trg_tenant_export_manifest_guard_before_insert",
+    "trg_tenant_export_manifest_guard_before_update",
+    "trg_tenant_export_manifest_guard_after_manifest_insert",
+    "trg_tenant_export_manifest_guard_after_manifest_update",
+    "trg_tenant_export_manifest_guard_after_manifest_delete",
+  ];
+  assert.deepEqual(
+    executionStatements.slice(2).map((statement) =>
+      statement.match(/^CREATE OR REPLACE TRIGGER\s+([A-Za-z0-9_]+)/i)?.[1] || null
+    ),
+    expectedTriggerNames
+  );
+  for (const statement of executionStatements.slice(2)) {
+    assert.match(statement, /FOR EACH ROW/i);
+    assert.match(statement, /(?:SET\s+NEW\.|UPDATE\s+platform_plugin_capability_exports)/i);
+  }
+
+  const preflight = assessMigrationSqlPreflight(TRIGGER_MIGRATION, TRIGGER_SQL);
+  assert.equal(preflight.counts.statements, 7);
+  assert.equal(preflight.status, "pass");
 }
 
 function baseInput(mode = "dry_run") {
