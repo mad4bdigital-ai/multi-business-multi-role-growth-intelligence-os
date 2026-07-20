@@ -565,6 +565,7 @@ try {
     redirect_uri: redirectUri,
     client_id: "mad4b-tenant-gpt",
     client_secret: "test-client-secret",
+    resource: ACTIVATION_RESOURCE,
   }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
   assert("token endpoint exchanges authorization code", exchange.status === 200, `${exchange.status}`);
   assert("token endpoint accepts legacy callback as equivalent to canonical code callback", exchange.status === 200, JSON.stringify(exchange.body));
