@@ -1078,6 +1078,11 @@ export function buildAuthRoutes(deps) {
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
+      const resourceProfile = resolveTenantGptOAuthResourceProfile({
+        clientId: TENANT_GPT_OAUTH_CLIENT_ID,
+        requestHost: tenantGptRequestHostFromHeaders(req.headers),
+        requestedResource: req.body?.resource,
+      });
       if (!redirect_uri || (!token && !credential)) {
         return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token or credential are required." } });
       }
