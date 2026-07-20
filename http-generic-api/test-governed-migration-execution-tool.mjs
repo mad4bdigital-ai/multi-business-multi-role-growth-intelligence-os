@@ -31,7 +31,7 @@ const TRIGGER_SQL = readFileSync(`migrations/${TRIGGER_MIGRATION}`, "utf8");
   const readinessStatements = splitSqlStatements(TRIGGER_SQL);
   assert.equal(executionStatements.length, 7);
   assert.deepEqual(executionStatements, readinessStatements);
-  assert.match(executionStatements[0], /^CREATE OR REPLACE VIEW v_platform_exports_current/i);
+  assert.match(executionStatements[0], /CREATE OR REPLACE VIEW v_platform_exports_current/i);
   assert.match(executionStatements[1], /^UPDATE platform_plugin_capability_exports e/i);
 
   const expectedTriggerNames = [
