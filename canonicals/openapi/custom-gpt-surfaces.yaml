@@ -90,7 +90,7 @@ surfaces:
     server_url: https://activation.mad4b.com
     auth_profile: tenant_oauth
     oauth_endpoints:
-      authorization_url: https://activation.mad4b.com/auth/oauth/authorize
+      authorization_url: https://activation.mad4b.com/auth/oauth/authorize?resource=https%3A%2F%2Factivation.mad4b.com
       token_url: https://activation.mad4b.com/auth/oauth/token
     hard_operation_limit: 30
     warning_operation_limit: 26
