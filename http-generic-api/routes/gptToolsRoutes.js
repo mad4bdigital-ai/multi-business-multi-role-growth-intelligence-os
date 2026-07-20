@@ -2258,7 +2258,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v2"),
+    sqlCacheKey("tools", callerType, "list", "v3"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
