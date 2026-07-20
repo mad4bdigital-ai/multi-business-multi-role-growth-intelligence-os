@@ -497,6 +497,15 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/activation/operational-attention/ci-signals", ...adminGuards, async (req, res) => {
+    try {
+      const result = await operationalCiSignalResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_ci_signal_ingest_failed");
+    }
+  });
+
   router.post("/activation/operational-attention/:alertId/lifecycle", ...adminGuards, async (req, res) => {
     try {
       return res.status(200).json(await updateOperationalAlertLifecycle({
