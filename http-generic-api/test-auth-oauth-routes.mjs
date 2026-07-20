@@ -566,6 +566,9 @@ try {
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
   const decodedAuthorizationCode = jwt.decode(codeResult.body.code);
   assert("authorization code stores canonical ChatGPT callback", decodedAuthorizationCode?.redirect_uri === canonicalRedirectUri, JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds the registered OAuth client", decodedAuthorizationCode?.client_id === "mad4b-tenant-gpt", JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds the Activation protected resource", decodedAuthorizationCode?.resource === ACTIVATION_RESOURCE, JSON.stringify(decodedAuthorizationCode));
+  assert("code response reports the Activation protected resource", codeResult.body.resource === ACTIVATION_RESOURCE, JSON.stringify(codeResult.body));
   assert("code response redirects legacy callback directly to canonical ChatGPT host", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
   assert("code response does not redirect through legacy ChatGPT host", !String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
