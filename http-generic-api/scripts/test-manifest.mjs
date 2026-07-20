@@ -308,6 +308,7 @@ export const testCommands = [
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",
   "node test-tenant-blocked-capability-export-cleanup.mjs",
   "node test-tenant-tool-schema-strictness.mjs",
+  "node test-tenant-export-manifest-eligibility.mjs",
   "node test-openapi-split-governance.mjs",
   "node test-openapi-split-regeneration-parity.mjs",
   "node test-openapi-route-coverage.mjs",

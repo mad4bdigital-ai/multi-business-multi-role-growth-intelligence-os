@@ -37,13 +37,6 @@ const RECIPES = Object.freeze({
     allowed_modes: ["dev_governed_migration_client_apply"],
     allowed_aliases: ["dev_governed_migration_client_apply"],
   },
-  tenant_gpt_oauth_live_smoke: {
-    resource_type: "shell_alias",
-    permission_level: "diagnostic",
-    allowed_modes: ["tenant_gpt_oauth_live_smoke"],
-    allowed_aliases: ["tenant_gpt_oauth_live_smoke"],
-    production_execution_allowed: true,
-  },
 });
 
 function badRequest(code, message, details = undefined) {
