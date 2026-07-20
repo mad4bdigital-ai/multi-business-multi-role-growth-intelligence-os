@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 33
+- Total queue items: 34
 - Critical review: 20
-- High review: 12
+- High review: 13
 - Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -30,7 +30,7 @@
 ### 2. `20260717_tenant_task_source_repair_apply_gate.sql`
 
 - Queue class: critical_review
-- Score: 1057
+- Score: 1056
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -117,7 +117,7 @@
 ### 8. `20260719_fix_growth_intelligence_report_read_tool_path.sql`
 
 - Queue class: critical_review
-- Score: 833
+- Score: 832
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -145,7 +145,7 @@
 ### 10. `20260715_dynamic_container_canary_promotion_tool.sql`
 
 - Queue class: critical_review
-- Score: 805
+- Score: 804
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -258,7 +258,7 @@
 ### 18. `20260714_supervisor_runtime_admin_tool_exports.sql`
 
 - Queue class: critical_review
-- Score: 722
+- Score: 721
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -396,7 +396,22 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `dynamic_container_rollout_readiness_current_evidence`, `v_container_rollout_readiness`
 - `verify_readback_view` → db-readback-review; targets: `v_container_latest_shadow_audit_coverage`, `v_container_latest_shadow_performance_summary`, `v_container_latest_shadow_run_summary`, `v_container_relationship_issues`, `v_container_rollout_readiness`
 
-### 28. `20260716_github_list_repository_issues_array_contract.sql`
+### 28. `20260719_virtual_tool_export_shadow_alignment.sql`
+
+- Queue class: high_review
+- Score: 539
+- Gap severity: medium
+- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=1, views=4, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_tool_dispatch_bindings`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_virtual_tool_bindings_classified`, `v_platform_virtual_tool_capabilities_current`, `v_platform_virtual_tool_exports_current`, `v_platform_virtual_tool_identity_resolution`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 29. `20260716_github_list_repository_issues_array_contract.sql`
 
 - Queue class: high_review
 - Score: 536
@@ -410,7 +425,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_list_repository_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 29. `20260712_github_rerun_workflow_response_schema_alignment.sql`
+### 30. `20260712_github_rerun_workflow_response_schema_alignment.sql`
 
 - Queue class: high_review
 - Score: 532
@@ -424,7 +439,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_rest_endpoint_dispatch`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 30. `20260719_tenant_blocked_capability_exports_fail_closed.sql`
+### 31. `20260719_tenant_blocked_capability_exports_fail_closed.sql`
 
 - Queue class: high_review
 - Score: 521
@@ -438,7 +453,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_platform_endpoint_tools`, `tenant_platform_tool`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`, `secrets_included_false`
 
-### 31. `20260719_tenant_blocked_tool_exports_fail_closed.sql`
+### 32. `20260719_tenant_blocked_tool_exports_fail_closed.sql`
 
 - Queue class: high_review
 - Score: 521
@@ -452,7 +467,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `local_gateway_tools_call`, `tenant_repository_intelligence_v3_v4_readiness_smoke`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`, `secrets_included_false`
 
-### 32. `20260715_supervisor_behavioral_certification_capability_policy.sql`
+### 33. `20260715_supervisor_behavioral_certification_capability_policy.sql`
 
 - Queue class: high_review
 - Score: 517
@@ -466,7 +481,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `same_cycle_readback_required`, `transaction_rollback_required`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`
 
-### 33. `20260718_repair_resource_authority_grant_tags_csv.sql`
+### 34. `20260718_repair_resource_authority_grant_tags_csv.sql`
 
 - Queue class: medium_review
 - Score: 380
