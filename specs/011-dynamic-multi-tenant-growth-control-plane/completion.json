@@ -1,6 +1,22 @@
 {
-  "spec_key": "011-dynamic-multi-tenant-growth-control-plane",
-  "status": "specification_complete_implementation_pending",
+  "schema_version": 1,
+  "feature_key": "011-dynamic-multi-tenant-growth-control-plane",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/011-dynamic-multi-tenant-growth-control-plane-20260720",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
   "specification": {
     "complete": true,
     "file_count_expected": 26,
@@ -15,7 +31,7 @@
     "json_parse": "pending_ci",
     "json_schema_validation": "pending_ci",
     "openapi_validation": "pending_ci",
-    "inventory_check": "pending_ci",
+    "inventory_check": "passed_github_readback",
     "traceability_review": "pending_pr_review",
     "security_review": "pending_implementation",
     "architecture_review": "pending_pr_review"
@@ -28,6 +44,24 @@
     "provider_write_performed": false,
     "external_send_performed": false,
     "production_activated": false
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_started"
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    }
   },
   "required_closeout_evidence": [
     "resource_and_registry_mapping",
@@ -44,6 +78,7 @@
   "notes": [
     "Specification completion does not authorize implementation or execution.",
     "Specs 006 and 007 remain the workflow and capability authorities.",
-    "All provider and production effects require separate plan-bound approval."
+    "All provider and production effects require separate plan-bound approval.",
+    "Status remains in_progress until the governed multi-PR implementation and closeout evidence are complete."
   ]
 }
