@@ -111,6 +111,12 @@ function isActivationHostAllowedPath(pathname, method) {
       route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
 }
 
+function isTenantGptProtectedPath(pathname, method) {
+  return pathname.startsWith("/tenant/activation/")
+    || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
+      route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
+}
+
 export function activationHostGatewayAllowsOperation(method, pathname) {
   return isActivationHostAllowedPath(pathname, method);
 }
