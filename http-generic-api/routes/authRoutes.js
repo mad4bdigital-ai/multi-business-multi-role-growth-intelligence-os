@@ -1083,7 +1083,15 @@ export function buildAuthRoutes(deps) {
     return res
       .status(200)
       .type("html")
-      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext, requestedScope }));
+      .send(buildOAuthAuthorizeHtml({
+        clientId: GOOGLE_CLIENT_ID,
+        redirectUri,
+        state,
+        activationContext,
+        requestedScope,
+        oauthClientId: resourceProfile.client_id,
+        oauthResource: resourceProfile.resource,
+      }));
   });
 
   router.post("/oauth/code", async (req, res) => {
