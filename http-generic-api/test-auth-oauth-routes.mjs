@@ -217,7 +217,7 @@ try {
   {
     const result = await getText(
       baseUrl,
-      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&redirect_uri=${encodedRedirect}&state=${state}&scope=${encodeURIComponent(TENANT_SCOPE)}&resource=${encodeURIComponent(ACTIVATION_RESOURCE)}&screen_hint=signup&activation_mode=managed&device_id=my-laptop&workspace_name=Acme%20Growth&sign_in_options=google,email,register`,
       { headers: { "x-forwarded-host": "activation.mad4b.com" } },
     );
     assert("activation host authorize reaches shared auth route", result.status === 200, `${result.status}`);
