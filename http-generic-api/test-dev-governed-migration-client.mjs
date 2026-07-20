@@ -126,6 +126,61 @@ for (const blockedReportReadArgs of [
   assert.throws(() => validateGrowthIntelligenceReportReadArgs(blockedReportReadArgs));
 }
 
+const decisionBy = "f242960c-2857-4b4d-a504-ee50f8a278b4";
+const safeInsightDecisionArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  insight_id: "opp_54b844a667dda0d6",
+  decision: "accepted",
+  decision_by: decisionBy,
+  decision_note: "Approved by the typed review bundle.",
+};
+assert.equal(validateGrowthIntelligenceInsightDecisionArgs(safeInsightDecisionArgs), safeInsightDecisionArgs);
+assert.equal(isToolMutation("growth_intelligence_insight_decide", safeInsightDecisionArgs), true);
+for (const blockedInsightDecisionArgs of [
+  { ...safeInsightDecisionArgs, external_send: true },
+  { ...safeInsightDecisionArgs, decision: "approved" },
+  { ...safeInsightDecisionArgs, insight_id: "../insight" },
+  { ...safeInsightDecisionArgs, decision_by: "growth-platform-admin" },
+  { ...safeInsightDecisionArgs, decision_note: "bad\nline" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceInsightDecisionArgs(blockedInsightDecisionArgs));
+}
+
+const safeActionDecisionArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  action_id: "action_089de9a424c80ca0",
+  decision: "approved",
+  decision_by: decisionBy,
+  decision_note: "Approved as an internal dry-run plan only.",
+};
+assert.equal(validateGrowthIntelligenceActionDecisionArgs(safeActionDecisionArgs), safeActionDecisionArgs);
+assert.equal(isToolMutation("growth_intelligence_action_decide", safeActionDecisionArgs), true);
+for (const blockedActionDecisionArgs of [
+  { ...safeActionDecisionArgs, execute: true },
+  { ...safeActionDecisionArgs, decision: "accepted" },
+  { ...safeActionDecisionArgs, action_id: "" },
+  { ...safeActionDecisionArgs, tenant_id: "not-a-uuid" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceActionDecisionArgs(blockedActionDecisionArgs));
+}
+
+const safeReadinessArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  assessed_by: "growth-platform-admin",
+};
+assert.equal(validateGrowthIntelligenceReadinessRefreshArgs(safeReadinessArgs), safeReadinessArgs);
+assert.equal(isToolMutation("growth_intelligence_readiness_refresh", safeReadinessArgs), true);
+for (const blockedReadinessArgs of [
+  { ...safeReadinessArgs, execution_allowed: true },
+  { ...safeReadinessArgs, assessed_by: "bad assessor" },
+  { ...safeReadinessArgs, report_id: "../report" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceReadinessRefreshArgs(blockedReadinessArgs));
+}
+
 const capabilityEnvelopeId = "70891f74-0200-4942-843e-18cf4ba6643a";
 assert.equal(resolveApplyAuthoritySource({
   args: { apply: true },
