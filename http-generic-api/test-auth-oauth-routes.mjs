@@ -189,6 +189,7 @@ const app = express();
 app.use(express.json());
 app.use(buildTenantGptOAuthMetadataRoutes());
 app.use(buildActivationHostGatewayRoutes());
+app.get("/tenant/activation/probe", (req, res) => res.status(200).json({ ok: true, auth: req.auth || null }));
 app.use("/auth", buildAuthRoutes({
   getPool: () => oauthClientPool,
   async resolveTenantGptOAuthCredential(credential) {
