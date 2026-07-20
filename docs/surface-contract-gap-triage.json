@@ -3,12 +3,12 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 34,
+  "total_triaged_items": 33,
   "class_counts": {
-    "new_surface_immediate_review": 33,
+    "new_surface_immediate_review": 32,
     "safety_marker_review": 1
   },
-  "gate_candidate_count": 33,
+  "gate_candidate_count": 32,
   "gate_candidate_files": [
     "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
     "20260717_tenant_task_source_repair_apply_gate.sql",
@@ -19,7 +19,6 @@
     "20260714_tenant_connection_shadow_contract_bootstrap.sql",
     "20260719_fix_growth_intelligence_report_read_tool_path.sql",
     "20260715_capability_envelope_template_resolver.sql",
-    "20260715_dynamic_container_canary_promotion_tool.sql",
     "20260714_async_release_deploy_contract.sql",
     "20260716_repository_main_moved_trigger_coordinator.sql",
     "20260716_self_healing_release_advisor.sql",
@@ -412,43 +411,6 @@
         "runtime-registry-review",
         "runtime-policy-review",
         "safety-contract-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "20260715_dynamic_container_canary_promotion_tool.sql",
-      "score": 804,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "runtime-policy-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {

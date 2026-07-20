@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 34
-- Gate candidates: 33
+- Triaged items: 33
+- Gate candidates: 32
 - New-gap gate: fail
-- Blocking new items: 34
+- Blocking new items: 33
 
 ## Class counts
 
-- new_surface_immediate_review: 33
+- new_surface_immediate_review: 32
 - safety_marker_review: 1
 
 ## Immediate review candidates
@@ -25,7 +25,6 @@
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 838; next: add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 832; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 816; next: add targeted patch-index, parity, and governance documentation
-- `20260715_dynamic_container_canary_promotion_tool.sql` — critical_review, score 804; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 787; next: add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 782; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 782; next: add targeted patch-index, parity, and governance documentation
@@ -46,3 +45,4 @@
 - `20260719_virtual_tool_export_shadow_alignment.sql` — high_review, score 539; next: add targeted patch-index, parity, and governance documentation
 - `20260716_github_list_repository_issues_array_contract.sql` — high_review, score 536; next: add targeted patch-index, parity, and governance documentation
 - `20260712_github_rerun_workflow_response_schema_alignment.sql` — high_review, score 532; next: add targeted patch-index, parity, and governance documentation
+- `20260719_tenant_blocked_capability_exports_fail_closed.sql` — high_review, score 521; next: add targeted patch-index, parity, and governance documentation

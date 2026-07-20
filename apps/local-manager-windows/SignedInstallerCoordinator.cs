@@ -137,7 +137,9 @@ internal sealed class SignedInstallerCoordinator
         try
         {
             await process.WaitForExitAsync(cancellationToken);
-            return SignedInstallerRunResult.Completed;
+            return process.ExitCode == 0
+                ? SignedInstallerRunResult.Completed
+                : SignedInstallerRunResult.Failed;
         }
         catch (InvalidOperationException)
         {
@@ -265,6 +267,7 @@ internal enum SignedInstallerKind
 internal enum SignedInstallerRunResult
 {
     Completed,
+    Failed,
     CompletionNotObservable,
     CancelledByUser,
     ProcessHandleUnavailable
