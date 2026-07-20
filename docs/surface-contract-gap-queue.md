@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 30
+- Total queue items: 34
 - Critical review: 20
-- High review: 9
+- High review: 13
 - Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -30,7 +30,7 @@
 ### 2. `20260717_tenant_task_source_repair_apply_gate.sql`
 
 - Queue class: critical_review
-- Score: 1057
+- Score: 1056
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -75,7 +75,7 @@
 ### 5. `20260718_github_list_issue_comments_endpoint.sql`
 
 - Queue class: critical_review
-- Score: 870
+- Score: 869
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -117,7 +117,7 @@
 ### 8. `20260719_fix_growth_intelligence_report_read_tool_path.sql`
 
 - Queue class: critical_review
-- Score: 833
+- Score: 832
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -145,7 +145,7 @@
 ### 10. `20260715_dynamic_container_canary_promotion_tool.sql`
 
 - Queue class: critical_review
-- Score: 805
+- Score: 804
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -159,7 +159,7 @@
 ### 11. `20260714_async_release_deploy_contract.sql`
 
 - Queue class: critical_review
-- Score: 788
+- Score: 787
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -218,7 +218,7 @@
 ### 15. `20260717_runtime_contract_root_cause_reconciliation.sql`
 
 - Queue class: critical_review
-- Score: 737
+- Score: 736
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -232,7 +232,7 @@
 ### 16. `20260718_growth_intelligence_report_read_tool.sql`
 
 - Queue class: critical_review
-- Score: 732
+- Score: 731
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -245,7 +245,7 @@
 ### 17. `20260715_dynamic_container_canary_probe_sampler_tool.sql`
 
 - Queue class: critical_review
-- Score: 729
+- Score: 728
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -258,7 +258,7 @@
 ### 18. `20260714_supervisor_runtime_admin_tool_exports.sql`
 
 - Queue class: critical_review
-- Score: 722
+- Score: 721
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -285,7 +285,7 @@
 ### 20. `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql`
 
 - Queue class: critical_review
-- Score: 712
+- Score: 711
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -311,7 +311,7 @@
 ### 22. `20260718_virtual_tool_single_file_mutation_classification.sql`
 
 - Queue class: high_review
-- Score: 649
+- Score: 648
 - Gap severity: medium
 - Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -338,7 +338,22 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_migration_client`, `v_governed_migration_client_apply`, `v_growth_intelligence_pilot_apply`, `v_growth_intelligence_pilot_read`, `v_only`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 24. `20260717_virtual_tool_readback_readiness.sql`
+### 24. `20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql`
+
+- Queue class: high_review
+- Score: 566
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=1, views=4, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `create_pull_request`
+- `verify_readback_view` → db-readback-review; targets: `v_governed_migration_client`, `v_governed_migration_client_apply`, `v_growth_intelligence_pilot_apply`, `v_growth_intelligence_pilot_read`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 25. `20260717_virtual_tool_readback_readiness.sql`
 
 - Queue class: high_review
 - Score: 563
@@ -353,7 +368,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_effective_platform_resource_authority_bindings`, `v_platform_capability_readback_readiness`, `v_platform_capability_readiness_vector`, `v_platform_virtual_tool_bindings_classified`, `v_platform_virtual_tool_capabilities_current`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 25. `20260716_self_healing_release_advisor_mutation_policy.sql`
+### 26. `20260716_self_healing_release_advisor_mutation_policy.sql`
 
 - Queue class: high_review
 - Score: 548
@@ -367,7 +382,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `same_cycle_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 26. `20260715_dynamic_container_rollout_readiness_current_evidence.sql`
+### 27. `20260715_dynamic_container_rollout_readiness_current_evidence.sql`
 
 - Queue class: high_review
 - Score: 543
@@ -381,7 +396,22 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `dynamic_container_rollout_readiness_current_evidence`, `v_container_rollout_readiness`
 - `verify_readback_view` → db-readback-review; targets: `v_container_latest_shadow_audit_coverage`, `v_container_latest_shadow_performance_summary`, `v_container_latest_shadow_run_summary`, `v_container_relationship_issues`, `v_container_rollout_readiness`
 
-### 27. `20260716_github_list_repository_issues_array_contract.sql`
+### 28. `20260719_virtual_tool_export_shadow_alignment.sql`
+
+- Queue class: high_review
+- Score: 539
+- Gap severity: medium
+- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=1, views=4, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_tool_dispatch_bindings`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_virtual_tool_bindings_classified`, `v_platform_virtual_tool_capabilities_current`, `v_platform_virtual_tool_exports_current`, `v_platform_virtual_tool_identity_resolution`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 29. `20260716_github_list_repository_issues_array_contract.sql`
 
 - Queue class: high_review
 - Score: 536
@@ -395,10 +425,10 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_list_repository_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 28. `20260712_github_rerun_workflow_response_schema_alignment.sql`
+### 30. `20260712_github_rerun_workflow_response_schema_alignment.sql`
 
 - Queue class: high_review
-- Score: 533
+- Score: 532
 - Gap severity: medium
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -409,10 +439,38 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_rest_endpoint_dispatch`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 29. `20260715_supervisor_behavioral_certification_capability_policy.sql`
+### 31. `20260719_tenant_blocked_capability_exports_fail_closed.sql`
 
 - Queue class: high_review
-- Score: 518
+- Score: 521
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_external_send`, `secrets_included_false`
+- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_platform_endpoint_tools`, `tenant_platform_tool`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`, `secrets_included_false`
+
+### 32. `20260719_tenant_blocked_tool_exports_fail_closed.sql`
+
+- Queue class: high_review
+- Score: 521
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_external_send`, `secrets_included_false`
+- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `local_gateway_tools_call`, `tenant_repository_intelligence_v3_v4_readiness_smoke`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_external_send`, `secrets_included_false`
+
+### 33. `20260715_supervisor_behavioral_certification_capability_policy.sql`
+
+- Queue class: high_review
+- Score: 517
 - Gap severity: medium
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -423,7 +481,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `same_cycle_readback_required`, `transaction_rollback_required`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`
 
-### 30. `20260718_repair_resource_authority_grant_tags_csv.sql`
+### 34. `20260718_repair_resource_authority_grant_tags_csv.sql`
 
 - Queue class: medium_review
 - Score: 380
