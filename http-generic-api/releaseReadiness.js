@@ -712,7 +712,12 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     }
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {
       counts.alter_table += 1;
-      if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+      if (
+        filename === "20260720_credential_intake_platform_secret_governance_hardening.sql"
+        && /^ALTER\s+TABLE\s+`?secret_references`?\s+MODIFY\s+COLUMN\s+`?secret_key`?\s+VARCHAR\(128\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci\s+NOT\s+NULL$/i.test(normalized)
+      ) {
+        counts.alter_table_idempotent += 1;
+      } else if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
       } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
