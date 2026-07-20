@@ -1148,6 +1148,8 @@ export function buildAuthRoutes(deps) {
           tenant_id: payload.tenant_id || null,
           redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
+          client_id: resourceProfile.client_id,
+          resource: resourceProfile.resource,
           activation_context,
         },
         JWT_SECRET,
