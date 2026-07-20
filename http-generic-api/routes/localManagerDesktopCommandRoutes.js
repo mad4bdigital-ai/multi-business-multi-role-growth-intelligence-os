@@ -127,6 +127,20 @@ function normalizePayload(action, payload = {}) {
   return clean;
 }
 
+function requiresVerifiedDesktopIdentity(action, payload = {}, requestContext = {}) {
+  const purpose = cleanText(requestContext?.purpose || requestContext?.operation || requestContext?.intent, 128).toLowerCase();
+  if (SENSITIVE_DESKTOP_PURPOSES.has(purpose) || requestContext?.sensitive_operation === true) return true;
+  if (action !== "open_url") return false;
+  try {
+    const parsed = new URL(String(payload?.url || ""));
+    return parsed.pathname.startsWith("/credential-intake/")
+      || parsed.pathname.startsWith("/local-connector/install/")
+      || parsed.pathname.includes("/credentials/");
+  } catch {
+    return false;
+  }
+}
+
 async function ensureDesktopCommandTable() {
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS \`local_manager_desktop_commands\` (
