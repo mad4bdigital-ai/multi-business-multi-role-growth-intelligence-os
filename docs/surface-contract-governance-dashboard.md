@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 36
-- Triaged items: 36
-- Gate candidates: 34
+- Queue items: 37
+- Triaged items: 37
+- Gate candidates: 35
 - New-gap gate: fail
-- Blocking new items: 36
-- Docs completion: 93.44%
+- Blocking new items: 37
+- Docs completion: 93.27%
 - SQL route OpenAPI coverage: 91.67%
 
 ## Top immediate items
@@ -24,8 +24,8 @@
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `20260716_self_healing_release_advisor.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260716_self_healing_release_advisor.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_capability_projection.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_growth_intelligence_report_read_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
