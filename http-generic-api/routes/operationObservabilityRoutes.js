@@ -1,18 +1,7 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import { getOperationObservabilityDashboard } from "../operationObservabilityService.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function tenantMembership(userId, requestedTenantId = null) {
   const params = [userId];
@@ -35,9 +24,7 @@ async function tenantMembership(userId, requestedTenantId = null) {
 }
 
 async function requireTenantObservabilityPrincipal(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload?.user_id) {
     return res.status(401).json({
       ok: false,
@@ -118,6 +105,5 @@ export function buildOperationObservabilityRoutes({
 }
 
 export const _testingOperationObservabilityRoutes = {
-  verifyUserJwt,
   errorResponse,
 };

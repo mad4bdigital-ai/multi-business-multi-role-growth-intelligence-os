@@ -1,5 +1,4 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import {
   diagnoseCi,
@@ -33,21 +32,10 @@ import {
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
 function bodyOf(req) {
   return req.body && typeof req.body === "object" && !Array.isArray(req.body)
     ? req.body
     : {};
-}
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
 }
 
 async function tenantMembership(userId, requestedTenantId = null) {
@@ -71,9 +59,7 @@ async function tenantMembership(userId, requestedTenantId = null) {
 }
 
 async function requireTenantOperationPrincipal(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload?.user_id) {
     return res.status(401).json({
       ok: false,
@@ -459,7 +445,6 @@ export function buildOperationOrchestratorRoutes({
 }
 
 export const _testingOperationOrchestratorRoutes = {
-  verifyUserJwt,
   errorResponse,
   isResumeOperation,
   dispatchWithChunkCollection,

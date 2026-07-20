@@ -23,7 +23,7 @@ const CONTRACTS = Object.freeze({
     principal_scopes: ["admin", "tenant"],
     execution_class: "mutation",
     resource_type: "repository",
-    required_fields: ["owner", "repo", "idempotency_key", "capability_envelope_id"],
+    required_fields: ["owner", "repo", "idempotency_key"],
     budget: { max_internal_calls: 12, max_discovery_calls: 0, max_retries: 1, max_elapsed_ms: 120000, max_response_chars: 45000 },
   }),
   "repo.branch.reconcile": Object.freeze({
@@ -32,7 +32,7 @@ const CONTRACTS = Object.freeze({
     principal_scopes: ["admin", "tenant"],
     execution_class: "mutation",
     resource_type: "repository",
-    required_fields: ["owner", "repo", "branch", "idempotency_key", "capability_envelope_id"],
+    required_fields: ["owner", "repo", "branch", "idempotency_key"],
     budget: { max_internal_calls: 8, max_discovery_calls: 0, max_retries: 1, max_elapsed_ms: 90000, max_response_chars: 30000 },
   }),
   "repo.ci.diagnose": Object.freeze({
@@ -59,7 +59,7 @@ const CONTRACTS = Object.freeze({
     principal_scopes: ["admin", "tenant"],
     execution_class: "mutation",
     resource_type: null,
-    required_fields: ["run_id", "idempotency_key", "capability_envelope_id"],
+    required_fields: ["run_id", "idempotency_key"],
     budget: { max_internal_calls: 10, max_discovery_calls: 0, max_retries: 1, max_elapsed_ms: 120000, max_response_chars: 45000 },
   }),
 });
