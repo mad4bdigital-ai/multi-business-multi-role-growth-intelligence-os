@@ -2808,7 +2808,10 @@ async function executeUpstreamAttempt({
 
   const upstream = providerFetchResult.upstream;
 
-  const contentType = upstream.headers.get("content-type") || "";
+  const upstreamContentType = upstream.headers.get("content-type") || "";
+  const contentType = isRawTextResponseRequest(requestPayload, upstreamContentType)
+    ? "text/plain"
+    : upstreamContentType;
   let data;
   let responseText = "";
 
