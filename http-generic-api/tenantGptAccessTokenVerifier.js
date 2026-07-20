@@ -9,6 +9,21 @@ import {
 } from "./tenantGptOAuthResourceProfile.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const BACKEND_API_KEY = process.env.BACKEND_API_KEY || "";
+
+function safeSecretMatch(left, right) {
+  const leftBuffer = Buffer.from(String(left || ""));
+  const rightBuffer = Buffer.from(String(right || ""));
+  return Boolean(leftBuffer.length && leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer));
+}
+
+function hasPlatformServiceCredential(req) {
+  if (!BACKEND_API_KEY) return false;
+  const xApiKey = String(req.headers?.["x-api-key"] || "").trim();
+  const authorization = String(req.headers?.authorization || "");
+  const bearer = authorization.replace(/^Bearer\s+/i, "").trim();
+  return safeSecretMatch(xApiKey, BACKEND_API_KEY) || (bearer !== authorization && safeSecretMatch(bearer, BACKEND_API_KEY));
+}
 
 function tokenFailure(code, message) {
   const error = new Error(message);
