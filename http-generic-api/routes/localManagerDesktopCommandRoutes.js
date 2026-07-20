@@ -410,6 +410,18 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       if (!userId || !deviceId) return res.status(400).json({ ok: false, error: { code: "missing_target", message: "user_id and device_id are required." }, secrets_included: false });
       const payload = normalizePayload(action, body.payload || {});
       const target = await resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId, requestContext: body.request_context || {} });
+      const identityResolution = target.request_context?.desktop_identity_resolution || {};
+      if (requiresVerifiedDesktopIdentity(action, payload, body.request_context || {}) && identityResolution.identity_resolution_status !== "resolved") {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "desktop_target_identity_unverified",
+            message: "Sensitive desktop commands require an active, user-scoped device identity mapping.",
+            details: { identity_resolution_status: identityResolution.identity_resolution_status || "unresolved", secrets_included: false },
+          },
+          secrets_included: false,
+        });
+      }
       const commandId = crypto.randomUUID();
       const ttlSeconds = Math.max(30, Math.min(Number(body.ttl_seconds || 300), 3600));
       const priority = Math.max(1, Math.min(Number(body.priority || 100), 1000));
