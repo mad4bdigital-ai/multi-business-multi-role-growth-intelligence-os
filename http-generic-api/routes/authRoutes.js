@@ -1274,6 +1274,18 @@ export function buildAuthRoutes(deps) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
       }
+      if (codePayload.client_id && codePayload.client_id !== clientValidation.client_id) {
+        logTokenExchange("failed", "oauth_code_client_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code client binding does not match." });
+      }
+      if (codePayload.resource && codePayload.resource !== resourceProfile.resource) {
+        logTokenExchange("failed", "oauth_code_resource_mismatch", 400);
+        return res.status(400).json({ error: "invalid_target", error_description: "OAuth code resource does not match the Action server resource." });
+      }
+      if (codePayload.audience && codePayload.audience !== resourceProfile.audience) {
+        logTokenExchange("failed", "oauth_code_audience_mismatch", 400);
+        return res.status(400).json({ error: "invalid_target", error_description: "OAuth code audience does not match the Action server resource." });
+      }
       if (redirectUri && !equivalentTenantGptRedirectUri(redirectUri, codePayload.redirect_uri)) {
         logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
