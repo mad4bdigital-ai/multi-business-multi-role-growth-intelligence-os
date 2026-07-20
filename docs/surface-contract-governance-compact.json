@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 93.27,
+  "docs_completion_percent": 93.1,
   "docs_complete_count": 513,
-  "docs_gap_count": 37,
-  "queue_items": 37,
-  "blocking_new_item_count": 37,
+  "docs_gap_count": 38,
+  "queue_items": 38,
+  "blocking_new_item_count": 38,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -23,7 +23,7 @@
     {
       "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
       "queue_class": "critical_review",
-      "score": 983,
+      "score": 982,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 37,
-    "warning_new_item_count": 37
+    "blocking_new_item_count": 38,
+    "warning_new_item_count": 38
   },
   "safety": {
     "executes_provider_calls": false,
