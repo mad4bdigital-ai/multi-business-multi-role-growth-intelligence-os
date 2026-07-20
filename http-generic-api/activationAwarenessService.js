@@ -700,7 +700,7 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
   const subject = resolveSubject(sessionContext || {});
   const systemWhere = subject.is_admin ? "status <> 'archived'" : "tenant_id = ? AND status <> 'archived'";
   const systemParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
-  const [tiles, callbacks, systems, freshness] = await Promise.all([
+  const [tiles, callbacks, systems, freshness, ciGuardSlo] = await Promise.all([
     safeRows(
       `SELECT tile_key, provider_family, connector_family, scope_class, display_name,
               category, default_visibility, source_mode, freshness_sla_seconds,
@@ -732,6 +732,24 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
         GROUP BY surface_key, freshness_status`,
       subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"]
     ),
+    subject.is_admin
+      ? readCiGuardSlo().catch((err) => ({
+          ok: false,
+          signal_key: "custom_gpt_contract_guard",
+          overall_status: "unavailable",
+          error: compactError(err, "ci_guard_slo_read_failed"),
+          objectives: {},
+          counts: {},
+          secrets_included: false,
+        }))
+      : Promise.resolve({
+          ok: true,
+          signal_key: "custom_gpt_contract_guard",
+          overall_status: "not_authorized",
+          objectives: {},
+          counts: {},
+          secrets_included: false,
+        }),
   ]);
 
   const callbackByTile = new Map(callbacks.rows.map((row) => [row.tile_key, row]));
