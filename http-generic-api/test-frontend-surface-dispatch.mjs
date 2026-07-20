@@ -266,11 +266,243 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
 const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
 assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/);
 assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
+assert.ok(
+  frontendDispatchWorkflow.includes("grep -Ev '^(frontend-surface-dispatch\\.generated\\.json|openapi/frontend-runtime-routes\\.generated\\.yaml)
+assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
+assert.deepEqual(expandRoutePaths("/runtime/parity/:environmentKey?"), ["/runtime/parity", "/runtime/parity/{environmentKey}"]);
+assert.deepEqual(
+  parseRoutesFromFile('router.all("/root", requireUserJwt, handler);', "routes/rootRoutes.js")
+    .map((operation) => operation.signature),
+  ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
+  "router.all registrations must expand into every governed HTTP method",
+);
+assert.deepEqual(
+  parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
+  ["GET /nested", "POST /"],
+  "registered evidence must support the root path as well as nested paths",
+);
+assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 12);
+assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
+  sourcePath: path.join(apiRoot, "openapi.yaml"),
+  apiRoot,
+}).size, 20);
+const blockSecuritySource = "security:\n  - adminBearerAuth: []\n  - backendApiKeyAuth: []\n";
+const blockSecurityDocument = YAML.parseDocument(blockSecuritySource, { keepSourceTokens: true });
+const blockSecurityNode = blockSecurityDocument.getIn(["security"], true);
+const blockSecurityReplacement = serializedSecurity(blockSecuritySource, blockSecurityNode, [["adminBearerAuth"], ["backendApiKeyAuth"]]);
+assert.equal(blockSecurityReplacement, "- adminBearerAuth: []\n  - backendApiKeyAuth: []\n");
+const blockSecurityOutput = `${blockSecuritySource.slice(0, blockSecurityNode.range[0])}${blockSecurityReplacement}${blockSecuritySource.slice(blockSecurityNode.range[2])}`;
+assert.deepEqual(YAML.parse(blockSecurityOutput).security, [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]);
+const securityContracts = parseOpenApiContracts(`
+openapi: 3.1.0
+security: []
+components:
+  securitySchemes:
+    A: { type: http, scheme: bearer }
+    B: { type: apiKey, in: header, name: x-key }
+paths:
+  /or:
+    get:
+      security: [{ A: [] }, { B: [] }]
+      responses: { default: { description: ok } }
+  /and:
+    get:
+      security: [{ A: [], B: [] }]
+      responses: { default: { description: ok } }
+`);
+assert.deepEqual(securityContracts.get("GET /or").security_alternatives, [["A"], ["B"]]);
+assert.deepEqual(securityContracts.get("GET /and").security_alternatives, [["A", "B"]]);
+assert.equal(parseMountedRouteFiles(fs.readFileSync(path.join(apiRoot, "routes/index.js"), "utf8")).length, 4);
+assert.deepEqual(
+  parseMountedRouteFiles(`
+    function registerOptionalRoutes(app) {
+      import("./optionalRoutes.js").then(({ buildOptionalRoutes }) => {
+        app.use(buildOptionalRoutes());
+      });
+    }
+  `).map(({ builder, file, mount_prefix }) => ({ builder, file, mount_prefix })),
+  [{ builder: "buildOptionalRoutes", file: "routes/optionalRoutes.js", mount_prefix: "/" }],
+);
+
+const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
+assert.equal(plan.baseline.ref, "fixture-sha");
+assert.equal(plan.coverage.mounted_route_file_count, 5);
+assert.equal(plan.coverage.mounted_family_count, 7);
+assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
+assert.equal(plan.coverage.operation_count, 20);
+const tenantOperations = plan.families.find((family) => family.source_file === "routes/tenantRoutes.js").operations;
+assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights"));
+assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights/{view}"));
+assert(!plan.families.some((family) => family.operations.some((entry) => entry.signature === "DELETE /disabled/commented-route")), "commented legacy routes must not enter the runtime inventory");
+assert.equal(plan.coverage.openapi_gap_count, 0);
+assert.equal(plan.coverage.unresolved_surface_decision_count, 0);
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/tenantRoutes.js")
+    .operations
+    .every((entry) => entry.auth_parity.state === "equivalent"),
+  "tenant OAuth scheme aliases must compare as the runtime user-JWT principal",
+);
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/tenantRoutes.js")
+    .operations
+    .find((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/dashboard")
+    .runtime_auth.evidence.includes("fixture-auth-rule"),
+  "exact auth policy rules must add auditable evidence",
+);
+const inlineHandlerAuth = plan.families
+  .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "tenant")
+  .operations
+  .find((entry) => entry.signature === "GET /me/support/tickets");
+assert.equal(inlineHandlerAuth.runtime_auth.profile, "user_jwt", "handler-internal auth calls must be discovered");
+assert.equal(inlineHandlerAuth.auth_parity.state, "equivalent");
+assert(
+  !plan.baseline.authority.some((entry) => entry.file === "openapi/openapi.tenant-gpt.auth.yaml"),
+  "generated audience projections must not satisfy canonical OpenAPI coverage",
+);
+assert(
+  plan.baseline.authority.some((entry) => entry.file === "../canonicals/openapi/custom-gpt-surfaces.yaml"),
+  "projection authority must participate in deterministic drift detection",
+);
+assert.equal(plan.families.find((family) => family.scope === "admin").wave, "F3-admin-workspaces");
+assert(
+  plan.families
+    .find((family) => family.source_file === "routes/adminRoutes.js")
+    .operations
+    .every((entry) => entry.runtime_auth.profile === "admin_backend"),
+  "filtered admin guard arrays must retain both authenticator and authorizer evidence",
+);
+assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 3);
+assert.deepEqual(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(), ["admin", "tenant", "unresolved"]);
+assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").embedded_ui, true);
+assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").operations.find((operation) => operation.path.endsWith("/schema")).embedded_ui, false);
+assert.equal(new Set(plan.tasks.map((task) => task.task_key)).size, plan.tasks.length, "split-scope dispatch tasks must keep unique keys");
+assert(plan.families.find((family) => family.source_file === "routes/index.js").operations.some((operation) => operation.signature === "POST /admin/control"));
+assert.deepEqual(
+  plan.families.find((family) => family.source_file === "routes/dynamicTeamRoutes.js").operations.map((operation) => operation.signature).sort(),
+  [
+    "DELETE /me/brands/{brandRef}/team/members/{userId}",
+    "DELETE /me/workspaces/{workspaceId}/team/members/{userId}",
+    "GET /me/brands/{brandRef}/team",
+    "GET /me/workspaces/{workspaceId}/team",
+    "PATCH /me/brands/{brandRef}/team/members/{userId}",
+    "PATCH /me/workspaces/{workspaceId}/team/members/{userId}",
+    "POST /me/brands/{brandRef}/team/members",
+    "POST /me/workspaces/{workspaceId}/team/members",
+  ].sort(),
+);
+assert(plan.baseline.authority.some((entry) => entry.file === "openapi/team.yaml"));
+assert(plan.baseline.authority.some((entry) => entry.file === "routes/tenantRoutes.js"), "mounted route implementations must participate in the baseline digest");
+assert(plan.baseline.authority.some((entry) => entry.file.endsWith("/scripts/frontend-surface-dispatch.mjs") || entry.file === "scripts/frontend-surface-dispatch.mjs"));
+assert(plan.tasks.find((task) => task.wave === "F3-admin-workspaces").dependencies.includes("F2-admin-bff-session"));
+assert.equal(plan.tasks.filter((task) => task.state === "ready").length, 2, "both fully governed tenant fixtures may become ready");
+assert.equal(plan.coverage.non_get_candidate_count, 9);
+assert.equal(plan.coverage.classified_mutation_count, 1);
+assert.equal(plan.coverage.governed_mutation_operation_count, 1);
+assert.equal(plan.coverage.unresolved_operation_class_count, 7);
+assert(plan.families.find((family) => family.source_file === "routes/dynamicTeamRoutes.js").operation_blockers.every((entry) => entry.blockers.includes("operation_classification_gap")));
+assert.equal(plan.safety.secrets_included, false);
+assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);
+
+const policyPath = path.join(apiRoot, "frontend-surface-policy.json");
+const validPolicySource = fs.readFileSync(policyPath, "utf8");
+const conflictingAuthPolicy = JSON.parse(validPolicySource);
+conflictingAuthPolicy.auth_rules[0].profile = "public";
+fs.writeFileSync(policyPath, JSON.stringify(conflictingAuthPolicy));
+const conflictingAuthPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const conflictingAuthOperation = conflictingAuthPlan.families
+  .find((family) => family.source_file === "routes/tenantRoutes.js")
+  .operations
+  .find((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/dashboard");
+assert.equal(conflictingAuthOperation.runtime_auth.state, "unresolved");
+assert.equal(conflictingAuthOperation.runtime_auth.profile, "auth_policy_conflicts_with_runtime_guard", "manual auth policy must not weaken discovered runtime guards");
+fs.writeFileSync(policyPath, validPolicySource);
+
+const partitionPolicy = JSON.parse(validPolicySource);
+partitionPolicy.rules = partitionPolicy.rules
+  .filter((rule) => rule.source_file !== "routes/mixedRoutes.js")
+  .concat([
+    { source_file: "routes/mixedRoutes.js", scope: "tenant", decision: "unified_ui", owner: "tenant-ui", rationale: "fixture" },
+    { source_file: "routes/mixedRoutes.js", scope: "admin", decision: "unified_ui", owner: "admin-ui", rationale: "fixture" },
+    {
+      source_file: "routes/mixedRoutes.js",
+      scope: "unresolved",
+      path_prefix: "/credential-intake/{token}/schema",
+      decision: "api_only",
+      owner: "support-ui",
+      rationale: "Schema data is consumed by the unified credential UI.",
+    },
+  ]);
+fs.writeFileSync(policyPath, JSON.stringify(partitionPolicy));
+const partitionPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const unresolvedMixedFamilies = partitionPlan.families.filter(
+  (family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved",
+);
+assert.equal(unresolvedMixedFamilies.length, 2);
+assert.equal(
+  unresolvedMixedFamilies.find((family) => family.operations.some((operation) => operation.path.endsWith("/schema"))).surface_decision.decision,
+  "api_only",
+);
+assert.equal(
+  unresolvedMixedFamilies.find((family) => family.operations.some((operation) => !operation.path.endsWith("/schema"))).surface_decision.decision,
+  "requires_review",
+);
+fs.writeFileSync(policyPath, validPolicySource);
+
+const invalidPolicy = JSON.parse(validPolicySource);
+invalidPolicy.rules.find((rule) => rule.source_file === "routes/tenantRoutes.js").decision = "unrecognized_surface";
+fs.writeFileSync(policyPath, JSON.stringify(invalidPolicy));
+const invalidPolicyPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const invalidPolicyFamily = invalidPolicyPlan.families.find((family) => family.source_file === "routes/tenantRoutes.js");
+assert.equal(invalidPolicyFamily.surface_decision.decision, "requires_review");
+assert.equal(invalidPolicyFamily.surface_decision.owner, null);
+assert.equal(
+  invalidPolicyPlan.tasks.find((task) => task.task_key === `frontend.${invalidPolicyFamily.family_key}`).state,
+  "blocked",
+);
+fs.writeFileSync(policyPath, validPolicySource);
+
+const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
+assert.equal(writeResult.ok, true);
+assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
+const checkResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
+assert.equal(checkResult.ok, true);
+assert.equal(checkResult.drift, false);
+const implicitBaselineCheck = syncDispatchPlan({ apiRoot, mode: "check" });
+assert.equal(implicitBaselineCheck.ok, true);
+assert.equal(implicitBaselineCheck.plan.baseline.ref, "fixture-sha");
+
+fs.appendFileSync(path.join(apiRoot, "routes/tenantRoutes.js"), "\nrouter.get('/me/new-surface', handler);\n");
+const driftResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
+assert.equal(driftResult.ok, false);
+assert.equal(driftResult.drift, true);
+assert.notEqual(driftResult.plan.baseline.source_digest, checkResult.plan.baseline.source_digest, "mounted route drift must invalidate the shared baseline digest");
+
+console.log("frontend surface discovery and dynamic dispatch tests passed");
+ || true"),
+  "manual evidence refresh must use a closed and end-anchored bounded-file filter",
+);
 if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
   assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
   assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
   assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
 }
+
+const repositorySurfacePolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
+const repositoryDispatchSource = fs.readFileSync(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url), "utf8");
+const repositoryWebhookOpenApi = YAML.parse(fs.readFileSync(new URL("./openapi/github-repository-main-moved-webhook.yaml", import.meta.url), "utf8"));
+const repositoryWebhookAuthRule = repositorySurfacePolicy.auth_rules.find(
+  (rule) => rule.operation === "POST /webhooks/github/repository-main-moved",
+);
+assert.equal(repositoryWebhookAuthRule?.profile, "github_webhook_hmac", "webhook auth policy must use the resolver profile");
+assert.match(repositoryDispatchSource, /github_webhook_hmac:\s*\{[^}]*githubWebhookSignature/s);
+assert.deepEqual(
+  repositoryWebhookOpenApi.paths["/webhooks/github/repository-main-moved"].post.security,
+  [{ githubWebhookSignature: [] }],
+  "webhook OpenAPI security must match the runtime HMAC profile",
+);
 
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
