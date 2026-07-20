@@ -51,9 +51,11 @@ export function containsSecretLikeKey(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsSecretLikeKey);
   if (!value || typeof value !== "object") return false;
 
-  return Object.entries(value as Record<string, unknown>).some(
-    ([key, item]) => SECRET_LIKE_KEY.test(key) || containsSecretLikeKey(item),
-  );
+  return Object.entries(value as Record<string, unknown>).some(([key, item]) => {
+    const normalizedKey = key.replace(/[_-]/g, "").toLowerCase();
+    if (normalizedKey === "secretsincluded") return item !== false;
+    return SECRET_LIKE_KEY.test(key) || containsSecretLikeKey(item);
+  });
 }
 
 export function assertNoSecretLikeFields(value: unknown): void {

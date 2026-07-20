@@ -31,11 +31,13 @@ describe("authority invariants", () => {
     ]);
   });
 
-  it("rejects secret-like fields from authority evidence", () => {
+  it("rejects secret-like fields while allowing the explicit false boundary marker", () => {
     expect(containsSecretLikeKey({ safe: { credential_ref: "hidden" } })).toBe(true);
+    expect(containsSecretLikeKey({ secretsIncluded: false })).toBe(false);
+    expect(containsSecretLikeKey({ secretsIncluded: true })).toBe(true);
     expect(() => assertNoSecretLikeFields({ apiToken: "hidden" })).toThrow(
       /must not contain secret-like fields/,
     );
-    expect(() => assertNoSecretLikeFields({ decision: "ready" })).not.toThrow();
+    expect(() => assertNoSecretLikeFields({ decision: "ready", secretsIncluded: false })).not.toThrow();
   });
 });

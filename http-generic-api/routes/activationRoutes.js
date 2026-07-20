@@ -518,7 +518,9 @@ async function loadActivationRegisteredSurfaces(req, subject, deps = {}) {
 export async function buildActivationAuthorizedAccess(req, subject = resolveSessionContextSubject(req), deps = {}) {
   const queryFn = deps.query || safeQuery;
   const isAdmin = subject.is_admin === true;
-  const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
+  const authTenantId = String(req.auth?.tenant_id || "").trim();
+  const normalizedAuthTenantId = isAdmin && authTenantId === PLATFORM_TENANT_ID ? null : (authTenantId || null);
+  const tenantId = subject.tenant_id || normalizedAuthTenantId || null;
   const userId = subject.user_id || req.auth?.user_id || null;
   const accessJti = req.auth?.claims?.jti || req.auth?.jti || null;
   const limit = capLimit(req.query?.authorized_access_limit, 25, 100);
@@ -749,7 +751,9 @@ export function resolveSessionContextSubject(req = {}) {
   const authBrandKey = queryStringValue(auth.brand_key || auth.target_key);
   const isAdmin = auth.is_admin === true;
   const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
-  const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
+  const normalizedRequestedTenantId = requestedTenantId === PLATFORM_TENANT_ID ? null : requestedTenantId;
+  const normalizedAuthTenantId = isAdmin && authTenantId === PLATFORM_TENANT_ID ? null : authTenantId;
+  const tenantId = normalizedRequestedTenantId || normalizedAuthTenantId || null;
   const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
   const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || (isAdmin ? "platform_repo_governance_zero" : null);
   const brandKey = requestedBrandKey || authBrandKey || (isAdmin ? PLATFORM_EVOLUTION_BRAND_KEY : null);
@@ -774,9 +778,13 @@ export function resolveSessionContextSubject(req = {}) {
     workspace_id: workspaceId || null,
     workspace_key: workspaceKey || null,
     brand_key: brandKey || null,
-    context_source: isAdmin && (!requestedUserId || !requestedTenantId || !requestedWorkspaceKey || !requestedBrandKey)
-      ? "admin_platform_default_context"
+    context_source: isAdmin
+      ? tenantId ? "admin_explicit_subject_context" : "admin_platform_global_context"
       : "request_or_auth_context",
+    scope_mode: isAdmin
+      ? tenantId ? "explicit_tenant_diagnostic" : "platform_global"
+      : "signed_membership",
+    explicit_target: Boolean(tenantId || requestedWorkspaceId || requestedWorkspaceKey || requestedBrandKey),
     is_admin: isAdmin
   };
 }
