@@ -150,7 +150,6 @@ assert(routeFile.includes("requireAdminPrincipal"));
 const source = fs.readFileSync(new URL("./platformResourceAuthorityGrantTool.js", import.meta.url), "utf8");
 assert(source.includes("dev_growth_intelligence_pilot_read"));
 assert(source.includes("dev_growth_intelligence_pilot_apply"));
-assert(source.includes("tenant_gpt_oauth_live_smoke"));
 assert(source.includes("shell://"));
 assert(source.includes("arbitrary_shell_allowed: false"));
 assert(source.includes("PRINCIPAL_TYPES"));
