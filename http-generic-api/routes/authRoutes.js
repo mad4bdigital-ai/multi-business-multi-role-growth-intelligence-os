@@ -190,7 +190,12 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID(), compact = false } = {}) {
+function issueTenantGptAccessToken(payload, {
+  clientId = TENANT_GPT_OAUTH_CLIENT_ID,
+  jwtid = randomUUID(),
+  compact = false,
+  resource,
+} = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -201,9 +206,20 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
   const email = payload?.email ? String(payload.email).trim() : null;
   const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  const normalizedClientId = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
+  const normalizedResource = normalizeTenantGptOAuthResource(resource);
+  if (!normalizedResource) {
+    const err = new Error("Cannot issue tenant GPT token without a registered protected resource.");
+    err.code = "missing_oauth_resource";
+    throw err;
+  }
+
   const claims = {
     iss: PLATFORM_JWT_ISSUER,
-    aud: TENANT_GPT_JWT_AUDIENCE,
+    aud: normalizedResource,
+    azp: normalizedClientId,
+    client_id: normalizedClientId,
+    resource: normalizedResource,
     sub: subject,
     user_id: userId,
     tenant_id: tenantId,
@@ -214,7 +230,6 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   if (!compact) {
     claims.email = email;
     claims.scope_links = TENANT_GPT_SCOPE_LINKS;
-    claims.client_id = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
   }
 
   return jwt.sign(claims, JWT_SECRET, { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
