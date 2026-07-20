@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
