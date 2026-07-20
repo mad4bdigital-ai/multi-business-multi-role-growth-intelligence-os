@@ -1098,8 +1098,13 @@ export function buildAuthRoutes(deps) {
     const requestId = randomUUID();
     let stage = "request_validation";
     try {
-      const { token, credential, redirect_uri, state } = req.body || {};
+      const { token, credential, redirect_uri, state, oauth_client_id, oauth_resource } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
+      const resourceProfile = resolveTenantGptOAuthResourceProfile({
+        clientId: oauth_client_id || TENANT_GPT_OAUTH_CLIENT_ID,
+        requestHost: tenantGptRequestHostFromHeaders(req.headers),
+        requestedResource: oauth_resource,
+      });
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
