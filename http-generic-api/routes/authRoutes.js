@@ -969,7 +969,14 @@ export function buildAuthRoutes(deps) {
   if (typeof requireBackendApiKey === "function") {
     router.post("/platform-jwt/issue", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
       try {
-        const { user_id, email, tenant_id = null, ttl_seconds, reason = "admin_assistant_jwt_client" } = req.body || {};
+        const {
+          user_id,
+          email,
+          tenant_id = null,
+          ttl_seconds,
+          reason = "admin_assistant_jwt_client",
+          resource = TENANT_GPT_CORE_RESOURCE,
+        } = req.body || {};
         const pool = resolvePool();
         const user = await fetchActiveUserForJwtClient(pool, { user_id, email });
         if (!user) {
