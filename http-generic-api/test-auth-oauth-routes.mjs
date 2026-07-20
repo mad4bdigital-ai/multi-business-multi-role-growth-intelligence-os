@@ -186,6 +186,7 @@ const oauthClientPool = {
 
 const app = express();
 app.use(express.json());
+app.use(buildTenantGptOAuthMetadataRoutes());
 app.use(buildActivationHostGatewayRoutes());
 app.use("/auth", buildAuthRoutes({
   getPool: () => oauthClientPool,
