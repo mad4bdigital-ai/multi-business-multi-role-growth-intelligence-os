@@ -599,6 +599,7 @@ export const testCommands = [
   "node test-virtual-tool-capability-projection.mjs",
   "node test-virtual-tool-single-file-mutation-classification.mjs",
   "node test-registry-tag-parser.mjs",
+  "node test-virtual-tool-export-shadow-alignment.mjs",
   "node test-dynamic-capability-governance-persistence.mjs",
   "node test-tenant-connection-shadow-contract-bootstrap.mjs",
   "node test-platform-capability-shadow-certification-issue.mjs",
