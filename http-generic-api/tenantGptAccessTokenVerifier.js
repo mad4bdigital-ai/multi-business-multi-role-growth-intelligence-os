@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { timingSafeEqual } from "node:crypto";
 import {
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
