@@ -794,7 +794,7 @@ try {
     assert("platform JWT token has user claim", issuedPayload.user_id === "user-1", JSON.stringify(issuedPayload));
     assert("platform JWT token has tenant claim", issuedPayload.tenant_id === "tenant-1", JSON.stringify(issuedPayload));
     assert("platform JWT token carries tenant GPT purpose", issuedPayload.purpose === "tenant_gpt_access", JSON.stringify(issuedPayload));
-assert("platform JWT token carries tenant GPT audience", issuedPayload.aud === "mad4b-tenant-gpt", JSON.stringify(issuedPayload));
+    assert("platform JWT token carries the Core protected-resource audience", issuedPayload.aud === AUTH_RESOURCE, JSON.stringify(issuedPayload));
 assert("platform JWT token carries tenant GPT scope", String(issuedPayload.scope || "").includes("tenant.status"), JSON.stringify(issuedPayload));
 
     const wrongTenant = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {
