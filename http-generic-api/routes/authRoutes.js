@@ -13,6 +13,10 @@ import {
   resolveTenantGptOAuthClientConfig,
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
+import {
+  resolveTenantGptOAuthResourceProfile,
+  tenantGptRequestHostFromHeaders,
+} from "../tenantGptOAuthResourceProfile.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import { hasVerifiedGoogleIdentity, normalizeAuthEmail } from "../authIdentityNormalization.js";
 import {
