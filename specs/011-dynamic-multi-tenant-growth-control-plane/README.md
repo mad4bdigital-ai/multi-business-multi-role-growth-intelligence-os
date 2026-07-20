@@ -2,7 +2,7 @@
 
 **Spec key:** `011-dynamic-multi-tenant-growth-control-plane`  
 **Status:** Deep design complete; implementation pending  
-**Specification branch:** `gpt/011-dynamic-multi-tenant-growth-control-plane-20260720`  
+**Specification branch:** `gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720`  
 **Delivery:** One specification PR followed by a governed multi-PR implementation and closeout sequence.
 
 ## Purpose
