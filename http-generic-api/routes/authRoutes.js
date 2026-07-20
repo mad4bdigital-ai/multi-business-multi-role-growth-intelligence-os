@@ -1089,6 +1089,12 @@ export function buildAuthRoutes(deps) {
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
+      if (!resourceProfile.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: resourceProfile.error, message: resourceProfile.message },
+        });
+      }
       const query = (sql, params) => resolvePool().query(sql, params);
       stage = "oauth_client_config";
       const redirectDecision = await resolveTenantGptRedirectUriDecision(redirect_uri, query);
