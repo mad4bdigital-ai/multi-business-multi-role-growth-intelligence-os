@@ -70,7 +70,7 @@ assert.match(observedSql, /is_current = 1/);
 assert.deepEqual(observedParams, ["tenant_tool.", "tenant_tool.", "tenant_tool."]);
 
 const routeSource = fs.readFileSync("./routes/gptToolsRoutes.js", "utf8");
-assert.match(routeSource, /sqlCacheKey\("tools", callerType, "list", "v2"\)/);
+assert.match(routeSource, /sqlCacheKey\("tools", callerType, "list", "v3"\)/);
 assert.doesNotMatch(routeSource, /sqlCacheKey\("tools", callerType, "list", "v1"\)/);
 assert.match(routeSource, /filterTenantToolsByManifest\(/);
 assert.match(routeSource, /assertTenantToolManifestAllows\(callerType, toolKey, blockedTenantManifests\)/);

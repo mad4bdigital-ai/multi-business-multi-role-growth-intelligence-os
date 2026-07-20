@@ -1,0 +1,192 @@
+openapi: 3.1.0
+info:
+  title: Operation Generated Artifacts
+  version: 1.0.0
+  description: |
+    Read-only metadata registry for artifacts explicitly returned by governed
+    operations. Artifact contents and secrets are never stored in this registry.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /admin/operations/artifacts:
+    get:
+      tags: [Admin Operations]
+      operationId: listAdminOperationGeneratedArtifacts
+      summary: List generated artifact metadata for an operation run
+      security:
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/ArtifactType'
+      responses:
+        '200': { $ref: '#/components/responses/ArtifactPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /tenant/operations/artifacts:
+    get:
+      tags: [Tenant Operations]
+      operationId: listTenantOperationGeneratedArtifacts
+      summary: List generated artifact metadata owned by the Tenant principal
+      description: Requires active tenant membership and operation-run ownership.
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/ArtifactType'
+      responses:
+        '200': { $ref: '#/components/responses/ArtifactPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+components:
+  securitySchemes:
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    RunId:
+      name: run_id
+      in: query
+      required: true
+      schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: { type: string, maxLength: 1000 }
+    ArtifactType:
+      name: artifact_type
+      in: query
+      required: false
+      schema: { type: string, maxLength: 64 }
+  responses:
+    ArtifactPage:
+      description: A cursor-paginated artifact metadata page.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ArtifactPage'
+    Error:
+      description: Structured request, authentication, authorization, or registry error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Operation-specific rate limit exceeded.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unavailable:
+      description: Artifact registry dependency is unavailable.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    Artifact:
+      type: object
+      required:
+        [artifact_id, run_id, artifact_type, artifact_uri, redaction_status,
+         status, metadata, secrets_included]
+      additionalProperties: false
+      properties:
+        artifact_id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        operation_key: { type: [string, 'null'] }
+        artifact_type: { type: string }
+        artifact_uri: { type: string }
+        mime_type: { type: [string, 'null'] }
+        checksum_sha256:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        size_bytes: { type: [integer, 'null'], minimum: 0 }
+        redaction_status:
+          type: string
+          enum: [redacted, non_secret, unknown]
+        status:
+          type: string
+          enum: [registered, unavailable, invalid]
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+        secrets_included: { type: boolean, const: false }
+    ArtifactPage:
+      type: object
+      required:
+        [ok, run_id, principal_scope, filters, items, page,
+         completeness, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: true }
+        run_id: { type: string, format: uuid }
+        principal_scope:
+          type: string
+          enum: [admin, tenant]
+        filters:
+          type: object
+          required: [artifact_type]
+          additionalProperties: false
+          properties:
+            artifact_type: { type: [string, 'null'] }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Artifact' }
+        page:
+          type: object
+          required: [limit, has_more, next_cursor]
+          additionalProperties: false
+          properties:
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            has_more: { type: boolean }
+            next_cursor: { type: [string, 'null'] }
+        completeness:
+          type: string
+          enum: [complete, partial]
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: true
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }

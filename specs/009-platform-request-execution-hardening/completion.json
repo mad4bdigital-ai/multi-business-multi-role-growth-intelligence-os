@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "feature_key": "009-platform-request-execution-hardening",
+  "delivery_mode": "single_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [
+      2551
+    ],
+    "closeout_pr": {
+      "number": 2551,
+      "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+      "role": "runtime_implementation_and_spec",
+      "status": "review_ready_pending_merge"
+    }
+  },
+  "evidence": {
+    "runtime": {
+      "operation_contract_registry": "http-generic-api/operationContractRegistry.js",
+      "operation_context": "http-generic-api/operationContextService.js",
+      "orchestrator": "http-generic-api/operationOrchestrator.js",
+      "routes": "http-generic-api/routes/operationOrchestratorRoutes.js",
+      "tenant_run_ownership": "http-generic-api/operationRunOwnershipService.js",
+      "runtime_guard": "http-generic-api/operationRuntimeGuard.js",
+      "resilience_controller": "http-generic-api/operationResilienceController.js",
+      "typed_catalog_service": "http-generic-api/typedCatalogService.js",
+      "chunk_aggregation": "http-generic-api/routes/operationOrchestratorRoutes.js",
+      "generated_artifact_service": "http-generic-api/operationGeneratedArtifactService.js",
+      "capability_lifecycle_service": "http-generic-api/operationCapabilityLifecycleService.js",
+      "managed_git_worker_service": "http-generic-api/managedGitWorkerLifecycleService.js",
+      "observability_service": "http-generic-api/operationObservabilityService.js"
+    },
+    "migrations": [
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260713_operation_run_ownership.sql",
+        "destructive": false,
+        "backfill_required": false
+      },
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260714_operation_generated_artifacts.sql",
+        "destructive": false,
+        "backfill_required": false
+      },
+      {
+        "status": "included_not_applied",
+        "path": "http-generic-api/migrations/20260715_operation_managed_git_worker_leases.sql",
+        "destructive": false,
+        "backfill_required": false
+      }
+    ],
+    "tests": {
+      "status": "passing",
+      "validated_implementation_head_sha": "3e623ce8973aa3c27ec384ad7e8a0715468d23c9",
+      "base_sha": "ae772d80d7f73300a5e39dece31b689dbdf6e514",
+      "behind_by": 0,
+      "validation_scope": "runtime implementation and main-branch reconciliation before the documentation-only evidence synchronization commit",
+      "required_checks": {
+        "Syntax Check": "success",
+        "Architecture Drift Detection": "success",
+        "Execution Resolver Gate": "success",
+        "Unit & Integration Tests": "success"
+      },
+      "managed_git_worker": [
+        "atomic_lease",
+        "head_pinning",
+        "tenant_isolation",
+        "virtual_git_tree_checkout",
+        "cleanup_and_release",
+        "expiry",
+        "final_head_readback"
+      ],
+      "observability": [
+        "latency",
+        "internal_calls",
+        "discovery",
+        "retries",
+        "failures",
+        "tenant_sql_isolation",
+        "aggregate_only"
+      ],
+      "rollout_pilots": [
+        "shadow_preview",
+        "admin_preview",
+        "tenant_preview",
+        "tenant_membership_and_authority",
+        "admin_observability",
+        "tenant_observability",
+        "no_provider_mutation",
+        "no_secret_or_raw_payload_exposure"
+      ]
+    },
+    "openapi": {
+      "status": "synchronized",
+      "version": "3.1.0",
+      "contracts": [
+        "specs/009-platform-request-execution-hardening/contracts/operation-orchestrator.openapi.yaml",
+        "http-generic-api/openapi/typed-catalogs.yaml",
+        "http-generic-api/openapi/operation-artifacts.yaml",
+        "http-generic-api/openapi/operation-capability-lifecycle.yaml",
+        "http-generic-api/openapi/managed-git-workers.yaml",
+        "http-generic-api/openapi/operation-observability.yaml"
+      ]
+    },
+    "rollout": {
+      "status": "shadow_admin_tenant_pilots_passed",
+      "mode": "read_only_ci_pilot",
+      "evidence_path": "specs/009-platform-request-execution-hardening/evidence/rollout-pilots-2026-07-15.json",
+      "provider_writes": false,
+      "deployment": false,
+      "production_traffic": false
+    },
+    "release_readiness": {
+      "status": "review_ready_pending_merge",
+      "remaining": [
+        "required reviewer approval",
+        "merge",
+        "separately approved migration application and production verification",
+        "post-merge audit"
+      ]
+    }
+  },
+  "constraints": {
+    "provider_writes": false,
+    "deployment": false,
+    "production_migration_apply": false,
+    "force_push": false
+  },
+  "secrets_included": false
+}

@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: Operation Execution Observability
+  version: 1.0.0
+  description: |
+    Aggregate-only latency, internal-call, discovery, retry, and failure
+    dashboards for governed operation execution. Raw prompts, failure messages,
+    provider payloads, credentials, and secrets are never returned.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /admin/operations/observability:
+    get:
+      tags: [Admin Operations]
+      operationId: getAdminOperationObservability
+      summary: Read the aggregate Admin operation dashboard
+      security:
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Hours'
+        - $ref: '#/components/parameters/SampleLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Dashboard'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /tenant/operations/observability:
+    get:
+      tags: [Tenant Operations]
+      operationId: getTenantOperationObservability
+      summary: Read the aggregate Tenant operation dashboard
+      description: |
+        Requires an active Tenant membership. SQL reads are restricted to the
+        authenticated tenant_id and user_id.
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Hours'
+        - $ref: '#/components/parameters/SampleLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Dashboard'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Hours:
+      name: hours
+      in: query
+      required: false
+      description: Observation window in hours.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 720
+        default: 24
+    SampleLimit:
+      name: sample_limit
+      in: query
+      required: false
+      description: Maximum execution-log rows evaluated.
+      schema:
+        type: integer
+        minimum: 100
+        maximum: 10000
+        default: 5000
+  responses:
+    Dashboard:
+      description: Aggregate operation dashboard.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OperationObservabilityDashboard'
+    Error:
+      description: Structured validation, authentication, or authorization error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Dashboard request limit exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unavailable:
+      description: MySQL-primary observability source is unavailable.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    OperationObservabilityDashboard:
+      type: object
+      required:
+        - ok
+        - dashboard_key
+        - principal_scope
+        - window
+        - summary
+        - panels
+        - source
+        - secrets_included
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+          const: true
+        dashboard_key:
+          type: string
+          const: operation_execution_observability
+        principal_scope:
+          type: string
+          enum: [admin, tenant]
+        window:
+          type: object
+          additionalProperties: false
+          required: [hours, generated_at, sample_limit, sample_count, truncated]
+          properties:
+            hours: { type: integer, minimum: 1, maximum: 720 }
+            generated_at: { type: string, format: date-time }
+            sample_limit: { type: integer, minimum: 100, maximum: 10000 }
+            sample_count: { type: integer, minimum: 0 }
+            truncated: { type: boolean }
+        summary:
+          type: object
+          additionalProperties: false
+          required:
+            - total_events
+            - successful_events
+            - failed_events
+            - failure_rate
+            - average_latency_ms
+            - p95_latency_ms
+            - max_latency_ms
+            - internal_call_count
+            - discovery_call_count
+            - retry_count
+          properties:
+            total_events: { type: integer, minimum: 0 }
+            successful_events: { type: integer, minimum: 0 }
+            failed_events: { type: integer, minimum: 0 }
+            failure_rate: { type: number, minimum: 0, maximum: 1 }
+            average_latency_ms: { type: number, minimum: 0 }
+            p95_latency_ms: { type: number, minimum: 0 }
+            max_latency_ms: { type: number, minimum: 0 }
+            internal_call_count: { type: integer, minimum: 0 }
+            discovery_call_count: { type: integer, minimum: 0 }
+            retry_count: { type: integer, minimum: 0 }
+        panels:
+          type: array
+          minItems: 5
+          items:
+            type: object
+            required: [panel_key, metrics]
+            additionalProperties: false
+            properties:
+              panel_key:
+                type: string
+                enum: [latency, internal_calls, discovery, retries, failures]
+              metrics:
+                type: object
+                additionalProperties: true
+        source:
+          type: object
+          required: [authority, table, aggregate_only, raw_payloads_included]
+          additionalProperties: false
+          properties:
+            authority: { type: string, const: mysql_primary }
+            table: { type: string, const: execution_log }
+            aggregate_only: { type: boolean, const: true }
+            raw_payloads_included: { type: boolean, const: false }
+        secrets_included:
+          type: boolean
+          const: false
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: true
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details: {}
+            requestId:
+              type: [string, 'null']
+        secrets_included:
+          type: boolean
+          const: false
