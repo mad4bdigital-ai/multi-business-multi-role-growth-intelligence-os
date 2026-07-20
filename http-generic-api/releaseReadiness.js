@@ -85,6 +85,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "204_sprint67_core_runtime_context_dimensions.sql",
   "205_sprint67_runtime_context_dimension_enrichment.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
+  "20260720_credential_intake_platform_secret_governance_hardening.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
   "225_sprint67_gpt_session_conversation_ref_primary.sql",
