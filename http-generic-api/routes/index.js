@@ -31,6 +31,7 @@ import { buildConnectorRoutes } from "./connectorRoutes.js";
 import { buildBatchRoutes } from "./batchRoutes.js";
 import { buildLegalRoutes } from "./legalRoutes.js";
 import { buildAuthRoutes } from "./authRoutes.js";
+import { buildTenantGptOAuthMetadataRoutes } from "./tenantGptOAuthMetadataRoutes.js";
 import { buildAdminCliRoutes, buildAdminControlHandler, buildSessionContinuityHandler, requireAdminPrincipal } from "./adminCliRoutes.js";
 import { buildAgentRegistryRoutes } from "./agentRegistryRoutes.js";
 import { buildOutputSinkRoutes } from "./outputSinkRoutes.js";
