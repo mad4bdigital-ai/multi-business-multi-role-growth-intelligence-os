@@ -18,7 +18,6 @@ const { buildActivationHostGatewayRoutes } = await import("./routes/activationHo
 const { buildTenantGptOAuthMetadataRoutes } = await import("./routes/tenantGptOAuthMetadataRoutes.js");
 const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
 await import("./test-tenant-gpt-access-token-verifier.mjs");
-await import("./test-tenant-gpt-oauth-live-smoke.mjs");
 await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
 await import("./test-tenant-gpt-google-jit-recovery.mjs");
 

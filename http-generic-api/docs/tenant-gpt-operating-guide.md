@@ -122,6 +122,38 @@ When using tenant Platform Plugin readiness, send exactly one selector: `action_
 
 Use `security_decision_trace_public` for tenant-facing explanations. It is safe to summarize gate states and denied/unevaluated counts. Do not expose or infer admin-only trace detail such as gate reason codes, invariant internals, or raw detail payloads. A resolve response is readiness evidence only; it is not permission to execute a provider action.
 
+## Tenant GPT JIT production closure (2026-07-20)
+
+The Tenant GPT JIT onboarding path was delivered through governed, multi-PR rollout and production migration evidence. The permanent implementation remains active; temporary OAuth smoke execution surfaces are removed by the closeout cleanup.
+
+### Delivery evidence
+
+- Core Tenant GPT JIT onboarding: PR #2779, merge `214c26cc59d55429619b07e06f503d29fbdd4abe`.
+- Governed GitHub raw response parser: PR #2849, merge `06e1c854326eba2d35a6f602bd37332b11a703fa`.
+- Temporary safe OAuth smoke capture: PR #2874, merge `03b3579ec82d78894b3941ef3d836dfd6f04598f`.
+- All required CI checks passed before each merge.
+
+### Production migration ledger mapping
+
+- `20260717_tenant_gpt_jit_identity_hardening.sql`: `85536d5a-f2e1-4f75-9d9a-f6aec5be5430`.
+- `20260717_tenant_gpt_oauth_authorization_codes.sql`: `820ef552-07a6-469a-bdb4-b4100ceb2318`.
+- `20260718_tenant_connect_bootstrap_tool.sql`: `be55a0b8-16e-4c58-8c62-08961aa0a5bb`.
+- `20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql`: `2dd0fe09-7631-470c-b95b-14840af465d8`; temporary and superseded by the closeout cleanup migration.
+- `20260719_reactivate_github_raw_contents_endpoint.sql`: `9d046096-74ee-4c4d-a9cc-9138c001c317`.
+- `20260720_github_raw_contents_text_response_contract.sql`: `305a3b05-26d7-419b-9945-e9130dabc459`.
+- `20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql`: apply after the closeout PR is merged and deployed; record the resulting ledger in the completion artifact.
+
+### Production OAuth verification
+
+- Execution log `31436`: first authorization-code exchange returned HTTP 200.
+- Execution log `31437`: replay returned HTTP 400 with internal reason `oauth_code_reuse_or_binding_mismatch`; the OAuth endpoint maps this result to `invalid_grant`.
+- The durable authorization-code row reached status `consumed` with same-second creation and consumption at `2026-07-20 18:44:20 UTC`.
+- The smoke sequence reached replay only after validating lowercase bearer token type, `Cache-Control: no-store`, issuer, audience, user, and tenant claims.
+- Post-run activation-context readback returned zero remaining rows.
+- No authorization code, access token, client secret, JWT secret, or raw credential value was persisted in evidence or returned to operators.
+
+The governed GitHub raw-content endpoint remains active because it is a permanent admin capability requested for repository evidence. The temporary OAuth smoke alias, scripts, resource-authority recipe, tests, and active bindings must not remain after the cleanup migration is applied.
+
 ## Glossary
 
 - Workspace: authority boundary that owns business assets.
