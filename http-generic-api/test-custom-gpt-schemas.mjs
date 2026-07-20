@@ -585,7 +585,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("credential intake can auto-promote mapped platform secrets after submit",
     credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
     credentialIntakeRoutes.includes('platform_secret_mappings') &&
-    credentialIntakeRoutes.includes('credential_intake.platform_secrets_auto_promoted'));
+    credentialIntakeRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    platformSecretPromotionService.includes('beginTransaction') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
+    platformSecretPromotionService.includes('credential_intake.platform_secrets_auto_promoted') &&
+    platformSecretPromotionService.includes('secrets_included: false'));
   assert("platform secret promotion dynamically supports mapped encrypted connection types and never returns raw secrets",
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
