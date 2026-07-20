@@ -15,7 +15,9 @@ import { readFileSync } from "node:fs";
 
 const { buildAuthRoutes } = await import("./routes/authRoutes.js");
 const { buildActivationHostGatewayRoutes } = await import("./routes/activationHostGatewayRoutes.js");
+const { buildTenantGptOAuthMetadataRoutes } = await import("./routes/tenantGptOAuthMetadataRoutes.js");
 const { hasVerifiedGoogleIdentity, normalizeAuthEmail } = await import("./authIdentityNormalization.js");
+await import("./test-tenant-gpt-access-token-verifier.mjs");
 await import("./test-tenant-gpt-oauth-live-smoke.mjs");
 await import("./test-tenant-gpt-oauth-authorization-code-store.mjs");
 await import("./test-tenant-gpt-google-jit-recovery.mjs");
@@ -28,6 +30,8 @@ const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.system-tools",
 ];
 const TENANT_SCOPE = TENANT_SCOPE_LINKS.join(" ");
+const AUTH_RESOURCE = "https://auth.mad4b.com";
+const ACTIVATION_RESOURCE = "https://activation.mad4b.com";
 
 let passed = 0;
 let failed = 0;
@@ -37,7 +41,12 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    if (process.env.GITHUB_ACTIONS === "true") {
+      const annotation = message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+      console.error(`::error title=OAuth route test failure::${annotation}`);
+    }
     failed++;
   }
 }
@@ -80,7 +89,7 @@ async function readJson(response) {
 async function postJson(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: { "content-type": "application/json", "x-forwarded-host": "activation.mad4b.com", ...headers },
     body: JSON.stringify(body),
   });
   return { status: response.status, headers: response.headers, body: await readJson(response) };
@@ -89,14 +98,14 @@ async function postJson(baseUrl, path, body, { headers = {} } = {}) {
 async function postForm(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", ...headers },
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "activation.mad4b.com", ...headers },
     body: new URLSearchParams(body).toString(),
   });
   return { status: response.status, body: await readJson(response) };
 }
 
 async function getText(baseUrl, path, { headers = {} } = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { headers });
+  const response = await fetch(`${baseUrl}${path}`, { headers: { "x-forwarded-host": "activation.mad4b.com", ...headers } });
   return {
     status: response.status,
     contentType: response.headers.get("content-type") || "",
@@ -183,7 +192,9 @@ const oauthClientPool = {
 
 const app = express();
 app.use(express.json());
+app.use(buildTenantGptOAuthMetadataRoutes());
 app.use(buildActivationHostGatewayRoutes());
+app.get("/tenant/activation/probe", (req, res) => res.status(200).json({ ok: true, auth: req.auth || null }));
 app.use("/auth", buildAuthRoutes({
   getPool: () => oauthClientPool,
   async resolveTenantGptOAuthCredential(credential) {
@@ -227,6 +238,8 @@ try {
     assert("authorize includes new-workspace option", result.text.includes("New workspace"));
     assert("authorize carries activation mode", result.text.includes('"activation_mode":"managed"'));
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
+    assert("authorize carries the registered OAuth client", result.text.includes('const OAUTH_CLIENT_ID = "mad4b-tenant-gpt"'));
+    assert("authorize carries the derived Activation resource", result.text.includes(`const OAUTH_RESOURCE = ${JSON.stringify(ACTIVATION_RESOURCE)}`));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize does not emit application onboarding link", !result.text.includes('href="https://auth.mad4b.com/connect"'));
@@ -255,6 +268,25 @@ try {
     assert("Arabic browser language does not inject hl", !result.text.includes("gsi/client?hl="));
   }
 
+  section("OAuth metadata");
+
+  {
+    const authorizationMetadataResult = await getText(baseUrl, "/.well-known/oauth-authorization-server");
+    const authorizationMetadata = JSON.parse(authorizationMetadataResult.text);
+    assert("authorization metadata is public", authorizationMetadataResult.status === 200, `${authorizationMetadataResult.status}`);
+    assert("authorization metadata publishes the platform issuer", authorizationMetadata.issuer === AUTH_RESOURCE, JSON.stringify(authorizationMetadata));
+    assert("authorization metadata publishes the authorization endpoint", authorizationMetadata.authorization_endpoint === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata publishes the token endpoint", authorizationMetadata.token_endpoint === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(authorizationMetadata));
+    assert("authorization metadata declares resource support", authorizationMetadata.resource_parameter_supported === true, JSON.stringify(authorizationMetadata));
+
+    const protectedResourceResult = await getText(baseUrl, "/.well-known/oauth-protected-resource");
+    const protectedResource = JSON.parse(protectedResourceResult.text);
+    assert("protected resource metadata is public", protectedResourceResult.status === 200, `${protectedResourceResult.status}`);
+    assert("protected resource metadata identifies Activation", protectedResource.resource === ACTIVATION_RESOURCE, JSON.stringify(protectedResource));
+    assert("protected resource metadata links the authorization server", protectedResource.authorization_servers?.includes(AUTH_RESOURCE), JSON.stringify(protectedResource));
+    assert("protected resource metadata requires bearer header usage", protectedResource.bearer_methods_supported?.includes("header"), JSON.stringify(protectedResource));
+  }
+
   section("Google Identity Services locale policy");
   for (const relativePath of [
     "./routes/authRoutes.js",
@@ -279,6 +311,23 @@ try {
   {
     const result = await getText(baseUrl, `/auth/oauth/authorize?client_id=other-client&response_type=code&state=${state}&redirect_uri=${encodedRedirect}`);
     assert("authorize rejects non-Tenant-GPT client", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=${encodedRedirect}&resource=${encodeURIComponent(AUTH_RESOURCE)}`,
+    );
+    assert("authorize rejects a resource that does not match the Activation host", result.status === 400, `${result.status}`);
+  }
+
+  {
+    const result = await getText(
+      baseUrl,
+      `/auth/oauth/authorize?client_id=mad4b-tenant-gpt&response_type=code&state=${state}&redirect_uri=${encodedRedirect}`,
+      { headers: { "x-forwarded-host": "unregistered.example" } },
+    );
+    assert("authorize rejects an unregistered request host", result.status === 400, `${result.status}`);
   }
 
   {
@@ -522,6 +571,9 @@ try {
   assert("code response redirects with code", String(codeResult.body.redirect_to || "").includes("code="), codeResult.body.redirect_to);
   const decodedAuthorizationCode = jwt.decode(codeResult.body.code);
   assert("authorization code stores canonical ChatGPT callback", decodedAuthorizationCode?.redirect_uri === canonicalRedirectUri, JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds the registered OAuth client", decodedAuthorizationCode?.client_id === "mad4b-tenant-gpt", JSON.stringify(decodedAuthorizationCode));
+  assert("authorization code binds the Activation protected resource", decodedAuthorizationCode?.resource === ACTIVATION_RESOURCE, JSON.stringify(decodedAuthorizationCode));
+  assert("code response reports the Activation protected resource", codeResult.body.resource === ACTIVATION_RESOURCE, JSON.stringify(codeResult.body));
   assert("code response redirects legacy callback directly to canonical ChatGPT host", String(codeResult.body.redirect_to || "").startsWith(canonicalRedirectUri), codeResult.body.redirect_to);
   assert("code response does not redirect through legacy ChatGPT host", !String(codeResult.body.redirect_to || "").startsWith(redirectUri), codeResult.body.redirect_to);
   assert("code response preserves activation mode", codeResult.body.activation_context?.activation_mode === "dedicated", JSON.stringify(codeResult.body.activation_context));
@@ -556,6 +608,17 @@ try {
   assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
 
+  const wrongTarget = await postForm(baseUrl, "/auth/oauth/token", {
+    grant_type: "authorization_code",
+    code: codeResult.body.code,
+    redirect_uri: redirectUri,
+    client_id: "mad4b-tenant-gpt",
+    client_secret: "test-client-secret",
+    resource: AUTH_RESOURCE,
+  }, { headers: { "x-forwarded-host": "activation.mad4b.com" } });
+  assert("token endpoint rejects a resource that does not match the Activation host", wrongTarget.status === 400, `${wrongTarget.status}`);
+  assert("resource mismatch reports invalid_target", wrongTarget.body.error === "invalid_target", JSON.stringify(wrongTarget.body));
+
   const exchange = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
     code: codeResult.body.code,
@@ -584,12 +647,37 @@ try {
   assert("stored activation context marks secrets excluded", storedActivationContext.secrets_included === false, JSON.stringify(storedActivationContext));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
-  assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
+  assert("access JWT has the Activation audience", accessPayload.aud === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
+  assert("access JWT carries the Activation resource claim", accessPayload.resource === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
+  assert("access JWT carries the authorized OAuth client", accessPayload.azp === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
+
+  const missingBearerProbe = await getText(baseUrl, "/tenant/activation/probe");
+  assert("Activation gateway rejects a missing bearer token", missingBearerProbe.status === 401, `${missingBearerProbe.status}`);
+
+  const wrongAudienceToken = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: AUTH_RESOURCE,
+    resource: AUTH_RESOURCE,
+    purpose: "tenant_gpt_access",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+  }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const wrongAudienceProbe = await getText(baseUrl, "/tenant/activation/probe", {
+    headers: { authorization: `Bearer ${wrongAudienceToken}` },
+  });
+  assert("Activation gateway rejects a token for the Auth resource", wrongAudienceProbe.status === 401, `${wrongAudienceProbe.status}`);
+
+  const validProbe = await getText(baseUrl, "/tenant/activation/probe", {
+    headers: { authorization: `Bearer ${exchange.body.access_token}` },
+  });
+  const validProbeBody = JSON.parse(validProbe.text);
+  assert("Activation gateway accepts the Activation-bound token", validProbe.status === 200, `${validProbe.status}`);
+  assert("Activation gateway exposes the verified token resource", validProbeBody.auth?.token_resource === ACTIVATION_RESOURCE, JSON.stringify(validProbeBody));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
   assert("OAuth access JWT omits duplicated scope links", accessPayload.scope_links === undefined, JSON.stringify(accessPayload));
-  assert("OAuth access JWT omits duplicated client id", accessPayload.client_id === undefined, JSON.stringify(accessPayload));
+  assert("OAuth access JWT identifies the authorized client", accessPayload.client_id === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
   assert("OAuth access JWT stays compact", exchange.body.access_token.length < 1000, String(exchange.body.access_token.length));
   assert("access JWT carries tenant GPT purpose", accessPayload.purpose === "tenant_gpt_access", JSON.stringify(accessPayload));
 
@@ -706,7 +794,9 @@ try {
     assert("platform JWT token has user claim", issuedPayload.user_id === "user-1", JSON.stringify(issuedPayload));
     assert("platform JWT token has tenant claim", issuedPayload.tenant_id === "tenant-1", JSON.stringify(issuedPayload));
     assert("platform JWT token carries tenant GPT purpose", issuedPayload.purpose === "tenant_gpt_access", JSON.stringify(issuedPayload));
-assert("platform JWT token carries tenant GPT audience", issuedPayload.aud === "mad4b-tenant-gpt", JSON.stringify(issuedPayload));
+    assert("platform JWT token carries the Core protected-resource audience", issuedPayload.aud === AUTH_RESOURCE, JSON.stringify(issuedPayload));
+    assert("platform JWT token carries the Core resource claim", issuedPayload.resource === AUTH_RESOURCE, JSON.stringify(issuedPayload));
+    assert("platform JWT token carries the authorized OAuth client", issuedPayload.azp === "mad4b-tenant-gpt", JSON.stringify(issuedPayload));
 assert("platform JWT token carries tenant GPT scope", String(issuedPayload.scope || "").includes("tenant.status"), JSON.stringify(issuedPayload));
 
     const wrongTenant = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {

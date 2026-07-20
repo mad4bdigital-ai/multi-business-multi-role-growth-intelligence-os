@@ -77,6 +77,10 @@ import {
   PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM,
   issuePlatformCapabilityShadowCertification,
 } from "../platformCapabilityShadowCertificationIssuer.js";
+import {
+  GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM,
+  issueGithubFilePatchShadowCertification,
+} from "../githubFilePatchShadowCertificationIssuer.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -711,6 +715,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
         confirm: { type: "string", const: PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "github_file_patch_shadow_certification_issue",
+    displayName: "Issue GitHub File Patch Shadow Certification",
+    description: "Dry-run or apply one fixed evidence-backed shadow certification for github_file_patch_apply. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It activates only the canonical readback adapter, certifies the current readback contract, keeps target runtime dispatch and apply blocked, keeps target capability exports shadow-only, creates no Tenant authority, calls no provider, performs no external write, and returns no secrets.",
+    method: "VIRTUAL",
+    path: "internal://github-file-patch-shadow-certification-issue",
+    tags: ["capability", "github", "repository", "certification", "shadow", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_runtime_promotion", "no_tenant_authority", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM },
         capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
       },
       additionalProperties: false,
@@ -2453,6 +2475,12 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "platform_capability_shadow_certification_issue") {
     const result = await issuePlatformCapabilityShadowCertification(args || {}, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "github_file_patch_shadow_certification_issue") {
+    const result = await issueGithubFilePatchShadowCertification(args || {}, {
       auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
