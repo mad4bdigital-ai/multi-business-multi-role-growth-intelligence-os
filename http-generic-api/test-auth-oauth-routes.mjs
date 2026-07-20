@@ -83,7 +83,7 @@ async function readJson(response) {
 async function postJson(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: { "content-type": "application/json", "x-forwarded-host": "activation.mad4b.com", ...headers },
     body: JSON.stringify(body),
   });
   return { status: response.status, headers: response.headers, body: await readJson(response) };
@@ -92,14 +92,14 @@ async function postJson(baseUrl, path, body, { headers = {} } = {}) {
 async function postForm(baseUrl, path, body, { headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", ...headers },
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-host": "activation.mad4b.com", ...headers },
     body: new URLSearchParams(body).toString(),
   });
   return { status: response.status, body: await readJson(response) };
 }
 
 async function getText(baseUrl, path, { headers = {} } = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { headers });
+  const response = await fetch(`${baseUrl}${path}`, { headers: { "x-forwarded-host": "activation.mad4b.com", ...headers } });
   return {
     status: response.status,
     contentType: response.headers.get("content-type") || "",
