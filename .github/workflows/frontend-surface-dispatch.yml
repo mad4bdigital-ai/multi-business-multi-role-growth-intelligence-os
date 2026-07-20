@@ -98,7 +98,22 @@ jobs:
           git fetch origin main --depth=1
           BASE_REF="main"
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(frontend-surface-dispatch.generated.json|openapi/frontend-runtime-routes.generated.yaml) || true)"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(frontend-surface-dispatch.generated.json|openapi/frontend-runtime-routes.generated.yaml)
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
+          if git diff --quiet -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
+            echo "Generated evidence is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git commit -m "chore(ci): refresh frontend dispatch evidence"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+ || true)"
           if [[ -n "${UNEXPECTED}" ]]; then
             echo "::error::generator changed files outside the bounded evidence set"
             printf '%s\n' "${UNEXPECTED}"
