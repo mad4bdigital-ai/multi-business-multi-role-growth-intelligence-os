@@ -1251,6 +1251,18 @@ export function buildAuthRoutes(deps) {
         });
       }
       tokenLogContext.client_validation_source = clientValidation.source || null;
+      const resourceProfile = resolveTenantGptOAuthResourceProfile({
+        clientId: clientValidation.client_id,
+        requestHost: tenantGptRequestHostFromHeaders(req.headers),
+        requestedResource: req.body?.resource,
+      });
+      if (!resourceProfile.ok) {
+        logTokenExchange("failed", resourceProfile.error || "invalid_target", 400);
+        return res.status(400).json({
+          error: resourceProfile.error || "invalid_target",
+          error_description: resourceProfile.message,
+        });
+      }
 
       const codePayload = jwt.verify(code, JWT_SECRET);
       tokenLogContext.code_redirect_uri = safeOAuthRedirectEvidence(codePayload.redirect_uri);
