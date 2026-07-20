@@ -228,6 +228,7 @@ try {
     assert("authorize includes new-workspace option", result.text.includes("New workspace"));
     assert("authorize carries activation mode", result.text.includes('"activation_mode":"managed"'));
     assert("authorize carries requested OAuth scope", result.text.includes(TENANT_SCOPE));
+    assert("authorize carries the Activation OAuth resource", result.text.includes(`const OAUTH_RESOURCE = ${JSON.stringify(ACTIVATION_RESOURCE)}`));
     assert("authorize carries device id", result.text.includes('"device_id":"my-laptop"'));
     assert("authorize preselects signup panel", result.text.includes('const INITIAL_PANEL = "register"'));
     assert("authorize does not emit application onboarding link", !result.text.includes('href="https://auth.mad4b.com/connect"'));
