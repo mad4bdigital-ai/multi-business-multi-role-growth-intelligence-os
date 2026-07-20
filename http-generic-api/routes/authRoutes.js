@@ -1291,6 +1291,21 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
       tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
       tokenLogContext.requested_scope = safeOAuthScopeEvidence(codePayload.scope);
+      const codeClientId = String(codePayload.client_id || "").trim();
+      const codeResource = normalizeTenantGptOAuthResource(codePayload.resource);
+      if (codeClientId && codeClientId !== clientValidation.client_id) {
+        logTokenExchange("failed", "oauth_code_client_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code does not match this client." });
+      }
+      if (codePayload.resource && !codeResource) {
+        logTokenExchange("failed", "oauth_code_resource_invalid", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code resource is invalid." });
+      }
+      if (codeResource && codeResource !== resourceProfile.resource) {
+        logTokenExchange("failed", "oauth_code_resource_mismatch", 400);
+        return res.status(400).json({ error: "invalid_target", error_description: "OAuth code does not match this protected resource." });
+      }
+      const effectiveResource = codeResource || resourceProfile.resource;
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
