@@ -6,6 +6,7 @@ import { writeAuditLogAsync } from "../auditLogger.js";
 import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
 import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
 import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
+import { promoteCredentialIntakePlatformSecrets } from "../services/platformSecretPromotionService.js";
 import {
   buildCredentialIntakeBinding,
   normalizeCredentialIntakeRedirect,
@@ -489,6 +490,40 @@ async function writeCredentialIntakeContinuationTask({ session, connectionId, me
 }
 
 async function maybeAutoPromotePlatformSecrets({ session, credentials = {}, metadata = {}, connectionId, req }) {
+  if (metadata.auto_promote_platform_secrets !== true) return null;
+  const promotionReason = String(metadata.promotion_reason || "").trim();
+  if (metadata.promotion_approved !== true || promotionReason.length < 12) {
+    return { ok: false, skipped: true, reason: "promotion_approval_required", secrets_included: false };
+  }
+  const mappings = normalizePlatformSecretMappings(metadata);
+  if (!mappings.length) {
+    return { ok: false, skipped: true, reason: "platform_secret_mappings_required", secrets_included: false };
+  }
+  const missingFields = mappings
+    .filter((mapping) => !String(credentials[mapping.credential_field] || "").trim())
+    .map((mapping) => mapping.credential_field);
+  if (missingFields.length) {
+    return { ok: false, skipped: true, reason: "mapped_intake_fields_missing", missing_fields: [...new Set(missingFields)], secrets_included: false };
+  }
+  return promoteCredentialIntakePlatformSecrets({
+    session,
+    credentials,
+    metadata,
+    mappings,
+    connectionId,
+    req,
+    context: {
+      systemId: String(metadata.system_id || "").trim() || null,
+      ownerId: String(metadata.owner_id || "growth_intelligence_platform").trim(),
+      providerFamily: String(metadata.provider_family || "").trim() || null,
+      connectorFamily: String(metadata.connector_family || "").trim() || null,
+      targetKey: String(metadata.target_key || "").trim() || null,
+      promotionReason,
+    },
+  });
+}
+
+async function legacyMaybeAutoPromotePlatformSecrets({ session, credentials = {}, metadata = {}, connectionId, req }) {
   if (metadata.auto_promote_platform_secrets !== true) return null;
   const promotionReason = String(metadata.promotion_reason || "").trim();
   if (metadata.promotion_approved !== true || promotionReason.length < 12) {
