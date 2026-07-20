@@ -22,18 +22,16 @@ WHERE is_enabled = 1
   AND JSON_UNQUOTE(JSON_EXTRACT(input_schema, '$.type')) = 'object'
   AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(input_schema, '$.additionalProperties')), '') <> 'false';
 
-SET @tenant_tool_schema_constraint_exists := (
-  SELECT COUNT(*)
-  FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
-  WHERE CONSTRAINT_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'tenant_platform_endpoint_tools'
-    AND CONSTRAINT_NAME = 'chk_tenant_platform_enabled_input_schema_strict'
-);
-
-SET @tenant_tool_schema_constraint_sql := IF(
-  @tenant_tool_schema_constraint_exists = 0,
-  'ALTER TABLE tenant_platform_endpoint_tools ADD CONSTRAINT chk_tenant_platform_enabled_input_schema_strict CHECK (is_enabled = 0 OR (input_schema IS NOT NULL AND JSON_VALID(input_schema) = 1 AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(input_schema, ''$.type'')), '''') = ''object'' AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(input_schema, ''$.additionalProperties'')), '''') = ''false''))',
-  'SET @tenant_tool_schema_constraint_noop = 1'
+SET @tenant_tool_schema_constraint_sql := (
+  SELECT CASE
+    WHEN COUNT(*) > 0
+    THEN 'SELECT 1 AS tenant_tool_schema_constraint_present'
+    ELSE 'ALTER TABLE tenant_platform_endpoint_tools ADD CONSTRAINT chk_tenant_platform_enabled_input_schema_strict CHECK (is_enabled = 0 OR (input_schema IS NOT NULL AND JSON_VALID(input_schema) = 1 AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(input_schema, ''$.type'')), '''') = ''object'' AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(input_schema, ''$.additionalProperties'')), '''') = ''false''))'
+  END
+  FROM information_schema.table_constraints
+  WHERE table_schema = DATABASE()
+    AND table_name = 'tenant_platform_endpoint_tools'
+    AND constraint_name = 'chk_tenant_platform_enabled_input_schema_strict'
 );
 
 PREPARE tenant_tool_schema_constraint_stmt FROM @tenant_tool_schema_constraint_sql;
