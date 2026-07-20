@@ -378,6 +378,21 @@ async function tenantTaskSourceRepairApplyResponse(req) {
   });
 }
 
+async function tenantTaskSourceRepairVerificationResponse(req) {
+  return verifyTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function tenantSkillApprovalListResponse(req) {
   return listTenantSkillApprovals({
     sessionContext: subjectContext(req, false),
