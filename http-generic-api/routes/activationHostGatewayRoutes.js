@@ -205,7 +205,7 @@ export function buildActivationHostGatewayRoutes({
       enforced: true,
       secrets_included: false,
     };
-    return next();
+    return requireActivationTenantGptAccessToken(req, res, next);
   });
 
   return router;
