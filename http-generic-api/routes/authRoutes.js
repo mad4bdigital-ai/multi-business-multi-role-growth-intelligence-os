@@ -1003,10 +1003,23 @@ export function buildAuthRoutes(deps) {
 
         const expiresIn = cleanTtlSeconds(ttl_seconds);
         const resolvedTenantId = requestedTenantId || membership?.tenant_id || null;
+        const normalizedResource = normalizeTenantGptOAuthResource(resource);
+        if (!normalizedResource) {
+          return res.status(400).json({
+            ok: false,
+            error: {
+              code: "invalid_target",
+              message: "resource must be a registered Tenant GPT protected resource.",
+            },
+          });
+        }
         const token = jwt.sign(
           {
             iss: PLATFORM_JWT_ISSUER,
-            aud: TENANT_GPT_JWT_AUDIENCE,
+            aud: normalizedResource,
+            azp: TENANT_GPT_OAUTH_CLIENT_ID,
+            client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+            resource: normalizedResource,
             sub: resolvedTenantId ? `tenant:${resolvedTenantId}:user:${user.user_id}` : `user:${user.user_id}`,
             user_id: user.user_id,
             email: user.email,
@@ -1014,7 +1027,6 @@ export function buildAuthRoutes(deps) {
             scope: TENANT_GPT_SCOPE,
             scope_links: TENANT_GPT_SCOPE_LINKS,
             purpose: "tenant_gpt_access",
-            client_id: TENANT_GPT_OAUTH_CLIENT_ID,
             client: "admin_assistant",
             reason: cleanText(reason, 120) || "admin_assistant_jwt_client",
           },
