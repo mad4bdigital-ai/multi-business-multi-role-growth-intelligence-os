@@ -17,6 +17,9 @@ Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-compl
 - [ ] Corrective migration `20260718_virtual_tool_single_file_mutation_classification.sql` is checksum-bound, zero-risk, additive, and applied after the original projection/readback migrations.
 - [ ] `single_file_mutation` and `atomic_change_set` both classify as `state_changing` when they resolve to one canonical capability, and `OPERATION_CLASS_AMBIGUOUS` plus `MUTATION_CLASSIFICATION_REQUIRED` debt is resolved.
 - [ ] Registry tool tags normalize equivalently from arrays, JSON-array strings, and legacy CSV before mutation-policy, typed-confirmation, and readback checks.
+- [ ] Corrective migration `20260719_virtual_tool_export_shadow_alignment.sql` is checksum-bound, additive, zero-risk, and applied after the mutation-classification correction.
+- [ ] Virtual-tool capability-export aliases are `shadow` while the canonical manifest is blocked or uncertified; `UNSAFE_ACTIVE_ADMIN_EXPORT` is absent and Tenant exports remain zero.
+- [ ] Admin tool catalog rows and `platform_tool_dispatch_bindings` remain unchanged, and `apply_allowed=0` remains enforced.
 
 
 ## GitHub Actions diagnostics endpoint parity
