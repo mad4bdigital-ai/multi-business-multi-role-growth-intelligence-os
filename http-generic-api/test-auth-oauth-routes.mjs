@@ -41,7 +41,12 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    if (process.env.GITHUB_ACTIONS === "true") {
+      const annotation = message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+      console.error(`::error title=OAuth route test failure::${annotation}`);
+    }
     failed++;
   }
 }
