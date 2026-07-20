@@ -425,6 +425,13 @@ async function operationalAttentionSyncResponse(req, isAdmin) {
   });
 }
 
+async function operationalCiSignalResponse(req) {
+  return ingestCiGuardSignal({
+    input: req.body || {},
+    requestedBy: queryText(req.auth?.user_id || "github_actions", 191),
+  });
+}
+
 async function activationRunArchiveResponse(req, res, isAdmin) {
   try {
     const result = await readActivationRunArchive(getPool(), {
