@@ -18,6 +18,14 @@ Activation host requests may serve only `/`, `/health`, Activation OpenAPI schem
 
 This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
 
+## Tenant Tool Input-Schema Authority
+
+Every enabled Tenant GPT tool must expose a valid top-level JSON Schema object with `type: "object"` and `additionalProperties: false`. This invariant applies to the complete `tenant_platform_endpoint_tools` registry, not only current projection candidates. Nested object schemas may remain intentionally flexible when their own contracts require it.
+
+Tenant listing and direct `/gpt/tools/call` dispatch must resolve current enabled-row schema state independently from manifest state. A missing, invalid, non-object, or top-level open schema is fail-closed: hide the tool from Tenant discovery and reject direct dispatch before preflight with `403 tenant_tool_input_schema_not_strict`, structured reason details, and `secrets_included=false`. Admin tools remain unaffected.
+
+The database must enforce the same contract for future enabled rows through `chk_tenant_platform_enabled_input_schema_strict`. Seeds, migrations, bootstrap paths, and registry updates may not enable a Tenant tool until its schema is strict. Visibility-policy changes must advance the Tenant tool-list cache version. Regression coverage must prove missing/invalid/non-object/open schemas are blocked, top-level strict schemas with intentionally flexible nested objects remain allowed, listing and dispatch use the same authority, the guard runs before preflight, and the migration repairs all enabled legacy rows before installing the invariant.
+
 ## Tenant Tool Manifest Export Authority
 
 Tenant GPT tool exposure and execution are governed by both the Tenant tool registry and the current compiled capability manifest. `tenant_platform_endpoint_tools.is_enabled=1` is necessary but not sufficient authority to expose or dispatch a Tenant tool. The Tenant GPT tool catalog and direct `/gpt/tools/call` dispatch must resolve `platform_capability_compiled_manifests` for `tenant_tool.<tool_key>` and fail closed when the current manifest status is not exportable.
