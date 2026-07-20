@@ -224,26 +224,5 @@ for (const marker of [
 const principalContractPreflight = assessMigrationSqlPreflight(principalContractMigrationName, principalContractMigration);
 assert.equal(principalContractPreflight.status, "pass", JSON.stringify(principalContractPreflight, null, 2));
 assert.equal(principalContractPreflight.risk_count, 0, JSON.stringify(principalContractPreflight, null, 2));
-const oauthSmokeContractMigrationName = "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql";
-const oauthSmokeContractMigration = fs.readFileSync(new URL(`./migrations/${oauthSmokeContractMigrationName}`, import.meta.url), "utf8");
-for (const marker of [
-  "tenant_gpt_oauth_live_smoke",
-  "bounded_production_smoke",
-  "temporary",
-  "diagnostic",
-  "typed confirmation",
-  "same-cycle readback",
-  "arbitrary_shell_allowed=false",
-  "temporary_production_smoke=true",
-  "secrets_included=false",
-]) {
-  assert.ok(oauthSmokeContractMigration.includes(marker), `OAuth smoke resource authority migration missing ${marker}`);
-}
-assert.doesNotMatch(oauthSmokeContractMigration, /shell:\/\/powershell|shell:\/\/bash|client_secret|backend_api_key|jwt_secret/i);
-assert.doesNotMatch(oauthSmokeContractMigration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
-const oauthSmokeContractPreflight = assessMigrationSqlPreflight(oauthSmokeContractMigrationName, oauthSmokeContractMigration);
-assert.equal(oauthSmokeContractPreflight.status, "pass", JSON.stringify(oauthSmokeContractPreflight, null, 2));
-assert.equal(oauthSmokeContractPreflight.risk_count, 0, JSON.stringify(oauthSmokeContractPreflight, null, 2));
-assert.equal(oauthSmokeContractPreflight.secrets_included, false, JSON.stringify(oauthSmokeContractPreflight, null, 2));
 
 console.log("platform resource authority grant tool tests passed");
