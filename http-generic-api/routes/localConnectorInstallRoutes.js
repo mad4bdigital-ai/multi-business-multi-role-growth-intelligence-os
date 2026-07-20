@@ -963,6 +963,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "if ($nodeSvc.Status -ne 'Running') { throw 'local-connector service did not reach Running state.' }",
     "",
     "# 5. Require local connector health before installer success",
+    `$Port = ${Number(port)}`,
     "$HealthUrl = 'http://127.0.0.1:' + $Port + '/health'",
     "$HealthOk = $false",
     "$HealthError = ''",
