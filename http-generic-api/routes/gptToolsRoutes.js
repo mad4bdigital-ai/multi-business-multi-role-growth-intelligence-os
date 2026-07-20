@@ -21,6 +21,11 @@ import {
   loadTenantToolManifestBlocks,
 } from "../tenantToolManifestGuard.js";
 import {
+  assertTenantToolSchemaAllows,
+  filterTenantToolsByStrictSchema,
+  loadTenantToolSchemaBlocks,
+} from "../tenantToolSchemaGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
