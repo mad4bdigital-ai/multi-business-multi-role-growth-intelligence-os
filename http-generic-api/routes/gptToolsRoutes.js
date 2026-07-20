@@ -1341,7 +1341,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Recompute and persist Growth Intelligence review readiness after insight and action decisions. Does not enable or dispatch execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-readiness-refresh",
-    tags: ["growth_intelligence", "readiness", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "readiness", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id"],
