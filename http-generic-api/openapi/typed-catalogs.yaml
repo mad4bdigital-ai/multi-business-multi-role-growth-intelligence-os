@@ -1,0 +1,267 @@
+openapi: 3.1.0
+info:
+  title: Typed Operation Catalogs
+  version: 1.0.0
+  description: |
+    Read-only typed catalogs for Admin and Tenant principals. Catalog keys are
+    allowlisted by the application; clients cannot provide table names or SQL.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: Admin Catalogs
+  - name: Tenant Catalogs
+paths:
+  /admin/operation-catalogs:
+    get:
+      tags: [Admin Catalogs]
+      operationId: listAdminOperationCatalogs
+      summary: List catalog definitions or query one typed Admin catalog
+      security:
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CatalogKey'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Query'
+      responses:
+        '200':
+          $ref: '#/components/responses/CatalogResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /tenant/operation-catalogs:
+    get:
+      tags: [Tenant Catalogs]
+      operationId: listTenantOperationCatalogs
+      summary: List catalog definitions or query one typed Tenant catalog
+      description: |
+        Requires a valid user JWT and an active tenant membership. Tenant
+        projections exclude Admin-only catalogs and sensitive action fields.
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CatalogKey'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Query'
+      responses:
+        '200':
+          $ref: '#/components/responses/CatalogResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CatalogKey:
+      name: catalog_key
+      in: query
+      required: false
+      description: |
+        When omitted, returns visible catalog definitions. Supported keys are
+        operation_contracts, agent_surfaces, actions, and, for Admin only,
+        plugins.
+      schema:
+        type: string
+        enum: [operation_contracts, agent_surfaces, actions, plugins]
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor returned in page.next_cursor.
+      schema:
+        type: string
+        maxLength: 1000
+    Query:
+      name: q
+      in: query
+      required: false
+      description: Bounded text filter over allowlisted display fields.
+      schema:
+        type: string
+        maxLength: 200
+  responses:
+    CatalogResult:
+      description: Catalog definitions or one typed catalog page.
+      headers:
+        X-Rate-Limit-Limit:
+          schema: { type: integer, minimum: 1 }
+        X-Rate-Limit-Remaining:
+          schema: { type: integer, minimum: 0 }
+        X-Rate-Limit-Reset:
+          schema: { type: integer, minimum: 0 }
+        X-Operation-Circuit-State:
+          schema:
+            type: string
+            enum: [closed, open, half_open, half_open_probe]
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/CatalogDefinitions'
+              - $ref: '#/components/schemas/CatalogPage'
+          examples:
+            page:
+              value:
+                ok: true
+                catalog_key: actions
+                principal_scope: tenant
+                filters:
+                  q: null
+                items:
+                  - action_key: repo.change.preview
+                    status: active
+                    runtime_callable: true
+                page:
+                  limit: 25
+                  has_more: false
+                  next_cursor: null
+                completeness: complete
+                secrets_included: false
+    ValidationError:
+      description: Invalid catalog key, cursor, filter, or pagination input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Principal lacks tenant membership or catalog access.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Operation-specific request limit exceeded.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unavailable:
+      description: Catalog dependency is unavailable or the circuit is open.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    CatalogDefinitions:
+      type: object
+      required: [ok, principal_scope, items, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: true }
+        principal_scope:
+          type: string
+          enum: [admin, tenant]
+        items:
+          type: array
+          items:
+            type: object
+            required: [catalog_key, display_name, source, pagination]
+            additionalProperties: false
+            properties:
+              catalog_key: { type: string }
+              display_name: { type: string }
+              source: { type: string }
+              pagination: { type: string, const: cursor }
+        secrets_included: { type: boolean, const: false }
+    CatalogPage:
+      type: object
+      required:
+        [ok, catalog_key, principal_scope, filters, items, page, completeness, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: true }
+        catalog_key: { type: string }
+        principal_scope:
+          type: string
+          enum: [admin, tenant]
+        filters:
+          type: object
+          required: [q]
+          additionalProperties: false
+          properties:
+            q:
+              type: [string, 'null']
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        page:
+          type: object
+          required: [limit, has_more, next_cursor]
+          additionalProperties: false
+          properties:
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            has_more: { type: boolean }
+            next_cursor:
+              type: [string, 'null']
+        completeness:
+          type: string
+          enum: [complete, partial]
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: true
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId:
+              type: [string, 'null']
+        secrets_included: { type: boolean, const: false }
