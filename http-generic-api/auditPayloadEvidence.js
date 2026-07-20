@@ -50,10 +50,28 @@ export function boundedEvidencePayload(value, maxChars = DEFAULT_MAX_CHARS) {
   };
 }
 
+export function buildAuditEvidenceDigest(input = {}) {
+  return sha256(safeJsonStringify({
+    evidence_id: input.evidence_id || null,
+    tenant_id: input.tenant_id || null,
+    actor_id: input.actor_id || null,
+    actor_type: input.actor_type || null,
+    action: input.action || null,
+    resource_type: input.resource_type || null,
+    resource_id: input.resource_id || null,
+    source_table: input.source_table || null,
+    source_pk: input.source_pk || null,
+    evidence_type: input.evidence_type || null,
+    request_sha256: input.request_sha256 || null,
+    response_sha256: input.response_sha256 || null,
+    previous_evidence_sha256: input.previous_evidence_sha256 || null,
+  }));
+}
+
 export function buildAuditPayloadEvidence(input = {}) {
   const request = boundedEvidencePayload(input.request_payload ?? input.request ?? null, input.max_preview_chars || DEFAULT_MAX_CHARS);
   const response = boundedEvidencePayload(input.response_payload ?? input.response ?? null, input.max_preview_chars || DEFAULT_MAX_CHARS);
-  return {
+  const evidence = {
     evidence_id: input.evidence_id || randomUUID(),
     tenant_id: input.tenant_id || null,
     actor_id: input.actor_id || null,
@@ -68,7 +86,15 @@ export function buildAuditPayloadEvidence(input = {}) {
     request_sha256: request.raw_sha256,
     response_preview: response.preview,
     response_sha256: response.raw_sha256,
-    metadata_json: safeJsonStringify({
+    redaction_status: request.redaction_status === "redacted" || response.redaction_status === "redacted" ? "redacted" : "not_required",
+    secrets_included: false,
+  };
+  const previousEvidenceSha256 = input.previous_evidence_sha256 || null;
+  const evidenceSha256 = buildAuditEvidenceDigest({
+    ...evidence,
+    previous_evidence_sha256: previousEvidenceSha256,
+  });
+  evidence.metadata_json = safeJsonStringify({
       ...(input.metadata || {}),
       request: {
         raw_bytes: request.raw_bytes,
@@ -89,10 +115,21 @@ export function buildAuditPayloadEvidence(input = {}) {
         secret_values_returned: false,
         token_returned: false,
       },
-    }),
-    redaction_status: request.redaction_status === "redacted" || response.redaction_status === "redacted" ? "redacted" : "not_required",
-    secrets_included: false,
-  };
+      tamper_evident: {
+        algorithm: "sha256",
+        evidence_sha256: evidenceSha256,
+        previous_evidence_sha256: previousEvidenceSha256,
+        immutable_fields: [
+          "evidence_id", "tenant_id", "actor_id", "actor_type", "action",
+          "resource_type", "resource_id", "source_table", "source_pk",
+          "evidence_type", "request_sha256", "response_sha256",
+        ],
+        secrets_included: false,
+      },
+    });
+  evidence.evidence_sha256 = evidenceSha256;
+  evidence.previous_evidence_sha256 = previousEvidenceSha256;
+  return evidence;
 }
 
 export async function writeAuditPayloadEvidence(input = {}, { pool = getPool() } = {}) {

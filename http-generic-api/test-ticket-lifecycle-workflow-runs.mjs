@@ -6,11 +6,37 @@ const service = readFileSync("supportTicketService.js", "utf8");
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
 const migration = readFileSync("migrations/237_sprint68_ticket_lifecycle_workflow_runs.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
-const { ticketStateFromRuntime } = _testingTicketClassification();
+const { ticketStateFromRuntime, initialWorkflowStateForPlan } = _testingTicketClassification();
 
 assert.deepEqual(
   ticketStateFromRuntime({ run: { status: "running" }, plan: { plan_status: "executing" } }),
   { status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", reason: "workflow_running" }
+);
+assert.deepEqual(
+  initialWorkflowStateForPlan({ access_decision: "REQUIRE_SUPERVISOR_APPROVAL" }, "pending"),
+  {
+    approval_required: true,
+    run_status: "awaiting_approval",
+    plan_status: "awaiting_approval",
+    ticket_status: "awaiting_approval",
+    lifecycle_state: "awaiting_internal_approval",
+    customer_status: "waiting_for_approval",
+    reason: "approval_required",
+    started_at_allowed: false,
+  }
+);
+assert.deepEqual(
+  initialWorkflowStateForPlan({ access_decision: "ALLOW" }, "running"),
+  {
+    approval_required: false,
+    run_status: "running",
+    plan_status: "executing",
+    ticket_status: "in_review",
+    lifecycle_state: "automation_running",
+    customer_status: "in_progress",
+    reason: "workflow_running",
+    started_at_allowed: true,
+  }
 );
 assert.deepEqual(
   ticketStateFromRuntime({ run: { status: "completed" } }),
@@ -30,6 +56,7 @@ for (const expected of [
   "syncSupportTicketRuntimeStatus",
   "resolveTicketExecutionPlan",
   "ticketStateFromRuntime",
+  "initialWorkflowStateForPlan",
   "INSERT INTO workflow_runs",
   "workflow_run_created",
   "runtime_status_synced",

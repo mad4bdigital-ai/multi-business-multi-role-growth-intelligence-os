@@ -11,8 +11,8 @@ const adminCliRoute = readFileSync("routes/adminCliRoutes.js", "utf8");
 const lifecycle = readFileSync("githubRepositoryLifecycle.js", "utf8");
 const health = readFileSync("localConnectorCompositeHealth.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
-const adminSchema = readFileSync("openapi.custom-gpt.auth-dispatcher.yaml", "utf8");
-const tenantSchema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const adminSchema = readFileSync("openapi/openapi.custom-gpt.auth-dispatcher.yaml", "utf8");
+const tenantSchema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 
 assert.match(migration, /CREATE TABLE IF NOT EXISTS platform_tool_dispatch_bindings/);
 assert.match(migration, /CREATE OR REPLACE VIEW v_platform_tool_dispatch_integrity/);

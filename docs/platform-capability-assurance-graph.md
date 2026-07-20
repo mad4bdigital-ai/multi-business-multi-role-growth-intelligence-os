@@ -40,6 +40,22 @@ The foundation adds:
 
 Compatibility views remain available during cutover. Migration 314 backfills the canonical graph from current live registries without deleting or rewriting legacy authority rows.
 
+## Virtual governed tools
+
+Migrations `20260717_virtual_tool_capability_projection.sql` and `20260717_virtual_tool_readback_readiness.sql` project active `platform_tool_dispatch_bindings` into the canonical assurance graph. Tool names and aliases are provenance and export descriptors only; they never create authority.
+
+The projection resolves one canonical capability identity, operation class, risk class, and exposure scope per virtual tool. Missing or conflicting identity, scope, operation semantics, readback policy, or source ownership becomes persistent typed debt and fails closed. Virtual Admin and Admin CLI surfaces cannot be projected to Tenant scope.
+
+State-changing virtual capabilities require resource authority, audit evidence, and an explicit readback contract. Shadow readback readiness is separate from generic certification, and every projected capability remains `apply_allowed=0` until certification plus shadow/canary evidence authorize promotion.
+
+Bounded mutation atomicity modes must classify consistently before aliases are aggregated into a canonical capability. `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` are state-changing. Unclassified or conflicting mutation semantics remain fail-closed debt. Tool-catalog tags accept arrays, JSON-array strings, and legacy CSV only after deterministic normalization.
+
+Capability-export aliases derived from virtual-tool bindings remain `shadow` until the canonical capability is certified and explicitly promoted. Runtime Admin tool catalogs and dispatch bindings are separate authorities and remain unchanged. Projection preview must report no active Admin capability export while the canonical manifest is blocked, and Tenant exports must remain absent.
+
+The `github_file_patch_apply` shadow-certification stage is intentionally narrower than runtime promotion. It verifies consumed smoke envelopes and branch-scoped resource authority, activates the canonical readback adapter, records acknowledgement and same-cycle verification evidence, and certifies the current readback contract. Target runtime dispatch/apply, active exports, Tenant authority, and protected-branch writes remain blocked until a later independently governed promotion decision.
+
+`platformVirtualToolCapabilityReconciler.js` maintains the projection, source links, shadow readback contracts, and debt inside the existing capability-assurance transaction. It performs no provider call, credential payload read, external write, or secret return.
+
 ## Readiness vector
 
 `v_platform_capability_readiness_vector` reports independent dimensions instead of a single misleading score:

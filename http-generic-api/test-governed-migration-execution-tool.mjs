@@ -7,12 +7,22 @@ import {
   runGovernedMigrationExecution,
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
+import { splitSqlStatements } from "./releaseReadiness.js";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
 const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitGovernedMigrationStatements(SQL).length;
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql";
+const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
+
+{
+  const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
+  const readinessStatements = splitSqlStatements(PARITY_SQL);
+  assert.equal(executionStatements.length, 10);
+  assert.deepEqual(executionStatements, readinessStatements);
+}
 
 function baseInput(mode = "dry_run") {
   return {
@@ -41,7 +51,7 @@ function fakeResult(mode) {
     ...base,
     applies_sql: true,
     statements_executed: STATEMENT_COUNT,
-    ledger: { recorded: true, run_id: "run-1025" },
+    ledger: { recorded: true, run_id: "run-1025", capability_envelope_id: ENVELOPE_ID },
   };
 }
 
@@ -108,11 +118,13 @@ function fakeResult(mode) {
     execFile: async (_command, args) => {
       assert.ok(args.includes("--apply"));
       assert.ok(args.includes(`--confirm=${governedMigrationApplyConfirmation(MIGRATION)}`));
+      assert.ok(args.includes(`--capability-envelope-id=${ENVELOPE_ID}`));
       return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
     },
   });
   assert.equal(authorized, true);
   assert.equal(result.ledger.recorded, true);
+  assert.equal(result.ledger.capability_envelope_id, ENVELOPE_ID);
   assert.equal(result.capability_envelope_id, ENVELOPE_ID);
 }
 
@@ -144,6 +156,7 @@ function fakeResult(mode) {
     }),
     (error) => {
       assert.equal(error.code, "governed_migration_runner_failed");
+      assert.equal(error.status, 409);
       assert.equal(error.details.exit_code, 9);
       assert.equal(error.details.signal, "SIGTERM");
       assert.equal(error.details.runner_error_code, "ER_CHECK_CONSTRAINT_VIOLATED");

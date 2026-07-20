@@ -1,48 +1,84 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.14,
-  "docs_complete_count": 462,
-  "docs_gap_count": 4,
-  "queue_items": 5,
-  "blocking_new_item_count": 5,
+  "docs_completion_percent": 93.1,
+  "docs_complete_count": 513,
+  "docs_gap_count": 38,
+  "queue_items": 38,
+  "blocking_new_item_count": 38,
   "gate_ok": false,
   "top_actionable": [
     {
-      "migration_file": "20260630_dynamic_capability_governance_persistence.sql",
+      "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
       "queue_class": "critical_review",
-      "score": 828,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
+      "score": 1075,
+      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
-      "migration_file": "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql",
+      "migration_file": "20260717_tenant_task_source_repair_apply_gate.sql",
       "queue_class": "critical_review",
-      "score": 732,
+      "score": 1056,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "1025_sprint69_activation_archive_dynamic_control_authority.sql",
-      "queue_class": "high_review",
-      "score": 668,
+      "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
+      "queue_class": "critical_review",
+      "score": 982,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "1030_sprint69_canonical_capability_domain.sql",
-      "queue_class": "high_review",
-      "score": 545,
+      "migration_file": "20260715_dynamic_container_canary_runtime_observability.sql",
+      "queue_class": "critical_review",
+      "score": 886,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
+      "queue_class": "critical_review",
+      "score": 869,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
+      "queue_class": "critical_review",
+      "score": 849,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
+      "queue_class": "critical_review",
+      "score": 837,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260719_fix_growth_intelligence_report_read_tool_path.sql",
+      "queue_class": "critical_review",
+      "score": 832,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260715_capability_envelope_template_resolver.sql",
+      "queue_class": "critical_review",
+      "score": 816,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260714_async_release_deploy_contract.sql",
+      "queue_class": "critical_review",
+      "score": 787,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
-  "openapi_missing_sql_route_count": 0,
-  "openapi_exempt_sql_route_count": 607,
-  "total_sql_route_like_count": 613,
-  "safety_marker_gap_migrations": 1,
+  "openapi_missing_sql_route_count": 2,
+  "openapi_exempt_sql_route_count": 662,
+  "total_sql_route_like_count": 686,
+  "safety_marker_gap_migrations": 8,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 5,
-    "warning_new_item_count": 5
+    "blocking_new_item_count": 38,
+    "warning_new_item_count": 38
   },
   "safety": {
     "executes_provider_calls": false,

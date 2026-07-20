@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
 import { getRuntimeParity } from "./runtimeVerificationService.js";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
@@ -84,6 +85,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "204_sprint67_core_runtime_context_dimensions.sql",
   "205_sprint67_runtime_context_dimension_enrichment.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
+  "20260720_credential_intake_platform_secret_governance_hardening.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
   "225_sprint67_gpt_session_conversation_ref_primary.sql",
@@ -552,13 +554,7 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
 }
 
 export function splitSqlStatements(sql = "") {
-  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TEMPORARY\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|SET\\s+@?[A-Za-z0-9_]+|PREPARE\\s+[A-Za-z0-9_]+|EXECUTE\\s+[A-Za-z0-9_]+|DEALLOCATE\\s+PREPARE\\s+[A-Za-z0-9_]+|DROP\\s+(?:TEMPORARY\\s+)?TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
-  const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
-  const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
-  return String(sql || "")
-    .split(statementBoundary)
-    .map((statement) => statement.trim())
-    .filter((statement) => stripSqlComments(statement).trim().length > 0);
+  return splitMigrationSqlStatements(sql);
 }
 
 function stripSqlComments(sql = "") {
@@ -591,6 +587,55 @@ function hasTopLevelSqlKeyword(sql = "", keyword = "") {
   return false;
 }
 
+const MIGRATION_KNOWN_TABLE_COLUMNS = Object.freeze({
+  admin_platform_endpoint_tools: new Set([
+    "id", "tool_key", "display_name", "description", "http_method", "http_path",
+    "path_param_keys", "input_schema", "fixed_body", "tags", "is_enabled",
+    "sort_order", "created_at", "updated_at",
+  ]),
+  tenant_platform_endpoint_tools: new Set([
+    "id", "tool_key", "display_name", "description", "http_method", "http_path",
+    "path_param_keys", "input_schema", "fixed_body", "tags", "is_enabled",
+    "sort_order", "created_at", "updated_at",
+  ]),
+});
+
+function migrationDialectRisks(normalized = "") {
+  const source = stripSqlStringLiterals(normalized);
+  if (/\bCAST\s*\([\s\S]*?\s+AS\s+JSON\s*\)/i.test(source)) {
+    return [{
+      severity: "fail",
+      code: "mariadb_cast_as_json_not_supported",
+      statement: normalized.slice(0, 140),
+    }];
+  }
+  return [];
+}
+
+function migrationOnDuplicateColumnRisks(normalized = "") {
+  const tableMatch = normalized.match(/^INSERT\s+(?:IGNORE\s+)?INTO\s+`?([A-Za-z0-9_]+)`?\b/i);
+  const tableName = tableMatch?.[1] || "";
+  const knownColumns = MIGRATION_KNOWN_TABLE_COLUMNS[tableName];
+  if (!knownColumns) return [];
+  const duplicateIndex = normalized.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i);
+  if (duplicateIndex === -1) return [];
+  const updatePart = stripSqlStringLiterals(normalized.slice(duplicateIndex));
+  const risks = [];
+  const assignmentRegex = /`?([A-Za-z0-9_]+)`?\s*=/g;
+  for (const match of updatePart.matchAll(assignmentRegex)) {
+    const columnName = match?.[1] || "";
+    if (!columnName || knownColumns.has(columnName)) continue;
+    risks.push({
+      severity: "fail",
+      code: "on_duplicate_update_unknown_column",
+      table: tableName,
+      column: columnName,
+      statement: normalized.slice(0, 140),
+    });
+  }
+  return risks;
+}
+
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   const statements = splitSqlStatements(sqlText);
   const risks = [];
@@ -616,6 +661,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
       .replace(/^\s*(?:--[^\n]*\n\s*)+/g, "")
       .replace(/\s+/g, " ")
       .trim();
+    risks.push(...migrationDialectRisks(normalized));
+    risks.push(...migrationOnDuplicateColumnRisks(normalized));
     if (/^CREATE\s+TABLE\b/i.test(normalized)) {
       counts.create_table += 1;
       if (/^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
@@ -665,9 +712,16 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     }
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {
       counts.alter_table += 1;
-      if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+      if (
+        filename === "20260720_credential_intake_platform_secret_governance_hardening.sql"
+        && /^ALTER\s+TABLE\s+`?secret_references`?\s+MODIFY\s+COLUMN\s+`?secret_key`?\s+VARCHAR\(128\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci\s+NOT\s+NULL$/i.test(normalized)
+      ) {
+        counts.alter_table_idempotent += 1;
+      } else if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
       } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
+        counts.alter_table_idempotent += 1;
+      } else if (/^ALTER\s+TABLE\s+`?secret_references`?\s+MODIFY\s+COLUMN\s+`?secret_key`?\s+VARCHAR\(128\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci\s+NOT\s+NULL$/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });

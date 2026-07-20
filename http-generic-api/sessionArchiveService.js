@@ -51,6 +51,100 @@ export function previewText(value = "", limit = PREVIEW_CHARS) {
   return `${text.slice(0, limit)}...[truncated]`;
 }
 
+function contextKey(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+async function resolveInheritedBusinessContext({
+  pool,
+  brand_key = null,
+  business_type_key = null,
+  business_activity_type_key = null,
+  activity_key = null,
+  knowledge_profile_key = null,
+} = {}) {
+  const explicitBusinessTypeKey = contextKey(business_type_key);
+  const explicitBusinessActivityTypeKey = contextKey(business_activity_type_key);
+  const explicitActivityKey = contextKey(activity_key);
+  const explicitKnowledgeProfileKey = contextKey(knowledge_profile_key);
+  const brandKey = contextKey(brand_key);
+  let brandPath = null;
+  let activity = null;
+  let businessTypeProfile = null;
+
+  if (brandKey) {
+    const [rows] = await pool.query(
+      `SELECT brand_key, business_type_key, knowledge_profile_key
+         FROM \`brand_paths\`
+        WHERE brand_key = ?
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      [brandKey]
+    ).catch(() => [[]]);
+    brandPath = rows?.[0] || null;
+  }
+
+  if (explicitBusinessActivityTypeKey || explicitActivityKey) {
+    const clauses = [];
+    const params = [];
+    if (explicitBusinessActivityTypeKey) { clauses.push("business_activity_type_key = ?"); params.push(explicitBusinessActivityTypeKey); }
+    if (explicitActivityKey) { clauses.push("activity_key = ?"); params.push(explicitActivityKey); }
+    const [rows] = await pool.query(
+      `SELECT business_activity_type_key, activity_key, business_type_key, default_knowledge_profile_key, brand_core_required
+         FROM \`business_activity_types\`
+        WHERE (${clauses.join(" OR ")})
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      params
+    ).catch(() => [[]]);
+    activity = rows?.[0] || null;
+  }
+
+  const resolvedBusinessTypeKey = explicitBusinessTypeKey
+    || contextKey(activity?.business_type_key)
+    || contextKey(brandPath?.business_type_key);
+  const resolvedKnowledgeProfileKey = explicitKnowledgeProfileKey
+    || contextKey(activity?.default_knowledge_profile_key)
+    || contextKey(brandPath?.knowledge_profile_key);
+
+  if (resolvedBusinessTypeKey) {
+    const [rows] = await pool.query(
+      `SELECT business_type_key, knowledge_profile_key, authoritative_read_home,
+              business_type_specific_read_home, shared_knowledge_read_home
+         FROM \`business_type_profiles\`
+        WHERE business_type_key = ?
+          AND (active IS NULL OR active IN ('1', 'true', 'yes', 'active'))
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1`,
+      [resolvedBusinessTypeKey]
+    ).catch(() => [[]]);
+    businessTypeProfile = rows?.[0] || null;
+  }
+
+  const finalKnowledgeProfileKey = resolvedKnowledgeProfileKey
+    || contextKey(businessTypeProfile?.knowledge_profile_key);
+  return {
+    business_type_key: resolvedBusinessTypeKey || null,
+    business_activity_type_key: explicitBusinessActivityTypeKey || contextKey(activity?.business_activity_type_key),
+    activity_key: explicitActivityKey || contextKey(activity?.activity_key),
+    knowledge_profile_key: finalKnowledgeProfileKey || null,
+    inherited_from_brand: Boolean(brandPath?.business_type_key || brandPath?.knowledge_profile_key),
+    brand_core_required: contextKey(activity?.brand_core_required) || null,
+    knowledge_architecture: {
+      authoritative_read_home: contextKey(businessTypeProfile?.authoritative_read_home),
+      business_type_specific_read_home: contextKey(businessTypeProfile?.business_type_specific_read_home),
+      shared_knowledge_read_home: contextKey(businessTypeProfile?.shared_knowledge_read_home),
+      source_tables: ["brand_paths", "business_activity_types", "business_type_profiles"],
+      secrets_included: false,
+    },
+    lifecycle_contract: "brand_business_context_is_required_for_operation_resolution_like_brand_core",
+    secrets_included: false,
+  };
+}
+
 function slug(value, fallback) {
   return String(value || fallback)
     .trim()
@@ -572,6 +666,12 @@ export async function recordGptSessionTurn({
   content,
   action_key = null,
   turnIndex,
+  workspace_key = null,
+  brand_key = null,
+  business_type_key = null,
+  business_activity_type_key = null,
+  activity_key = null,
+  knowledge_profile_key = null,
   injectedDeps = {},
 }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
@@ -598,6 +698,30 @@ export async function recordGptSessionTurn({
   } catch {
     // Keep caller-provided session if fresh readback is unavailable.
   }
+
+  const turnWorkspaceKey = String(workspace_key || session.workspace_key || "").trim() || null;
+  const turnBrandKey = String(brand_key || session.brand_key || "").trim() || null;
+  const businessContext = await resolveInheritedBusinessContext({
+    pool,
+    brand_key: turnBrandKey,
+    business_type_key,
+    business_activity_type_key,
+    activity_key,
+    knowledge_profile_key,
+  });
+  const turnContextStack = {
+    tenant_id: session.tenant_id || PLATFORM_TENANT_ID,
+    user_id: session.user_id || null,
+    workspace_key: turnWorkspaceKey,
+    brand_key: turnBrandKey,
+    business_type_key: businessContext.business_type_key,
+    business_activity_type_key: businessContext.business_activity_type_key,
+    activity_key: businessContext.activity_key,
+    knowledge_profile_key: businessContext.knowledge_profile_key,
+    inherited_from_brand: businessContext.inherited_from_brand,
+    lifecycle_contract: businessContext.lifecycle_contract,
+    secrets_included: false,
+  };
 
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
@@ -756,6 +880,8 @@ export async function recordGptSessionTurn({
     drive_doc_id: archive.drive_doc_id || null,
     drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
+    context_stack: turnContextStack,
+    business_context: businessContext,
   };
 
   await pool.query(
@@ -768,16 +894,18 @@ export async function recordGptSessionTurn({
     [
       session.session_id,
       session.tenant_id || PLATFORM_TENANT_ID,
-      session.workspace_key || null,
+      turnWorkspaceKey,
       session.user_id || null,
       session.user_id || null,
       session.user_id ? "user" : "system",
-      session.brand_key || null,
+      turnBrandKey,
       turnId,
       JSON.stringify({
         source: "session_archive_service",
         session_id: session.session_id,
         turn_id: turnId,
+        context_stack: turnContextStack,
+        business_context: businessContext,
         drive_doc_id: archive.drive_doc_id || null,
         drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
         secrets_included: false,
@@ -812,11 +940,11 @@ export async function recordGptSessionTurn({
       session.session_id,
       turnId,
       session.tenant_id || PLATFORM_TENANT_ID,
-      session.workspace_key || null,
+      turnWorkspaceKey,
       session.user_id || null,
       session.user_id || null,
       session.user_id ? "user" : "system",
-      session.brand_key || null,
+      turnBrandKey,
       eventId,
       action_key || null,
       role,
@@ -841,6 +969,8 @@ export async function recordGptSessionTurn({
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
     archive_status: archiveStatus,
     archive_error: archiveError ? archiveError.message : null,
+    context_stack: turnContextStack,
+    business_context: businessContext,
   };
 }
 

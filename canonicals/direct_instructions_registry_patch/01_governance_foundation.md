@@ -18,6 +18,18 @@ Engineering Contract Governance Rule
 - engineering changes must prefer small safe increments, explicit errors, validation, tests, and security review for auth, secrets, provider transport, admin control, command execution, input handling, or external integration changes
 - PR readiness must preserve scope, tests, risks, API/database impact review when relevant, security notes, generated artifact status, and merge readiness checks
 
+OpenAPI Lint And Compatibility Baseline Governance Rule
+
+- checked-in OpenAPI 3.1 contracts must pass deterministic lint before merge
+- contract lint must validate required operation metadata, explicit success responses, JSON request bodies, declared required path parameters, resolvable internal `$ref` values, and schema `required` consistency
+- contracts protected by a compatibility baseline must reject operation removal, `operationId` changes, newly required parameters or request properties, removed success responses, incompatible response-schema changes, removed required response properties, removed component properties, incompatible property-type changes, and removed enum values
+- additive optional properties, additive operations, additive success responses, descriptions, examples, and additive enum values remain compatible unless a stricter contract policy applies
+- compatibility baselines must be checked in, human-reviewed, and updated only with explicit confirmation after contract lint succeeds
+- baseline regeneration solely to silence CI is forbidden
+- approved breaking changes require an explicit migration or deprecation plan before baseline acceptance
+- the Feature 006 authorization and execution contract uses `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml` with baseline `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json`
+- the canonical commands are `npm run openapi:lint:compat` and `npm run test:openapi:lint:compat` from `http-generic-api`, and both must remain included in `npm run schemas:guard`
+
 Canonical Logic Pointer Authority Rule
 
 - governed logic-definition authority must resolve through `surface.logic_canonical_pointer_registry` before any direct logic-document selection or execution

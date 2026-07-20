@@ -95,6 +95,117 @@ async function safeQuery(pool, sql, params = []) {
   }
 }
 
+const DEFAULT_EXECUTION_EVIDENCE_AGENT_KEY = "admin_gpt_assistant";
+
+function uniqueCompact(values = []) {
+  return [...new Set(values.map((value) => firstNonEmpty(value)).filter(Boolean))];
+}
+
+function inferSkillKeyCandidates(contextDimensions = {}) {
+  const haystack = [
+    contextDimensions.source_layer,
+    contextDimensions.entry_type,
+    contextDimensions.execution_mode,
+    contextDimensions.parent_action_key,
+    contextDimensions.endpoint_key,
+    contextDimensions.tool_key,
+    contextDimensions.action_key,
+    contextDimensions.app_key,
+    contextDimensions.plugin_key,
+    contextDimensions.connector_family,
+    contextDimensions.provider_family,
+    contextDimensions.resource_type,
+    contextDimensions.target_type,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  const candidates = [];
+  const add = (skillKey) => {
+    if (skillKey && !candidates.includes(skillKey)) candidates.push(skillKey);
+  };
+
+  if (/(github|git_ref|repository|pull[_ -]?request|\bpr\b|workflow[_ -]?run|branch)/i.test(haystack)) {
+    add("github_repository_recovery_adapter");
+  }
+  if (/(registry|database|\bdb\b|db_|sql|admin_control|execution_log|endpoint|tool_dispatch|skill_runtime|coverage|data_table)/i.test(haystack)) {
+    add("platform_registry_database_recovery");
+  }
+  if (/(wordpress|wp_|wp\b)/i.test(haystack)) {
+    add(/write|post|publish|create|update|delete/i.test(haystack) ? "api.wordpress_write" : "api.wordpress_read");
+  }
+  if (/(local|connector|device)/i.test(haystack)) {
+    if (/shell|execute|command/i.test(haystack)) add("local.connector.shell_execute");
+    else if (/file|read|write/i.test(haystack)) add("local.connector.file_access");
+    else add("local.connector.device_management");
+  }
+  if (/(logic|evaluate_pack)/i.test(haystack)) add("logic.evaluate_pack");
+  if (/(workflow_run|workflow runs|read_workflow)/i.test(haystack)) add("data.read_workflow_runs");
+  return candidates;
+}
+
+async function resolveExecutionAgentSkillGrant(pool, contextDimensions = {}) {
+  const resolvedAgentId = firstNonEmpty(contextDimensions.agent_id);
+  const resolvedAgentKey = firstNonEmpty(contextDimensions.agent_key, DEFAULT_EXECUTION_EVIDENCE_AGENT_KEY);
+  const explicitSkillId = firstNonEmpty(contextDimensions.skill_id);
+  const skillKeyCandidates = uniqueCompact([
+    contextDimensions.skill_key,
+    ...inferSkillKeyCandidates(contextDimensions),
+  ]);
+
+  if (!resolvedAgentId && !resolvedAgentKey) return null;
+  if (!explicitSkillId && skillKeyCandidates.length === 0) return null;
+
+  const params = [];
+  const agentPredicate = resolvedAgentId ? "a.agent_id = ?" : "a.name = ?";
+  params.push(resolvedAgentId || resolvedAgentKey);
+
+  const skillPredicates = [];
+  if (explicitSkillId) {
+    skillPredicates.push("s.skill_id = ?");
+    params.push(explicitSkillId);
+  }
+  if (skillKeyCandidates.length) {
+    skillPredicates.push(`s.skill_key IN (${skillKeyCandidates.map(() => "?").join(",")})`);
+    params.push(...skillKeyCandidates);
+  }
+
+  const tenantId = firstNonEmpty(contextDimensions.tenant_id);
+  const brandKey = firstNonEmpty(contextDimensions.brand_key);
+  params.push(tenantId, brandKey, tenantId, brandKey, ...skillKeyCandidates);
+
+  const rows = await safeQuery(
+    pool,
+    `SELECT a.agent_id,
+            a.name AS agent_key,
+            s.skill_id,
+            s.skill_key,
+            s.skill_type,
+            s.requires_approval,
+            g.grant_id,
+            g.tenant_id AS grant_tenant_id,
+            g.brand_key AS grant_brand_key
+       FROM agents a
+       JOIN agent_skill_grants g
+         ON g.agent_id = a.agent_id
+        AND g.status = 'active'
+        AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP)
+       JOIN agent_skills s
+         ON s.skill_id = g.skill_id
+        AND s.status = 'active'
+      WHERE a.status = 'active'
+        AND ${agentPredicate}
+        AND (${skillPredicates.join(" OR ")})
+        AND (g.tenant_id IS NULL OR g.tenant_id = ?)
+        AND (g.brand_key IS NULL OR g.brand_key = ?)
+      ORDER BY CASE WHEN g.tenant_id = ? THEN 0 ELSE 1 END,
+               CASE WHEN g.brand_key = ? THEN 0 ELSE 1 END,
+               ${skillKeyCandidates.length ? `FIELD(s.skill_key, ${skillKeyCandidates.map(() => "?").join(",")})` : "0"},
+               s.skill_key
+      LIMIT 1`,
+    params
+  );
+  return rows[0] || null;
+}
+
 export async function writeExecutionEvidence({
   pool = getPool(),
   traceId,
@@ -297,6 +408,9 @@ export async function writeExecutionEvidence({
     environment: pickContext(contextObjects, environment, ["environment", "env"]),
     correlation_id: pickContext(contextObjects, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
     idempotency_key: pickContext(contextObjects, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
+    entry_type: compact(entryType, 255),
+    source_layer: compact(sourceLayer, 255),
+    execution_mode: compact(executionMode, 255),
     agent_id: pickContext(contextObjects, agentId, ["agent_id", "agentId"]),
     agent_key: pickContext(contextObjects, agentKey, ["agent_key", "agentKey", "agent_name", "agentName"]),
     skill_id: pickContext(contextObjects, skillId, ["skill_id", "skillId"]),
@@ -311,14 +425,66 @@ export async function writeExecutionEvidence({
   };
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
 
+  const resolvedAgentSkillGrant = await resolveExecutionAgentSkillGrant(pool, contextDimensions);
+  if (resolvedAgentSkillGrant) {
+    contextDimensions.agent_id = contextDimensions.agent_id || resolvedAgentSkillGrant.agent_id;
+    contextDimensions.agent_key = contextDimensions.agent_key || resolvedAgentSkillGrant.agent_key;
+    contextDimensions.skill_id = contextDimensions.skill_id || resolvedAgentSkillGrant.skill_id;
+    contextDimensions.skill_key = contextDimensions.skill_key || resolvedAgentSkillGrant.skill_key;
+    const grantPolicyKey = `${resolvedAgentSkillGrant.skill_key}_grant_active_v1`;
+    const policyText = String(contextDimensions.policy_keys || "");
+    if (!policyText) contextDimensions.policy_keys = grantPolicyKey;
+    else if (!policyText.split(/[|,]/).map((item) => item.trim()).includes(grantPolicyKey)) {
+      contextDimensions.policy_keys = compactList([policyText, grantPolicyKey], 1000);
+    }
+  }
+
+  const resolvedAgentEvidence = resolvedAgentSkillGrant ? {
+    agent_id: resolvedAgentSkillGrant.agent_id,
+    agent_key: resolvedAgentSkillGrant.agent_key,
+    grant_id: resolvedAgentSkillGrant.grant_id,
+    grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    grant_scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+    grant_resolution_status: "resolved_from_agent_skill_grants",
+    secrets_included: false,
+  } : {};
+  const resolvedSkillEvidence = resolvedAgentSkillGrant ? {
+    skill_id: resolvedAgentSkillGrant.skill_id,
+    skill_key: resolvedAgentSkillGrant.skill_key,
+    skill_type: resolvedAgentSkillGrant.skill_type,
+    requires_approval: Boolean(resolvedAgentSkillGrant.requires_approval),
+    grant_id: resolvedAgentSkillGrant.grant_id,
+    grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    grant_resolution_status: "resolved_from_agent_skill_grants",
+    secrets_included: false,
+  } : {};
+  const resolvedAuthorizationEvidence = resolvedAgentSkillGrant ? {
+    skill_grant_id: resolvedAgentSkillGrant.grant_id,
+    skill_grant_scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+    skill_grant_tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+    skill_grant_brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+    secrets_included: false,
+  } : {};
+
   const evidenceObjects = {
-    agent: stripSensitiveEvidence(pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"])),
-    skill: stripSensitiveEvidence(pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"])),
+    agent: stripSensitiveEvidence({
+      ...resolvedAgentEvidence,
+      ...pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"]),
+    }),
+    skill: stripSensitiveEvidence({
+      ...resolvedSkillEvidence,
+      ...pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"]),
+    }),
     app: stripSensitiveEvidence(pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"])),
     workflow: stripSensitiveEvidence(pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"])),
     role: stripSensitiveEvidence(pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"])),
     policy: stripSensitiveEvidence(pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"])),
-    authorization: stripSensitiveEvidence(pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"])),
+    authorization: stripSensitiveEvidence({
+      ...resolvedAuthorizationEvidence,
+      ...pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"]),
+    }),
     brand: stripSensitiveEvidence(pickEvidenceObject(contextObjects, brandEvidence, ["brand_evidence", "brandEvidence", "brand"])),
     business_activity: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessActivityEvidence, ["business_activity_evidence", "businessActivityEvidence", "business_activity", "businessActivity"])),
     business_type: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessTypeEvidence, ["business_type_evidence", "businessTypeEvidence", "business_type", "businessType"])),
@@ -333,6 +499,16 @@ export async function writeExecutionEvidence({
   };
   const runtimeEvidenceEnvelope = {
     ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
+    skill_grant_resolution: resolvedAgentSkillGrant ? {
+      status: "resolved",
+      grant_id: resolvedAgentSkillGrant.grant_id,
+      agent_key: resolvedAgentSkillGrant.agent_key,
+      skill_key: resolvedAgentSkillGrant.skill_key,
+      scope: resolvedAgentSkillGrant.grant_tenant_id ? "tenant" : "global",
+      tenant_id: resolvedAgentSkillGrant.grant_tenant_id || null,
+      brand_key: resolvedAgentSkillGrant.grant_brand_key || null,
+      secrets_included: false,
+    } : { status: "not_resolved", secrets_included: false },
     dimensions: {
       tenant_id: contextDimensions.tenant_id,
       workspace_id: contextDimensions.workspace_id,

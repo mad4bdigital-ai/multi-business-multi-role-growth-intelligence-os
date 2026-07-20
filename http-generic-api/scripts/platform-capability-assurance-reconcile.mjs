@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { getPool } from "../db.js";
+import { reconcileVirtualToolCapabilities } from "../platformVirtualToolCapabilityReconciler.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const out = { apply: false, envelopeId: "", requestedBy: "platform_admin" };
@@ -215,6 +216,7 @@ export async function reconcilePlatformCapabilityAssurance(args = parseArgs(), d
   try {
     await connection.beginTransaction();
     for (const sql of UPSERTS) await connection.query(sql);
+    await reconcileVirtualToolCapabilities(connection);
     await connection.query(
       `UPDATE capability_resolution_envelope_ledger
           SET execution_ref=?, execution_status='referenced', updated_at=CURRENT_TIMESTAMP

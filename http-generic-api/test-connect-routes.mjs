@@ -7,12 +7,15 @@
  * Run: node test-connect-routes.mjs
  */
 
+// frontend-surface-operation: POST /connect/bootstrap
+
 import express from "express";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildConnectApiRoutes } from "./routes/connectApiRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
+await import("./test-tenant-connect-bootstrap-service.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -30,7 +33,9 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    console.error(`::error title=Connect route assertion failed::${message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`);
     failed++;
   }
 }
@@ -124,8 +129,8 @@ try {
   {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
-    const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
-    const activationDoc = YAML.parse(readFileSync("openapi.tenant-gpt.activation.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -169,6 +174,7 @@ try {
     const consequentialTenantOperations = new Set([
       "tenantPlatformPluginInstall",
       "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "decideTenantSkillApproval",
       "postMeWorkspacesTenantIdResourcesResourceKey",
       "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
     ]);
@@ -331,10 +337,21 @@ try {
     const indexSource = readFileSync("routes/index.js", "utf8");
     assert("connect exposes explicit onboarding-state route",
       routeSource.includes('router.get("/connect/onboarding-state"') && routeSource.includes('workspace_required'));
-    assert("connect exposes tenantless-safe workspace creation and escalation routes",
+    assert("connect exposes tenantless-safe workspace creation, bootstrap, and escalation routes",
+      routeSource.includes('router.post("/connect/bootstrap"') &&
+      routeSource.includes('orchestrateTenantConnectBootstrap') &&
+      routeSource.includes('activateManagedConnectionForTenant') &&
       routeSource.includes('router.post("/connect/workspace"') &&
       routeSource.includes('router.post("/connect/escalate"') &&
       routeSource.includes('onboarding_escalations'));
+    const bootstrapMigration = readFileSync("migrations/20260718_tenant_connect_bootstrap_tool.sql", "utf8");
+    assert("tenant tool registry migration exposes connect_bootstrap with managed-only idempotent readback contract",
+      bootstrapMigration.includes("'connect_bootstrap'") &&
+      bootstrapMigration.includes("'/connect/bootstrap'") &&
+      bootstrapMigration.includes("'managed'") &&
+      bootstrapMigration.includes("idempotent") &&
+      bootstrapMigration.includes("same_cycle_readback") &&
+      bootstrapMigration.includes("no_secrets"));
     assert("connect exposes minimal /me workspace/capability control-plane",
       routeSource.includes('router.get("/me"') &&
       routeSource.includes('router.get("/me/workspaces"') &&
@@ -690,7 +707,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
@@ -923,12 +940,22 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("local connector supports device-scoped Local Manager repair installer links",
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.user_id, payload.tenant_id, payload.device_id]"));
+assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
-      source.includes("requireLocalManagerDevice(req)") &&
+      source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
+      source.includes("auth_context: device.auth_context") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
+    assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
+assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+      deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
+      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
+      deviceLinkSource.includes("saved_device_token") &&
+      deviceLinkSource.includes("privileged_authorization_fresh") &&
+      deviceLinkSource.includes("reauth_action"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
@@ -1019,7 +1046,7 @@ const doc = (() => {
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.12.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.24.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
@@ -1092,7 +1119,8 @@ const doc = (() => {
     const routeSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
     const scriptSource = readFileSync("scripts/installer-reprovision-smoke.mjs", "utf8");
     const packageSource = readFileSync("package.json", "utf8");
-    assert("install status response is read-only and explicitly non-secret",
+    assert("installer reprovision rotates the existing tunnel and local credentials", routeSource.includes("rotateTunnelCredential(") && routeSource.includes("existing?.cf_tunnel_id && reprovision") && routeSource.includes("existing.cf_tunnel_name || tunnelName") && routeSource.includes("connectorLocalApiKey = reprovision") && routeSource.includes("/connections"));
+assert("install status response is read-only and explicitly non-secret",
       routeSource.includes("read_only: true") &&
       routeSource.includes("secrets_included: false") &&
       routeSource.includes("download_link_available") &&

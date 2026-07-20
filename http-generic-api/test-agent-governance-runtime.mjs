@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 import {
   assessHandoffState,
   assessHandoffAccess,
@@ -602,10 +603,16 @@ assert(governanceRuntime.includes('transition_ledger: "execution_plan_events"'))
 assert(governanceRuntime.includes("governed_research_execution_log_readback_failed"));
 
 const openapi = readFileSync("openapi.yaml", "utf8");
-const agentOpenApiSection = openapi.slice(openapi.indexOf("  /platform/agent-governance/response-profile/resolve:"));
-assert.equal((agentOpenApiSection.match(/tags: \[platform-agent-governance\]/g) || []).length, 13);
-assert.equal((agentOpenApiSection.match(/security: \[backendBearerAuth: \[\], backendApiKeyAuth: \[\]\]/g) || []).length, 13);
-assert.equal(agentOpenApiSection.includes("actor_id:"), false, "Agent Governance OpenAPI must not expose caller-controlled audit actor fields");
+const openapiDocument = YAML.parse(openapi);
+const agentOpenApiOperations = Object.entries(openapiDocument.paths)
+  .filter(([routePath]) => routePath.startsWith("/platform/agent-governance/"))
+  .flatMap(([, pathItem]) => ["get", "post", "put", "patch", "delete"].map((method) => pathItem[method]).filter(Boolean));
+assert.equal(agentOpenApiOperations.length, 13);
+for (const operation of agentOpenApiOperations) {
+  assert(operation.tags.includes("platform-agent-governance"));
+  assert.deepEqual(operation.security, [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]);
+}
+assert.equal(JSON.stringify(agentOpenApiOperations).includes('"actor_id"'), false, "Agent Governance OpenAPI must not expose caller-controlled audit actor fields");
 for (const path of [
   "/platform/agent-governance/response-profile/resolve",
   "/platform/agent-governance/research-policy/resolve",
@@ -618,7 +625,7 @@ for (const path of [
 const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 assert(migrationRunner.includes("245_sprint68_agent_governance_runtime.sql"));
 
-const tenantSpec = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const tenantSpec = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 assert.equal(tenantSpec.includes("/platform/agent-governance/"), false);
 
 const schema = JSON.parse(readFileSync("../memory_schema.json", "utf8"));

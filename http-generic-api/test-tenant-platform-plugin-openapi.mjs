@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const schema = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const schema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 const mainSchema = readFileSync("openapi.yaml", "utf8");
 
 assert(schema.includes("Tenant Core transport") && schema.includes("operationId: tenantPlatformPluginCatalog"), "Tenant Core schema must describe and expose Platform Plugin capabilities");

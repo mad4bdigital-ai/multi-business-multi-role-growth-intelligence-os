@@ -5,7 +5,7 @@ const migration = readFileSync(
   new URL("./migrations/175_sprint65_resource_authority_registry_foundation.sql", import.meta.url),
   "utf8"
 );
-const tenantOpenApi = readFileSync(new URL("./openapi.tenant-gpt.auth.yaml", import.meta.url), "utf8");
+const tenantOpenApi = readFileSync(new URL("./openapi/openapi.tenant-gpt.auth.yaml", import.meta.url), "utf8");
 
 assert(migration.includes("CREATE TABLE IF NOT EXISTS platform_resource_authority_requirements"));
 assert(migration.includes("resource_authority_engine"));

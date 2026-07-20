@@ -165,29 +165,32 @@ function validateEnvelopeForApplyAuthorization(row, policy) {
   }
 }
 
-function validateCredentialEnvelope(envelopeJson, policy) {
+export function validateCredentialEnvelope(envelopeJson, policy) {
   const selected = envelopeJson.selected_source || {};
-  const candidates = Array.isArray(selected.credential_source_candidates) ? selected.credential_source_candidates : [];
+  const credentialSourceCandidates = Array.isArray(selected.credential_source_candidates)
+    ? selected.credential_source_candidates.map((candidate) => String(candidate || ""))
+    : [];
   const activeBindingCount = Number(selected.active_credential_binding_count || 0);
   if (activeBindingCount > 0 && !enabled(policy.allow_credential_binding)) {
     throw validationError(
       "capability_envelope_apply_credential_binding_not_allowed",
       "Dynamic apply authorization policy forbids credential-backed envelopes for this capability.",
-      { active_credential_binding_count: activeBindingCount, policy_key: policy.policy_key }
+      {
+        active_credential_binding_count: activeBindingCount,
+        credential_source_candidates: credentialSourceCandidates,
+        policy_key: policy.policy_key,
+      }
     );
   }
   if (activeBindingCount === 0 && !enabled(policy.allow_no_credential_binding)) {
     throw validationError(
       "capability_envelope_apply_requires_credential_binding",
       "Dynamic apply authorization policy requires an active credential binding for this capability.",
-      { active_credential_binding_count: activeBindingCount, policy_key: policy.policy_key }
-    );
-  }
-  if (!enabled(policy.allow_credential_binding) && !candidates.includes("none")) {
-    throw validationError(
-      "capability_envelope_apply_requires_no_credential_binding",
-      "Apply authorization requires a no-credential app binding for this capability.",
-      { credential_source_candidates: candidates, policy_key: policy.policy_key }
+      {
+        active_credential_binding_count: activeBindingCount,
+        credential_source_candidates: credentialSourceCandidates,
+        policy_key: policy.policy_key,
+      }
     );
   }
 }

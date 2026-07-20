@@ -349,11 +349,32 @@ async function resolvePublicProbeAddress(host) {
 }
 
 const SSH_CLI_DRY_RUN_ALLOWLIST = Object.freeze({
-  pwd: { argv: ["pwd"], description: "Print current working directory", risk: "low" },
-  whoami: { argv: ["whoami"], description: "Print remote username", risk: "low" },
-  uname_s: { argv: ["uname", "-s"], description: "Print kernel/system name", risk: "low" },
-  uptime: { argv: ["uptime"], description: "Print system uptime", risk: "low" },
+  pwd: { argv: ["pwd"], description: "Print current working directory", risk: "low", permission: "file_read" },
+  whoami: { argv: ["whoami"], description: "Print remote username", risk: "low", permission: "shell_read" },
+  uname_s: { argv: ["uname", "-s"], description: "Print kernel/system name", risk: "low", permission: "shell_read" },
+  uptime: { argv: ["uptime"], description: "Print system uptime", risk: "low", permission: "shell_read" },
 });
+
+const SHELL_ARG_METACHARACTER = /[;&|`$<>()[\]{}\\\r\n]/;
+
+function assertAllowlistedArgvIsTypedAndLiteral(commandKey, argv = []) {
+  if (!Array.isArray(argv) || argv.length === 0) {
+    const err = new Error("Allowlisted SSH command argv must be a non-empty typed argument array.");
+    err.status = 500;
+    err.code = "ssh_cli_allowlist_argv_invalid";
+    throw err;
+  }
+  for (const arg of argv) {
+    const value = String(arg || "");
+    if (!value || SHELL_ARG_METACHARACTER.test(value)) {
+      const err = new Error("Allowlisted SSH command argv contains unsupported shell metacharacters.");
+      err.status = 500;
+      err.code = "ssh_cli_allowlist_argv_metacharacter";
+      err.details = { command_key: commandKey, secrets_included: false };
+      throw err;
+    }
+  }
+}
 
 function buildSshCliDryRunPlan(options = {}) {
   const commandKey = String(options.command_key || "").trim();
@@ -371,10 +392,12 @@ function buildSshCliDryRunPlan(options = {}) {
     err.details = { allowed_command_keys: Object.keys(SSH_CLI_DRY_RUN_ALLOWLIST) };
     throw err;
   }
+  assertAllowlistedArgvIsTypedAndLiteral(commandKey, command.argv);
   return {
     command_key: commandKey,
     description: command.description,
     risk: command.risk,
+    permission: command.permission,
     argv: command.argv,
     will_decrypt_credentials: false,
     will_authenticate_ssh: false,

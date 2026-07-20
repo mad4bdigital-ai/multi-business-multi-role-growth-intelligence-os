@@ -91,6 +91,22 @@ assert.equal(manualValidation.actual.preflight_status, "pass");
 assert.equal(manualValidation.actual.forbidden_patterns.length, 2);
 assert.equal(manualValidation.attestation.execution_authorized, false);
 
+const reconciliationItem = manualManifest.items.find((item) => item.migration_file === "1026_sprint69_repository_reconciliation_automation.sql");
+assert(reconciliationItem, "manual registry should include the repository reconciliation automation migration");
+const reconciliationSource = readFileSync(`migrations/${reconciliationItem.migration_file}`, "utf8");
+const reconciliationValidation = validateManualAttestation({ item: reconciliationItem, source: reconciliationSource });
+assert.equal(reconciliationValidation.valid, true, `repository reconciliation attestation should validate: ${reconciliationValidation.reasons.join(", ")}`);
+assert.equal(reconciliationValidation.actual.migration_sha256, "288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2");
+assert.equal(reconciliationValidation.actual.statement_count, 14);
+assert.equal(reconciliationValidation.actual.preflight_status, "pass");
+assert.equal(reconciliationValidation.actual.preflight_risk_count, 0);
+assert.deepEqual(reconciliationValidation.actual.forbidden_patterns, [
+  "^\\s*EXECUTE\\s+[A-Za-z0-9_]+\\b",
+  "\\bPREPARE\\s+[A-Za-z0-9_]+\\s+FROM\\b",
+].sort());
+assert.equal(reconciliationValidation.attestation.execution_authorized, false);
+assert.equal(reconciliationValidation.attestation.migration_effects.schema_mutation, true);
+
 const windowsLineEndings = manualSource.replace(/\r?\n/g, "\r\n");
 const windowsLineEndingValidation = validateManualAttestation({ item: manualItem, source: windowsLineEndings });
 assert.equal(windowsLineEndingValidation.valid, true, "manual attestation checksum must be stable across LF and CRLF checkouts");

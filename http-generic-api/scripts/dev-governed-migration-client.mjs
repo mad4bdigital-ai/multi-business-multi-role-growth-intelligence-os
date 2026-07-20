@@ -1,0 +1,507 @@
+#!/usr/bin/env node
+import { pathToFileURL } from "node:url";
+
+const READ_ONLY_TOOLS = new Set([
+  "admin_tool_catalog_search",
+  "governed_migration_schema_readback",
+  "governance_resolve_context",
+  "growth_intelligence_report_read",
+]);
+
+const MUTATING_TOOLS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "governed_migration_apply_policy_bootstrap",
+  "capability_resolution_envelope_apply_authorize",
+  "capability_resolution_envelope_lifecycle",
+  "growth_intelligence_pilot_run",
+  "growth_intelligence_insight_decide",
+  "growth_intelligence_action_decide",
+  "growth_intelligence_readiness_refresh",
+]);
+
+const ALLOWED_TOOLS = new Set([
+  ...READ_ONLY_TOOLS,
+  ...MUTATING_TOOLS,
+  "governed_migration_execute",
+]);
+
+const PERSISTED_ENVELOPE_GATED_TOOLS = new Set([
+  "governed_migration_authorization_bootstrap",
+  "governed_migration_apply_policy_bootstrap",
+  "capability_resolution_envelope_apply_authorize",
+  "governed_migration_execute",
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const ALLOWED_SHELL_ALIASES = new Set([
+  "capability_resolution_envelope_create",
+  "capability_resolution_envelope_approve",
+  "platform_outbox_worker",
+]);
+
+const READ_ONLY_OUTBOX_ACTIONS = new Set(["status", "dry-run"]);
+
+export function validateShellAliasInvocation(alias, extraArgs) {
+  if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
+    throw new Error("extra_args must decode to an array of strings.");
+  }
+  if (alias !== "platform_outbox_worker") {
+    return { mutation_requested: true, extra_args: extraArgs };
+  }
+
+  let action = "";
+  let consumerSeen = false;
+  let limitSeen = false;
+  for (const arg of extraArgs) {
+    if (arg === "--apply") throw new Error("platform_outbox_worker read-only calls forbid --apply.");
+    if (arg.startsWith("--action=")) {
+      if (action) throw new Error("platform_outbox_worker accepts one --action value.");
+      action = arg.slice("--action=".length).trim().toLowerCase();
+      continue;
+    }
+    if (arg.startsWith("--consumer=")) {
+      if (consumerSeen) throw new Error("platform_outbox_worker accepts one --consumer value.");
+      const consumer = arg.slice("--consumer=".length).trim();
+      if (!/^[A-Za-z0-9._-]{1,120}$/.test(consumer)) throw new Error("Invalid outbox consumer key.");
+      consumerSeen = true;
+      continue;
+    }
+    if (arg.startsWith("--limit=")) {
+      if (limitSeen) throw new Error("platform_outbox_worker accepts one --limit value.");
+      const limit = Number.parseInt(arg.slice("--limit=".length), 10);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Outbox limit must be between 1 and 500.");
+      limitSeen = true;
+      continue;
+    }
+    throw new Error(`Unsupported platform_outbox_worker argument: ${arg}`);
+  }
+
+  if (!READ_ONLY_OUTBOX_ACTIONS.has(action)) {
+    throw new Error("platform_outbox_worker only permits --action=status or --action=dry-run.");
+  }
+  return { mutation_requested: false, extra_args: extraArgs };
+}
+
+const GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "brand_key",
+  "business_activity_type_key",
+  "persistence_mode",
+  "outbox_mode",
+  "evidence_limit",
+  "report_id",
+  "requested_by",
+]);
+
+export function validateGrowthIntelligencePilotArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence pilot arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_PILOT_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence pilot argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f-]{36}$/i.test(String(toolArgs.tenant_id || ""))) throw new Error("Growth Intelligence pilot requires a tenant UUID.");
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.brand_key || ""))) throw new Error("Invalid Growth Intelligence brand key.");
+  if (toolArgs.persistence_mode !== "internal_registry") throw new Error("Growth Intelligence dev pilot requires persistence_mode=internal_registry.");
+  if (toolArgs.outbox_mode !== "dev_transactional") throw new Error("Growth Intelligence dev pilot requires outbox_mode=dev_transactional.");
+  if (toolArgs.business_activity_type_key !== undefined && !/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs.business_activity_type_key))) {
+    throw new Error("Invalid Growth Intelligence business activity type key.");
+  }
+  if (toolArgs.evidence_limit !== undefined && (!Number.isInteger(toolArgs.evidence_limit) || toolArgs.evidence_limit < 1 || toolArgs.evidence_limit > 50)) {
+    throw new Error("Growth Intelligence evidence_limit must be between 1 and 50.");
+  }
+  for (const key of ["report_id", "requested_by"]) {
+    if (toolArgs[key] !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(String(toolArgs[key]))) throw new Error(`Invalid Growth Intelligence ${key}.`);
+  }
+  return toolArgs;
+}
+
+const GOVERNANCE_CONTEXT_ALLOWED_KEYS = new Set([
+  "business_type_key",
+  "brand_key",
+  "target_key",
+]);
+
+export function validateGovernanceResolveContextArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Governance context arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GOVERNANCE_CONTEXT_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported governance context argument: ${unknownKeys[0]}`);
+  for (const key of GOVERNANCE_CONTEXT_ALLOWED_KEYS) {
+    if (!/^[A-Za-z0-9._-]{1,128}$/.test(String(toolArgs[key] || ""))) {
+      throw new Error(`Invalid governance context ${key}.`);
+    }
+  }
+  return toolArgs;
+}
+
+const GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+]);
+
+export function validateGrowthIntelligenceReportReadArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error("Growth Intelligence report read arguments must be a JSON object.");
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !GROWTH_INTELLIGENCE_REPORT_READ_ALLOWED_KEYS.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported Growth Intelligence report read argument: ${unknownKeys[0]}`);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error("Growth Intelligence report read requires a tenant UUID.");
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error("Invalid Growth Intelligence report_id.");
+  }
+  return toolArgs;
+}
+
+const GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "insight_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "action_id",
+  "decision",
+  "decision_by",
+  "decision_note",
+]);
+
+const GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS = new Set([
+  "tenant_id",
+  "report_id",
+  "assessed_by",
+]);
+
+function validateGrowthIntelligenceReviewObject(toolArgs, allowedKeys, label) {
+  if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    throw new Error(`${label} arguments must be a JSON object.`);
+  }
+  const unknownKeys = Object.keys(toolArgs).filter((key) => !allowedKeys.has(key));
+  if (unknownKeys.length > 0) throw new Error(`Unsupported ${label} argument: ${unknownKeys[0]}`);
+  if (!UUID_PATTERN.test(String(toolArgs.tenant_id || ""))) {
+    throw new Error(`${label} requires a tenant UUID.`);
+  }
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.report_id || ""))) {
+    throw new Error(`Invalid ${label} report_id.`);
+  }
+}
+
+function validateGrowthIntelligenceDecisionMetadata(toolArgs, label) {
+  if (toolArgs.decision_by !== undefined && !UUID_PATTERN.test(String(toolArgs.decision_by || ""))) {
+    throw new Error(`${label} decision_by must be a UUID.`);
+  }
+  if (toolArgs.decision_note !== undefined) {
+    const note = toolArgs.decision_note;
+    if (typeof note !== "string" || note.length < 1 || note.length > 512 || /[\u0000-\u001F\u007F]/.test(note)) {
+      throw new Error(`${label} decision_note must be a printable string up to 512 characters.`);
+    }
+  }
+}
+
+export function validateGrowthIntelligenceInsightDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence insight decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_INSIGHT_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.insight_id || ""))) throw new Error(`Invalid ${label} insight_id.`);
+  if (!["accepted", "rejected", "stale"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceActionDecisionArgs(toolArgs) {
+  const label = "Growth Intelligence action decision";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_ACTION_DECISION_ALLOWED_KEYS, label);
+  if (!/^[A-Za-z0-9._:-]{1,191}$/.test(String(toolArgs.action_id || ""))) throw new Error(`Invalid ${label} action_id.`);
+  if (!["approved", "rejected"].includes(toolArgs.decision)) throw new Error(`Invalid ${label} decision.`);
+  validateGrowthIntelligenceDecisionMetadata(toolArgs, label);
+  return toolArgs;
+}
+
+export function validateGrowthIntelligenceReadinessRefreshArgs(toolArgs) {
+  const label = "Growth Intelligence readiness refresh";
+  validateGrowthIntelligenceReviewObject(toolArgs, GROWTH_INTELLIGENCE_READINESS_ALLOWED_KEYS, label);
+  if (toolArgs.assessed_by !== undefined && !/^[A-Za-z0-9._:@-]{1,128}$/.test(String(toolArgs.assessed_by || ""))) {
+    throw new Error(`Invalid ${label} assessed_by.`);
+  }
+  return toolArgs;
+}
+
+const SENSITIVE_KEY_PATTERN = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+
+export function parseArgs(argv = process.argv.slice(2)) {
+  const out = { action: "probe", base_url: "https://dev.mad4b.com" };
+  for (const arg of argv) {
+    if (arg === "--apply") {
+      out.apply = true;
+      continue;
+    }
+    const match = arg.match(/^--([^=]+)=(.*)$/s);
+    if (match) out[match[1].replace(/-/g, "_")] = match[2];
+  }
+  return out;
+}
+
+export function validateDevBaseUrl(value = "https://dev.mad4b.com") {
+  const url = new URL(String(value));
+  if (url.protocol !== "https:") throw new Error("Dev migration client requires HTTPS.");
+  if (url.hostname.toLowerCase() !== "dev.mad4b.com") throw new Error("Dev migration client only permits dev.mad4b.com.");
+  if (url.username || url.password) throw new Error("Embedded URL credentials are forbidden.");
+  if (url.search || url.hash) throw new Error("Base URL query strings and fragments are forbidden.");
+  if (url.pathname !== "/" && url.pathname !== "") throw new Error("Base URL must not contain a path.");
+  return "https://dev.mad4b.com";
+}
+
+export function assertDevDbStatus(result) {
+  if (result?.status !== 200 || result?.body?.ok !== true) {
+    const error = new Error("Dev database status preflight failed.");
+    error.code = result?.body?.error?.code || "dev_db_status_preflight_failed";
+    throw error;
+  }
+  const dbName = String(result.body.db_name || "").trim();
+  if (!dbName.endsWith("_dev")) {
+    const error = new Error(`Refusing operation because target database is not dev-scoped: ${dbName || "<unknown>"}`);
+    error.code = "dev_database_suffix_required";
+    throw error;
+  }
+  return {
+    db_name: dbName,
+    table_count: Number(result.body.table_count || 0),
+    row_count: Number(result.body.row_count || 0),
+  };
+}
+
+export function sanitizeResult(value) {
+  if (Array.isArray(value)) return value.map(sanitizeResult);
+  if (!value || typeof value !== "object") return value;
+  const output = {};
+  for (const [key, child] of Object.entries(value)) {
+    output[key] = SENSITIVE_KEY_PATTERN.test(key) ? "[redacted]" : sanitizeResult(child);
+  }
+  return output;
+}
+
+function decodeJson(value, base64Value, fallback) {
+  if (base64Value) {
+    return JSON.parse(Buffer.from(String(base64Value), "base64").toString("utf8"));
+  }
+  if (value) return JSON.parse(String(value));
+  return fallback;
+}
+
+function persistedEnvelopeIdForTool(tool, toolArgs) {
+  if (!PERSISTED_ENVELOPE_GATED_TOOLS.has(tool)) return "";
+  const candidate = tool === "capability_resolution_envelope_apply_authorize"
+    ? toolArgs?.envelope_id
+    : toolArgs?.capability_envelope_id;
+  const value = String(candidate || "").trim();
+  return UUID_PATTERN.test(value) ? value : "";
+}
+
+export function resolveApplyAuthoritySource({ args, action, target, payload, env = process.env }) {
+  if (args?.apply !== true) throw new Error(`${target || action || "State-changing dev operation"} requires --apply.`);
+  if (env?.DEV_MIGRATION_APPLY_ENABLED === "true") return "environment_flag";
+  if (action === "tool-call" && persistedEnvelopeIdForTool(target, payload)) return "capability_envelope";
+  const error = new Error("State-changing dev operations require DEV_MIGRATION_APPLY_ENABLED=true or a valid persisted capability envelope identifier for an allowlisted tool call.");
+  error.code = "dev_migration_apply_authority_required";
+  throw error;
+}
+
+function requireApplyAuthorization(context, reason) {
+  try {
+    return resolveApplyAuthoritySource(context);
+  } catch (error) {
+    if (error?.message?.includes("requires --apply")) {
+      error.message = `${reason} requires --apply.`;
+    }
+    throw error;
+  }
+}
+
+export function isToolMutation(tool, toolArgs) {
+  if (MUTATING_TOOLS.has(tool)) return true;
+  return tool === "governed_migration_execute" && String(toolArgs?.mode || "dry_run") === "apply";
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    redirect: "error",
+    headers: {
+      Accept: "application/json",
+      ...(options.headers || {}),
+    },
+    signal: AbortSignal.timeout(Number(options.timeout_ms || 120000)),
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw_preview: text.slice(0, 500) };
+  }
+  return { status: response.status, ok: response.ok, body };
+}
+
+async function readDevStatus(base, apiKey) {
+  return requestJson(`${base}/dev/db/status`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    timeout_ms: 60000,
+  });
+}
+
+async function callTool(base, apiKey, name, toolArgs) {
+  return requestJson(`${base}/gpt/tools/call`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name, tool_args: toolArgs }),
+    timeout_ms: 180000,
+  });
+}
+
+async function runShellAlias(base, apiKey, alias, extraArgs) {
+  return requestJson(`${base}/admin/control`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      tool: "shell",
+      action: "run",
+      alias,
+      authority_context: {
+        resource_type: "shell_alias",
+        resource_uri: `shell://${alias}`,
+        operation_mode: alias,
+        required: true,
+      },
+      extra_args: extraArgs,
+    }),
+    timeout_ms: 180000,
+  });
+}
+
+export async function runClient(args = parseArgs()) {
+  const apiKey = process.env.DEV_GROWTH_OS_API_KEY || process.env.BACKEND_API_KEY;
+  if (!apiKey) throw new Error("DEV_GROWTH_OS_API_KEY or BACKEND_API_KEY is required in caller environment.");
+
+  const base = validateDevBaseUrl(args.base_url);
+  const action = String(args.action || "probe").trim().toLowerCase();
+  const statusBeforeRaw = await readDevStatus(base, apiKey);
+  const statusBefore = assertDevDbStatus(statusBeforeRaw);
+
+  let response;
+  let target = null;
+  let mutationRequested = false;
+  let applyAuthoritySource = null;
+
+  if (action === "status") {
+    return {
+      ok: true,
+      action,
+      base_url: base,
+      status_before: statusBefore,
+      mutation_requested: false,
+      secrets_included: false,
+    };
+  }
+
+  if (action === "probe") {
+    target = "admin_tool_catalog_search";
+    response = await callTool(base, apiKey, target, {
+      q: "governed migration capability resolution envelope",
+      limit: 30,
+      response_options: { max_chars: 30000 },
+    });
+  } else if (action === "tool-call") {
+    target = String(args.tool || "").trim();
+    if (!ALLOWED_TOOLS.has(target)) throw new Error(`Tool is not allowlisted for dev migration client: ${target || "<empty>"}`);
+    const toolArgs = decodeJson(args.tool_args_json, args.tool_args_base64, {});
+    if (!toolArgs || typeof toolArgs !== "object" || Array.isArray(toolArgs)) throw new Error("tool_args must decode to a JSON object.");
+    if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
+    if (target === "governance_resolve_context") validateGovernanceResolveContextArgs(toolArgs);
+    if (target === "growth_intelligence_report_read") validateGrowthIntelligenceReportReadArgs(toolArgs);
+    if (target === "growth_intelligence_insight_decide") validateGrowthIntelligenceInsightDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_action_decide") validateGrowthIntelligenceActionDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_readiness_refresh") validateGrowthIntelligenceReadinessRefreshArgs(toolArgs);
+    mutationRequested = isToolMutation(target, toolArgs);
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: toolArgs,
+      }, `Tool ${target}`);
+    }
+    response = await callTool(base, apiKey, target, toolArgs);
+  } else if (action === "shell-alias") {
+    target = String(args.alias || "").trim();
+    if (!ALLOWED_SHELL_ALIASES.has(target)) throw new Error(`Shell alias is not allowlisted: ${target || "<empty>"}`);
+    const extraArgs = decodeJson(args.extra_args_json, args.extra_args_base64, []);
+    const invocation = validateShellAliasInvocation(target, extraArgs);
+    mutationRequested = invocation.mutation_requested;
+    if (mutationRequested) {
+      applyAuthoritySource = requireApplyAuthorization({
+        args,
+        action,
+        target,
+        payload: null,
+      }, `Shell alias ${target}`);
+    }
+    response = await runShellAlias(base, apiKey, target, invocation.extra_args);
+  } else {
+    throw new Error("Unsupported action. Use status, probe, tool-call, or shell-alias.");
+  }
+
+  const statusAfter = mutationRequested ? assertDevDbStatus(await readDevStatus(base, apiKey)) : null;
+  const ok = response.status >= 200 && response.status < 300 && response.body?.ok !== false;
+  return {
+    ok,
+    action,
+    target,
+    base_url: base,
+    status_before: statusBefore,
+    response: {
+      status: response.status,
+      ok: response.body?.ok !== false,
+      body: sanitizeResult(response.body),
+    },
+    status_after: statusAfter,
+    mutation_requested: mutationRequested,
+    apply_authority_source: applyAuthoritySource,
+    apply_flag_present: args.apply === true,
+    apply_feature_flag_enabled: process.env.DEV_MIGRATION_APPLY_ENABLED === "true",
+    secrets_included: false,
+  };
+}
+
+async function main() {
+  try {
+    const result = await runClient(parseArgs());
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (!result.ok) process.exitCode = 1;
+  } catch (error) {
+    process.stdout.write(`${JSON.stringify({
+      ok: false,
+      error: {
+        code: error.code || "dev_governed_migration_client_failed",
+        message: error.message,
+      },
+      secrets_included: false,
+    }, null, 2)}\n`);
+    process.exitCode = 1;
+  }
+}
+
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) await main();

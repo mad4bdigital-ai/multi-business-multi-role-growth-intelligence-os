@@ -8,8 +8,14 @@
  * Run: node test-platform-routes.mjs
  */
 
+// frontend-surface-operation: POST /
+// frontend-surface-operation: PUT /
+// frontend-surface-operation: PATCH /
+// frontend-surface-operation: DELETE /
+
 import assert from "node:assert/strict";
 import express from "express";
+import YAML from "yaml";
 import { buildTenantsRoutes }          from "./routes/tenantsRoutes.js";
 import { buildAccessRoutes }           from "./routes/accessRoutes.js";
 import { buildPlannerRoutes }          from "./routes/plannerRoutes.js";
@@ -24,6 +30,10 @@ import { buildBatchRoutes }            from "./routes/batchRoutes.js";
 import { buildHealthRoutes }           from "./routes/healthRoutes.js";
 import { buildLegalRoutes }            from "./routes/legalRoutes.js";
 import { buildRootDiscoveryRoutes }    from "./routes/rootDiscoveryRoutes.js";
+import {
+  activationHostGatewayAllowsOperation,
+  buildActivationHostGatewayRoutes,
+} from "./routes/activationHostGatewayRoutes.js";
 import { buildSystemLayerRoutes }      from "./routes/systemLayerRoutes.js";
 
 let passed = 0;
@@ -59,6 +69,7 @@ const HEALTH_DEPS = {
 
 const app = express();
 app.use(express.json());
+app.use(buildActivationHostGatewayRoutes());
 app.use(buildRootDiscoveryRoutes());
 app.use(buildHealthRoutes(HEALTH_DEPS));
 app.use((req, _res, next) => {
@@ -113,8 +124,12 @@ async function getTextWithHost(path, host) {
 }
 
 async function postWithHost(path, host, body = {}) {
+  return requestWithHost("POST", path, host, body);
+}
+
+async function requestWithHost(method, path, host, body = {}) {
   const res = await fetch(`${base}${path}`, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", "x-forwarded-host": host },
     body: JSON.stringify(body),
   });
@@ -162,13 +177,106 @@ section("GET /openapi*.yaml - public scoped schemas");
   const tenantActivationSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "auth.mad4b.com");
   ok("auth host serves tenant Activation schema", tenantActivationSchema.status === 200, `got ${tenantActivationSchema.status}`);
   ok("tenant Activation schema targets activation host", tenantActivationSchema.text.includes("url: https://activation.mad4b.com"));
+  ok("tenant Activation schema authorizes through activation host", tenantActivationSchema.text.includes("authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize"));
+  ok("tenant Activation schema exchanges tokens through activation host", tenantActivationSchema.text.includes("tokenUrl: https://activation.mad4b.com/auth/oauth/token"));
 
   const adminActivationSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "auth.mad4b.com");
   ok("auth host serves admin Activation schema", adminActivationSchema.status === 200, `got ${adminActivationSchema.status}`);
   ok("admin Activation schema targets activation host", adminActivationSchema.text.includes("url: https://activation.mad4b.com"));
 
+  const activationTenantSchema = await getTextWithHost("/openapi.tenant-gpt.activation.yaml", "activation.mad4b.com");
+  ok("activation host serves tenant Activation schema", activationTenantSchema.status === 200, `got ${activationTenantSchema.status}`);
+  ok("activation host tenant schema targets activation host", activationTenantSchema.text.includes("url: https://activation.mad4b.com"));
+
+  const activationAdminSchema = await getTextWithHost("/openapi.custom-gpt.activation-admin.yaml", "activation.mad4b.com");
+  ok("activation host serves admin Activation schema", activationAdminSchema.status === 200, `got ${activationAdminSchema.status}`);
+
+  for (const schemaText of [activationTenantSchema.text, activationAdminSchema.text]) {
+    const schema = YAML.parse(schemaText);
+    for (const [path, pathItem] of Object.entries(schema.paths || {})) {
+      const concretePath = path.replace(/\{[^}]+\}/g, "gateway-contract-test");
+      for (const method of Object.keys(pathItem).filter((key) => ["get", "post", "put", "patch", "delete"].includes(key))) {
+        ok(
+          `activation gateway admits documented ${method.toUpperCase()} ${path}`,
+          activationHostGatewayAllowsOperation(method, concretePath),
+        );
+      }
+    }
+  }
+
+  const activationCoreSchema = await getTextWithHost("/openapi.tenant-gpt.auth.yaml", "activation.mad4b.com");
+  ok("activation host does not serve tenant Core schema", activationCoreSchema.status === 404, `got ${activationCoreSchema.status}`);
+
+  for (const path of ["/privacy-policy", "/status", "/terms-of-use"]) {
+    const supportRoute = await getTextWithHost(path, "activation.mad4b.com");
+    ok(`activation host serves public support route ${path}`, supportRoute.status === 200, `got ${supportRoute.status}`);
+  }
+
   const wrongHost = await getTextWithHost("/openapi.tenant-gpt.auth.yaml", "api.mad4b.com");
   ok("wrong host cannot fetch tenant schema", wrongHost.status === 404, `got ${wrongHost.status}`);
+}
+
+section("activation host gateway boundary");
+{
+  const root = await getWithHost("/", "activation.mad4b.com");
+  ok("activation host root returns scoped discovery", root.status === 200, `got ${root.status}`);
+  ok("activation host root uses activation scope", root.body.scope === "activation", `got ${root.body.scope}`);
+
+  const oauth = await getWithHost("/auth/oauth/authorize", "activation.mad4b.com");
+  ok("activation host lets OAuth handoff pass gateway boundary", oauth.body.error?.code !== "ACTIVATION_HOST_OAUTH_NOT_ALLOWED", JSON.stringify(oauth.body));
+  ok("activation host OAuth handoff reaches downstream router boundary in smoke app", oauth.status === 404, `got ${oauth.status}`);
+
+  for (const path of ["/auth/oauth/code", "/auth/oauth/token"]) {
+    const allowed = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host lets POST ${path} reach the shared auth router boundary`, allowed.status === 404, `got ${allowed.status}`);
+  }
+
+  for (const path of ["/auth/login", "/auth/register", "/auth/google", "/auth/platform-jwt/issue", "/auth/oauth/revoke"]) {
+    const blocked = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host rejects unrelated auth route ${path}`, blocked.status === 404, `got ${blocked.status}`);
+    ok(`activation host rejection is explicit for ${path}`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  for (const path of ["/auth/oauth/code", "/auth/oauth/token"]) {
+    const blocked = await getWithHost(path, "activation.mad4b.com");
+    ok(`activation host rejects wrong method for ${path}`, blocked.status === 404, `got ${blocked.status}`);
+    ok(`wrong method rejection is explicit for ${path}`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  for (const path of [
+    "/tenant/resolution/problem-cards",
+    "/tenant/resolution/cases",
+    "/tenant/resolution/cases/case-test",
+  ]) {
+    const allowed = await getWithHost(path, "activation.mad4b.com");
+    ok(`activation host lets tenant Activation resolution route ${path} reach its downstream router`, allowed.body.error?.code !== "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(allowed.body));
+  }
+
+  for (const path of [
+    "/tenant/resolution/cases",
+    "/tenant/resolution/cases/case-test/transitions",
+    "/tenant/resolution/cases/case-test/diagnostics",
+    "/tenant/resolution/cases/case-test/task-source-repair/preview",
+  ]) {
+    const allowed = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host lets tenant Activation resolution mutation ${path} reach its downstream router`, allowed.body.error?.code !== "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(allowed.body));
+  }
+
+  for (const path of [
+    "/tenant/resolution/skill-approvals",
+    "/tenant/resolution/cases/case-test/task-source-repair/apply",
+  ]) {
+    const blocked = await postWithHost(path, "activation.mad4b.com", {});
+    ok(`activation host keeps non-Activation tenant resolution route ${path} blocked`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
+  }
+
+  const sensitiveAuthRoute = await postWithHost("/auth/platform-jwt/issue", "activation.mad4b.com", {});
+  ok("activation host rejects sensitive auth routes", sensitiveAuthRoute.status === 404, `got ${sensitiveAuthRoute.status}`);
+  ok("activation host sensitive auth rejection is explicit", sensitiveAuthRoute.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(sensitiveAuthRoute.body));
+
+  const coreRoute = await getWithHost("/system/tools", "activation.mad4b.com");
+  ok("activation host rejects core routes", coreRoute.status === 404, `got ${coreRoute.status}`);
+  ok("activation host core route rejection is explicit", coreRoute.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(coreRoute.body));
 }
 
 section("GET /tenant-gpt/oauth-preset - public auth preset");
@@ -180,18 +288,25 @@ section("GET /tenant-gpt/oauth-preset - public auth preset");
   ok("tenant OAuth preset has authorize URL", r.body.preset?.authorization_url === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(r.body));
   ok("tenant OAuth preset has token URL", r.body.preset?.token_url === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(r.body));
   ok("tenant OAuth preset advertises Tenant Core schema", r.body.preset?.schema_urls?.tenant_core === "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml", JSON.stringify(r.body));
-  ok("tenant OAuth preset advertises Tenant Activation schema", r.body.preset?.activation_schema_url === "https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml", JSON.stringify(r.body));
+  ok("tenant OAuth preset advertises Tenant Activation schema", r.body.preset?.activation_schema_url === "https://activation.mad4b.com/tenant-gpt/activation-openapi", JSON.stringify(r.body));
   ok("tenant OAuth preset has linked scopes", r.body.preset?.scope_links?.includes("https://auth.mad4b.com/scopes/tenant.links"), JSON.stringify(r.body));
+
+  const activationPreset = await getWithHost("/tenant-gpt/oauth-preset", "activation.mad4b.com");
+  ok("activation host serves tenant OAuth preset", activationPreset.status === 200, `got ${activationPreset.status}`);
+  ok("activation OAuth preset authorizes through activation host", activationPreset.body.preset?.authorization_url === "https://activation.mad4b.com/auth/oauth/authorize", JSON.stringify(activationPreset.body));
+  ok("activation OAuth preset exchanges tokens through activation host", activationPreset.body.preset?.token_url === "https://activation.mad4b.com/auth/oauth/token", JSON.stringify(activationPreset.body));
 
   const wrongHost = await getWithHost("/tenant-gpt/oauth-preset", "api.mad4b.com");
   ok("wrong host cannot fetch tenant OAuth preset", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
 
-section("POST / - root discovery stays non-mutating JSON");
+section("router.all / - root discovery stays non-mutating JSON");
 {
-  const r = await postWithHost("/", "admin.mad4b.com", { accidental: true });
-  ok("POST dev root returns 200 discovery", r.status === 200, `got ${r.status}`);
-  ok("POST dev root points to /admin/control", r.body.primary_paths?.includes("/admin/control"), `body: ${JSON.stringify(r.body)}`);
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const r = await requestWithHost(method, "/", "admin.mad4b.com", { accidental: true });
+    ok(`${method} admin root returns 200 discovery`, r.status === 200, `got ${r.status}`);
+    ok(`${method} admin root points to /admin/control`, r.body.primary_paths?.includes("/admin/control"), `body: ${JSON.stringify(r.body)}`);
+  }
 }
 
 section("POST /tenants — input validation");
@@ -737,6 +852,7 @@ section("GET /privacy-policy - public HTML page on scoped subdomains");
     "admin.mad4b.com",
     "ops.mad4b.com",
     "status.mad4b.com",
+    "activation.mad4b.com",
   ];
 
   for (const host of hosts) {

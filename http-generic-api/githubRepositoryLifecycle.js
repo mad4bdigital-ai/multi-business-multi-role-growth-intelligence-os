@@ -614,10 +614,47 @@ async function readGithubTextAtCommit({ owner, repo, commitSha, filePath, token,
   return { content, blob_sha: normalizeSha(payload.sha) || null };
 }
 
+function uniqueSorted(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].sort();
+}
+
+function changedPathOverlaps(changePath, movedPath) {
+  const left = String(changePath || "").replace(/\/+/g, "/");
+  const right = String(movedPath || "").replace(/\/+/g, "/");
+  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
+}
+
+async function compareGithubCommitFiles({ owner, repo, baseSha, headSha, token, fetchImpl }) {
+  const base = normalizeSha(baseSha);
+  const head = normalizeSha(headSha);
+  if (!base || !head || base === head) {
+    return { status: base === head ? "identical" : "unavailable", ahead_by: 0, behind_by: 0, changed_paths: [], files_truncated: false };
+  }
+  const compare = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    token,
+    fetchImpl,
+  });
+  const files = Array.isArray(compare.payload?.files) ? compare.payload.files : [];
+  return {
+    status: String(compare.payload?.status || ""),
+    ahead_by: Number(compare.payload?.ahead_by || 0),
+    behind_by: Number(compare.payload?.behind_by || 0),
+    changed_paths: uniqueSorted(files.flatMap((file) => [file?.filename, file?.previous_filename])),
+    files_truncated: Number(compare.payload?.total_commits || 0) > 250 && files.length >= 300,
+  };
+}
+
 export async function applyGithubRepositoryChangeSet(options = {}) {
   const { owner, repo, defaultBranch, token } = await lifecycleContext(options);
   const branch = normalizeBranch(options.branch);
   const expectedBaseSha = normalizeSha(options.expected_base_sha || options.expectedBaseSha);
+  const expectedBranchSha = normalizeSha(options.expected_branch_sha || options.expectedBranchSha);
+  const allowSameBranchContinuation = options.allow_same_branch_continuation === true
+    || options.allowSameBranchContinuation === true
+    || Boolean(expectedBranchSha);
   const commitMessage = String(options.commit_message || options.commitMessage || "").trim();
   const changes = Array.isArray(options.changes) ? options.changes : [];
   if (!branch || branch === defaultBranch || PROTECTED_BRANCHES.has(branch)) throw lifecycleError(403, "github_change_set_branch_blocked", "A non-protected work branch is required.", { branch, default_branch: defaultBranch });
@@ -644,19 +681,54 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
 
   const baseRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(defaultBranch)}`, token, fetchImpl: options.fetchImpl });
   const currentBaseSha = normalizeSha(baseRef.payload?.object?.sha);
-  if (currentBaseSha !== expectedBaseSha) {
+  const defaultBranchMoved = currentBaseSha !== expectedBaseSha;
+  let defaultBranchDrift = { status: "identical", ahead_by: 0, behind_by: 0, changed_paths: [], files_truncated: false, overlapping_paths: [] };
+  if (defaultBranchMoved && !allowSameBranchContinuation) {
     throw lifecycleError(409, "github_change_set_base_moved", "Default branch moved after the change set was prepared.", { expected_base_sha: expectedBaseSha, current_base_sha: currentBaseSha });
+  }
+  if (defaultBranchMoved) {
+    defaultBranchDrift = await compareGithubCommitFiles({ owner, repo, baseSha: expectedBaseSha, headSha: currentBaseSha, token, fetchImpl: options.fetchImpl });
+    const changePaths = normalizedChanges.map((change) => change.path);
+    const overlappingPaths = uniqueSorted(changePaths.filter((changePath) => defaultBranchDrift.changed_paths.some((changedPath) => changedPathOverlaps(changePath, changedPath))));
+    defaultBranchDrift = { ...defaultBranchDrift, overlapping_paths: overlappingPaths };
+    if (defaultBranchDrift.files_truncated) {
+      throw lifecycleError(409, "github_change_set_default_branch_compare_truncated", "Default branch moved and changed-file evidence is truncated; refusing same-branch continuation.", {
+        expected_base_sha: expectedBaseSha,
+        current_base_sha: currentBaseSha,
+        compare_status: defaultBranchDrift.status,
+        files_truncated: true,
+      });
+    }
+    if (overlappingPaths.length) {
+      throw lifecycleError(409, "github_change_set_default_branch_overlap", "Default branch moved and changed one or more requested patch paths.", {
+        expected_base_sha: expectedBaseSha,
+        current_base_sha: currentBaseSha,
+        overlapping_paths: overlappingPaths,
+        changed_paths: defaultBranchDrift.changed_paths.slice(0, 100),
+      });
+    }
   }
   const branchRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(branch)}`, token, fetchImpl: options.fetchImpl, allowNotFound: true });
   const branchExists = branchRef.status !== 404;
-  if (branchExists && normalizeSha(branchRef.payload?.object?.sha) !== expectedBaseSha) {
-    throw lifecycleError(409, "github_change_set_branch_not_pristine", "Existing work branch is not pinned to expected_base_sha.", {
+  const currentBranchSha = branchExists ? normalizeSha(branchRef.payload?.object?.sha) : "";
+  let commitParentSha = expectedBaseSha;
+  if (branchExists && currentBranchSha === expectedBaseSha && defaultBranchMoved) {
+    commitParentSha = currentBaseSha;
+  } else if (branchExists && currentBranchSha === expectedBaseSha) {
+    commitParentSha = expectedBaseSha;
+  } else if (branchExists && allowSameBranchContinuation && expectedBranchSha && currentBranchSha === expectedBranchSha) {
+    commitParentSha = currentBranchSha;
+  } else if (branchExists) {
+    throw lifecycleError(409, "github_change_set_branch_not_pristine", "Existing work branch head does not match expected_base_sha or expected_branch_sha.", {
       branch,
       expected_base_sha: expectedBaseSha,
-      current_branch_sha: branchRef.payload?.object?.sha || null,
+      expected_branch_sha: expectedBranchSha || null,
+      current_branch_sha: currentBranchSha || null,
+      same_branch_continuation_allowed: allowSameBranchContinuation,
     });
   }
-  const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${expectedBaseSha}`, token, fetchImpl: options.fetchImpl });
+  if (!branchExists && defaultBranchMoved) commitParentSha = currentBaseSha;
+  const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${commitParentSha}`, token, fetchImpl: options.fetchImpl });
 
   // Validate every hunk before creating any Git blob, tree, commit, or ref.
   const preparedChanges = [];
@@ -672,14 +744,24 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     const current = await readGithubTextAtCommit({
       owner,
       repo,
-      commitSha: expectedBaseSha,
+      commitSha: commitParentSha,
       filePath: source.path,
       token,
       fetchImpl: options.fetchImpl,
     });
+    const patchedContent = applyUnifiedDiffToText(current.content, source.diff);
+    if (patchedContent === current.content) {
+      throw lifecycleError(409, "github_change_set_patch_noop", "Unified diff produced no content change; refusing no-op patch item.", {
+        path: source.path,
+        parent_sha: commitParentSha,
+        base_blob_sha: current.blob_sha,
+        patch_sha256: createHash("sha256").update(String(source.diff)).digest("hex"),
+        secrets_included: false,
+      });
+    }
     preparedChanges.push({
       ...source,
-      content: applyUnifiedDiffToText(current.content, source.diff),
+      content: patchedContent,
       base_blob_sha: current.blob_sha,
     });
   }
@@ -706,7 +788,27 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     });
   }
   const newTree = await githubLifecycleRequest({ owner, repo, apiPath: "/git/trees", method: "POST", body: { base_tree: baseCommit.payload?.tree?.sha, tree }, token, fetchImpl: options.fetchImpl });
-  const newCommit = await githubLifecycleRequest({ owner, repo, apiPath: "/git/commits", method: "POST", body: { message: commitMessage, tree: newTree.payload?.sha, parents: [expectedBaseSha] }, token, fetchImpl: options.fetchImpl });
+  const newTreeSha = normalizeSha(newTree.payload?.sha);
+  const parentTreeSha = normalizeSha(baseCommit.payload?.tree?.sha);
+  if (!newTreeSha) {
+    throw lifecycleError(502, "github_change_set_tree_readback_missing", "GitHub created-tree response did not include a valid tree SHA.", {
+      branch,
+      parent_sha: commitParentSha,
+      change_count: changes.length,
+      secrets_included: false,
+    });
+  }
+  if (newTreeSha === parentTreeSha) {
+    throw lifecycleError(409, "github_change_set_empty_tree", "Change set produced no tree changes; refusing to create an empty commit.", {
+      branch,
+      parent_sha: commitParentSha,
+      parent_tree_sha: parentTreeSha,
+      change_count: changes.length,
+      changed_paths: normalizedChanges.map((change) => change.path),
+      secrets_included: false,
+    });
+  }
+  const newCommit = await githubLifecycleRequest({ owner, repo, apiPath: "/git/commits", method: "POST", body: { message: commitMessage, tree: newTreeSha, parents: [commitParentSha] }, token, fetchImpl: options.fetchImpl });
   const newCommitSha = normalizeSha(newCommit.payload?.sha);
   if (branchExists) {
     await githubLifecycleRequest({ owner, repo, apiPath: `/git/refs/heads/${encodeBranch(branch)}`, method: "PATCH", body: { sha: newCommitSha, force: false }, token, fetchImpl: options.fetchImpl });
@@ -721,6 +823,17 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     ok: true,
     branch,
     base_sha: expectedBaseSha,
+    parent_sha: commitParentSha,
+    current_default_sha: currentBaseSha,
+    default_branch_moved: defaultBranchMoved,
+    same_branch_continuation_used: branchExists && commitParentSha !== expectedBaseSha,
+    default_branch_drift: {
+      status: defaultBranchDrift.status,
+      ahead_by: defaultBranchDrift.ahead_by,
+      behind_by: defaultBranchDrift.behind_by,
+      changed_path_count: defaultBranchDrift.changed_paths.length,
+      overlapping_paths: defaultBranchDrift.overlapping_paths,
+    },
     commit_sha: newCommitSha,
     change_count: changes.length,
     items: itemReadback,

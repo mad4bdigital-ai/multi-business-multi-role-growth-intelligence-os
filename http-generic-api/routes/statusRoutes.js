@@ -2,16 +2,18 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { getDatabaseLifecycleOperationalStatus } from "../databaseTableLifecycle.js";
 
-// Components and the DB table each one proves healthy by querying
+const DEFAULT_COMPONENT_FRESHNESS_MS = 15 * 60 * 1000;
+
+// Components and the DB evidence each one must prove before it is healthy.
 const COMPONENTS = [
   { id: "api",                 label: "API Gateway",          table: null },
   { id: "database",            label: "Database",             table: null },
-  { id: "tenant_management",   label: "Tenant Management",    table: "tenants" },
-  { id: "identity",            label: "Identity & Access",    table: "users" },
-  { id: "connector_execution", label: "Connector Execution",  table: "workflow_runs" },
-  { id: "intent_resolution",   label: "Intent Resolution",    table: "intent_resolutions" },
-  { id: "observability",       label: "Observability",        table: "telemetry_spans" },
-  { id: "release_readiness",   label: "Release Readiness",    table: "release_readiness_log" },
+  { id: "tenant_management",   label: "Tenant Management",    table: "tenants", freshness_column: "updated_at", freshness_ms: 7 * 24 * 60 * 60 * 1000 },
+  { id: "identity",            label: "Identity & Access",    table: "users", freshness_column: "updated_at", freshness_ms: 7 * 24 * 60 * 60 * 1000 },
+  { id: "connector_execution", label: "Connector Execution",  table: "workflow_runs", freshness_column: "updated_at" },
+  { id: "intent_resolution",   label: "Intent Resolution",    table: "intent_resolutions", freshness_column: "created_at" },
+  { id: "observability",       label: "Observability",        table: "telemetry_spans", freshness_column: "created_at" },
+  { id: "release_readiness",   label: "Release Readiness",    table: "release_readiness_log", freshness_column: "created_at", freshness_ms: 24 * 60 * 60 * 1000 },
   { id: "database_lifecycle",  label: "Database Lifecycle",   table: null },
 ];
 
@@ -35,6 +37,56 @@ function overallStatus(componentStatuses, openIncidents) {
 function statusLabel(s) {
   return { operational: "Operational", degraded: "Degraded Performance",
            partial_outage: "Partial Outage", major_outage: "Major Outage" }[s] ?? s;
+}
+
+function normalizeSqlDate(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function projectComponentReadiness({
+  registered = false,
+  reachable = false,
+  observed_count = null,
+  last_observed_at = null,
+  freshness_ms = DEFAULT_COMPONENT_FRESHNESS_MS,
+  now_ms = Date.now(),
+} = {}) {
+  const blockers = [];
+  const observedCount = Number(observed_count ?? 0);
+  const lastObserved = normalizeSqlDate(last_observed_at);
+  const ageMs = lastObserved ? Math.max(0, now_ms - lastObserved.getTime()) : null;
+  const freshnessStatus = !lastObserved
+    ? "missing"
+    : (ageMs <= freshness_ms ? "fresh" : "stale");
+
+  if (!registered) blockers.push("component_not_registered");
+  if (!reachable) blockers.push("component_probe_failed");
+  if (observedCount <= 0) blockers.push("component_has_no_runtime_observations");
+  if (freshnessStatus !== "fresh") blockers.push(`component_freshness_${freshnessStatus}`);
+
+  const ready = blockers.length === 0;
+  return {
+    activation_status: registered ? "registered" : "unregistered",
+    readiness_status: ready ? "ready" : "not_ready",
+    health_status: ready ? "healthy" : "degraded",
+    freshness_status: freshnessStatus,
+    observed_count: observedCount,
+    last_observed_at: lastObserved ? lastObserved.toISOString() : null,
+    freshness_ms,
+    blocked_reasons: blockers,
+    secrets_included: false,
+  };
+}
+
+async function queryComponentObservation(pool, component) {
+  if (!component.table) return null;
+  const freshnessColumn = component.freshness_column || "updated_at";
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS observed_count, MAX(\`${freshnessColumn}\`) AS last_observed_at FROM \`${component.table}\``
+  );
+  return rows?.[0] || { observed_count: 0, last_observed_at: null };
 }
 
 async function gatherStatus() {
@@ -80,10 +132,27 @@ async function gatherStatus() {
 
     const t0 = Date.now();
     try {
-      await pool.query(`SELECT 1 FROM \`${c.table}\` LIMIT 1`);
-      return { ...c, status: "operational", latency_ms: Date.now() - t0 };
+      const observation = await queryComponentObservation(pool, c);
+      const readiness = projectComponentReadiness({
+        registered: true,
+        reachable: true,
+        observed_count: observation?.observed_count,
+        last_observed_at: observation?.last_observed_at,
+        freshness_ms: c.freshness_ms || DEFAULT_COMPONENT_FRESHNESS_MS,
+      });
+      return {
+        ...c,
+        status: readiness.health_status === "healthy" ? "operational" : "degraded",
+        latency_ms: Date.now() - t0,
+        readiness,
+      };
     } catch {
-      return { ...c, status: "degraded", latency_ms: null };
+      return {
+        ...c,
+        status: "degraded",
+        latency_ms: null,
+        readiness: projectComponentReadiness({ registered: true, reachable: false }),
+      };
     }
   }));
 
@@ -113,12 +182,13 @@ async function gatherStatus() {
   return {
     status,
     status_label: statusLabel(status),
-    components: componentStatuses.map(({ id, label, status, latency_ms, details }) => ({
+    components: componentStatuses.map(({ id, label, status, latency_ms, details, readiness }) => ({
       id,
       label,
       status,
       status_label: statusLabel(status),
       latency_ms,
+      ...(readiness ? { readiness } : {}),
       ...(details ? { details } : {}),
     })),
     active_incidents: openIncidents,

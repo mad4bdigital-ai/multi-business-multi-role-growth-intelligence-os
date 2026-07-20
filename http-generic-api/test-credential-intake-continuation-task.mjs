@@ -12,6 +12,8 @@ assert.match(route, /secrets_included: false/);
 assert.match(route, /writeCredentialIntakeContinuationTask\(\{ session, connectionId, metadata, autoPromotion, req \}\)/);
 assert.match(route, /You do not need to send a manual/);
 assert.match(route, /credential_intake\.continuation_task_created/);
+assert.match(route, /Validate credential intake continuation for \$\{session\.app_key\}/);
+assert.doesNotMatch(route, /const title = continuation\.title \|\| `Credential intake completed for \$\{session\.app_key\}`/);
 assert.match(route, /enqueueCredentialIntakeCompletedWebhook/);
 assert.match(route, /credential_intake\.webhook_enqueue_failed/);
 

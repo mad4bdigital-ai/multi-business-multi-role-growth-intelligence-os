@@ -173,6 +173,23 @@ function makePool({
   assert.equal(result.smoke_certification.certification.last_response_status, 200);
   assert.equal(result.approval.approval_required, false);
   assert.equal(result.execution.will_execute, true);
+  assert.equal(result.security_decision.allowed, true);
+  assert.equal(result.security_decision.dispatch_ready, true);
+  assert.equal(result.security_decision_trace_public.schema_version, "security_decision_trace.v1");
+  assert.equal(result.security_decision_trace_public.secrets_included, false);
+  assert.equal(result.security_decision_trace_public.denied_gate_count, 0);
+  assert.equal("invariant_results" in result.security_decision_trace_public, false);
+  assert.equal("reason" in result.security_decision_trace_public.gate_events[0], false);
+  assert.equal(result.security_decision_trace_admin.invariant_results.dispatch_ready_requires_allowed_without_approval, true);
+  assert.equal(result.decision_trace_persistence.status, "persisted");
+  assert.equal(result.decision_trace_persistence.evidence_type, "security_decision_trace");
+  assert.equal(result.decision_trace_persistence.secrets_included, false);
+  assert(pool.calls.some((call) => String(call.sql || "").includes("INSERT INTO `audit_payload_evidence`")));
+  assert.equal("reason" in result.security_decision_trace_admin.gate_events[0], true);
+  assert.deepEqual(
+    result.security_decision.gates.map((gate) => gate.key),
+    ["plugin_status", "principal_scope", "binding_state", "surface_exposure", "canonical_policy", "policy_completeness", "credential", "target_authority", "skill", "smoke_certification", "approval"],
+  );
   assert.equal(result.secrets_included, false);
 }
 
@@ -189,6 +206,9 @@ function makePool({
   assert.equal(result.ok, true);
   assert.equal(result.allowed, true);
   assert.equal(result.mode, "preview_only");
+  assert.equal(result.security_decision.allowed, false);
+  assert.equal(result.security_decision.approval_required, true);
+  assert.equal(result.security_decision.dispatch_ready, false);
   assert.equal(result.approval.approval_required, true);
   assert.equal(result.approval.grant.granted, false);
   assert.equal(result.execution.will_execute, false);
@@ -389,7 +409,7 @@ function makePool({
       agentId: "agent-1",
       principalClass: "tenant",
     }),
-    (err) => err?.code === "ambiguous_capability_selector" && err?.status === 400,
+    (err) => err?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && err?.status === 400,
   );
 }
 
@@ -414,6 +434,9 @@ function makePool({
   assert.equal(result.audit.read_model_tables.includes("user_app_connections"), false);
   assert.equal(result.smoke_certification.required, true);
   assert.notEqual(result.smoke_certification.reason, "no_action_requested");
+  assert.equal(result.security_decision.allowed, false);
+  assert(result.security_decision.denied_gates.includes("surface_exposure"));
+  assert(result.security_decision.denied_gates.includes("canonical_policy"));
   assert.equal(result.execution.will_execute, false);
 }
 

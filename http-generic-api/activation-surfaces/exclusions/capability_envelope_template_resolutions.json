@@ -1,0 +1,7 @@
+{
+  "surface_key": "capability_envelope_template_resolutions",
+  "source_table": "capability_envelope_template_resolutions",
+  "reason": "Excluded because it is an internal immutable audit and idempotency ledger linking template resolutions to capability envelopes. It contains request context, dry-run evidence, actor metadata, and resolution hashes, but does not represent user-visible authorization, available capabilities, workspace state, or actionable activation readiness.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

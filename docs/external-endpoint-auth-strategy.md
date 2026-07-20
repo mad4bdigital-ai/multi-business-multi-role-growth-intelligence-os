@@ -129,6 +129,19 @@ Expected error:
 
 This rule is mandatory for user privacy and tenant isolation.
 
+## Credential source metadata versus active bindings
+
+Credential-source candidates describe which resolution paths are available to the runtime; they are not proof that a credential binding was selected or materialized. `selected_source.credential_source_candidates` may contain values such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authoritative bounded signal for whether an apply envelope is credential-backed.
+
+Apply authorization must use the active-binding count:
+
+- `active_credential_binding_count = 0` may pass only when `allow_no_credential_binding = 1`.
+- A positive count must fail when `allow_credential_binding = 0`.
+- A zero count must fail when policy requires an active credential binding.
+- Candidate metadata must not create authority, substitute for a binding, trigger secret reads during preview, or override capability-envelope, provider, approval, audit, and readback requirements.
+
+Platform-managed transport may therefore remain a valid candidate for platform-owned operations without implying that a tenant or user credential payload was bound to the envelope. Live credential materialization still occurs only after all preflight and authorization gates pass.
+
 ## Runtime implementation
 
 Key files:
@@ -208,6 +221,14 @@ External endpoint execution separates contract validation from credential materi
 2. Build a metadata-only auth contract for schema, route, policy, authority, dry-run, and preflight checks.
 3. When `dry_run=true` or `preflight_only=true` (boolean or string), return without secret lookup, token mint, authenticated client construction, or provider dispatch. The contract reports `materialized=false`, `provider_call_made=false`, and `secret_read_performed=false`.
 4. Live execution may resolve and decrypt the selected credential only after all guards pass.
+
+### Dynamic Container projection preview
+
+`dynamic_container_projection_dry_run` and the underlying Dynamic Container projection preview are registry-source readers only. They load SQL authority sources, build a dry-run projection plan, and return held issues without provider dispatch, credential payload reads, external writes, enforcement, or promotion.
+
+Source-loading dependency failures return the shared structured error envelope with `503 Service Unavailable`, `error.code=container_projection_source_load_failed`, `details[].stage=load_projection_sources`, and the bounded source name. The response must not include SQL text, stack traces, credential identifiers, tokens, headers, or secret material.
+
+Projection apply remains a separate governed operation and must keep its own approval, dry-run checksum/readback, no-provider, no-credential, and no-secret gates.
 
 For Google integrations, every client acquisition must carry an explicit action key. Sheets operations use `google_sheets_api`; Drive operations and activation probes use `google_drive_api`. Token and client cache identity includes action, credential scope, user, tenant, connection, app key, and OAuth reference. Missing SQL scope contracts fail closed with `auth_scope_contract_missing`.
 

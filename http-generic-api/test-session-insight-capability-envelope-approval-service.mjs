@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeApprovals,
 } from "./sessionInsightCapabilityEnvelopeApprovalService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-approvals/list
+
 const REQUIRED_TYPED_CONFIRM = "APPROVE_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION";
 
 function makePool() {
@@ -175,6 +177,7 @@ const mockApprovalTool = async ({ envelopeId, approvedBy, decisionNote, ttlMinut
     approvalTool: mockApprovalTool,
     input: { actual_request_id: "actual_request_1", typed_confirm: REQUIRED_TYPED_CONFIRM, approved_by: "gpt_admin", approval_notes: "Approve only, no execution." },
   });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeApprovals({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -186,6 +189,11 @@ const mockApprovalTool = async ({ envelopeId, approvedBy, decisionNote, ttlMinut
   assert.equal(result.approval_policy.requires_typed_confirm, REQUIRED_TYPED_CONFIRM);
   assert.equal(result.approval_policy.adapter_apply_executed, false);
   assert.equal(result.approval_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "capability-envelope approval list read action must execute SELECT statements only"
+  );
 }
 
 {

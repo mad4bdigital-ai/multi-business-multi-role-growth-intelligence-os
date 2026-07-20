@@ -15,6 +15,20 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
+import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
+import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
+import {
+  listTenantResolutionCases,
+  getTenantResolutionCase,
+  transitionTenantResolutionCase,
+} from "../tenantResolutionCaseLifecycleService.js";
+import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
+import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
+import { applyTenantTaskSourceRepair } from "../tenantTaskSourceRepairApplyService.js";
+import {
+  listTenantSkillApprovals,
+  decideTenantSkillApproval,
+} from "../tenantSkillApprovalCenterService.js";
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
@@ -235,6 +249,167 @@ async function operationalAttentionResponse(req, isAdmin) {
   });
 }
 
+async function tenantProblemCardsResponse(req) {
+  return readTenantResolutionProblemCards({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    lookbackHours: boundedInt(req.query.lookback_hours, 168, 1, 2160),
+    rootFamily: queryText(req.query.root_family, 128),
+    severity: queryText(req.query.severity, 32),
+    q: queryText(req.query.q, 300),
+  });
+}
+
+async function tenantResolutionCaseCreateResponse(req) {
+  return createTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    input: req.body || {},
+  });
+}
+
+function tenantWorkspaceScope(req) {
+  return queryText(req.query?.workspace_id || req.body?.workspace_id || req.headers?.["x-workspace-id"], 64);
+}
+
+async function tenantResolutionCaseListResponse(req) {
+  return listTenantResolutionCases({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    workspaceId: tenantWorkspaceScope(req),
+    status: queryText(req.query.status, 64),
+    rootFamily: queryText(req.query.root_family, 128),
+    severity: queryText(req.query.severity, 32),
+  });
+}
+
+async function tenantResolutionCaseDetailResponse(req) {
+  return getTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    eventLimit: boundedInt(req.query.event_limit, 50, 1, 100),
+  });
+}
+
+async function tenantResolutionCaseTransitionResponse(req) {
+  return transitionTenantResolutionCase({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantResolutionDiagnosticActionResponse(req) {
+  return runTenantResolutionDiagnosticAction({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantTaskSourceRepairPreviewResponse(req) {
+  return previewTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantTaskSourceRepairApplyResponse(req) {
+  return applyTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
+async function tenantSkillApprovalListResponse(req) {
+  return listTenantSkillApprovals({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      tenant_role: req.auth?.tenant_role || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    cursor: boundedInt(req.query.cursor, 0, 0, 1000000),
+    limit: boundedInt(req.query.limit, 25, 1, 100),
+    status: queryText(req.query.status, 32),
+    workspaceId: tenantWorkspaceScope(req),
+    q: queryText(req.query.q, 300),
+  });
+}
+
+async function tenantSkillApprovalDecisionResponse(req) {
+  return decideTenantSkillApproval({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      tenant_role: req.auth?.tenant_role || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    approvalKey: req.params.approvalKey,
+    input: req.body || {},
+  });
+}
+
 async function operationalAttentionSyncResponse(req, isAdmin) {
   return synchronizeOperationalAlerts({
     sessionContext: subjectContext(req, isAdmin),
@@ -322,7 +497,9 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
         alertId: req.params.alertId,
         lifecycleStatus: req.body?.lifecycle_status,
         actor: queryText(req.body?.actor || req.auth?.user_id || "platform_admin", 191),
+        actorType: queryText(req.body?.actor_type || (req.auth?.mode === "user_jwt" ? "tenant_user" : "platform_admin"), 64),
         note: queryText(req.body?.note, 2000),
+        idempotencyKey: queryText(req.body?.idempotency_key, 191),
       }));
     } catch (err) {
       return errorResponse(res, err, "activation_operational_alert_lifecycle_failed");
@@ -373,6 +550,79 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.get("/tenant/resolution/problem-cards", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantProblemCardsResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_problem_cards_read_failed");
+    }
+  });
+
+  router.get("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseListResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_list_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+    try {
+      const result = await tenantResolutionCaseCreateResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_create_failed");
+    }
+  });
+
+  router.get("/tenant/resolution/cases/:caseId", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseDetailResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_read_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/transitions", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionCaseTransitionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_case_transition_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/diagnostics", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantResolutionDiagnosticActionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_resolution_diagnostic_action_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/preview", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantTaskSourceRepairPreviewResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_task_source_repair_preview_failed");
+    }
+  });
+
+  router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantSkillApprovalListResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_skill_approval_list_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/skill-approvals/:approvalKey/decision", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantSkillApprovalDecisionResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_skill_approval_decision_failed");
+    }
+  });
+
   router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
@@ -393,4 +643,13 @@ export const _testingActivationAwarenessRoutes = {
   queryBoolean,
   profileValue,
   subjectContext,
+  tenantProblemCardsResponse,
+  tenantResolutionCaseCreateResponse,
+  tenantWorkspaceScope,
+  tenantResolutionCaseListResponse,
+  tenantResolutionCaseDetailResponse,
+  tenantResolutionCaseTransitionResponse,
+  tenantResolutionDiagnosticActionResponse,
+  tenantSkillApprovalListResponse,
+  tenantSkillApprovalDecisionResponse,
 };

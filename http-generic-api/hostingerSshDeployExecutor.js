@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
@@ -40,6 +40,7 @@ const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
 const SSH_KEY_ROLE = "ssh_private_key";
 const SSH_PASSWORD_ROLE = "ssh_password";
 const SSH_AUTH_MODES = new Set(["private_key", "password"]);
+const SSH_PASSWORD_TRANSPORT_MODES = new Set(["auto", "sshpass", "askpass"]);
 export const HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE = "hostinger_ssh_target_probe";
 
 function compact(value = "", max = 255) {
@@ -163,8 +164,79 @@ async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
   return await loadHostingerSshGate(pool, { targetId, env, envFlag: PROBE_FLAG, dbKey: PROBE_DB_FLAG_KEY });
 }
 
-async function loadHostingerSshExecutorGate(pool, targetId, env = process.env) {
-  return await loadHostingerSshGate(pool, { targetId, env, envFlag: EXECUTOR_FLAG, dbKey: EXECUTOR_DB_FLAG_KEY });
+export async function loadHostingerSshExecutorGate(pool, {
+  targetId,
+  expectedCommitSha,
+  capabilityEnvelopeId,
+  env = process.env,
+} = {}) {
+  const normalizedTargetId = compact(targetId, 64);
+  const normalizedCommitSha = compact(expectedCommitSha, 64).toLowerCase();
+  const normalizedEnvelopeId = compact(capabilityEnvelopeId, 64);
+  const dynamicRows = await safeQuery(
+    pool,
+    `SELECT g.gate_id, g.operation_id, g.target_id, g.expected_commit_sha,
+            g.capability_envelope_id, g.expires_at, g.status,
+            o.current_status AS operation_status
+       FROM release_gates g
+       LEFT JOIN release_operations o ON o.operation_id = g.operation_id
+      WHERE g.adapter_key = 'hostinger_ssh_executor'
+        AND g.target_id = ?
+        AND g.status = 'open'
+      ORDER BY g.opened_at DESC
+      LIMIT 1`,
+    [normalizedTargetId]
+  );
+  const dynamicGate = dynamicRows[0];
+  if (dynamicGate) {
+    const expiresAt = compact(dynamicGate.expires_at || "", 64);
+    const expiresAtMs = expiresAt ? Date.parse(expiresAt) : NaN;
+    const notExpired = Boolean(expiresAt) && !Number.isNaN(expiresAtMs) && expiresAtMs > Date.now();
+    const commitMatches = Boolean(normalizedCommitSha)
+      && String(dynamicGate.expected_commit_sha || "").toLowerCase() === normalizedCommitSha;
+    const envelopeMatches = Boolean(normalizedEnvelopeId)
+      && String(dynamicGate.capability_envelope_id || "") === normalizedEnvelopeId;
+    const operationActive = [
+      "ready_for_execution",
+      "deploy_started",
+      "executing",
+      "restart_in_progress",
+      "readback_pending",
+    ].includes(String(dynamicGate.operation_status || ""));
+    return {
+      enabled: dynamicGate.status === "open" && notExpired && commitMatches && envelopeMatches && operationActive,
+      source: "release_gates",
+      key: dynamicGate.gate_id,
+      gate_id: dynamicGate.gate_id,
+      operation_id: dynamicGate.operation_id,
+      target_allowed: String(dynamicGate.target_id || "") === normalizedTargetId,
+      commit_matches: commitMatches,
+      envelope_matches: envelopeMatches,
+      operation_status: dynamicGate.operation_status || null,
+      operation_active: operationActive,
+      expires_at: expiresAt || null,
+      expired: !notExpired,
+      reason: dynamicGate.status !== "open"
+        ? "dynamic_gate_not_open"
+        : !notExpired
+          ? "dynamic_gate_expired"
+          : !commitMatches
+            ? "dynamic_gate_commit_mismatch"
+            : !envelopeMatches
+              ? "dynamic_gate_envelope_mismatch"
+              : !operationActive
+                ? "dynamic_gate_operation_not_active"
+                : "enabled",
+      secrets_included: false,
+    };
+  }
+  const legacyGate = await loadHostingerSshGate(pool, {
+    targetId: normalizedTargetId,
+    env,
+    envFlag: EXECUTOR_FLAG,
+    dbKey: EXECUTOR_DB_FLAG_KEY,
+  });
+  return { ...legacyGate, legacy_fallback: true, secrets_included: false };
 }
 
 async function loadTarget(pool, targetId) {
@@ -223,6 +295,22 @@ function preferredSshAuthMode(input = {}, target = {}) {
   return "private_key";
 }
 
+export function normalizeSshPasswordTransport(value = "auto") {
+  const normalized = compact(value || "auto", 32).toLowerCase();
+  return SSH_PASSWORD_TRANSPORT_MODES.has(normalized) ? normalized : "auto";
+}
+
+function commandAvailable(command) {
+  const result = spawnSync(command, ["-V"], { stdio: "ignore", shell: false });
+  return !result.error && result.status === 0;
+}
+
+export function resolveSshPasswordTransport(value = "auto", isCommandAvailable = commandAvailable) {
+  const requested = normalizeSshPasswordTransport(value);
+  if (requested !== "auto") return requested;
+  return isCommandAvailable("sshpass") ? "sshpass" : "askpass";
+}
+
 export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
   return {
     target_id: compact(input.target_id || input.targetId, 64),
@@ -230,6 +318,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
     app_path: assertSafeRemotePath(input.app_path || input.appPath || DEFAULT_AUTH_APP_PATH),
     expected_commit_sha: compact(input.expected_commit_sha || input.expectedCommitSha || input.commit_sha || input.commitSha || "", 64).toLowerCase(),
     ssh_auth_mode: compact(input.ssh_auth_mode || input.sshAuthMode || "password", 32).toLowerCase(),
+    ssh_transport_mode: normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto"),
     activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
     approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
     timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS),
@@ -241,6 +330,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
 
 export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   const errors = [];
+  const requestedPasswordTransport = compact(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto", 32).toLowerCase();
   let payload;
   try { payload = normalizeHostingerSshTargetProbeJobPayload(input); }
   catch (err) { return [err?.message || "Hostinger SSH probe job payload is invalid."]; }
@@ -248,6 +338,7 @@ export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   if (payload.app_key !== "auth.mad4b.com") errors.push("app_key must be auth.mad4b.com.");
   if (payload.expected_commit_sha && !/^[0-9a-f]{40}$/.test(payload.expected_commit_sha)) errors.push("expected_commit_sha must be a 40-character git SHA when supplied.");
   if (!SSH_AUTH_MODES.has(payload.ssh_auth_mode)) errors.push("ssh_auth_mode must be password or private_key.");
+  if (!SSH_PASSWORD_TRANSPORT_MODES.has(requestedPasswordTransport)) errors.push("ssh_transport_mode must be auto, sshpass, or askpass.");
   errors.push(...validateHostingerSshProbeRunnerMode(payload.runner_mode));
   if (payload.approval_reason.length < 20) errors.push("approval_reason with at least 20 characters is required for queued SSH probe execution.");
   return errors;
@@ -398,22 +489,25 @@ export function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, fo
   ].join(" && ");
 }
 
-function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, remoteScript, timeoutMs }) {
+function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, password_transport: passwordTransport = "auto", remoteScript, timeoutMs }) {
   return new Promise(async (resolve) => {
     const usePassword = authMode === "password";
-    const tempDir = usePassword ? null : await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
-    const keyFile = tempDir ? join(tempDir, "id_ed25519") : null;
+    const selectedPasswordTransport = usePassword ? resolveSshPasswordTransport(passwordTransport) : null;
+    const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
+    const keyFile = join(tempDir, "id_ed25519");
+    const passwordFile = join(tempDir, "password");
+    const askpassFile = join(tempDir, "askpass.cjs");
     let settled = false;
     let child = null;
     const cleanup = async () => {
-      if (!tempDir) return;
       try { await rm(tempDir, { recursive: true, force: true }); } catch { /* noop */ }
     };
     try {
       let command = "ssh";
       let args;
+      let spawnEnv = process.env;
       let stdio = ["ignore", "pipe", "pipe"];
-      if (usePassword) {
+      if (usePassword && selectedPasswordTransport === "sshpass") {
         command = "sshpass";
         args = [
           "-d", "3",
@@ -426,6 +520,39 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           remoteScript,
         ];
         stdio = ["ignore", "pipe", "pipe", "pipe"];
+      } else if (usePassword) {
+        await writeFile(passwordFile, String(password || ""), { mode: 0o600 });
+        await writeFile(
+          askpassFile,
+          [
+            "const { readFileSync, rmSync } = require('node:fs');",
+            "const file = process.env.MAD4B_SSH_ASKPASS_FILE;",
+            "if (!file) process.exit(1);",
+            "try {",
+            "  const value = readFileSync(file, 'utf8');",
+            "  rmSync(file, { force: true });",
+            "  process.stdout.write(value);",
+            "  process.exit(0);",
+            "} catch { process.exit(1); }",
+          ].join("\n"),
+          { mode: 0o600 }
+        );
+        args = [
+          ...hardenedSshOptions({ usePassword: true }),
+          "-p", String(port || 22),
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+        spawnEnv = {
+          ...process.env,
+          SSH_ASKPASS: process.execPath,
+          SSH_ASKPASS_REQUIRE: "force",
+          DISPLAY: "mad4b-askpass:0",
+          MAD4B_SSH_ASKPASS_FILE: passwordFile,
+          NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${askpassFile}`].filter(Boolean).join(" "),
+        };
       } else {
         await writeFile(keyFile, privateKey, { mode: 0o600 });
         args = [
@@ -438,23 +565,31 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           remoteScript,
         ];
       }
-      if (!usePassword) {
-        const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
-        command = wrapped.command;
-        args = wrapped.args;
-      }
-      child = spawn(command, args, { stdio, shell: false, detached: true });
-      if (usePassword && child.stdio?.[3]) {
+      const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
+      command = wrapped.command;
+      args = wrapped.args;
+      child = spawn(command, args, {
+        stdio,
+        shell: false,
+        detached: true,
+        env: spawnEnv,
+      });
+      if (usePassword && selectedPasswordTransport === "sshpass" && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
       let stdout = "";
       let stderr = "";
+      const resultBase = {
+        auth_mode: authMode,
+        transport_mode_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+        transport_mode: selectedPasswordTransport,
+      };
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
         killProcessTree(child, "SIGTERM");
         setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
+        cleanup().finally(() => resolve({ ...resultBase, ok: false, exit_code: 124, timed_out: true, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, Number(timeoutMs || DEFAULT_TIMEOUT_MS) + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
@@ -464,10 +599,10 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         clearTimeout(timer);
         const exitCode = Number(code);
         cleanup().finally(() => resolve({
+          ...resultBase,
           ok: exitCode === 0,
           exit_code: exitCode,
           timed_out: exitCode === 124,
-          auth_mode: authMode,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
         }));
@@ -476,13 +611,22 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) }));
+        cleanup().finally(() => resolve({ ...resultBase, ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
         settled = true;
         await cleanup();
-        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) });
+        resolve({
+          ok: false,
+          exit_code: 1,
+          timed_out: false,
+          auth_mode: authMode,
+          transport_mode_requested: usePassword ? normalizeSshPasswordTransport(passwordTransport) : null,
+          transport_mode: selectedPasswordTransport,
+          stdout: "",
+          stderr: sanitizeSshOutput(err.message),
+        });
       }
     }
   });
@@ -502,7 +646,15 @@ function buildRemoteProbeScript({ appPath, expectedCommitSha }) {
     "echo \"git_branch=$(git rev-parse --abbrev-ref HEAD)\"",
     "echo \"worktree_status_count=$(git status --short | wc -l | tr -d ' ')\"",
     "test -f package.json",
-    "test -d routes",
+    "if [ -d http-generic-api/routes ]; then echo \"routes_path=http-generic-api/routes\"; elif [ -d routes ]; then echo \"routes_path=routes\"; else echo \"routes_path=missing\"; exit 31; fi",
+    "if [ -f http-generic-api/server.js ]; then echo \"entrypoint_path=http-generic-api/server.js\"; elif [ -f server.js ]; then echo \"entrypoint_path=server.js\"; else echo \"entrypoint_path=missing\"; exit 32; fi",
+    "echo \"node_version=$(node --version 2>/dev/null || echo unavailable)\"",
+    "if command -v pgrep >/dev/null 2>&1; then uid=$(id -u); echo \"node_process_count=$(pgrep -u \"$uid\" -f 'node|passenger' 2>/dev/null | wc -l | tr -d ' ')\"; else echo \"node_process_count=unknown\"; fi",
+    "if command -v ss >/dev/null 2>&1; then echo \"listening_tcp_count=$(ss -ltn 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')\"; else echo \"listening_tcp_count=unknown\"; fi",
+    "if [ -f tmp/restart.txt ]; then echo \"restart_marker_mtime=$(date -r tmp/restart.txt -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)\"; else echo \"restart_marker_mtime=missing\"; fi",
+    "startup_log=none; for candidate in console.log http-generic-api/console.log stderr.log http-generic-api/stderr.log; do if [ -f \"$candidate\" ]; then startup_log=\"$candidate\"; break; fi; done; echo \"startup_log=$startup_log\"",
+    "if [ \"$startup_log\" != \"none\" ]; then echo \"startup_log_size=$(wc -c < \"$startup_log\" | tr -d ' ')\"; else echo \"startup_log_size=0\"; fi",
+    "if [ \"$startup_log\" != \"none\" ]; then startup_error_signature=$(tail -n 200 \"$startup_log\" | grep -Eo 'EADDRINUSE|MODULE_NOT_FOUND|Cannot find|SyntaxError|ReferenceError|TypeError|Unhandled|uncaught|ECONNREFUSED|Error|Exception|listen' | tail -n 1 || true); if [ -n \"$startup_error_signature\" ]; then echo \"startup_error_signature=$startup_error_signature\"; else echo \"startup_error_signature=none\"; fi; else echo \"startup_error_signature=none\"; fi",
     expectedCheck,
     "echo \"probe_result=ok\"",
   ].join(" && ");
@@ -667,12 +819,13 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
   const sshAuthMode = preferredSshAuthMode(input, target);
+  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "ssh_probe",
-    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode },
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
@@ -686,6 +839,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
     ssh_auth_mode: sshAuthMode,
+    ssh_transport_mode: sshPasswordTransport,
     deployment_run_id: traceId,
     deployment_status: dryRun ? "planned" : "executing",
     dry_run: dryRun,
@@ -737,7 +891,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
   const sshResult = await withPhaseTimeout(
-    runSshCommand({ ...sshConnection, remoteScript, timeoutMs }),
+    runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs }),
     { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
   );
   const parsed = parseProbeOutput(sshResult.stdout);
@@ -772,6 +926,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       activated_target: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
       parsed_probe: parsed,
       stdout_preview: sshResult.stdout.slice(0, 2000),
       stderr_preview: sshResult.stderr.slice(0, 2000),
@@ -798,6 +954,8 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
       target_activated: probeOk && activateOnSuccess,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
     },
     probe: {
       ok: probeOk,
@@ -960,12 +1118,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   const sshAuthMode = preferredSshAuthMode(input, target);
+  const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "deploy_release",
-    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode },
+    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode, ssh_transport_mode: sshPasswordTransport },
     approvalReason,
   });
 
@@ -981,6 +1140,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     force_clean: forceClean,
     restart,
     ssh_auth_mode: sshAuthMode,
+    ssh_transport_mode: sshPasswordTransport,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
@@ -1017,7 +1177,12 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     };
   }
 
-  const executorGate = await loadHostingerSshExecutorGate(pool, targetId, env);
+  const executorGate = await loadHostingerSshExecutorGate(pool, {
+    targetId,
+    expectedCommitSha,
+    capabilityEnvelopeId: extractCapabilityEnvelopeId(input),
+    env,
+  });
   if (!executorGate.enabled) {
     const err = new Error(`Hostinger SSH executor is disabled. Set ${EXECUTOR_FLAG}=true or enable ${EXECUTOR_DB_FLAG_KEY} only after approval and deployment readiness.`);
     err.status = 403;
@@ -1037,7 +1202,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
 
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
-  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
+  const sshResult = await runSshCommand({ ...sshConnection, password_transport: sshPasswordTransport, remoteScript, timeoutMs });
   const parsedDeploy = parseProbeOutput(sshResult.stdout);
   const reloadVerification = buildHostingerDeployReloadVerification({ restart, parsed: parsedDeploy, sshOk: sshResult.ok });
   const continuation = buildHostingerDeployContinuationEvidence({
@@ -1071,6 +1236,8 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       executed: deployOk,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
       parsed_deploy: parsedDeploy,
       reload_verification: reloadVerification,
       continuation,
@@ -1103,6 +1270,8 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
       allowlisted_deploy_only: true,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      transport_mode_requested: sshResult.transport_mode_requested,
+      transport_mode: sshResult.transport_mode,
     },
     deploy: {
       ok: deployOk,

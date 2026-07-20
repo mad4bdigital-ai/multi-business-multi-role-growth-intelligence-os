@@ -381,10 +381,10 @@ async function loadReadbackContracts(pool, request, adapter) {
         WHERE is_current = 1
           AND capability_key = ?
           AND (? IS NULL OR contract_key = ?)
-          AND (adapter_key IS NULL OR adapter_key = ?)
+          AND (? IS NULL OR adapter_key IS NULL OR adapter_key = ?)
         ORDER BY contract_version DESC, contract_key ASC
         LIMIT 20`,
-      [request.capability_key, request.contract_key, request.contract_key, adapterKey || null],
+      [request.capability_key, request.contract_key, request.contract_key, adapterKey || null, adapterKey || null],
     ));
   } catch (error) {
     if (["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(error?.code)) return [];
@@ -455,6 +455,36 @@ function resolveReadback(rows, request, manifest, adapter, nowMs) {
     reason_code: selected.state.reason_code,
     candidate_count: ranked.length,
     contract: boundedReadback(selected.row),
+  };
+}
+
+function resolveAdapterRequirement({ request, requirements = {}, readbackResolution }) {
+  const adapterRequirement = requirements.adapter;
+  const adapterRequirementText = typeof adapterRequirement === "string"
+    ? text(adapterRequirement, 64).toLowerCase()
+    : "";
+  const adapterRequirementObject = adapterRequirement && typeof adapterRequirement === "object"
+    ? adapterRequirement
+    : {};
+  const sources = {
+    request_selector: Boolean(request.adapter_key || request.resource_type || request.provider_key),
+    manifest_requirement: bool(requirements.adapter_required)
+      || bool(requirements.requires_adapter)
+      || bool(requirements.resource_adapter)
+      || bool(requirements.provider_adapter)
+      || bool(adapterRequirement)
+      || ["required", "adapter_required"].includes(adapterRequirementText)
+      || bool(adapterRequirementObject.required)
+      || Boolean(
+        text(adapterRequirementObject.adapter_key)
+        || text(adapterRequirementObject.resource_type, 128)
+        || text(adapterRequirementObject.provider_key, 128)
+      ),
+    readback_contract: Boolean(readbackResolution?.contract?.adapter_key),
+  };
+  return {
+    required: Object.values(sources).some(Boolean),
+    sources,
   };
 }
 
@@ -541,20 +571,33 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
   const requirements = manifest.requirements && typeof manifest.requirements === "object" ? manifest.requirements : {};
 
   const manifestContext = { ...manifest, effect_class: manifestRow.effect_class };
-  const adapterRows = await loadAdapters(pool, request, manifestContext);
-  const adapterResolution = resolveAdapter(adapterRows, request, manifestContext);
+  const requestedAdapter = request.adapter_key ? { adapter_key: request.adapter_key } : null;
+  const readbackRows = await loadReadbackContracts(pool, request, requestedAdapter);
+  const preliminaryReadbackResolution = resolveReadback(
+    readbackRows,
+    request,
+    manifestRow,
+    requestedAdapter,
+    nowMs,
+  );
+  const contractAdapterKey = preliminaryReadbackResolution.contract?.adapter_key || null;
+  const adapterLookupRequest = !request.adapter_key && contractAdapterKey
+    ? { ...request, adapter_key: contractAdapterKey }
+    : request;
+  const adapterRows = await loadAdapters(pool, adapterLookupRequest, manifestContext);
+  const adapterResolution = resolveAdapter(adapterRows, adapterLookupRequest, manifestContext);
   const selectedAdapter = adapterResolution.adapter;
 
   const genericRows = await loadGenericCertifications(pool, request, manifest, selectedAdapter);
   const runtimeRows = await loadRuntimeCertifications(pool, request, manifest, selectedAdapter);
   const certificationResolution = resolveCertification(genericRows, runtimeRows, request, manifest, selectedAdapter, nowMs);
 
-  const readbackRows = await loadReadbackContracts(pool, request, selectedAdapter);
   const readbackResolution = resolveReadback(readbackRows, request, manifestRow, selectedAdapter, nowMs);
   const evidence = summarizeEvidence(await loadEvidence(pool, request.capability_key, request.evidence_limit));
 
   const mutation = MUTATION_EFFECTS.has(String(manifestRow.effect_class || ""));
-  const adapterRequired = request.operation_mode === "apply" || Boolean(request.adapter_key || request.resource_type || request.provider_key);
+  const adapterRequirement = resolveAdapterRequirement({ request, requirements, readbackResolution });
+  const adapterRequired = adapterRequirement.required;
   const certificationRequired = request.operation_mode === "apply" && bool(requirements.certification);
   const readbackRequired = request.operation_mode === "apply" && (mutation || bool(requirements.readback));
   const blockers = [];
@@ -615,6 +658,7 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
     diagnostics: {
       mutation_effect_class: mutation,
       adapter_required: adapterRequired,
+      adapter_requirement_sources: adapterRequirement.sources,
       certification_required: certificationRequired,
       readback_required: readbackRequired,
       apply_contract_ready: request.operation_mode === "apply" && uniqueBlockers.length === 0,
@@ -644,6 +688,7 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
 export const _testingDynamicCapabilityCertificationReadback = {
   normalizeInput,
   resolveAdapter,
+  resolveAdapterRequirement,
   resolveCertification,
   resolveReadback,
   summarizeEvidence,

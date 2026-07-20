@@ -123,7 +123,7 @@ sqlCachePolicy:
     tags: [admin-control, cache]
     x-registry-exposure: admin_tool
     x-registry-tool-key: sql_cache_runtime_policy_get
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     parameters:
       - in: query
         name: refresh
@@ -145,7 +145,7 @@ sqlCachePolicy:
     tags: [admin-control, cache]
     x-registry-exposure: admin_tool
     x-registry-tool-key: sql_cache_runtime_policy_update
-    security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
     requestBody:
       required: true
       content:

@@ -43,7 +43,15 @@ const APP_ACTION_MUTATION_REQUIREMENTS = Object.freeze({
   slack: Object.freeze({ list_channels: false, read_channel: false, list_users: false, send_message: true, upload_file: true }),
   mcp: Object.freeze({ tools_list: false, tools_call: true }),
   makecom: Object.freeze({ list_scenarios: false, get_scenario: false, trigger_webhook: true, run_scenario: true }),
-  n8n: Object.freeze({ list_workflows: false, get_workflow: false, list_executions: false, trigger_webhook: true, execute_workflow: true }),
+  n8n: Object.freeze({
+    list_workflows: false,
+    get_workflow: false,
+    list_executions: false,
+    trigger_webhook: true,
+    execute_workflow: true,
+    activate_workflow: true,
+    deactivate_workflow: true,
+  }),
   makecom_mcp: Object.freeze({ mcp_initialize: false, mcp_tools_list: false, mcp_tools_call: true }),
   wordpress_rest: Object.freeze({
     "wordpress_rest.validate_connection": false,

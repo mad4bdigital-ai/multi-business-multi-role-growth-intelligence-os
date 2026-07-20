@@ -1,0 +1,33 @@
+{
+  "spec_key": "008-p1-operational-remediation",
+  "title": "P1 Operational Remediation Father Spec Kit",
+  "status": "father_spec_proposed",
+  "created_at": "2026-07-07",
+  "delivery_mode": "father_spec_plus_child_prs",
+  "source_authority": "activation_operational_attention_sql_primary",
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed_in_father_pr": false,
+  "repo_mutation_scope": "spec_docs_only",
+  "transport": "auth_host_governed_github",
+  "sensitive_values_included": false,
+  "parent_branch": "gpt/spec-008-p1-operational-remediation",
+  "tracked_alert_groups": [
+    "hostinger_ssh_probe_deploy_readback",
+    "credential_intake_handoff",
+    "openclaude_provider_bridge_transport",
+    "deployment_reliability_receipts",
+    "github_ci_recovery",
+    "admin_db_update_serialization",
+    "deploy_intent_alignment",
+    "capability_envelope_lifecycle",
+    "google_ads_execution_readiness"
+  ],
+  "non_negotiable_invariants": [
+    "no_direct_main_mutation",
+    "no_provider_call_from_father_spec",
+    "no_secret_return",
+    "child_prs_must_be_small_and_reviewable",
+    "capability_envelope_required_for_state_changing_runtime_paths",
+    "same_cycle_readback_required_before_recovered_classification"
+  ]
+}

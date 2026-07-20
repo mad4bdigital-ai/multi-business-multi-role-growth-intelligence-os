@@ -65,7 +65,9 @@ assert(
   'legacy install route persists connector_local_api_key but withholds it from provisioning responses',
   provisionSource.includes('connector_local_api_key') &&
     provisionSource.includes('let connectorLocalApiKey = existing?.connector_local_api_key || null;') &&
-    provisionSource.includes('connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");') &&
+    provisionSource.includes('connectorLocalApiKey = reprovision') &&
+    provisionSource.includes('? randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "")') &&
+    provisionSource.includes(': connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");') &&
     responseEnvelope.includes('connector_local_api_key_included: false') &&
     responseEnvelope.includes('download_link_endpoint: "/local-connector/install/download-link"') &&
     !/connector_local_api_key\s*:\s*connectorLocalApiKey/.test(responseEnvelope) &&

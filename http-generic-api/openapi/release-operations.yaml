@@ -1,0 +1,254 @@
+openapi: 3.1.0
+info:
+  title: Release Operation Ledger API
+  version: 1.0.0
+  description: Unified, no-secret lifecycle ledger for governed release operations.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: release-operations
+paths:
+  /admin/release-operations:
+    post:
+      tags: [release-operations]
+      operationId: createReleaseOperation
+      summary: Create an internal release lifecycle record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReleaseOperationRequest' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    get:
+      tags: [release-operations]
+      operationId: listReleaseOperations
+      summary: List release lifecycle records
+      parameters:
+        - { in: query, name: status, schema: { type: string } }
+        - { in: query, name: target_id, schema: { type: string, format: uuid } }
+        - { in: query, name: environment_key, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200': { description: Release operation list, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationList' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-operations/{operationId}:
+    get:
+      tags: [release-operations]
+      operationId: getReleaseOperation
+      summary: Read one release operation and its lifecycle evidence
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      responses:
+        '200': { description: Release operation detail, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-operations/{operationId}/steps:
+    post:
+      tags: [release-operations]
+      operationId: appendReleaseOperationStep
+      summary: Append or idempotently update a lifecycle step
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppendStepRequest' } } } }
+      responses:
+        '200': { description: Updated lifecycle, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-operations/{operationId}/evidence:
+    post:
+      tags: [release-operations]
+      operationId: appendReleaseOperationEvidence
+      summary: Store bounded redacted evidence or an evidence reference
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppendEvidenceRequest' } } } }
+      responses:
+        '200': { description: Updated lifecycle, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-operations/{operationId}/gate-events:
+    post:
+      tags: [release-operations]
+      operationId: appendReleaseGateEvent
+      summary: Record a release gate lifecycle event without mutating an external gate
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppendGateEventRequest' } } } }
+      responses:
+        '200': { description: Updated lifecycle, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-operations/{operationId}/finalize:
+    post:
+      tags: [release-operations]
+      operationId: finalizeReleaseOperation
+      summary: Finalize a release operation with verification or rollback evidence
+      parameters: [{ $ref: '#/components/parameters/OperationId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FinalizeReleaseOperationRequest' } } } }
+      responses:
+        '200': { description: Finalized lifecycle, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseOperationDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    OperationId: { in: path, name: operationId, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    CreateReleaseOperationRequest:
+      type: object
+      required: [operation_type]
+      properties:
+        operation_key: { type: string, maxLength: 191 }
+        operation_type: { type: string, maxLength: 64 }
+        environment_key: { type: string, default: production }
+        target_id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        expected_commit_sha: { type: string }
+        deployed_commit_sha: { type: string }
+        capability_envelope_id: { type: string, format: uuid }
+        runtime_verification_run_id: { type: string, format: uuid }
+        release_readiness_log_id: { type: integer }
+        risk_level: { type: string, enum: [low, medium, high, critical] }
+        requested_by: { type: string }
+        reason: { type: string }
+        context: { type: object, additionalProperties: true }
+      additionalProperties: false
+    AppendStepRequest:
+      type: object
+      required: [step_key]
+      properties:
+        step_key: { type: string }
+        step_order: { type: integer, minimum: 0 }
+        attempt_number: { type: integer, minimum: 1 }
+        step_status: { type: string }
+        operation_status: { $ref: '#/components/schemas/ReleaseOperationStatus' }
+        classification: { type: string }
+        idempotency_key: { type: string }
+        duration_ms: { type: integer, minimum: 0 }
+        detail: { type: object, additionalProperties: true }
+        error: { type: object, additionalProperties: true }
+      additionalProperties: false
+    AppendEvidenceRequest:
+      type: object
+      required: [evidence_type]
+      properties:
+        step_id: { type: integer }
+        evidence_type: { type: string }
+        evidence_surface: { type: string }
+        evidence_ref: { type: string }
+        evidence: { type: object, additionalProperties: true }
+      additionalProperties: false
+    AppendGateEventRequest:
+      type: object
+      required: [event_type]
+      properties:
+        gate_key: { type: string }
+        event_type: { type: string }
+        gate_status: { type: string }
+        ttl_minutes: { type: integer, minimum: 0 }
+        expires_at: { type: string, format: date-time }
+        capability_envelope_id: { type: string, format: uuid }
+        runtime_verification_run_id: { type: string, format: uuid }
+        reason: { type: string }
+        detail: { type: object, additionalProperties: true }
+      additionalProperties: false
+    FinalizeReleaseOperationRequest:
+      type: object
+      required: [final_status]
+      properties:
+        final_status: { $ref: '#/components/schemas/ReleaseOperationStatus' }
+        final_classification: { type: string }
+        deployed_commit_sha: { type: string }
+        runtime_verification_run_id: { type: string, format: uuid }
+        release_readiness_log_id: { type: integer }
+        detail: { type: object, additionalProperties: true }
+        rollback_plan: { type: object, additionalProperties: true }
+      additionalProperties: false
+    ReleaseOperationStatus:
+      type: string
+      enum: [accepted, planning, dry_run_pending, dry_run_complete, approval_required, ready_for_execution, deploy_started, executing, restart_in_progress, readback_pending, verified, degraded, blocked, rollback_required, rollback_started, rolled_back, failed_preflight, failed_execution, failed_rollback, cancelled]
+    ReleaseOperation:
+      type: object
+      required: [operation_id, operation_key, operation_type, environment_key, current_status, secrets_included]
+      properties:
+        operation_id: { type: string, format: uuid }
+        operation_key: { type: string }
+        operation_type: { type: string }
+        environment_key: { type: string }
+        target_id: { type: [string, 'null'], format: uuid }
+        expected_commit_sha: { type: [string, 'null'] }
+        deployed_commit_sha: { type: [string, 'null'] }
+        current_status: { $ref: '#/components/schemas/ReleaseOperationStatus' }
+        risk_level: { type: string }
+        final_classification: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: true
+    ReleaseOperationDetail:
+      type: object
+      required: [ok, operation, steps, evidence, gate_events, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        operation: { $ref: '#/components/schemas/ReleaseOperation' }
+        steps: { type: array, items: { type: object, additionalProperties: true } }
+        evidence: { type: array, items: { type: object, additionalProperties: true } }
+        gate_events: { type: array, items: { type: object, additionalProperties: true } }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ReleaseOperationList:
+      type: object
+      required: [ok, items, page, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        items: { type: array, items: { $ref: '#/components/schemas/ReleaseOperation' } }
+        page: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unauthorized: { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Not authorized, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Release operation not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Invalid state transition or duplicate operation, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    InternalError: { description: Unexpected server failure, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }

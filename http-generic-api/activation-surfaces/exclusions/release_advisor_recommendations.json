@@ -1,0 +1,7 @@
+{
+  "surface_key": "release_advisor_recommendations",
+  "source_table": "release_advisor_recommendations",
+  "reason": "Excluded because it is an internal advisory detail and audit table containing recommendation plans, runbooks, and evidence references. It does not represent execution authority, provider state, or a directly actionable activation surface. Bounded recommendations are available only through the admin advisor-run read API.",
+  "owner": "release-intelligence",
+  "review_after": "2026-12-31"
+}

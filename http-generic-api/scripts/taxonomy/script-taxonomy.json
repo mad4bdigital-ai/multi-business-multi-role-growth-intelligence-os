@@ -1,0 +1,42 @@
+{
+  "version": "2026-07-06.v1",
+  "purpose": "Classify http-generic-api/scripts root utilities before CI-driven relocation into responsibility-based subfolders.",
+  "defaultDestinationRoot": "http-generic-api/scripts",
+  "safety": {
+    "defaultMode": "report",
+    "applyRequiresWorkflowDispatch": true,
+    "forbidProtectedBranches": ["main", "master", "production"],
+    "maxFilesDefault": 20,
+    "secretsIncluded": false,
+    "manualReviewReasons": [
+      "relative_sibling_script_import",
+      "self_relocator_or_manifest",
+      "unknown_taxonomy",
+      "non_mjs_or_directory",
+      "already_nested"
+    ]
+  },
+  "categories": [
+    { "key": "activation", "folder": "activation", "description": "Activation access, session, surface and operational intelligence scripts.", "patterns": ["^activation-", "^sync-activation-"] },
+    { "key": "ads", "folder": "ads", "description": "Ads provider profile, budget and credential readiness scripts.", "patterns": ["^ads-", "^google-ads-"] },
+    { "key": "agent-runtime", "folder": "agent-runtime", "description": "Agent runtime smoke, trace and model policy scripts.", "patterns": ["^agent-runtime-", "^openrouter-"] },
+    { "key": "audit", "folder": "audit", "description": "Audit, rollup, coverage and evidence readback scripts.", "patterns": ["audit", "readback", "coverage"] },
+    { "key": "backup", "folder": "backup", "description": "Backup export, copy, guard and destination preparation scripts.", "patterns": ["^backup-", "^db-backup-", "^local-backup-"] },
+    { "key": "capability", "folder": "capability", "description": "Capability discovery, resolution, envelope and assurance scripts.", "patterns": ["^capability-", "^platform-capability-"] },
+    { "key": "cloudflare", "folder": "cloudflare", "description": "Cloudflare DNS and edge integration scripts.", "patterns": ["^cloudflare-"] },
+    { "key": "cms", "folder": "cms", "description": "CMS authority and content system reconciliation scripts.", "patterns": ["^cms-"] },
+    { "key": "connectors", "folder": "connectors", "description": "Local connector, gateway, installer and device management scripts.", "patterns": ["connector", "^local-connector-", "^local-gateway-", "^installer-"] },
+    { "key": "credentials", "folder": "credentials", "description": "Credential diagnostics and OAuth/client upsert scripts.", "patterns": ["credential", "oauth", "client"] },
+    { "key": "database", "folder": "database", "description": "Database lifecycle, migration, restore and table registry scripts.", "patterns": ["^database-", "^dev-db-", "^governed-migration-", "^apply-single-migration", "migration", "table-lifecycle"] },
+    { "key": "dev", "folder": "dev", "description": "Development autopilot and dev diagnostics scripts.", "patterns": ["^dev-"] },
+    { "key": "docs", "folder": "docs", "description": "Documentation agents, impact classification and repo planning docs scripts.", "patterns": ["docs", "documentation", "planning-docs", "work-map"] },
+    { "key": "execution", "folder": "execution", "description": "Execution enablement, identity, interruption and preflight ledger scripts.", "patterns": ["^execution-", "^workflow-execution-", "interruption", "preflight-ledger"] },
+    { "key": "hostinger", "folder": "hostinger", "description": "Hostinger SSH and hosting dependency diagnostics scripts.", "patterns": ["^hostinger", "ssh"] },
+    { "key": "openapi", "folder": "openapi", "description": "OpenAPI generation, split, coverage and schema guard scripts.", "patterns": ["^openapi-", "^split-openapi", "schema"] },
+    { "key": "platform", "folder": "platform", "description": "Platform completion, recomposition, scorecard and engine scripts.", "patterns": ["^platform-", "^spec-kit-"] },
+    { "key": "runtime", "folder": "runtime", "description": "Runtime surface, route selector, supervisor and deployment runtime scripts.", "patterns": ["runtime", "^route-selector-", "^supervisor-", "deployment"] },
+    { "key": "tools", "folder": "tools", "description": "Tool bus, GitHub tooling, repo maintenance and webhook scripts.", "patterns": ["^tool-", "^github-tooling-", "^repo-maintenance-", "webhook"] },
+    { "key": "tenant", "folder": "tenant", "description": "Tenant-specific worker, provisioning and dedicated infrastructure scripts.", "patterns": ["^tenant-"] },
+    { "key": "uncategorized", "folder": "uncategorized", "description": "Scripts requiring explicit human classification before relocation.", "patterns": [] }
+  ]
+}

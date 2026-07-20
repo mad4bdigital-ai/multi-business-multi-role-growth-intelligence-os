@@ -4,6 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
 import {
+  GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY as MIGRATION_EXECUTOR_APPLY_POLICY,
+} from "./governedMigrationApplyPolicyBootstrap.js";
+import {
   assessMigrationSqlPreflight,
   extractMigrationReadinessRequirementsFromSql,
   splitSqlStatements,
@@ -19,27 +22,6 @@ const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const AUTHORIZATION_POLICY_KEY = "governed_migration_runner_authorization_v1";
 const AUTHORIZATION_SOURCE = "governed_admin_bootstrap_tool";
-const MIGRATION_EXECUTOR_APPLY_POLICY = Object.freeze({
-  policy_key: "governed_migration_execute_apply_v1",
-  app_key: "platform_orchestration",
-  capability_key: "governed_migration_execute",
-  operation_intent: "governed_migration_apply",
-  runtime_surface: "governed_migration_execute",
-  allowed_source_tiers: ["platform_managed_fallback"],
-  policy: {
-    external_write_allowed: false,
-    provider_call_allowed: false,
-    credential_payload_read_allowed: false,
-    migration_authorization_registry_required: true,
-    checksum_bound: true,
-    statement_count_bound: true,
-    zero_risk_preflight_required: true,
-    exact_typed_confirmation_required: true,
-    governed_ledger_required: true,
-    same_cycle_schema_readback_required: true,
-    secrets_included: false,
-  },
-});
 const MIGRATION_EXECUTOR_CERTIFICATION = Object.freeze({
   certification_key: "governed_migration_execute",
   surface_key: "governed_migration_execute",
@@ -151,18 +133,9 @@ function verifyMigrationExecutorApplyPolicy(row) {
     Number(row.requires_readback || 0) === 1 &&
     Number(row.requires_typed_confirmation || 0) === 1 &&
     Number(row.requires_same_cycle_dry_run || 0) === 1 &&
-    Array.isArray(sourceTiers) && sourceTiers.length === 1 && sourceTiers[0] === "platform_managed_fallback" &&
-    policy?.external_write_allowed === false &&
-    policy?.provider_call_allowed === false &&
-    policy?.credential_payload_read_allowed === false &&
-    policy?.migration_authorization_registry_required === true &&
-    policy?.checksum_bound === true &&
-    policy?.statement_count_bound === true &&
-    policy?.zero_risk_preflight_required === true &&
-    policy?.exact_typed_confirmation_required === true &&
-    policy?.governed_ledger_required === true &&
-    policy?.same_cycle_schema_readback_required === true &&
-    policy?.secrets_included === false;
+    Array.isArray(sourceTiers) &&
+    JSON.stringify(sourceTiers) === JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.allowed_source_tiers) &&
+    JSON.stringify(policy) === JSON.stringify(MIGRATION_EXECUTOR_APPLY_POLICY.policy);
   if (!exact) {
     throw bootstrapError(409, "governed_migration_executor_apply_policy_mismatch", "Migration executor apply policy does not match the fail-closed bootstrap contract.", {
       policy_key: row.policy_key || null,

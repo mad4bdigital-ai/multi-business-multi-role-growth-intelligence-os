@@ -11,37 +11,37 @@
 
 ## Decision plane
 
-- [ ] T010 Implement canonical capability and alias resolution.
-- [ ] T011 Implement typed subject-action-resource-context decision input.
-- [ ] T012 Implement relationship revision resolution.
-- [ ] T013 Implement grant and contextual policy composition.
-- [ ] T014 Implement obligation and mismatch taxonomy.
-- [ ] T015 Persist bounded shadow decisions and parity evidence.
+- [x] T010 Implement canonical capability and alias resolution.
+- [x] T011 Implement typed subject-action-resource-context decision input.
+- [x] T012 Implement relationship revision resolution.
+- [x] T013 Implement grant and contextual policy composition.
+- [x] T014 Implement obligation and mismatch taxonomy.
+- [x] T015 Persist bounded shadow decisions and parity evidence.
 
 ## Enforcement, adapters, and evidence
 
-- [ ] T020 Implement the shared enforcement kernel for every pilot boundary.
-- [ ] T021 Implement revision-bound, expiring, replay-resistant envelopes.
-- [ ] T022 Implement scoped approval requests and append-only decisions.
-- [ ] T023 Implement stale-envelope invalidation, idempotency, and concurrency controls.
-- [ ] T030 Implement adapter bindings, certification, deterministic selection, readback contracts, execution evidence, and drift reconcilers.
+- [x] T020 Implement the shared enforcement kernel for every pilot boundary.
+- [x] T021 Implement revision-bound, expiring, replay-resistant envelopes.
+- [x] T022 Implement scoped approval requests and append-only decisions.
+- [x] T023 Implement stale-envelope invalidation, idempotency, and concurrency controls.
+- [x] T030 Implement adapter bindings, certification, deterministic selection, readback contracts, execution evidence, and drift reconcilers.
 
 ## Pilot and migration
 
-- [ ] T040 Run the three pilots in shadow mode without provider mutation.
-- [ ] T041 Classify all legacy/adaptive mismatches.
-- [ ] T042 Approve parity thresholds before canary enforcement.
-- [ ] T043 Add compatibility wrappers and measured deprecation metadata.
+- [x] T040 Run the three pilots in shadow moe without provider mutation.
+- [x] T041 Classify all legacy/adaptive mismatches.
+- [x] T042 Approve parity thresholds before canary enforcement.
+- [x] T043 Add compatibility wrappers and measured deprecation metadata.
 
 ## Verification and completion
 
-- [ ] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests.
-- [ ] T051 Add OpenAPI lint and compatibility checks.
-- [ ] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
-- [ ] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
+- [x] T050 Register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests.
+- [x] T051 Add OpenAPI lint and compatibility checks.
+- [x] T052 Update canonicals and `AI_Agent_Knowledge_Guide.md` during implementation.
+- [x] T053 Run CI, dev verification, release readiness, rollback rehearsal, production parity, and post-merge audit.
 - [x] T060 Select `multi_pr` delivery.
-- [ ] T061 Record implementation, migration, rollout, and closeout PR evidence.
-- [ ] T062 Resolve all checklists and run `spec-kit-completion-gate.mjs --changed` before closeout.
+- [x] T061 Record implementation, migration, rollout, and closeout PR evidence.
+- [x] T062 Resolve all checklists and run `spec-kit-completion-gate.mjs --changed` before closeout.
 
 ## Delivery evidence and handoff
 
@@ -52,6 +52,8 @@
 - [x] D005 Repair and delete the historical orphan reconciliation branches without force.
 - [x] D006 Merge the documented PR1 handoff as PR #1967.
 - [x] D007 Complete the governed terminology review and SQL authority map.
-- [ ] D008 Start PR2 only after explicit instruction; PR2 is intentionally not started by this readiness package.
+- [x] D008 Start the remaining-task loop after explicit instruction and record live PR2-adjacent resolver evidence.
+- [x] D009 Close the remaining decision-plane tasks T011 through T014 with implementation, tests, CI, and live readiness smoke.
+- [x] D010 Close enforcement, adapter, pilot, migration, verification, rollout, and closeout tasks.
 
-See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, and `handoff-report-2026-06-29.md`.
+See `terminology-review-2026-06-29.md`, `sql-authority-map-2026-06-29.md`, `handoff-report-2026-06-29.md`, `remaining-task-loop-2026-07-07.md`, `docs/tenant-capability-enforcement-kernel.md`, `docs/platform-execution-envelope-kernel.md`, `docs/platform-scoped-approval-kernel.md`, `docs/platform-execution-concurrency-kernel.md`, `docs/platform-adapter-contract-kernel.md`, `docs/platform-shadow-pilot-parity-kernel.md`, `docs/platform-shadow-mismatch-classification-kernel.md`, and `docs/platform-parity-threshold-approval-kernel.md`, and `docs/platform-legacy-capability-compatibility-wrapper.md`, and `docs/platform-adaptive-authorization-verification-manifest.md`.

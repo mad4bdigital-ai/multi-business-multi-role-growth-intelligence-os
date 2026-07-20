@@ -1,4 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+
+function schemaPath(file) {
+  const relocated = `openapi/${file}`;
+  if (existsSync(relocated)) return relocated;
+  return file;
+}
 
 function assert(label, condition, detail = '') {
   if (!condition) {
@@ -10,7 +16,7 @@ function assert(label, condition, detail = '') {
 }
 
 const connectorSource = readFileSync('../local-connector/server.mjs', 'utf8');
-const connectorSchema = readFileSync('openapi.gpt-action.local-connector.yaml', 'utf8');
+const connectorSchema = readFileSync(schemaPath('openapi.gpt-action.local-connector.yaml'), 'utf8');
 
 assert(
   'local connector accepts x-api-key as connector-secret alias',
