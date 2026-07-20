@@ -1037,9 +1037,14 @@ export function buildAuthRoutes(deps) {
     const state = String(req.query.state || "");
     const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
     const activationContext = parseActivationContext(req.query);
+    const resourceProfile = resolveTenantGptOAuthResourceProfile({
+      clientId: oauthClientId,
+      requestHost: tenantGptRequestHostFromHeaders(req.headers),
+      requestedResource: req.query.resource,
+    });
 
-    if (oauthClientId !== TENANT_GPT_OAUTH_CLIENT_ID) {
-      return res.status(400).type("text/plain").send("OAuth client_id is not allowed for the Tenant GPT client.");
+    if (!resourceProfile.ok) {
+      return res.status(400).type("text/plain").send(resourceProfile.message);
     }
     if (responseType !== "code") {
       return res.status(400).type("text/plain").send("OAuth response_type must be code for the Tenant GPT client.");
