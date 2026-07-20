@@ -645,6 +645,29 @@ try {
   assert("access JWT has the Activation audience", accessPayload.aud === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
   assert("access JWT carries the Activation resource claim", accessPayload.resource === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
   assert("access JWT carries the authorized OAuth client", accessPayload.azp === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
+
+  const missingBearerProbe = await getText(baseUrl, "/tenant/activation/probe");
+  assert("Activation gateway rejects a missing bearer token", missingBearerProbe.status === 401, `${missingBearerProbe.status}`);
+
+  const wrongAudienceToken = jwt.sign({
+    iss: "https://auth.mad4b.com",
+    aud: AUTH_RESOURCE,
+    resource: AUTH_RESOURCE,
+    purpose: "tenant_gpt_access",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+  }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const wrongAudienceProbe = await getText(baseUrl, "/tenant/activation/probe", {
+    headers: { authorization: `Bearer ${wrongAudienceToken}` },
+  });
+  assert("Activation gateway rejects a token for the Auth resource", wrongAudienceProbe.status === 401, `${wrongAudienceProbe.status}`);
+
+  const validProbe = await getText(baseUrl, "/tenant/activation/probe", {
+    headers: { authorization: `Bearer ${exchange.body.access_token}` },
+  });
+  const validProbeBody = JSON.parse(validProbe.text);
+  assert("Activation gateway accepts the Activation-bound token", validProbe.status === 200, `${validProbe.status}`);
+  assert("Activation gateway exposes the verified token resource", validProbeBody.auth?.token_resource === ACTIVATION_RESOURCE, JSON.stringify(validProbeBody));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
