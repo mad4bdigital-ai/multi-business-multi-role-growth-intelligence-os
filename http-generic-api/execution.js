@@ -33,6 +33,7 @@ import {
   makeActivationSheetsBackoffKey
 } from "./activationBootstrapCache.js";
 import { buildActivationEnvelope } from "./activationResponse.js";
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
 function buildActivationEnvelopeFromEvidence(evidence = {}) {
   return buildActivationEnvelope(evidence);
@@ -1783,7 +1784,10 @@ export async function executeUpstreamAttempt({
 
   const upstream = providerFetchResult.upstream;
 
-  const contentType = upstream.headers.get("content-type") || "";
+  const upstreamContentType = upstream.headers.get("content-type") || "";
+  const contentType = isRawTextResponseRequest(requestPayload, upstreamContentType)
+    ? "text/plain"
+    : upstreamContentType;
   let data;
   let responseText = "";
 
