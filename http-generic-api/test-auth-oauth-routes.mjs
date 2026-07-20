@@ -30,6 +30,7 @@ const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.system-tools",
 ];
 const TENANT_SCOPE = TENANT_SCOPE_LINKS.join(" ");
+const AUTH_RESOURCE = "https://auth.mad4b.com";
 const ACTIVATION_RESOURCE = "https://activation.mad4b.com";
 
 let passed = 0;
