@@ -6,44 +6,44 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 548,
+    "migrations_with_surfaces": 549,
     "docs_complete_count": 513,
-    "docs_gap_count": 35,
-    "docs_completion_percent": 93.61,
+    "docs_gap_count": 36,
+    "docs_completion_percent": 93.44,
     "gap_severity_counts": {
       "high": 17,
-      "medium": 16,
+      "medium": 17,
       "low": 2,
       "none": 513
     },
     "surface_totals": {
       "plugins": 13,
-      "tools": 2537,
+      "tools": 2549,
       "views": 483,
-      "policies": 188,
+      "policies": 189,
       "routes": 686
     },
     "migrations_by_surface_type": {
       "plugins": 10,
-      "tools": 465,
+      "tools": 466,
       "views": 188,
-      "policies": 127,
+      "policies": 128,
       "routes": 279
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 31,
       "deployment_parity_checklist.md": 31,
-      "docs/ai-docs-agent-governance.md": 33,
-      "docs/auto-docs-agent/README.md": 35,
-      "docs/change-documentation-governance.md": 35
+      "docs/ai-docs-agent-governance.md": 34,
+      "docs/auto-docs-agent/README.md": 36,
+      "docs/change-documentation-governance.md": 36
     },
     "safety_marker_counts": {
-      "no_provider_call": 526,
+      "no_provider_call": 527,
       "no_credential_payload_read": 523,
       "no_raw_secrets": 521,
       "no_external_send": 519,
-      "no_external_write": 528,
-      "secrets_included_false": 541
+      "no_external_write": 529,
+      "secrets_included_false": 542
     },
     "safety_marker_gap_migrations": 7,
     "route_coverage": {
@@ -66,27 +66,27 @@
     }
   },
   "queue": {
-    "total_items": 35,
+    "total_items": 36,
     "class_counts": {
-      "critical_review": 19,
+      "critical_review": 20,
       "high_review": 14,
       "medium_review": 2,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 35,
+    "total_items": 36,
     "class_counts": {
-      "new_surface_immediate_review": 33,
+      "new_surface_immediate_review": 34,
       "safety_marker_review": 2
     },
-    "gate_candidate_count": 33
+    "gate_candidate_count": 34
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 35,
-    "blocking_new_item_count": 35
+    "new_item_count": 36,
+    "blocking_new_item_count": 36
   },
   "top_immediate_items": [
     {
@@ -845,28 +845,34 @@
       }
     },
     {
-      "migration_file": "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
-      "score": 711,
+      "migration_file": "20260720_github_file_patch_shadow_certification_issue.sql",
+      "score": 713,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
+      "gap_severity": "medium",
       "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
         "docs/ai-docs-agent-governance.md",
         "docs/auto-docs-agent/README.md",
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
+      "safety_marker_gaps": [
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send"
+      ],
       "remediation_action_keys": [
         "document_surface_contract",
-        "verify_tool_registry_binding"
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "add_explicit_safety_markers"
       ],
       "owner_hints": [
         "docs-agent/human-review",
-        "runtime-registry-review"
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
@@ -880,9 +886,9 @@
       }
     },
     {
-      "migration_file": "1046_sprint69_dynamic_container_shadow_sampler_tool.sql",
-      "score": 676,
-      "queue_class": "high_review",
+      "migration_file": "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
+      "score": 711,
+      "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "high",

@@ -421,6 +421,8 @@ Treat bounded mutation atomicity modes such as `single_file_mutation`, `atomic_c
 
 Treat virtual-tool rows in `platform_plugin_capability_exports` as shadow assurance aliases until canonical certification and promotion complete. An `active` runtime Admin tool or dispatch binding does not authorize an active capability export. Export shadow alignment must not alter Admin tool catalogs, runtime dispatch bindings, Tenant scope, certification status, or `apply_allowed`.
 
+For `github_file_patch_apply`, shadow certification must be evidence-backed by consumed smoke write and cleanup envelopes plus branch-scoped resource-authority bindings. The certification issuer may activate `repository_change_set_apply`, record acknowledgement and same-cycle verification evidence, and certify the current readback contract only. It must not promote runtime dispatch/apply, active target exports, Tenant authority, or protected-branch access, and it must not call GitHub or any provider during certification issuance.
+
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 
 Use `v_platform_capability_readiness_vector` for independent readiness dimensions and `v_platform_capability_assurance_gaps` for typed gaps. A maturity score must never override a failed resource, approval, quota, credential, readback, or certification gate. Resource readiness requires a capability-specific envelope-to-binding relationship; an unrelated active binding is never sufficient.
