@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/dynamic-growth-control-plane/control-plane-config.schema.json",
+  "title": "Dynamic Growth Control Plane Configuration Document",
+  "description": "Strict schema for one versioned, scope-bound configuration document. Individual configuration families provide additional value schemas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "config_key",
+    "schema_key",
+    "schema_version",
+    "scope",
+    "values",
+    "merge_profile",
+    "lifecycle",
+    "revision"
+  ],
+  "properties": {
+    "config_key": {"$ref": "#/$defs/canonicalKey"},
+    "schema_key": {"$ref": "#/$defs/canonicalKey"},
+    "schema_version": {"type": "integer", "minimum": 1},
+    "scope": {"$ref": "#/$defs/scope"},
+    "values": {"type": "object", "maxProperties": 500},
+    "merge_profile": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/mergeOperator"},
+      "maxProperties": 500
+    },
+    "security_classification": {
+      "type": "string",
+      "enum": ["public_metadata", "tenant_internal", "restricted", "security_control"]
+    },
+    "lifecycle": {
+      "type": "string",
+      "enum": ["draft", "validating", "ready", "awaiting_approval", "active", "blocked", "deprecated", "archived", "rolled_back"]
+    },
+    "version": {"type": "integer", "minimum": 1},
+    "revision": {"type": "integer", "minimum": 0},
+    "supersedes_version_id": {
+      "oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]
+    },
+    "effective_from": {"type": ["string", "null"], "format": "date-time"},
+    "effective_to": {"type": ["string", "null"], "format": "date-time"},
+    "change_note": {"type": "string", "minLength": 1, "maxLength": 512},
+    "checksum_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "activity_pack_key": {"$ref": "#/$defs/canonicalKey"},
+        "activity_pack_version": {"type": "integer", "minimum": 1},
+        "workflow_key": {"$ref": "#/$defs/canonicalKey"},
+        "workflow_version": {"type": "integer", "minimum": 1},
+        "node_id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "created_by": {"$ref": "#/$defs/uuid"},
+        "approved_by": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"lifecycle": {"const": "active"}}, "required": ["lifecycle"]},
+      "then": {"required": ["version", "checksum_sha256", "effective_from"]}
+    },
+    {
+      "if": {"properties": {"security_classification": {"const": "security_control"}}, "required": ["security_classification"]},
+      "then": {
+        "properties": {
+          "merge_profile": {
+            "additionalProperties": {
+              "enum": ["deny_wins", "strict_intersection", "minimum", "maximum", "block_on_ambiguity"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "canonicalKey": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,127}$"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_type"],
+      "properties": {
+        "scope_type": {
+          "type": "string",
+          "enum": ["platform", "activity", "tenant", "workspace", "brand", "profile", "workflow", "workflow_node", "plan", "execution"]
+        },
+        "tenant_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "workspace_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "brand_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "activity_binding_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "profile_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "workflow_version_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "plan_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "execution_id": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"scope_type": {"enum": ["tenant", "workspace", "brand", "profile", "workflow", "workflow_node", "plan", "execution"]}}},
+          "then": {"required": ["tenant_id"]}
+        },
+        {
+          "if": {"properties": {"scope_type": {"enum": ["workspace", "brand", "profile", "workflow", "workflow_node", "plan", "execution"]}}},
+          "then": {"required": ["workspace_id"]}
+        },
+        {
+          "if": {"properties": {"scope_type": {"enum": ["brand", "profile", "workflow", "workflow_node", "plan", "execution"]}}},
+          "then": {"required": ["brand_id"]}
+        }
+      ]
+    },
+    "mergeOperator": {
+      "type": "string",
+      "enum": ["priority_replace", "deny_wins", "strict_intersection", "minimum", "maximum", "guarded_union", "append_unique", "block_on_ambiguity"]
+    }
+  },
+  "examples": [
+    {
+      "config_key": "travel.content.settings",
+      "schema_key": "travel.content.settings.schema",
+      "schema_version": 3,
+      "scope": {
+        "scope_type": "brand",
+        "tenant_id": "4bc39fca-270e-4daa-b373-db75e1f36ccd",
+        "workspace_id": "b50db01b-617e-4b7a-8bda-6bf4876f754f",
+        "brand_id": "33a06ae4-4ec3-4d68-907c-150e0551dceb"
+      },
+      "values": {
+        "default_locale": "ar-EG",
+        "claim_freshness_days": 7
+      },
+      "merge_profile": {
+        "default_locale": "priority_replace",
+        "claim_freshness_days": "minimum"
+      },
+      "security_classification": "tenant_internal",
+      "lifecycle": "draft",
+      "revision": 0,
+      "change_note": "Initial brand travel content settings"
+    }
+  ]
+}

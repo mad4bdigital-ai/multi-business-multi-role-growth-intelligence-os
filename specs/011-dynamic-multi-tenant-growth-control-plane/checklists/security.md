@@ -1,0 +1,24 @@
+# Security Checklist
+
+- [x] Tenant/user identity comes from signed principal context.
+- [x] Caller tenant/user overrides are forbidden.
+- [x] Resource authority is independent from containment and configuration.
+- [x] Canonical IDs, not aliases or display names, grant authority.
+- [x] Lower scopes cannot weaken mandatory controls.
+- [x] Configuration forbids arbitrary executable code.
+- [x] Schemas reject unknown fields by default.
+- [x] Activity Packs contain no credentials or tenant/brand facts.
+- [x] Provider nodes and effects are explicit.
+- [x] Credentials use references and adapter-time resolution.
+- [x] Approval binds plan/actions/resources/environment/hash/expiry/effect.
+- [x] Internal approval cannot authorize staging/production.
+- [x] Final-boundary authority revalidation is required.
+- [x] Idempotency and leases protect mutations.
+- [x] Unknown provider effect cannot blind-retry.
+- [x] Events and UI manifests never grant authority.
+- [x] Cache invalidation covers revocations and policy changes.
+- [x] Tenant responses use field allowlists.
+- [x] Secret-free errors, events, logs and evidence are required.
+- [x] Cross-tenant/brand denial tests are mandatory.
+- [ ] Threat model reviewed by security owner.
+- [ ] Production canary approval and rollback verified.

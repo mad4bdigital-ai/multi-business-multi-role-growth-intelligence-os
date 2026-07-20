@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-dynamic-multi-tenant-growth-control-plane",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/011-dynamic-multi-tenant-growth-control-plane-20260720",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "specification": {
+    "complete": true,
+    "file_count_expected": 26,
+    "file_count_recorded": 26,
+    "functional_requirements": 50,
+    "success_criteria": 10,
+    "use_cases": 18,
+    "threats": 18,
+    "risks": 30
+  },
+  "verification": {
+    "json_parse": "pending_ci",
+    "json_schema_validation": "pending_ci",
+    "openapi_validation": "pending_ci",
+    "inventory_check": "passed_github_readback",
+    "traceability_review": "pending_pr_review",
+    "security_review": "pending_implementation",
+    "architecture_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "tenant_projection_changed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "production_activated": false
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_started"
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    }
+  },
+  "required_closeout_evidence": [
+    "resource_and_registry_mapping",
+    "migration_ledger_and_readback",
+    "ci_and_release_readiness",
+    "dev_and_staging_shadow_parity",
+    "internal_pilot_readback",
+    "staging_provider_rollback",
+    "production_canary_approval_and_readback",
+    "production_parity",
+    "post_merge_audit",
+    "canonical_openapi_and_knowledge_updates"
+  ],
+  "notes": [
+    "Specification completion does not authorize implementation or execution.",
+    "Specs 006 and 007 remain the workflow and capability authorities.",
+    "All provider and production effects require separate plan-bound approval.",
+    "Status remains in_progress until the governed multi-PR implementation and closeout evidence are complete."
+  ]
+}
