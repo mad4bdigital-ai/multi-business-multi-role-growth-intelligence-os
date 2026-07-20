@@ -431,6 +431,9 @@ export async function runClient(args = parseArgs()) {
     if (target === "growth_intelligence_pilot_run") validateGrowthIntelligencePilotArgs(toolArgs);
     if (target === "governance_resolve_context") validateGovernanceResolveContextArgs(toolArgs);
     if (target === "growth_intelligence_report_read") validateGrowthIntelligenceReportReadArgs(toolArgs);
+    if (target === "growth_intelligence_insight_decide") validateGrowthIntelligenceInsightDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_action_decide") validateGrowthIntelligenceActionDecisionArgs(toolArgs);
+    if (target === "growth_intelligence_readiness_refresh") validateGrowthIntelligenceReadinessRefreshArgs(toolArgs);
     mutationRequested = isToolMutation(target, toolArgs);
     if (mutationRequested) {
       applyAuthoritySource = requireApplyAuthorization({
