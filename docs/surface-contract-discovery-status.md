@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 512/546 (93.77%)
-- Documentation gap migrations: 34
-- Gap severity: high=18, medium=15, low=1
+- Documentation complete migrations: 513/546 (93.96%)
+- Documentation gap migrations: 33
+- Gap severity: high=17, medium=15, low=1
 - SQL route coverage in OpenAPI: 22/24 (91.67%)
 - SQL route-like literals exempted from OpenAPI scoring: 662/686
 - SQL routes missing OpenAPI path coverage: 2
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 30 |
-| `deployment_parity_checklist.md` | 30 |
-| `docs/ai-docs-agent-governance.md` | 32 |
-| `docs/auto-docs-agent/README.md` | 34 |
-| `docs/change-documentation-governance.md` | 34 |
+| `Updating Registry Patch Index.md` | 29 |
+| `deployment_parity_checklist.md` | 29 |
+| `docs/ai-docs-agent-governance.md` | 31 |
+| `docs/auto-docs-agent/README.md` | 33 |
+| `docs/change-documentation-governance.md` | 33 |
 
 ### Safety Marker Coverage
 
@@ -88,8 +88,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 34
-- Critical review: 20
+- Total queue items: 33
+- Critical review: 19
 - High review: 13
 - Medium review: 1
 - Low review: 0
@@ -105,7 +105,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260714_tenant_connection_shadow_contract_bootstrap.sql` | critical_review | 838 | medium | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `20260719_fix_growth_intelligence_report_read_tool_path.sql` | critical_review | 832 | high | 5 | 0 | 6 | document_surface_contract, add_explicit_safety_markers |
 | `20260715_capability_envelope_template_resolver.sql` | critical_review | 816 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
-| `20260715_dynamic_container_canary_promotion_tool.sql` | critical_review | 804 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `20260714_async_release_deploy_contract.sql` | critical_review | 787 | high | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260716_repository_main_moved_trigger_coordinator.sql` | critical_review | 782 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `20260716_self_healing_release_advisor.sql` | critical_review | 782 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
@@ -116,6 +115,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260714_supervisor_runtime_admin_tool_exports.sql` | critical_review | 721 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260718_repair_activation_session_context_tool_registration.sql` | critical_review | 720 | high | 5 | 0 | 5 | document_surface_contract, add_explicit_safety_markers |
 | `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` | critical_review | 711 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding |
+| `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` | high_review | 677 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding |
 
 
 ## Latest Surface Coverage
@@ -211,7 +211,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql`
 - `20260715_capability_envelope_template_resolver.sql`
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql`
-- `20260715_dynamic_container_canary_promotion_tool.sql`
 - `20260715_dynamic_container_canary_runtime_observability.sql`
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql`
 - `20260716_repository_main_moved_trigger_coordinator.sql`
