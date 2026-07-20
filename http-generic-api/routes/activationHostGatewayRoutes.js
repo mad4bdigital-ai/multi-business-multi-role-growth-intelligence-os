@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 
 export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
 const AUTH_HOST = "auth.mad4b.com";
