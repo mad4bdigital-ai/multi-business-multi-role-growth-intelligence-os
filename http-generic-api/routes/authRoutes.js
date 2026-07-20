@@ -10,6 +10,11 @@ import {
   TENANT_GPT_SCOPE_LINKS,
 } from "../tenantGptOAuthPreset.js";
 import {
+  normalizeTenantGptOAuthResource,
+  resolveTenantGptOAuthResourceProfile,
+  tenantGptRequestHostFromHeaders,
+} from "../tenantGptOAuthResourceProfile.js";
+import {
   resolveTenantGptOAuthClientConfig,
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
