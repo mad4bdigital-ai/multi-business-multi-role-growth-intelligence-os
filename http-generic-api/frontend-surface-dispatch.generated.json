@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "67ff5baff4b2d6774a8e00f12e992557a501e0cc8f6c976e0c60d72fc0d81d20",
+    "source_digest": "04707044a96a4646c98fe979251d6dc944cdfc4bf4f6f744d03b69922a46c484",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -431,7 +431,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "a87751ba1631198a40a83bdb857a418578ef8d40358ff0862fce9dbf9ddbd0ef",
+        "sha256": "1b5e58f5d0525b7caac0c9fe86ceccbf9b788249ed495bab0096f5bfb3b522e3",
         "present": true
       },
       {
@@ -471,7 +471,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
+        "sha256": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
         "present": true
       },
       {
@@ -4676,7 +4676,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
+      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5029,7 +5029,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
+      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -5141,7 +5141,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "a6822804ee4ae3448265d1b2364e80d64dca1cb88c89a9e5748013f06059d9bc",
+      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
       "mount_prefix": "/",
       "mount_order": 11905,
       "split_from_mixed_scope_file": true,
@@ -36395,7 +36395,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "a87751ba1631198a40a83bdb857a418578ef8d40358ff0862fce9dbf9ddbd0ef",
+      "source_digest": "1b5e58f5d0525b7caac0c9fe86ceccbf9b788249ed495bab0096f5bfb3b522e3",
       "mount_prefix": "/",
       "mount_order": 15593,
       "split_from_mixed_scope_file": false,
