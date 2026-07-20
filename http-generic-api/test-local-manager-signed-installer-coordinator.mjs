@@ -9,6 +9,10 @@ const coordinator = readFileSync(
   new URL("../apps/local-manager-windows/SignedInstallerCoordinator.cs", import.meta.url),
   "utf8",
 );
+const installerRoutes = readFileSync(
+  new URL("./routes/localConnectorInstallRoutes.js", import.meta.url),
+  "utf8",
+);
 
 assert.match(program, /private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new\(BaseUrl, UpdatesRoot\);/);
 assert.match(program, /_signedInstallerCoordinator\.RequestRepairAsync\(token\)/);
@@ -36,10 +40,19 @@ assert.match(coordinator, /allowDownloadExtension && string\.Equals\(extension, 
 assert.match(coordinator, /Verb = "runas"/);
 assert.match(coordinator, /NativeErrorCode == 1223/);
 assert.match(coordinator, /WaitForExitAsync\(cancellationToken\)/);
+assert.match(coordinator, /process\.ExitCode == 0/);
+assert.match(coordinator, /SignedInstallerRunResult\.Failed/);
 assert.match(coordinator, /Guid\.NewGuid\(\):N/);
 assert.match(coordinator, /SHA256\.HashDataAsync/);
 assert.match(coordinator, /Installer file changed after governed download/);
 assert.doesNotMatch(coordinator, /ProcessStartInfo[\s\S]*Arguments\s*=/);
 assert.doesNotMatch(coordinator, /HttpMethod\.Put|HttpMethod\.Delete|ProtectedData/);
+
+assert.match(program, /runResult == SignedInstallerRunResult\.Failed/);
+assert.match(program, /installer_exit_nonzero/);
+const portAssignment = installerRoutes.indexOf('`$Port = ${Number(port)}`');
+const healthUrl = installerRoutes.indexOf("\"$HealthUrl = 'http://127.0.0.1:' + $Port + '/health'\"");
+assert.ok(portAssignment >= 0, "PowerShell installer must define the generated connector port");
+assert.ok(healthUrl > portAssignment, "PowerShell installer must define $Port before building $HealthUrl");
 
 console.log("local manager signed installer coordinator extraction guard passed");
