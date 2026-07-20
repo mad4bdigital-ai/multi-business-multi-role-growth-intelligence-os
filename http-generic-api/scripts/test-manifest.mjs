@@ -374,6 +374,7 @@ export const testCommands = [
   "node test-execution-log-evidence.mjs",
   "node test-execution-log-context-dimensions.mjs",
   "node test-execution-log-runtime-evidence.mjs",
+  "node test-registry-skill-recovery-canonical-migration.mjs",
   "node test-http-generic-api-root-fanout-audit.mjs",
   "node test-fanout-relocation-ci.mjs",
   "node test-execution-log-runtime-evidence-smoke-alias.mjs",

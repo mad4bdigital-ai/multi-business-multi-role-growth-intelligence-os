@@ -196,6 +196,7 @@ flowchart TD
 | `external_provider_gate_registry_resolver_policy_v1` | 3 |
 | `final_pattern_enforcement_policy_v1` | 1 |
 | `github_file_content_read_gate_policy_v1` | 1 |
+| `github_repository_recovery_adapter_policy_v1` | 1 |
 | `google_ads_budget_change_preflight_policy_v1` | 2 |
 | `google_ads_budget_execution_adapter_skeleton_policy_v1` | 5 |
 | `google_ads_budget_preflight_binding_policy_v1` | 1 |
@@ -230,6 +231,7 @@ flowchart TD
 | `platform_capability_shadow_certification_issue_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
+| `platform_registry_database_recovery_policy_v1` | 1 |
 | `platform_resource_api_coverage_policy_v1` | 2 |
 | `platform_resource_api_secret_field_policy_v1` | 1 |
 | `platform_resource_authority_binding_policy_v1` | 1 |
