@@ -23,6 +23,10 @@ import {
   isDuplicateEntryError,
   recoverGoogleJitIdentityAfterDuplicate,
 } from "../tenantGptGoogleJitRecovery.js";
+import {
+  resolveTenantGptOAuthResourceProfile,
+  tenantGptRequestHostFromHeaders,
+} from "../tenantGptOAuthResourceProfile.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
