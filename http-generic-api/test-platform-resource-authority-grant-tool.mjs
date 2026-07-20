@@ -96,6 +96,10 @@ assert.throws(
   /unsupported characters/
 );
 assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "service", principal_id: "a".repeat(65) } }),
+  /must not exceed 64 characters/
+);
+assert.throws(
   () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, user_id: base.user_id }),
   /may only accompany a matching user principal/
 );
