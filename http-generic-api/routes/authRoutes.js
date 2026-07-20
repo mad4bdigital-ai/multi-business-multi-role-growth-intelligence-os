@@ -527,7 +527,15 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   }
 }
 
-function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext, requestedScope = "" }) {
+function buildOAuthAuthorizeHtml({
+  clientId,
+  redirectUri,
+  state,
+  activationContext,
+  requestedScope = "",
+  oauthClientId = TENANT_GPT_OAUTH_CLIENT_ID,
+  oauthResource = "",
+}) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
     : ["google", "email", "register"];
