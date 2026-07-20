@@ -195,9 +195,24 @@ function normalizeAllowedModes(value, recipe) {
 
 export function expectedResourceAuthorityGrantConfirmation(plan) {
   const resourceTarget = plan.resource_ref.branch || plan.resource_ref.alias || plan.resource_uri;
-  const material = [plan.recipe_key, plan.resource_uri, resourceTarget, plan.resource_ref.expected_commit_sha].join(":");
-  const suffix = material.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 96);
-  return `GRANT_RESOURCE_AUTHORITY_${suffix}`;
+  const principalType = plan.principal?.principal_type || "legacy_user";
+  const principalId = plan.principal?.principal_id || plan.user_id || "";
+  const label = [plan.recipe_key, principalType, principalId]
+    .join("_")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+  const material = JSON.stringify({
+    recipe_key: plan.recipe_key,
+    resource_uri: plan.resource_uri,
+    resource_target: resourceTarget,
+    expected_commit_sha: plan.resource_ref.expected_commit_sha,
+    principal_type: principalType,
+    principal_id: principalId,
+  });
+  const digest = crypto.createHash("sha256").update(material).digest("hex").slice(0, 16).toUpperCase();
+  return `GRANT_RESOURCE_AUTHORITY_${label}_${digest}`;
 }
 
 export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
