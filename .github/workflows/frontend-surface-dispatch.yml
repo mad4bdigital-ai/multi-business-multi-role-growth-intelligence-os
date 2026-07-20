@@ -23,17 +23,6 @@ on:
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
   workflow_dispatch:
-    inputs:
-      sync_generated:
-        description: "Generate and commit frontend dispatch evidence on the selected ref"
-        required: true
-        default: false
-        type: boolean
-      baseline_ref:
-        description: "Baseline ref used by the deterministic generator"
-        required: false
-        default: "main"
-        type: string
 
 permissions:
   contents: read
