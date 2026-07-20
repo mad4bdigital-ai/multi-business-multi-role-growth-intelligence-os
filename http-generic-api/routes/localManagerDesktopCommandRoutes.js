@@ -5,6 +5,7 @@ import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkSer
 
 const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "repair_connector", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
+const SENSITIVE_DESKTOP_PURPOSES = new Set(["secure_credential_intake", "secret_provisioning", "credential_rotation", "privileged_installer"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
 function isWildcardTenantId(value) {
