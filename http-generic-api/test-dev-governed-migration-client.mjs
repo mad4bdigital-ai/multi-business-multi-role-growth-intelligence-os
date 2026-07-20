@@ -10,8 +10,11 @@ import {
   sanitizeResult,
   validateDevBaseUrl,
   validateGovernanceResolveContextArgs,
+  validateGrowthIntelligenceActionDecisionArgs,
+  validateGrowthIntelligenceInsightDecisionArgs,
   validateGrowthIntelligenceReportReadArgs,
   validateGrowthIntelligencePilotArgs,
+  validateGrowthIntelligenceReadinessRefreshArgs,
   validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
 
