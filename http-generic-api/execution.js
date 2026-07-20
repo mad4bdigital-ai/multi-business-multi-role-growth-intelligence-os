@@ -33,7 +33,7 @@ import {
   makeActivationSheetsBackoffKey
 } from "./activationBootstrapCache.js";
 import { buildActivationEnvelope } from "./activationResponse.js";
-import { readUpstreamResponse } from "./upstreamResponseParser.js";
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
 function buildActivationEnvelopeFromEvidence(evidence = {}) {
   return buildActivationEnvelope(evidence);
