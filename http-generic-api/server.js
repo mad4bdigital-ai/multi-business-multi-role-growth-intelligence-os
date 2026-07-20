@@ -6,6 +6,7 @@ import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySyn
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 import { DATA_SOURCE_MODE } from "./dataSource.js";
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
 import express from "express";
 import * as sqlAdapter from "./sqlAdapter.js";
