@@ -97,14 +97,22 @@ function normalizePrincipal(args = {}) {
     );
   }
 
-  let principalId = text(rawPrincipal.principal_id, 64);
-  if (!principalId) {
+  const principalIdInput = String(rawPrincipal.principal_id ?? "").trim();
+  if (!principalIdInput) {
     throw badRequest(
       "platform_resource_authority_grant_principal_id_required",
       "principal.principal_id is required.",
       { field: "principal.principal_id" }
     );
   }
+  if (principalIdInput.length > 64) {
+    throw badRequest(
+      "platform_resource_authority_grant_principal_id_too_long",
+      "principal.principal_id must not exceed 64 characters.",
+      { field: "principal.principal_id", max_length: 64 }
+    );
+  }
+  let principalId = principalIdInput;
   if (principalType === "user") principalId = requireUuid(principalId, "principal.principal_id");
   else if (!PRINCIPAL_ID_RE.test(principalId)) {
     throw badRequest(
