@@ -1323,7 +1323,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Approve or reject one Growth Intelligence dry-run action and its linked approval hold. Never dispatches the action or performs provider writes.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-action-decide",
-    tags: ["growth_intelligence", "approval", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "approval", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "action_id", "decision"],
