@@ -55,6 +55,27 @@ assert.deepEqual(servicePrincipalDry.resource_ref.principal, {
   principal_type: "service",
   principal_id: "platform_admin_service",
 });
+assert.match(servicePrincipalDry.expected_confirm, /^GRANT_RESOURCE_AUTHORITY_.+_[A-F0-9]{16}$/);
+
+const alternateServicePrincipalDry = buildPlatformResourceAuthorityGrantPlan({
+  ...servicePrincipalBase,
+  principal: { principal_type: "service", principal_id: "platform_secondary_service" },
+});
+assert.notEqual(
+  alternateServicePrincipalDry.expected_confirm,
+  servicePrincipalDry.expected_confirm,
+  "changing principal_id must change typed confirmation"
+);
+
+const backendSameIdDry = buildPlatformResourceAuthorityGrantPlan({
+  ...servicePrincipalBase,
+  principal: { principal_type: "backend_api_key", principal_id: "platform_admin_service" },
+});
+assert.notEqual(
+  backendSameIdDry.expected_confirm,
+  servicePrincipalDry.expected_confirm,
+  "changing principal_type must change typed confirmation"
+);
 
 const backendPrincipalDry = buildPlatformResourceAuthorityGrantPlan({
   ...base,
