@@ -14,6 +14,15 @@ import {
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
+import { hasVerifiedGoogleIdentity, normalizeAuthEmail } from "../authIdentityNormalization.js";
+import {
+  consumeTenantGptOAuthAuthorizationCode,
+  persistTenantGptOAuthAuthorizationCode,
+} from "../tenantGptOAuthAuthorizationCodeStore.js";
+import {
+  isDuplicateEntryError,
+  recoverGoogleJitIdentityAfterDuplicate,
+} from "../tenantGptGoogleJitRecovery.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -99,22 +108,6 @@ async function ensurePasswordResetTables() {
       KEY \`idx_auth_email_outbox_recipient\` (\`recipient_email\`, \`created_at\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
-}
-
-// Single-use OAuth code tracking: jti → expiry ms. Lazily cleaned.
-const _usedOAuthCodeJtis = new Map();
-function _markOAuthCodeUsed(jti, expSecs) {
-  _usedOAuthCodeJtis.set(jti, expSecs * 1000);
-  if (_usedOAuthCodeJtis.size > 1000) {
-    const now = Date.now();
-    for (const [k, e] of _usedOAuthCodeJtis) {
-      if (e <= now) _usedOAuthCodeJtis.delete(k);
-    }
-  }
-}
-function _isOAuthCodeUsed(jti) {
-  const exp = _usedOAuthCodeJtis.get(jti);
-  return exp !== undefined && exp > Date.now();
 }
 
 function cleanOption(value, allowed, fallback = null) {
@@ -224,11 +217,12 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
   const hasUserId = typeof user_id === "string" && user_id.trim();
-  const hasEmail = typeof email === "string" && email.trim();
+  const normalizedEmail = normalizeAuthEmail(email);
+  const hasEmail = Boolean(normalizedEmail);
   if (!hasUserId && !hasEmail) return null;
 
   const where = hasUserId ? "u.user_id = ?" : "u.email = ?";
-  const param = hasUserId ? user_id.trim() : email.trim();
+  const param = hasUserId ? user_id.trim() : normalizedEmail;
   const [rows] = await pool.query(
     `SELECT u.user_id, u.email, u.display_name, u.status
        FROM \`users\` u
@@ -267,14 +261,24 @@ async function fetchJwtClientMembership(pool, userId, requestedTenantId) {
 
 async function ensureDefaultWorkspaceForUser(connection, { userId, email, displayName, source }) {
   const [memberships] = await connection.query(
-    `SELECT m.tenant_id
+    `SELECT m.tenant_id,
+            m.status AS membership_status,
+            t.status AS tenant_status
        FROM \`memberships\` m
-      WHERE m.user_id = ? AND m.status = 'active'
-      ORDER BY m.granted_at ASC
-      LIMIT 1`,
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ?
+      ORDER BY m.granted_at ASC`,
     [userId]
   );
-  if (memberships.length) return { created: false, tenant_id: memberships[0].tenant_id };
+
+  const activeMembership = memberships.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+  if (activeMembership) return { created: false, tenant_id: activeMembership.tenant_id };
+  if (memberships.some((row) => row.membership_status !== "active")) {
+    throw authRouteFailure(403, "membership_revoked", "The existing workspace membership is not active.");
+  }
+  if (memberships.some((row) => row.tenant_status !== "active")) {
+    throw authRouteFailure(403, "tenant_suspended", "The existing workspace is not active.");
+  }
 
   const tenantId = randomUUID();
   const tenantName = `${displayName || email || "User"}'s workspace`;
@@ -335,13 +339,20 @@ function callbackPatternToRegExp(pattern) {
   return new RegExp(`^${escaped}$`, "i");
 }
 
-async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
+async function resolveTenantGptRedirectUriDecision(redirectUri, queryFn) {
   const url = parseOAuthRedirectUri(redirectUri);
-  if (!url) return false;
+  if (!url) return { allowed: false, configuration_available: true, error_code: null };
 
   const normalized = url.toString();
   const canonical = canonicalizeTenantGptRedirectUri(normalized);
   const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
+  if (!resolved.ok) {
+    return {
+      allowed: false,
+      configuration_available: false,
+      error_code: String(resolved.error || "oauth_configuration_unavailable").slice(0, 64),
+    };
+  }
   const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
     ? resolved.config.callback_urls_to_allow
     : [];
@@ -351,9 +362,11 @@ async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
     return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(candidate);
   }
 
-  return callbacks.some((callback) => {
-    return matches(callback, normalized) || matches(callback, canonical);
-  });
+  return {
+    allowed: callbacks.some((callback) => matches(callback, normalized) || matches(callback, canonical)),
+    configuration_available: true,
+    error_code: null,
+  };
 }
 
 function appendOAuthParams(redirectUri, params) {
@@ -538,7 +551,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
 <body>
   <main>
     <h1>Growth Intelligence Platform</h1>
-    <p>Sign in to connect this GPT to your tenant workspace and continue activation.</p>
+    <p>Sign in or create your workspace to continue securely in ChatGPT.</p>
     <nav aria-label="Sign-in options">
       ${showGoogle ? '<button type="button" data-panel="google">Google</button>' : ''}
       ${showEmail ? '<button type="button" data-panel="email">Existing account</button>' : ''}
@@ -563,8 +576,6 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     </section>` : ''}
     <div id="error" class="error" role="alert"></div>
     <div class="links">
-      <a href="https://auth.mad4b.com/connect" target="_blank" rel="noopener">Open setup page</a>
-      <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
       <span aria-hidden="true"> | </span>
       <a href="https://auth.mad4b.com/terms-of-use" target="_blank" rel="noopener">Terms of Use</a>
@@ -593,7 +604,10 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
         body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
-      if (!codeRes.ok || !codeData.redirect_to) throw new Error(codeData?.error?.message || "Could not complete OAuth sign-in.");
+      if (!codeRes.ok || !codeData.redirect_to) {
+        const reference = codeData?.error?.request_id ? " Reference: " + codeData.error.request_id : "";
+        throw new Error((codeData?.error?.message || "Could not complete OAuth sign-in.") + reference);
+      }
       window.location.assign(codeData.redirect_to);
     }
     async function submitCredentials(kind, form){
@@ -658,6 +672,35 @@ function sendAuthRouteFailure(res, error, fallbackCode) {
   });
 }
 
+function sendOAuthInfrastructureFailure(res, {
+  requestId,
+  stage,
+  error,
+  code,
+  message,
+}) {
+  const diagnosticCode = String(error?.code || "").trim().slice(0, 64) || null;
+  const diagnosticSqlState = String(error?.sqlState || "").trim().slice(0, 16) || null;
+  const diagnosticErrno = Number.isInteger(Number(error?.errno)) ? Number(error.errno) : null;
+  console.error("tenant_gpt_oauth_code_issue_failed", {
+    request_id: requestId,
+    stage,
+    error_code: diagnosticCode,
+    error_errno: diagnosticErrno,
+    sql_state: diagnosticSqlState,
+    secrets_included: false,
+  });
+  res.setHeader("x-request-id", requestId);
+  return res.status(503).json({
+    ok: false,
+    error: {
+      code,
+      message,
+      request_id: requestId,
+    },
+  });
+}
+
 export function buildAuthRoutes(deps) {
   const router = Router();
   const requireBackendApiKey = deps?.requireBackendApiKey;
@@ -665,7 +708,8 @@ export function buildAuthRoutes(deps) {
   const oauthGoogleClient = deps?.googleClient || googleClient;
 
   async function registerUserCredential(input = {}) {
-    const { email, password, display_name, tenant_display_name } = input;
+    const { email: rawEmail, password, display_name, tenant_display_name } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password || !display_name) {
       throw authRouteFailure(400, "missing_fields", "email, password, and display_name are required.");
     }
@@ -715,7 +759,8 @@ export function buildAuthRoutes(deps) {
   }
 
   async function loginUserCredential(input = {}) {
-    const { email, password } = input;
+    const { email: rawEmail, password } = input;
+    const email = normalizeAuthEmail(rawEmail);
     if (!email || !password) {
       throw authRouteFailure(400, "missing_fields", "email and password are required.");
     }
@@ -772,10 +817,12 @@ export function buildAuthRoutes(deps) {
       throw authRouteFailure(401, "invalid_token", "Invalid Google ID token.");
     }
 
-    const { sub: provider_id, email, name: display_name } = payload || {};
-    if (!provider_id || !email) {
-      throw authRouteFailure(401, "invalid_token", "Google ID token is missing the required identity claims.");
+    if (!hasVerifiedGoogleIdentity(payload)) {
+      throw authRouteFailure(401, "google_identity_not_verified", "Google ID token must include a verified email identity.");
     }
+    const provider_id = String(payload.sub).trim();
+    const email = normalizeAuthEmail(payload.email);
+    const display_name = cleanText(payload.name || email, 120);
 
     const pool = resolvePool();
     const connection = await pool.getConnection();
@@ -828,7 +875,18 @@ export function buildAuthRoutes(deps) {
       await connection.commit();
     } catch (error) {
       await connection.rollback();
-      throw error;
+      if (!isDuplicateEntryError(error)) throw error;
+
+      const recovered = await recoverGoogleJitIdentityAfterDuplicate({
+        pool,
+        connection,
+        provider_id,
+        email,
+        display_name,
+        ensureWorkspace: ensureDefaultWorkspaceForUser,
+      });
+      if (!recovered?.user_id) throw error;
+      user_id = recovered.user_id;
     } finally {
       connection.release();
     }
@@ -974,7 +1032,11 @@ export function buildAuthRoutes(deps) {
     }
 
     const query = (sql, params) => resolvePool().query(sql, params);
-    if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
+    const redirectDecision = await resolveTenantGptRedirectUriDecision(redirectUri, query);
+    if (!redirectDecision.configuration_available) {
+      return res.status(503).type("text/plain").send("OAuth configuration is temporarily unavailable. Please retry.");
+    }
+    if (!redirectDecision.allowed) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
@@ -986,6 +1048,8 @@ export function buildAuthRoutes(deps) {
   });
 
   router.post("/oauth/code", async (req, res) => {
+    const requestId = randomUUID();
+    let stage = "request_validation";
     try {
       const { token, credential, redirect_uri, state } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
@@ -999,29 +1063,51 @@ export function buildAuthRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
-      if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
+      stage = "oauth_client_config";
+      const redirectDecision = await resolveTenantGptRedirectUriDecision(redirect_uri, query);
+      if (!redirectDecision.configuration_available) {
+        const error = new Error("OAuth client configuration is unavailable.");
+        error.code = redirectDecision.error_code || "oauth_configuration_unavailable";
+        throw error;
+      }
+      if (!redirectDecision.allowed) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
 
+      stage = "identity_resolution";
       const payload = token
         ? jwt.verify(token, JWT_SECRET)
         : await resolveTenantGptOAuthCredential(credential);
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
+      const codeJti = randomUUID();
+      const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
+      const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
+      stage = "authorization_code_sign";
       const code = jwt.sign(
         {
           purpose: "custom_gpt_oauth_code",
           user_id: payload.user_id,
           email: payload.email,
           tenant_id: payload.tenant_id || null,
-          redirect_uri: canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri,
+          redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
           activation_context,
         },
         JWT_SECRET,
-        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: randomUUID() }
+        { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+      stage = "authorization_code_store";
+      await persistTenantGptOAuthAuthorizationCode({
+        query,
+        jti: codeJti,
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id || null,
+        client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+        redirect_uri: canonicalRedirectUri,
+        expires_at: codeExpiresAt,
+      });
 
       return res.status(200).json({
         ok: true,
@@ -1034,10 +1120,43 @@ export function buildAuthRoutes(deps) {
       if (Number.isInteger(error?.auth_status) && error?.auth_code) {
         return sendAuthRouteFailure(res, error, "oauth_identity_failed");
       }
-      if (!req.body?.token) {
-        return res.status(500).json({ ok: false, error: { code: "oauth_identity_failed", message: "OAuth identity could not be resolved." } });
+      if (stage === "oauth_client_config") {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_configuration_unavailable",
+          message: "OAuth configuration is temporarily unavailable. Please retry.",
+        });
       }
-      return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
+      if (stage === "authorization_code_store") {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_code_store_unavailable",
+          message: "OAuth sign-in is temporarily unavailable. Please retry.",
+        });
+      }
+      if (stage === "identity_resolution" && !req.body?.token) {
+        return sendOAuthInfrastructureFailure(res, {
+          requestId,
+          stage,
+          error,
+          code: "oauth_identity_unavailable",
+          message: "OAuth identity service is temporarily unavailable. Please retry.",
+        });
+      }
+      if (stage === "identity_resolution" && req.body?.token) {
+        return res.status(401).json({ ok: false, error: { code: "invalid_token", message: "User token is invalid or expired." } });
+      }
+      return sendOAuthInfrastructureFailure(res, {
+        requestId,
+        stage,
+        error,
+        code: "oauth_code_issue_unavailable",
+        message: "OAuth sign-in is temporarily unavailable. Please retry.",
+      });
     }
   });
 
@@ -1110,11 +1229,16 @@ export function buildAuthRoutes(deps) {
         logTokenExchange("failed", "redirect_uri_mismatch", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
-      if (_isOAuthCodeUsed(codePayload.jti)) {
-        logTokenExchange("failed", "oauth_code_reuse", 400);
-        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used." });
+      const codeConsumption = await consumeTenantGptOAuthAuthorizationCode({
+        query: tokenQuery,
+        jti: codePayload.jti,
+        client_id: clientValidation.client_id,
+        redirect_uri: codePayload.redirect_uri,
+      });
+      if (!codeConsumption.consumed) {
+        logTokenExchange("failed", "oauth_code_reuse_or_binding_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code has already been used or does not match this client." });
       }
-      _markOAuthCodeUsed(codePayload.jti, codePayload.exp);
 
       const pool = resolvePool();
       const [userRows] = await pool.query(

@@ -9,7 +9,12 @@ import {
   resolveApplyAuthoritySource,
   sanitizeResult,
   validateDevBaseUrl,
+  validateGovernanceResolveContextArgs,
+  validateGrowthIntelligenceActionDecisionArgs,
+  validateGrowthIntelligenceInsightDecisionArgs,
+  validateGrowthIntelligenceReportReadArgs,
   validateGrowthIntelligencePilotArgs,
+  validateGrowthIntelligenceReadinessRefreshArgs,
   validateShellAliasInvocation,
 } from "./scripts/dev-governed-migration-client.mjs";
 
@@ -86,6 +91,94 @@ for (const blockedPilotArgs of [
   { ...safePilotArgs, evidence_limit: 51 },
 ]) {
   assert.throws(() => validateGrowthIntelligencePilotArgs(blockedPilotArgs));
+}
+
+const safeGovernanceContextArgs = {
+  business_type_key: "hvac_air_conditioning_services",
+  brand_key: "arab_cooling",
+  target_key: "arab_cooling",
+};
+assert.equal(validateGovernanceResolveContextArgs(safeGovernanceContextArgs), safeGovernanceContextArgs);
+assert.equal(isToolMutation("governance_resolve_context", safeGovernanceContextArgs), false);
+for (const blockedContextArgs of [
+  { ...safeGovernanceContextArgs, data_source: "sql" },
+  { ...safeGovernanceContextArgs, business_type_key: "" },
+  { ...safeGovernanceContextArgs, brand_key: "bad brand" },
+  { ...safeGovernanceContextArgs, target_key: "../target" },
+  { business_type_key: "hvac_air_conditioning_services", brand_key: "arab_cooling" },
+]) {
+  assert.throws(() => validateGovernanceResolveContextArgs(blockedContextArgs));
+}
+
+const safeReportReadArgs = {
+  tenant_id: "4bc39fca-270e-4daa-b373-db75e1f36ccd",
+  report_id: "pilot-allroyalegypt-20260718-1",
+};
+assert.equal(validateGrowthIntelligenceReportReadArgs(safeReportReadArgs), safeReportReadArgs);
+assert.equal(isToolMutation("growth_intelligence_report_read", safeReportReadArgs), false);
+for (const blockedReportReadArgs of [
+  { ...safeReportReadArgs, decision: "accepted" },
+  { ...safeReportReadArgs, tenant_id: "not-a-uuid" },
+  { ...safeReportReadArgs, report_id: "" },
+  { ...safeReportReadArgs, report_id: "../report" },
+  { tenant_id: safeReportReadArgs.tenant_id },
+]) {
+  assert.throws(() => validateGrowthIntelligenceReportReadArgs(blockedReportReadArgs));
+}
+
+const decisionBy = "f242960c-2857-4b4d-a504-ee50f8a278b4";
+const safeInsightDecisionArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  insight_id: "opp_54b844a667dda0d6",
+  decision: "accepted",
+  decision_by: decisionBy,
+  decision_note: "Approved by the typed review bundle.",
+};
+assert.equal(validateGrowthIntelligenceInsightDecisionArgs(safeInsightDecisionArgs), safeInsightDecisionArgs);
+assert.equal(isToolMutation("growth_intelligence_insight_decide", safeInsightDecisionArgs), true);
+for (const blockedInsightDecisionArgs of [
+  { ...safeInsightDecisionArgs, external_send: true },
+  { ...safeInsightDecisionArgs, decision: "approved" },
+  { ...safeInsightDecisionArgs, insight_id: "../insight" },
+  { ...safeInsightDecisionArgs, decision_by: "growth-platform-admin" },
+  { ...safeInsightDecisionArgs, decision_note: "bad\nline" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceInsightDecisionArgs(blockedInsightDecisionArgs));
+}
+
+const safeActionDecisionArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  action_id: "action_089de9a424c80ca0",
+  decision: "approved",
+  decision_by: decisionBy,
+  decision_note: "Approved as an internal dry-run plan only.",
+};
+assert.equal(validateGrowthIntelligenceActionDecisionArgs(safeActionDecisionArgs), safeActionDecisionArgs);
+assert.equal(isToolMutation("growth_intelligence_action_decide", safeActionDecisionArgs), true);
+for (const blockedActionDecisionArgs of [
+  { ...safeActionDecisionArgs, execute: true },
+  { ...safeActionDecisionArgs, decision: "accepted" },
+  { ...safeActionDecisionArgs, action_id: "" },
+  { ...safeActionDecisionArgs, tenant_id: "not-a-uuid" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceActionDecisionArgs(blockedActionDecisionArgs));
+}
+
+const safeReadinessArgs = {
+  tenant_id: safeReportReadArgs.tenant_id,
+  report_id: safeReportReadArgs.report_id,
+  assessed_by: "growth-platform-admin",
+};
+assert.equal(validateGrowthIntelligenceReadinessRefreshArgs(safeReadinessArgs), safeReadinessArgs);
+assert.equal(isToolMutation("growth_intelligence_readiness_refresh", safeReadinessArgs), true);
+for (const blockedReadinessArgs of [
+  { ...safeReadinessArgs, execution_allowed: true },
+  { ...safeReadinessArgs, assessed_by: "bad assessor" },
+  { ...safeReadinessArgs, report_id: "../report" },
+]) {
+  assert.throws(() => validateGrowthIntelligenceReadinessRefreshArgs(blockedReadinessArgs));
 }
 
 const capabilityEnvelopeId = "70891f74-0200-4942-843e-18cf4ba6643a";
@@ -186,6 +279,9 @@ assert.match(source, /DEV_MIGRATION_APPLY_ENABLED/);
 assert.match(source, /redirect: "error"/);
 assert.match(source, /governed_migration_execute/);
 assert.match(source, /governed_migration_schema_readback/);
+assert.match(source, /growth_intelligence_insight_decide/);
+assert.match(source, /growth_intelligence_action_decide/);
+assert.match(source, /growth_intelligence_readiness_refresh/);
 assert.match(source, /capability_resolution_envelope_create/);
 assert.match(source, /capability_resolution_envelope_approve/);
 assert.doesNotMatch(source, /restore-from-backup/);

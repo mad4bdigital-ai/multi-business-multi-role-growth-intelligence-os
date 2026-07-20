@@ -4808,18 +4808,21 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [turns]
               properties:
                 turns:
                   type: array
                   minItems: 1
+                  maxItems: 20
                   items:
                     type: object
+                    additionalProperties: false
                     required: [role, content]
                     properties:
                       role:
                         type: string
-                        enum: [user, assistant, tool, system]
+                        enum: [user, assistant, tool]
                       content:
                         type: string
                         maxLength: 120000
@@ -5527,8 +5530,8 @@ paths:
         "400": { description: Missing request fields or non-allowlisted command key. }
         "401": { description: Missing or invalid tenant user JWT. }
         "404": { description: Connection or approval request not found for this tenant. }
-        "409": { description: Connection not ready, approval not approved, expired, or command mismatch. }
-        "502": { description: SSH command failed, timed out, or SSH runtime unavailable. }
+        "409": { description: "Connection not ready, approval not approved, expired, or command mismatch." }
+        "502": { description: "SSH command failed, timed out, or SSH runtime unavailable." }
         "500": { description: Unexpected SSH CLI execution failure. }
 
   /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result:
@@ -8424,7 +8427,7 @@ paths:
         "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "404": { description: Case or task not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "409": { description: Incompatible case, binding mismatch, or concurrent update., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: "\"Incompatible case, binding mismatch, or concurrent update.\"", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /tenant/resolution/cases/{caseId}/task-source-repair/apply:
     post:
@@ -8544,11 +8547,11 @@ paths:
                       lifecycle_readback_required: { type: boolean, enum: [true] }
                       secrets_included: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
-        "400": { description: Invalid fingerprint, authority input, or typed confirmation., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "400": { description: "Invalid fingerprint, authority input, or typed confirmation.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "403": { description: Tenant membership, capability envelope, or approved hold is missing or invalid., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: "Tenant membership, capability envelope, or approved hold is missing or invalid.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "404": { description: Resolution case or pending task was not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "409": { description: Case state, preflight, drift, uniqueness, mutation readback, or envelope lifecycle conflict., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: "Case state, preflight, drift, uniqueness, mutation readback, or envelope lifecycle conflict.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /tenant/activation/dynamic-tabs/detail:
     get:
@@ -8783,7 +8786,7 @@ paths:
       x-tenant-gpt-operationId: activateSession
       x-openai-isConsequential: false
       summary: Open or reuse the signed tenant user's Activation session context
-      description: Tenant-only Activation session surface. Tenant and user identity come from the signed OAuth JWT; tenant_id, user_id, raw dumps, and unknown query parameters are not accepted.
+      description: Tenant-only Activation session surface. Tenant, user, workspace, and brand scope comes from signed OAuth JWT and membership. Identity overrides, include_turns, context_scope, raw dumps, and unknown parameters are rejected. Raw turns stay unavailable; responses remain scoped and secret-free.
       parameters:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
@@ -8834,8 +8837,155 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
+
+  /tenant/activation/sessions:
+    get:
+      tags: [activation, session-archive]
+      operationId: listTenantActivationSessions
+      x-tenant-gpt-operationId: listSessions
+      x-openai-isConsequential: false
+      summary: List the signed tenant user's safe Activation session metadata
+      description: Returns a bounded, secret-free projection of sessions owned by the tenant and user from the signed OAuth JWT. Tenant, user, workspace, brand, and context-scope overrides are rejected and raw instructions, repository metadata, emails, and turn content are never selected.
+      parameters:
+        - name: session_status
+          in: query
+          schema: { type: string, enum: [pending, active, completed, failed] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped safe session list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, subject, sessions, total, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [session_list] }
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    required: [tenant_id, user_id, is_admin]
+                    properties:
+                      tenant_id: { type: string }
+                      user_id: { type: string }
+                      is_admin: { type: boolean, enum: [false] }
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [session_id, originator, session_status, brand_key, workspace_key, turn_count, started_at, ended_at, created_at]
+                      properties:
+                        session_id: { type: string }
+                        originator: { type: [string, "null"] }
+                        session_status: { type: string, enum: [pending, active, completed, failed] }
+                        brand_key: { type: [string, "null"] }
+                        workspace_key: { type: [string, "null"] }
+                        turn_count: { type: integer, minimum: 0 }
+                        started_at: { type: [string, "null"], format: date-time }
+                        ended_at: { type: [string, "null"], format: date-time }
+                        created_at: { type: [string, "null"], format: date-time }
+                  total: { type: integer, minimum: 0, maximum: 50 }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Tenant Activation session list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+      security:
+        - userJwtAuth: []
+
+  /tenant/activation/sessions/{id}/turns:
+    post:
+      tags: [activation, session-archive]
+      operationId: writeTenantActivationSessionTurns
+      x-tenant-gpt-operationId: writeGptSessionTurns
+      x-openai-isConsequential: true
+      summary: Append a bounded conversational exchange to the active tenant session archive
+      description: Uses the session_archive_write capability family, exact JWT tenant and user scope, a maximum of 20 turns, and same-cycle per-turn archive readback. System-role turns and identity overrides are rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant, tool] }
+                      content: { type: string, minLength: 1, maxLength: 120000 }
+                      action_key: { type: [string, "null"] }
+                      workspace_key: { type: string }
+                      brand_key: { type: string }
+                      target_key: { type: string, description: Alias for brand_key. }
+                      business_type_key: { type: string }
+                      business_activity_type_key: { type: string }
+                      activity_key: { type: string }
+                      knowledge_profile_key: { type: string }
+      responses:
+        "200":
+          description: Turns appended with archive readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, session_id, turn_count, turns, capture_policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  session_id: { type: string }
+                  turn_count: { type: integer, minimum: 1, maximum: 20 }
+                  turns:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [role, turn_index, turn_id, drive_doc_id, drive_doc_part, drive_anchor, archive_status]
+                      properties:
+                        role: { type: string, enum: [user, assistant, tool] }
+                        turn_index: { type: integer, minimum: 0 }
+                        turn_id: { type: string }
+                        drive_doc_id: { type: [string, "null"] }
+                        drive_doc_part: { type: [integer, "null"], minimum: 1 }
+                        drive_anchor: { type: [string, "null"] }
+                        archive_status: { type: string }
+                  capture_policy:
+                    type: object
+                    additionalProperties: false
+                    required: [intended_use, sql_content_mode, full_content_storage, secrets_included]
+                    properties:
+                      intended_use: { type: string }
+                      sql_content_mode: { type: string, enum: [preview_hash_only] }
+                      full_content_storage: { type: string, enum: [drive_doc_and_jsonl] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Capability-family or tenant/user scope authorization denied. }
+        "404": { description: Session not found. }
+        "409": { description: Session is closed. }
+        "500": { description: Session archive write failed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+      security:
+        - userJwtAuth: []
 
   /activation/platform-access:
     get:
@@ -9488,7 +9638,7 @@ paths:
         - { name: tenant_id, in: path, required: true, schema: { type: string } }
         - { name: brand_key, in: query, schema: { type: string } }
       responses:
-        "200": { description: Report, insight, action, readiness, quality, approval, and safety metrics }
+        "200": { description: "Report, insight, action, readiness, quality, approval, and safety metrics" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
@@ -9501,7 +9651,7 @@ paths:
         - { name: tenant_id, in: path, required: true, schema: { type: string } }
         - { name: report_id, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Growth Intelligence report, insight/action rows, and immutable readiness assessments }
+        "200": { description: "Growth Intelligence report, insight/action rows, and immutable readiness assessments" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Growth Intelligence report not found }
 
@@ -10990,7 +11140,7 @@ paths:
                 properties:
                   ok: { type: boolean }
                   credential_id: { type: string, format: uuid }
-                  api_key: { type: string, description: "Full key Ã¢â‚¬â€ store now, not retrievable again." }
+                  api_key: { type: string, description: "\"Full key Ã¢â‚¬â€ store now, not retrievable again.\"" }
                   key_prefix: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -13190,7 +13340,7 @@ paths:
       parameters:
         - { name: plan_id, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Plan, compiled steps, and transition events }
+        "200": { description: "Plan, compiled steps, and transition events" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -15379,6 +15529,101 @@ paths:
       responses:
         "200": { description: Connect onboarding state, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /connect/bootstrap:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: bootstrapTenantConnection
+      summary: Provision and activate the signed-in tenant workspace in Managed mode
+      description: >
+        Idempotently creates one eligible workspace when needed, activates Managed mode,
+        and returns success only after final connection-state readback. User and tenant
+        identity are derived from the signed user JWT; secrets are never returned.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                mode:
+                  type: string
+                  enum: [managed]
+                  default: managed
+                workspace_name:
+                  type: string
+                  maxLength: 120
+                display_name:
+                  type: string
+                  maxLength: 120
+      responses:
+        "200":
+          description: Managed activation verified by final readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, bootstrap, principal, activation, readback, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  bootstrap: { type: object, additionalProperties: true }
+                  principal:
+                    type: object
+                    additionalProperties: false
+                    required: [workspace_key, role]
+                    properties:
+                      workspace_key: { type: string }
+                      role: { type: string }
+                  activation:
+                    type: object
+                    additionalProperties: false
+                    required: [mode, status, validation_status]
+                    properties:
+                      mode: { type: string, enum: [managed] }
+                      status: { type: string, enum: [active] }
+                      validation_status: { type: string, enum: [verified] }
+                  onboarding: { type: [object, "null"], additionalProperties: true }
+                  next_actions:
+                    type: array
+                    items: { type: string }
+                  readback:
+                    type: object
+                    additionalProperties: false
+                    required: [verified, checked_at]
+                    properties:
+                      verified: { type: boolean, enum: [true] }
+                      checked_at: { type: string, format: date-time }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid bootstrap request or unsupported activation mode
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401":
+          description: Signed user JWT required
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "403":
+          description: Membership, account, or tenant is not eligible for activation
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "409":
+          description: Workspace selection is required
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "503":
+          description: Managed activation could not be verified by final readback
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
   /connect/workspace:
     post:
       x-openai-isConsequential: true
@@ -16060,7 +16305,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-        "400": { description: Missing approval, inactive intake connection, or mapped field missing. }
+        "400": { description: "Missing approval, inactive intake connection, or mapped field missing." }
   /credentials/intake/promote-local-connector-key:
     post:
       x-openai-isConsequential: true
@@ -17264,7 +17509,7 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "400": { description: Invalid resolver or target-mode input. }
         "401": { description: Authentication required. }
-        "403": { description: Principal, tenant, surface, skill, credential scope, or target authority denied. }
+        "403": { description: "Principal, tenant, surface, skill, credential scope, or target authority denied." }
         "503": { description: Policy or target-authority store unavailable; resolution fails closed. }
   /tenant/platform/plugins/credential-intake-sessions:
     post:
@@ -17529,8 +17774,8 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
         '400': { description: Invalid deployment input. }
-        '403': { description: Approval, capability envelope, or execution gate missing. }
-        '409': { description: Target, path, branch, SHA, or dry-run plan conflict. }
+        '403': { description: "Approval, capability envelope, or execution gate missing." }
+        '409': { description: "Target, path, branch, SHA, or dry-run plan conflict." }
         '502': { description: SSH deployment failed before acceptance. }
   /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}:
     get:
@@ -21403,7 +21648,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
-        "409": { description: Handoff is expired, revoked, consumed, or changed concurrently }
+        "409": { description: "Handoff is expired, revoked, consumed, or changed concurrently" }
   /platform/agent-governance/handoffs/{state_id}/revoke:
     post:
       tags: [platform-agent-governance]
@@ -21466,7 +21711,7 @@ paths:
         - { name: coverage_status, in: query, required: false, schema: { type: string, enum: [covered, gap] } }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
       responses:
-        "200": { description: Type-aware skill coverage rows, summary counts, and applied filters }
+        "200": { description: "Type-aware skill coverage rows, summary counts, and applied filters" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }

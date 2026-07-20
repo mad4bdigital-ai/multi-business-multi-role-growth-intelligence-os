@@ -27,6 +27,7 @@ import {
 } from "../agentSurfaceRuntimeService.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
 import { createOrAppendSupportTicket } from "../supportTicketService.js";
+import { orchestrateTenantConnectBootstrap } from "../tenantConnectBootstrapService.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
@@ -216,7 +217,11 @@ async function assessAgentSurfacesSafe({ tenantId, userId }) {
 
 async function fetchActiveMemberships(userId) {
   const [rows] = await getPool().query(
-    `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+    `SELECT m.tenant_id,
+            m.role,
+            m.status,
+            t.status AS tenant_status,
+            t.display_name AS tenant_display_name
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.status = 'active'
@@ -348,17 +353,33 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
     }
 
     const [existing] = await connection.query(
-      `SELECT m.tenant_id, m.role, t.display_name AS tenant_display_name
+      `SELECT m.tenant_id,
+              m.role,
+              m.status AS membership_status,
+              t.status AS tenant_status,
+              t.display_name AS tenant_display_name
          FROM memberships m
-         JOIN tenants t ON t.tenant_id = m.tenant_id
-        WHERE m.user_id = ? AND m.status = 'active'
-        ORDER BY m.granted_at ASC
-        LIMIT 1`,
+         LEFT JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ?
+        ORDER BY m.granted_at ASC`,
       [userId]
     );
-    if (existing[0]) {
+    const activeMembership = existing.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+    if (activeMembership) {
       await connection.commit();
-      return { created: false, user, tenant_id: existing[0].tenant_id, display_name: existing[0].tenant_display_name, role: existing[0].role };
+      return { created: false, user, tenant_id: activeMembership.tenant_id, display_name: activeMembership.tenant_display_name, role: activeMembership.role };
+    }
+    if (existing.some((row) => row.membership_status !== "active")) {
+      const err = new Error("The existing workspace membership is not active.");
+      err.status = 403;
+      err.code = "membership_revoked";
+      throw err;
+    }
+    if (existing.some((row) => row.tenant_status !== "active")) {
+      const err = new Error("The existing workspace is not active.");
+      err.status = 403;
+      err.code = "tenant_suspended";
+      throw err;
     }
 
     const tenantId = randomUUID();
@@ -387,6 +408,38 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
   } finally {
     connection.release();
   }
+}
+
+async function activateManagedConnectionForTenant({ userId, tenantId } = {}) {
+  const pool = getPool();
+  const existing = await fetchTenantConnection(tenantId);
+  if (existing?.status === "active" && existing?.connection_mode === "managed") {
+    return { activated: false, connection: existing };
+  }
+
+  const connectionId = randomUUID();
+  await pool.query(
+    `INSERT INTO \`tenant_backend_connections\`
+       (connection_id, tenant_id, connection_mode, cloudflare_mode, google_auth_mode, n8n_activation_mode, status, activated_at)
+     VALUES (?, ?, 'managed', 'managed', 'managed', 'managed_main_server', 'active', NOW())
+     ON DUPLICATE KEY UPDATE
+       connection_mode = 'managed',
+       cloudflare_mode = 'managed',
+       google_auth_mode = 'managed',
+       n8n_activation_mode = 'managed_main_server',
+       status = 'active',
+       activated_at = COALESCE(activated_at, NOW()),
+       updated_at = NOW()`,
+    [connectionId, tenantId]
+  );
+  await upsertTenantIntegrationPolicies({
+    tenantId,
+    userId,
+    integrationModes: {},
+    source: "connect_bootstrap",
+  });
+  const connection = await fetchTenantConnection(tenantId);
+  return { activated: true, connection };
 }
 
 function cleanEscalationPriority(value) {
@@ -642,6 +695,33 @@ export function buildConnectRoutes(deps) {
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "onboarding_state_failed", message: err.message } });
+    }
+  });
+
+  // POST /connect/bootstrap — idempotently provision a workspace, activate Managed mode, and verify readback.
+  router.post("/connect/bootstrap", requireUserJwt, async (req, res) => {
+    try {
+      const result = await orchestrateTenantConnectBootstrap({
+        user_id: req.auth.user_id,
+        jwt_tenant_id: req.auth.tenant_id || null,
+        workspace_name: req.body?.workspace_name || req.body?.display_name || null,
+        mode: req.body?.mode || "managed",
+      }, {
+        resolveState: resolveConnectState,
+        createWorkspace: createWorkspaceForUser,
+        activateManaged: activateManagedConnectionForTenant,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "connect_bootstrap_failed",
+          message: err.message,
+          ...(err.details ? { details: err.details } : {}),
+          requestId: req.requestId || req.id || null,
+        },
+      });
     }
   });
 

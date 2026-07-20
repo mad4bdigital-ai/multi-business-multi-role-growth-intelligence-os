@@ -1,5 +1,7 @@
 # Automated Docs Agent Notes
 
+> Auto-doc coverage for `20260715_dynamic_container_canary_promotion_tool.sql` must include `dynamic_container_canary_promotion_policy_v1`, the governed `dynamic_container_canary_promotion` Admin tool, its app integration binding, ledger run `2b2015d2-73d0-40a2-af33-57678af0389a`, checksum `1c0327e8a8c5533683f92a4906d221af052ba633421464605a68488d3e5b665f`, four-statement zero-risk preflight, and the read-only canary safety lifecycle. Generated output must require a fresh plan-bound Capability Envelope, exact typed confirmation, transactional consumption, and same-cycle readback; preserve global `shadow`, disabled mutation enforcement, one-active-canary exclusivity, no provider call, no credential payload read, no raw secrets, no external send/write, and `secrets_included=false`; and never infer enforcement approval from merge, deployment, or static documentation.
+
 > Auto-doc coverage for `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` must include the GitHub Actions diagnostics endpoint registry seed, the read-only workflow jobs and pending-deployments paths, `github_list_jobs_for_workflow_run` registry binding/readback, and `http-generic-api/openapi/github-actions-diagnostics.yaml` as OpenAPI evidence. Generated notes must preserve `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`, and must not claim deployment approval or credential access.
 
 > Auto-doc coverage for `20260709_resource_api_dynamic_db_surfaces.sql` must include the Resource API snapshot authority `platform_data_table_registry`, the ten seeded active surfaces, the OpenAPI parity generator/check scripts, and the governed migration ledger run `ea0c2abf-b2d1-4660-8929-7229b1fcb851`. Generated notes must preserve no-provider/no-credential/no-secret/no-external-write semantics and must not claim deploy, runtime provider calls, or credential exposure; `secrets_included=false` remains required.
@@ -171,6 +173,8 @@ Rules:
 ## Capability Assurance Graph source
 
 For migration 314_sprint69_capability_assurance_graph.sql, use docs/platform-capability-assurance-graph.md and the four canonical source fragments as authoritative documentation inputs. Generated reports must not infer authority from HTTP method or admin exposure alone.
+
+For the Spec 007 virtual-tool projection migrations, treat `platform_tool_dispatch_bindings` as a provenance source only. Tool aliases do not authorize execution; ambiguous identity, scope, operation, readback, or source ownership remains fail-closed debt, and projected mutations remain shadow-only with `apply_allowed=0` until separately certified.
 ### Local Connector Transient Retry Policy
 
 `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking `Cloudflare 1033 Retry Before Repair` execution policy and updates the governed `local_connector_self_repair` tool description. The route performs three total bounded health attempts, stops on pass or authorization-gated reachability, records no-secret `retry_evidence`, and forbids installer generation when a retry recovers.

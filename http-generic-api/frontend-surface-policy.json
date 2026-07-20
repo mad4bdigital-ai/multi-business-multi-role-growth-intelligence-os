@@ -53,6 +53,22 @@
       "owner": "runtime-operations",
       "rationale": "Status contracts feed operational views but are not standalone navigation destinations.",
       "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "tenant-activation-session-api-surface",
+      "source_file": "routes/tenantActivationOverlayRoutes.js",
+      "decision": "api_only",
+      "owner": "activation-platform",
+      "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+      "evidence_refs": ["routes/tenantActivationOverlayRoutes.js", "test-tenant-activation-session-alias.mjs", "openapi/openapi.tenant-gpt.activation.yaml"]
+    },
+    {
+      "rule_id": "gpt-session-archive-api-surface",
+      "source_file": "routes/gptSessionRoutes.js",
+      "decision": "api_only",
+      "owner": "session-archive",
+      "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-gpt-session-turn-batch-capture.mjs", "test-tenant-activation-session-alias.mjs"]
     }
   ],
   "auth_rules": [
@@ -284,6 +300,19 @@
       "owner": "runtime-operations",
       "rationale": "Express router.all returns the same host-scoped discovery JSON for DELETE and performs no state or external write.",
       "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "tenant-connect-bootstrap-governance",
+      "operation": "POST /connect/bootstrap",
+      "source_file": "routes/connectRoutes.js",
+      "classification": "state_change",
+      "owner": "tenant-activation",
+      "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "parameter_bindings": { "user_id": "auth.user_id", "tenant_id": "auth.tenant_id|response.principal.workspace_key", "mode": "request.body.mode|managed" },
+      "evidence_refs": ["routes/connectRoutes.js", "tenantConnectBootstrapService.js", "test-connect-routes.mjs", "test-tenant-connect-bootstrap-service.mjs", "openapi.yaml"]
     },
     {
       "rule_id": "tenant-resource-create-governance",
@@ -543,6 +572,223 @@
       "owner": "platform-intelligence",
       "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
       "evidence_refs": ["sessionInsightTargetWriteReadbackService.js", "test-session-insight-target-write-readback-service.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
+      "source_file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightRemainingScopeCompletionService.js", "test-session-insight-remaining-scope-completion-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-certification-status-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/status",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+      "evidence_refs": ["platformPluginSmokeCertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/resolve",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/list",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-action-manifest-resolve-read-action",
+      "operation": "POST /platform/action-manifest/resolve",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint resolves the action, endpoint, and tool authority manifest and evaluates the dispatch guard as an in-memory preview. Its response fixes will_execute=false and it neither dispatches a tool nor persists a decision.",
+      "evidence_refs": ["actionManifestDiagnostic.js", "test-action-endpoint-tool-manifest-resolver.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-execution-readiness-dry-run-read-action",
+      "operation": "POST /platform/execution-readiness/dry-run",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint performs bounded registry and graph SELECT reads, combines them with the manifest guard preview, and always returns will_execute=false. It cannot dispatch a tool, call a provider, or mutate readiness state.",
+      "evidence_refs": ["executionReadinessDryRun.js", "test-action-endpoint-tool-manifest-resolver.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-orchestration-readback-read-action",
+      "operation": "POST /platform/orchestration/readback",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads bounded orchestration graph, readiness, snapshot, and recommendation views. Its contract explicitly forbids provider calls, credential payload reads, spend changes, external writes, deploys, and publishing.",
+      "evidence_refs": ["platformOrchestrationReadback.js", "test-orchestration-readback-surface.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-read-action",
+      "operation": "POST /platform/health/scorecard",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-remediation-plan-read-action",
+      "operation": "POST /platform/health/scorecard/remediation-plan",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the bounded remediation-plan view and returns recommendation-only safety evidence. It does not record a scorecard snapshot or execute remediation.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-tenant-rollout-read-action",
+      "operation": "POST /platform/health/scorecard/tenant-rollout",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads tenant rollout-readiness rows and summarizes eligibility in memory. It cannot enable a tenant rollout, change policy, or perform an external write.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-ledger-hygiene-read-action",
+      "operation": "POST /platform/health/scorecard/ledger-hygiene",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the ledger-hygiene view and returns bounded diagnostics only. It does not delete, rewrite, compact, or repair ledger rows.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "ads-provider-governance-snapshot-proposal-read-action",
+      "operation": "POST /platform/orchestration/ads-provider/snapshot-propose",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint uses bounded SELECT queries to build snapshot and recommendation candidates, reports writes_database=false, and cannot call a provider, read credential payloads, change spend, record a snapshot, deploy, or publish.",
+      "evidence_refs": ["adsProviderGovernanceSnapshotProposal.js", "test-ads-governance-snapshot-proposal.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "support-ticket-lifecycle-snapshot-proposal-read-action",
+      "operation": "POST /platform/orchestration/support-ticket/snapshot-propose",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads ticket lifecycle and linked workflow evidence to build proposal objects, reports writes_database=false, and cannot mutate the ticket, dispatch a workflow, decide approval, send externally, record a snapshot, deploy, or publish.",
+      "evidence_refs": ["supportTicketLifecycleSnapshotProposal.js", "test-support-ticket-lifecycle-snapshot-proposal.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-history-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/history",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes a bounded SELECT over execution-log audit rows, projects sanitized before and after policy summaries, and filters them in memory. It cannot upsert or roll back a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicyHistory.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-rollback-preview-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads one sanitized audit snapshot and the current policy, computes changed fields in memory, and explicitly does not replay notes content. Applying rollback is a separate consequential operation.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicyHistory.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-queue-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/recertification-queue",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads bounded certification, endpoint, connection-metadata, and policy rows and classifies recertification needs in memory. Recertification dispatch and certification updates are confined to the separate batch operation.",
+      "evidence_refs": ["platformPluginSmokeRecertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "remote-runtime-target-catalog-read-action",
+      "operation": "POST /platform/remote-runtime/targets/catalog",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "remote-runtime",
+      "rationale": "The endpoint performs bounded SELECT queries over remote-runtime targets and command allowlists and returns safe public projections. It cannot validate, probe, execute, deploy, or update a target.",
+      "evidence_refs": ["remoteRuntime.js", "test-remote-runtime-catalog-probe.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-private-contribution-resolve-read-action",
+      "operation": "POST /platform/plugins/contributions/resolve-private",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads one safe contribution projection and evaluates owner scope, action binding, status, and credential-scope policy in memory. It cannot activate, promote, certify, dispatch, or mutate the platform base.",
+      "evidence_refs": ["platformPluginContribution.js", "test-platform-plugin-private-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "agent-model-run-plan-read-action",
+      "operation": "POST /ai/model-runs",
+      "source_file": "routes/agentIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-runtime",
+      "rationale": "The endpoint builds a canonical model-run plan entirely in memory and returns dry_run_only=true. The plan fixes will_call_model=false and keeps model execution and tool execution disabled.",
+      "evidence_refs": ["agentIntelligenceRuntime.js", "test-agent-intelligence-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "agent-tool-search-read-action",
+      "operation": "POST /ai/tool-search",
+      "source_file": "routes/agentIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-runtime",
+      "rationale": "The endpoint filters a supplied tool list or reads the derived tool index with SELECT queries and returns normalized metadata only. It does not expose the raw catalog, execute a tool, call a model, or mutate registry state.",
+      "evidence_refs": ["agentIntelligenceRuntime.js", "test-agent-intelligence-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "repository-automation-plan-read-action",
+      "operation": "POST /admin/repository-automation/plan",
+      "source_file": "routes/repositoryAutomationRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-automation",
+      "rationale": "The endpoint deterministically builds and hashes an automation plan in memory. It does not persist a run, dispatch a repository tool, update a branch, execute CI, deploy, or clean up resources.",
+      "evidence_refs": ["repositoryAutomationControlPlane.js", "test-repository-automation-control-plane.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "gpt-session-turn-batch-capability-governance",
+      "operation": "POST /gpt/sessions/{id}/turns",
+      "source_file": "routes/gptSessionRoutes.js",
+      "classification": "external_effect",
+      "owner": "session-archive",
+      "rationale": "The bounded batch appends transcript turns to the governed SQL and Drive archive only after session_archive_write capability-family authorization enforces the caller, exact tenant and user scope, active session, and a 20-item maximum; each appended turn returns same-cycle archive identifiers and status.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "rollback": { "mode": "not_required", "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns." },
+      "parameter_bindings": { "session_id": "path.id", "turns": "request.body.turns", "turn_ids": "response.turns[].turn_id" },
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-gpt-session-turn-batch-capture.mjs", "test-session-archive-capability-family-policy.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "tenant-activation-session-turn-batch-capability-governance",
+      "operation": "POST /tenant/activation/sessions/{id}/turns",
+      "source_file": "routes/gptSessionRoutes.js",
+      "classification": "external_effect",
+      "owner": "session-archive",
+      "rationale": "The Activation alias additionally requires a signed non-admin tenant JWT, then reuses the same bounded session_archive_write capability-family authorization, exact tenant and user scope, active-session check, append pipeline, and per-turn archive readback as the canonical writer.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "rollback": { "mode": "not_required", "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns." },
+      "parameter_bindings": { "session_id": "path.id", "turns": "request.body.turns", "turn_ids": "response.turns[].turn_id" },
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-tenant-activation-session-alias.mjs", "test-session-archive-capability-family-policy.mjs", "openapi.yaml"]
     }
   ],
   "secrets_included": false
