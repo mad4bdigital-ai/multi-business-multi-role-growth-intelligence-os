@@ -111,8 +111,6 @@ surfaces:
         - transitionTenantResolutionCase
         - runTenantResolutionDiagnosticAction
         - previewTenantTaskSourceRepair
-        - applyTenantTaskSourceRepair
-        - verifyTenantTaskSourceRepair
         - readTenantActivationDynamicTabDetail
         - listSessions
         - writeGptSessionTurns

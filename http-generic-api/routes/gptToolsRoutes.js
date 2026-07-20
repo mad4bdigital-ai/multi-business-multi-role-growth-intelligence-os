@@ -21,6 +21,11 @@ import {
   loadTenantToolManifestBlocks,
 } from "../tenantToolManifestGuard.js";
 import {
+  assertTenantToolSchemaAllows,
+  filterTenantToolsByStrictSchema,
+  loadTenantToolSchemaBlocks,
+} from "../tenantToolSchemaGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
@@ -2253,7 +2258,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v2"),
+    sqlCacheKey("tools", callerType, "list", "v3"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
@@ -2266,13 +2271,19 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
-  const blockedTenantManifests = callerType === "tenant"
-    ? await loadTenantToolManifestBlocks(getPool())
-    : new Map();
+  const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
+    ? await Promise.all([
+        loadTenantToolManifestBlocks(getPool()),
+        loadTenantToolSchemaBlocks(getPool()),
+      ])
+    : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
-    ? filterTenantToolsByManifest(
-        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
-        blockedTenantManifests
+    ? filterTenantToolsByStrictSchema(
+        filterTenantToolsByManifest(
+          rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+          blockedTenantManifests
+        ),
+        blockedTenantSchemas
       )
     : rows;
   const dbTools = visibleRows.map((r) => ({
@@ -2349,8 +2360,12 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 
 async function dispatchTool(callerType, toolKey, args, req) {
   if (callerType === "tenant") {
-    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+    assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
