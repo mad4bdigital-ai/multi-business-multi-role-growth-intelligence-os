@@ -596,6 +596,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     credentialRoutes.includes('normalizePromotionMappings') &&
     credentialRoutes.includes('connection.account_metadata.platform_secret_mappings') &&
     credentialRoutes.includes('platform_secret_mappings_required') &&
+    credentialRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    credentialRoutes.includes('createMissingReference: true') &&
+    platformSecretPromotionService.includes('createMissingReference = false') &&
+    platformSecretPromotionService.includes('provisioned_pending_validation') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
     !credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
     credentialRoutes.includes('secrets_included: false'));
   assert("migration 187 registers platform secret intake promotion admin tool",
