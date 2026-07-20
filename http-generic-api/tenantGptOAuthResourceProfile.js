@@ -22,8 +22,8 @@ export function normalizeTenantGptRequestHost(value) {
 
 export function tenantGptRequestHostFromHeaders(headers = {}) {
   const candidates = [
-    headers["x-forwarded-host"],
     headers["x-original-host"],
+    headers["x-forwarded-host"],
     headers["x-host"],
     headers[":authority"],
     headers.host,
