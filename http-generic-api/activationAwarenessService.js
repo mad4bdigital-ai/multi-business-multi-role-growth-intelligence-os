@@ -764,6 +764,39 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
     const error = matches.reduce((sum, row) => sum + (row.status === "error" ? safeNumber(row.count) : 0), 0);
     const pending = matches.reduce((sum, row) => sum + (row.status === "pending" ? safeNumber(row.count) : 0), 0);
     const callback = callbackByTile.get(tile.tile_key) || {};
+    if (tile.tile_key === "openapi_guard_slo") {
+      const sloStatus = ciGuardSlo.overall_status === "fail"
+        ? "attention"
+        : ciGuardSlo.overall_status === "pass"
+          ? "active"
+          : "pending";
+      return {
+        tile_key: tile.tile_key,
+        display_name: tile.display_name,
+        category: tile.category,
+        scope_class: tile.scope_class,
+        visibility: tile.default_visibility,
+        provider_family: tile.provider_family,
+        connector_family: tile.connector_family,
+        risk_level: tile.risk_level,
+        status: sloStatus,
+        counts: {
+          successful_runs_24h: safeNumber(ciGuardSlo.counts?.successful_runs_24h),
+          failed_runs_24h: safeNumber(ciGuardSlo.counts?.failed_runs_24h),
+          open_incidents: ciGuardSlo.current_alert && ["open", "acknowledged", "investigating"].includes(ciGuardSlo.current_alert.lifecycle_status) ? 1 : 0,
+        },
+        slo: ciGuardSlo,
+        callback_count: safeNumber(callback.count),
+        read_only_callback_count: safeNumber(callback.read_only_count),
+        freshness_sla_seconds: safeNumber(tile.freshness_sla_seconds),
+        hydration_state: ciGuardSlo.overall_status === "unavailable" ? "degraded" : "summary_loaded",
+        details_ref: {
+          tool_key: "activation_awareness_read_api",
+          tile_key: tile.tile_key,
+          snapshot_id: snapshot?.snapshot_id || null,
+        },
+      };
+    }
     return {
       tile_key: tile.tile_key,
       display_name: tile.display_name,
