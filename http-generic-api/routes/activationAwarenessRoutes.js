@@ -15,6 +15,7 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
+import { ingestCiGuardSignal } from "../ciGuardOperationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
 import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
 import {
