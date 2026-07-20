@@ -268,6 +268,10 @@ assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/)
 assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
 const boundedEvidenceFilter = frontendDispatchWorkflow.split("\n").find((line) => line.includes("UNEXPECTED=")) || "";
 assert.ok(
+  boundedEvidenceFilter.includes("(http-generic-api/)?"),
+  "bounded evidence filter must accept repository-root relative paths",
+);
+assert.ok(
   boundedEvidenceFilter.includes("frontend-surface-dispatch\\.generated\\.json"),
   "bounded evidence filter must include the dispatch evidence file",
 );
