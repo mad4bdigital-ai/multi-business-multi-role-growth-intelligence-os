@@ -642,7 +642,9 @@ try {
   assert("stored activation context marks secrets excluded", storedActivationContext.secrets_included === false, JSON.stringify(storedActivationContext));
   const accessPayload = jwt.verify(exchange.body.access_token, process.env.JWT_SECRET);
   assert("access JWT has platform issuer", accessPayload.iss === "https://auth.mad4b.com", JSON.stringify(accessPayload));
-  assert("access JWT has tenant GPT audience", accessPayload.aud === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
+  assert("access JWT has the Activation audience", accessPayload.aud === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
+  assert("access JWT carries the Activation resource claim", accessPayload.resource === ACTIVATION_RESOURCE, JSON.stringify(accessPayload));
+  assert("access JWT carries the authorized OAuth client", accessPayload.azp === "mad4b-tenant-gpt", JSON.stringify(accessPayload));
   assert("access JWT has tenant subject", accessPayload.sub === "tenant:tenant-1:user:user-1", JSON.stringify(accessPayload));
   assert("stored activation context is linked to access JWT jti", tenantGptActivationContexts[0].access_jti === accessPayload.jti, JSON.stringify({ stored: tenantGptActivationContexts[0].access_jti, token: accessPayload.jti }));
   assert("access JWT carries linked tenant scopes", accessPayload.scope === TENANT_SCOPE, JSON.stringify(accessPayload));
