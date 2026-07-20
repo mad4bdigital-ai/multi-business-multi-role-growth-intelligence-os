@@ -1305,7 +1305,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Accept, reject, or mark stale one persisted Growth Intelligence insight. Records an internal decision only; no provider write, external send, or execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-insight-decide",
-    tags: ["growth_intelligence", "decision", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "decision", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "insight_id", "decision"],
@@ -1323,7 +1323,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Approve or reject one Growth Intelligence dry-run action and its linked approval hold. Never dispatches the action or performs provider writes.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-action-decide",
-    tags: ["growth_intelligence", "approval", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "approval", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "action_id", "decision"],
@@ -1341,7 +1341,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Recompute and persist Growth Intelligence review readiness after insight and action decisions. Does not enable or dispatch execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-readiness-refresh",
-    tags: ["growth_intelligence", "readiness", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "readiness", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id"],

@@ -601,6 +601,7 @@ internal static class Program
             if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
             if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
             if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
+            if (text.Contains("failed with a non-zero exit code.", StringComparison.OrdinalIgnoreCase)) return "installer_exit_nonzero";
             if (text.Contains("completed, but post-install runtime verification did not pass.", StringComparison.OrdinalIgnoreCase)) return "installer_completed_runtime_unverified";
             if (text.Contains("completed. Post-install verification passed.", StringComparison.OrdinalIgnoreCase)) return "verification_completed";
             return "incomplete";
@@ -926,6 +927,19 @@ internal static class Program
             if (runResult == SignedInstallerRunResult.ProcessHandleUnavailable)
             {
                 _status.Text = $"Windows did not return a process handle for {installerLabel}.";
+                return;
+            }
+            if (runResult == SignedInstallerRunResult.Failed)
+            {
+                _status.Text = $"{installerLabel} failed with a non-zero exit code.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    installer_applied = false,
+                    installer_label = installerLabel,
+                    installer_exit_nonzero = true,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
                 return;
             }
 
