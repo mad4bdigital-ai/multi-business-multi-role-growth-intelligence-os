@@ -108,6 +108,12 @@ import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsi
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
 import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
+import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
+import { buildReleaseGateManagerRoutes } from "./releaseGateManagerRoutes.js";
+import { buildAsyncReleaseDeployRoutes } from "./asyncReleaseDeployRoutes.js";
+import { buildCapabilityEnvelopeTemplateRoutes } from "./capabilityEnvelopeTemplateRoutes.js";
+import { buildSelfHealingReleaseAdvisorRoutes } from "./selfHealingReleaseAdvisorRoutes.js";
+import { buildRepositoryMainMovedTriggerRoutes } from "./repositoryMainMovedTriggerRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
@@ -118,6 +124,8 @@ import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
 import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoutes.js";
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
+import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
+import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -163,6 +171,7 @@ export function registerRoutes(app, deps) {
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes());
   app.use(buildConnectRoutes(deps));
+  app.use(buildPlatformFrontendRoutes());
   // Tenant Connect API must mount before root-level admin/protected routers
   // so user JWT callers can create secure intake sessions and list app catalog.
   app.use(buildConnectApiRoutes(deps));
@@ -177,6 +186,12 @@ export function registerRoutes(app, deps) {
   app.use(buildActivationRoutes(deps));
   app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseOperationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseGateManagerRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAsyncReleaseDeployRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildCapabilityEnvelopeTemplateRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSelfHealingReleaseAdvisorRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryMainMovedTriggerRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
@@ -192,6 +207,7 @@ export function registerRoutes(app, deps) {
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));

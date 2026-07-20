@@ -5,9 +5,12 @@ import {
   buildRepositoryAutomationPlan,
   classifySpecLifecycle,
   collectChunkedToolResponse,
+  executeCiAutoRecovery,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
+
+// frontend-surface-operation: POST /admin/repository-automation/plan
 
 const expectedCapabilities = [
   "pr_lifecycle_orchestrator",
@@ -90,6 +93,48 @@ const dryRun = await runRepositoryAutomation({
 assert.equal(dryRun.status, "dry_run_complete");
 assert.equal(dryRun.mutations_executed, false);
 assert.equal(dryRunDispatchCount, 0);
+
+let ciRecoveryDispatchCall = null;
+let ciGateReads = 0;
+const ciRecovery = await executeCiAutoRecovery({
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  pull_number: 2044,
+  branch: "gpt/example",
+  required_checks: ["Syntax Check"],
+}, async (toolKey, args) => {
+  if (toolKey === "github_pr_ci_gate") {
+    ciGateReads += 1;
+    return { status: 200, body: { ok: true, result: { gate_status: "blocked", missing_checks: ["Syntax Check"], pending_checks: [], secrets_included: false } } };
+  }
+  if (toolKey === "github_rest_endpoint_dispatch") {
+    ciRecoveryDispatchCall = args;
+    return { status: 200, body: { ok: true, result: { status: 204, secrets_included: false } } };
+  }
+  throw new Error(`unexpected CI recovery tool ${toolKey}`);
+}, {
+  dispatch_args: {
+    mutation_approval: { approved_by: "test", reason: "Regression coverage for missing check dispatch", secrets_included: false },
+  },
+});
+assert.equal(ciRecovery.status, "dispatched_pending_readback");
+assert.equal(ciGateReads, 2);
+assert.equal(ciRecoveryDispatchCall.tool_args.parent_action_key, "github_api_mcp");
+assert.equal(ciRecoveryDispatchCall.tool_args.endpoint_key, "github_create_workflow_dispatch");
+assert.equal(ciRecoveryDispatchCall.tool_args.path_params.workflow_id, "ci.yml");
+assert.equal(ciRecoveryDispatchCall.tool_args.body.ref, "gpt/example");
+assert.equal(ciRecovery.secrets_included, false);
+
+const ciRecoveryWithoutApproval = await executeCiAutoRecovery({
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  pull_number: 2044,
+  branch: "gpt/example",
+  required_checks: ["Syntax Check"],
+}, async () => ({ status: 200, body: { ok: true, result: { gate_status: "blocked", missing_checks: ["Syntax Check"], pending_checks: [], secrets_included: false } } }), {});
+assert.equal(ciRecoveryWithoutApproval.status, "awaiting_input");
+assert.equal(ciRecoveryWithoutApproval.required_dispatch.tool_key, "github_rest_endpoint_dispatch");
+assert.equal(ciRecoveryWithoutApproval.required_dispatch.tool_args.endpoint_key, "github_create_workflow_dispatch");
 
 await assert.rejects(
   () => runRepositoryAutomation({
@@ -199,6 +244,25 @@ const hygienePool = {
     throw new Error(`unexpected hygiene query ${sql}`);
   },
 };
+const chunkedInventoryBody = JSON.stringify({
+  ok: true,
+  result: {
+    body: {
+      ok: true,
+      data: {
+        data: {
+          repository: {
+            defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
+            refs: { nodes: [] },
+            openPullRequests: { nodes: [] },
+            recentPullRequests: { nodes: [] },
+          },
+        },
+      },
+    },
+  },
+});
+let sawInventoryChunkRead = false;
 const hygiene = await scanRepositoryAutomationHygiene({
   include_github: true,
   owner: "mad4bdigital-ai",
@@ -210,23 +274,52 @@ const hygiene = await scanRepositoryAutomationHygiene({
     if (toolKey === "repo_inspect") {
       return { status: 200, body: { ok: true, result: { head_sha: nestedRuntimeSha, status: "## HEAD (no branch)" } } };
     }
-    assert.equal(toolKey, "runtime_endpoint_call");
-    if (args.endpoint_key === "github_graphql") {
+    if (toolKey === "response_chunk_read") {
+      assert.equal(args.chunk_id, "github-inventory-chunk");
+      sawInventoryChunkRead = true;
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(args.cursor),
+          continuation_required: false,
+          page: { next_cursor: null, has_more: false },
+        },
+      };
+    }
+    assert.equal(toolKey, "github_rest_endpoint_dispatch");
+    const dispatchArgs = args.tool_args || args;
+    if (dispatchArgs.endpoint_key === "github_graphql") {
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          response_chunked: true,
+          chunk_id: "github-inventory-chunk",
+          chunk: chunkedInventoryBody.slice(0, 50),
+          continuation_required: true,
+          page: { next_cursor: 50, max_chars: 50, has_more: true },
+        },
+      };
+    }
+    if (dispatchArgs.endpoint_key === "github_get_reference") {
       return {
         status: 200,
         body: {
           ok: true,
           result: {
-            body: {
-              ok: true,
-              data: {
+            ok: true,
+            name: "runtime_endpoint_call",
+            result: {
+              status: 200,
+              body: {
+                ok: true,
+                status: 200,
                 data: {
-                  repository: {
-                    defaultBranchRef: { name: "main", target: { oid: nestedRuntimeSha, committedDate: "2026-07-07T00:00:00Z" } },
-                    refs: { nodes: [] },
-                    openPullRequests: { nodes: [] },
-                    recentPullRequests: { nodes: [] },
-                  },
+                  ref: "refs/heads/main",
+                  object: { sha: nestedRuntimeSha, type: "commit" },
                 },
               },
             },
@@ -234,23 +327,11 @@ const hygiene = await scanRepositoryAutomationHygiene({
         },
       };
     }
-    if (args.endpoint_key === "github_get_reference") {
-      return {
-        status: 200,
-        body: {
-          ok: true,
-          status: 200,
-          data: {
-            ref: "refs/heads/main",
-            object: { sha: nestedRuntimeSha, type: "commit" },
-          },
-        },
-      };
-    }
-    throw new Error(`unexpected runtime endpoint ${args.endpoint_key}`);
+    throw new Error(`unexpected runtime endpoint ${dispatchArgs.endpoint_key}`);
   },
 });
 assert.equal(hygiene.finding_count, 0);
+assert.equal(sawInventoryChunkRead, true);
 assert.equal(hygiene.sources.github_inventory, true);
 assert.equal(hygiene.sources.deployment_parity, true);
 

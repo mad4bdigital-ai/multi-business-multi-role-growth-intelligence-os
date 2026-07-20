@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// frontend-surface-operation: POST /platform/orchestration/ads-provider/snapshot-propose
+
 const service = readFileSync("adsProviderGovernanceSnapshotProposal.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/263_sprint68_ads_governance_snapshot_proposal.sql", "utf8");

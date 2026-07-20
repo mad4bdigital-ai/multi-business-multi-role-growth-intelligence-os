@@ -42,6 +42,11 @@ on:
         required: false
         default: "false"
         type: string
+      run_repository_main_moved_fail_closed_smoke:
+        description: "POST a no-secret GitHub push fixture and require the repository-main-moved ingress to fail closed with structured HTTP 503"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   verify:
@@ -90,6 +95,22 @@ jobs:
           EXECUTION_LOG_VERIFY_PATH: ${{ inputs.execution_log_verify_path }}
           ALLOW_ENVIRONMENT_ACCESS_BLOCKED: ${{ inputs.allow_environment_access_blocked }}
         run: node verify-runtime.mjs
+
+      - name: Verify repository-main-moved fail-closed ingress
+        id: repository_main_moved_smoke
+        if: ${{ inputs.run_repository_main_moved_fail_closed_smoke == true }}
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
+        run: node smoke-github-repository-main-moved-fail-closed.mjs
+
+      - name: Summarize repository-main-moved smoke
+        if: ${{ inputs.run_repository_main_moved_fail_closed_smoke == true && success() }}
+        run: |
+          echo "REPOSITORY MAIN MOVED FAIL-CLOSED SMOKE: PASS"
+          echo "Delivery ID: ${{ steps.repository_main_moved_smoke.outputs.delivery_id }}"
+          echo "HTTP status: ${{ steps.repository_main_moved_smoke.outputs.http_status }}"
+          echo "Error code:  ${{ steps.repository_main_moved_smoke.outputs.error_code }}"
 
       - name: Confirm parity result
         if: success()

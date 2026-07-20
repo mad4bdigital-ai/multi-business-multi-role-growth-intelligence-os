@@ -169,6 +169,7 @@ flowchart TD
 | `brand_workspace_context_minimal_policy_v1` | 1 |
 | `budget_quota_authority_registry_policy_v1` | 2 |
 | `canonical_agent_runtime_policy_v1` | 1 |
+| `capability_envelope_template_resolver_policy_v1` | 1 |
 | `capability_resolution_dry_run_descriptor_policy_v1` | 1 |
 | `capability_resolution_envelope_approval_tool_policy_v1` | 1 |
 | `capability_resolution_envelope_ledger_policy_v1` | 1 |
@@ -179,6 +180,10 @@ flowchart TD
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
+| `dynamic_container_canary_promotion_policy_v1` | 1 |
+| `dynamic_container_canary_rollback_policy_v1` | 1 |
+| `dynamic_container_projection_apply_policy_v1` | 1 |
+| `dynamic_release_gate_manager_policy_v1` | 1 |
 | `execution_enablement_approval_flow_policy_v1` | 2 |
 | `execution_enablement_registry_policy_v1` | 2 |
 | `execution_log_full_context_evidence_policy_v1` | 1 |
@@ -222,6 +227,7 @@ flowchart TD
 | `orchestration_stage_graph_completeness_policy_v1` | 1 |
 | `orchestration_state_snapshot_required_policy_v1` | 1 |
 | `platform_capability_governance_compile_persist_policy_v1` | 1 |
+| `platform_capability_shadow_certification_issue_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
 | `platform_resource_api_coverage_policy_v1` | 2 |
@@ -237,9 +243,11 @@ flowchart TD
 | `provider_smoke_policy_v1` | 1 |
 | `recommendation_before_execution_policy_v1` | 3 |
 | `recovery_capability_taxonomy_policy_v1` | 2 |
+| `release_operation_internal_persistence_policy_v1` | 1 |
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
+| `repository_main_moved_trigger_policy_v1` | 1 |
 | `resource_authority_policy_v1` | 2 |
 | `resource_reference_interpretation_policy_v1` | 1 |
 | `runtime_agent_loop_policy_v1` | 1 |
@@ -250,6 +258,7 @@ flowchart TD
 | `runtime_repo_mutation_policy_v1` | 1 |
 | `runtime_wordpress_apply_reason_policy_v1` | 1 |
 | `schema_cleanup_policy_v1` | 1 |
+| `self_healing_release_advisor_policy_v1` | 1 |
 | `session_insight_adapter_apply_readiness_gate_policy_v1` | 1 |
 | `session_insight_adapter_dry_run_contract_policy_v1` | 1 |
 | `session_insight_backlog_target_write_executor_policy_v1` | 1 |
@@ -287,8 +296,10 @@ flowchart TD
 | `support_ticket_lifecycle_snapshot_record_gate_policy_v1` | 1 |
 | `system_layer_descriptor_auto_wiring_policy_v1` | 1 |
 | `tenant_codex_dual_mode_policy_v1` | 1 |
+| `tenant_connection_shadow_contract_bootstrap_policy_v1` | 1 |
 | `tenant_proactive_guidance_policy_v1` | 1 |
 | `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1` | 2 |
 | `tenant_repository_intelligence_v3_v4_tool_wiring_policy_v1` | 1 |
+| `tenant_task_source_repair_apply_policy_v1` | 1 |
 | `tool_bus_gated_read_only_dispatch_policy_v1` | 1 |
 | `validation_semantics_policy_v1` | 1 |

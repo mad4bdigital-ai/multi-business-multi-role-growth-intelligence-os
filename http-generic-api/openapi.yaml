@@ -19,7 +19,7 @@ info:
     (3) Release operations Ã¢â‚¬â€ /release/readiness, /release/readiness-history,
         /release/entity-classification
     Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
-    Activation GPT Action traffic uses the distinct https://activation.mad4b.com server URL. On Hostinger Cloud deployments, that host is enforced by the in-app Activation Host Gateway while Cloudflare remains DNS/proxy configuration only. OAuth endpoints stay on https://auth.mad4b.com and are rejected on the activation host. The production promotion path is merge to main followed by Hostinger Cloud auto-deploy; SSH deploy/restart and Cloudflare Worker rollout are not the normal path for this surface.
+    Activation GPT Action traffic uses the distinct https://activation.mad4b.com server URL. Tenant Activation OAuth uses the exact activation-host gateway handoffs /auth/oauth/authorize, /auth/oauth/code, and /auth/oauth/token, which reuse the shared authRoutes logic; Tenant Core OAuth remains on https://auth.mad4b.com. All broader auth, admin, and core routes stay blocked on the activation host. On Hostinger Cloud deployments, Cloudflare remains DNS/proxy configuration only. The production promotion path is merge to main followed by Hostinger Cloud auto-deploy; SSH deploy/restart and Cloudflare Worker rollout are not the normal path for this surface.
 
 servers:
   - url: https://auth.mad4b.com
@@ -108,6 +108,11 @@ components:
       description: >
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or
         Authorization: Bearer <USER_JWT> after user sign-in.
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
     backendApiKeyAuth:
       type: apiKey
       in: header
@@ -126,6 +131,24 @@ components:
       bearerFormat: User JWT or Local Manager device token
       description: >
         Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
+    connectorBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Connector secret or backend API key
+      description: >
+        Bearer credential accepted by connector heartbeat and policy resolution. The
+        value must match the backend API key, connector secret, or registered local
+        connector API key for the selected connector configuration.
+    mcpQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Short-lived MCP query token validated before the operation is served.
+    signedQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Short-lived signed or hashed artifact token validated before download.
 
   schemas:
 
@@ -1028,6 +1051,217 @@ components:
               additionalProperties: true
             - type: 'null'
 
+    TenantResolutionProblemCard:
+      type: object
+      additionalProperties: false
+      required:
+        - problem_key
+        - root_fingerprint_sha256
+        - tenant_id
+        - root_family
+        - severity
+        - impact_summary
+        - recommended_playbook_key
+        - allowed_next_actions
+        - apply_enabled
+        - provider_call_allowed
+        - secrets_included
+      properties:
+        problem_key:
+          type: string
+        root_fingerprint_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        tenant_id:
+          type:
+            - string
+            - "null"
+        workspace_id:
+          type:
+            - string
+            - "null"
+        resource_ref:
+          type: string
+        root_family:
+          type: string
+          enum:
+            - wordpress_site_health
+            - tenant_skill_approval
+            - task_source_quality
+            - provider_setup_ads
+            - connector_runtime_readiness
+            - general_operational_review
+        root_family_display:
+          type: string
+        severity:
+          type: string
+          enum:
+            - info
+            - low
+            - medium
+            - high
+            - critical
+        impact_summary:
+          type: string
+        recommended_playbook_key:
+          type: string
+        status:
+          type: string
+          enum:
+            - detected
+        source_alert_keys:
+          type: array
+          items:
+            type: string
+        source_refs:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        allowed_next_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - diagnose
+              - create_case
+              - escalate
+        blocked_reasons:
+          type: array
+          items:
+            type: string
+        alert_count:
+          type: integer
+          minimum: 1
+        occurrence_count:
+          type: integer
+          minimum: 1
+        first_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        sample_alert:
+          type: object
+          additionalProperties: true
+        apply_enabled:
+          type: boolean
+          enum:
+            - false
+        provider_call_allowed:
+          type: boolean
+          enum:
+            - false
+        secrets_included:
+          type: boolean
+          enum:
+            - false
+    TenantResolutionProblemCardsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - activation_layer
+        - source_authority
+        - subject
+        - summary
+        - items
+        - page
+        - policy
+        - source_health
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        activation_layer:
+          type: string
+          enum:
+            - tenant_resolution_problem_cards
+        source_authority:
+          type: string
+          enum:
+            - tenant_scoped_operational_alerts_projection
+        subject:
+          type: object
+          additionalProperties: true
+        summary:
+          type: object
+          additionalProperties: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantResolutionProblemCard"
+        page:
+          type: object
+          additionalProperties: false
+          required:
+            - cursor
+            - limit
+            - returned_count
+            - total_count
+            - has_more
+          properties:
+            cursor:
+              type: integer
+              minimum: 0
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            returned_count:
+              type: integer
+              minimum: 0
+            total_count:
+              type: integer
+              minimum: 0
+            has_more:
+              type: boolean
+            next_cursor:
+              type:
+                - integer
+                - "null"
+              minimum: 0
+        policy:
+          type: object
+          additionalProperties: true
+          required:
+            - diagnostic_only
+            - apply_enabled
+            - provider_call_allowed
+            - secrets_included
+          properties:
+            diagnostic_only:
+              type: boolean
+              enum:
+                - true
+            apply_enabled:
+              type: boolean
+              enum:
+                - false
+            provider_call_allowed:
+              type: boolean
+              enum:
+                - false
+            secrets_included:
+              type: boolean
+              enum:
+                - false
+        source_health:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationalAlertSourceHealth'
+        secrets_included:
+          type: boolean
+          enum:
+            - false
     OperationalAlertSyncResponse:
       type: object
       additionalProperties: false
@@ -3608,7 +3842,7 @@ x-tenant-gpt-auth:
   action_auth_preset:
     authentication_type: OAuth
     schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
-    activation_schema_url: https://auth.mad4b.com/openapi.tenant-gpt.activation.yaml
+    activation_schema_url: https://activation.mad4b.com/tenant-gpt/activation-openapi
     client_id: mad4b-tenant-gpt
     client_secret: <resolved-from-governed-platform-secret>
     client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
@@ -3648,6 +3882,46 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /platform:
+    get:
+      operationId: getPlatformFrontend
+      summary: Load the governed MAD4B platform shell
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Dependency-light platform application shell
+          content:
+            text/html:
+              schema: { type: string }
+  /platform/assets/{file}:
+    get:
+      operationId: getPlatformFrontendAsset
+      summary: Load an allowlisted platform shell asset
+      tags: [platform-frontend]
+      security: []
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, enum: [tokens.css, shell.css, shell.js] }
+      responses:
+        '200': { description: Allowlisted browser asset }
+        '404': { description: Asset not found }
+  /platform/ui-surfaces:
+    get:
+      operationId: getPlatformUiSurfaces
+      summary: Read the browser-safe repository-governed UI surface catalog
+      tags: [platform-frontend]
+      security: []
+      responses:
+        '200':
+          description: Browser-safe UI surface catalog
+          content:
+            application/json:
+              schema:
+                $ref: '../specs/010-unified-platform-frontend/contracts/ui-surface-catalog.schema.json'
+        '503': { description: Dispatch artifact missing or invalid }
   # BEGIN RESOURCE API COVERAGE
   /admin/resource-types:
     get:
@@ -3655,7 +3929,7 @@ paths:
       summary: "GET /admin/resource-types"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
       responses:
@@ -3671,7 +3945,7 @@ paths:
       summary: "GET /admin/resource-types/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3691,7 +3965,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3719,7 +3993,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3745,7 +4019,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3777,7 +4051,7 @@ paths:
       summary: "PATCH /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3805,7 +4079,7 @@ paths:
       summary: "DELETE /admin/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3829,7 +4103,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}/{resourceId}/restore"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3858,7 +4132,7 @@ paths:
       summary: "POST /admin/resources/{resourceKey}/{resourceId}/purge"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3887,7 +4161,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/permissions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3920,7 +4194,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/revisions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3953,7 +4227,7 @@ paths:
       summary: "GET /admin/resources/{resourceKey}/{resourceId}/changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: resourceKey
@@ -3986,7 +4260,7 @@ paths:
       summary: "GET /admin/resource-changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: pageSize
@@ -4011,7 +4285,7 @@ paths:
       summary: "GET /admin/resource-coverage/audit"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
       responses:
@@ -4027,7 +4301,7 @@ paths:
       summary: "GET /admin/operations/{operationId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: operationId
@@ -4047,8 +4321,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4076,8 +4349,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4109,8 +4381,7 @@ paths:
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4139,8 +4410,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4175,8 +4445,7 @@ paths:
       summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4207,8 +4476,7 @@ paths:
       summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4236,8 +4504,7 @@ paths:
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4269,8 +4536,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4306,8 +4572,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4343,8 +4608,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4380,8 +4644,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/resource-changes"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4409,8 +4672,7 @@ paths:
       summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
       tags: [resource-api]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: path
@@ -4427,6 +4689,52 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List customer sessions with optional session or turn-level context filters
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: user_id
+          in: query
+          schema: { type: string }
+        - name: originator
+          in: query
+          schema: { type: string }
+        - name: session_status
+          in: query
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          schema: { type: string }
+          description: Optional brand context filter.
+        - name: workspace_key
+          in: query
+          schema: { type: string }
+          description: Optional workspace context filter.
+        - name: context_scope
+          in: query
+          schema:
+            type: string
+            enum: [session, turn, any]
+            default: session
+          description: Select whether brand_key and workspace_key filters apply to session defaults, turn-level context, or either surface.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: Sessions matching the requested context scope. }
+        '400': { description: Invalid query or context_scope value. }
+        '401': { description: Authentication required. }
+        '403': { description: Not authorized to list sessions. }
+
   /gpt/sessions:
     get:
       operationId: getGptSessions
@@ -4482,6 +4790,61 @@ paths:
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
   /gpt/sessions/{id}/turns:
+    post:
+      operationId: writeGptSessionTurns
+      summary: Append multiple turns to a customer session archive
+      tags: [session-archive]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant, tool]
+                      content:
+                        type: string
+                        maxLength: 120000
+                      action_key:
+                        type: string
+                        nullable: true
+                      workspace_key:
+                        type: string
+                        description: Optional turn-level workspace context
+                      brand_key:
+                        type: string
+                        description: Optional turn-level brand context
+                      target_key:
+                        type: string
+                        description: Alias for brand_key
+      responses:
+        '200': { description: Turns appended successfully. }
+        '400': { description: Invalid request body. }
+        '401': { description: Authentication required. }
+        '403': { description: Not authorized to append turns. }
+        '404': { description: Session not found. }
+        '409': { description: Session is closed. }
     get:
       operationId: getGptSessionsIdTurns
       summary: "GET /gpt/sessions/{id}/turns"
@@ -4633,6 +4996,16 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerResolutionPreview'
   /admin/container-authority/projection-preview:
     $ref: './openapi/container-authority.yaml#/adminContainerProjectionPreview'
+  /admin/container-authority/canary-promotions:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryPromotions'
+  /admin/container-authority/canary-rollbacks:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
+  /admin/container-authority/canary-probes:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryProbes'
+  /admin/container-authority/preview-canary-probes:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityPreviewCanaryProbes'
+  /container-authority/canary-monitoring:
+    $ref: './openapi/container-authority.yaml#/containerAuthorityCanaryMonitoring'
   /container-context-resolutions:
     $ref: './openapi/container-authority.yaml#/containerContextResolutions'
   /container-context-resolutions/{resolutionId}:
@@ -4678,7 +5051,7 @@ paths:
         Returns a tenant-safe proactive activation brief with account counts, permission semantics,
         capability groups, safe actions, blocked or limited capabilities, and next-best actions.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: tenant_id
           in: query
@@ -4715,7 +5088,7 @@ paths:
         Returns proactive admin guidance for workspace, tenant, brand, platform tool, permission,
         readiness, and next-best-action management. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: tenant_id
@@ -4758,7 +5131,7 @@ paths:
         activation summary, operational tiles, callbacks, attention rules, freshness policies,
         latest runtime verification run, remediation runbooks, and evidence manifest.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environment_key
@@ -4791,7 +5164,7 @@ paths:
       summary: Read operational console evidence
       description: Returns paginated evidence for the latest runtime verification run referenced by the console.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environment_key
@@ -4826,7 +5199,7 @@ paths:
         Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph.
         Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       responses:
         '200':
@@ -4847,7 +5220,7 @@ paths:
         evidence chunks, blocking gaps, and the production parity ledger. Output is
         summary-first and secret-safe; detailed evidence is read through the paginated evidence endpoint.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -4868,7 +5241,7 @@ paths:
       operationId: getRuntimeVerificationRun
       summary: Read runtime verification run
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: runId
@@ -4890,7 +5263,7 @@ paths:
       operationId: listRuntimeVerificationEvidence
       summary: List paginated runtime verification evidence
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: runId
@@ -4916,18 +5289,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
+  /runtime/parity:
+    get:
+      tags: [runtime-verification]
+      operationId: getDefaultRuntimeParity
+      summary: Read default or query-selected production parity state
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+      responses:
+        '200':
+          description: Runtime production parity status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParityResponse'
   /runtime/parity/{environmentKey}:
     get:
       tags: [runtime-verification]
       operationId: getRuntimeParity
       summary: Read production parity state
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: environmentKey
           in: path
-          required: false
+          required: true
           schema: { type: string, default: production }
       responses:
         '200':
@@ -4941,7 +5334,7 @@ paths:
     post:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackCreate
       x-custom-gpt-exclude: true
@@ -5002,7 +5395,7 @@ paths:
     post:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: sessionInsightTargetWriteReadbackList
       x-custom-gpt-exclude: true
@@ -5075,7 +5468,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliAllowlistedExecute
       summary: Execute tenant SSH allowlisted CLI command after approval
       description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift, caps output, uses a bounded timeout, and never returns credentials.
@@ -5137,15 +5530,15 @@ paths:
         "400": { description: Missing request fields or non-allowlisted command key. }
         "401": { description: Missing or invalid tenant user JWT. }
         "404": { description: Connection or approval request not found for this tenant. }
-        "409": { description: Connection not ready, approval not approved, expired, or command mismatch. }
-        "502": { description: SSH command failed, timed out, or SSH runtime unavailable. }
+        "409": { description: "Connection not ready, approval not approved, expired, or command mismatch." }
+        "502": { description: "SSH command failed, timed out, or SSH runtime unavailable." }
         "500": { description: Unexpected SSH CLI execution failure. }
 
   /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result:
     get:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliExecuteJobResult
       summary: Read tenant SSH CLI execute job result
       description: Reads a tenant-scoped allowlisted SSH CLI execution job result. The job must belong to the requesting user and connection. Results are redacted and never include SSH credentials.
@@ -5172,7 +5565,7 @@ paths:
     get:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestStatus
       summary: Read tenant SSH CLI approval request status
       description: Reads a tenant-scoped SSH CLI approval request and linked approval hold state. Does not authenticate, open a network connection, execute commands, or return credentials.
@@ -5214,7 +5607,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestDecide
       summary: Approve or reject tenant SSH CLI approval request
       description: Approves or rejects a tenant-scoped SSH CLI approval request as a workspace owner. Updates approval state only; does not authenticate, open a network connection, execute commands, or enable execution.
@@ -5276,7 +5669,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliApprovalRequestCreate
       summary: Create tenant SSH allowlisted CLI approval request
       description: Creates a reviewable approval request for future allowlisted SSH CLI execution. Validates a fixed command key and stores a no-secret plan. Does not authenticate, open a network connection, execute commands, or enable execution.
@@ -5340,7 +5733,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshCliAllowlistedDryRun
       summary: Build tenant SSH allowlisted CLI dry-run plan
       description: Validates a tenant-owned SSH connection and an allowlisted command key, then returns a dry-run plan only. Does not decrypt credentials, authenticate, open a network connection, execute commands, or return credentials.
@@ -5398,7 +5791,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantSshProbe
       summary: Probe tenant SSH TCP/banner reachability
       description: Performs a TCP/banner probe for a tenant-owned SSH connection. Does not authenticate, execute commands, use the private key for auth, or return credentials. Blocks private/local probe targets.
@@ -5464,7 +5857,7 @@ paths:
     post:
       tags: [tenant-infrastructure]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: tenantDatabaseQueryReadonly
       summary: Execute a guarded tenant remote database read-only query
       description: Executes a single SELECT-only query against a tenant-owned remote database connection. Rejects comments, semicolons, placeholders, DDL/DML/admin statements, SELECT *, secret-like field references, and caps returned rows. Does not return credentials.
@@ -5562,7 +5955,8 @@ paths:
     get:
       tags: [dev-diagnostics]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       operationId: getDevDbStatus
       summary: Read protected development database status
       description: Authenticated read-only status for the dev DB clone; never restores or mutates data.
@@ -5609,7 +6003,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecard
       summary: Read the DB-backed Platform Health Scorecard
@@ -5663,7 +6057,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: recordPlatformHealthScorecardSnapshot
       summary: Record a Platform Health Scorecard snapshot
@@ -5689,7 +6083,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardRemediationPlan
       summary: Read Platform Health Scorecard remediation plan
@@ -5713,7 +6107,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardTenantRollout
       summary: Read tenant rollout readiness for the Platform Health Scorecard
@@ -5738,7 +6132,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readPlatformHealthScorecardLedgerHygiene
       summary: Read Platform Health Scorecard ledger hygiene report
@@ -5762,7 +6156,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: projectPlatformGraph
       summary: Project platform registry/source tables into the SQL-primary graph
@@ -5784,7 +6178,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: validatePlatformGraph
       summary: Validate platform graph integrity and secret-safety constraints
@@ -5806,7 +6200,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: resolvePlatformGraphContext
       summary: Resolve graph context for a subject, route, workflow, action, endpoint, device, user, tenant, or asset
@@ -5834,7 +6228,7 @@ paths:
     post:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: resolvePlatformGraphMemory
       summary: Resolve graph-relevant json_assets for a tenant, user, device, asset, route, workflow, action, endpoint, or business type
@@ -5856,7 +6250,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphNode
       summary: Read one graph node by node_id
@@ -5889,7 +6283,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphNeighborhood
       summary: Read graph neighborhood around one or more node IDs
@@ -5930,7 +6324,7 @@ paths:
     get:
       tags: [platform-graph]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getPlatformGraphStatus
       summary: Get graph node/edge counts and latest projection/validation status
@@ -6454,7 +6848,7 @@ paths:
     get:
       tags: [local-manager]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getLocalManagerBetaStatus
       summary: Admin-only read-only Local Manager beta device status
@@ -6537,7 +6931,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantActivationRunArchive
       x-openai-isConsequential: false
       summary: Resolve an activation run to the signed tenant user's archive
@@ -7199,7 +7593,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDashboard
       x-openai-isConsequential: false
       summary: Read the tenant growth cockpit
@@ -7241,7 +7635,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDashboardTab
       x-openai-isConsequential: false
       summary: Read one tenant dashboard tab
@@ -7281,7 +7675,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantDashboardPreferences
       x-openai-isConsequential: false
       summary: Read tenant dashboard preferences
@@ -7311,7 +7705,7 @@ paths:
     put:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateTenantDashboardPreferences
       x-openai-isConsequential: true
       summary: Replace tenant dashboard preferences
@@ -7345,7 +7739,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantGrowthDigest
       x-openai-isConsequential: false
       summary: Read a compact tenant growth digest
@@ -7393,7 +7787,7 @@ paths:
     get:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: previewTenantGrowthAction
       x-openai-isConsequential: false
       summary: Preview a governed growth action
@@ -7442,7 +7836,7 @@ paths:
     post:
       tags: [growth-dashboard]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: recordTenantGrowthRecommendationFeedback
       x-openai-isConsequential: false
       summary: Record recommendation feedback or outcome
@@ -7503,7 +7897,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationOperationalAttention
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
@@ -7548,7 +7942,7 @@ paths:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationAwareness
       x-openai-isConsequential: false
       summary: Read signed-in tenant activation awareness
@@ -7585,11 +7979,585 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
+  /tenant/resolution/problem-cards:
+    get:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: readTenantResolutionProblemCards
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: false
+      summary: Read tenant self-healing problem cards
+      description: Projects tenant-scoped Operational Attention alerts into root-family Problem Cards. This endpoint is diagnostic-only and does not create cases, execute providers, or apply repairs.
+      parameters:
+        - { in: query, name: cursor, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { in: query, name: lookback_hours, schema: { type: integer, minimum: 1, maximum: 2160, default: 168 } }
+        - { in: query, name: root_family, schema: { type: string, enum: [wordpress_site_health, tenant_skill_approval, task_source_quality, provider_setup_ads, connector_runtime_readiness, general_operational_review] } }
+        - { in: query, name: severity, schema: { type: string, enum: [info, low, medium, high, critical] } }
+        - { in: query, name: q, schema: { type: string, maxLength: 300 } }
+      responses:
+        "200": { description: Tenant-scoped problem card projection., content: { application/json: { schema: { $ref: "#/components/schemas/TenantResolutionProblemCardsResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases:
+    get:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: listTenantResolutionCases
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: false
+      summary: List tenant resolution cases
+      description: Returns tenant-scoped resolution cases with optional workspace and lifecycle filters. This operation never calls providers or applies repairs.
+      parameters:
+        - { in: query, name: cursor, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { in: query, name: workspace_id, schema: { type: string, maxLength: 64 } }
+        - { in: query, name: status, schema: { type: string, enum: [detected, diagnosing, needs_connection, needs_approval, ready_to_apply, applying, verifying, resolved, deferred_by_policy, escalated, blocked_missing_authority, cancelled] } }
+        - { in: query, name: root_family, schema: { type: string, enum: [wordpress_site_health, tenant_skill_approval, task_source_quality, provider_setup_ads, connector_runtime_readiness, general_operational_review] } }
+        - { in: query, name: severity, schema: { type: string, enum: [info, low, medium, high, critical] } }
+      responses:
+        "200":
+          description: Tenant-scoped resolution case page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, items, page, filters, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_resolution_case_lifecycle] }
+                  items: { type: array, items: { type: object, additionalProperties: true } }
+                  page:
+                    type: object
+                    additionalProperties: false
+                    required: [cursor, limit, returned_count, total_count, has_more]
+                    properties:
+                      cursor: { type: integer, minimum: 0 }
+                      limit: { type: integer, minimum: 1, maximum: 100 }
+                      returned_count: { type: integer, minimum: 0 }
+                      total_count: { type: integer, minimum: 0 }
+                      has_more: { type: boolean }
+                      next_cursor: { type: [integer, 'null'], minimum: 0 }
+                  filters: { type: object, additionalProperties: true }
+                  policy: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid filter., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: createTenantResolutionCase
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Create or return a tenant resolution case
+      description: Creates an internal tenant-scoped resolution case from a Problem Card. This endpoint does not call providers, write externally, or apply repairs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                problem_card: { $ref: '#/components/schemas/TenantResolutionProblemCard' }
+                problem_key: { type: string }
+                root_family: { type: string, enum: [wordpress_site_health, tenant_skill_approval, task_source_quality, provider_setup_ads, connector_runtime_readiness, general_operational_review] }
+                recommended_playbook_key: { type: string }
+                playbook_key: { type: string }
+                workspace_id: { type: string }
+                resource_ref: { type: string }
+                severity: { type: string, enum: [info, low, medium, high, critical] }
+                impact_summary: { type: string, maxLength: 2000 }
+                source_alert_keys: { type: array, maxItems: 100, items: { type: string, maxLength: 191 } }
+                source_refs: { type: array, maxItems: 100, items: { type: string, maxLength: 512 } }
+                idempotency_key: { type: string, maxLength: 191 }
+      responses:
+        "201": { description: Resolution case created., content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "200": { description: Existing active case returned idempotently., content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Invalid problem card payload., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "422": { description: No active tenant-visible playbook is available., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases/{caseId}:
+    get:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: getTenantResolutionCase
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: false
+      summary: Read one tenant resolution case
+      description: Returns one tenant-scoped resolution case and its recent append-only events. Optional workspace scope is enforced when supplied.
+      parameters:
+        - { in: path, name: caseId, required: true, schema: { type: string, maxLength: 64 } }
+        - { in: query, name: workspace_id, schema: { type: string, maxLength: 64 } }
+        - { in: query, name: event_limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: Tenant-scoped resolution case detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, case, events, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_resolution_case_lifecycle] }
+                  case: { type: object, additionalProperties: true }
+                  events: { type: array, items: { type: object, additionalProperties: true } }
+                  policy: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid case identifier., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Case not found within tenant or workspace scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  /tenant/resolution/cases/{caseId}/transitions:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: transitionTenantResolutionCase
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Transition a tenant resolution case
+      description: Appends a lifecycle event and changes case status within the tenant-safe diagnostic state graph. Applying, verifying, and resolved transitions are blocked in this phase.
+      parameters:
+        - { in: path, name: caseId, required: true, schema: { type: string, maxLength: 64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [to_status]
+              properties:
+                to_status: { type: string, enum: [diagnosing, needs_connection, needs_approval, ready_to_apply, deferred_by_policy, escalated, blocked_missing_authority, cancelled] }
+                workspace_id: { type: string, maxLength: 64 }
+                current_step_key: { type: string, maxLength: 191 }
+                note: { type: string, maxLength: 2000 }
+                evidence_ref: { type: string, maxLength: 512 }
+                idempotency_key: { type: string, maxLength: 191 }
+      responses:
+        "200":
+          description: Resolution case transition result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, case, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_resolution_case_lifecycle] }
+                  changed: { type: boolean }
+                  case: { type: object, additionalProperties: true }
+                  event: { type: object, additionalProperties: true }
+                  idempotency: { type: object, additionalProperties: true }
+                  policy: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid target status or request body., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Case not found within tenant or workspace scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Invalid transition or concurrent case update., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases/{caseId}/diagnostics:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: runTenantResolutionDiagnosticAction
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Run a tenant resolution diagnostic action
+      description: Runs one bounded internal action for a resolution case. Supported modes are diagnose, plan_preview, and escalate. No provider call, external write, repair apply, or resolved transition is allowed.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode: { type: string, enum: [diagnose, plan_preview, escalate] }
+                workspace_id: { type: string, maxLength: 64 }
+                idempotency_key: { type: string, maxLength: 191 }
+                evidence_refs:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, maxLength: 512 }
+                note: { type: string, maxLength: 2000 }
+                escalation_reason: { type: string, maxLength: 1000 }
+                observations:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    capability_ready: { type: boolean }
+                    connection_ready: { type: boolean }
+                    approval_ready: { type: boolean }
+                    authority_ready: { type: boolean }
+                    policy_allows_next_step: { type: boolean }
+                    escalation_required: { type: boolean }
+                    evidence_refs:
+                      type: array
+                      maxItems: 20
+                      items: { type: string, maxLength: 512 }
+                    blocked_reasons:
+                      type: array
+                      maxItems: 20
+                      items: { type: string, maxLength: 300 }
+                    note: { type: string, maxLength: 2000 }
+                    escalation_reason: { type: string, maxLength: 1000 }
+      responses:
+        "200":
+          description: Diagnostic action result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, mode, changed, case, playbook, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_resolution_diagnostic_core] }
+                  mode: { type: string, enum: [diagnose, plan_preview, escalate] }
+                  changed: { type: boolean }
+                  case:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      case_id: { type: string }
+                      tenant_id: { type: string }
+                      workspace_id: { type: [string, 'null'] }
+                      root_family: { type: string }
+                      playbook_key: { type: string }
+                      status: { type: string }
+                      severity: { type: string }
+                      current_step_key: { type: [string, 'null'] }
+                      escalation_ref: { type: [string, 'null'] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  playbook:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      playbook_key: { type: string }
+                      root_family: { type: string }
+                      status: { type: string }
+                      tenant_visible: { type: boolean }
+                      risk_level: { type: string }
+                      required_capability_key: { type: [string, 'null'] }
+                      approval_required: { type: boolean }
+                      readback_required: { type: boolean }
+                      secrets_included: { type: boolean, enum: [false] }
+                  diagnostic:
+                    type: [object, 'null']
+                    additionalProperties: true
+                    properties:
+                      diagnostic_id: { type: string }
+                      next_status: { type: string }
+                      confidence: { type: string, enum: [bounded] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  plan_preview:
+                    type: [object, 'null']
+                    additionalProperties: true
+                    properties:
+                      preview_id: { type: string }
+                      blocked: { type: boolean }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  escalation:
+                    type: [object, 'null']
+                    additionalProperties: true
+                    properties:
+                      escalation_ref: { type: [string, 'null'] }
+                      reason: { type: string }
+                      already_escalated: { type: boolean }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      workspace_scope_enforced_when_provided: { type: boolean, enum: [true] }
+                      bounded_observations_only: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid diagnostic action input., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Case not found within tenant or workspace scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Case state conflict or action not allowed., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases/{caseId}/task-source-repair/preview:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: previewTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Preview a tenant task source repair
+      description: Builds and persists a tenant-scoped repair preflight without changing the task registry, calling providers, applying a repair, dispatching execution, or resolving the case.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                workspace_id: { type: string, maxLength: 64 }
+                task_id: { type: string, maxLength: 36 }
+                task_key: { type: string, maxLength: 191 }
+                evidence_ref: { type: string, maxLength: 512 }
+                lookup:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    task_id: { type: string, maxLength: 36 }
+                    task_key: { type: string, maxLength: 191 }
+                proposed_values:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    task_id: { type: string, maxLength: 36 }
+                    task_key: { type: string, maxLength: 191 }
+                    title: { type: string, maxLength: 255 }
+                    source_surface: { type: string, maxLength: 191 }
+                    source_ref: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: Task source repair preview result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, case, task, preview, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_preview] }
+                  changed: { type: boolean }
+                  case:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      case_id: { type: string }
+                      tenant_id: { type: string }
+                      workspace_id: { type: [string, 'null'] }
+                      root_family: { type: string, enum: [task_source_quality] }
+                      playbook_key: { type: string, enum: [task_source_repair_v1] }
+                      status: { type: string }
+                      current_step_key: { type: [string, 'null'] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  task:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      task_id: { type: [string, 'null'] }
+                      task_key: { type: [string, 'null'] }
+                      title: { type: [string, 'null'] }
+                      owner_scope: { type: [string, 'null'] }
+                      tenant_id: { type: [string, 'null'] }
+                      source_surface: { type: [string, 'null'] }
+                      source_ref: { type: [string, 'null'] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  preview:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      preview_id: { type: string }
+                      generated_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                      ready_for_apply_gate: { type: boolean }
+                      approval_required: { type: boolean, enum: [true] }
+                      readback_required: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      task_registry_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      internal_registry_read_only: { type: boolean, enum: [true] }
+                      task_registry_write_allowed: { type: boolean, enum: [false] }
+                      repair_apply_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid lookup or proposed values., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Case or task not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: "\"Incompatible case, binding mismatch, or concurrent update.\"", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/cases/{caseId}/task-source-repair/apply:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: applyTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Apply an approved tenant task source repair
+      description: Applies one approved, no-drift Task Source Repair preview to a tenant-owned pending task, performs same-cycle field readback, consumes the capability envelope, and moves the case only to verifying. Provider calls, external writes, task-id changes, tenant-scope changes, resolved transitions, and secrets are forbidden.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preview_fingerprint_sha256, capability_envelope_id, approval_hold_id, confirm]
+              properties:
+                workspace_id: { type: string, maxLength: 64 }
+                preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                capability_envelope_id: { type: string, maxLength: 64 }
+                approval_hold_id: { type: string, maxLength: 64 }
+                confirm:
+                  type: string
+                  maxLength: 80
+                  description: APPLY_TASK_SOURCE_REPAIR_ followed by the uppercase first 12 characters of the preview fingerprint.
+      responses:
+        "200":
+          description: Task source repair was applied and the case entered verifying.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, case, task, apply, envelope, policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_apply_gate] }
+                  changed: { type: boolean, enum: [true] }
+                  case:
+                    type: object
+                    additionalProperties: false
+                    required: [case_id, tenant_id, status, current_step_key, readback_status, secrets_included]
+                    properties:
+                      case_id: { type: string }
+                      tenant_id: { type: string }
+                      workspace_id: { type: [string, 'null'] }
+                      status: { type: string, enum: [verifying] }
+                      current_step_key: { type: string, enum: [task_source_repair_verifying] }
+                      readback_status: { type: string, enum: [not_run] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  task:
+                    type: object
+                    additionalProperties: false
+                    required: [task_id, task_key, title, source_surface, source_ref, secrets_included]
+                    properties:
+                      task_id: { type: string }
+                      task_key: { type: string }
+                      title: { type: string }
+                      source_surface: { type: string }
+                      source_ref: { type: string }
+                      secrets_included: { type: boolean, enum: [false] }
+                  apply:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      phase: { type: string, enum: [applied_pending_verification] }
+                      applied_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                      capability_envelope_id: { type: string }
+                      approval_hold_id: { type: string }
+                      task_id: { type: string }
+                      changed_fields:
+                        type: array
+                        items: { type: string, enum: [task_key, title, source_surface, source_ref] }
+                      mutation_readback:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          status: { type: string, enum: [passed] }
+                          checked_fields:
+                            type: array
+                            items: { type: string, enum: [task_key, title, source_surface, source_ref] }
+                      lifecycle_readback_status: { type: string, enum: [not_run] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  envelope:
+                    type: object
+                    additionalProperties: false
+                    required: [envelope_id, execution_status, consumed, secrets_included]
+                    properties:
+                      envelope_id: { type: string }
+                      execution_status: { type: string, enum: [executed] }
+                      consumed: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      approval_hold_required: { type: boolean, enum: [true] }
+                      typed_confirmation_required: { type: boolean, enum: [true] }
+                      no_drift_required: { type: boolean, enum: [true] }
+                      internal_registry_write_only: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      resolved_transition_allowed: { type: boolean, enum: [false] }
+                      lifecycle_readback_required: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: "Invalid fingerprint, authority input, or typed confirmation.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: "Tenant membership, capability envelope, or approved hold is missing or invalid.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Resolution case or pending task was not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: "Case state, preflight, drift, uniqueness, mutation readback, or envelope lifecycle conflict.", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /tenant/activation/dynamic-tabs/detail:
     get:
       tags: [activation]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: readTenantActivationDynamicTabDetail
       x-openai-isConsequential: false
       summary: Read one tenant-authorized Dynamic Tab detail page
@@ -7818,7 +8786,7 @@ paths:
       x-tenant-gpt-operationId: activateSession
       x-openai-isConsequential: false
       summary: Open or reuse the signed tenant user's Activation session context
-      description: Tenant-only Activation session surface. Tenant and user identity come from the signed OAuth JWT; tenant_id, user_id, raw dumps, and unknown query parameters are not accepted.
+      description: Tenant-only Activation session surface. Tenant, user, workspace, and brand scope comes from signed OAuth JWT and membership. Identity overrides, include_turns, context_scope, raw dumps, and unknown parameters are rejected. Raw turns stay unavailable; responses remain scoped and secret-free.
       parameters:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
@@ -7869,8 +8837,155 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.activation
+        - userJwtAuth: []
+
+  /tenant/activation/sessions:
+    get:
+      tags: [activation, session-archive]
+      operationId: listTenantActivationSessions
+      x-tenant-gpt-operationId: listSessions
+      x-openai-isConsequential: false
+      summary: List the signed tenant user's safe Activation session metadata
+      description: Returns a bounded, secret-free projection of sessions owned by the tenant and user from the signed OAuth JWT. Tenant, user, workspace, brand, and context-scope overrides are rejected and raw instructions, repository metadata, emails, and turn content are never selected.
+      parameters:
+        - name: session_status
+          in: query
+          schema: { type: string, enum: [pending, active, completed, failed] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped safe session list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, subject, sessions, total, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [session_list] }
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    required: [tenant_id, user_id, is_admin]
+                    properties:
+                      tenant_id: { type: string }
+                      user_id: { type: string }
+                      is_admin: { type: boolean, enum: [false] }
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [session_id, originator, session_status, brand_key, workspace_key, turn_count, started_at, ended_at, created_at]
+                      properties:
+                        session_id: { type: string }
+                        originator: { type: [string, "null"] }
+                        session_status: { type: string, enum: [pending, active, completed, failed] }
+                        brand_key: { type: [string, "null"] }
+                        workspace_key: { type: [string, "null"] }
+                        turn_count: { type: integer, minimum: 0 }
+                        started_at: { type: [string, "null"], format: date-time }
+                        ended_at: { type: [string, "null"], format: date-time }
+                        created_at: { type: [string, "null"], format: date-time }
+                  total: { type: integer, minimum: 0, maximum: 50 }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Tenant Activation session list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+      security:
+        - userJwtAuth: []
+
+  /tenant/activation/sessions/{id}/turns:
+    post:
+      tags: [activation, session-archive]
+      operationId: writeTenantActivationSessionTurns
+      x-tenant-gpt-operationId: writeGptSessionTurns
+      x-openai-isConsequential: true
+      summary: Append a bounded conversational exchange to the active tenant session archive
+      description: Uses the session_archive_write capability family, exact JWT tenant and user scope, a maximum of 20 turns, and same-cycle per-turn archive readback. System-role turns and identity overrides are rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [turns]
+              properties:
+                turns:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant, tool] }
+                      content: { type: string, minLength: 1, maxLength: 120000 }
+                      action_key: { type: [string, "null"] }
+                      workspace_key: { type: string }
+                      brand_key: { type: string }
+                      target_key: { type: string, description: Alias for brand_key. }
+                      business_type_key: { type: string }
+                      business_activity_type_key: { type: string }
+                      activity_key: { type: string }
+                      knowledge_profile_key: { type: string }
+      responses:
+        "200":
+          description: Turns appended with archive readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, session_id, turn_count, turns, capture_policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  session_id: { type: string }
+                  turn_count: { type: integer, minimum: 1, maximum: 20 }
+                  turns:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [role, turn_index, turn_id, drive_doc_id, drive_doc_part, drive_anchor, archive_status]
+                      properties:
+                        role: { type: string, enum: [user, assistant, tool] }
+                        turn_index: { type: integer, minimum: 0 }
+                        turn_id: { type: string }
+                        drive_doc_id: { type: [string, "null"] }
+                        drive_doc_part: { type: [integer, "null"], minimum: 1 }
+                        drive_anchor: { type: [string, "null"] }
+                        archive_status: { type: string }
+                  capture_policy:
+                    type: object
+                    additionalProperties: false
+                    required: [intended_use, sql_content_mode, full_content_storage, secrets_included]
+                    properties:
+                      intended_use: { type: string }
+                      sql_content_mode: { type: string, enum: [preview_hash_only] }
+                      full_content_storage: { type: string, enum: [drive_doc_and_jsonl] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Capability-family or tenant/user scope authorization denied. }
+        "404": { description: Session not found. }
+        "409": { description: Session is closed. }
+        "500": { description: Session archive write failed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+      security:
+        - userJwtAuth: []
 
   /activation/platform-access:
     get:
@@ -8294,7 +9409,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiModelRunPlan
       summary: Build a canonical governed model-run plan
@@ -8330,7 +9445,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiModelRunEvents
       summary: Read canonical model-run events
@@ -8351,7 +9466,7 @@ paths:
       x-openai-isConsequential: false
       tags: [ai, platform-intelligence]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: aiToolSearch
       summary: Search governed deferred tools
@@ -8460,7 +9575,7 @@ paths:
   /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGrowthIntelligencePilot
       summary: Run the read-only tenant and brand Growth Intelligence pilot
       description: >
@@ -8502,7 +9617,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listGrowthIntelligenceReports
       summary: List persisted Growth Intelligence reports
       parameters:
@@ -8516,34 +9631,34 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/metrics:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceMetrics
       summary: Read tenant-scoped Growth Intelligence product and safety metrics
       parameters:
         - { name: tenant_id, in: path, required: true, schema: { type: string } }
         - { name: brand_key, in: query, schema: { type: string } }
       responses:
-        "200": { description: Report, insight, action, readiness, quality, approval, and safety metrics }
+        "200": { description: "Report, insight, action, readiness, quality, approval, and safety metrics" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
     get:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceReport
       summary: Read one persisted Growth Intelligence report with insights and actions
       parameters:
         - { name: tenant_id, in: path, required: true, schema: { type: string } }
         - { name: report_id, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Growth Intelligence report, insight/action rows, and immutable readiness assessments }
+        "200": { description: "Growth Intelligence report, insight/action rows, and immutable readiness assessments" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { description: Growth Intelligence report not found }
 
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceAction
       summary: Approve or reject a Growth Intelligence action without executing it
       description: >
@@ -8574,7 +9689,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceInsight
       summary: Accept, reject, or mark a Growth Intelligence insight stale
       description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
@@ -8601,7 +9716,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
     post:
       tags: [tenants]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGrowthIntelligenceReadinessAssessment
       summary: Record an immutable no-execution readiness assessment
       description: >
@@ -10025,7 +11140,7 @@ paths:
                 properties:
                   ok: { type: boolean }
                   credential_id: { type: string, format: uuid }
-                  api_key: { type: string, description: "Full key Ã¢â‚¬â€ store now, not retrievable again." }
+                  api_key: { type: string, description: "\"Full key Ã¢â‚¬â€ store now, not retrievable again.\"" }
                   key_prefix: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -10263,7 +11378,7 @@ paths:
   /admin/system/connectors:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemConnectors
       summary: List connector systems from the system registry
       description: Read-only admin facade over the connected_systems table. Use this before choosing connector-specific actions or MCP-style tool calls.
@@ -10304,7 +11419,7 @@ paths:
   /admin/system/connectors/{system_id}:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminSystemConnector
       summary: Get one connector system from the system registry
       description: Returns one connected_systems row plus its installation summary. This is a governed alternative to raw DB inspection for connector inventory.
@@ -10331,7 +11446,7 @@ paths:
   /admin/system/tools:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
       description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
@@ -10355,7 +11470,7 @@ paths:
   /admin/system/tools/call:
     post:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
@@ -10399,7 +11514,7 @@ paths:
   /admin/apis-services/google-auth-platform:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTabs
       summary: Read simulated Google Auth Platform tabs
       description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
@@ -10433,7 +11548,7 @@ paths:
   /admin/apis-services/google-auth-platform/{tab}:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTab
       summary: Read one simulated Google Auth Platform tab
       description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
@@ -10456,7 +11571,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertAdminGoogleAuthPlatformTab
       summary: Upsert one simulated Google Auth Platform tab
       description: Writes governed DB-backed tab state for Google Auth Platform or APIs & Services console simulation.
@@ -10495,7 +11610,7 @@ paths:
   /admin/apis-services/credentials:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminApisServicesCredentials
       summary: Read simulated APIs & Services Credentials tab
       description: Returns the governed APIs & Services Credentials tab and linked platform credential-client registry records.
@@ -10513,7 +11628,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertAdminApisServicesCredentials
       summary: Upsert simulated APIs & Services Credentials tab
       description: Writes governed APIs & Services Credentials tab state. Credential material must remain in credential-client secret references.
@@ -10824,7 +11939,7 @@ paths:
   /admin/control:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeAdminControl
       summary: Execute personal admin control operation
       x-runtime-governance:
@@ -10930,7 +12045,7 @@ paths:
   /admin/cli/hostinger:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeHostingerApiCall
       summary: Forward a call to the Hostinger REST API
       description: Proxies any Hostinger API call using server-stored API keys. Use cloud_plan key for VPS, DNS, domains, and billing. Use shared_manager key for shared hosting. Supply the path only, e.g. /v1/dns/zone/mad4b.com/records.
@@ -10990,7 +12105,7 @@ paths:
   /admin/cli/cloudflare:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: executeCloudflareApiCall
       summary: Forward a call to the Cloudflare REST API
       description: Proxies any Cloudflare API call using server-stored credentials. Supply the path only, e.g. /client/v4/zones or /client/v4/tunnels/{tunnel_id}.
@@ -11193,7 +12308,7 @@ paths:
   /admin/cli/local-connector/install-bundle:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorInstallBundle
       summary: Resolve or download a local connector installer
       description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
@@ -11259,7 +12374,7 @@ paths:
   /admin/cli/local-connector/self-repair:
     post:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: repairLocalConnector
       x-openai-isConsequential: false
       summary: Diagnose local connector health and return a secure installer handoff
@@ -11350,7 +12465,7 @@ paths:
   /admin/cli/dns:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listDnsRecords
       summary: List DNS records for a zone
       description: Lists all DNS records for the specified zone via Cloudflare API. Defaults to mad4b.com.
@@ -11389,7 +12504,7 @@ paths:
         "500": { description: DNS list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: upsertDnsRecord
       summary: Create or update a DNS record
       description: Creates a new DNS record or updates an existing one by name + type. Proxied is false by default.
@@ -11442,7 +12557,7 @@ paths:
         "500": { description: DNS upsert failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
     delete:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: deleteDnsRecord
       summary: Delete a DNS record by ID
       description: Deletes a DNS record from the specified zone using its Cloudflare record ID.
@@ -11480,7 +12595,7 @@ paths:
   /auth/platform-jwt/issue:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: issuePlatformJwtClientToken
       summary: Issue a short-lived tenant user JWT
       description: Admin-only platform JWT client. Mints a short-lived user JWT for an existing active user so governed tenant /connect/* calls can use user auth without relaxing tenant guards.
@@ -11534,7 +12649,7 @@ paths:
   /admin/session-continuity/link-user:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: linkSessionContinuityUser
       summary: Link unassigned request envelopes to a user
       description: Assigns user_id to unlinked request_envelopes rows and backfills tenant_id when null. Use this as a governed alternative to raw SQL for session continuity repair.
@@ -11587,7 +12702,7 @@ paths:
   /admin/schema-import/upload:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: importSchemaUpload
       summary: Upload a full OpenAPI schema file and split it into the registry
       description: Accepts a full OpenAPI 3.x schema string. Parses it, inlines $refs, splits per operation, upserts the parent action row and one endpoint row per operation with a compact dereferenced schema_json. Removed endpoints are deprecated. Returns a job record for audit and rollback.
@@ -11635,7 +12750,7 @@ paths:
   /admin/schema-import/repo:
     post:
       tags: [admin-internal]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: importSchemaFromRepo
       summary: Install an OpenAPI schema directly from a GitHub or GitLab repo URL
       description: >
@@ -11688,7 +12803,7 @@ paths:
   /admin/schema-import/rollback:
     post:
       tags: [admin-import]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: rollbackSchemaImport
       summary: Restore endpoint schemas to a previous import job's snapshot
       description: Restores endpoint schema_json values for the given action_key to the state captured in the target job's snapshots. Post-job endpoints are deprecated; removed endpoints restored to active. Creates a new rollback job row for audit - the original job is never mutated.
@@ -11729,7 +12844,7 @@ paths:
   /admin/schema-import/jobs:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listSchemaImportJobs
       summary: List schema import jobs with optional action_key filter
       parameters:
@@ -11761,7 +12876,7 @@ paths:
   /admin/schema-import/jobs/{job_id}:
     get:
       tags: [admin-import]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getSchemaImportJob
       summary: Get a single schema import job including endpoint snapshots
       parameters:
@@ -12225,7 +13340,7 @@ paths:
       parameters:
         - { name: plan_id, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Plan, compiled steps, and transition events }
+        "200": { description: "Plan, compiled steps, and transition events" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -13395,7 +14510,7 @@ paths:
   /admin/cli/data-source/census:
     get:
       tags: [admin-control]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getPlatformDataSourceCensus
       summary: SQL data-source census across platform tables
       description: "Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration completeness."
@@ -13449,7 +14564,7 @@ paths:
     post:
       tags: [browser-runtime]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: postBrowserRuntimeInspectSiteRun
       summary: Run Browser4 site inspection through browser runtime policy
@@ -14167,7 +15282,7 @@ paths:
   /connect/status:
     get:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: getConnectStatus
       summary: Tenant connection status for signed-in user
       description: "Returns the signed-in user, their active tenant membership, the tenant backend connection (mode, status, cloudflare_mode, google_auth_mode, n8n_activation_mode), and the user's configured devices. Requires user JWT."
@@ -14203,7 +15318,7 @@ paths:
   /connect/activate:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectActivate
       summary: Activate tenant backend connection
       description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
@@ -14256,7 +15371,7 @@ paths:
   /connect/device-install:
     post:
       tags: [tenant-connect]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: postConnectDeviceInstall
       summary: Provision a local connector device for the tenant
       description: "Provisions a Cloudflare tunnel and connector config for the named device. Uses managed or dedicated provisioning depending on the tenant connection's cloudflare_mode. Returns install bundle pointers and updates device_count."
@@ -14296,7 +15411,6 @@ paths:
       security:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
-        - userBearerAuth: []
       operationId: listLocalGatewayTools
       summary: List tenant-safe local gateway tools
       description: "Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false."
@@ -14330,7 +15444,7 @@ paths:
   /local-connector/health:
     get:
       tags: [local-connector]
-      security: [backendBearerAuth: [], backendApiKeyAuth: [], userBearerAuth: []]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorHealth
       summary: Check tunnel reachability for a tenant device
       description: "Resolves the tenant device's tunnel_url and connector_secret, then probes the connector /health endpoint with a 10s timeout. Returns the agent's health payload on success, or a structured connector_unreachable error on failure (HTTP 200 either way for tenant ergonomics)."
@@ -14409,18 +15523,113 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getConnectOnboardingState
       summary: Read Connect onboarding state for the signed-in user
       responses:
         "200": { description: Connect onboarding state, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connect/bootstrap:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: bootstrapTenantConnection
+      summary: Provision and activate the signed-in tenant workspace in Managed mode
+      description: >
+        Idempotently creates one eligible workspace when needed, activates Managed mode,
+        and returns success only after final connection-state readback. User and tenant
+        identity are derived from the signed user JWT; secrets are never returned.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                mode:
+                  type: string
+                  enum: [managed]
+                  default: managed
+                workspace_name:
+                  type: string
+                  maxLength: 120
+                display_name:
+                  type: string
+                  maxLength: 120
+      responses:
+        "200":
+          description: Managed activation verified by final readback
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, bootstrap, principal, activation, readback, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  bootstrap: { type: object, additionalProperties: true }
+                  principal:
+                    type: object
+                    additionalProperties: false
+                    required: [workspace_key, role]
+                    properties:
+                      workspace_key: { type: string }
+                      role: { type: string }
+                  activation:
+                    type: object
+                    additionalProperties: false
+                    required: [mode, status, validation_status]
+                    properties:
+                      mode: { type: string, enum: [managed] }
+                      status: { type: string, enum: [active] }
+                      validation_status: { type: string, enum: [verified] }
+                  onboarding: { type: [object, "null"], additionalProperties: true }
+                  next_actions:
+                    type: array
+                    items: { type: string }
+                  readback:
+                    type: object
+                    additionalProperties: false
+                    required: [verified, checked_at]
+                    properties:
+                      verified: { type: boolean, enum: [true] }
+                      checked_at: { type: string, format: date-time }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid bootstrap request or unsupported activation mode
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401":
+          description: Signed user JWT required
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "403":
+          description: Membership, account, or tenant is not eligible for activation
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "409":
+          description: Workspace selection is required
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "503":
+          description: Managed activation could not be verified by final readback
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
 
   /connect/workspace:
     post:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createConnectWorkspace
       summary: Create or select a workspace during Connect onboarding
       requestBody:
@@ -14436,7 +15645,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: escalateConnectRequest
       summary: Escalate a Connect onboarding or access request
       requestBody:
@@ -14451,7 +15660,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentConnectUser
       summary: Read the current user profile for Connect surfaces
       responses:
@@ -14461,7 +15670,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentWorkspaceBrands
       summary: List tenant-safe brands visible to the signed-in workspace member
       parameters:
@@ -14476,7 +15685,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listCurrentUserWorkspaces
       summary: List workspaces available to the current user
       responses:
@@ -14485,7 +15694,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: createCurrentUserWorkspace
       summary: Create a workspace for the current user
       requestBody:
@@ -14500,7 +15709,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: listAgentSurfaceCatalog
       summary: List Hermes, OpenClaude, and OpenClaw capabilities and deployment modes
       responses:
@@ -14516,7 +15725,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaces
       summary: Read tenant deployments, current-user preferences, and readiness
       responses:
@@ -14532,7 +15741,7 @@ paths:
     get:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getTenantAgentSurfaceReadiness
       summary: Read platform-managed and dedicated-managed runtime readiness
       responses:
@@ -14548,7 +15757,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: replaceOwnAgentSurfacePreferences
       summary: Replace the authenticated user's preferences for one surface
       parameters:
@@ -14585,7 +15794,7 @@ paths:
     put:
       tags: [agent-surfaces]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: setTenantAgentSurfaceDeployment
       summary: Set platform-managed or dedicated-managed deployment for one tenant surface
       parameters:
@@ -14616,7 +15825,7 @@ paths:
     get:
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: getCurrentUserCapabilities
       summary: Read current user capability flags
       responses:
@@ -14627,7 +15836,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectPreferences
       summary: Update Connect user preferences
       requestBody:
@@ -14643,7 +15852,7 @@ paths:
       x-openai-isConsequential: true
       tags: [connected-systems]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: updateConnectProfile
       summary: Update Connect user profile metadata
       requestBody:
@@ -14675,7 +15884,7 @@ paths:
   /connector-agent/installer.ps1:
     get:
       tags: [local-connector]
-      security: []
+      security: [{ signedQueryTokenAuth: [] }]
       operationId: getConnectorAgentInstallerScript
       summary: Download connector agent PowerShell installer
       responses:
@@ -14696,7 +15905,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [local-connector]
-      security: []
+      security: [{ connectorBearerAuth: [] }]
       operationId: postConnectorAgentHeartbeat
       summary: Receive connector agent heartbeat
       requestBody:
@@ -14755,7 +15964,7 @@ paths:
   /app-integrations/{app_key}/callback:
     get:
       tags: [connected-systems]
-      security: []
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: callbackAppIntegration
       summary: Receive app integration authorization callback
       parameters:
@@ -15096,7 +16305,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-        "400": { description: Missing approval, inactive intake connection, or mapped field missing. }
+        "400": { description: "Missing approval, inactive intake connection, or mapped field missing." }
   /credentials/intake/promote-local-connector-key:
     post:
       x-openai-isConsequential: true
@@ -15239,8 +16448,7 @@ paths:
       x-openai-isConsequential: false
       tags: [security]
       security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
+        - userJwtAuth: []
       operationId: credentialIntakeConnectionStatus
       summary: Read secure credential intake completion status by connection ID
       description: >
@@ -15360,7 +16568,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomySummary
       x-custom-gpt-exclude: true
@@ -15379,7 +16587,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyAppMap
       x-custom-gpt-exclude: true
@@ -15406,7 +16614,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyToolMap
       x-custom-gpt-exclude: true
@@ -15435,7 +16643,7 @@ paths:
     get:
       tags: [admin-control]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyFamilyCoverage
       x-custom-gpt-exclude: true
@@ -15462,7 +16670,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: adsProviderGovernanceSnapshotRecord
       summary: Record Ads Provider Governance snapshot and recommendation behind a gate
@@ -15535,7 +16743,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketExternalDeliveryCompletionCertify
       summary: Certify Support Ticket external delivery completion gates
@@ -15603,7 +16811,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketLifecycleSnapshotRecord
       summary: Record Support Ticket lifecycle snapshot and recommendation candidates
@@ -15671,7 +16879,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: supportTicketLifecycleSnapshotPropose
       summary: Propose Support Ticket lifecycle snapshot and recommendation candidates
@@ -15733,7 +16941,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: planRepositoryAutomation
       summary: Plan a governed repository automation workflow
@@ -15795,7 +17003,7 @@ paths:
       x-openai-isConsequential: true
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: runRepositoryAutomation
       summary: Run or resume a governed repository automation workflow
@@ -15876,7 +17084,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readRepositoryAutomationStatus
       summary: Read a repository automation run
@@ -15919,7 +17127,7 @@ paths:
       x-openai-isConsequential: false
       tags: [admin, repository-automation]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: scanRepositoryAutomationHygiene
       summary: Scan repository automation hygiene
@@ -15964,7 +17172,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: adsProviderGovernanceSnapshotPropose
       summary: Propose Ads Provider Governance snapshot and recommendation candidates
@@ -16021,7 +17229,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformOrchestrationReadback
       summary: Read orchestration graph, snapshot, and recommendation readiness
@@ -16083,7 +17291,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginCatalog
       summary: Read Platform Plugin catalog
@@ -16182,7 +17390,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginResolve
       summary: Resolve Platform Plugin execution preview
@@ -16301,7 +17509,7 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "400": { description: Invalid resolver or target-mode input. }
         "401": { description: Authentication required. }
-        "403": { description: Principal, tenant, surface, skill, credential scope, or target authority denied. }
+        "403": { description: "Principal, tenant, surface, skill, credential scope, or target authority denied." }
         "503": { description: Policy or target-authority store unavailable; resolution fails closed. }
   /tenant/platform/plugins/credential-intake-sessions:
     post:
@@ -16435,18 +17643,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
       security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
+        - userJwtAuth: []
   /platform/action-manifest/resolve:
     post:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: actionManifestResolve
       summary: Resolve Action Endpoint Tool authority manifest
@@ -16484,7 +17687,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: executionReadinessDryRun
       summary: Resolve full execution readiness dry-run
@@ -16530,7 +17733,7 @@ paths:
     post:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeHostingerDeployRelease
       x-custom-gpt-exclude: true
@@ -16571,14 +17774,14 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
         '400': { description: Invalid deployment input. }
-        '403': { description: Approval, capability envelope, or execution gate missing. }
-        '409': { description: Target, path, branch, SHA, or dry-run plan conflict. }
+        '403': { description: "Approval, capability envelope, or execution gate missing." }
+        '409': { description: "Target, path, branch, SHA, or dry-run plan conflict." }
         '502': { description: SSH deployment failed before acceptance. }
   /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeHostingerDeployRunRead
       x-custom-gpt-exclude: true
@@ -16606,7 +17809,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeLocalReadonlyExecute
       summary: Execute allowlisted local_path read-only commands
@@ -16638,7 +17841,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeDispatchDryRun
       summary: Dry-run Remote Runtime allowlisted dispatch
@@ -16669,7 +17872,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeCertify
       summary: Certify Platform Plugin smoke execution
@@ -16708,7 +17911,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeCertificationStatus
       summary: Read Platform Plugin smoke certification status
@@ -16741,7 +17944,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyResolve
       summary: Resolve Platform Plugin smoke recertification policy
@@ -16774,7 +17977,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyList
       summary: List Platform Plugin smoke recertification policies
@@ -16807,7 +18010,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyUpsert
       summary: Upsert Platform Plugin smoke recertification policy
@@ -16858,7 +18061,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyHistory
       summary: Read smoke recertification policy audit history
@@ -16890,7 +18093,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyRollbackPreview
       summary: Preview smoke recertification policy rollback
@@ -16922,7 +18125,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyRollbackApply
       summary: Apply smoke recertification policy rollback
@@ -16962,7 +18165,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationQueue
       summary: List Platform Plugin smoke recertification queue
@@ -16998,7 +18201,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationBatch
       summary: Run bounded Platform Plugin smoke recertification batch
@@ -17043,7 +18246,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetUpsert
       summary: Upsert Remote Runtime target
@@ -17088,7 +18291,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetValidate
       summary: Validate Remote Runtime target metadata
@@ -17114,7 +18317,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeTargetCatalog
       summary: List Remote Runtime targets
@@ -17142,7 +18345,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeProbe
       summary: Probe Remote Runtime target readiness
@@ -17169,7 +18372,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginPolicyUpsert
       summary: Upsert Platform Plugin tenant policy overlay
@@ -17190,7 +18393,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginActionTemplateUpsert
       summary: Upsert Platform Plugin REST action template
@@ -17222,7 +18425,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginDispatchRest
       summary: Dispatch Platform Plugin REST action
@@ -17270,7 +18473,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginActionGrantUpsert
       summary: Upsert Platform Plugin action grant
@@ -17302,7 +18505,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginInstall
       summary: Install Platform Plugin for tenant
@@ -17322,7 +18525,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionList
       summary: List Platform Plugin contributions
@@ -17336,7 +18539,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionCreate
       summary: Create Platform Plugin contribution
@@ -17356,7 +18559,7 @@ paths:
     get:
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionGet
       summary: Get Platform Plugin contribution
@@ -17374,7 +18577,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionCertify
       summary: Certify Platform Plugin contribution
@@ -17391,7 +18594,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPromote
       summary: Promote Platform Plugin contribution
@@ -17408,7 +18611,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateActivate
       summary: Activate private Platform Plugin contribution runtime
@@ -17425,7 +18628,7 @@ paths:
       x-openai-isConsequential: false
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateResolve
       summary: Resolve private Platform Plugin contribution runtime
@@ -17442,7 +18645,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       operationId: platformPluginContributionPrivateDispatchRest
       summary: Dispatch private Platform Plugin REST action
@@ -17463,7 +18666,7 @@ paths:
         Admin/service scoped read of allowed Platform Evolution scope switch options. This supports view-as/scope selection
         by user, email, tenant, or brand. It does not grant access and does not expose checkpoint writes.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: user_id
@@ -17503,7 +18706,7 @@ paths:
         Admin/service scoped read of the latest Platform Evolution activation card for a brand/tenant scope.
         Returns checkpoint summary, thread counts, linked tasks/signals, and blocker counts. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -17539,7 +18742,7 @@ paths:
       description: >
         Admin/service scoped thread map with linked task, signal, and blocker counts for a Platform Evolution scope.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -17587,7 +18790,7 @@ paths:
       description: >
         Admin/service scoped linked evidence for Platform Evolution threads, including pending tasks and summary development signals.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: scope_key
@@ -17638,7 +18841,7 @@ paths:
         creates or updates a tenant-owned WordPress credential binding pointer, and reads back effective credential
         status without returning tokens, decrypted credentials, or secret values.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -17675,7 +18878,7 @@ paths:
         User JWT, calls tenant evolution switch-options, activation-card, and thread-map routes, and returns only sanitized
         result summaries. The JWT is never returned and tenant checkpoint write remains disabled.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -17716,7 +18919,7 @@ paths:
         Admin/service scoped creation of an activation, operation, manual, rollup, or recovery checkpoint.
         Updates last_checkpoint_id for threads in the same scope. No secrets are accepted or returned.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -17747,7 +18950,7 @@ paths:
         Admin/service scoped read of private capability packages. This route returns registry rows only and never
         imports source assets, installs packages, reads secrets, or executes package content.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: status
@@ -17766,6 +18969,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultRepoIngestionPlan
       summary: Plan repo-to-capability ingestion
       description: >
@@ -17812,7 +19016,7 @@ paths:
         requires explicit confirm_record_only=true. The operation is transactional, audited,
         idempotent for the same repository commit, and same-cycle readback verified.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -17860,6 +19064,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultInstallRequestPlan
       summary: Plan tenant, brand, or user package install request
       description: >
@@ -17896,6 +19101,7 @@ paths:
     post:
       x-openai-isConsequential: false
       tags: [platform-intelligence]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: platformCapabilityVaultVariantMergePlan
       summary: Plan three-way merge of scoped variant patches
       description: >
@@ -17942,7 +19148,7 @@ paths:
         Builds a dry-run raw mirror plan for external repository evidence. The mirror is immutable, read-only, and
         never executed by runtime.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -17972,7 +19178,7 @@ paths:
         Classifies source assets into safe runtime assets and blocked evidence-only assets. It never installs,
         executes, clones, or reads live external content.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18008,7 +19214,7 @@ paths:
         Builds a dry-run reinstall/upgrade plan. It preserves tenant overrides, brand bindings, agent grants,
         disabled skills, thresholds, and approval states; it never duplicates installs.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18043,7 +19249,7 @@ paths:
         Plans tenant, brand, business type, user, or platform variant patches. Lower layers can specialize or narrow
         policy, but cannot expand upper-layer permissions without approval and certification.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18075,7 +19281,7 @@ paths:
         Resolves the package base version, scoped variants, and task overlay into a dispatch readiness decision.
         It does not dispatch, install, or execute tools.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18107,7 +19313,7 @@ paths:
         It does not fetch browser URLs, perform live provider reads, or return file content. Drive metadata probes
         must use supportsAllDrives=true.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18139,7 +19345,7 @@ paths:
         Admin/service scoped read of registered policy-driven engines. This is registry inspection only and never
         executes engine tasks, tools, strategies, or model calls.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: status
@@ -18172,7 +19378,7 @@ paths:
         Read-only objective classification for the AI Intelligence Runtime. It returns candidate engine, task class,
         skill, resource classification, and rationale. It does not plan, apply, execute tools, or call models.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18204,7 +19410,7 @@ paths:
         Builds a dry-run governed plan from SQL policy, rules, strategy registry, skill manifest, validators, and
         prior outcome evidence. It does not apply changes or execute dynamic code.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18249,7 +19455,7 @@ paths:
         Combines intent resolution, capability readiness, policy-driven planning, feedback-aware scoring, and
         apply-readiness blockers. Models may assist candidate scoring only; hard gates remain deterministic.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18287,7 +19493,7 @@ paths:
         Reports the controls required before a separate governed apply route can execute: scope guard, approval,
         validators, audit, and readback. This route never mutates repositories, databases, or external systems.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18331,7 +19537,7 @@ paths:
         Readiness diagnostic for an engine and optional task class. Verifies active policy, rule, strategy, skill
         contract, and validator coverage without planning or applying.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18356,7 +19562,7 @@ paths:
       operationId: platformEngineRunHistory
       summary: List engine planning and audit runs
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: engine_key
@@ -18382,7 +19588,7 @@ paths:
       operationId: platformEngineFeedbackSummary
       summary: Summarize recent engine outcomes
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: engine_key
@@ -18411,7 +19617,7 @@ paths:
         Read-only live table census and classification using information_schema, data_migration_inventory, and
         lifecycle registry state. It never drops, archives, truncates, deletes, or mutates data.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18436,7 +19642,7 @@ paths:
         Builds a dry-run plan to register lifecycle metadata for live tables. It does not write registry rows and
         does not perform archive, drop, truncate, or delete operations.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18460,7 +19666,7 @@ paths:
       description: >
         Lists evidence-only database lifecycle report snapshots. This route is read-only and does not execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -18483,7 +19689,7 @@ paths:
         Creates an evidence-only lifecycle report snapshot when confirmation-gated. It does not archive, delete, drop,
         truncate, compact, read secrets, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18516,7 +19722,7 @@ paths:
         Returns a bounded, read-only operational status for database lifecycle snapshots, schedules, and scheduler bindings.
         It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -18546,7 +19752,7 @@ paths:
         requires typed confirmation and creates at most one open operational incident for degraded lifecycle readiness.
         It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18577,7 +19783,7 @@ paths:
         requires typed confirmation and writes only a lifecycle report snapshot after schedule, binding, and approval
         readback are all ready. It does not enable cron, archive, delete, drop, truncate, compact, or read secrets.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18614,7 +19820,7 @@ paths:
         snapshot readiness/readback gate as the direct runner. Dry-run is default. Apply mode requires typed confirmation
         in the queued request payload and writes only a lifecycle report snapshot when all guards pass.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18656,7 +19862,7 @@ paths:
         Lists planned database lifecycle report snapshot schedules. This route is read-only and does not run scheduler jobs
         or lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: report_type
@@ -18685,7 +19891,7 @@ paths:
         Assesses whether snapshot schedules have approval, notification, and executor-policy metadata. This route is
         read-only and does not execute scheduled work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18712,7 +19918,7 @@ paths:
       description: >
         Lists planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable or run scheduler work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: schedule_key
@@ -18741,7 +19947,7 @@ paths:
         Assesses planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable scheduler work
         or execute snapshots.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: false
@@ -18768,7 +19974,7 @@ paths:
         Plans or applies confirmation-gated schedule/binding approval metadata. This route does not enable scheduler jobs,
         write snapshots, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18806,7 +20012,7 @@ paths:
         Verifies schedule/binding approval metadata and its audit event after confirmation-gated metadata apply.
         This route is read-only and does not enable scheduler jobs, write snapshots, or execute lifecycle cleanup.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -18835,7 +20041,7 @@ paths:
         Tenant/user scoped read of allowed Platform Evolution scope switch options for the signed-in user.
         The returned scope_key values can be passed to tenant evolution read routes. No access is granted by this route.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: brand_key
           in: query
@@ -18873,7 +20079,7 @@ paths:
         scope, and a write-capable role. Tenant checkpoints cannot set platform commit/deploy authority fields and do not
         return tokens or secrets.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       requestBody:
         required: true
         content:
@@ -18912,7 +20118,7 @@ paths:
         Tenant/user scoped read of a Platform Evolution activation card. Requires a user JWT, active tenant membership,
         and allowed scope in v_platform_evolution_scope_access. No secrets are returned.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -18948,7 +20154,7 @@ paths:
       description: >
         Tenant/user scoped thread map. Users can read only allowed scopes resolved from active membership and scope access.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -18996,7 +20202,7 @@ paths:
       description: >
         Tenant/user scoped linked evidence for Platform Evolution threads. Users can read only allowed scopes.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: scope_key
           in: query
@@ -19079,7 +20285,7 @@ paths:
       summary: Create or update a connected execution session
       description: Creates or updates DB-backed connected execution session metadata. Does not execute pending actions and does not enable background work.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       requestBody:
         required: true
@@ -19110,7 +20316,7 @@ paths:
       summary: Read latest connected execution checkpoint
       description: Returns the latest checkpoint view for a connected execution session. Read-only and secret-free by contract.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19141,7 +20347,7 @@ paths:
       summary: Append connected execution evidence report
       description: Appends a sanitized evidence report to a connected execution session and advances its checkpoint cursor. Does not execute actions.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19182,7 +20388,7 @@ paths:
       summary: Enqueue connected execution resume action metadata
       description: Records a pending resume action for a connected execution session. This only stores metadata; it does not claim or execute the action.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19279,7 +20485,7 @@ paths:
       summary: Enqueue connected execution resume action for metadata-only worker processing
       description: Enqueues one pending analysis_step resume action or read-only tool_call preflight action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only. For tool_call actions it validates the read-only allowlist and records preflight evidence without executing tools, mutating repos, calling providers, calling local devices, or executing apply operations.
       security:
-        - backendBearerAuth: []
+        - adminBearerAuth: []
         - backendApiKeyAuth: []
       parameters:
         - name: connected_session_id
@@ -19334,7 +20540,7 @@ paths:
       summary: List tenant-safe live repository documents
       description: Returns the allowlisted tenant-facing documentation files available to the signed-in tenant user. Does not expose admin-only docs, migrations, or secrets.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       responses:
         "200":
           description: Tenant-safe docs catalog.
@@ -19358,7 +20564,7 @@ paths:
       summary: Read one tenant-safe live repository document
       description: Reads a bounded allowlisted tenant-facing repository document by path. Blocks path traversal, absolute paths, non-allowlisted docs, admin-only guides, migrations, and schema dumps.
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       parameters:
         - name: path
           in: query
@@ -19474,7 +20680,7 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
 
   /tenant/platform/plugins/install:
     post:
@@ -19531,7 +20737,7 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
 
   /tenant/platform/plugins/resolve:
     post:
@@ -19646,7 +20852,218 @@ paths:
                   secrets_included: { type: boolean, enum: [false] }
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
+  /tenant/resolution/skill-approvals:
+    get:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: listTenantSkillApprovals
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: false
+      summary: List tenant skill approval items
+      description: Returns tenant-scoped skill approval groups with hold status and internal grant readback. Global grants are visible but cannot be changed by tenant owners.
+      parameters:
+        - { in: query, name: cursor, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { in: query, name: status, schema: { type: string, enum: [pending, approved, rejected, deferred, expired] } }
+        - { in: query, name: workspace_id, schema: { type: string, maxLength: 64 } }
+        - { in: query, name: q, schema: { type: string, maxLength: 300 } }
+      responses:
+        "200":
+          description: Tenant skill approval page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, items, page, filters, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_skill_approval_center] }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        approval_key: { type: string }
+                        tenant_id: { type: string }
+                        grant_scope: { type: string, enum: [tenant, global] }
+                        tenant_decision_allowed: { type: boolean }
+                        brand_key: { type: [string, 'null'] }
+                        agent_id: { type: string }
+                        agent_name: { type: [string, 'null'] }
+                        skill_id: { type: string }
+                        skill_key: { type: string }
+                        skill_display_name: { type: [string, 'null'] }
+                        requires_approval: { type: boolean }
+                        status: { type: string, enum: [pending, approved, rejected, deferred, expired] }
+                        hold:
+                          type: [object, 'null']
+                          additionalProperties: true
+                          properties:
+                            hold_id: { type: string }
+                            status: { type: string }
+                            effective_status: { type: string }
+                            decision_by: { type: [string, 'null'] }
+                            decision_note: { type: [string, 'null'] }
+                            deferred_until: { type: [string, 'null'], format: date-time }
+                            expires_at: { type: [string, 'null'], format: date-time }
+                            secrets_included: { type: boolean, enum: [false] }
+                        readback:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            status: { type: string, enum: [not_run, passed, failed, blocked] }
+                            passed: { type: boolean }
+                            effective_decision: { type: string }
+                            active_grant_count: { type: integer, minimum: 0 }
+                            revoked_grant_count: { type: integer, minimum: 0 }
+                            expired_grant_count: { type: integer, minimum: 0 }
+                            checked_at: { type: string, format: date-time }
+                            authority: { type: string, enum: [approval_holds_plus_agent_skill_grants] }
+                            secrets_included: { type: boolean, enum: [false] }
+                        policy:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            tenant_owner_decision_required: { type: boolean, enum: [true] }
+                            global_grant_tenant_decision_allowed: { type: boolean, enum: [false] }
+                            provider_call_allowed: { type: boolean, enum: [false] }
+                            external_write_allowed: { type: boolean, enum: [false] }
+                            execution_dispatched: { type: boolean, enum: [false] }
+                            secrets_included: { type: boolean, enum: [false] }
+                        secrets_included: { type: boolean, enum: [false] }
+                  page:
+                    type: object
+                    additionalProperties: false
+                    required: [cursor, limit, returned_count, total_count, has_more]
+                    properties:
+                      cursor: { type: integer, minimum: 0 }
+                      limit: { type: integer, minimum: 1, maximum: 100 }
+                      returned_count: { type: integer, minimum: 0 }
+                      total_count: { type: integer, minimum: 0 }
+                      has_more: { type: boolean }
+                      next_cursor: { type: [integer, 'null'], minimum: 0 }
+                  filters:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      status: { type: [string, 'null'] }
+                      workspace_id: { type: [string, 'null'] }
+                      q: { type: [string, 'null'] }
+                  policy:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      tenant_scoped: { type: boolean, enum: [true] }
+                      owner_only_decisions: { type: boolean, enum: [true] }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid list filters., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Active tenant membership required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /tenant/resolution/skill-approvals/{approvalKey}/decision:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: decideTenantSkillApproval
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Decide a tenant skill approval
+      description: Records an owner-only approve, reject, or defer decision against tenant-scoped skill grants and verifies the result against the internal grant registry. Global grants remain platform controlled.
+      parameters:
+        - in: path
+          name: approvalKey
+          required: true
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, reject, defer] }
+                workspace_id: { type: string, maxLength: 64 }
+                decision_note: { type: string, maxLength: 512 }
+                defer_until: { type: string, format: date-time }
+                ttl_hours: { type: integer, minimum: 1, maximum: 2160, default: 168 }
+                grant_ttl_hours: { type: [integer, 'null'], minimum: 1, maximum: 8760 }
+                idempotency_key: { type: string, maxLength: 191 }
+      responses:
+        "200":
+          description: Tenant skill approval decision result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, activation_layer, changed, approval, policy, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [tenant_skill_approval_center] }
+                  changed: { type: boolean }
+                  decision: { type: string, enum: [approve, reject, defer] }
+                  grant_mutation:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      affected_grants: { type: integer, minimum: 0 }
+                      target_status: { type: string, enum: [active, revoked, unchanged] }
+                  approval:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      approval_key: { type: string }
+                      tenant_id: { type: string }
+                      grant_scope: { type: string, enum: [tenant, global] }
+                      tenant_decision_allowed: { type: boolean }
+                      agent_id: { type: string }
+                      skill_id: { type: string }
+                      skill_key: { type: string }
+                      status: { type: string, enum: [pending, approved, rejected, deferred, expired] }
+                      readback:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          status: { type: string, enum: [not_run, passed, failed, blocked] }
+                          passed: { type: boolean }
+                          active_grant_count: { type: integer, minimum: 0 }
+                          revoked_grant_count: { type: integer, minimum: 0 }
+                          expired_grant_count: { type: integer, minimum: 0 }
+                          secrets_included: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  idempotency:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      existing_decision_returned: { type: boolean, enum: [true] }
+                  policy:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      owner_only: { type: boolean, enum: [true] }
+                      internal_registry_write_only: { type: boolean }
+                      provider_call_allowed: { type: boolean, enum: [false] }
+                      external_write_allowed: { type: boolean, enum: [false] }
+                      execution_dispatched: { type: boolean, enum: [false] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid decision input., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { description: User JWT required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "403": { description: Tenant owner role or platform scope required., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Approval item not found within tenant scope., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Decision readback failed., content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /gpt/sessions/{id}/turn:
     post:
       tags: [session-archive]
@@ -19747,7 +21164,7 @@ paths:
   /connect/api/app-integrations:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiAppIntegrations
       summary: List active app integrations the user can connect
       responses:
@@ -19757,7 +21174,7 @@ paths:
   /connect/api/connections:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiConnections
       summary: List the signed-in user's app connections
       description: "Returns the caller's own user_app_connections rows. Does NOT include encrypted_credentials or any secret material."
@@ -19768,7 +21185,7 @@ paths:
   /connect/api/connections/{connection_id}:
     delete:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: deleteConnectApiConnection
       summary: Revoke a user connection and zero its credentials
       parameters:
@@ -19781,7 +21198,7 @@ paths:
   /connect/api/integration-policy:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: updateConnectIntegrationPolicy
       summary: Update per-app managed/dedicated integration source policy
       description: Keeps tenant activation mode canonical while allowing mixed per-app credential sources.
@@ -19830,7 +21247,7 @@ paths:
   /connect/api/credential-intake/sessions:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectCredentialIntakeSession
       summary: Create a user-scoped secure credential intake link
       description: Creates a short-lived URL where the signed-in tenant user can enter integration secrets outside GPT chat.
@@ -19893,7 +21310,7 @@ paths:
     get:
       tags: [connect]
       security:
-        - backendBearerAuth: []
+        - userJwtAuth: []
       operationId: waitConnectCredentialIntakeSession
       summary: Wait for tenant credential intake completion
       description: Long-polls a tenant-scoped credential-intake session and returns completion metadata plus connection_id without exposing submitted secrets. Intended for automated post-intake verification flows and webhook-safe completion handling.
@@ -19945,7 +21362,7 @@ paths:
   /connect/api/cms/claims:
     get:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: listConnectApiCmsClaims
       summary: List the user's CMS account claims
       responses:
@@ -19953,7 +21370,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: createConnectApiCmsClaim
       summary: Verify a user-supplied WordPress account and create a private claim
       description: "Calls /wp/v2/users/me on the supplied site with Basic auth (username + application_password), creates an encrypted user_app_connections row, a private credential_bindings row, and a cms_account_claims row. user_id is taken from the authenticated session and rejected if present in the body. Secrets are never returned."
@@ -20000,7 +21417,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/approve:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: approveConnectApiCmsClaim
       summary: Approve a CMS claim for workspace/tenant sharing
       parameters:
@@ -20012,7 +21429,7 @@ paths:
   /connect/api/cms/claims/{claim_id}/reject:
     post:
       tags: [connect-api]
-      security: [userBearerAuth: []]
+      security: [userJwtAuth: []]
       operationId: rejectConnectApiCmsClaim
       summary: Reject a CMS claim
       parameters:
@@ -20024,7 +21441,7 @@ paths:
   /platform/agent-governance/response-profile/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceResponseProfile
       summary: Resolve a presentation-only response profile
       description: Resolves presentation preferences only and grants no tool, policy, approval, or execution authority.
@@ -20051,7 +21468,7 @@ paths:
   /platform/agent-governance/research-policy/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceResearchPolicy
       summary: Resolve an internal-first research policy
       requestBody:
@@ -20076,7 +21493,7 @@ paths:
   /platform/agent-governance/research-executions:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: recordAgentGovernanceResearchExecution
       summary: Record secret-free research source evidence
       requestBody:
@@ -20107,7 +21524,7 @@ paths:
   /platform/agent-governance/research-plans:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGovernedResearchPlan
       summary: Create and compile an internal-first sequential research plan
       requestBody:
@@ -20137,7 +21554,7 @@ paths:
   /platform/agent-governance/research-plans/{plan_id}/run:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGovernedResearchPlan
       summary: Run a governed research plan through approved adapters
       parameters:
@@ -20165,7 +21582,7 @@ paths:
   /platform/agent-governance/handoffs:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createAgentGovernanceHandoff
       summary: Create opaque expiring agent handoff state
       requestBody:
@@ -20196,7 +21613,7 @@ paths:
   /platform/agent-governance/handoffs/{state_id}:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: readAgentGovernanceHandoff
       summary: Read tenant- and actor-scoped governed handoff state
       parameters:
@@ -20211,7 +21628,7 @@ paths:
   /platform/agent-governance/handoffs/{state_id}/consume:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: consumeAgentGovernanceHandoff
       summary: Consume one-time or record access to reusable handoff state
       parameters:
@@ -20231,11 +21648,11 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
-        "409": { description: Handoff is expired, revoked, consumed, or changed concurrently }
+        "409": { description: "Handoff is expired, revoked, consumed, or changed concurrently" }
   /platform/agent-governance/handoffs/{state_id}/revoke:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: revokeAgentGovernanceHandoff
       summary: Revoke governed handoff state without executing its allowed action
       parameters:
@@ -20258,7 +21675,7 @@ paths:
   /platform/agent-governance/external-prompts/classify:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: classifyExternalPromptArtifact
       summary: Quarantine and classify an external prompt-like artifact
       description: Stores only hash, findings, and a bounded summary. The artifact receives zero execution, tool, and policy authority.
@@ -20285,7 +21702,7 @@ paths:
   /platform/agent-governance/skill-coverage:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAgentGovernanceSkillCoverage
       summary: Read type-aware Agent Skill runtime coverage
       parameters:
@@ -20294,7 +21711,7 @@ paths:
         - { name: coverage_status, in: query, required: false, schema: { type: string, enum: [covered, gap] } }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
       responses:
-        "200": { description: Type-aware skill coverage rows, summary counts, and applied filters }
+        "200": { description: "Type-aware skill coverage rows, summary counts, and applied filters" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
@@ -20302,7 +21719,7 @@ paths:
   /platform/agent-governance/readiness:
     get:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAgentGovernanceReadiness
       summary: Read governance schema, policy, skill coverage, and source-adapter readiness
       responses:
@@ -20313,7 +21730,7 @@ paths:
   /platform/agent-governance/memory-scope/resolve:
     post:
       tags: [platform-agent-governance]
-      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: resolveAgentGovernanceMemoryScope
       summary: Resolve tenant-bound memory scopes and explicit cross-scope links
       requestBody:

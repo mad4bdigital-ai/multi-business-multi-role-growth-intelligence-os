@@ -16,6 +16,16 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import {
+  assertTenantToolManifestAllows,
+  filterTenantToolsByManifest,
+  loadTenantToolManifestBlocks,
+} from "../tenantToolManifestGuard.js";
+import {
+  assertTenantToolSchemaAllows,
+  filterTenantToolsByStrictSchema,
+  loadTenantToolSchemaBlocks,
+} from "../tenantToolSchemaGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
@@ -26,6 +36,8 @@ import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAut
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
 import { runGovernedMigrationExecution } from "../governedMigrationExecutionTool.js";
+import { runGovernedMigrationSchemaReadback } from "../governedMigrationSchemaReadbackTool.js";
+import { runDynamicContainerProjectionApply } from "../dynamicContainerProjectionApplyTool.js";
 import {
   buildSqlCacheOperationalDiagnostics,
   runSqlCacheControlledLoadTest,
@@ -33,9 +45,13 @@ import {
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
+  CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
+  CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS,
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
+  runCapabilityEnvelopeBatchExpire,
+  transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
@@ -53,6 +69,14 @@ import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
 } from "../dynamicCapabilityGovernancePersistence.js";
+import {
+  TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM,
+  bootstrapTenantConnectionShadowContracts,
+} from "../tenantConnectionShadowContractBootstrap.js";
+import {
+  PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM,
+  issuePlatformCapabilityShadowCertification,
+} from "../platformCapabilityShadowCertificationIssuer.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -62,6 +86,8 @@ import {
   refreshGrowthIntelligenceReadinessAdmin,
 } from "../growthIntelligenceAdminDecisions.js";
 import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificationIssuer.js";
+import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
+import { normalizeRegistryTags } from "../registryTagParser.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -111,9 +137,25 @@ export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
     "system_tools",
     "device_tools",
     "repo_inspect",
+    "repo_automation",
     "connector_dispatch",
     "any_governed_tool_response",
   ]),
+  dynamic_ttl: Object.freeze({
+    supported: true,
+    option_keys: Object.freeze([
+      "response_options.chunk_ttl_ms",
+      "response_options.chunk_ttl_minutes",
+      "chunk_ttl_ms",
+      "chunk_ttl_minutes",
+      "response_chunk_ttl_ms",
+      "response_chunk_ttl_minutes",
+    ]),
+    default_ttl_ms: DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS,
+    min_ttl_ms: MIN_TOOL_RESPONSE_CHUNK_TTL_MS,
+    max_ttl_ms: MAX_TOOL_RESPONSE_CHUNK_TTL_MS,
+    extension_policy: "extend_cache_on_each_successful_chunk_read",
+  }),
   fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
   secrets_included: false,
 });
@@ -152,6 +194,43 @@ export function resolveGptSessionPin(req, args = {}) {
   ];
   const value = candidates.find((candidate) => String(candidate || "").trim());
   return value ? String(value).trim() : null;
+}
+
+export function resolveGptSessionContext(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const workspaceCandidates = [
+    body.workspace_key,
+    body.workspaceKey,
+    body._workspace_key,
+    req?.headers?.["x-workspace-key"],
+  ];
+  const brandCandidates = [
+    body.brand_key,
+    body.brandKey,
+    body.target_key,
+    body.targetKey,
+    body._brand_key,
+    req?.headers?.["x-brand-key"],
+    req?.headers?.["x-target-key"],
+  ];
+  const businessTypeCandidates = [body.business_type_key, body.businessTypeKey, req?.headers?.["x-business-type-key"]];
+  const businessActivityCandidates = [body.business_activity_type_key, body.businessActivityTypeKey, body.activity_type_key, body.activityTypeKey, req?.headers?.["x-business-activity-type-key"], req?.headers?.["x-activity-type-key"]];
+  const activityCandidates = [body.activity_key, body.activityKey, req?.headers?.["x-activity-key"]];
+  const knowledgeProfileCandidates = [body.knowledge_profile_key, body.knowledgeProfileKey, req?.headers?.["x-knowledge-profile-key"]];
+  const workspace = workspaceCandidates.find((candidate) => String(candidate || "").trim());
+  const brand = brandCandidates.find((candidate) => String(candidate || "").trim());
+  const businessType = businessTypeCandidates.find((candidate) => String(candidate || "").trim());
+  const businessActivity = businessActivityCandidates.find((candidate) => String(candidate || "").trim());
+  const activity = activityCandidates.find((candidate) => String(candidate || "").trim());
+  const knowledgeProfile = knowledgeProfileCandidates.find((candidate) => String(candidate || "").trim());
+  return {
+    workspace_key: workspace ? String(workspace).trim() : null,
+    brand_key: brand ? String(brand).trim() : null,
+    business_type_key: businessType ? String(businessType).trim() : null,
+    business_activity_type_key: businessActivity ? String(businessActivity).trim() : null,
+    activity_key: activity ? String(activity).trim() : null,
+    knowledge_profile_key: knowledgeProfile ? String(knowledgeProfile).trim() : null,
+  };
 }
 
 async function countConversationTurns(pool, sessionId) {
@@ -299,6 +378,14 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       truncatedResult,
     ].join("\n");
 
+    const {
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
+    } = resolveGptSessionContext(req, args);
     const writeback = await recordGptSessionTurn({
       pool,
       session,
@@ -306,6 +393,12 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       content,
       action_key: toolKey,
       turnIndex,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      business_type_key: businessTypeKey,
+      business_activity_type_key: businessActivityTypeKey,
+      activity_key: activityKey,
+      knowledge_profile_key: knowledgeProfileKey,
     });
     return { ok: true, ...writeback };
   } catch (err) {
@@ -408,10 +501,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals. Large responses must use the governed response chunk contract with dynamic TTL support.",
     method: "VIRTUAL",
     path: "internal://repo-inspect",
-    tags: ["repo", "read_only", "diagnostics"],
+    tags: ["repo", "read_only", "diagnostics", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["action"],
@@ -428,6 +521,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         recursive: { type: "boolean", default: false },
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -596,6 +699,42 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "platform_capability_shadow_certification_issue",
+    displayName: "Issue Fixed Platform Capability Shadow Certification",
+    description: "Dry-run or apply one fixed shadow certification for tenant_connection_effective_credential_plan_view. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It keeps the Tenant tool disabled, keeps the readback contract status shadow, never writes runtime dispatch certification, creates no active Tenant export, calls no provider, and returns no secrets.",
+    method: "VIRTUAL",
+    path: "internal://platform-capability-shadow-certification-issue",
+    tags: ["admin", "capability", "tenant_connection", "certification", "shadow", "read_only", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_runtime_dispatch_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "tenant_connection_shadow_contract_bootstrap",
+    displayName: "Bootstrap Tenant Connection Shadow Contracts",
+    description: "Dry-run or apply one fixed internal bootstrap for a non-write-capable Tenant connection adapter and nine shadow readback contracts. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It never enables Tenant tools, creates Tenant exports, issues certifications, calls providers, performs external writes, or returns secrets.",
+    method: "VIRTUAL",
+    path: "internal://tenant-connection-shadow-contract-bootstrap",
+    tags: ["admin", "capability", "tenant_connection", "adapter", "readback", "shadow", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_tenant_authority_change", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "activation_gateway_rollout_plan",
     displayName: "Activation Gateway Rollout Plan",
     description: "Admin-only read-only rollout plan for the Activation Gateway Cloudflare Worker. Validates generated policy hash, signed deployment attestation, workspace and exact Worker resource binding, workers.dev readiness, previous deployment rollback target, and feature-gate state. Never uploads code, writes secrets, enables a subdomain, changes DNS, or binds a custom domain.",
@@ -644,10 +783,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "response_chunk_read",
     displayName: "Read Tool Response Chunk",
-    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart.",
+    description: "Read the next chunk of an oversized governed tool response. Reads the in-process cache first and recovers from durable MySQL storage after cache loss or process restart. Supports dynamic sliding TTL through chunk_ttl_ms or chunk_ttl_minutes.",
     method: "VIRTUAL",
     path: "internal://response-chunk-read",
-    tags: ["tooling", "pagination", "read_only"],
+    tags: ["tooling", "pagination", "read_only", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       required: ["chunk_id"],
@@ -655,6 +794,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         chunk_id: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+        response_options: {
+          type: "object",
+          properties: {
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
     },
   },
@@ -714,6 +863,47 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "capability_resolution_envelope_batch_expire",
+    displayName: "Expire Capability Resolution Envelopes in a Bounded Batch",
+    description: "Dry-run or apply a bounded expiration batch for envelopes that are already past expires_at, were requested by one actor, remain not_executed, have no execution_ref, contain no secrets, and are still in a pre-execution lifecycle state. Apply requires an exact reviewed plan hash, typed confirmation, a dedicated capability envelope, transactional row locking, same-cycle readback, and governance-envelope consumption. No provider call, external write, deploy, restart, gate mutation, or unrelated envelope transition.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-batch-expire",
+    tags: ["admin", "capability_resolution", "lifecycle", "batch", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES, default: "dry_run" },
+        requested_by: { type: "string", minLength: 1, maxLength: 191, default: "gpt_admin" },
+        expired_before: { type: "string", format: "date-time" },
+        max_items: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+        expected_plan_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", pattern: "^EXPIRE_CAPABILITY_ENVELOPES_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        reason: { type: "string", minLength: 20, maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "capability_resolution_envelope_lifecycle",
+    displayName: "Transition Capability Resolution Envelope Lifecycle",
+    description: "Transition one capability resolution envelope lifecycle state by using the governed lifecycle actions consume, cancel, or expire. Internal registry mutation only; no provider call, external write, credential payload read, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://capability-resolution-envelope-lifecycle",
+    tags: ["admin", "capability_resolution", "lifecycle", "state_changing", "readback", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["envelope_id", "action"],
+      properties: {
+        envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        action: { type: "string", enum: CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS },
+        execution_ref: { type: "string", maxLength: 191 },
+        reason: { type: "string", maxLength: 512 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_authorization_bootstrap",
     displayName: "Governed Migration Authorization Bootstrap",
     description: "Authorize one checksum-bound additive migration for the governed runner without executing migration SQL. Requires exact checksum, statement count, merged PR evidence, typed confirmation, a ready capability envelope, zero-risk preflight, and same-cycle authorization readback.",
@@ -740,6 +930,15 @@ const VIRTUAL_ADMIN_TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: "admin_control_db_mutation_serialization_smoke",
+    displayName: "Admin DB Mutation Serialization Smoke",
+    description: "Run one fixed no-op DB UPDATE through the same serializer used by admin_control DB single-statement mutations. No freeform SQL, row data, provider call, external write, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://admin-control-db-mutation-serialization-smoke",
+    tags: ["admin", "db", "serialization", "smoke", "state_changing", "readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: { type: "object", additionalProperties: false },
   },
   {
     name: "sql_cache_runtime_diagnostics_get",
@@ -778,6 +977,58 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "governed_migration_schema_readback",
+    displayName: "Governed Migration Schema Readback",
+    description: "Read-only, checksum-bound schema and ledger readback for one governed migration. This tool does not accept freeform SQL, does not read row data, does not call providers, and does not execute migrations.",
+    method: "VIRTUAL",
+    path: "internal://governed-migration-schema-readback",
+    tags: ["admin", "migration", "read_only", "schema_readback", "ledger_readback", "no_freeform_sql", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["migration", "expected_checksum_sha256", "expected_statement_count"],
+      properties: {
+        migration: { type: "string", pattern: "^[A-Za-z0-9._-]+\\.sql$" },
+        expected_checksum_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "dynamic_container_projection_apply",
+    displayName: "Governed Dynamic Container Projection Apply",
+    description: "Dry-run or apply the legacy-to-container projection through a pinned source snapshot and exact expected counts. Apply requires typed confirmation derived from the snapshot, an apply-authorized platform_orchestration capability envelope, per-tenant transactional writes, same-cycle projection-run and exact-ID readback, and envelope consumption. No provider call, credential payload read, external write, raw endpoint activation, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://dynamic-container-projection-apply",
+    tags: ["admin", "dynamic_container", "projection", "mutation", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "internal_sql_only", "no_provider_call", "no_external_write", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: [
+        "mode",
+        "expected_source_snapshot_sha256",
+        "expected_projected_container_count",
+        "expected_projected_relationship_count",
+        "expected_projected_role_assignment_count",
+        "expected_projected_resource_binding_count",
+        "expected_held_issue_count",
+        "expected_high_risk_issue_count",
+      ],
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_source_snapshot_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        expected_projected_container_count: { type: "integer", minimum: 0 },
+        expected_projected_relationship_count: { type: "integer", minimum: 0 },
+        expected_projected_role_assignment_count: { type: "integer", minimum: 0 },
+        expected_projected_resource_binding_count: { type: "integer", minimum: 0 },
+        expected_held_issue_count: { type: "integer", minimum: 0 },
+        expected_high_risk_issue_count: { type: "integer", minimum: 0 },
+        confirm: { type: "string", pattern: "^APPLY_DYNAMIC_CONTAINER_PROJECTION_[0-9A-F]{12}$" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "governed_migration_execute",
     displayName: "Governed Migration Execute",
     description: "Dry-run or apply one checksum-bound authorized migration through the governed runner. Apply requires exact typed confirmation, a ready platform_orchestration capability envelope, ledger persistence, and same-cycle schema readback.",
@@ -801,10 +1052,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "admin_tool_catalog_search",
     displayName: "Search Admin Tool Catalog",
-    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters.",
+    description: "Search and paginate the full governed admin tool catalog through callAdminTool when the direct list surface cannot pass cursor/query parameters. Large catalog responses must preserve governed chunk continuation and dynamic TTL controls.",
     method: "VIRTUAL",
     path: "internal://admin-tool-catalog-search",
-    tags: ["tooling", "catalog", "pagination", "read_only"],
+    tags: ["tooling", "catalog", "pagination", "read_only", "chunk_contract", "dynamic_ttl"],
     inputSchema: {
       type: "object",
       properties: {
@@ -812,6 +1063,16 @@ const VIRTUAL_ADMIN_TOOLS = [
         tag: { type: "string" },
         cursor: { type: "integer", minimum: 0, default: 0 },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+        response_options: {
+          type: "object",
+          description: "Optional governed response envelope controls. Use chunk_ttl_ms or chunk_ttl_minutes to extend durable response chunk availability.",
+          properties: {
+            max_chars: { type: "integer", minimum: 5000, maximum: 150000 },
+            chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+            chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+          },
+          additionalProperties: true,
+        },
       },
       additionalProperties: false,
     },
@@ -1035,6 +1296,7 @@ const VIRTUAL_ADMIN_TOOLS = [
         brand_key: { type: "string", minLength: 1, maxLength: 128 },
         business_activity_type_key: { type: "string", default: "business_and_industrial_products" },
         persistence_mode: { type: "string", enum: ["internal_registry"], default: "internal_registry" },
+        outbox_mode: { type: "string", enum: ["disabled", "dev_transactional"], default: "disabled", description: "Optional dev-only transactional outbox producer. dev_transactional is rejected unless the active database name ends in _dev." },
         evidence_limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
         report_id: { type: "string", maxLength: 64 },
         requested_by: { type: "string", maxLength: 128 },
@@ -1048,7 +1310,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Accept, reject, or mark stale one persisted Growth Intelligence insight. Records an internal decision only; no provider write, external send, or execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-insight-decide",
-    tags: ["growth_intelligence", "decision", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "decision", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "insight_id", "decision"],
@@ -1066,7 +1328,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Approve or reject one Growth Intelligence dry-run action and its linked approval hold. Never dispatches the action or performs provider writes.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-action-decide",
-    tags: ["growth_intelligence", "approval", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "approval", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id", "action_id", "decision"],
@@ -1084,7 +1346,7 @@ const VIRTUAL_ADMIN_TOOLS = [
     description: "Recompute and persist Growth Intelligence review readiness after insight and action decisions. Does not enable or dispatch execution.",
     method: "VIRTUAL",
     path: "internal://growth-intelligence-readiness-refresh",
-    tags: ["growth_intelligence", "readiness", "internal_registry", "no_execution", "no_provider_write", "no_secrets"],
+    tags: ["growth_intelligence", "readiness", "internal_registry", "approval_required", "readback", "same_cycle_readback", "no_execution", "no_provider_write", "no_external_send", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["tenant_id", "report_id"],
@@ -1178,6 +1440,25 @@ const VIRTUAL_ADMIN_TOOLS = [
         owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
         repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
         superseding_commits: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", pattern: "^[0-9a-fA-F]{40}$" } },
+        coverage_resolutions: {
+          type: "array",
+          maxItems: 20,
+          description: "Explicit reviewed file coverage resolutions for changed files not covered by exact replacement path matching.",
+          items: {
+            type: "object",
+            required: ["file", "resolution_type", "superseded_by_file", "superseded_by_commit", "reason"],
+            properties: {
+              file: { type: "string" },
+              resolution_type: { type: "string", enum: ["migration_superseded_by_applied_migration", "intentional_non_port"] },
+              superseded_by_file: { type: "string" },
+              superseded_by_commit: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+              expected_migration_checksum_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+              expected_statement_count: { type: "integer", minimum: 1, maximum: 5000 },
+              reason: { type: "string", minLength: 20, maxLength: 1000 },
+            },
+            additionalProperties: false,
+          },
+        },
         allow_orphan_branch: { type: "boolean", default: false, description: "Explicit orphan mode. Requires zero matching PRs and exact non-generated file blob equivalence with the current default branch." },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
@@ -1977,7 +2258,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v1"),
+    sqlCacheKey("tools", callerType, "list", "v3"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
@@ -1990,8 +2271,20 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
+  const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
+    ? await Promise.all([
+        loadTenantToolManifestBlocks(getPool()),
+        loadTenantToolSchemaBlocks(getPool()),
+      ])
+    : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key))
+    ? filterTenantToolsByStrictSchema(
+        filterTenantToolsByManifest(
+          rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+          blockedTenantManifests
+        ),
+        blockedTenantSchemas
+      )
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
@@ -1999,7 +2292,7 @@ async function fetchTools(callerType) {
     description: r.description,
     method: r.http_method,
     path: r.http_path,
-    tags: r.tags ? r.tags.split(",").map((t) => t.trim()) : [],
+    tags: normalizeRegistryTags(r.tags),
     inputSchema: parseJson(r.input_schema),
   }));
   return callerType === "admin" ? [...VIRTUAL_ADMIN_TOOLS, ...dbTools] : dbTools;
@@ -2030,7 +2323,7 @@ async function resolveToolPreflightDescriptor(callerType, toolKey) {
     if (!rows?.[0]) continue;
     return {
       method: rows[0].http_method || "",
-      tags: String(rows[0].tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      tags: normalizeRegistryTags(rows[0].tags),
       source: table,
     };
   }
@@ -2066,6 +2359,14 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  if (callerType === "tenant") {
+    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
+    assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+    assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
+  }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
     assertPreflightAllowed(await evaluateGptToolDispatchPreflight({
@@ -2146,6 +2447,18 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       ...(args || {}),
       requested_by: req?.auth?.user_id || req?.auth?.email || "platform_admin",
     }, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "platform_capability_shadow_certification_issue") {
+    const result = await issuePlatformCapabilityShadowCertification(args || {}, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "tenant_connection_shadow_contract_bootstrap") {
+    const result = await bootstrapTenantConnectionShadowContracts(args || {}, {
       auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
@@ -2249,7 +2562,81 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
-  if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
+  if (callerType === "admin" && toolKey === "admin_control_db_mutation_serialization_smoke") {
+      try {
+        const [result, fields] = await getPool().query("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0");
+        const serialized = serializeDbControlQueryResult(result, fields);
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            smoke_key: "admin_control_db_mutation_serialization_smoke",
+            sql_kind: "fixed_noop_update",
+            statement_count: 1,
+            ...serialized,
+            readback_assertions: {
+              mutation_serialized: serialized.statement_result_type === "mutation",
+              affected_rows_present: Number.isFinite(serialized.result?.affectedRows),
+              changed_rows_present: Number.isFinite(serialized.result?.changedRows),
+              secrets_included_false: serialized.secrets_included === false,
+            },
+            secrets_included: false,
+          },
+        };
+      } catch (err) {
+        return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "admin_control_db_mutation_serialization_smoke_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_batch_expire") {
+      try {
+        const result = await runCapabilityEnvelopeBatchExpire({
+          pool: getPool(),
+          mode: String(args?.mode || "dry_run").trim(),
+          requestedBy: String(args?.requested_by || "gpt_admin").trim(),
+          expiredBefore: args?.expired_before || null,
+          maxItems: args?.max_items ?? 50,
+          expectedPlanSha256: String(args?.expected_plan_sha256 || "").trim(),
+          confirm: String(args?.confirm || "").trim(),
+          capabilityEnvelopeId: String(args?.capability_envelope_id || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return {
+          status: Number(err?.status) || 500,
+          body: {
+            ok: false,
+            error: {
+              code: err?.code || "capability_envelope_batch_expire_failed",
+              message: err?.message || "Capability envelope batch expiration failed.",
+              details: err?.details || undefined,
+            },
+            execution_allowed: false,
+            provider_write: false,
+            external_write: false,
+            secrets_included: false,
+          },
+        };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_lifecycle") {
+      try {
+        const result = await transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId: String(args?.envelope_id || "").trim(),
+          action: String(args?.action || "").trim(),
+          executionRef: String(args?.execution_ref || "").trim(),
+          reason: String(args?.reason || "").trim(),
+        });
+        return { status: 200, body: result };
+      } catch (err) {
+        return { status: err?.status || 400, body: { ok: false, error: { code: err?.code || "capability_resolution_envelope_lifecycle_failed", message: err?.message }, secrets_included: false } };
+      }
+    }
+
+    if (callerType === "admin" && toolKey === "capability_resolution_envelope_apply_authorize") {
     try {
       const result = await authorizeCapabilityResolutionEnvelopeApply({
         envelopeId: String(args?.envelope_id || "").trim(),
@@ -2328,6 +2715,81 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
             message: err?.message || "SQL cache controlled load test failed.",
             details: err?.details,
           },
+        },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "governed_migration_schema_readback") {
+    try {
+      const result = await runGovernedMigrationSchemaReadback(args || {}, { pool: getPool() });
+      return { status: result.ok ? 200 : 409, body: result };
+    } catch (err) {
+      return { status: err?.status || 500, body: { ok: false, error: { code: err?.code || "governed_migration_schema_readback_failed", message: err?.message || "Governed migration schema readback failed.", details: err?.details }, secrets_included: false } };
+    }
+  }
+  if (callerType === "admin" && toolKey === "dynamic_container_projection_apply") {
+    try {
+      const result = await runDynamicContainerProjectionApply(args || {}, {
+        pool: getPool(),
+        resolveEnvelope: async ({ envelopeId }) => {
+          const resolved = await resolveCapabilityExecutionEnvelope({
+            pool: getPool(),
+            envelopeId,
+            source: args || {},
+            acceptedAppKeys: ["platform_orchestration"],
+            acceptedIntents: ["dynamic_container_projection_apply"],
+            acceptedCapabilityKeys: ["dynamic_container_projection_apply"],
+            allowReferenced: true,
+            requireReadyForDispatch: true,
+            requireDispatchAllowed: true,
+            requireNoApprovalRequired: false,
+            requireNoBlockingGaps: true,
+            requireNoSecrets: true,
+          });
+          if (!resolved?.ok) {
+            throw capabilityEnvelopeError(
+              resolved,
+              "Projection apply requires a valid ready capability resolution envelope."
+            );
+          }
+          if (resolved.apply_allowed !== true) {
+            throw capabilityEnvelopeError(
+              {
+                status: "dynamic_container_projection_apply_not_authorized",
+                envelope_id: envelopeId,
+                apply_allowed: false,
+                secrets_included: false,
+              },
+              "Projection apply requires explicit dynamic apply authorization."
+            );
+          }
+          return resolved;
+        },
+        markReferenced: async ({ envelopeId, executionRef }) => markCapabilityEnvelopeReferenced({
+          pool: getPool(),
+          envelopeId,
+          executionRef,
+        }),
+        consumeEnvelope: async ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return { status: 200, body: result };
+    } catch (err) {
+      return {
+        status: err?.status || 409,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "dynamic_container_projection_apply_failed",
+            message: err?.message || "Dynamic container projection apply failed.",
+            details: err?.details,
+          },
+          secrets_included: false,
         },
       };
     }
@@ -3620,7 +4082,12 @@ export function buildGptToolsRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: err.code || "tool_call_failed", message: err.message }
+        error: {
+        code: err.code || "tool_call_failed",
+        message: err.message,
+        ...(err.details ? { details: err.details } : {}),
+      },
+      secrets_included: false
       });
     }
   });

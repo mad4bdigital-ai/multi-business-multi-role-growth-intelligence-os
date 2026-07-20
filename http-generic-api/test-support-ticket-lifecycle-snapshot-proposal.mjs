@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// frontend-surface-operation: POST /platform/orchestration/support-ticket/snapshot-propose
+
 const service = readFileSync("supportTicketLifecycleSnapshotProposal.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql", "utf8");

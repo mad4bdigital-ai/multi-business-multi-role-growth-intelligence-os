@@ -3,8 +3,9 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
-const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly", "capture_chatgpt_current_url"]);
+const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "repair_connector", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
+const SENSITIVE_DESKTOP_PURPOSES = new Set(["secure_credential_intake", "secret_provisioning", "credential_rotation", "privileged_installer"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
 function isWildcardTenantId(value) {
@@ -124,6 +125,20 @@ function normalizePayload(action, payload = {}) {
   }
   clean.secrets_included = false;
   return clean;
+}
+
+function requiresVerifiedDesktopIdentity(action, payload = {}, requestContext = {}) {
+  const purpose = cleanText(requestContext?.purpose || requestContext?.operation || requestContext?.intent, 128).toLowerCase();
+  if (SENSITIVE_DESKTOP_PURPOSES.has(purpose) || requestContext?.sensitive_operation === true) return true;
+  if (action !== "open_url") return false;
+  try {
+    const parsed = new URL(String(payload?.url || ""));
+    return parsed.pathname.startsWith("/credential-intake/")
+      || parsed.pathname.startsWith("/local-connector/install/")
+      || parsed.pathname.includes("/credentials/");
+  } catch {
+    return false;
+  }
 }
 
 async function ensureDesktopCommandTable() {
@@ -395,6 +410,18 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       if (!userId || !deviceId) return res.status(400).json({ ok: false, error: { code: "missing_target", message: "user_id and device_id are required." }, secrets_included: false });
       const payload = normalizePayload(action, body.payload || {});
       const target = await resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId, requestContext: body.request_context || {} });
+      const identityResolution = target.request_context?.desktop_identity_resolution || {};
+      if (requiresVerifiedDesktopIdentity(action, payload, body.request_context || {}) && identityResolution.identity_resolution_status !== "resolved") {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "desktop_target_identity_unverified",
+            message: "Sensitive desktop commands require an active, user-scoped device identity mapping.",
+            details: { identity_resolution_status: identityResolution.identity_resolution_status || "unresolved", secrets_included: false },
+          },
+          secrets_included: false,
+        });
+      }
       const commandId = crypto.randomUUID();
       const ttlSeconds = Math.max(30, Math.min(Number(body.ttl_seconds || 300), 3600));
       const priority = Math.max(1, Math.min(Number(body.priority || 100), 1000));

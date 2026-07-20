@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { assertOpenApiResponseObjects } from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -26,7 +27,9 @@ function clone(value) {
 
 function outputPath(file) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  return path.join(OUTPUT_DIR, file);
+  const target = path.join(OUTPUT_DIR, file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  return target;
 }
 
 function collectOperations(doc) {
@@ -187,6 +190,34 @@ function normalizeTenantToolCallBody(operation) {
   if (schema?.type === "object" && schema.properties) delete schema.properties.arguments;
 }
 
+function applyTenantOAuthEndpointOverride(doc, surface) {
+  const override = surface.oauth_endpoints;
+  if (!override) return;
+
+  const authorizationUrl = String(override.authorization_url || "");
+  const tokenUrl = String(override.token_url || "");
+  if (!authorizationUrl || !tokenUrl) {
+    throw new Error("tenant OAuth endpoint override requires authorization_url and token_url");
+  }
+  for (const [label, value] of [["authorization_url", authorizationUrl], ["token_url", tokenUrl]]) {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" || parsed.search || parsed.hash) {
+      throw new Error(`tenant OAuth ${label} must be an HTTPS URL without query or fragment`);
+    }
+  }
+
+  const scheme = Object.values(doc.components?.securitySchemes || {})[0];
+  const flow = scheme?.flows?.authorizationCode;
+  if (!flow) throw new Error("tenant OAuth authorizationCode flow is missing");
+  flow.authorizationUrl = authorizationUrl;
+  flow.tokenUrl = tokenUrl;
+
+  if (doc["x-gpt-action-auth-preset"]) {
+    doc["x-gpt-action-auth-preset"].authorization_url = authorizationUrl;
+    doc["x-gpt-action-auth-preset"].token_url = tokenUrl;
+  }
+}
+
 function selectOperations(sourceOperations, surfaceKey, surface) {
   const selector = surface.selector || {};
   if (Array.isArray(selector.operation_ids)) {
@@ -245,6 +276,7 @@ function applySecurityProfile(doc, sourceDoc, surface) {
     doc.components.securitySchemes = { [schemeName]: clone(tenantConfig.security_scheme) };
     doc.security = clone(tenantConfig.security);
     if (tenantConfig.action_auth_preset) doc["x-gpt-action-auth-preset"] = clone(tenantConfig.action_auth_preset);
+    applyTenantOAuthEndpointOverride(doc, surface);
     for (const item of Object.values(doc.paths || {})) {
       for (const [method, operation] of Object.entries(item || {})) {
         if (!METHOD_NAMES.has(method)) continue;
@@ -291,6 +323,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
 }
 
 function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
+  assertOpenApiResponseObjects(doc, { source: surface.output_file || surfaceKey });
   const sourcePairs = new Set(collectOperations(sourceDoc).map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`));
   const seenIds = new Set();
   for (const entry of collectOperations(doc)) {
@@ -328,6 +361,7 @@ function main() {
   if (!fs.existsSync(SOURCE_OPENAPI_FILE)) throw new Error(`Missing ${SOURCE_OPENAPI_FILE}`);
   if (!fs.existsSync(SURFACE_REGISTRY_FILE)) throw new Error(`Missing ${SURFACE_REGISTRY_FILE}`);
   const sourceDoc = YAML.parse(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8"));
+  assertOpenApiResponseObjects(sourceDoc, { source: path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE) });
   const registry = YAML.parse(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8"));
   validateUniqueTenantAliases(collectOperations(sourceDoc));
   const generated = generateConfiguredSurfaces(sourceDoc, collectOperations(sourceDoc), registry);

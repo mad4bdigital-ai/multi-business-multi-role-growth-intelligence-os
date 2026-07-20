@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { createSessionInsightTargetWriteReadback, listSessionInsightTargetWriteReadbacks } from "./sessionInsightTargetWriteReadbackService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/target-write-readbacks/list
+
 function makePool() {
-  const state = { readback: null };
+  const state = { readback: null, calls: [] };
   const ctx = {
     target_write_id: "tw1",
     target_item_id: "ti1",
@@ -38,6 +40,7 @@ function makePool() {
     state,
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ").trim();
+      state.calls.push({ sql: compact, params });
       if (compact.startsWith("SELECT w.*")) return [[{ ...ctx }]];
       if (compact.startsWith("INSERT INTO session_insight_target_write_readbacks")) {
         const validation = JSON.parse(params[17]);
@@ -105,12 +108,18 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightTargetWriteReadback({ pool, input: { target_write_id: "tw1" } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightTargetWriteReadbacks({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
   assert.equal(result.issues.length, 0);
   assert.equal(result.policy.readback_only, true);
   assert.equal(result.policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "target-write readback list read action must execute SELECT statements only"
+  );
 }
 
 {

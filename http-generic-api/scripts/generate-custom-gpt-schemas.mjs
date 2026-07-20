@@ -7,6 +7,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { validateOpenApiFiles } from "./openapi-builder-schema-guard.mjs";
+import {
+  formatOpenApiResponseObjectIssue,
+  validateOpenApiResponseFiles,
+} from "./openapi-response-object-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
@@ -145,6 +149,33 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       }))
       .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
 
+    const oauthHandoffRoutes = (policy.oauth_handoff_routes || [])
+      .map((route) => {
+        const method = String(route?.method || "").toUpperCase();
+        const routePath = String(route?.path || "");
+        const operationId = String(route?.operation_id || "");
+        if (!["GET", "POST"].includes(method)) throw new Error(`${policyKey}: OAuth handoff method is not allowed: ${method || "missing"}`);
+        if (!routePath.startsWith("/auth/oauth/") || routePath.includes("{") || routePath.includes("*")) {
+          throw new Error(`${policyKey}: OAuth handoff path must be an exact /auth/oauth/* path: ${routePath || "missing"}`);
+        }
+        if (!operationId) throw new Error(`${policyKey}: OAuth handoff operation_id is required for ${method} ${routePath}`);
+        return {
+          method,
+          path: routePath,
+          operation_ids: [operationId],
+          allowed_query_parameters: [...new Set(route.allowed_query_parameters || [])].sort(),
+          request_body_limit_bytes: Number(policy.request_body_limit_bytes),
+          response_body_limit_bytes: Number(policy.response_body_limit_bytes),
+          timeout_ms: Number(policy.timeout_ms),
+        };
+      })
+      .sort((a, b) => `${a.path} ${a.method}`.localeCompare(`${b.path} ${b.method}`));
+
+    const oauthHandoffKeys = oauthHandoffRoutes.map((route) => `${route.method} ${route.path}`);
+    if (new Set(oauthHandoffKeys).size !== oauthHandoffKeys.length) {
+      throw new Error(`${policyKey}: duplicate OAuth handoff route`);
+    }
+
     const payload = {
       manifest_version: 1,
       surface_registry_version: Number(registry.version),
@@ -155,6 +186,7 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       read_stale_grace_seconds: Number(policy.read_stale_grace_seconds || 0),
       source_registry: "canonicals/openapi/custom-gpt-surfaces.yaml",
       source_surfaces: members.map(({ surfaceKey }) => surfaceKey).sort(),
+      oauth_handoff_routes: oauthHandoffRoutes,
       routes,
     };
     const canonicalPayload = stableJson(payload);
@@ -210,6 +242,15 @@ function main() {
     const artifacts = [...schemaArtifacts, ...policyArtifacts];
 
     const schemaPaths = schemaArtifacts.map((artifact) => path.join(schemaOutputDir, artifact.tempRelative));
+    const responseObjectIssues = validateOpenApiResponseFiles(schemaPaths);
+    if (responseObjectIssues.length > 0) {
+      fail(
+        "Generated Custom GPT schemas failed OpenAPI Response Object validation.",
+        responseObjectIssues.map(formatOpenApiResponseObjectIssue),
+      );
+      return;
+    }
+
     const issues = validateOpenApiFiles(schemaPaths);
     if (issues.length > 0) {
       fail("Generated Custom GPT schemas failed Builder validation.", issues.map((issue) => `${issue.file} ${issue.path} [${issue.code}] ${issue.message}`));

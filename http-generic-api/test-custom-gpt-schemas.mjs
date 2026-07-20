@@ -47,12 +47,13 @@ const ACTIVE_SCHEMAS = {
   "openapi.tenant-gpt.activation.yaml": {
     serverUrl: "https://activation.mad4b.com",
     securityScheme: "userBearerAuth",
-    maxOperations: 10,
+    maxOperations: 30,
     requiredOperations: [
       "activateSession",
       "readTenantActivationOperationalAttention",
       "readTenantActivationAwareness",
       "readTenantActivationDynamicTabDetail",
+      "previewTenantTaskSourceRepair",
     ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {
@@ -340,6 +341,15 @@ section("GPT Builder server host separation");
     tenantCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
     tenantActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
     tenantCore.servers?.[0]?.url !== tenantActivation.servers?.[0]?.url);
+  assert("tenant Core OAuth remains on auth host",
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://auth.mad4b.com/auth/oauth/authorize" &&
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://auth.mad4b.com/auth/oauth/token");
+  assert("tenant Activation OAuth uses activation-host gateway",
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://activation.mad4b.com/auth/oauth/token");
+  assert("tenant Activation auth preset matches activation-host OAuth URLs",
+    tenantActivation["x-gpt-action-auth-preset"]?.authorization_url === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation["x-gpt-action-auth-preset"]?.token_url === "https://activation.mad4b.com/auth/oauth/token");
   assert("admin Core and Activation schemas use distinct server URLs",
     adminCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
     adminActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
@@ -407,6 +417,7 @@ section("dispatcher contracts");
   const tenantAllowedConsequentialOps = new Set([
     "tenantPlatformPluginInstall",
     "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "decideTenantSkillApproval",
     "postMeWorkspacesTenantIdResourcesResourceKey",
     "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
   ]);
@@ -447,6 +458,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
   const remoteRuntime = readFileSync(resolve(__dirname, "remoteRuntime.js"), "utf8");
   const credentialIntakeRoutes = readFileSync(resolve(__dirname, "routes/credentialIntakeRoutes.js"), "utf8");
+  const platformSecretPromotionService = readFileSync(resolve(__dirname, "services/platformSecretPromotionService.js"), "utf8");
   const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
   const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
   const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
@@ -573,7 +585,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("credential intake can auto-promote mapped platform secrets after submit",
     credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
     credentialIntakeRoutes.includes('platform_secret_mappings') &&
-    credentialIntakeRoutes.includes('credential_intake.platform_secrets_auto_promoted'));
+    credentialIntakeRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    platformSecretPromotionService.includes('beginTransaction') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
+    platformSecretPromotionService.includes('credential_intake.platform_secrets_auto_promoted') &&
+    platformSecretPromotionService.includes('secrets_included: false'));
   assert("platform secret promotion dynamically supports mapped encrypted connection types and never returns raw secrets",
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&

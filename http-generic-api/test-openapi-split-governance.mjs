@@ -60,6 +60,8 @@ assert.equal(registry.surfaces.admin_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.activation_admin.server_url, "https://activation.mad4b.com");
 assert.equal(registry.surfaces.tenant_activation.server_url, "https://activation.mad4b.com");
+assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.authorization_url, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.token_url, "https://activation.mad4b.com/auth/oauth/token");
 assert.equal(registry.surfaces.local_connector_admin.mode, "canonical_copy");
 assert.equal(registry.surfaces.local_connector_admin.server_url, "https://connector.mad4b.com");
 assert.equal(registry.gateway_policies.activation_gateway.upstream_origin, "https://auth.mad4b.com");
@@ -108,7 +110,14 @@ const tenantActivation = loadYaml(registry.surfaces.tenant_activation.output_fil
 assert.equal(Object.keys(adminCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(tenantCore.paths).some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), false);
 assert.equal(Object.keys(adminActivation.paths).every((path) => path.startsWith("/activation")), true);
-assert.equal(Object.keys(tenantActivation.paths).every((path) => path.startsWith("/tenant/activation")), true);
+assert.equal(
+  Object.keys(tenantActivation.paths).every((path) => path.startsWith("/tenant/activation") || path.startsWith("/tenant/resolution")),
+  true,
+);
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://auth.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantCore.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://auth.mad4b.com/auth/oauth/token");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.authorizationUrl, "https://activation.mad4b.com/auth/oauth/authorize");
+assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");
@@ -117,5 +126,53 @@ assert(splitScript.includes("selector.operation_ids") && splitScript.includes("s
 assert(orchestrator.includes("generateGatewayPolicies"), "orchestrator must generate gateway policy from Activation surfaces");
 assert(orchestrator.includes("materializeCanonicalCopies"), "orchestrator must materialize canonical-copy surfaces");
 assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "generated tenant artifacts must never become source-of-truth");
+
+const promotionReadModels = loadYaml("session-insight-promotion-read-models.yaml");
+
+function migrationEnumValues(file, column) {
+  const sql = readFileSync(`migrations/${file}`, "utf8");
+  const match = sql.match(new RegExp(`\`${column}\`\\s+ENUM\\(([^)]+)\\)`, "i"));
+  assert(match, `migration enum must exist: ${file}#${column}`);
+  return [...match[1].matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
+}
+
+for (const contract of [
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_status", "CapabilityEnvelopeActualRequest", "actual_request_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_policy_status", "CapabilityEnvelopeActualRequest", "actual_request_policy_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_status", "CapabilityEnvelopeActualRequestSummary", "actual_request_status"],
+  ["279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql", "actual_request_policy_status", "CapabilityEnvelopeActualRequestSummary", "actual_request_policy_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_decision_status", "CapabilityEnvelopeApprovalDecision", "approval_decision_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_policy_status", "CapabilityEnvelopeApprovalDecision", "approval_policy_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_decision_status", "CapabilityEnvelopeApprovalSummary", "approval_decision_status"],
+  ["280_sprint68_session_insight_capability_envelope_approval_gate.sql", "approval_policy_status", "CapabilityEnvelopeApprovalSummary", "approval_policy_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_status", "CapabilityEnvelopeDispatchReadback", "dispatch_readback_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_policy_status", "CapabilityEnvelopeDispatchReadback", "dispatch_readback_policy_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_status", "CapabilityEnvelopeDispatchReadbackSummary", "dispatch_readback_status"],
+  ["281_sprint68_session_insight_capability_envelope_dispatch_readback.sql", "dispatch_readback_policy_status", "CapabilityEnvelopeDispatchReadbackSummary", "dispatch_readback_policy_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_gate_status", "CapabilityEnvelopeAdapterExecutionGate", "adapter_execution_gate_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_policy_status", "CapabilityEnvelopeAdapterExecutionGate", "adapter_execution_policy_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_gate_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_gate_status"],
+  ["282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql", "adapter_execution_policy_status", "CapabilityEnvelopeAdapterExecutionGateSummary", "adapter_execution_policy_status"],
+  ["284_sprint68_session_insight_backlog_target_write_executor.sql", "target_write_status", "BacklogTargetWrite", "target_write_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_status", "RemainingScopeCompletion", "completion_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_policy_status", "RemainingScopeCompletion", "completion_policy_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "adapter_apply_dispatch_gate_status", "RemainingScopeCompletion", "adapter_apply_dispatch_gate_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "adapter_apply_readback_status", "RemainingScopeCompletion", "adapter_apply_readback_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "target_write_gate_status", "RemainingScopeCompletion", "target_write_gate_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "target_write_readback_status", "RemainingScopeCompletion", "target_write_readback_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "rollback_plan_status", "RemainingScopeCompletion", "rollback_plan_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "generalized_registry_status", "RemainingScopeCompletion", "generalized_registry_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "ui_review_queue_status", "RemainingScopeCompletion", "ui_review_queue_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "orchestration_test_status", "RemainingScopeCompletion", "orchestration_test_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_status", "RemainingScopeCompletionSummary", "completion_status"],
+  ["283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql", "completion_policy_status", "RemainingScopeCompletionSummary", "completion_policy_status"],
+]) {
+  const [migrationFile, migrationColumn, schemaName, propertyName] = contract;
+  assert.deepEqual(
+    promotionReadModels.components.schemas[schemaName].properties[propertyName].enum,
+    migrationEnumValues(migrationFile, migrationColumn),
+    `${schemaName}.${propertyName} must accept every persisted migration enum value`,
+  );
+}
 
 console.log("OpenAPI surface registry governance tests passed.");

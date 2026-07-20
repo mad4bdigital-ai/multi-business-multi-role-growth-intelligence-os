@@ -63,6 +63,7 @@ const { activationGithubValidate } = await import("./routes/systemLayerRoutes.js
   assert.equal(result.ok, true);
   assert.equal(result.attempted_binding.endpoint_key, "github_get_repository");
   assert.equal(result.attempted_binding.configured_endpoint_key, "getRepositoryContent");
+  assert.equal(capturedRequest.credential_scope, "platform");
   assert.deepEqual(capturedRequest.path_params, {
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",

@@ -591,6 +591,22 @@ internal static class Program
             }
         }
 
+        private static string ClassifyRepairOutcome(string status)
+        {
+            var text = status ?? "";
+            if (text.StartsWith("Repair link request failed:", StringComparison.OrdinalIgnoreCase)) return "link_request_failed";
+            if (text.Contains("blocked", StringComparison.OrdinalIgnoreCase)) return "privileged_action_blocked";
+            if (text.Contains("downloaded:", StringComparison.OrdinalIgnoreCase)
+                && text.Contains("Click the same button again", StringComparison.OrdinalIgnoreCase)) return "local_confirmation_cancelled";
+            if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
+            if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
+            if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
+            if (text.Contains("failed with a non-zero exit code.", StringComparison.OrdinalIgnoreCase)) return "installer_exit_nonzero";
+            if (text.Contains("completed, but post-install runtime verification did not pass.", StringComparison.OrdinalIgnoreCase)) return "installer_completed_runtime_unverified";
+            if (text.Contains("completed. Post-install verification passed.", StringComparison.OrdinalIgnoreCase)) return "verification_completed";
+            return "incomplete";
+        }
+
         private async Task RepairConnectorAsync()
         {
             var token = LoadDeviceToken();
@@ -869,10 +885,10 @@ internal static class Program
             }
         }
 
-        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
+        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task<bool>>? verifyAfterInstall)
         {
             var result = MessageBox.Show(
-                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then refresh device controls automatically.",
+                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then verify the post-install runtime state.",
                 dialogTitle,
                 MessageBoxButtons.OKCancel,
                 MessageBoxIcon.Warning);
@@ -913,31 +929,54 @@ internal static class Program
                 _status.Text = $"Windows did not return a process handle for {installerLabel}.";
                 return;
             }
+            if (runResult == SignedInstallerRunResult.Failed)
+            {
+                _status.Text = $"{installerLabel} failed with a non-zero exit code.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    installer_applied = false,
+                    installer_label = installerLabel,
+                    installer_exit_nonzero = true,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+                return;
+            }
 
             _progress.Value = Math.Max(_progress.Value, 92);
             _status.Text = $"{installerLabel} finished. Waiting for connector service to restart…";
             await Task.Delay(TimeSpan.FromSeconds(8));
 
-            if (refreshAfterInstall is not null)
+            var postInstallVerified = verifyAfterInstall is null || await verifyAfterInstall();
+            _progress.Value = 100;
+            if (!postInstallVerified)
             {
-                await refreshAfterInstall();
+                _status.Text = $"{installerLabel} completed, but post-install runtime verification did not pass.";
+                return;
             }
 
-            _progress.Value = 100;
-            _status.Text = $"{installerLabel} completed. Device controls were refreshed automatically.";
+            _status.Text = $"{installerLabel} completed. Post-install verification passed.";
         }
 
-        private async Task RefreshDeviceControlsAfterInstallerAsync(string section, string label)
+        private async Task<bool> RefreshDeviceControlsAfterInstallerAsync(string section, string label)
         {
             var token = LoadDeviceToken(false);
             if (string.IsNullOrWhiteSpace(token))
             {
                 _status.Text = label + ": no linked device token; use Device session after relinking.";
-                return;
+                return false;
             }
+
             var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
-            _status.Text = label + " verified.";
             _output.Text = verification.ControlEnvelope.GetRawText();
+            if (!verification.RuntimeVerified)
+            {
+                _status.Text = label + ": installer completed but connector runtime is not active.";
+                return false;
+            }
+
+            _status.Text = label + " verified.";
+            return true;
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
@@ -1616,6 +1655,30 @@ internal static class Program
                     var message = JsonValue(payload, "message", "");
                     ShowTopMostMessage(title, message);
                     await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "repair_connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await RepairConnectorAsync();
+                    var repairStatus = _status.Text ?? "";
+                    var repairStage = ClassifyRepairOutcome(repairStatus);
+                    var repairVerified = string.Equals(repairStage, "verification_completed", StringComparison.Ordinal);
+                    await CompleteDesktopCommandAsync(client, token, commandId, repairVerified, new
+                    {
+                        action,
+                        source = "local_manager_windows",
+                        app_managed_installer = true,
+                        browser_download = false,
+                        visible_desktop = true,
+                        repair_stage = repairStage,
+                        repair_verified = repairVerified,
+                        status_message = repairStatus,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, repairVerified ? null : "connector_repair_not_verified", repairVerified ? null : repairStatus);
                     return;
                 }
                 if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))

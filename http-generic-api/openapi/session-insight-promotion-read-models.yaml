@@ -1,0 +1,1742 @@
+openapi: 3.1.0
+info:
+  title: Session Insight Promotion Read Models API
+  version: 1.5.0
+  description: Canonical, secret-free contracts for administrative session-insight promotion read models. The POST methods accept bounded filter documents but execute SELECT-only read actions.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: session-insight-promotion-read-models
+paths:
+  /platform/session-insight-promotions/adapter-contracts/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionAdapterContracts
+      summary: List dry-run adapter contracts and their apply-request mappings
+      description: Runs secret-filtered SELECT queries only. It does not create a preview, approve an apply request, invoke a provider, or write internal or external state.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdapterContractListRequest' }
+      responses:
+        '200':
+          description: Bounded adapter contracts and apply-request mapping readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdapterContractListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/target-adapters/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionTargetAdapters
+      summary: List skeleton target adapters and their apply-request mappings
+      description: Runs secret-filtered SELECT queries only. Registry rows explicitly keep apply and execution disabled until a capability envelope and implemented target adapter exist.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TargetAdapterListRequest' }
+      responses:
+        '200':
+          description: Bounded target-adapter registry and apply-request mapping readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TargetAdapterListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/adapter-apply-readiness/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionAdapterApplyReadiness
+      summary: Read adapter apply-readiness gates, summaries, and issues
+      description: Reads readiness views and aggregates with SELECT queries only. The operation cannot approve, execute, or write an adapter action and always reports secret-free evidence.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdapterApplyReadinessListRequest' }
+      responses:
+        '200':
+          description: Bounded readiness gates with aggregate status and issue counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdapterApplyReadinessListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/review/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPromotionReviews
+      summary: List promotion proposals and aggregate review status
+      description: Runs secret-filtered SELECT queries only. It does not approve, reject, promote, assign an executor, or write internal or external state.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromotionReviewListRequest' }
+      responses:
+        '200':
+          description: Bounded promotion proposals with aggregate review status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromotionReviewListResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/payload-preview/review/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightPayloadPreviewReviews
+      summary: List payload previews awaiting or carrying review decisions
+      description: Runs secret-filtered SELECT queries only. It does not approve a preview, enable execution or target writes, execute an adapter, or mutate review state.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayloadPreviewReviewListRequest' }
+      responses:
+        '200':
+          description: Bounded payload-preview review rows with aggregate status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PayloadPreviewReviewListResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-plans/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopePlans
+      summary: List capability-envelope plans, summaries, and issues
+      description: Runs secret-filtered SELECT queries only. It does not create or request a capability envelope, create an approval hold, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopePlanListRequest' }
+      responses:
+        '200':
+          description: Bounded capability-envelope plans with aggregate status and issue counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopePlanListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-request-gates/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeRequestGates
+      summary: List capability-envelope request gates and review state
+      description: Runs three secret-filtered SELECT queries only. It does not create or review a request gate, request an actual capability envelope, create an approval hold, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeRequestGateListRequest' }
+      responses:
+        '200':
+          description: Bounded request gates with review-state aggregates and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeRequestGateListResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeDispatchDryRuns
+      summary: List capability-envelope dispatch dry-runs
+      description: Runs three secret-filtered SELECT queries only. It does not generate or review a dry-run, call capability resolution, request an actual envelope, create an approval hold, execute an adapter, or write a target surface.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchDryRunListRequest' }
+      responses:
+        '200':
+          description: Bounded dispatch dry-runs with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchDryRunListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeActualRequestPreflights
+      summary: List actual capability-envelope request preflights
+      description: Runs three secret-filtered SELECT queries only. It does not create a preflight, call capability resolution, request an actual envelope, create an approval hold, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPreflightListRequest' }
+      responses:
+        '200':
+          description: Bounded actual-request preflights with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPreflightListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-actual-requests/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeActualRequests
+      summary: List actual capability-envelope requests
+      description: Runs three secret-filtered SELECT queries only. It does not request an envelope, approve one, create an approval hold, dispatch an envelope, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestListRequest' }
+      responses:
+        '200':
+          description: Bounded actual capability-envelope requests with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-approvals/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeApprovals
+      summary: List capability-envelope approval decisions
+      description: Runs three secret-filtered SELECT queries only. It does not approve an envelope, create an approval hold, dispatch an envelope, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeApprovalListRequest' }
+      responses:
+        '200':
+          description: Bounded capability-envelope approval decisions with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeApprovalListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeDispatchReadbacks
+      summary: List capability-envelope dispatch readbacks
+      description: Runs three secret-filtered SELECT queries only. It does not create a readback or execution gate, dispatch an envelope, execute an adapter, or enable a target write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchReadbackListRequest' }
+      responses:
+        '200':
+          description: Bounded capability-envelope dispatch readbacks with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchReadbackListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightCapabilityEnvelopeAdapterExecutionGates
+      summary: List capability-envelope adapter execution gates
+      description: Runs three secret-filtered SELECT queries only. It does not create an execution gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateListRequest' }
+      responses:
+        '200':
+          description: Bounded adapter execution gates with aggregate status and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/backlog-target-writes/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightBacklogTargetWrites
+      summary: List internal backlog target writes
+      description: Runs two secret-filtered SELECT queries only. It reads the internal SQL target-write ledger and issue view but cannot execute or roll back a write, modify a target item, call a provider, or perform an external write.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BacklogTargetWriteListRequest' }
+      responses:
+        '200':
+          description: Bounded internal backlog target writes with safety issues and policy evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacklogTargetWriteListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /platform/session-insight-promotions/remaining-scope-completions/list:
+    post:
+      tags: [session-insight-promotion-read-models]
+      operationId: listSessionInsightRemainingScopeCompletions
+      summary: List remaining-scope completion ledgers
+      description: Runs three secret-filtered SELECT queries only. It reads gated no-execution completion rows, aggregate states, and issue evidence but cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RemainingScopeCompletionListRequest' }
+      responses:
+        '200':
+          description: Bounded remaining-scope completion ledgers with aggregate state and safety issues.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemainingScopeCompletionListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Administrative backend API key accepted by the runtime backend-key guard.
+  schemas:
+    AdapterContractListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        contract_key: { type: string, minLength: 1, maxLength: 255 }
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        contract_status: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, minLength: 1, maxLength: 64 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    TargetAdapterListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        adapter_family: { type: string, minLength: 1, maxLength: 128 }
+        implementation_status: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, minLength: 1, maxLength: 64 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    AdapterApplyReadinessListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        payload_preview_id: { type: string, minLength: 1, maxLength: 255 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        contract_key: { type: string, minLength: 1, maxLength: 255 }
+        gate_status: { type: string, minLength: 1, maxLength: 128 }
+        q: { type: string, maxLength: 255 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    PromotionReviewListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        promotion_status: { type: string, enum: [queued, ready, rejected, promoted, superseded] }
+        approval_status: { type: string, enum: [not_required, review_required, approved, rejected] }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        tenant_id: { type: string, minLength: 1, maxLength: 128 }
+        workspace_key: { type: string, minLength: 1, maxLength: 255 }
+        target_scope_type: { type: string, minLength: 1, maxLength: 128 }
+        target_scope_ref: { type: string, minLength: 1, maxLength: 255 }
+        q: { type: string, maxLength: 255 }
+        include_evidence: { type: boolean, default: false }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    PayloadPreviewReviewListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        payload_preview_id: { type: string, minLength: 1, maxLength: 255 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_type: { type: string, minLength: 1, maxLength: 128 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        adapter_key: { type: string, minLength: 1, maxLength: 255 }
+        contract_key: { type: string, minLength: 1, maxLength: 255 }
+        payload_review_status: { type: string, enum: [review_required, approved, rejected, not_required] }
+        q: { type: string, maxLength: 255 }
+        include_payload: { type: boolean, default: false }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopePlanListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        capability_plan_id: { type: string, minLength: 1, maxLength: 255 }
+        payload_preview_id: { type: string, minLength: 1, maxLength: 255 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 255 }
+        promotion_id: { type: string, minLength: 1, maxLength: 255 }
+        target_surface: { type: string, minLength: 1, maxLength: 128 }
+        capability_key: { type: string, minLength: 1, maxLength: 255 }
+        plan_status: { type: string, enum: [planned_not_requested, superseded, rejected] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeRequestGateListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        request_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        capability_plan_id: { type: string, minLength: 1, maxLength: 128 }
+        payload_preview_id: { type: string, minLength: 1, maxLength: 128 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        target_surface: { type: string, minLength: 1, maxLength: 96 }
+        capability_key: { type: string, minLength: 1, maxLength: 128 }
+        request_review_status: { type: string, enum: [request_review_required, request_approved, request_rejected] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeDispatchDryRunListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dispatch_dry_run_id: { type: string, minLength: 1, maxLength: 128 }
+        request_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        capability_plan_id: { type: string, minLength: 1, maxLength: 128 }
+        payload_preview_id: { type: string, minLength: 1, maxLength: 128 }
+        apply_request_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        target_surface: { type: string, minLength: 1, maxLength: 96 }
+        capability_key: { type: string, minLength: 1, maxLength: 128 }
+        dispatch_status: { type: string, enum: [dispatch_dry_run_generated, superseded, rejected] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeActualRequestPreflightListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        actual_request_preflight_id: { type: string, minLength: 1, maxLength: 128 }
+        dispatch_dry_run_id: { type: string, minLength: 1, maxLength: 128 }
+        request_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        capability_plan_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        preflight_status: { type: string, enum: [actual_request_preflight_passed, actual_request_preflight_blocked, superseded] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeActualRequestListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_preflight_id: { type: string, minLength: 1, maxLength: 128 }
+        dispatch_dry_run_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeApprovalListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        approval_decision_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeDispatchReadbackListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dispatch_readback_id: { type: string, minLength: 1, maxLength: 128 }
+        approval_decision_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CapabilityEnvelopeAdapterExecutionGateListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        adapter_execution_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        dispatch_readback_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_capability_envelope_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    BacklogTargetWriteListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        target_write_id: { type: string, minLength: 1, maxLength: 128 }
+        remaining_scope_completion_id: { type: string, minLength: 1, maxLength: 128 }
+        target_item_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        target_surface: { type: string, enum: [development_backlog, integration_backlog, runtime_repair_backlog] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    RemainingScopeCompletionListRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        remaining_scope_completion_id: { type: string, minLength: 1, maxLength: 128 }
+        adapter_execution_gate_id: { type: string, minLength: 1, maxLength: 128 }
+        actual_request_id: { type: string, minLength: 1, maxLength: 128 }
+        promotion_id: { type: string, minLength: 1, maxLength: 96 }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    AdapterContractListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, contract_count, contracts, apply_request_mapping_count, apply_request_mappings, contract_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        contract_count: { type: integer, minimum: 0 }
+        contracts:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterContract' }
+        apply_request_mapping_count: { type: integer, minimum: 0 }
+        apply_request_mappings:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterContractMapping' }
+        contract_policy: { $ref: '#/components/schemas/AdapterContractPolicy' }
+        secrets_included: { type: boolean, const: false }
+    AdapterContract:
+      type: object
+      additionalProperties: false
+      required: [contract_key, adapter_key, promotion_type, target_surface, contract_version, contract_status, contract_mode, payload_schema, required_fields, forbidden_fields, sample_payload, validator_rules, safety_contract, apply_supported, execution_allowed, status, secrets_included]
+      properties:
+        contract_key: { type: string }
+        adapter_key: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        contract_version: { type: string }
+        contract_status: { type: string }
+        contract_mode: { type: string, enum: [dry_run_contract] }
+        payload_schema: { type: [object, 'null'], additionalProperties: true }
+        required_fields: { type: array, items: { type: string } }
+        forbidden_fields: { type: array, items: { type: string } }
+        sample_payload: { type: [object, 'null'], additionalProperties: true }
+        validator_rules: { type: array, items: { type: string } }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        apply_supported: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        status: { type: string }
+        secrets_included: { type: boolean, const: false }
+    AdapterContractMapping:
+      type: object
+      additionalProperties: false
+      required: [apply_request_id, preview_id, promotion_id, promotion_type, target_surface, adapter_key, contract_key, contract_status, contract_mode, request_status, adapter_readiness_status, contract_readiness_status, execution_allowed, apply_supported, blockers, secrets_included]
+      properties:
+        apply_request_id: { type: string }
+        preview_id: { type: string }
+        promotion_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        contract_status: { type: [string, 'null'] }
+        contract_mode: { type: [string, 'null'] }
+        request_status: { type: string }
+        adapter_readiness_status: { type: string }
+        contract_readiness_status: { type: string }
+        execution_allowed: { type: boolean, const: false }
+        apply_supported: { type: boolean, const: false }
+        blockers: { type: array, items: { type: string } }
+        secrets_included: { type: boolean, const: false }
+    AdapterContractPolicy:
+      type: object
+      additionalProperties: false
+      required: [dry_run_contract_only, apply_supported_default, execution_allowed, payload_schema_readback_only, capability_envelope_required_for_apply, target_adapter_implementation_required_for_apply, raw_transcript_included, secrets_included]
+      properties:
+        dry_run_contract_only: { type: boolean, const: true }
+        apply_supported_default: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        payload_schema_readback_only: { type: boolean, const: true }
+        capability_envelope_required_for_apply: { type: boolean, const: true }
+        target_adapter_implementation_required_for_apply: { type: boolean, const: true }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, adapter_count, adapters, apply_request_mapping_count, apply_request_mappings, registry_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        adapter_count: { type: integer, minimum: 0 }
+        adapters:
+          type: array
+          items: { $ref: '#/components/schemas/TargetAdapter' }
+        apply_request_mapping_count: { type: integer, minimum: 0 }
+        apply_request_mappings:
+          type: array
+          items: { $ref: '#/components/schemas/TargetAdapterMapping' }
+        registry_policy: { $ref: '#/components/schemas/TargetAdapterRegistryPolicy' }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapter:
+      type: object
+      additionalProperties: false
+      required: [adapter_key, display_name, promotion_type, target_surface, target_operation, adapter_family, implementation_status, execution_mode, apply_supported, capability_key_required, capability_envelope_required, dry_run_tool_key, apply_tool_key, policy_key, validator_commands, safety_contract, status, created_at, updated_at, secrets_included]
+      properties:
+        adapter_key: { type: string }
+        display_name: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        target_operation: { type: string }
+        adapter_family: { type: string }
+        implementation_status: { type: string, enum: [skeleton, implemented, deprecated] }
+        execution_mode: { type: string, enum: [registry_only, dry_run, apply] }
+        apply_supported: { type: boolean, const: false }
+        capability_key_required: { type: [string, 'null'] }
+        capability_envelope_required: { type: boolean }
+        dry_run_tool_key: { type: [string, 'null'] }
+        apply_tool_key: { type: [string, 'null'] }
+        policy_key: { type: [string, 'null'] }
+        validator_commands: { type: array, items: { type: string } }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        status: { type: string }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterMapping:
+      type: object
+      additionalProperties: false
+      required: [apply_request_id, preview_id, promotion_id, promotion_type, target_surface, requested_operation, request_status, execution_allowed, execution_status, adapter_key, adapter_status, adapter_apply_supported, capability_key_required, mapping_status, blockers, secrets_included]
+      properties:
+        apply_request_id: { type: string }
+        preview_id: { type: string }
+        promotion_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        requested_operation: { type: string }
+        request_status: { type: string }
+        execution_allowed: { type: boolean, const: false }
+        execution_status: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        adapter_status: { type: [string, 'null'] }
+        adapter_apply_supported: { type: boolean, const: false }
+        capability_key_required: { type: [string, 'null'] }
+        mapping_status: { type: string }
+        blockers: { type: array, items: { type: string } }
+        secrets_included: { type: boolean, const: false }
+    TargetAdapterRegistryPolicy:
+      type: object
+      additionalProperties: false
+      required: [registry_only, apply_supported_default, adapters_are_skeletons, capability_envelope_required, target_adapter_implementation_required_for_apply, execution_allowed, raw_transcript_included, secrets_included]
+      properties:
+        registry_only: { type: boolean, const: true }
+        apply_supported_default: { type: boolean, const: false }
+        adapters_are_skeletons: { type: boolean, const: true }
+        capability_envelope_required: { type: boolean, const: true }
+        target_adapter_implementation_required_for_apply: { type: boolean, const: true }
+        execution_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, gates, summary, issues, gate_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        gates:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessGate' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/AdapterApplyReadinessIssue' }
+        gate_policy: { $ref: '#/components/schemas/AdapterApplyReadinessPolicy' }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessGate:
+      type: object
+      additionalProperties: false
+      required: [payload_preview_id, apply_request_id, promotion_id, insight_id, promotion_type, target_surface, adapter_key, contract_key, promotion_approval_status, promotion_status, payload_review_status, payload_decision_status, request_status, adapter_implementation_status, capability_envelope_required, capability_envelope_id, target_adapter_key, promotion_allowed, execution_allowed, target_write_allowed, adapter_apply_supported, contract_apply_supported, contract_execution_allowed, valid_for_dry_run_contract, gate_status, blockers, readiness_evidence, secrets_included]
+      properties:
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        promotion_approval_status: { type: [string, 'null'] }
+        promotion_status: { type: [string, 'null'] }
+        payload_review_status: { type: [string, 'null'] }
+        payload_decision_status: { type: [string, 'null'] }
+        request_status: { type: [string, 'null'] }
+        adapter_implementation_status: { type: [string, 'null'] }
+        capability_envelope_required: { type: boolean }
+        capability_envelope_id: { type: [string, 'null'] }
+        target_adapter_key: { type: [string, 'null'] }
+        promotion_allowed: { type: boolean }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        adapter_apply_supported: { type: boolean, const: false }
+        contract_apply_supported: { type: boolean, const: false }
+        contract_execution_allowed: { type: boolean, const: false }
+        valid_for_dry_run_contract: { type: boolean }
+        gate_status: { type: string }
+        blockers: { type: array, items: { type: string } }
+        readiness_evidence: { type: [object, 'null'], additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+    AdapterApplyReadinessSummary:
+      type: object
+      additionalProperties: false
+      required: [gate_status, target_surface, count]
+      properties:
+        gate_status: { type: string }
+        target_surface: { type: string }
+        count: { type: integer, minimum: 0 }
+    AdapterApplyReadinessIssue:
+      type: object
+      additionalProperties: false
+      required: [issue_code, severity, count]
+      properties:
+        issue_code: { type: string }
+        severity: { type: string }
+        count: { type: integer, minimum: 0 }
+    AdapterApplyReadinessPolicy:
+      type: object
+      additionalProperties: false
+      required: [read_only_gate, adapter_apply_executed, approval_sets_execution_allowed, approval_sets_target_write_allowed, promotion_allowed_must_remain_false_in_gate, target_adapter_implementation_required, capability_envelope_required, raw_transcript_included, secrets_included]
+      properties:
+        read_only_gate: { type: boolean, const: true }
+        adapter_apply_executed: { type: boolean, const: false }
+        approval_sets_execution_allowed: { type: boolean, const: false }
+        approval_sets_target_write_allowed: { type: boolean, const: false }
+        promotion_allowed_must_remain_false_in_gate: { type: boolean, const: true }
+        target_adapter_implementation_required: { type: boolean, const: true }
+        capability_envelope_required: { type: boolean, const: true }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    PromotionReviewListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, promotions, summary, review_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        promotions:
+          type: array
+          items: { $ref: '#/components/schemas/PromotionReview' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/PromotionReviewSummary' }
+        review_policy: { $ref: '#/components/schemas/PromotionReviewPolicy' }
+        secrets_included: { type: boolean, const: false }
+    PromotionReview:
+      type: object
+      additionalProperties: false
+      required: [promotion_id, insight_id, insight_type, promotion_type, target_surface, target_ref, target_scope_type, target_scope_ref, proposal_title, proposal_text, decision_status, approval_status, promotion_status, risk_level, confidence, requires_human_approval, promotion_allowed, promotion_executor_key, source_session_id, source_summary_id, tenant_id, user_id, workspace_key, created_at, updated_at, approved_by, approved_at, rejected_by, rejected_at, promoted_at, secrets_included]
+      properties:
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        insight_type: { type: [string, 'null'] }
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        target_ref: { type: [string, 'null'] }
+        target_scope_type: { type: [string, 'null'] }
+        target_scope_ref: { type: [string, 'null'] }
+        proposal_title: { type: string }
+        proposal_text: { type: string }
+        decision_status: { type: string, enum: [draft, review_required, approved, rejected, promoted, superseded] }
+        approval_status: { type: string, enum: [not_required, review_required, approved, rejected] }
+        promotion_status: { type: string, enum: [queued, blocked, ready, promoted, rejected, superseded] }
+        risk_level: { type: string, enum: [low, medium, high, critical] }
+        confidence: { type: number }
+        requires_human_approval: { type: boolean }
+        promotion_allowed: { type: boolean }
+        promotion_executor_key: { type: [string, 'null'] }
+        source_session_id: { type: [string, 'null'] }
+        source_summary_id: { type: [string, 'null'] }
+        tenant_id: { type: [string, 'null'] }
+        user_id: { type: [string, 'null'] }
+        workspace_key: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+        approved_by: { type: [string, 'null'] }
+        approved_at: { type: [string, 'null'] }
+        rejected_by: { type: [string, 'null'] }
+        rejected_at: { type: [string, 'null'] }
+        promoted_at: { type: [string, 'null'] }
+        evidence: {}
+        scope_links: {}
+        metadata: {}
+        secrets_included: { type: boolean, const: false }
+    PromotionReviewSummary:
+      type: object
+      additionalProperties: false
+      required: [promotion_type, target_surface, approval_status, promotion_status, promotion_allowed, count]
+      properties:
+        promotion_type: { type: string }
+        target_surface: { type: string }
+        approval_status: { type: string, enum: [not_required, review_required, approved, rejected] }
+        promotion_status: { type: string, enum: [queued, blocked, ready, promoted, rejected, superseded] }
+        promotion_allowed: { type: boolean }
+        count: { type: integer, minimum: 0 }
+    PromotionReviewPolicy:
+      type: object
+      additionalProperties: false
+      required: [allowed_decisions, approval_sets_promotion_allowed, executor_required_for_runtime_promotion, raw_transcript_included, secrets_included]
+      properties:
+        allowed_decisions:
+          type: array
+          prefixItems:
+            - { type: string, const: approve }
+            - { type: string, const: reject }
+          minItems: 2
+          maxItems: 2
+        approval_sets_promotion_allowed: { type: boolean, const: false }
+        executor_required_for_runtime_promotion: { type: boolean, const: true }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    PayloadPreviewReviewListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, payload_previews, summary, review_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        payload_previews:
+          type: array
+          items: { $ref: '#/components/schemas/PayloadPreviewReview' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/PayloadPreviewReviewSummary' }
+        review_policy: { $ref: '#/components/schemas/PayloadPreviewReviewPolicy' }
+        secrets_included: { type: boolean, const: false }
+    PayloadPreviewReview:
+      type: object
+      additionalProperties: false
+      required: [payload_preview_id, apply_request_id, preview_id, promotion_id, insight_id, adapter_key, contract_key, target_surface, promotion_type, payload_status, payload_mode, payload_review_status, payload_decision_status, execution_allowed, target_write_allowed, approved_by, approved_at, rejected_by, rejected_at, decision_notes, created_by, created_at, secrets_included]
+      properties:
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        preview_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        payload_status: { type: string, enum: [payload_preview_generated, payload_preview_blocked, superseded] }
+        payload_mode: { type: string, enum: [dry_run_payload_preview] }
+        payload_review_status: { type: string, enum: [review_required, approved, rejected, not_required] }
+        payload_decision_status: { type: string, enum: [review_required, approved, rejected, not_required] }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        approved_by: { type: [string, 'null'] }
+        approved_at: { type: [string, 'null'] }
+        rejected_by: { type: [string, 'null'] }
+        rejected_at: { type: [string, 'null'] }
+        decision_notes: { type: [string, 'null'] }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        payload: {}
+        validation_result: {}
+        safety_contract: {}
+        secrets_included: { type: boolean, const: false }
+    PayloadPreviewReviewSummary:
+      type: object
+      additionalProperties: false
+      required: [payload_review_status, payload_decision_status, payload_status, target_surface, execution_allowed, target_write_allowed, count]
+      properties:
+        payload_review_status: { type: string, enum: [review_required, approved, rejected, not_required] }
+        payload_decision_status: { type: string, enum: [review_required, approved, rejected, not_required] }
+        payload_status: { type: string, enum: [payload_preview_generated, payload_preview_blocked, superseded] }
+        target_surface: { type: string }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    PayloadPreviewReviewPolicy:
+      type: object
+      additionalProperties: false
+      required: [allowed_decisions, approval_sets_execution_allowed, approval_sets_target_write_allowed, payload_review_only, adapter_apply_executed, raw_transcript_included, secrets_included]
+      properties:
+        allowed_decisions:
+          type: array
+          prefixItems:
+            - { type: string, const: approve }
+            - { type: string, const: reject }
+          minItems: 2
+          maxItems: 2
+        approval_sets_execution_allowed: { type: boolean, const: false }
+        approval_sets_target_write_allowed: { type: boolean, const: false }
+        payload_review_only: { type: boolean, const: true }
+        adapter_apply_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopePlanListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, capability_plans, summary, issues, plan_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        capability_plans:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopePlan' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopePlanSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopePlanIssue' }
+        plan_policy: { $ref: '#/components/schemas/CapabilityEnvelopePlanPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopePlan:
+      type: object
+      additionalProperties: false
+      required: [capability_plan_id, payload_preview_id, apply_request_id, promotion_id, insight_id, target_surface, promotion_type, adapter_key, contract_key, plan_status, gate_status, capability_key, operation_intent, runtime_surface, actual_capability_envelope_requested, actual_capability_envelope_id, execution_allowed, target_write_allowed, plan_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        capability_plan_id: { type: string }
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        adapter_key: { type: [string, 'null'] }
+        contract_key: { type: [string, 'null'] }
+        plan_status: { type: string, enum: [planned_not_requested, superseded, rejected] }
+        gate_status: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        actual_capability_envelope_id: { type: [string, 'null'] }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        plan_json: {}
+        safety_contract: {}
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopePlanSummary:
+      type: object
+      additionalProperties: false
+      required: [plan_status, target_surface, actual_capability_envelope_requested, execution_allowed, target_write_allowed, count]
+      properties:
+        plan_status: { type: string, enum: [planned_not_requested, superseded, rejected] }
+        target_surface: { type: string }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopePlanIssue:
+      type: object
+      additionalProperties: false
+      required: [issue_code, severity, count]
+      properties:
+        issue_code: { type: string }
+        severity: { type: string }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopePlanPolicy:
+      type: object
+      additionalProperties: false
+      required: [plan_only, actual_capability_envelope_requested, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        plan_only: { type: boolean, const: true }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeReadModelIssue:
+      type: object
+      additionalProperties: false
+      required: [issue_code, severity, count]
+      properties:
+        issue_code: { type: string }
+        severity: { type: string }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeRequestGateListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, request_gates, summary, issues, request_gate_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        request_gates:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeRequestGate' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeRequestGateSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        request_gate_policy: { $ref: '#/components/schemas/CapabilityEnvelopeRequestGatePolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeRequestGate:
+      type: object
+      additionalProperties: false
+      required: [request_gate_id, capability_plan_id, payload_preview_id, apply_request_id, promotion_id, insight_id, target_surface, promotion_type, capability_key, operation_intent, runtime_surface, request_gate_status, request_review_status, request_policy_status, actual_capability_envelope_requested, actual_capability_envelope_id, approval_hold_created, execution_allowed, target_write_allowed, request_payload_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        request_gate_status: { type: string, enum: [request_gate_created_requires_review, superseded, rejected] }
+        request_review_status: { type: string, enum: [request_review_required, request_approved, request_rejected] }
+        request_policy_status: { type: string, enum: [blocked_until_request_gate_approved, request_approved_but_not_dispatched, rejected] }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        actual_capability_envelope_id: { type: 'null' }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        request_payload_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeRequestGateSummary:
+      type: object
+      additionalProperties: false
+      required: [request_gate_status, request_review_status, request_policy_status, actual_capability_envelope_requested, approval_hold_created, execution_allowed, target_write_allowed, count]
+      properties:
+        request_gate_status: { type: string, enum: [request_gate_created_requires_review, superseded, rejected] }
+        request_review_status: { type: string, enum: [request_review_required, request_approved, request_rejected] }
+        request_policy_status: { type: string, enum: [blocked_until_request_gate_approved, request_approved_but_not_dispatched, rejected] }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeRequestGatePolicy:
+      type: object
+      additionalProperties: false
+      required: [request_gate_only, creates_actual_capability_envelope, creates_approval_hold, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        request_gate_only: { type: boolean, const: true }
+        creates_actual_capability_envelope: { type: boolean, const: false }
+        creates_approval_hold: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchDryRunListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, dispatch_dry_runs, summary, issues, dispatch_dry_run_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        dispatch_dry_runs:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchDryRun' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchDryRunSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        dispatch_dry_run_policy: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchDryRunPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchDryRun:
+      type: object
+      additionalProperties: false
+      required: [dispatch_dry_run_id, request_gate_id, capability_plan_id, payload_preview_id, apply_request_id, promotion_id, insight_id, target_surface, promotion_type, capability_key, operation_intent, runtime_surface, dispatch_status, dispatch_mode, actual_capability_envelope_requested, actual_capability_envelope_id, approval_hold_created, execution_allowed, target_write_allowed, dispatch_payload_json, validation_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        dispatch_status: { type: string, enum: [dispatch_dry_run_generated, superseded, rejected] }
+        dispatch_mode: { type: string, const: dry_run_no_dispatch }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        actual_capability_envelope_id: { type: 'null' }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        dispatch_payload_json: { type: [object, 'null'], additionalProperties: true }
+        validation_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchDryRunSummary:
+      type: object
+      additionalProperties: false
+      required: [dispatch_status, dispatch_mode, actual_capability_envelope_requested, approval_hold_created, execution_allowed, target_write_allowed, count]
+      properties:
+        dispatch_status: { type: string, enum: [dispatch_dry_run_generated, superseded, rejected] }
+        dispatch_mode: { type: string, const: dry_run_no_dispatch }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeDispatchDryRunPolicy:
+      type: object
+      additionalProperties: false
+      required: [dry_run_only, actual_capability_envelope_requested, approval_hold_created, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        dry_run_only: { type: boolean, const: true }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        approval_hold_created: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequestPreflightListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, actual_request_preflights, summary, issues, actual_request_preflight_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        actual_request_preflights:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPreflight' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPreflightSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        actual_request_preflight_policy: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPreflightPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequestPreflight:
+      type: object
+      additionalProperties: false
+      required: [actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, payload_preview_id, apply_request_id, promotion_id, insight_id, target_surface, promotion_type, capability_key, operation_intent, runtime_surface, preflight_status, preflight_policy_status, actual_capability_envelope_requested, actual_capability_envelope_id, approval_hold_created, execution_allowed, target_write_allowed, source_dispatch_payload_sha256, source_validation_sha256, duplicate_live_envelope_count, preflight_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        preflight_status: { type: string, enum: [actual_request_preflight_passed, actual_request_preflight_blocked, superseded] }
+        preflight_policy_status: { type: string, enum: [ready_for_actual_capability_envelope_request, blocked] }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        actual_capability_envelope_id: { type: 'null' }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        source_dispatch_payload_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        source_validation_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        duplicate_live_envelope_count: { type: integer, minimum: 0 }
+        preflight_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequestPreflightSummary:
+      type: object
+      additionalProperties: false
+      required: [preflight_status, preflight_policy_status, actual_capability_envelope_requested, approval_hold_created, execution_allowed, target_write_allowed, count]
+      properties:
+        preflight_status: { type: string, enum: [actual_request_preflight_passed, actual_request_preflight_blocked, superseded] }
+        preflight_policy_status: { type: string, enum: [ready_for_actual_capability_envelope_request, blocked] }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeActualRequestPreflightPolicy:
+      type: object
+      additionalProperties: false
+      required: [preflight_only, calls_capability_resolution, actual_capability_envelope_requested, approval_hold_created, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        preflight_only: { type: boolean, const: true }
+        calls_capability_resolution: { type: boolean, const: false }
+        actual_capability_envelope_requested: { type: boolean, const: false }
+        approval_hold_created: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequestListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, actual_requests, summary, issues, actual_request_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        actual_requests:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequest' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        actual_request_policy: { $ref: '#/components/schemas/CapabilityEnvelopeActualRequestPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequest:
+      type: object
+      additionalProperties: false
+      required: [actual_request_id, actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, payload_preview_id, apply_request_id, promotion_id, insight_id, target_surface, promotion_type, capability_key, operation_intent, runtime_surface, actual_request_status, actual_request_policy_status, actual_capability_envelope_requested, actual_capability_envelope_id, actual_capability_envelope_status, actual_capability_envelope_decision, actual_capability_envelope_dispatch_allowed, actual_capability_envelope_apply_allowed, approval_hold_created, execution_allowed, target_write_allowed, request_payload_json, request_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        actual_request_id: { type: string }
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        payload_preview_id: { type: string }
+        apply_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string }
+        promotion_type: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_request_status: { type: string, enum: [actual_envelope_requested, actual_envelope_request_blocked, superseded] }
+        actual_request_policy_status: { type: string, enum: [actual_envelope_requested_but_not_approved, blocked] }
+        actual_capability_envelope_requested: { type: boolean, const: true }
+        actual_capability_envelope_id: { type: [string, 'null'] }
+        actual_capability_envelope_status: { type: [string, 'null'] }
+        actual_capability_envelope_decision: { type: [string, 'null'] }
+        actual_capability_envelope_dispatch_allowed: { type: boolean }
+        actual_capability_envelope_apply_allowed: { type: boolean }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        request_payload_json: { type: [object, 'null'], additionalProperties: true }
+        request_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeActualRequestSummary:
+      type: object
+      additionalProperties: false
+      required: [actual_request_status, actual_request_policy_status, approval_hold_created, execution_allowed, target_write_allowed, count]
+      properties:
+        actual_request_status: { type: string, enum: [actual_envelope_requested, actual_envelope_request_blocked, superseded] }
+        actual_request_policy_status: { type: string, enum: [actual_envelope_requested_but_not_approved, blocked] }
+        approval_hold_created: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeActualRequestPolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, calls_capability_resolution, creates_actual_capability_envelope, creates_approval_hold, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: REQUEST_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION }
+        calls_capability_resolution: { type: boolean, const: true }
+        creates_actual_capability_envelope: { type: boolean, const: true }
+        creates_approval_hold: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeApprovalListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, approval_decisions, summary, issues, approval_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        approval_decisions:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeApprovalDecision' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeApprovalSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        approval_policy: { $ref: '#/components/schemas/CapabilityEnvelopeApprovalPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [approval_decision_id, actual_request_id, actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, approval_decision_status, approval_policy_status, approval_hold_created, approval_hold_id, envelope_status_after_approval, envelope_decision_after_approval, execution_allowed, target_write_allowed, adapter_apply_executed, approval_result_json, safety_contract, typed_confirm, approved_by, approval_notes, created_at, secrets_included]
+      properties:
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        approval_decision_status: { type: string, enum: [actual_envelope_approved, actual_envelope_approval_blocked, superseded] }
+        approval_policy_status: { type: string, enum: [approved_but_not_executed, blocked] }
+        approval_hold_created: { type: boolean, const: true }
+        approval_hold_id: { type: [string, 'null'] }
+        envelope_status_after_approval: { type: [string, 'null'] }
+        envelope_decision_after_approval: { type: [string, 'null'] }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        approval_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        typed_confirm: { type: string, const: APPROVE_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION }
+        approved_by: { type: [string, 'null'] }
+        approval_notes: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeApprovalSummary:
+      type: object
+      additionalProperties: false
+      required: [approval_decision_status, approval_policy_status, approval_hold_created, execution_allowed, target_write_allowed, adapter_apply_executed, count]
+      properties:
+        approval_decision_status: { type: string, enum: [actual_envelope_approved, actual_envelope_approval_blocked, superseded] }
+        approval_policy_status: { type: string, enum: [approved_but_not_executed, blocked] }
+        approval_hold_created: { type: boolean, const: true }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeApprovalPolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, may_create_approval_hold, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: APPROVE_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION }
+        may_create_approval_hold: { type: boolean, const: true }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchReadbackListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, dispatch_readbacks, summary, issues, dispatch_readback_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        dispatch_readbacks:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchReadback' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchReadbackSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        dispatch_readback_policy: { $ref: '#/components/schemas/CapabilityEnvelopeDispatchReadbackPolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchReadback:
+      type: object
+      additionalProperties: false
+      required: [dispatch_readback_id, approval_decision_id, actual_request_id, actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, dispatch_readback_status, dispatch_readback_policy_status, approval_hold_created, approval_hold_id, envelope_status, envelope_decision, envelope_dispatch_allowed, envelope_apply_allowed, envelope_approval_required, envelope_blocking_gap_count, adapter_apply_executed, execution_allowed, target_write_allowed, readback_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        dispatch_readback_id: { type: string }
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        dispatch_readback_status: { type: string, enum: [dispatch_readback_passed, dispatch_readback_blocked, superseded] }
+        dispatch_readback_policy_status: { type: string, enum: [ready_for_adapter_execution_gate, blocked] }
+        approval_hold_created: { type: boolean, const: true }
+        approval_hold_id: { type: [string, 'null'] }
+        envelope_status: { type: string }
+        envelope_decision: { type: string }
+        envelope_dispatch_allowed: { type: boolean }
+        envelope_apply_allowed: { type: boolean }
+        envelope_approval_required: { type: boolean }
+        envelope_blocking_gap_count: { type: integer, minimum: 0 }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        readback_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeDispatchReadbackSummary:
+      type: object
+      additionalProperties: false
+      required: [dispatch_readback_status, dispatch_readback_policy_status, adapter_apply_executed, execution_allowed, target_write_allowed, count]
+      properties:
+        dispatch_readback_status: { type: string, enum: [dispatch_readback_passed, dispatch_readback_blocked, superseded] }
+        dispatch_readback_policy_status: { type: string, enum: [ready_for_adapter_execution_gate, blocked] }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeDispatchReadbackPolicy:
+      type: object
+      additionalProperties: false
+      required: [readback_only, ready_for_adapter_execution_gate, adapter_execution_gate_not_implemented, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        readback_only: { type: boolean, const: true }
+        ready_for_adapter_execution_gate: { type: boolean, const: true }
+        adapter_execution_gate_not_implemented: { type: boolean, const: true }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGateListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, adapter_execution_gates, summary, issues, adapter_execution_gate_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        adapter_execution_gates:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGate' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGateSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        adapter_execution_gate_policy: { $ref: '#/components/schemas/CapabilityEnvelopeAdapterExecutionGatePolicy' }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGate:
+      type: object
+      additionalProperties: false
+      required: [adapter_execution_gate_id, dispatch_readback_id, approval_decision_id, actual_request_id, actual_request_preflight_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, adapter_execution_gate_status, adapter_execution_policy_status, typed_confirm, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, promotion_allowed, gate_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        adapter_execution_gate_id: { type: string }
+        dispatch_readback_id: { type: string }
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        actual_request_preflight_id: { type: string }
+        dispatch_dry_run_id: { type: string }
+        request_gate_id: { type: string }
+        capability_plan_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        adapter_execution_gate_status: { type: string, enum: [adapter_execution_gate_ready, adapter_execution_gate_blocked, superseded] }
+        adapter_execution_policy_status: { type: string, enum: [ready_for_adapter_apply_dispatch, blocked] }
+        typed_confirm: { type: string }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        gate_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    CapabilityEnvelopeAdapterExecutionGateSummary:
+      type: object
+      additionalProperties: false
+      required: [adapter_execution_gate_status, adapter_execution_policy_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, promotion_allowed, count]
+      properties:
+        adapter_execution_gate_status: { type: string, enum: [adapter_execution_gate_ready, adapter_execution_gate_blocked, superseded] }
+        adapter_execution_policy_status: { type: string, enum: [ready_for_adapter_apply_dispatch, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    CapabilityEnvelopeAdapterExecutionGatePolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, adapter_execution_gate_only, adapter_apply_dispatch_not_implemented, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: OPEN_ADAPTER_EXECUTION_GATE_NO_APPLY }
+        adapter_execution_gate_only: { type: boolean, const: true }
+        adapter_apply_dispatch_not_implemented: { type: boolean, const: true }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWriteListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, target_writes, issues, policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        target_writes:
+          type: array
+          items: { $ref: '#/components/schemas/BacklogTargetWrite' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        policy: { $ref: '#/components/schemas/BacklogTargetWritePolicy' }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWrite:
+      type: object
+      additionalProperties: false
+      required: [target_write_id, remaining_scope_completion_id, adapter_execution_gate_id, actual_request_id, actual_capability_envelope_id, promotion_id, insight_id, target_surface, promotion_type, target_item_id, target_write_status, target_write_allowed, target_write_executed, promotion_allowed, provider_call_executed, credential_payload_read, external_write_executed, raw_transcript_included, write_payload, write_result, rollback_plan, rollback_result, safety_contract, created_by, rolled_back_by, rolled_back_at, created_at, secrets_included]
+      properties:
+        target_write_id: { type: string }
+        remaining_scope_completion_id: { type: string }
+        adapter_execution_gate_id: { type: string }
+        actual_request_id: { type: string }
+        actual_capability_envelope_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        target_surface: { type: string, enum: [development_backlog, integration_backlog, runtime_repair_backlog] }
+        promotion_type: { type: string }
+        target_item_id: { type: string }
+        target_write_status: { type: string, enum: [target_write_executed, rolled_back] }
+        target_write_allowed: { type: boolean, const: true }
+        target_write_executed: { type: boolean, const: true }
+        promotion_allowed: { type: boolean, const: true }
+        provider_call_executed: { type: boolean, const: false }
+        credential_payload_read: { type: boolean, const: false }
+        external_write_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        write_payload: { type: [object, 'null'], additionalProperties: true }
+        write_result: { type: [object, 'null'], additionalProperties: true }
+        rollback_plan: { type: [object, 'null'], additionalProperties: true }
+        rollback_result: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        rolled_back_by: { type: [string, 'null'] }
+        rolled_back_at: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    BacklogTargetWritePolicy:
+      type: object
+      additionalProperties: false
+      required: [execute_typed_confirm, rollback_typed_confirm, target_write_allowed, target_write_executed, internal_sql_only, provider_call_executed, credential_payload_read, external_write_executed, raw_transcript_included, secrets_included]
+      properties:
+        execute_typed_confirm: { type: string, const: EXECUTE_SESSION_INSIGHT_BACKLOG_TARGET_WRITE }
+        rollback_typed_confirm: { type: string, const: ROLLBACK_SESSION_INSIGHT_BACKLOG_TARGET_WRITE }
+        target_write_allowed: { type: boolean, const: true }
+        target_write_executed: { type: boolean, const: true }
+        internal_sql_only: { type: boolean, const: true }
+        provider_call_executed: { type: boolean, const: false }
+        credential_payload_read: { type: boolean, const: false }
+        external_write_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletionListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, count, remaining_scope_completions, summary, issues, remaining_scope_policy, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        count: { type: integer, minimum: 0 }
+        remaining_scope_completions:
+          type: array
+          items: { $ref: '#/components/schemas/RemainingScopeCompletion' }
+        summary:
+          type: array
+          items: { $ref: '#/components/schemas/RemainingScopeCompletionSummary' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEnvelopeReadModelIssue' }
+        remaining_scope_policy: { $ref: '#/components/schemas/RemainingScopeCompletionPolicy' }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletion:
+      type: object
+      additionalProperties: false
+      required: [remaining_scope_completion_id, adapter_execution_gate_id, dispatch_readback_id, approval_decision_id, actual_request_id, promotion_id, insight_id, capability_key, operation_intent, runtime_surface, actual_capability_envelope_id, completion_status, completion_policy_status, typed_confirm, adapter_apply_dispatch_gate_status, adapter_apply_readback_status, target_write_gate_status, target_write_readback_status, rollback_plan_status, generalized_registry_status, ui_review_queue_status, orchestration_test_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, promotion_allowed, completion_result_json, safety_contract, created_by, created_at, secrets_included]
+      properties:
+        remaining_scope_completion_id: { type: string }
+        adapter_execution_gate_id: { type: string }
+        dispatch_readback_id: { type: string }
+        approval_decision_id: { type: string }
+        actual_request_id: { type: string }
+        promotion_id: { type: string }
+        insight_id: { type: string }
+        capability_key: { type: string }
+        operation_intent: { type: string }
+        runtime_surface: { type: string }
+        actual_capability_envelope_id: { type: string }
+        completion_status: { type: string, enum: [remaining_scope_completed_as_gated_no_execution, remaining_scope_blocked, superseded] }
+        completion_policy_status: { type: string, enum: [all_remaining_stages_gated_no_execution, blocked] }
+        typed_confirm: { type: string }
+        adapter_apply_dispatch_gate_status: { type: string, enum: [ready_but_not_requested, blocked] }
+        adapter_apply_readback_status: { type: string, enum: [blocked_until_adapter_apply_dispatch, not_applicable_no_execution] }
+        target_write_gate_status: { type: string, enum: [blocked_until_adapter_apply_readback, not_applicable_no_execution] }
+        target_write_readback_status: { type: string, enum: [blocked_until_target_write, not_applicable_no_execution] }
+        rollback_plan_status: { type: string, enum: [required_before_target_write, not_applicable_no_write] }
+        generalized_registry_status: { type: string, enum: [ready_for_multi_target_extension, blocked] }
+        ui_review_queue_status: { type: string, enum: [ready_for_admin_queue_surface, blocked] }
+        orchestration_test_status: { type: string, enum: [ready_for_e2e_no_write_tests, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        completion_result_json: { type: [object, 'null'], additionalProperties: true }
+        safety_contract: { type: [object, 'null'], additionalProperties: true }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        secrets_included: { type: boolean, const: false }
+    RemainingScopeCompletionSummary:
+      type: object
+      additionalProperties: false
+      required: [completion_status, completion_policy_status, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, promotion_allowed, count]
+      properties:
+        completion_status: { type: string, enum: [remaining_scope_completed_as_gated_no_execution, remaining_scope_blocked, superseded] }
+        completion_policy_status: { type: string, enum: [all_remaining_stages_gated_no_execution, blocked] }
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
+        promotion_allowed: { type: boolean, const: false }
+        count: { type: integer, minimum: 0 }
+    RemainingScopeCompletionPolicy:
+      type: object
+      additionalProperties: false
+      required: [requires_typed_confirm, covers, adapter_apply_requested, adapter_apply_executed, execution_allowed, target_write_allowed, target_write_executed, raw_transcript_included, secrets_included]
+      properties:
+        requires_typed_confirm: { type: string, const: COMPLETE_REMAINING_SCOPE_AS_GATED_NO_EXECUTION }
+        covers:
+          type: array
+          minItems: 8
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+            enum: [adapter_apply_dispatch_gate, adapter_apply_readback, target_write_gate, target_write_readback, rollback_plan, multi_target_registry, ui_review_queue, e2e_orchestration_tests]
+        adapter_apply_requested: { type: boolean, const: false }
+        adapter_apply_executed: { type: boolean, const: false }
+        execution_allowed: { type: boolean, const: false }
+        target_write_allowed: { type: boolean, const: false }
+        target_write_executed: { type: boolean, const: false }
+        raw_transcript_included: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+        secrets_included: { type: boolean, const: false }
+    RuntimeUnauthorizedErrorEnvelope:
+      type: object
+      additionalProperties: false
+      description: Exact missing-authentication body emitted by the shared backend-key guard before the read-model route handler runs.
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, status]
+          properties:
+            code: { type: string, const: missing_backend_api_key }
+            message: { type: string }
+            status: { type: integer, const: 401 }
+    RuntimeForbiddenErrorEnvelope:
+      type: object
+      additionalProperties: false
+      description: Exact invalid-authentication or non-admin body emitted by the shared backend-key and admin-principal guards before the read-model route handler runs.
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, status]
+          properties:
+            code: { type: string, enum: [invalid_backend_api_key, invalid_auth_token, admin_backend_api_key_required] }
+            message: { type: string }
+            status: { type: integer, const: 403 }
+  responses:
+    BadRequest:
+      description: The bounded filter document contains an unsupported value.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Administrative backend authentication is missing.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RuntimeUnauthorizedErrorEnvelope' }
+    Forbidden:
+      description: Administrative backend authentication is invalid or the authenticated principal lacks administrative authority.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RuntimeForbiddenErrorEnvelope' }
+    InternalError:
+      description: The read model query failed without exposing stack traces or secrets.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }

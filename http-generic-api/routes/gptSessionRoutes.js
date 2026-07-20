@@ -276,7 +276,13 @@ function validateTurnInput(turn = {}) {
   if (!VALID_TURN_ROLES.has(role)) {
     return { ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } };
   }
-  return { ok: true, turn: { role, content, action_key: turn.action_key || null } };
+  const workspace_key = String(turn.workspace_key || turn.workspaceKey || "").trim() || null;
+  const brand_key = String(turn.brand_key || turn.brandKey || turn.target_key || turn.targetKey || "").trim() || null;
+  const business_type_key = String(turn.business_type_key || turn.businessTypeKey || "").trim() || null;
+  const business_activity_type_key = String(turn.business_activity_type_key || turn.businessActivityTypeKey || turn.activity_type_key || turn.activityTypeKey || "").trim() || null;
+  const activity_key = String(turn.activity_key || turn.activityKey || "").trim() || null;
+  const knowledge_profile_key = String(turn.knowledge_profile_key || turn.knowledgeProfileKey || "").trim() || null;
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null, workspace_key, brand_key, business_type_key, business_activity_type_key, activity_key, knowledge_profile_key } };
 }
 
 async function resolveWritableSession(pool, req) {
@@ -304,9 +310,141 @@ async function nextTurnIndex(pool, sessionId) {
   return Number(max_idx) + 1;
 }
 
-export function buildGptSessionRoutes(deps) {
+export function buildGptSessionRoutes(deps = {}) {
   const { requireBackendApiKey } = deps;
+  const getRuntimePool = typeof deps.getRuntimePool === "function" ? deps.getRuntimePool : getPool;
+  const authorizeCapabilityFamily = deps.authorizeCapabilityFamily || resolveToolCapabilityFamilyAuthorization;
+  const recordSessionTurn = deps.recordSessionTurn || recordGptSessionTurn;
   const router = Router();
+
+  function requireTenantUserJwt(req, res, next) {
+    if (
+      req.auth?.mode === "user_jwt"
+      && req.auth?.is_admin !== true
+      && req.auth?.tenant_id
+      && req.auth?.user_id
+    ) {
+      return next();
+    }
+    return res.status(401).json({
+      ok: false,
+      error: {
+        code: "tenant_activation_subject_required",
+        message: "A signed non-admin tenant user JWT with tenant_id and user_id is required.",
+      },
+      secrets_included: false,
+    });
+  }
+
+  async function handleSessionTurnBatch(req, res, { tenantActivation = false } = {}) {
+    if (
+      tenantActivation
+      && (
+        req.auth?.mode !== "user_jwt"
+        || req.auth?.is_admin === true
+        || !req.auth?.tenant_id
+        || !req.auth?.user_id
+      )
+    ) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "tenant_activation_subject_required",
+          message: "A signed non-admin tenant user JWT with tenant_id and user_id is required.",
+        },
+        secrets_included: false,
+      });
+    }
+
+    const pool = getRuntimePool();
+    try {
+      const turns = Array.isArray(req.body?.turns) ? req.body.turns : [];
+      if (!turns.length || turns.length > MAX_BATCH_TURNS) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "invalid_turn_batch", message: `turns must contain 1-${MAX_BATCH_TURNS} items.` },
+          secrets_included: false,
+        });
+      }
+      const normalizedTurns = [];
+      for (const turn of turns) {
+        const validation = validateTurnInput(turn);
+        if (!validation.ok) {
+          return res.status(400).json({ ok: false, error: validation.error, secrets_included: false });
+        }
+        normalizedTurns.push(validation.turn);
+      }
+
+      const callerType = ["user_jwt", "api_credential"].includes(req.auth?.mode) ? "tenant" : "admin";
+      const capabilityFamilyAuthorization = await authorizeCapabilityFamily({
+        pool,
+        callerType,
+        principal: {
+          tenant_id: req.auth?.tenant_id || null,
+          user_id: req.auth?.user_id || req.auth?.admin_id || null,
+        },
+        toolKey: "gpt_session_turns_write_batch",
+        args: { id: req.params.id, turns: normalizedTurns },
+        expectedFamily: "session_archive_write",
+        requirePolicy: true,
+      });
+      if (!capabilityFamilyAuthorization.ok) {
+        throw capabilityFamilyAuthorizationError(
+          capabilityFamilyAuthorization,
+          "Session archive write capability-family authorization denied this operation.",
+        );
+      }
+
+      const session = await resolveWritableSession(pool, req);
+      let turnIndex = await nextTurnIndex(pool, session.session_id);
+      const written = [];
+      for (const turn of normalizedTurns) {
+        const writeback = await recordSessionTurn({
+          pool,
+          session,
+          role: turn.role,
+          content: turn.content,
+          action_key: turn.action_key,
+          turnIndex,
+          workspace_key: turn.workspace_key,
+          brand_key: turn.brand_key,
+          business_type_key: turn.business_type_key,
+          business_activity_type_key: turn.business_activity_type_key,
+          activity_key: turn.activity_key,
+          knowledge_profile_key: turn.knowledge_profile_key,
+        });
+        written.push({
+          role: turn.role,
+          turn_index: turnIndex,
+          turn_id: writeback.turn_id,
+          drive_doc_id: writeback.drive_doc_id,
+          drive_doc_part: writeback.drive_doc_part,
+          drive_anchor: writeback.drive_anchor,
+          archive_status: writeback.archive_status,
+        });
+        turnIndex += 1;
+      }
+
+      return res.status(200).json({
+        ok: true,
+        session_id: session.session_id,
+        turn_count: written.length,
+        turns: written,
+        capture_policy: {
+          intended_use: "Call once per conversational exchange with the user prompt and assistant reply so Drive archives contain non-tool transcript turns.",
+          sql_content_mode: "preview_hash_only",
+          full_content_storage: "drive_doc_and_jsonl",
+          secrets_included: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message }, secrets_included: false });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message }, secrets_included: false });
+      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message }, secrets_included: false });
+      return res.status(500).json({ ok: false, error: { code: "turn_batch_write_failed", message: err.message }, secrets_included: false });
+    }
+  }
 
   // POST /gpt/sessions/:id/conversation-ref
   router.post("/gpt/sessions/:id/conversation-ref", requireBackendApiKey, async (req, res) => {
@@ -525,7 +663,17 @@ export function buildGptSessionRoutes(deps) {
       if (!validation.ok) {
         return res.status(400).json({ ok: false, error: validation.error });
       }
-      const { role, content, action_key = null } = validation.turn;
+      const {
+        role,
+        content,
+        action_key = null,
+        workspace_key = null,
+        brand_key = null,
+        business_type_key = null,
+        business_activity_type_key = null,
+        activity_key = null,
+        knowledge_profile_key = null,
+      } = validation.turn;
 
       const session = await resolveWritableSession(pool, req);
       const turnIndex = await nextTurnIndex(pool, session.session_id);
@@ -537,6 +685,12 @@ export function buildGptSessionRoutes(deps) {
         content,
         action_key,
         turnIndex,
+        workspace_key,
+        brand_key,
+        business_type_key,
+        business_activity_type_key,
+        activity_key,
+        knowledge_profile_key,
       });
 
       return res.status(200).json({
@@ -551,93 +705,17 @@ export function buildGptSessionRoutes(deps) {
       });
     } catch (err) {
       if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message } });
       return res.status(500).json({ ok: false, error: { code: "turn_write_failed", message: err.message } });
     }
   });
 
   // POST /gpt/sessions/:id/turns
-  router.post("/gpt/sessions/:id/turns", requireBackendApiKey, async (req, res) => {
-    const pool = getPool();
-    try {
-      const turns = Array.isArray(req.body?.turns) ? req.body.turns : [];
-      if (!turns.length || turns.length > MAX_BATCH_TURNS) {
-        return res.status(400).json({
-          ok: false,
-          error: { code: "invalid_turn_batch", message: `turns must contain 1-${MAX_BATCH_TURNS} items.` },
-        });
-      }
-      const normalizedTurns = [];
-      for (const turn of turns) {
-        const validation = validateTurnInput(turn);
-        if (!validation.ok) {
-          return res.status(400).json({ ok: false, error: validation.error });
-        }
-        normalizedTurns.push(validation.turn);
-      }
-
-      const callerType = ["user_jwt", "api_credential"].includes(req.auth?.mode) ? "tenant" : "admin";
-      const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
-        pool,
-        callerType,
-        principal: {
-          tenant_id: req.auth?.tenant_id || null,
-          user_id: req.auth?.user_id || req.auth?.admin_id || null,
-        },
-        toolKey: "gpt_session_turns_write_batch",
-        args: { id: req.params.id, turns: normalizedTurns },
-        expectedFamily: "session_archive_write",
-        requirePolicy: true,
-      });
-      if (!capabilityFamilyAuthorization.ok) {
-        throw capabilityFamilyAuthorizationError(
-          capabilityFamilyAuthorization,
-          "Session archive write capability-family authorization denied this operation.",
-        );
-      }
-
-      const session = await resolveWritableSession(pool, req);
-      let turnIndex = await nextTurnIndex(pool, session.session_id);
-      const written = [];
-      for (const turn of normalizedTurns) {
-        const writeback = await recordGptSessionTurn({
-          pool,
-          session,
-          role: turn.role,
-          content: turn.content,
-          action_key: turn.action_key,
-          turnIndex,
-        });
-        written.push({
-          role: turn.role,
-          turn_index: turnIndex,
-          turn_id: writeback.turn_id,
-          drive_doc_id: writeback.drive_doc_id,
-          drive_doc_part: writeback.drive_doc_part,
-          drive_anchor: writeback.drive_anchor,
-          archive_status: writeback.archive_status,
-        });
-        turnIndex += 1;
-      }
-
-      return res.status(200).json({
-        ok: true,
-        session_id: session.session_id,
-        turn_count: written.length,
-        turns: written,
-        capture_policy: {
-          intended_use: "Call once per conversational exchange with the user prompt and assistant reply so Drive archives contain non-tool transcript turns.",
-          sql_content_mode: "preview_hash_only",
-          full_content_storage: "drive_doc_and_jsonl",
-          secrets_included: false,
-        },
-      });
-    } catch (err) {
-      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
-      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
-      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message } });
-      return res.status(500).json({ ok: false, error: { code: "turn_batch_write_failed", message: err.message } });
-    }
-  });
+  router.post("/gpt/sessions/:id/turns", requireBackendApiKey, (req, res) =>
+    handleSessionTurnBatch(req, res));
+  router.post("/tenant/activation/sessions/:id/turns", requireBackendApiKey, requireTenantUserJwt, (req, res) =>
+    handleSessionTurnBatch(req, res, { tenantActivation: true }));
 
   // POST /gpt/sessions/:id/end
   router.post("/gpt/sessions/:id/end", requireBackendApiKey, async (req, res) => {

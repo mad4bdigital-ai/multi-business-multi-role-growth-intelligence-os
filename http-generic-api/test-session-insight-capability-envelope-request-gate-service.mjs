@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeRequestGates,
 } from "./sessionInsightCapabilityEnvelopeRequestGateService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-request-gates/list
+
 function makePool() {
   const state = { calls: [], insert: null, gate: null };
   return {
@@ -131,6 +133,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopeRequestGate({ pool, input: { capability_plan_id: "capability_plan_1" } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeRequestGates({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -142,6 +145,11 @@ function makePool() {
   assert.equal(result.request_gate_policy.creates_actual_capability_envelope, false);
   assert.equal(result.request_gate_policy.creates_approval_hold, false);
   assert.equal(result.request_gate_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "request-gate list read action must execute SELECT statements only"
+  );
 }
 
 {
