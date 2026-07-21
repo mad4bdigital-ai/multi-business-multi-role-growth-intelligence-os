@@ -11,10 +11,10 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
+      "number": 2934,
       "branch": "gpt/spec-011-durable-governed-execution-20260721",
       "role": "specification",
-      "status": "current_branch"
+      "status": "current_pr"
     },
     "implementation_prs": [],
     "closeout_pr": {

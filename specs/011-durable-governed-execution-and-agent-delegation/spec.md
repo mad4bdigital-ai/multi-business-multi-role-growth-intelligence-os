@@ -3,7 +3,7 @@
 **Branch**: `gpt/spec-011-durable-governed-execution-20260721`  
 **Status**: Draft specification  
 **Delivery**: Multi-PR  
-**Specification PR**: pending
+**Specification PR**: #2934
 
 ## Problem
 

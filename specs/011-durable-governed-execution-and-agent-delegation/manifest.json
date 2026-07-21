@@ -18,6 +18,7 @@
   "merge": false,
   "source_main_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
   "branch": "gpt/spec-011-durable-governed-execution-20260721",
+  "pull_request": 2934,
   "deliverables": [
     "spec",
     "plan",
