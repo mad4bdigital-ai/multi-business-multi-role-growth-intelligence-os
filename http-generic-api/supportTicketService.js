@@ -360,9 +360,15 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
     await attachResourceLink(connection, ticket, ticket.resource);
     await capturePermissionSnapshot(connection, ticket, ticket);
 
+    const notification = await queueSupportTicketRoutingNotifications({
+      ticket,
+      event_type: "ticket_created",
+      deduped: false,
+    }, { connection });
+
     const inserted = await fetchTicketById(connection, ticket.tenant_id, ticket.ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), secrets_included: false };
+    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), notification, secrets_included: false };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;
