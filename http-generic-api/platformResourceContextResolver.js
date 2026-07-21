@@ -541,6 +541,20 @@ function relatedGraph(graph, anchor) {
     [asset.brand_ref, asset.site_ref].filter(Boolean).forEach((value) => brandRefs.add(value));
   });
 
+  const repositories = graph.repositories.filter((repository) =>
+    repositoryBindingKeys.has(repository.binding_key)
+    || (repository.workspace_id && workspaceIds.has(repository.workspace_id))
+    || (repository.connection_id && connectionIds.has(repository.connection_id))
+    || matchesAny([repository.brand_target_key, repository.app_key], [...brandRefs])
+  );
+  repositories.forEach((repository) => {
+    repositoryBindingKeys.add(repository.binding_key);
+    if (repository.tenant_id) tenantIds.add(repository.tenant_id);
+    if (repository.workspace_id) workspaceIds.add(repository.workspace_id);
+    if (repository.connection_id) connectionIds.add(repository.connection_id);
+    if (repository.brand_target_key) brandRefs.add(repository.brand_target_key);
+  });
+
   const sites = graph.sites.filter((site) => siteIds.has(site.site_id));
   const grants = graph.cmsGrants.filter((grant) =>
     siteIds.has(grant.site_id)
@@ -563,6 +577,8 @@ function relatedGraph(graph, anchor) {
     sites,
     cms_access_grants: grants,
     connections,
+    repositories,
+    repository_capabilities: repositories.flatMap((repository) => repository.capabilities || []),
   };
 }
 
