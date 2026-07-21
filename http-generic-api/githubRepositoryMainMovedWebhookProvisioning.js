@@ -248,6 +248,51 @@ async function markSecretValidated(deps = {}) {
 export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps = {}) {
   const mode = text(input.mode || "dry_run", 32).toLowerCase();
   if (!new Set(["dry_run", "apply"]).has(mode)) fail("github_webhook_mode_invalid", "mode must be dry_run or apply.");
+
+  let governance = null;
+  let governancePool = null;
+  const expectedCommitSha = text(input.expected_commit_sha, 64).toLowerCase();
+  const governanceReason = text(input.reason, 1000);
+  if (mode === "apply") {
+    if (text(input.confirm, 128) !== APPLY_CONFIRMATION) {
+      fail("github_webhook_apply_confirmation_required", `Apply requires confirm=${APPLY_CONFIRMATION}.`, 409);
+    }
+    if (!/^[0-9a-f]{40}$/.test(expectedCommitSha)) {
+      fail("github_webhook_expected_commit_required", "Apply requires a 40-character expected_commit_sha.", 400);
+    }
+    if (governanceReason.length < 20) {
+      fail("github_webhook_apply_reason_required", "Apply requires a reason of at least 20 characters.", 400);
+    }
+    governancePool = deps.pool || getPool();
+    const resolveEnvelope = deps.resolveCapabilityEnvelope || resolveCapabilityExecutionEnvelope;
+    governance = await resolveEnvelope({
+      pool: governancePool,
+      envelopeId: text(input.capability_envelope_id, 64),
+      acceptedAppKeys: ["github"],
+      acceptedCapabilityKeys: ["github_repository_main_moved_webhook_provision"],
+      acceptedIntents: ["github_repository_main_moved_webhook_provision"],
+      expectedUserId: deps.auth?.user_id || "",
+      expectedCommitSha,
+      allowReferenced: false,
+    });
+    if (!governance?.ok) throw capabilityEnvelopeError(governance);
+    if (governance.apply_allowed !== true) {
+      throw capabilityEnvelopeError({
+        status: "capability_resolution_envelope_apply_not_allowed",
+        envelope_id: governance.envelope_id,
+        apply_allowed: false,
+        secrets_included: false,
+      });
+    }
+    const markReferenced = deps.markEnvelopeReferenced || markCapabilityEnvelopeReferenced;
+    const referenced = await markReferenced({
+      pool: governancePool,
+      envelopeId: governance.envelope_id,
+      executionRef: `github_repository_main_moved_webhook_provision:${expectedCommitSha.slice(0, 12)}`,
+    });
+    if (!referenced?.ok) throw capabilityEnvelopeError(referenced, "The capability envelope could not be referenced before GitHub webhook provisioning.");
+  }
+
   const inspected = await inspectTarget(input, deps);
   const current = inspected.hook ? safeHook(inspected.hook) : null;
   const plannedAction = inspected.hook ? "update" : "create";
@@ -264,9 +309,6 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
       external_write: false,
       secrets_included: false,
     };
-  }
-  if (text(input.confirm, 128) !== APPLY_CONFIRMATION) {
-    fail("github_webhook_apply_confirmation_required", `Apply requires confirm=${APPLY_CONFIRMATION}.`, 409);
   }
 
   const resolvedSecret = await resolveSecret(true, deps);
