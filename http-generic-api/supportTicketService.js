@@ -307,8 +307,13 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
         summary: ticket.customer_message,
         payload_json: { customer_visible: true, deduped: true, secrets_included: false },
       });
+      const notification = await queueSupportTicketRoutingNotifications({
+        ticket: { ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() },
+        event_type: "dedupe_matched",
+        deduped: true,
+      }, { connection });
       if (ownsConnection) await connection.commit();
-      return { ok: true, created: false, deduped: true, ticket: compactTicket({ ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() }), secrets_included: false };
+      return { ok: true, created: false, deduped: true, ticket: compactTicket({ ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() }), notification, secrets_included: false };
     }
 
     await connection.query(
