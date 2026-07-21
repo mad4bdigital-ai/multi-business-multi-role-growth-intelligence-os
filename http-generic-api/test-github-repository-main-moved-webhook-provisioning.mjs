@@ -76,6 +76,51 @@ const applyReason = "Provision the governed repository webhook after reviewed re
 }
 
 {
+  let providerCalls = 0;
+  let credentialCalls = 0;
+  await assert.rejects(
+    githubRepositoryMainMovedWebhookProvision(
+      {
+        ...target,
+        mode: "apply",
+        confirm: __test__.APPLY_CONFIRMATION,
+        capability_envelope_id: "envelope-race",
+        expected_commit_sha: expectedCommitSha,
+        reason: applyReason,
+      },
+      {
+        pool: {},
+        auth: { user_id: "admin-user" },
+        resolveCapabilityEnvelope: async () => ({
+          ok: true,
+          envelope_id: "envelope-race",
+          apply_allowed: true,
+          secrets_included: false,
+        }),
+        claimEnvelopeReferenced: async () => ({
+          ok: false,
+          status: "capability_resolution_envelope_claim_failed",
+          envelope_id: "envelope-race",
+          affected_rows: 0,
+          secrets_included: false,
+        }),
+        resolveCredential: async () => {
+          credentialCalls += 1;
+          return { status: "resolved", secret_present: true };
+        },
+        fetchImpl: async () => {
+          providerCalls += 1;
+          return reply(200, []);
+        },
+      },
+    ),
+    (error) => error.code === "capability_resolution_envelope_claim_failed",
+  );
+  assert.equal(providerCalls, 0, "a lost atomic envelope claim must not call GitHub");
+  assert.equal(credentialCalls, 0, "a lost atomic envelope claim must not resolve the secret");
+}
+
+{
   const requests = [];
   const credentialCalls = [];
   const audits = [];
