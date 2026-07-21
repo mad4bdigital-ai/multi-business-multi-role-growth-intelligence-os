@@ -236,7 +236,7 @@ export function createGrowthControlPlaneRepository({ resolvePool }) {
   async function createActivityPackDefinition(input) {
     const pool = await resolvePool();
     const [activityRows] = await sql(pool,
-      "SELECT business_activity_type_key FROM business_activity_types WHERE business_activity_type_key=? AND (status='active' OR active='true' OR active='1') LIMIT 1",
+      "SELECT business_activity_type_key FROM business_activity_types WHERE business_activity_type_key=? AND status='active' LIMIT 1",
       [input.activityTypeKey]
     );
     if (!activityRows?.[0]) throw new GrowthControlPlaneError("GROWTH_CONTROL_ACTIVITY_TYPE_NOT_FOUND", "Business activity type is not active.", 422);
