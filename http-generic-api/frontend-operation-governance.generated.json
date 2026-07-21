@@ -1,0 +1,280 @@
+{
+  "schema_version": "frontend-operation-governance-v1",
+  "generator": {
+    "id": "frontend-operation-governance-generator-v1",
+    "source_digest": "5bb4c1d3236f59e6b7b08828dcb83f191939f4553a314a27243ff2bb32a797f3",
+    "fail_closed": true
+  },
+  "source_authority": [
+    {
+      "file": "dynamicContainerRolloutSafety.js",
+      "sha256": "c1de94a9ad9e96460c8bd30c6870f3993afbc7222da7db868d640824e6a7c12c",
+      "present": true
+    },
+    {
+      "file": "routes/dynamicContainerAuthorityRoutes.js",
+      "sha256": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
+      "present": true
+    },
+    {
+      "file": "routes/resourceApiRoutes.js",
+      "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "present": true
+    },
+    {
+      "file": "scripts/frontend-operation-governance-generator.mjs",
+      "sha256": "d3e5aa45da669db391c987e135773086d9752fe4232f0e1d8c7c95b7fc73df1f",
+      "present": true
+    },
+    {
+      "file": "scripts/test-manifest.mjs",
+      "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
+      "present": true
+    },
+    {
+      "file": "src/application/resourceApi/resourceApiService.js",
+      "sha256": "cb7aafda79ebbf2429fd6cec954306fcd94322369f74c72014609d25ed216d1f",
+      "present": true
+    },
+    {
+      "file": "src/infrastructure/resourceApi/resourceRepository.js",
+      "sha256": "fad9b818294724a63df11e14d5babf74d1314ddbf14de33d1e0620eec9d4821e",
+      "present": true
+    },
+    {
+      "file": "test-dynamic-container-rollout-safety.mjs",
+      "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
+      "present": true
+    },
+    {
+      "file": "test-resource-api-service.mjs",
+      "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
+      "present": true
+    }
+  ],
+  "coverage": {
+    "candidate_count": 5,
+    "generated_rule_count": 5,
+    "rejected_candidate_count": 0
+  },
+  "operation_rules": [
+    {
+      "rule_id": "generated-tenant-resource-archive-governance",
+      "operation": "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Checks tenant ownership and archive capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "path.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      },
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-archive-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-resource-update-governance",
+      "operation": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Checks tenant ownership and update capability, mutates the asset, and verifies the scoped readback before committing the same SQL transaction.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "path.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      },
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-update-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-dynamic-container-canary-closeout-governance",
+      "operation": "POST /admin/container-authority/canary-closeouts",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "state_change",
+      "owner": "platform-governance",
+      "rationale": "Applies a capability-envelope-authorized canary closeout only after typed confirmation, then verifies the exact accepted shadow state and consumes the envelope before committing one SQL transaction.",
+      "preflight": {
+        "mode": "capability_envelope_and_monitoring_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "target_canary_key": "request.body.targetCanaryKey",
+        "capability_envelope_id": "request.body.capabilityEnvelopeId",
+        "confirmation": "request.body.confirm",
+        "canary_key": "response.readback.canary_key"
+      },
+      "evidence_refs": [
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "dynamicContainerRolloutSafety.js",
+        "test-dynamic-container-rollout-safety.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
+        "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-resource-create-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Creates a tenant asset and verifies its scoped readback before committing the same SQL transaction; any mutation or readback failure rolls the transaction back.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "path.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "response.id"
+      },
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-create-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-resource-restore-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Checks tenant ownership and restore capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "path.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      },
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-restore-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      }
+    }
+  ],
+  "rejected_candidates": [],
+  "safety": {
+    "writes_runtime_source": false,
+    "writes_database": false,
+    "executes_provider_calls": false,
+    "deploys": false,
+    "secrets_included": false
+  }
+}
