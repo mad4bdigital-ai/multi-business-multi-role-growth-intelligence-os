@@ -49,12 +49,23 @@ export function createResourceApiService({
 }) {
   if (!repository) throw new TypeError("Resource API service requires a repository.");
 
-  async function requireMembership(auth, tenantId) {
-    const member = await repository.findMembership(auth.user_id, tenantId);
+  async function requireMembership(auth, tenantId, activeRepository = repository) {
+    const member = await activeRepository.findMembership(auth.user_id, tenantId);
     if (!member || member.status !== "active" || member.tenant_status !== "active") {
       throw resourceError("active_membership_required", "Active workspace membership required.", 403);
     }
     return member;
+  }
+
+  async function withMutationTransaction(operation) {
+    if (typeof repository.withTransaction !== "function") {
+      throw resourceError(
+        "resource_transaction_unavailable",
+        "Resource mutation requires an atomic transaction with verified rollback.",
+        503
+      );
+    }
+    return repository.withTransaction(operation);
   }
 
   function listResourceTypes() {
@@ -89,35 +100,41 @@ export function createResourceApiService({
     requireAssetOperation(resourceKey, "Create");
     requireAssetInput(input);
     if (!input.tenant_id) throw resourceError("tenant_id_required", "tenant_id is required.", 400);
-    const resourceId = await repository.insertAsset({
-      tenantId: input.tenant_id,
-      actorId: auth?.user_id || "platform_admin",
-      input,
+    return withMutationTransaction(async (transactionRepository) => {
+      const resourceId = await transactionRepository.insertAsset({
+        tenantId: input.tenant_id,
+        actorId: auth?.user_id || "platform_admin",
+        input,
+      });
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId));
+      return wrapResource("assets", item, resourceCapabilities("assets", { admin: true, item }));
     });
-    const item = requireResource(await repository.getResource("assets", resourceId));
-    return wrapResource("assets", item, resourceCapabilities("assets", { admin: true, item }));
   }
 
   async function adminUpdateResource(resourceKey, resourceId, input) {
     requireAssetOperation(resourceKey, "Update");
-    const item = requireResource(await repository.getResource("assets", resourceId));
-    const allowed = resourceCapabilities("assets", { admin: true, item }).canUpdate;
-    if (!allowed) throw resourceError("asset_update_forbidden", "Asset update is not permitted.", 403);
-    const updated = await repository.updateAssetFields(resourceId, input);
-    if (!updated) throw resourceError("no_supported_update_fields", "No supported fields were supplied.", 400);
-    const readback = requireResource(await repository.getResource("assets", resourceId));
-    return wrapResource("assets", readback, resourceCapabilities("assets", { admin: true, item: readback }));
+    return withMutationTransaction(async (transactionRepository) => {
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId));
+      const allowed = resourceCapabilities("assets", { admin: true, item }).canUpdate;
+      if (!allowed) throw resourceError("asset_update_forbidden", "Asset update is not permitted.", 403);
+      const updated = await transactionRepository.updateAssetFields(resourceId, input);
+      if (!updated) throw resourceError("no_supported_update_fields", "No supported fields were supplied.", 400);
+      const readback = requireResource(await transactionRepository.getResource("assets", resourceId));
+      return wrapResource("assets", readback, resourceCapabilities("assets", { admin: true, item: readback }));
+    });
   }
 
   async function adminSetResourceLifecycle(resourceKey, resourceId, lifecycleStatus) {
     requireAssetOperation(resourceKey, lifecycleStatus === "archived" ? "Archive" : "Restore");
-    const item = requireResource(await repository.getResource("assets", resourceId));
-    const capabilities = resourceCapabilities("assets", { admin: true, item });
-    const allowed = lifecycleStatus === "archived" ? capabilities.canArchive : capabilities.canRestore;
-    if (!allowed) throw resourceError("asset_lifecycle_forbidden", `Asset ${lifecycleStatus} is not permitted.`, 403);
-    await repository.setAssetLifecycle(resourceId, lifecycleStatus);
-    const readback = requireResource(await repository.getResource("assets", resourceId));
-    return wrapResource("assets", readback, resourceCapabilities("assets", { admin: true, item: readback }));
+    return withMutationTransaction(async (transactionRepository) => {
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId));
+      const capabilities = resourceCapabilities("assets", { admin: true, item });
+      const allowed = lifecycleStatus === "archived" ? capabilities.canArchive : capabilities.canRestore;
+      if (!allowed) throw resourceError("asset_lifecycle_forbidden", `Asset ${lifecycleStatus} is not permitted.`, 403);
+      await transactionRepository.setAssetLifecycle(resourceId, lifecycleStatus);
+      const readback = requireResource(await transactionRepository.getResource("assets", resourceId));
+      return wrapResource("assets", readback, resourceCapabilities("assets", { admin: true, item: readback }));
+    });
   }
 
   async function adminResourcePermissions(resourceKey, resourceId) {
@@ -204,38 +221,44 @@ export function createResourceApiService({
   async function tenantCreateResource(tenantId, resourceKey, input, auth) {
     requireAssetOperation(resourceKey, "Create");
     requireAssetInput(input);
-    const member = await requireMembership(auth, tenantId);
-    const context = tenantContext(tenantId, member, auth);
-    const resourceId = await repository.insertAsset({ tenantId, actorId: auth.user_id, input });
-    const item = requireResource(await repository.getResource("assets", resourceId, context));
-    return wrapResource("assets", item, resourceCapabilities("assets", { member, item, auth }));
+    return withMutationTransaction(async (transactionRepository) => {
+      const member = await requireMembership(auth, tenantId, transactionRepository);
+      const context = tenantContext(tenantId, member, auth);
+      const resourceId = await transactionRepository.insertAsset({ tenantId, actorId: auth.user_id, input });
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId, context));
+      return wrapResource("assets", item, resourceCapabilities("assets", { member, item, auth }));
+    });
   }
 
   async function tenantUpdateResource(tenantId, resourceKey, resourceId, input, auth) {
     requireAssetOperation(resourceKey, "Update");
-    const member = await requireMembership(auth, tenantId);
-    const context = tenantContext(tenantId, member, auth);
-    const item = requireResource(await repository.getResource("assets", resourceId, context));
-    if (!resourceCapabilities("assets", { member, item, auth }).canUpdate) {
-      throw resourceError("asset_update_forbidden", "Asset update is not permitted.", 403);
-    }
-    const updated = await repository.updateAssetFields(resourceId, input);
-    if (!updated) throw resourceError("no_supported_update_fields", "No supported fields were supplied.", 400);
-    const readback = requireResource(await repository.getResource("assets", resourceId, context));
-    return wrapResource("assets", readback, resourceCapabilities("assets", { member, item: readback, auth }));
+    return withMutationTransaction(async (transactionRepository) => {
+      const member = await requireMembership(auth, tenantId, transactionRepository);
+      const context = tenantContext(tenantId, member, auth);
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId, context));
+      if (!resourceCapabilities("assets", { member, item, auth }).canUpdate) {
+        throw resourceError("asset_update_forbidden", "Asset update is not permitted.", 403);
+      }
+      const updated = await transactionRepository.updateAssetFields(resourceId, input);
+      if (!updated) throw resourceError("no_supported_update_fields", "No supported fields were supplied.", 400);
+      const readback = requireResource(await transactionRepository.getResource("assets", resourceId, context));
+      return wrapResource("assets", readback, resourceCapabilities("assets", { member, item: readback, auth }));
+    });
   }
 
   async function tenantSetResourceLifecycle(tenantId, resourceKey, resourceId, lifecycleStatus, auth) {
     requireAssetOperation(resourceKey, lifecycleStatus === "archived" ? "Archive" : "Restore");
-    const member = await requireMembership(auth, tenantId);
-    const context = tenantContext(tenantId, member, auth);
-    const item = requireResource(await repository.getResource("assets", resourceId, context));
-    const capabilities = resourceCapabilities("assets", { member, item, auth });
-    const allowed = lifecycleStatus === "archived" ? capabilities.canArchive : capabilities.canRestore;
-    if (!allowed) throw resourceError("asset_lifecycle_forbidden", `Asset ${lifecycleStatus} is not permitted.`, 403);
-    await repository.setAssetLifecycle(resourceId, lifecycleStatus);
-    const readback = requireResource(await repository.getResource("assets", resourceId, context));
-    return wrapResource("assets", readback, resourceCapabilities("assets", { member, item: readback, auth }));
+    return withMutationTransaction(async (transactionRepository) => {
+      const member = await requireMembership(auth, tenantId, transactionRepository);
+      const context = tenantContext(tenantId, member, auth);
+      const item = requireResource(await transactionRepository.getResource("assets", resourceId, context));
+      const capabilities = resourceCapabilities("assets", { member, item, auth });
+      const allowed = lifecycleStatus === "archived" ? capabilities.canArchive : capabilities.canRestore;
+      if (!allowed) throw resourceError("asset_lifecycle_forbidden", `Asset ${lifecycleStatus} is not permitted.`, 403);
+      await transactionRepository.setAssetLifecycle(resourceId, lifecycleStatus);
+      const readback = requireResource(await transactionRepository.getResource("assets", resourceId, context));
+      return wrapResource("assets", readback, resourceCapabilities("assets", { member, item: readback, auth }));
+    });
   }
 
   async function tenantPermissions(tenantId, resourceKey, resourceId, auth) {
