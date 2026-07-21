@@ -11,6 +11,8 @@ import {
   runContainerCanaryPromotion,
   buildContainerCanaryRollbackPlan,
   runContainerCanaryRollback,
+  buildContainerCanaryCloseoutPlan,
+  runContainerCanaryCloseout,
   evaluateContainerBypassRetirementReadiness
 } from "./dynamicContainerRolloutSafety.js";
 import { runContainerQueryPlanPreflight } from "./dynamicContainerQueryPlanPreflight.js";
@@ -509,6 +511,120 @@ await assert.rejects(
 assert.equal(canaryRollbackLifecycleFailureExecutor.updateCount,1);
 assert.deepEqual(canaryRollbackLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
 
+const closeoutMonitoring=[{
+  canary_key:"rollout-readiness",
+  capability_key:"getContainerAuthorityRolloutReadiness",
+  rollout_mode:"read_only_canary",
+  required_observation_count:100,
+  observation_count:202,
+  success_count:202,
+  failure_count:0,
+  audit_coverage_percent:100,
+  monitoring_code:"ready_for_review"
+}];
+const closeoutPlan=buildContainerCanaryCloseoutPlan({
+  canaries:rollbackCanaries,
+  monitoringRows:closeoutMonitoring,
+  targetCanaryKey:"rollout-readiness"
+});
+assert.equal(closeoutPlan.closeoutStatus,"accepted");
+assert.equal(closeoutPlan.targetMode,"shadow");
+assert.equal(closeoutPlan.confirmation,"ACCEPT_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_CLOSEOUT");
+assert.equal(closeoutPlan.evidence.observationCount,202);
+assert.equal(closeoutPlan.enforcementApplied,false);
+assert.throws(
+  () => buildContainerCanaryCloseoutPlan({ canaries:rollbackCanaries,monitoringRows:[{ ...closeoutMonitoring[0],failure_count:1 }],targetCanaryKey:"rollout-readiness" }),
+  error => error.code === "container_canary_closeout_failures_present" && error.status === 409
+);
+assert.throws(
+  () => buildContainerCanaryCloseoutPlan({ canaries:rollbackCanaries,monitoringRows:[{ ...closeoutMonitoring[0],observation_count:99,success_count:99 }],targetCanaryKey:"rollout-readiness" }),
+  error => error.code === "container_canary_closeout_observations_incomplete" && error.status === 409
+);
+
+function canaryCloseoutExecutor({ lifecycleAffectedRows=1 } = {}) {
+  let mode="read_only_canary";
+  let closeoutStatus=null;
+  let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  const envelopeId="33333333-4444-4555-8666-777777777777";
+  const calls=[];
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,tenant_id:null,user_id:null,workspace_id:null,workspace_key:null,brand_key:null,
+    app_key:"platform_orchestration",capability_key:"dynamic_container_canary_closeout",
+    operation_intent:"dynamic_container_canary_closeout",risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",selected_runtime_surface:"auth_host",
+    authority_status:"passed",decision:"ready_for_dispatch",envelope_status:"ready_for_dispatch",
+    dispatch_allowed:1,apply_allowed:1,approval_required:0,quota_required:1,audit_required:1,readback_required:1,
+    blocking_gap_count:0,execution_status:executionStatus,expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,envelope_sha256:"c".repeat(64),envelope_json:"{}"
+  });
+  return {
+    calls,envelopeId,
+    get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    beginTransaction:async () => calls.push("begin"),
+    commit:async () => calls.push("commit"),
+    rollback:async () => calls.push("rollback"),
+    query:async (sql,params=[]) => {
+      calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [[envelopeRow()]];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode },rollbackCanaries[1]]];
+      }
+      if(sql.includes("FROM v_container_canary_monitoring_summary")) return [closeoutMonitoring];
+      if(sql.startsWith("UPDATE container_shadow_canary_registry")) {
+        mode="shadow";
+        closeoutStatus="accepted";
+        updateCount += 1;
+        return [{ affectedRows:1 }];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode,closeout_status:closeoutStatus,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) executionStatus="executed";
+        return [{ affectedRows:lifecycleAffectedRows }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    }
+  };
+}
+
+const canaryCloseoutDryRunExecutor=canaryCloseoutExecutor();
+const canaryCloseoutDryRun=await runContainerCanaryCloseout({ executor:canaryCloseoutDryRunExecutor,targetCanaryKey:"rollout-readiness" });
+assert.equal(canaryCloseoutDryRun.mode,"dry_run");
+assert.equal(canaryCloseoutDryRun.plan.closeoutStatus,"accepted");
+assert.equal(canaryCloseoutDryRunExecutor.updateCount,0);
+
+const canaryCloseoutWrongConfirmExecutor=canaryCloseoutExecutor();
+await assert.rejects(
+  runContainerCanaryCloseout({
+    executor:canaryCloseoutWrongConfirmExecutor,targetCanaryKey:"rollout-readiness",apply:true,
+    confirm:"WRONG",capabilityEnvelopeId:canaryCloseoutWrongConfirmExecutor.envelopeId
+  }),
+  error => error.code === "container_canary_closeout_confirmation_required" && error.status === 409
+);
+assert.equal(canaryCloseoutWrongConfirmExecutor.updateCount,0);
+
+const canaryCloseoutApplyExecutor=canaryCloseoutExecutor();
+const canaryCloseoutApplied=await runContainerCanaryCloseout({
+  executor:canaryCloseoutApplyExecutor,targetCanaryKey:"rollout-readiness",apply:true,
+  confirm:"ACCEPT_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_CLOSEOUT",
+  capabilityEnvelopeId:canaryCloseoutApplyExecutor.envelopeId,actor:"test_admin"
+});
+assert.equal(canaryCloseoutApplied.mode,"apply");
+assert.equal(canaryCloseoutApplied.readback.rollout_mode,"shadow");
+assert.equal(canaryCloseoutApplied.readback.closeout_status,"accepted");
+assert.equal(canaryCloseoutApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryCloseoutApplyExecutor.updateCount,1);
+assert.equal(canaryCloseoutApplyExecutor.envelopeUpdateCount,1);
+assert.deepEqual(canaryCloseoutApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
 const enforcedReady={
   rolloutMode:"enforced",
   readinessCode:"ready_for_review",
@@ -538,6 +654,7 @@ const rootOpenapi = readFileSync(new URL("./openapi.yaml",import.meta.url),"utf8
 const routes = readFileSync(new URL("./routes/dynamicContainerAuthorityRoutes.js",import.meta.url),"utf8");
 const canaryMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_promotion_tool.sql",import.meta.url),"utf8");
 const canaryObservabilityMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_runtime_observability.sql",import.meta.url),"utf8");
+const canaryCloseoutMigration = readFileSync(new URL("./migrations/20260720_dynamic_container_canary_closeout_tool.sql",import.meta.url),"utf8");
 const canaryRuntime = readFileSync(new URL("./dynamicContainerCanaryRuntime.js",import.meta.url),"utf8");
 const repository = readFileSync(new URL("./dynamicContainerAuthorityRepository.js",import.meta.url),"utf8");
 const projection = readFileSync(new URL("./dynamicContainerProjectionService.js",import.meta.url),"utf8");
@@ -611,4 +728,23 @@ assert.match(canaryObservabilityMigration,/no_provider_call/);
 assert.match(canaryObservabilityMigration,/no_external_write/);
 assert.match(canaryObservabilityMigration,/secrets_included=false/);
 
-console.log("dynamic container rollout safety, rollback, query-index, graph projection, canary promotion, and runtime observation contracts passed");
+assert.match(routes,/router\.post\("\/admin\/container-authority\/canary-closeouts"/);
+assert.match(routes,/runContainerCanaryCloseout/);
+assert.match(openapi,/adminContainerAuthorityCanaryCloseouts:/);
+assert.match(openapi,/operationId: createAdminContainerAuthorityCanaryCloseout/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_closeout/);
+assert.match(openapi,/CanaryCloseoutRequest:/);
+assert.match(openapi,/CanaryCloseoutResponse:/);
+assert.match(rootOpenapi,/\/admin\/container-authority\/canary-closeouts:/);
+assert.match(rootOpenapi,/adminContainerAuthorityCanaryCloseouts/);
+assert.match(canaryCloseoutMigration,/dynamic_container_canary_closeout_policy_v1/);
+assert.match(canaryCloseoutMigration,/minimum_observation_count/);
+assert.match(canaryCloseoutMigration,/accepted_return_to_shadow_only/);
+assert.match(canaryCloseoutMigration,/transactional_envelope_consumption_required/);
+assert.match(canaryCloseoutMigration,/'dynamic_container_canary_closeout'/);
+assert.match(canaryCloseoutMigration,/'\/admin\/container-authority\/canary-closeouts'/);
+assert.match(canaryCloseoutMigration,/no_provider_call/);
+assert.match(canaryCloseoutMigration,/no_external_write/);
+assert.match(canaryCloseoutMigration,/secrets_included=false/);
+
+console.log("dynamic container rollout safety, rollback, query-index, graph projection, canary promotion, closeout, and runtime observation contracts passed");
