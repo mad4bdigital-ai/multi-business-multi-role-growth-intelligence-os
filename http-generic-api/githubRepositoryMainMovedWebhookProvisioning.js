@@ -4,7 +4,6 @@ import { resolveCredentialReference } from "./credentialResolver.js";
 import { getGitHubAppInstallationToken, resolveGitHubAppConfig } from "./githubAppAuth.js";
 import {
   capabilityEnvelopeError,
-  markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
   transitionCapabilityEnvelopeLifecycle,
 } from "./capabilityResolutionEnvelopeGuard.js";
