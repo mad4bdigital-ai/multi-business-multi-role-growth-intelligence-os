@@ -318,19 +318,6 @@
       "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
     },
     {
-      "rule_id": "tenant-connect-bootstrap-governance",
-      "operation": "POST /connect/bootstrap",
-      "source_file": "routes/connectRoutes.js",
-      "classification": "state_change",
-      "owner": "tenant-activation",
-      "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
-      "preflight": { "mode": "inline_capability_check" },
-      "approval": { "mode": "runtime_authorization" },
-      "readback": { "mode": "inline_post_commit", "same_cycle": true },
-      "parameter_bindings": { "user_id": "auth.user_id", "tenant_id": "auth.tenant_id|response.principal.workspace_key", "mode": "request.body.mode|managed" },
-      "evidence_refs": ["routes/connectRoutes.js", "tenantConnectBootstrapService.js", "test-connect-routes.mjs", "test-tenant-connect-bootstrap-service.mjs", "openapi.yaml"]
-    },
-    {
       "rule_id": "capability-vault-repo-plan-read-action",
       "operation": "POST /platform/capability-vault/repo-ingestion-plan",
       "classification": "read_action",
