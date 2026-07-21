@@ -50,6 +50,13 @@
       "checks_passed": 4,
       "checks_total": 4
     },
+    "migration": {
+      "status": "applied",
+      "file": "20260715_operation_managed_git_worker_leases.sql",
+      "checksum_sha256": "7763cede1b21165b99c91e6f494a212475e5a29a475553815214e50983699ac2",
+      "statement_count": 1,
+      "ledger_run_id": "0a3dff8a-de39-4d0c-a029-7d6f2d142eea"
+    },
     "migrations": [
       {
         "status": "applied",
@@ -96,6 +103,7 @@
     },
     "post_merge_audit": {
       "status": "completed",
+      "run_id": "spec009-post-merge-audit-20260721",
       "schema_readback_verified": true,
       "migration_ledger_readback_verified": true,
       "release_readiness_verified": true,
