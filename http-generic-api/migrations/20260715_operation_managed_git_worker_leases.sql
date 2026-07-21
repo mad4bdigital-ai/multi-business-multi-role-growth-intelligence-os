@@ -17,14 +17,7 @@ CREATE TABLE IF NOT EXISTS operation_managed_git_worker_leases (
   worker_status ENUM(
     'allocated','ready','running','cleaning','cleaned','failed','expired'
   ) NOT NULL DEFAULT 'allocated',
-  active_lease_key CHAR(64)
-    GENERATED ALWAYS AS (
-      CASE
-        WHEN worker_status IN ('allocated','ready','running','cleaning')
-        THEN lease_key_sha256
-        ELSE NULL
-      END
-    ) STORED,
+  active_lease_key CHAR(64) NULL,
   lease_expires_at TIMESTAMP NOT NULL,
   readback_json LONGTEXT NULL,
   error_json LONGTEXT NULL,
