@@ -1,0 +1,17 @@
+{
+  "schema_version": "frontend-operation-governance-test-registry-v1",
+  "tests": [
+    {
+      "file": "test-resource-api-service.mjs",
+      "evidence_scope": "tenant-resource-transactions"
+    },
+    {
+      "file": "test-dynamic-container-rollout-safety.mjs",
+      "evidence_scope": "canary-closeout-transaction"
+    },
+    {
+      "file": "test-tenant-connect-bootstrap-transaction.mjs",
+      "evidence_scope": "tenant-connect-bootstrap-transaction"
+    }
+  ]
+}
