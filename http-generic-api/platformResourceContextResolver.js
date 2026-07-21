@@ -453,6 +453,7 @@ function relatedGraph(graph, anchor) {
   const connectionIds = new Set();
   const brandRefs = new Set();
   const assetIds = new Set();
+  const repositoryBindingKeys = new Set();
 
   const row = anchor.row;
   if (anchor.type === "brand") {
@@ -473,6 +474,12 @@ function relatedGraph(graph, anchor) {
   } else if (anchor.type === "connection") {
     connectionIds.add(row.connection_id);
     if (row.tenant_id) tenantIds.add(row.tenant_id);
+  } else if (anchor.type === "repository") {
+    repositoryBindingKeys.add(row.binding_key);
+    if (row.tenant_id) tenantIds.add(row.tenant_id);
+    if (row.workspace_id) workspaceIds.add(row.workspace_id);
+    if (row.connection_id) connectionIds.add(row.connection_id);
+    if (row.brand_target_key) brandRefs.add(row.brand_target_key);
   }
 
   for (const grant of graph.cmsGrants) {
