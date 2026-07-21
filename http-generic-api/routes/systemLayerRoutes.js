@@ -420,6 +420,7 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+  ...GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
