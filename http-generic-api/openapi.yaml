@@ -5000,6 +5000,8 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryPromotions'
   /admin/container-authority/canary-rollbacks:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
+  /admin/container-authority/canary-closeouts:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryCloseouts'
   /admin/container-authority/canary-probes:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryProbes'
   /admin/container-authority/preview-canary-probes:

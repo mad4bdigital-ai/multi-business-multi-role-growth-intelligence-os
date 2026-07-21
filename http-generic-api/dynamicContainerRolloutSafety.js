@@ -333,6 +333,189 @@ export async function runContainerCanaryRollback({
   }
 }
 
+export function buildContainerCanaryCloseoutPlan({
+  canaries = [],
+  monitoringRows = [],
+  targetCanaryKey,
+  reason = "monitoring_window_accepted"
+} = {}) {
+  const targetKey=String(targetCanaryKey || "").trim();
+  if(!targetKey) throw Object.assign(new Error("targetCanaryKey is required."),{ code:"container_canary_key_required",status:422 });
+  const active=(canaries || []).filter(row => String(row.status || "active") === "active");
+  const target=active.find(row => String(row.canaryKey ?? row.canary_key) === targetKey);
+  if(!target) throw Object.assign(new Error("Active canary candidate was not found."),{ code:"container_canary_not_found",status:404 });
+  const currentMode=String(target.rolloutMode ?? target.rollout_mode ?? "shadow");
+  if(currentMode !== "read_only_canary") {
+    throw Object.assign(new Error("Canary closeout requires an active read_only_canary."),{
+      code:"container_canary_closeout_mode_invalid",status:409
+    });
+  }
+  const monitoring=(monitoringRows || []).find(row => String(row.canaryKey ?? row.canary_key) === targetKey);
+  if(!monitoring) {
+    throw Object.assign(new Error("Canary monitoring evidence was not found."),{
+      code:"container_canary_closeout_monitoring_not_found",status:404
+    });
+  }
+  const observationCount=finiteNumber(monitoring.observationCount ?? monitoring.observation_count);
+  const successCount=finiteNumber(monitoring.successCount ?? monitoring.success_count);
+  const failureCount=finiteNumber(monitoring.failureCount ?? monitoring.failure_count);
+  const auditCoveragePercent=finiteNumber(monitoring.auditCoveragePercent ?? monitoring.audit_coverage_percent);
+  const monitoringCode=String(monitoring.monitoringCode ?? monitoring.monitoring_code ?? "unknown");
+  if(observationCount < 100) {
+    throw Object.assign(new Error("At least 100 current-cycle canary observations are required for closeout."),{
+      code:"container_canary_closeout_observations_incomplete",status:409
+    });
+  }
+  if(failureCount !== 0) {
+    throw Object.assign(new Error("Canary closeout requires zero failures."),{
+      code:"container_canary_closeout_failures_present",status:409
+    });
+  }
+  if(successCount !== observationCount) {
+    throw Object.assign(new Error("Every canary observation must be successful before closeout."),{
+      code:"container_canary_closeout_success_parity_failed",status:409
+    });
+  }
+  if(auditCoveragePercent < 100) {
+    throw Object.assign(new Error("Canary closeout requires 100 percent audit coverage."),{
+      code:"container_canary_closeout_audit_incomplete",status:409
+    });
+  }
+  if(monitoringCode !== "ready_for_review") {
+    throw Object.assign(new Error("Canary monitoring must be ready_for_review before closeout."),{
+      code:"container_canary_closeout_readiness_required",status:409
+    });
+  }
+  const confirmation=`ACCEPT_DYNAMIC_CONTAINER_CANARY_${targetKey.replace(/[^A-Za-z0-9]+/g,"_").toUpperCase()}_CLOSEOUT`;
+  return {
+    canaryKey:targetKey,
+    capabilityKey:String(target.capabilityKey ?? target.capability_key ?? ""),
+    currentMode,
+    targetMode:"shadow",
+    closeoutStatus:"accepted",
+    reason:String(reason || "monitoring_window_accepted"),
+    confirmation,
+    evidence:{ observationCount,successCount,failureCount,auditCoveragePercent,monitoringCode },
+    actions:[
+      "lock_active_canary_rows",
+      "verify_current_cycle_monitoring",
+      "record_accepted_closeout_evidence",
+      "return_accepted_canary_to_shadow",
+      "read_back_exact_canary",
+      "consume_capability_envelope"
+    ],
+    providerCalls:false,
+    credentialPayloadReads:false,
+    externalWrites:false,
+    enforcementApplied:false,
+    secretsIncluded:false
+  };
+}
+
+export async function runContainerCanaryCloseout({
+  executor,
+  targetCanaryKey,
+  apply = false,
+  confirm = null,
+  capabilityEnvelopeId = null,
+  reason = "monitoring_window_accepted",
+  actor = "dynamic_container_canary_closeout"
+} = {}) {
+  if(!executor?.query) throw Object.assign(new Error("A SQL executor is required."),{ code:"container_canary_executor_required",status:500 });
+  let transactionStarted=false;
+  try {
+    if(apply && executor.beginTransaction) {
+      await executor.beginTransaction();
+      transactionStarted=true;
+    }
+    let envelope=null;
+    if(apply) {
+      envelope=await resolveCapabilityExecutionEnvelope({
+        pool:executor,
+        envelopeId:capabilityEnvelopeId,
+        acceptedAppKeys:["platform_orchestration"],
+        acceptedIntents:["dynamic_container_canary_closeout"],
+        acceptedCapabilityKeys:["dynamic_container_canary_closeout"],
+        allowReferenced:false
+      });
+      if(!envelope.ok) throw capabilityEnvelopeError(envelope,"A ready Dynamic Container canary closeout envelope is required.");
+      if(!envelope.apply_allowed) {
+        throw capabilityEnvelopeError({
+          status:"capability_resolution_envelope_apply_not_allowed",
+          envelope_id:envelope.envelope_id,
+          apply_allowed:false,
+          secrets_included:false
+        },"The capability envelope is not apply-authorized for canary closeout.");
+      }
+    }
+    const [canaryRows]=await executor.query(
+      `SELECT canary_key,capability_key,operation_class,rollout_mode,status
+         FROM container_shadow_canary_registry WHERE status='active' ORDER BY canary_key${apply ? " FOR UPDATE" : ""}`
+    );
+    const [monitoringRows]=await executor.query(
+      `SELECT canary_key,capability_key,rollout_mode,required_observation_count,
+              observation_count,success_count,failure_count,audit_coverage_percent,monitoring_code
+         FROM v_container_canary_monitoring_summary WHERE canary_key=? LIMIT 1`,
+      [targetCanaryKey]
+    );
+    const plan=buildContainerCanaryCloseoutPlan({ canaries:canaryRows,monitoringRows,targetCanaryKey,reason });
+    if(!apply) return {
+      ok:true,mode:"dry_run",plan,readback:null,capabilityEnvelope:null,
+      providerCalls:false,credentialPayloadReads:false,externalWrites:false,enforcementApplied:false,secretsIncluded:false
+    };
+    if(confirm !== plan.confirmation) {
+      throw Object.assign(new Error(`Typed confirmation ${plan.confirmation} is required.`),{
+        code:"container_canary_closeout_confirmation_required",status:409
+      });
+    }
+    const [updateResult]=await executor.query(
+      `UPDATE container_shadow_canary_registry
+          SET rollout_mode='shadow',metadata_json=JSON_SET(COALESCE(metadata_json,JSON_OBJECT()),
+              '$.closeout_status','accepted','$.closeout_reason',?,'$.closeout_actor',?,
+              '$.closeout_capability_envelope_id',?,'$.closeout_observation_count',?,
+              '$.closeout_success_count',?,'$.closeout_failure_count',?,
+              '$.closeout_audit_coverage_percent',?,'$.closed_out_from_read_only_canary',TRUE),
+              updated_at=CURRENT_TIMESTAMP
+        WHERE canary_key=? AND status='active' AND rollout_mode='read_only_canary'`,
+      [plan.reason,actor,envelope?.envelope_id || null,plan.evidence.observationCount,
+       plan.evidence.successCount,plan.evidence.failureCount,plan.evidence.auditCoveragePercent,plan.canaryKey]
+    );
+    if(Number(updateResult?.affectedRows || 0) !== 1) {
+      throw Object.assign(new Error("Canary closeout update did not affect the expected row."),{
+        code:"container_canary_closeout_update_conflict",status:409
+      });
+    }
+    const [readbackRows]=await executor.query(
+      `SELECT canary_key,capability_key,operation_class,rollout_mode,status,metadata_json,
+              JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.closeout_status')) AS closeout_status
+         FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1`,
+      [plan.canaryKey]
+    );
+    const readback=readbackRows?.[0];
+    if(!readback || String(readback.rollout_mode) !== "shadow" || String(readback.closeout_status) !== "accepted") {
+      throw Object.assign(new Error("Canary closeout readback did not match accepted shadow state."),{
+        code:"container_canary_closeout_readback_failed",status:409
+      });
+    }
+    const envelopeLifecycle=await transitionCapabilityEnvelopeLifecycle({
+      pool:executor,
+      envelopeId:envelope.envelope_id,
+      action:"consume",
+      executionRef:`dynamic_container_canary_closeout:${plan.canaryKey}`
+    });
+    if(!envelopeLifecycle.ok) throw capabilityEnvelopeError(envelopeLifecycle,"Canary closeout envelope consumption failed.");
+    if(transactionStarted && executor.commit) await executor.commit();
+    return {
+      ok:true,mode:"apply",plan,readback,
+      capabilityEnvelope:{ envelopeId:envelope.envelope_id,executionStatus:envelopeLifecycle?.after?.execution_status || null },
+      providerCalls:false,credentialPayloadReads:false,externalWrites:false,enforcementApplied:false,secretsIncluded:false
+    };
+  } catch(error) {
+    if(transactionStarted && executor.rollback) await executor.rollback().catch(() => null);
+    throw error;
+  }
+}
+
 export function buildContainerCanaryPromotionPlan({ canaries = [], targetCanaryKey, readiness } = {}) {
   const targetKey=String(targetCanaryKey || "").trim();
   if(!targetKey) throw Object.assign(new Error("targetCanaryKey is required."),{ code:"container_canary_key_required",status:422 });
