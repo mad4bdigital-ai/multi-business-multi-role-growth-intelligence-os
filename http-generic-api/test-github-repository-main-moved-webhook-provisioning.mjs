@@ -129,7 +129,7 @@ const applyReason = "Provision the governed repository webhook after reviewed re
         assert.equal(args.allowReferenced, false);
         return { ok: true, envelope_id: "envelope-1", apply_allowed: true, secrets_included: false };
       },
-      markEnvelopeReferenced: async (args) => {
+      claimEnvelopeReferenced: async (args) => {
         lifecycle.push("envelope:referenced");
         assert.equal(args.envelopeId, "envelope-1");
         assert(args.executionRef.includes(expectedCommitSha.slice(0, 12)));
