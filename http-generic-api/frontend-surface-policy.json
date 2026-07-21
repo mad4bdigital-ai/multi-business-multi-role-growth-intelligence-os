@@ -223,6 +223,22 @@
       "evidence_refs": ["routes/connectRoutes.js", "openapi.yaml"]
     },
     {
+      "rule_id": "public-tenant-gpt-oauth-metadata-auth",
+      "operations": [
+        "GET /.well-known/oauth-authorization-server",
+        "GET /.well-known/oauth-protected-resource"
+      ],
+      "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "OAuth authorization-server and protected-resource discovery documents must be reachable before a bearer token exists and expose only standards-based endpoint, scope, and resource metadata.",
+      "evidence_refs": [
+        "routes/tenantGptOAuthMetadataRoutes.js",
+        "test-auth-oauth-routes.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
       "rule_id": "public-auth-flow-auth",
       "operations": [
         "GET /auth/oauth/authorize",

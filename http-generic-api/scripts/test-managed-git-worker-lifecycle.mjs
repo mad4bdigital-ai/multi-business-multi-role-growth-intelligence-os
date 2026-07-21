@@ -22,20 +22,20 @@ class FakePool {
       this.rows.push({
         worker_id: params[0],
         lease_key_sha256: params[1],
-        active_lease_key: params[1],
-        principal_scope: params[2],
-        tenant_id: params[3],
-        user_id: params[4],
-        operation_key: params[5],
-        owner: params[6],
-        repo: params[7],
-        branch_name: params[8],
+        active_lease_key: params[2],
+        principal_scope: params[3],
+        tenant_id: params[4],
+        user_id: params[5],
+        operation_key: params[6],
+        owner: params[7],
+        repo: params[8],
+        branch_name: params[9],
         checkout_strategy: "virtual_git_tree",
-        checkout_head_sha: params[9],
+        checkout_head_sha: params[10],
         final_head_sha: null,
-        workspace_fingerprint: params[10],
+        workspace_fingerprint: params[11],
         worker_status: "allocated",
-        lease_expires_at: params[11],
+        lease_expires_at: params[12],
         allocated_at: new Date("2026-07-15T00:00:00Z"),
         ready_at: null,
         running_at: null,
@@ -66,6 +66,7 @@ class FakePool {
       return [{ affectedRows: row ? 1 : 0 }];
     }
     if (/SET run_id = \?, worker_status = \?/.test(sql)) {
+      assert.match(sql, /active_lease_key = NULL/);
       const row = this.rows.find((item) => item.worker_id === params[5]);
       if (row) Object.assign(row, {
         run_id: params[0], worker_status: params[1], final_head_sha: params[2],
@@ -123,6 +124,7 @@ assert.equal(prepared.status, "ready");
 assert.equal(prepared.checkout_head_sha, HEAD_A);
 assert.equal(prepared.input.managed_worker_id, prepared.worker_id);
 assert.equal(pool.rows[0].principal_scope, "tenant");
+assert.equal(pool.rows[0].active_lease_key, pool.rows[0].lease_key_sha256);
 
 const running = await markManagedGitWorkerRunning({ pool, lifecycle: prepared });
 assert.equal(running.status, "running");
@@ -170,13 +172,9 @@ const migration = readFileSync(
 assert.match(migration, /CREATE TABLE IF NOT EXISTS operation_managed_git_worker_leases/);
 assert.match(migration, /UNIQUE KEY uq_operation_managed_git_worker_active_lease/);
 assert.match(migration, /CHECK \(secrets_included = 0\)/);
+assert.match(migration, /active_lease_key CHAR\(64\) NULL/);
+assert.doesNotMatch(migration, /GENERATED ALWAYS AS/);
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
-const workerStatusOffset = migration.indexOf("worker_status ENUM(");
-const activeLeaseKeyOffset = migration.indexOf("active_lease_key CHAR(64)");
-assert.ok(
-  activeLeaseKeyOffset > workerStatusOffset,
-  "generated active_lease_key must follow worker_status for MariaDB compatibility",
-);
 
 const openapi = readFileSync(
   new URL("../openapi/managed-git-workers.yaml", import.meta.url),

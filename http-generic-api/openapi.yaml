@@ -5985,6 +5985,80 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /.well-known/oauth-authorization-server:
+    get:
+      tags: [identity]
+      security: []
+      operationId: getOAuthAuthorizationServerMetadata
+      summary: Read OAuth authorization-server metadata
+      responses:
+        "200":
+          description: OAuth authorization-server metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - issuer
+                  - authorization_endpoint
+                  - token_endpoint
+                  - response_types_supported
+                  - grant_types_supported
+                  - token_endpoint_auth_methods_supported
+                  - scopes_supported
+                  - resource_parameter_supported
+                properties:
+                  issuer: { type: string, format: uri }
+                  authorization_endpoint: { type: string, format: uri }
+                  token_endpoint: { type: string, format: uri }
+                  response_types_supported:
+                    type: array
+                    items: { type: string }
+                  grant_types_supported:
+                    type: array
+                    items: { type: string }
+                  token_endpoint_auth_methods_supported:
+                    type: array
+                    items: { type: string }
+                  scopes_supported:
+                    type: array
+                    items: { type: string }
+                  resource_parameter_supported: { type: boolean }
+
+  /.well-known/oauth-protected-resource:
+    get:
+      tags: [identity]
+      security: []
+      operationId: getOAuthProtectedResourceMetadata
+      summary: Read OAuth protected-resource metadata
+      responses:
+        "200":
+          description: OAuth protected-resource metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - resource
+                  - authorization_servers
+                  - scopes_supported
+                  - bearer_methods_supported
+                  - resource_documentation
+                properties:
+                  resource: { type: string, format: uri }
+                  authorization_servers:
+                    type: array
+                    items: { type: string, format: uri }
+                  scopes_supported:
+                    type: array
+                    items: { type: string }
+                  bearer_methods_supported:
+                    type: array
+                    items: { type: string }
+                  resource_documentation: { type: string, format: uri }
+
   /health:
     get:
       tags: [health]
