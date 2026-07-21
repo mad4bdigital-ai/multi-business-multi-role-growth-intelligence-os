@@ -847,6 +847,8 @@ export async function platformResourceContextResolve(args = {}, { auth = {}, poo
       site_count: related.sites.length,
       cms_access_grant_count: related.cms_access_grants.length,
       connection_count: related.connections.length,
+      repository_count: related.repositories.length,
+      repository_capability_count: related.repository_capabilities.length,
       brand_context_included: Boolean(brandContext),
     },
     provider_calls_made: 0,
