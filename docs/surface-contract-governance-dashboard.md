@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 40
-- Triaged items: 40
-- Gate candidates: 38
+- Queue items: 41
+- Triaged items: 41
+- Gate candidates: 39
 - New-gap gate: fail
-- Blocking new items: 40
-- Docs completion: 92.77%
+- Blocking new items: 41
+- Docs completion: 92.6%
 - SQL route OpenAPI coverage: 91.67%
 
 ## Top immediate items
@@ -23,6 +23,7 @@
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, add targeted patch-index, parity, and governance documentation
@@ -33,4 +34,3 @@
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260720_github_file_patch_shadow_certification_issue.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
