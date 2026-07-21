@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 33
-- Triaged items: 33
-- Gate candidates: 32
+- Queue items: 38
+- Triaged items: 38
+- Gate candidates: 36
 - New-gap gate: fail
-- Blocking new items: 33
-- Docs completion: 93.96%
+- Blocking new items: 38
+- Docs completion: 93.1%
 - SQL route OpenAPI coverage: 91.67%
 
 ## Top immediate items
@@ -32,5 +32,5 @@
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, add targeted patch-index, parity, and governance documentation
+- `20260720_github_file_patch_shadow_certification_issue.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, add targeted patch-index, parity, and governance documentation

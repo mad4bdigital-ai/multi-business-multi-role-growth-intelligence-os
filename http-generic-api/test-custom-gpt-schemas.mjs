@@ -458,6 +458,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
   const remoteRuntime = readFileSync(resolve(__dirname, "remoteRuntime.js"), "utf8");
   const credentialIntakeRoutes = readFileSync(resolve(__dirname, "routes/credentialIntakeRoutes.js"), "utf8");
+  const platformSecretPromotionService = readFileSync(resolve(__dirname, "services/platformSecretPromotionService.js"), "utf8");
   const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
   const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
   const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
@@ -584,13 +585,22 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("credential intake can auto-promote mapped platform secrets after submit",
     credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
     credentialIntakeRoutes.includes('platform_secret_mappings') &&
-    credentialIntakeRoutes.includes('credential_intake.platform_secrets_auto_promoted'));
+    credentialIntakeRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    platformSecretPromotionService.includes('beginTransaction') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
+    platformSecretPromotionService.includes('credential_intake.platform_secrets_auto_promoted') &&
+    platformSecretPromotionService.includes('secrets_included: false'));
   assert("platform secret promotion dynamically supports mapped encrypted connection types and never returns raw secrets",
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
     credentialRoutes.includes('normalizePromotionMappings') &&
     credentialRoutes.includes('connection.account_metadata.platform_secret_mappings') &&
     credentialRoutes.includes('platform_secret_mappings_required') &&
+    credentialRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    credentialRoutes.includes('createMissingReference: true') &&
+    platformSecretPromotionService.includes('createMissingReference = false') &&
+    platformSecretPromotionService.includes('provisioned_pending_validation') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
     !credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
     credentialRoutes.includes('secrets_included: false'));
   assert("migration 187 registers platform secret intake promotion admin tool",

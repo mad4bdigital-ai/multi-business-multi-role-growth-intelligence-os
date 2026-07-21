@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 
 export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
 const AUTH_HOST = "auth.mad4b.com";
@@ -110,6 +111,12 @@ function isActivationHostAllowedPath(pathname, method) {
       route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
 }
 
+function isTenantGptProtectedPath(pathname, method) {
+  return pathname.startsWith("/tenant/activation/")
+    || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
+      route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
+}
+
 export function activationHostGatewayAllowsOperation(method, pathname) {
   return isActivationHostAllowedPath(pathname, method);
 }
@@ -204,6 +211,11 @@ export function buildActivationHostGatewayRoutes({
       enforced: true,
       secrets_included: false,
     };
+
+    if (isTenantGptProtectedPath(pathname, req.method)) {
+      return requireActivationTenantGptAccessToken(req, res, next);
+    }
+
     return next();
   });
 

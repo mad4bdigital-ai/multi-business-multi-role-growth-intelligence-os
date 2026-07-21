@@ -20,6 +20,10 @@ Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-compl
 - [ ] Corrective migration `20260719_virtual_tool_export_shadow_alignment.sql` is checksum-bound, additive, zero-risk, and applied after the mutation-classification correction.
 - [ ] Virtual-tool capability-export aliases are `shadow` while the canonical manifest is blocked or uncertified; `UNSAFE_ACTIVE_ADMIN_EXPORT` is absent and Tenant exports remain zero.
 - [ ] Admin tool catalog rows and `platform_tool_dispatch_bindings` remain unchanged, and `apply_allowed=0` remains enforced.
+- [ ] Migration `20260720_github_file_patch_shadow_certification_issue.sql` is checksum-bound, additive, non-destructive, and registers only the Admin certification issuer and its policies.
+- [ ] Issuer dry-run verifies the fixed write/cleanup envelopes, execution refs, branch-scoped resource-authority bindings, target shadow exports, and blocked runtime certification before apply.
+- [ ] Certification apply activates only `repository_change_set_apply`, records acknowledgement and same-cycle verification evidence, and certifies the current readback contract with a bounded expiry.
+- [ ] Target runtime dispatch/apply, active capability exports, Tenant authority, and protected-branch access remain unchanged after certification readback.
 
 
 ## GitHub Actions diagnostics endpoint parity
