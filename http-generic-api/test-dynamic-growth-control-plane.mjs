@@ -11,7 +11,11 @@ import {
   validateSchemaDefinition,
   validateValueAgainstSchema
 } from "./src/domain/growthControlPlane/growthControlPlane.js";
-import { createGrowthControlPlaneService } from "./src/application/growthControlPlane/growthControlPlaneService.js";
+import {
+  createGrowthControlPlaneService,
+  _testingGrowthControlPlaneService
+} from "./src/application/growthControlPlane/growthControlPlaneService.js";
+import { _testingDynamicGrowthControlPlaneRoutes } from "./routes/dynamicGrowthControlPlaneRoutes.js";
 
 const schema = {
   type: "object",
