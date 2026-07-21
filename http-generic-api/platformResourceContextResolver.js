@@ -371,6 +371,7 @@ function resourceCatalog(graph, scope) {
       [row.account_label, row.api_base_url, row.app_key],
       row
     )),
+    ...repositoryResourceRecords({ repositories: graph.repositories }),
   ];
 }
 
