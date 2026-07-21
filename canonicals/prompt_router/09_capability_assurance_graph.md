@@ -10,6 +10,8 @@ Before routing to a capability, prompt_router must classify:
 
 Routing must request a fresh capability envelope for the current invocation. Historical envelopes, capability maturity, registration, export, or certification do not independently authorize execution.
 
+When a capability requires an adapter or readback contract, routing must resolve the canonical adapter first. App keys and provider metadata may narrow candidates but must not be used as contract adapter identities. Adapter-contract mismatch and equal-ranked current contracts route to `blocked_readback_or_certification` with their typed reason codes.
+
 Route outcomes include:
 - `diagnose_only`
 - `dry_run`

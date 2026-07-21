@@ -15,6 +15,7 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
+import { ingestCiGuardSignal } from "../ciGuardOperationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
 import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
 import {
@@ -424,6 +425,13 @@ async function operationalAttentionSyncResponse(req, isAdmin) {
   });
 }
 
+async function operationalCiSignalResponse(req) {
+  return ingestCiGuardSignal({
+    input: req.body || {},
+    requestedBy: queryText(req.auth?.user_id || "github_actions", 191),
+  });
+}
+
 async function activationRunArchiveResponse(req, res, isAdmin) {
   try {
     const result = await readActivationRunArchive(getPool(), {
@@ -486,6 +494,15 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
       return res.status(200).json(await operationalAttentionSyncResponse(req, true));
     } catch (err) {
       return errorResponse(res, err, "activation_operational_attention_sync_failed");
+    }
+  });
+
+  router.post("/activation/operational-attention/ci-signals", ...adminGuards, async (req, res) => {
+    try {
+      const result = await operationalCiSignalResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_ci_signal_ingest_failed");
     }
   });
 

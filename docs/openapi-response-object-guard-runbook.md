@@ -79,6 +79,34 @@ Recovery is complete only when:
 
 Before merging a change to this guard, record three consecutive successful manual Custom GPT Contract Guard runs on the proposed head. After merge, confirm at least one successful default-branch run so the alert recovery path is exercised. Run IDs and conclusions should be recorded in the pull-request validation summary.
 
+## SQL operational alert and SLO
+
+Every default-branch guard run sends an idempotent signal to `POST /activation/operational-attention/ci-signals` using the managed backend API key already available to governed runtime-verification workflows. Failure signals open or reopen one SQL operational alert, append a distinct event row, create lifecycle evidence, and queue an in-app notification. A success signal resolves the SQL alert and records recovery time.
+
+The Activation Dashboard exposes the `openapi_guard_slo` tile and `dashboard.ci_guard_slo` payload with these objectives:
+
+- at least one successful default-branch run every 24 hours;
+- failure detection within 300 seconds;
+- recovery within 3,600 seconds.
+
+The GitHub Issue remains the human-facing repository notification. SQL tables remain the platform authority for event history, alert lifecycle, and SLO calculations.
+
+## Controlled failure drill
+
+The `workflow_dispatch` input `drill_mode=fail` runs every real schema and parity validation first, then deliberately fails a final no-write step. It does not modify repository files, generated artifacts, database schemas, or provider state.
+
+Run the production drill in this sequence:
+
+1. Dispatch the workflow on `main` with `drill_mode=fail`.
+2. Confirm one GitHub Issue is created and one SQL alert is open.
+3. Dispatch a second `drill_mode=fail` run.
+4. Confirm the same Issue is updated, the same SQL alert remains open, and a second SQL event exists.
+5. Dispatch with `drill_mode=none`.
+6. Confirm the Issue closes, the SQL alert resolves, recovery time is populated, and the Dashboard SLO reflects the three events.
+7. Record run IDs, Issue number, alert ID, event IDs, timing, merge commit, deployed commit, and release-readiness evidence in `docs/openapi-guard-failure-recovery-drill-report.md`.
+
+A drill is invalid if the real guard fails before the controlled drill step, SQL ingestion is skipped, the Issue is duplicated, or recovery requires a manual lifecycle edit.
+
 ## Escalation
 
 Escalate when the same failure recurs after quoting and regeneration, when generated artifacts differ without source changes, or when the alert lifecycle cannot create/update Issues. Include the failing object path, run URL, head SHA, generation command, and whether the failure occurs before generation, after generation, or only in a generated artifact.
