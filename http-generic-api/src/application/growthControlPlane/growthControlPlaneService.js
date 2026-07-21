@@ -64,8 +64,18 @@ export function createGrowthControlPlaneService({ repository, uuid = randomUUID 
   if (!repository) throw new TypeError("Growth Control Plane repository is required.");
 
   async function listConfigurationDefinitions(input = {}) {
-    const items = await repository.listConfigurationDefinitions(input);
-    return Object.freeze({ items, page: { nextCursor: null, hasMore: false }, secretsIncluded: false });
+    const pageInput = normalizeListPage(input);
+    const rows = await repository.listConfigurationDefinitions({ limit: pageInput.limit + 1, offset: pageInput.offset });
+    const hasMore = rows.length > pageInput.limit;
+    const items = hasMore ? rows.slice(0, pageInput.limit) : rows;
+    return Object.freeze({
+      items,
+      page: {
+        nextCursor: hasMore ? encodeCursor(pageInput.offset + pageInput.limit) : null,
+        hasMore
+      },
+      secretsIncluded: false
+    });
   }
 
   async function createConfigurationDefinition(input, context = {}) {
