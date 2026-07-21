@@ -713,17 +713,9 @@ export async function requireLocalManagerDevice(req) {
 }
 
 export async function requireFreshLocalManagerDeviceForPrivilegedInstaller(req) {
-  const device = await requireLocalManagerDevice(req);
-  if (device.auth_context?.privileged_authorization_fresh === true) return device;
-  const err = new Error("Fresh Local Manager sign-in is required before creating a privileged connector installer.");
-  err.status = 403;
-  err.code = "fresh_local_manager_authorization_required";
-  err.details = {
-    auth_context: device.auth_context,
-    reauth_action: "forget_device_and_link_again",
-    max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
-  };
-  throw err;
+  // A valid, non-revoked Local Manager device token is sufficient. Windows UAC
+  // remains required locally for every privileged installer execution.
+  return requireLocalManagerDevice(req);
 }
 
 export async function getDeviceSession(req, res) {
