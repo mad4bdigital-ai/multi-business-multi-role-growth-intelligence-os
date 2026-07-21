@@ -2,14 +2,12 @@
   "schema_version": 1,
   "feature_key": "006-platform-dynamic-workflow-runtime",
   "title": "Platform Dynamic Workflow Runtime",
-  "status": "completed",
-  "completion_classification": "completed_shadow_only_with_documented_non_blocking_projection_holds",
-  "completed_at": "2026-07-21T16:36:54.063Z",
+  "status": "in_progress",
   "delivery_mode": "multi_pr",
   "current_increment": {
-    "phase": "runtime_closeout_completed",
+    "phase": "authority_scope_shadow_closeout_completed",
     "design_version": "0.3.0",
-    "pull_request": "pending_final_closeout_pr",
+    "pull_request": 2930,
     "branch": "gpt/006-authority-scope-closeout-final-20260721",
     "implementation_started": true,
     "implementation_merged": true,
@@ -22,6 +20,11 @@
     "release_readiness_passed": true,
     "production_activation_authorized": false,
     "enforcement_mode": "shadow_only"
+  },
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
   },
   "delivery": {
     "design_pr": {
@@ -73,13 +76,19 @@
         "migration_ledger_run_id": "128f9543-9fc8-4ca5-bbd1-1aa88671c514"
       }
     ],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/006-authority-scope-closeout-final-20260721",
+      "role": "completion",
+      "status": "current_pr"
+    },
     "superseded_prs": [
       {
         "number": 1968,
         "branch": "gpt/006-authority-scope-closeout",
         "role": "stale_runtime_closeout_draft",
         "status": "superseded_by_fresh_final_closeout_branch",
-        "reason": "branch diverged from main without overlap after later runtime and closeout work landed"
+        "reason": "branch diverged from main without file overlap after later runtime and closeout work landed"
       },
       {
         "number": 1978,
@@ -92,6 +101,23 @@
     ]
   },
   "evidence": {
+    "authority_scope_shadow_closeout": {
+      "status": "complete",
+      "completion_classification": "completed_shadow_only_with_documented_non_blocking_projection_holds",
+      "completed_at": "2026-07-21T16:36:54.063Z",
+      "enforcement_enabled": false,
+      "promotion_requested": false,
+      "production_activation_authorized": false,
+      "provider_calls_made": false,
+      "credential_payloads_read": false,
+      "external_writes_made": false,
+      "secrets_included": false
+    },
+    "ci": {
+      "status": "pending_fresh_pr_checks",
+      "head_sha": "5c2da1e714ee3e4ec4d73679a7987e7b2848dfdf",
+      "note": "Fresh PR checks must pass on the final closeout PR before merge. The root Spec Kit remains in_progress, so this field is informational for the completed Authority Scope shadow increment."
+    },
     "migration": {
       "status": "pass",
       "migration_executed": true,
@@ -233,19 +259,10 @@
       "degraded_surfaces": []
     }
   },
-  "completion_boundaries": {
-    "enforcement_enabled": false,
-    "promotion_requested": false,
-    "production_activation_authorized": false,
-    "provider_calls_made": false,
-    "credential_payloads_read": false,
-    "external_writes_made": false,
-    "secrets_included": false,
-    "next_scope_before_enforcement": [
-      "resolve_or_formally_exclude_workspace_brand_link_missing_holds",
-      "run a new promotion-specific readiness review",
-      "obtain explicit enforcement authorization"
-    ]
-  },
+  "next_scope_before_enforcement": [
+    "resolve_or_formally_exclude_workspace_brand_link_missing_holds",
+    "run a new promotion-specific readiness review",
+    "obtain explicit enforcement authorization"
+  ],
   "secrets_included": false
 }
