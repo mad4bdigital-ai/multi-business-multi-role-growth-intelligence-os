@@ -2,9 +2,9 @@
 
 ## Status
 
-Implemented in pull request #2551 and pending final review and merge.
+Complete. The implementation was merged through pull request #2551, with MariaDB compatibility repairs merged through pull requests #2900 and #2907.
 
-The pull request contains runtime changes, OpenAPI contracts, tests, and three additive database migrations. The migrations are included but have not been applied. No provider write, production deployment, force-push, or merge is part of this delivery step.
+The runtime changes, OpenAPI contracts, tests, and three additive database migrations are deployed. All migrations were applied through the governed migration runner with zero-risk preflight and same-cycle schema and ledger readback. Production parity is verified, and no provider write, force-push, or secret exposure occurred.
 
 ## Objective
 
@@ -74,13 +74,19 @@ Failures use stable JSON envelopes. Upstream HTML or unstructured failures are n
 
 ## Database changes
 
-The pull request includes three additive, forward-only migrations:
+The implementation includes three additive, forward-only migrations:
 
 1. `20260713_operation_run_ownership.sql`
 2. `20260714_operation_generated_artifacts.sql`
 3. `20260715_operation_managed_git_worker_leases.sql`
 
-They are included for review but have not been applied. Production migration execution, rollback validation, deployment, and post-merge verification require separate governed operations and approvals.
+All three migrations were applied through separately approved governed operations:
+
+- `20260713_operation_run_ownership.sql`: ledger run `cea67306-04da-4ad5-b231-63d8f2a65498`.
+- `20260714_operation_generated_artifacts.sql`: ledger run `38c37277-001f-49f4-b3b5-3cf2fcff056e`.
+- `20260715_operation_managed_git_worker_leases.sql`: ledger run `0a3dff8a-de39-4d0c-a029-7d6f2d142eea` after the MariaDB compatibility repairs in PRs #2900 and #2907.
+
+Each execution passed checksum validation, statement-count validation, zero-risk preflight, and same-cycle schema and ledger readback. No destructive operation or backfill was required.
 
 ## Admin/Tenant matrix
 
@@ -113,4 +119,4 @@ They are included for review but have not been applied. Production migration exe
 
 ## Delivery state
 
-The implementation branch is synchronized with `main`, and the required CI checks passed on the reconciled implementation head recorded in `completion.json`. Final review, merge, migration application, deployment, production verification, and post-merge audit remain separate governed steps.
+Delivery is complete. The implementation and repair pull requests were merged after all required checks passed, the three migrations were applied through the governed runner, production parity was verified, and post-merge audit evidence is recorded in `completion.json`.
