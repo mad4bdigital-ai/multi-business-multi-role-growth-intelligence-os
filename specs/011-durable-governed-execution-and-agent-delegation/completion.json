@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-durable-governed-execution-and-agent-delegation",
+  "title": "Durable Governed Execution and Agent Delegation",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/spec-011-durable-governed-execution-20260721",
+      "role": "specification",
+      "status": "current_branch"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete",
+      "durable_execution_kernel": true,
+      "canonical_execution_resolver": true,
+      "approval_delegation_modes": true,
+      "plan_bound_sessions": true,
+      "reconciliation_framework": true,
+      "migration_validation_lab": true,
+      "structured_ci": true,
+      "managed_pr_release": true,
+      "auto_closeout": true,
+      "goal_filtered_attention": true
+    },
+    "implementation": {
+      "status": "not_started"
+    },
+    "ci": {
+      "status": "pending_specification_pr"
+    },
+    "migration": {
+      "status": "pending_gap_analysis_and_design"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "sensitive_values_included": false
+}
