@@ -98,6 +98,8 @@ tags:
     description: DB-backed connected execution session, checkpoint, evidence, and resume-action metadata surfaces.
   - name: container-authority
     description: Dynamic multi-parent container authority previews, governed assignments, projections, shadow evidence, and explicit override governance.
+  - name: growth-control-plane
+    description: Admin-governed configuration definitions, immutable draft versions, Activity Packs, brand activity bindings, and deterministic resolution evidence.
 
 components:
   securitySchemes:
