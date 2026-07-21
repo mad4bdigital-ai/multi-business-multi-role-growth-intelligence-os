@@ -24,6 +24,8 @@ import {
 } from "../googleAuthPlatformConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHubAppConfig } from "../githubAppAuth.js";
+import { GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS } from "../githubRepositoryMainMovedWebhookProvisioning.js";
+import * as GitHubRepositoryMainMovedWebhookProvisioningRuntime from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
 import {
@@ -418,6 +420,7 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+  ...GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
@@ -495,6 +498,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
     handlers: PlatformResourceContextRuntime,
     readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "github_repository_main_moved_webhook_provisioning_v1",
+    tools: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
+    handlers: GitHubRepositoryMainMovedWebhookProvisioningRuntime,
+    readiness_tool: "github_repository_main_moved_webhook_provisioning_readiness_smoke",
     readiness_args: {},
   },
   {

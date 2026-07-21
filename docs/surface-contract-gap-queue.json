@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 42,
+  "total_items": 43,
   "class_counts": {
     "critical_review": 21,
-    "high_review": 19,
+    "high_review": 20,
     "medium_review": 2,
     "low_review": 0
   },
@@ -1319,7 +1319,7 @@
     },
     {
       "migration_file": "20260714_supervisor_runtime_admin_tool_exports.sql",
-      "score": 721,
+      "score": 720,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1389,7 +1389,7 @@
     },
     {
       "migration_file": "20260718_repair_activation_session_context_tool_registration.sql",
-      "score": 719,
+      "score": 718,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2640,7 +2640,7 @@
     },
     {
       "migration_file": "20260716_github_list_repository_issues_array_contract.sql",
-      "score": 535,
+      "score": 534,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -2984,8 +2984,74 @@
       }
     },
     {
+      "migration_file": "20260721_github_file_patch_runtime_authority_preservation_metadata.sql",
+      "score": 510,
+      "queue_class": "high_review",
+      "gap_severity": "medium",
+      "documentation_complete": false,
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 0,
+        "policies": 1,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "owner_hint": "runtime-policy-review",
+          "targets": [
+            "github_file_patch_shadow_certification_issue_policy_v1"
+          ],
+          "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260720_credential_intake_platform_secret_governance_hardening.sql",
-      "score": 411,
+      "score": 410,
       "queue_class": "medium_review",
       "gap_severity": "low",
       "documentation_complete": false,

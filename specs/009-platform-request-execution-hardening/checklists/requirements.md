@@ -29,33 +29,36 @@
 
 ## Change boundaries
 
-- [x] Runtime implementation is included.
+- [x] Runtime implementation is included and merged through PR #2551.
 - [x] Three additive database migrations are included.
-- [x] Included migrations have not been applied.
-- [x] No destructive migration or backfill is included.
-- [x] No provider write is performed.
-- [x] No production deployment is performed.
-- [x] No force-push is performed.
-- [x] No merge is performed by this change set.
-- [x] No secrets or credentials are included.
+- [x] All three migrations were applied through the governed migration runner.
+- [x] No destructive migration or backfill was included.
+- [x] No provider write was performed.
+- [x] Production deployment occurred through release governance rather than direct repository execution.
+- [x] No force-push was performed.
+- [x] Repair changes were reviewed and merged through PRs #2900 and #2907.
+- [x] No secrets or credentials were included.
 
 ## Validation and evidence
 
-- [x] The implementation branch is synchronized with `main` before final validation.
-- [x] Syntax Check passed on the reconciled implementation head.
-- [x] Architecture Drift Detection passed on the reconciled implementation head.
-- [x] Execution Resolver Gate passed on the reconciled implementation head.
-- [x] Unit & Integration Tests passed on the reconciled implementation head.
+- [x] The implementation branch was synchronized with `main` before final validation.
+- [x] Syntax Check passed on the reconciled implementation and repair heads.
+- [x] Architecture Drift Detection passed on the reconciled implementation and repair heads.
+- [x] Execution Resolver Gate passed on the reconciled implementation and repair heads.
+- [x] Unit & Integration Tests passed on the reconciled implementation and repair heads.
 - [x] Tenant ownership and cross-tenant denial behavior is covered.
 - [x] Managed Git worker lease, pinning, isolation, cleanup, expiry, and readback behavior is covered.
+- [x] MariaDB compatibility for active worker lease uniqueness is covered by regression tests.
 - [x] Admin read-only pilot evidence is recorded.
 - [x] Selected Tenant read-only pilot evidence is recorded.
 - [x] Pilot evidence confirms no provider mutation and no secret/raw payload exposure.
 
-## Remaining governed steps
+## Governed closeout
 
-- [ ] Required reviewer approval is recorded.
-- [ ] Pull request is merged after all required checks remain green.
-- [ ] Included migrations are applied through a separately approved production operation.
-- [ ] Production deployment and verification are completed through release governance.
-- [ ] Post-merge audit is recorded.
+- [x] Required review and CI evidence was recorded before each merge.
+- [x] PR #2551 was merged and its implementation is present on `main`.
+- [x] Repair PRs #2900 and #2907 were merged after all required checks passed.
+- [x] Included migrations were applied through separately approved production operations.
+- [x] Production deployment and parity verification completed through release governance.
+- [x] Schema and migration-ledger readback verified all three database objects.
+- [x] Post-merge audit evidence is recorded in `completion.json`.
