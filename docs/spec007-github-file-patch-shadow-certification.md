@@ -20,7 +20,7 @@ Issue an evidence-backed generic certification for `github_file_patch_apply` wit
 - Record separate acknowledgement and same-cycle readback verification evidence.
 - Issue a time-bounded generic `shadow_certified` certification for `github_file_patch_apply` without linking it to runtime dispatch certification.
 - Certify the current readback contract `github_file_patch_apply__github_change_set_branch_head_v1__52d0eb30144b4bb4` while preserving shadow rollout.
-- Keep `runtime_dispatch_certification_registry` unchanged, including `dispatch_allowed=0` and `apply_allowed=0` for the after-review surface.
+- Keep the existing `runtime_dispatch_certification_registry` snapshot unchanged for the after-review surface, including its current dispatch/apply values, certification status, evidence reference, timestamps, and required resource-authority, dry-run, audit-evidence, and readback guards.
 - Keep capability exports shadow-only and Tenant exports absent.
 
 ## Safety boundaries

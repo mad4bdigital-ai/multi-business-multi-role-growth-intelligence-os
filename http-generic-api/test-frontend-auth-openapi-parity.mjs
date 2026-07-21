@@ -113,8 +113,11 @@ const resourceMutationSignatures = [
 for (const signature of resourceMutationSignatures) {
   const entry = operation(signature, "routes/resourceApiRoutes.js");
   assert.equal(entry.governance.classification, "state_change");
-  assert.equal(entry.governance.controls.readback.mode, "inline_post_commit");
-  assert(entry.governance.blockers.includes("mutation_rollback_gap"), `${signature} must remain blocked until failure rollback/compensation is implemented`);
+  assert.equal(entry.governance.classification_source, "generated_operation_rule");
+  assert.equal(entry.governance.controls.readback.mode, "transactional_readback");
+  assert.equal(entry.governance.controls.readback.before_commit, true);
+  assert.equal(entry.governance.controls.rollback.mode, "transaction");
+  assert.deepEqual(entry.governance.blockers, [], `${signature} must be governed by verified atomic rollback evidence`);
 }
 
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");

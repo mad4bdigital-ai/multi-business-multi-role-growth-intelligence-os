@@ -246,31 +246,81 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
       classification: "read_action",
       owner: "tenant-ui",
       rationale: "Preview calculates a response without persisting state."
-    },
-    {
-      rule_id: "admin-verification-run",
-      operation: "POST /admin/runtime/verification/run",
-      classification: "state_change",
-      owner: "runtime-operations",
-      rationale: "Verification runs are persisted and read back in the same governed flow.",
-      preflight: { mode: "operation", operation: "GET /admin/runtime/verification" },
-      approval: { mode: "runtime_authorization" },
-      readback: { mode: "operation", operation: "GET /admin/runtime/verification/readback" },
-      rollback: { mode: "transaction" },
-      parameter_bindings: {},
-      evidence_refs: ["test-admin-runtime-verification.mjs"]
     }
   ]
+}));
+write(apiRoot, "frontend-operation-governance.generated.json", JSON.stringify({
+  schema_version: "frontend-operation-governance-v1",
+  generator: { id: "fixture-generator", source_digest: "a".repeat(64), fail_closed: true },
+  source_authority: [],
+  coverage: { candidate_count: 1, generated_rule_count: 1, rejected_candidate_count: 0 },
+  operation_rules: [{
+    rule_id: "generated-admin-verification-run",
+    operation: "POST /admin/runtime/verification/run",
+    classification: "state_change",
+    owner: "runtime-operations",
+    rationale: "Verification runs are persisted and read back in the same governed flow.",
+    preflight: { mode: "operation", operation: "GET /admin/runtime/verification" },
+    approval: { mode: "runtime_authorization" },
+    readback: { mode: "operation", operation: "GET /admin/runtime/verification/readback" },
+    rollback: { mode: "transaction" },
+    parameter_bindings: {},
+    evidence_refs: ["test-admin-runtime-verification.mjs"],
+    generated_evidence: { recipe_id: "fixture", source_digest: "b".repeat(64), fail_closed: true },
+  }],
+  rejected_candidates: [],
+  safety: {
+    writes_runtime_source: false,
+    writes_database: false,
+    executes_provider_calls: false,
+    deploys: false,
+    secrets_included: false,
+  },
 }));
 
 const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
 assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/);
 assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
+const boundedEvidenceFilter = frontendDispatchWorkflow.split("\n").find((line) => line.includes("UNEXPECTED=")) || "";
+assert.ok(
+  boundedEvidenceFilter.includes("(http-generic-api/)?"),
+  "bounded evidence filter must accept repository-root relative paths",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("frontend-operation-governance\\.generated\\.json"),
+  "bounded evidence filter must include the generated operation-governance file",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("frontend-surface-dispatch\\.generated\\.json"),
+  "bounded evidence filter must include the dispatch evidence file",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("openapi/frontend-runtime-routes\\.generated\\.yaml"),
+  "bounded evidence filter must include the generated OpenAPI index",
+);
+assert.ok(
+  boundedEvidenceFilter.includes("yaml)" + "$" + "' || true)"),
+  "manual evidence refresh must use a closed and end-anchored bounded-file filter",
+);
 if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
   assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
   assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
   assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
 }
+
+const repositorySurfacePolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
+const repositoryDispatchSource = fs.readFileSync(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url), "utf8");
+const repositoryWebhookOpenApi = YAML.parse(fs.readFileSync(new URL("./openapi/github-repository-main-moved-webhook.yaml", import.meta.url), "utf8"));
+const repositoryWebhookAuthRule = repositorySurfacePolicy.auth_rules.find(
+  (rule) => rule.operation === "POST /webhooks/github/repository-main-moved",
+);
+assert.equal(repositoryWebhookAuthRule?.profile, "github_webhook_hmac", "webhook auth policy must use the resolver profile");
+assert.match(repositoryDispatchSource, /github_webhook_hmac:\s*\{[^}]*githubWebhookSignature/s);
+assert.deepEqual(
+  repositoryWebhookOpenApi.paths["/webhooks/github/repository-main-moved"].post.security,
+  [{ githubWebhookSignature: [] }],
+  "webhook OpenAPI security must match the runtime HMAC profile",
+);
 
 assert.equal(isDirectExecution(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url).href, process.argv[1]), false);
 assert.equal(normalizeRoutePath("/runtime/parity/:environmentKey?"), "/runtime/parity/{environmentKey}");
@@ -407,6 +457,16 @@ assert.equal(plan.coverage.non_get_candidate_count, 9);
 assert.equal(plan.coverage.classified_mutation_count, 1);
 assert.equal(plan.coverage.governed_mutation_operation_count, 1);
 assert.equal(plan.coverage.unresolved_operation_class_count, 7);
+assert.equal(
+  plan.families
+    .find((family) => family.source_file === "routes/adminRoutes.js")
+    .operations
+    .find((operation) => operation.signature === "POST /admin/runtime/verification/run")
+    .governance.classification_source,
+  "generated_operation_rule",
+  "checksum-bound generated rules must be merged into operation governance"
+);
+assert(plan.baseline.authority.some((entry) => entry.file === "frontend-operation-governance.generated.json"));
 assert(plan.families.find((family) => family.source_file === "routes/dynamicTeamRoutes.js").operation_blockers.every((entry) => entry.blockers.includes("operation_classification_gap")));
 assert.equal(plan.safety.secrets_included, false);
 assert.equal(JSON.stringify(plan).includes("configuration_dependencies"), true);

@@ -180,6 +180,7 @@ flowchart TD
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
+| `dynamic_container_canary_closeout_policy_v1` | 1 |
 | `dynamic_container_canary_promotion_policy_v1` | 1 |
 | `dynamic_container_canary_rollback_policy_v1` | 1 |
 | `dynamic_container_projection_apply_policy_v1` | 1 |
@@ -196,7 +197,7 @@ flowchart TD
 | `external_provider_gate_registry_resolver_policy_v1` | 3 |
 | `final_pattern_enforcement_policy_v1` | 1 |
 | `github_file_content_read_gate_policy_v1` | 1 |
-| `github_file_patch_shadow_certification_issue_policy_v1` | 1 |
+| `github_file_patch_shadow_certification_issue_policy_v1` | 2 |
 | `google_ads_budget_change_preflight_policy_v1` | 2 |
 | `google_ads_budget_execution_adapter_skeleton_policy_v1` | 5 |
 | `google_ads_budget_preflight_binding_policy_v1` | 1 |

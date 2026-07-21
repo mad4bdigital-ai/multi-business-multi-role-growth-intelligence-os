@@ -7,11 +7,14 @@ For governed capability execution, module_loader must resolve and return:
 - fresh capability envelope and expiry;
 - capability-specific effective resource bindings when resource-scoped authority is required;
 - approval and quota state when required;
+- canonical resource adapter identity resolved before certification and readback contract selection;
 - audit, readback, certification, and rollback requirements;
 - resolved source provenance;
 - open blocking capability debt.
 
 The loader must keep invocation authority and resource authority separate. Admin or Tenant tool exposure may satisfy neither a missing actor scope nor a missing external-resource binding. The existence of an unrelated active binding must never mark a capability resource-ready.
+
+App keys, provider keys, resource types, and runtime surfaces remain selectors. Loader output must retain the selected canonical `adapter_key`, reject an explicit contract bound to another adapter, and block equal-ranked current readback contracts as ambiguous.
 
 Required assurance surfaces include:
 - `platform_plugin_capabilities`
