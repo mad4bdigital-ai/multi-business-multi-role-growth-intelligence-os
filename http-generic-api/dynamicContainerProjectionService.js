@@ -124,6 +124,10 @@ async function loadProjectionSources(executor = getPool()) {
       const [rows] = await executor.query(queries[index]);
       source[sourceName] = Array.isArray(rows) ? rows : [];
     } catch (cause) {
+      if (optionalSources.has(sourceName) && ["ER_NO_SUCH_TABLE","ER_BAD_TABLE_ERROR"].includes(cause?.code)) {
+        source[sourceName] = [];
+        continue;
+      }
       const error = new Error(`Container projection source load failed for ${sourceName}.`);
       error.code = "container_projection_source_load_failed";
       error.status = 503;
