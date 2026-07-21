@@ -53,13 +53,17 @@ function baseRows(overrides = {}) {
       certification_key: t.RUNTIME_CERTIFICATION_KEY,
       surface_key: "github.file.patch_apply_after_review",
       tool_or_action_key: "repo_patch_apply",
-      certification_status: "after_review_gate_registered_positive_smoke_pending",
-      dispatch_allowed: 0,
-      apply_allowed: 0,
+      certification_status: "positive_smoke_passed_after_review_gate_certified",
+      dispatch_allowed: 1,
+      apply_allowed: 1,
       requires_resource_authority: 1,
       requires_dry_run: 1,
       requires_audit_evidence: 1,
       requires_readback: 1,
+      last_evidence_ref: "F5:repo_patch_apply:positive_smoke",
+      last_certified_at: "2026-06-12T11:55:39.000Z",
+      expires_at: null,
+      updated_at: "2026-06-12T11:55:39.000Z",
     }],
     envelopes: [{
       envelope_id: t.WRITE_ENVELOPE_ID,
@@ -126,8 +130,10 @@ assert.equal(preview.ok, true);
 assert.equal(preview.mode, "dry_run");
 assert.equal(preview.apply_ready, true);
 assert.equal(preview.current_state.capability_apply_allowed, false);
-assert.equal(preview.current_state.runtime_dispatch_allowed, false);
-assert.equal(preview.current_state.runtime_apply_allowed, false);
+assert.equal(preview.current_state.runtime_dispatch_allowed, true);
+assert.equal(preview.current_state.runtime_apply_allowed, true);
+assert.equal(preview.target.runtime_authority_before.dispatch_allowed, true);
+assert.equal(preview.target.runtime_authority_before.apply_allowed, true);
 assert.equal(preview.current_state.active_capability_export_count, 0);
 assert.equal(preview.current_state.tenant_export_count, 0);
 assert.equal(preview.mutations_performed, false);
@@ -135,6 +141,17 @@ assert.equal(preview.provider_calls_performed, false);
 assert.equal(preview.external_writes_performed, false);
 assert.match(preview.plan_hash, /^[0-9a-f]{64}$/);
 assert.equal(preview.expected_confirmation, GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM);
+
+const changedRuntimePreview = await issueGithubFilePatchShadowCertification(
+  { mode: "dry_run" },
+  {
+    pool: fakePool(baseRows({
+      runtime: [{ ...baseRows().runtime[0], apply_allowed: 0, updated_at: "2026-07-20T21:00:00.000Z" }],
+    })),
+  },
+);
+assert.equal(changedRuntimePreview.apply_ready, true);
+assert.notEqual(changedRuntimePreview.plan_hash, preview.plan_hash);
 
 await assert.rejects(
   () => issueGithubFilePatchShadowCertification({ mode: "apply", confirm: "WRONG" }, { pool: fakePool(baseRows()) }),
@@ -190,13 +207,29 @@ const readback = t.verifyReadback({
   runtime_certification: certifiedRows.runtime[0],
   envelopes: Object.fromEntries(certifiedRows.envelopes.map((row) => [row.envelope_id, row])),
   bindings: Object.fromEntries(certifiedRows.bindings.map((row) => [row.binding_id, row])),
-});
+}, t.runtimeAuthoritySnapshot(certifiedRows.runtime[0]));
 assert.equal(readback.ok, true);
+assert.equal(readback.runtime_authority_preserved, true);
 assert.equal(readback.adapter_status, "active");
 assert.equal(readback.contract_status, "certified");
 assert.equal(readback.certification_status, "shadow_certified");
-assert.equal(readback.runtime_dispatch_allowed, false);
-assert.equal(readback.runtime_apply_allowed, false);
+assert.equal(readback.runtime_dispatch_allowed, true);
+assert.equal(readback.runtime_apply_allowed, true);
+
+const changedRuntimeReadback = t.verifyReadback({
+  adapter: certifiedRows.adapter[0],
+  contract: certifiedRows.contract[0],
+  capability: certifiedRows.capability[0],
+  certification: certifiedRows.certification[0],
+  evidence: Object.fromEntries(certifiedRows.evidence.map((row) => [row.evidence_id, row])),
+  exports: certifiedRows.exports,
+  runtime_certification: { ...certifiedRows.runtime[0], apply_allowed: 0 },
+  envelopes: Object.fromEntries(certifiedRows.envelopes.map((row) => [row.envelope_id, row])),
+  bindings: Object.fromEntries(certifiedRows.bindings.map((row) => [row.binding_id, row])),
+}, t.runtimeAuthoritySnapshot(certifiedRows.runtime[0]));
+assert.equal(changedRuntimeReadback.ok, false);
+assert.equal(changedRuntimeReadback.runtime_authority_preserved, false);
+assert(changedRuntimeReadback.errors.includes("RUNTIME_AUTHORITY_CHANGED"));
 
 const migration = fs.readFileSync(
   new URL("./migrations/20260720_github_file_patch_shadow_certification_issue.sql", import.meta.url),
