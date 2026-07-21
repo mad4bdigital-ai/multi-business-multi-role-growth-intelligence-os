@@ -97,6 +97,7 @@ try {
 
   assert.equal(deploymentInfo.commit_sha, commitSha, "deployment-info must prioritize canonical manifest commit");
   assert.equal(deploymentInfo.branch, "main", "deployment-info must prioritize canonical manifest branch");
+  assert.equal(deploymentInfo.expected_dev_branch, "main", "main is the canonical staging branch");
   assert.equal(deploymentInfo.deployment.present, true);
   assert.equal(deploymentInfo.deployment.commit_sha, commitSha);
   assert.equal(deploymentInfo.evidence.canonical_manifest_detected, true);
