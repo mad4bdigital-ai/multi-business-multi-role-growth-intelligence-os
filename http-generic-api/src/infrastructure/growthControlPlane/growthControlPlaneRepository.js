@@ -115,9 +115,11 @@ export function createGrowthControlPlaneRepository({ resolvePool }) {
 
   async function listConfigurationDefinitions({ limit = 25, offset = 0 } = {}) {
     const pool = await resolvePool();
+    const fetchLimit = Math.max(1, Math.min(101, Number(limit)));
+    const fetchOffset = Math.max(0, Number(offset));
     const [rows] = await sql(pool,
       "SELECT * FROM growth_control_config_definitions ORDER BY config_key LIMIT ? OFFSET ?",
-      [Math.max(1, Math.min(100, Number(limit))), Math.max(0, Number(offset))]
+      [fetchLimit, fetchOffset]
     );
     return rows.map(definitionRow);
   }
