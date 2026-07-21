@@ -43,6 +43,11 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "local-agent-runtime.mjs": {
+    relativePath: "local-connector/local-agent-runtime.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
 
 const LOCAL_TOOL_RELEASES = [
