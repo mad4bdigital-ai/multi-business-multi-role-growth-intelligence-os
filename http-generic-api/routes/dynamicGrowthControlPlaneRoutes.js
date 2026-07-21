@@ -54,7 +54,8 @@ export function buildDynamicGrowthControlPlaneRoutes({
   // frontend-surface-operation: GET /admin/control-plane/configurations
   router.get("/admin/control-plane/configurations", ...requireAdmin, async (req, res) => {
     try {
-      const result = await controlPlane.listConfigurationDefinitions({ limit: req.query.limit, offset: req.query.offset });
+      assertAllowedKeys(req.query, new Set(["limit", "cursor"]));
+      const result = await controlPlane.listConfigurationDefinitions({ limit: req.query.limit, cursor: req.query.cursor });
       return res.json(result);
     } catch (error) { return errorResponse(req, res, error); }
   });
