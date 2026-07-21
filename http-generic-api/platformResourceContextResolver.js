@@ -315,6 +315,13 @@ function brandAuthorityReferences(graph) {
       row.normalized_domain,
       row.site_url,
     ]),
+    ...graph.repositories.flatMap((row) => [
+      row.brand_target_key,
+      row.workspace_id,
+      row.app_key,
+      row.binding_key,
+      row.full_name,
+    ]),
   ]);
 }
 
