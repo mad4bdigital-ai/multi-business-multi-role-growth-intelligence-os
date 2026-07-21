@@ -236,13 +236,13 @@ export async function prepareManagedGitWorkerLifecycle({
     await db(
       pool,
       `INSERT INTO operation_managed_git_worker_leases (
-         worker_id, lease_key_sha256, principal_scope, tenant_id, user_id,
+         worker_id, lease_key_sha256, active_lease_key, principal_scope, tenant_id, user_id,
          operation_key, owner, repo, branch_name, checkout_strategy,
          checkout_head_sha, workspace_fingerprint, worker_status,
          lease_expires_at, secrets_included
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'virtual_git_tree', ?, ?, 'allocated', ?, 0)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'virtual_git_tree', ?, ?, 'allocated', ?, 0)`,
       [
-        workerId, leaseKey, actor.scope, actor.tenant_id, actor.user_id,
+        workerId, leaseKey, leaseKey, actor.scope, actor.tenant_id, actor.user_id,
         operation, context.owner, context.repo, context.branch,
         checkoutHeadSha, fingerprint, leaseExpiresAt,
       ],
@@ -356,7 +356,7 @@ export async function finalizeManagedGitWorkerLifecycle({
   await db(
     pool,
     `UPDATE operation_managed_git_worker_leases
-        SET run_id = ?, worker_status = ?, final_head_sha = ?,
+        SET run_id = ?, worker_status = ?, active_lease_key = NULL, final_head_sha = ?,
             readback_json = ?, error_json = ?, released_at = NOW(), updated_at = NOW()
       WHERE worker_id = ?`,
     [
@@ -429,7 +429,8 @@ export async function expireManagedGitWorkerLeases({ pool, limit = 100 } = {}) {
     await db(
       pool,
       `UPDATE operation_managed_git_worker_leases
-          SET worker_status = 'expired', error_json = ?, released_at = NOW(), updated_at = NOW()
+          SET worker_status = 'expired', active_lease_key = NULL,
+              error_json = ?, released_at = NOW(), updated_at = NOW()
         WHERE worker_id = ?
           AND worker_status IN ('allocated','ready','running','cleaning')`,
       [
