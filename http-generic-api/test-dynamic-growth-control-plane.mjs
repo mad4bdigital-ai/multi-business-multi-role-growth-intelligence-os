@@ -157,6 +157,11 @@ assert.equal(preview.values.maxResources, 2);
 assert.equal(preview.providerCalls, false);
 assert.equal(preview.externalWrites, false);
 
+const pageResult = await service.listConfigurationDefinitions({ limit: 1 });
+assert.equal(pageResult.items.length, 1);
+assert.equal(pageResult.page.hasMore, false);
+assert.equal(pageResult.page.nextCursor, null);
+
 const migration = readFileSync("migrations/20260720_dynamic_growth_control_plane_foundation.sql", "utf8");
 for (const table of [
   "growth_control_config_definitions",
