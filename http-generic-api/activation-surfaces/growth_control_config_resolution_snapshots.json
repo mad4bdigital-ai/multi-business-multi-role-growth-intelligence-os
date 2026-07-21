@@ -1,0 +1,33 @@
+{
+  "surface_key": "growth_control_config_resolution_snapshots",
+  "display_name": "Growth Control Configuration Resolution Evidence",
+  "description": "Tenant-scoped immutable resolution evidence and deterministic hashes without resolved configuration payloads.",
+  "source_table": "growth_control_config_resolution_snapshots",
+  "result_key_column": "resolution_id",
+  "result_label_column": "config_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": null,
+  "active_status_values": [],
+  "result_columns": [
+    "resolution_id",
+    "config_key",
+    "tenant_id",
+    "workspace_id",
+    "brand_key",
+    "activity_type_key",
+    "activity_binding_id",
+    "workflow_key",
+    "workflow_version",
+    "plan_id",
+    "execution_id",
+    "resolved_sha256",
+    "resolved_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 220,
+  "status": "active",
+  "notes": "Repo-managed read-only evidence surface. Resolved values, lineage, conflicts, and actor fields are intentionally excluded."
+}
