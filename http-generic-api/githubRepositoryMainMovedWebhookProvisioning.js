@@ -296,11 +296,15 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     if (governanceReason.length < 20) {
       fail("github_webhook_apply_reason_required", "Apply requires a reason of at least 20 characters.", 400);
     }
+    const capabilityEnvelopeId = text(input.capability_envelope_id, 64);
+    if (!capabilityEnvelopeId) {
+      fail("capability_resolution_envelope_required", "Apply requires a capability_envelope_id before any database, secret, or GitHub access.", 403);
+    }
     governancePool = deps.pool || getPool();
     const resolveEnvelope = deps.resolveCapabilityEnvelope || resolveCapabilityExecutionEnvelope;
     governance = await resolveEnvelope({
       pool: governancePool,
-      envelopeId: text(input.capability_envelope_id, 64),
+      envelopeId: capabilityEnvelopeId,
       acceptedAppKeys: ["github"],
       acceptedCapabilityKeys: ["github_repository_main_moved_webhook_provision"],
       acceptedIntents: ["github_repository_main_moved_webhook_provision"],
