@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f3a2f91d8b41889dd8696d5e665339ea576dc08fc9f32cf89894e253f5b2ba1f",
+    "source_digest": "0e60237ac02f6b62e00d03da2bc3fe049736b0e29a9cb8eb184da291f99f5551",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -21,7 +21,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "297ee43404d304f3365df800106837f8817b775c143e6c8936d5d40a0bdd59c4",
+        "sha256": "82a670b523ab0e6db0ee28d6708922964ca7385c3e58548f1cff32cccedd6786",
         "present": true
       },
       {
@@ -226,7 +226,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
+        "sha256": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
         "present": true
       },
       {
@@ -511,7 +511,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "8bdb6806e33a4a74365e3f3853f4becb0efed477b69d8d0ce5e996243882eebb",
+        "sha256": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
         "present": true
       },
       {
@@ -896,7 +896,7 @@
       },
       {
         "file": "test-connect-routes.mjs",
-        "sha256": "cba07c9172f0dcfa157fa34554682f74886d7743f7f0d6179d5a6bbe92c0be17",
+        "sha256": "08bdb7165576178c4db692690ec7dae4ff117cef29a556bf2f5739d6fd5853f4",
         "present": true
       },
       {
@@ -1064,21 +1064,21 @@
     "mounted_family_count": 162,
     "mounted_route_file_count": 130,
     "mixed_scope_route_file_count": 24,
-    "operation_count": 964,
-    "openapi_documented_count": 948,
-    "openapi_canonical_documented_count": 570,
+    "operation_count": 965,
+    "openapi_documented_count": 949,
+    "openapi_canonical_documented_count": 571,
     "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 948,
+      "equivalent": 949,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 585,
-    "unresolved_operation_class_count": 529,
+    "non_get_candidate_count": 586,
+    "unresolved_operation_class_count": 530,
     "classified_mutation_count": 7,
     "governed_mutation_operation_count": 2,
     "embedded_ui_family_count": 7,
@@ -1086,7 +1086,7 @@
     "test_owned_family_count": 6,
     "untested_family_count": 156,
     "test_owned_operation_count": 52,
-    "untested_operation_count": 912,
+    "untested_operation_count": 913,
     "ready_task_count": 3,
     "blocked_task_count": 159,
     "coverage_complete": false
@@ -3099,7 +3099,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "8bdb6806e33a4a74365e3f3853f4becb0efed477b69d8d0ce5e996243882eebb",
+      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
       "mount_prefix": "/",
       "mount_order": 11878,
       "split_from_mixed_scope_file": true,
@@ -3225,7 +3225,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "8bdb6806e33a4a74365e3f3853f4becb0efed477b69d8d0ce5e996243882eebb",
+      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
       "mount_prefix": "/",
       "mount_order": 11878,
       "split_from_mixed_scope_file": true,
@@ -3598,7 +3598,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "8bdb6806e33a4a74365e3f3853f4becb0efed477b69d8d0ce5e996243882eebb",
+      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
       "mount_prefix": "/",
       "mount_order": 11878,
       "split_from_mixed_scope_file": true,
@@ -4241,7 +4241,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "8bdb6806e33a4a74365e3f3853f4becb0efed477b69d8d0ce5e996243882eebb",
+      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
       "mount_prefix": "/",
       "mount_order": 11878,
       "split_from_mixed_scope_file": true,
@@ -12841,7 +12841,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
+      "source_digest": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
       "mount_prefix": "/",
       "mount_order": 13420,
       "split_from_mixed_scope_file": true,
@@ -13726,7 +13726,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "5b5cd23ac1b285b945bedeaeac7c4fb149e290331611b4d3b32a01c4b4ea2e0d",
+      "source_digest": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
       "mount_prefix": "/",
       "mount_order": 13420,
       "split_from_mixed_scope_file": true,
@@ -13940,6 +13940,75 @@
           "method": "POST",
           "path": "/activation/operational-attention/sync",
           "signature": "POST /activation/operational-attention/sync",
+          "source_file": "routes/activationAwarenessRoutes.js",
+          "scope": "unresolved",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/activation/operational-attention/ci-signals",
+          "signature": "POST /activation/operational-attention/ci-signals",
           "source_file": "routes/activationAwarenessRoutes.js",
           "scope": "unresolved",
           "runtime_auth": {
@@ -14222,6 +14291,7 @@
         "GET /activation/dynamic-tabs/detail",
         "GET /activation/operational-attention",
         "POST /activation/operational-attention/sync",
+        "POST /activation/operational-attention/ci-signals",
         "POST /activation/operational-attention/{alertId}/lifecycle",
         "POST /activation/runs/{runId}/ack",
         "GET /activation/runs/{runId}/archive"
@@ -14249,6 +14319,12 @@
       "operation_blockers": [
         {
           "signature": "POST /activation/operational-attention/sync",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /activation/operational-attention/ci-signals",
           "blockers": [
             "operation_classification_gap"
           ]
