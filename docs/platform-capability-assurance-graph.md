@@ -48,6 +48,8 @@ The projection resolves one canonical capability identity, operation class, risk
 
 State-changing virtual capabilities require resource authority, audit evidence, and an explicit readback contract. Shadow readback readiness is separate from generic certification, and every projected capability remains `apply_allowed=0` until certification plus shadow/canary evidence authorize promotion.
 
+Readback contract selection is adapter-first. Resolve the canonical `platform_resource_adapters.adapter_key` before filtering `platform_capability_readback_contracts`; app keys, provider keys, resource types, and runtime surfaces are selectors rather than canonical adapter identities. An explicit contract bound to another adapter, or multiple equally ranked current contracts, must return a typed fail-closed mismatch or ambiguity instead of a false missing-contract result.
+
 Bounded mutation atomicity modes must classify consistently before aliases are aggregated into a canonical capability. `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` are state-changing. Unclassified or conflicting mutation semantics remain fail-closed debt. Tool-catalog tags accept arrays, JSON-array strings, and legacy CSV only after deterministic normalization.
 
 Capability-export aliases derived from virtual-tool bindings remain `shadow` until the canonical capability is certified and explicitly promoted. Runtime Admin tool catalogs and dispatch bindings are separate authorities and remain unchanged. Projection preview must report no active Admin capability export while the canonical manifest is blocked, and Tenant exports must remain absent.
