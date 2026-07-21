@@ -50,6 +50,14 @@ Spec 006 Dynamic Container projection preview must remain dry-run, SQL-source-on
 
 Agents must not treat projection preview, shadow evidence, sample generation, or completion metadata as authority to enable enforcement, promotion, provider calls, credential reads, or production activation. Closeout evidence belongs in `specs/006-platform-dynamic-workflow-runtime/completion.json`; unresolved production deploy parity, shadow sample minimums, retention, latency, and audit coverage remain post-merge gates unless the same-cycle runtime evidence proves them.
 
+## Dynamic Container Canary Closeout Authority
+
+An accepted Dynamic Container canary closeout is distinct from rollback and enforcement. The governed `dynamic_container_canary_closeout` operation may accept exactly one active `read_only_canary` only after the current monitoring window contains at least 100 observations, every observation succeeded, failures are zero, audit coverage is 100 percent, and `monitoring_code=ready_for_review`. Dry-run, exact typed confirmation, an apply-authorized plan-bound Capability Envelope, transactional envelope consumption, and same-cycle readback are mandatory.
+
+Accepted closeout records immutable evidence in the canary registry metadata and returns the exact canary to `shadow` so the single-canary slot can be reused. It must not change the global rollout policy, enable mutation enforcement, call providers, read credential payloads, perform external writes, expose secrets, or imply approval for another canary. Promotion of a subsequent candidate remains a separate governed operation with a fresh dry-run, envelope, typed confirmation, monitoring window, and rollback readiness.
+
+Rollback remains the failure or operator-reversal path and records rollback evidence rather than `closeout_status=accepted`. Agents must not substitute rollback for acceptance, infer acceptance from sample counts alone, or reuse a closeout envelope for promotion, deployment, or enforcement.
+
 ## OpenAPI Endpoint Inventory Synchronization Authority
 
 Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` and `openApiEndpointInventorySync.js` maintain SQL endpoint inventory from committed OpenAPI operations. This is discovery metadata only: rows remain non-callable and pending governance review, OpenAPI extensions do not create runtime authority, and callable promotion requires a separate governed migration or approval flow. Manual apply requires `SYNC_OPENAPI_ENDPOINT_INVENTORY`, a ready `platform_orchestration` capability envelope, advisory locking, transaction boundaries, and same-cycle readback. Startup apply is runtime-config controlled and can be stopped with `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true`.
