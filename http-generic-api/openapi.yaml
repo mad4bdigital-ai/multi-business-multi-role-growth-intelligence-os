@@ -5002,6 +5002,8 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryPromotions'
   /admin/container-authority/canary-rollbacks:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
+  /admin/container-authority/canary-closeouts:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryCloseouts'
   /admin/container-authority/canary-probes:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryProbes'
   /admin/container-authority/preview-canary-probes:
@@ -7171,6 +7173,138 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '500':
           description: Synchronization failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /activation/operational-attention/ci-signals:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: ingestActivationOperationalCiSignal
+      x-custom-gpt-exclude: true
+      x-openai-isConsequential: true
+      summary: Ingest a CI guard operational signal
+      description: Idempotently records a default-branch CI guard result in SQL operational alerts, lifecycle evidence, notification readiness, and the CI guard SLO projection. This endpoint performs no provider calls or external sends.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [signal_key, status, idempotency_key, workflow_run_id, observed_at]
+              properties:
+                signal_key:
+                  type: string
+                  minLength: 3
+                  maxLength: 128
+                  pattern: '^(?!.*[^A-Za-z0-9_.:-])[A-Za-z0-9_.:-]+'
+                status:
+                  type: string
+                  enum: [success, failure, cancelled, timed_out, action_required]
+                idempotency_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+                workflow_name:
+                  type: string
+                  maxLength: 191
+                workflow_run_id:
+                  type: string
+                  maxLength: 64
+                workflow_attempt:
+                  type: integer
+                  minimum: 1
+                job_name:
+                  type: string
+                  maxLength: 191
+                source_ref:
+                  type: string
+                  maxLength: 255
+                commit_sha:
+                  type: string
+                  maxLength: 64
+                ref_name:
+                  type: string
+                  maxLength: 255
+                started_at:
+                  type: string
+                  format: date-time
+                observed_at:
+                  type: string
+                  format: date-time
+                severity:
+                  type: string
+                  enum: [info, low, medium, high, critical]
+                title:
+                  type: string
+                  maxLength: 512
+                summary:
+                  type: string
+                  maxLength: 4000
+                evidence:
+                  type: object
+                  additionalProperties: true
+            examples:
+              failure:
+                value:
+                  signal_key: custom_gpt_contract_guard
+                  status: failure
+                  idempotency_key: custom-gpt-contract-guard:12345:1:failure
+                  workflow_name: Custom GPT Contract Guard
+                  workflow_run_id: '12345'
+                  workflow_attempt: 1
+                  job_name: guard
+                  source_ref: https://github.example/actions/runs/12345
+                  commit_sha: 0123456789abcdef0123456789abcdef01234567
+                  ref_name: refs/heads/main
+                  started_at: '2026-07-21T00:00:00Z'
+                  observed_at: '2026-07-21T00:01:00Z'
+                  severity: high
+      responses:
+        '201':
+          description: CI guard signal created and same-cycle alert and SLO readback returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, created, idempotent_replay, event, slo, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  created: { type: boolean }
+                  idempotent_replay: { type: boolean }
+                  event: { type: object, additionalProperties: true }
+                  alert:
+                    oneOf:
+                      - { type: object, additionalProperties: true }
+                      - { type: 'null' }
+                  slo: { type: object, additionalProperties: true }
+                  secrets_included: { type: boolean, const: false }
+        '200':
+          description: Idempotent signal replay returned with same-cycle alert and SLO readback.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '400':
+          description: CI guard signal input is invalid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Backend authentication is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: The authenticated principal is not authorized.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: CI guard signal ingestion failed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }

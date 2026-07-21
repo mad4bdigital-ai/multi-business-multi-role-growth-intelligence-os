@@ -723,7 +723,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "github_file_patch_shadow_certification_issue",
     displayName: "Issue GitHub File Patch Shadow Certification",
-    description: "Dry-run or apply one fixed evidence-backed shadow certification for github_file_patch_apply. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It activates only the canonical readback adapter, certifies the current readback contract, keeps target runtime dispatch and apply blocked, keeps target capability exports shadow-only, creates no Tenant authority, calls no provider, performs no external write, and returns no secrets.",
+    description: "Dry-run or apply one fixed evidence-backed shadow certification for github_file_patch_apply. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It activates only the canonical readback adapter, certifies the current readback contract, preserves the existing target runtime dispatch and apply snapshot unchanged, keeps target capability exports shadow-only, creates no Tenant authority, calls no provider, performs no external write, and returns no secrets.",
     method: "VIRTUAL",
     path: "internal://github-file-patch-shadow-certification-issue",
     tags: ["capability", "github", "repository", "certification", "shadow", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_runtime_promotion", "no_tenant_authority", "no_secrets"],
