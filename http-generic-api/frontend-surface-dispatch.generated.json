@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "11314d9ceeb2f70c4fae2499139ea99b967a42ce332a11b34f518e8c7ef2c026",
+    "source_digest": "96805dfcb42fc8defbb175cb42dc94be41dccbb71fd0b5bd83fa6aacb09f509a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -456,7 +456,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "33638a2c340d0669e1c5d786f2064e8dcbe17b9cb30e69288a4c3a5ad73c4e03",
+        "sha256": "9160b59cd6f0b9f03c4185b74a6147812c659ee00e96ba153d047afe51cc6359",
         "present": true
       },
       {
@@ -801,7 +801,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+        "sha256": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
         "present": true
       },
       {
@@ -876,7 +876,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "111e792848fb4fd99457690fd05ea60a0011d4e5bc9cb339aa71ed09fd9454c5",
+        "sha256": "8cf7042ed25559805d69a974cf045cc7d505bf03644fac88610d70fa189a66ed",
         "present": true
       },
       {
@@ -9283,7 +9283,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
       "mount_prefix": "/",
       "mount_order": 12941,
       "split_from_mixed_scope_file": true,
@@ -9978,7 +9978,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
       "mount_prefix": "/",
       "mount_order": 12941,
       "split_from_mixed_scope_file": true,
@@ -36743,7 +36743,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "33638a2c340d0669e1c5d786f2064e8dcbe17b9cb30e69288a4c3a5ad73c4e03",
+      "source_digest": "9160b59cd6f0b9f03c4185b74a6147812c659ee00e96ba153d047afe51cc6359",
       "mount_prefix": "/",
       "mount_order": 15728,
       "split_from_mixed_scope_file": false,
