@@ -1,0 +1,42 @@
+{
+  "spec_key": "unified_admin_tenant_context_kernel",
+  "spec_version": "0.1.0",
+  "status": "draft",
+  "scope": "platform",
+  "principal_coverage": [
+    "tenant_user",
+    "admin",
+    "service_principal",
+    "delegated_agent",
+    "registry_defined_future_principal"
+  ],
+  "invariants": [
+    "single_shared_context_kernel",
+    "dynamic_registry_resolution",
+    "no_fixed_customer_identifiers_in_production_code",
+    "effective_subject_required_for_tenant_mutations",
+    "one_tenant_one_workspace_one_resource_one_connection_per_execution_context",
+    "high_risk_fail_closed",
+    "same_cycle_readback_or_reconciliation"
+  ],
+  "artifacts": [
+    "README.md",
+    "spec.md",
+    "architecture.md",
+    "end-to-end-flows.md",
+    "data-model.md",
+    "hardcoding-policy.md",
+    "error-catalog.md",
+    "threat-model.md",
+    "testing-strategy.md",
+    "rollout.md",
+    "api/openapi.yaml",
+    "traceability.md",
+    "tasks.md",
+    "acceptance-matrix.md"
+  ],
+  "production_mutation": false,
+  "provider_write": false,
+  "migration_apply": false,
+  "protected_branch_write": false
+}
