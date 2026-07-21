@@ -636,6 +636,7 @@ export const testCommands = [
   "node test-effective-authority-service.mjs",
   "node test-effective-authority-routes.mjs",
   "node test-effective-authority-composition.mjs",
+  "node test-ueacp-migration-contract.mjs",
   "node test-platform-engine-validator-runner.mjs",
   "node test-hybrid-local-managed-agent-runtime.mjs",
   "node test-multi-surface-agent-runtime.mjs",
