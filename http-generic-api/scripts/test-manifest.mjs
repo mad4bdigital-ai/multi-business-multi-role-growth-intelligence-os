@@ -606,6 +606,7 @@ export const testCommands = [
   "node test-tenant-connection-shadow-contract-bootstrap.mjs",
   "node test-platform-capability-shadow-certification-issue.mjs",
   "node test-github-file-patch-shadow-certification-issue.mjs",
+  "node test-github-file-patch-runtime-authority-preservation-metadata.mjs",
   "node test-dynamic-capability-projection-preview.mjs",
   "node test-dynamic-capability-enforcement-shadow.mjs",
   "node test-dynamic-capability-certification-readback.mjs",
