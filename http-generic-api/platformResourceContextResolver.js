@@ -5,6 +5,10 @@ import {
   brandRowReferences,
   normalizeBrandReference,
 } from "./resolvers/brandReferenceResolver.js";
+import {
+  loadAuthorizedRepositoryContext,
+  repositoryResourceRecords,
+} from "./repositoryAuthorityContextResolver.js";
 
 const RESOURCE_TYPES = Object.freeze([
   "auto",
@@ -13,6 +17,7 @@ const RESOURCE_TYPES = Object.freeze([
   "asset",
   "site",
   "connection",
+  "repository",
 ]);
 
 function text(value = "", max = 2048) {
