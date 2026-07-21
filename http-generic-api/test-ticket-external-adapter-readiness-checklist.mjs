@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/support/tickets/external-send/provider-adapter-readiness/plan
+// frontend-read-action-proof: POST /admin/support/tickets/external-send/provider-adapter-readiness/plan
 import { readFileSync } from "node:fs";
 
 const service = readFileSync("supportTicketExternalAdapterReadinessChecklistService.js", "utf8");

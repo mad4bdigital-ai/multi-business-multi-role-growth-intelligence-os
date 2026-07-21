@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan
+// frontend-read-action-proof: POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan
 import { readFileSync } from "node:fs";
 
 const service = readFileSync("supportTicketExternalCredentialActivationService.js", "utf8");

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "566778d77285a55f320154502bc5f0eed6f110cd1802a06c1347f445e8eaa7d7",
+    "source_digest": "48b647e6fc72bbf81486709b2900dfe7d6b66532bb4134d76c3be3134655c178",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "c38b069fe28a020908dd0a26cf04889469c9f22dba0ad302b8778f60bc12ddc0",
+        "sha256": "7c404f0d804e8dfac569ec3ae713b009ab1313c85fc90cb86dbe98464daa41ce",
         "present": true
       },
       {
@@ -876,7 +876,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+        "sha256": "6f4af308d192f8eeeabb5848ddf254f50ef50e967b4e50652e2ab655873288f1",
         "present": true
       },
       {
@@ -897,6 +897,11 @@
       {
         "file": "test-ads-governance-snapshot-proposal.mjs",
         "sha256": "c341f0159e9cea3153bcac871b04866589dcfb9e219fee717be6cd9e0a9f3a38",
+        "present": true
+      },
+      {
+        "file": "test-agent-governance-runtime.mjs",
+        "sha256": "cb6fcec8be7145e9bc3321c6af5b2a25e934f4e05d14fcf4351b36286015b2d0",
         "present": true
       },
       {
@@ -925,6 +930,11 @@
         "present": true
       },
       {
+        "file": "test-platform-engine-orchestration.mjs",
+        "sha256": "eaf755f614d1d7d55ee9b22888a11832df6e3684f59b0a5857254007f7b3b0a3",
+        "present": true
+      },
+      {
         "file": "test-platform-frontend-routes.mjs",
         "sha256": "121ff13210177fe96b04315395c1be3d30c8623da736ae8c69d9df68c05ef0d0",
         "present": true
@@ -950,8 +960,18 @@
         "present": true
       },
       {
+        "file": "test-repo-conflict-intelligence-phase2.mjs",
+        "sha256": "db5d47906679ae4917e6328b0789a47c88222ce449b049935a78b0beec453d49",
+        "present": true
+      },
+      {
+        "file": "test-repo-conflict-intelligence-service.mjs",
+        "sha256": "1f385c08d1a4a876fccec4a138cd714990dc8ca107eb69c1fb4bc3b2deffb292",
+        "present": true
+      },
+      {
         "file": "test-repository-automation-control-plane.mjs",
-        "sha256": "91cd708eafc3b659f47547948c2b3461bd9e904b2e4ea413bb241d72ae0ce582",
+        "sha256": "a6c0a71edc7a882a04697315452cdd158abb0d6dd708d7f5491ff23ca70df9ae",
         "present": true
       },
       {
@@ -1050,13 +1070,68 @@
         "present": true
       },
       {
+        "file": "test-tenant-infrastructure-readiness-tools.mjs",
+        "sha256": "49db116c8970240f9e5378256926a960496b19ecdcb194d9b19641a0cf178922",
+        "present": true
+      },
+      {
+        "file": "test-tenant-ssh-cli-dry-run.mjs",
+        "sha256": "66238db0ca21469e3c00422b6f6464bd9b6972ba723d9ca94218b4dea2b583d2",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-adapter-future-pr-scope.mjs",
+        "sha256": "27d1b9b37a00b7dfa67e5226e999e4823ea02c2c4eb89eed05afcade37c38dea",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-adapter-readiness-checklist.mjs",
+        "sha256": "c03bd72f5b3dc90e78c9c62bfc21d1a52202537f202f21312cd77cd9b06a92b2",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-credential-activation-binding.mjs",
+        "sha256": "eb5204851c13986a169228af51827461d5e59367deeb87f5f82f5c1c8ff61c3b",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-delivery-approval-policy.mjs",
+        "sha256": "01d9bf3d39b87ec9d00b24bcba66b49fd825a18427dbcd75999cb4ac05428011",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-provider-enablement-proposal.mjs",
+        "sha256": "1c09fab186cafc284546584ce5f90110bdfef410ec721010b8827a2ab47defd2",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-secret-intake-surface.mjs",
+        "sha256": "a49747d916f645856f6c3aae1d6457a427430f8c9a687c2875cb3d073ea4c089",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-send-execution-adapter.mjs",
+        "sha256": "4c93ecf7d7c56cd20151298245d5b13806793bddaeac36749bf08ef96cb1d653",
+        "present": true
+      },
+      {
+        "file": "test-ticket-external-send-provider-gate.mjs",
+        "sha256": "fde5d6bca924008229ff48234d3a92bf653420ba8576f9b97701c70f158bf8d8",
+        "present": true
+      },
+      {
+        "file": "test-ticket-notification-delivery-adapters.mjs",
+        "sha256": "e131751ad19f5a147bc5c4761de5dba34ae815f0993569f7b369bce3a2b9edc0",
+        "present": true
+      },
+      {
         "file": "../specs/010-unified-platform-frontend/contracts/frontend-dispatch-plan.schema.json",
         "sha256": "0f7d9a2cf39c0106ec7f9236ea988275e5c68274323c755acefa0d01bbbe6bb2",
         "present": true
       },
       {
         "file": "../specs/010-unified-platform-frontend/contracts/frontend-operation-governance.schema.json",
-        "sha256": "a6cc0bfa87c860e5716c0bf17cd049c5f5841d1db9dc4da0a458081e3eae9b28",
+        "sha256": "29a1e27179f18515912801f0d029b17136043641f6d545b2b71e472e68d14155",
         "present": true
       },
       {
@@ -1098,15 +1173,15 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 589,
-    "unresolved_operation_class_count": 532,
+    "unresolved_operation_class_count": 502,
     "classified_mutation_count": 8,
     "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 147,
-    "test_owned_family_count": 6,
-    "untested_family_count": 156,
-    "test_owned_operation_count": 53,
-    "untested_operation_count": 915,
+    "test_owned_family_count": 7,
+    "untested_family_count": 155,
+    "test_owned_operation_count": 83,
+    "untested_operation_count": 885,
     "ready_task_count": 3,
     "blocked_task_count": 159,
     "coverage_complete": false
@@ -24156,17 +24231,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repository-automation-control-plane.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-repository-automation-status-read-action-v1",
+            "owner": "repository-automation",
+            "rationale": "Reads one automation run, its steps, and receipts through fixed SELECT queries and returns a sanitized read model.",
+            "evidence_refs": [
+              "repositoryAutomationControlPlane.js",
+              "routes/repositoryAutomationRoutes.js",
+              "test-repository-automation-control-plane.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24258,7 +24341,6 @@
       ],
       "untested_operations": [
         "POST /admin/repository-automation/run",
-        "POST /admin/repository-automation/status",
         "POST /admin/repository-automation/hygiene-scan"
       ],
       "resources": [],
@@ -24286,12 +24368,6 @@
       "operation_blockers": [
         {
           "signature": "POST /admin/repository-automation/run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/repository-automation/status",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -24377,17 +24453,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-repo-conflict-analyze-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Classifies supplied repository metadata in memory and returns an advisory analysis without provider or Git mutation.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24447,17 +24531,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-repo-conflict-plan-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Builds an advisory conflict-resolution plan in memory and does not apply any plan step.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24517,17 +24609,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-repo-conflict-semantic-preview-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Computes bounded semantic patch previews from request content without writing repository files.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24587,17 +24687,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-phase2.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-repo-conflict-resolve-dry-run-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Produces a no-execution resolution preview with provider and branch mutations explicitly disabled.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-phase2.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24657,17 +24765,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-phase2.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-repo-conflict-pr-preview-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Builds a proposed PR advisory comment but neither posts it nor performs a provider write.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-phase2.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -24819,13 +24935,11 @@
         "POST /admin/repo-conflict-intelligence/semantic-preview",
         "POST /admin/repo-conflict-intelligence/pr-automation-preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
+      ],
       "untested_operations": [
-        "POST /admin/repo-conflict-intelligence/analyze",
-        "POST /admin/repo-conflict-intelligence/plan",
-        "POST /admin/repo-conflict-intelligence/semantic-preview",
-        "POST /admin/repo-conflict-intelligence/resolve-dry-run",
-        "POST /admin/repo-conflict-intelligence/pr-automation-preview",
         "GET /admin/repo-conflict-intelligence/case-studies/{caseKey}",
         "POST /admin/repo-conflict-intelligence/tenant-readiness-smoke"
       ],
@@ -24844,7 +24958,9 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repoConflictIntelligenceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -24852,36 +24968,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /admin/repo-conflict-intelligence/analyze",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/repo-conflict-intelligence/plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/repo-conflict-intelligence/semantic-preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/repo-conflict-intelligence/resolve-dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/repo-conflict-intelligence/pr-automation-preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /admin/repo-conflict-intelligence/tenant-readiness-smoke",
           "blockers": [
@@ -24955,17 +25041,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-repo-conflict-analyze-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Projects an in-memory conflict analysis into a tenant-safe summary without provider or repository access.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25017,17 +25111,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-repo-conflict-plan-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Returns a tenant-scoped advisory plan with route-level execution explicitly disabled.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-service.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25079,17 +25181,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-repo-conflict-intelligence-phase2.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-repo-conflict-resolve-dry-run-read-action-v1",
+            "owner": "repository-governance",
+            "rationale": "Returns a tenant-safe dry-run projection with execution and provider writes disabled.",
+            "evidence_refs": [
+              "repoConflictIntelligenceService.js",
+              "routes/repoConflictIntelligenceRoutes.js",
+              "test-repo-conflict-intelligence-phase2.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25100,12 +25210,11 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /me/repo-conflict-intelligence/analyze",
-        "POST /me/repo-conflict-intelligence/plan",
-        "POST /me/repo-conflict-intelligence/resolve-dry-run"
+      "tests": [
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -25121,36 +25230,19 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repoConflictIntelligenceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /me/repo-conflict-intelligence/analyze",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/repo-conflict-intelligence/plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/repo-conflict-intelligence/resolve-dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 6,
-        "class": "high"
+        "score": 4,
+        "class": "medium"
       },
       "wave": "F1-tenant-shell"
     },
@@ -29140,17 +29232,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-credential-activation-binding.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-external-credential-activation-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads ticket and credential-reference metadata to build an activation plan without activating or binding the credential.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalCredentialActivationService.js",
+              "test-ticket-external-credential-activation-binding.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -29280,17 +29380,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-secret-intake-surface.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-external-secret-intake-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads ticket context and builds a secret-reference intake plan without registering, activating, or storing a secret.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalSecretIntakeService.js",
+              "test-ticket-external-secret-intake-surface.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -29698,17 +29806,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-adapter-future-pr-scope.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-adapter-future-pr-scope-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads an adapter decision and builds a future-PR scope preview without recording the scope or enabling dispatch.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalAdapterFuturePrScopeService.js",
+              "test-ticket-external-adapter-future-pr-scope.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -29838,17 +29954,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-adapter-readiness-checklist.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-adapter-readiness-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads proposal and adapter metadata to compute a readiness checklist without recording a decision or enabling a provider.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalAdapterReadinessChecklistService.js",
+              "test-ticket-external-adapter-readiness-checklist.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -30048,17 +30172,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-provider-enablement-proposal.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-provider-enablement-candidates-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Lists provider-enablement candidates through a bounded SELECT and does not create a proposal or change dispatch state.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalProviderEnablementProposalService.js",
+              "test-ticket-external-provider-enablement-proposal.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -30256,17 +30388,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-send-provider-gate.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-provider-gate-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Evaluates the external-send provider gate and returns a blocked/readiness plan without recording an attempt or dispatching.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalSendProviderGateService.js",
+              "test-ticket-external-send-provider-gate.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -30396,17 +30536,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-send-execution-adapter.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-external-send-execution-plan-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads ticket execution prerequisites and builds a plan without recording an execution or sending externally.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalSendExecutionService.js",
+              "test-ticket-external-send-execution-adapter.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -30536,17 +30684,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-external-delivery-approval-policy.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-external-delivery-readiness-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads ticket and credential-binding state to report delivery readiness without requesting approval or sending externally.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketExternalDeliveryPolicyService.js",
+              "test-ticket-external-delivery-approval-policy.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -30884,17 +31040,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-ticket-notification-delivery-adapters.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-ticket-notification-preview-read-action-v1",
+            "owner": "support-delivery-governance",
+            "rationale": "Reads ticket context and builds a notification preview without dispatching an adapter or recording delivery.",
+            "evidence_refs": [
+              "routes/supportTicketRoutes.js",
+              "supportTicketNotificationAdapterService.js",
+              "test-ticket-notification-delivery-adapters.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -33276,7 +33440,17 @@
       "evidence_routes": [
         "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-ticket-external-adapter-future-pr-scope.mjs",
+        "test-ticket-external-adapter-readiness-checklist.mjs",
+        "test-ticket-external-credential-activation-binding.mjs",
+        "test-ticket-external-delivery-approval-policy.mjs",
+        "test-ticket-external-provider-enablement-proposal.mjs",
+        "test-ticket-external-secret-intake-surface.mjs",
+        "test-ticket-external-send-execution-adapter.mjs",
+        "test-ticket-external-send-provider-gate.mjs",
+        "test-ticket-notification-delivery-adapters.mjs"
+      ],
       "untested_operations": [
         "GET /admin/support/tickets/external-delivery/control/overview",
         "POST /admin/support/tickets/external-delivery/control/allowlist/upsert",
@@ -33288,32 +33462,23 @@
         "POST /admin/support/tickets/sla/reconcile",
         "POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan",
         "POST /admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify",
-        "POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan",
         "POST /admin/support/tickets/{ticket_id}/external-credential/activate-and-bind",
-        "POST /admin/support/tickets/{ticket_id}/external-secret/intake-plan",
         "POST /admin/support/tickets/{ticket_id}/external-secret/reference/register",
         "POST /admin/support/tickets/{ticket_id}/external-secret/reference/activate",
         "GET /admin/support/tickets/external-delivery/credential-candidates",
         "POST /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request",
         "POST /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision",
-        "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
         "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/record",
-        "POST /admin/support/tickets/external-send/provider-adapter-readiness/plan",
         "POST /admin/support/tickets/external-send/provider-adapter-readiness/record",
         "POST /admin/support/tickets/external-send/provider-adapter-readiness/decision",
-        "POST /admin/support/tickets/external-send/provider-adapter-enablement/candidates",
         "POST /admin/support/tickets/external-send/provider-adapter-enablement/propose",
         "GET /admin/support/tickets/external-send/provider-contracts",
-        "POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan",
         "POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt",
-        "POST /admin/support/tickets/{ticket_id}/external-send/execution-plan",
         "POST /admin/support/tickets/{ticket_id}/external-send/execution-record",
-        "POST /admin/support/tickets/{ticket_id}/external-delivery/readiness",
         "POST /admin/support/tickets/{ticket_id}/external-delivery/approval/request",
         "POST /admin/support/tickets/{ticket_id}/external-delivery/approval/decision",
         "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
         "GET /admin/support/tickets/notifications/adapters",
-        "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview",
         "POST /admin/support/tickets/{ticket_id}/notification-delivery/dispatch",
         "GET /admin/support/tickets/notifications/queue",
         "POST /admin/support/tickets/{ticket_id}/notification-cycle",
@@ -33363,7 +33528,16 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-ticket-external-adapter-future-pr-scope.mjs",
+        "test-ticket-external-adapter-readiness-checklist.mjs",
+        "test-ticket-external-credential-activation-binding.mjs",
+        "test-ticket-external-delivery-approval-policy.mjs",
+        "test-ticket-external-provider-enablement-proposal.mjs",
+        "test-ticket-external-secret-intake-surface.mjs",
+        "test-ticket-external-send-execution-adapter.mjs",
+        "test-ticket-external-send-provider-gate.mjs",
+        "test-ticket-notification-delivery-adapters.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -33426,19 +33600,7 @@
           ]
         },
         {
-          "signature": "POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /admin/support/tickets/{ticket_id}/external-credential/activate-and-bind",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/support/tickets/{ticket_id}/external-secret/intake-plan",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -33468,19 +33630,7 @@
           ]
         },
         {
-          "signature": "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/record",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/support/tickets/external-send/provider-adapter-readiness/plan",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -33498,19 +33648,7 @@
           ]
         },
         {
-          "signature": "POST /admin/support/tickets/external-send/provider-adapter-enablement/candidates",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /admin/support/tickets/external-send/provider-adapter-enablement/propose",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -33522,19 +33660,7 @@
           ]
         },
         {
-          "signature": "POST /admin/support/tickets/{ticket_id}/external-send/execution-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /admin/support/tickets/{ticket_id}/external-send/execution-record",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/support/tickets/{ticket_id}/external-delivery/readiness",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -33553,12 +33679,6 @@
         },
         {
           "signature": "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -34746,17 +34866,24 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-infrastructure-readiness-tools.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-database-preflight-read-action-v1",
+            "owner": "tenant-infrastructure",
+            "rationale": "Reads one tenant-scoped connection and returns readiness flags while explicitly forbidding decryption, network access, and database execution.",
+            "evidence_refs": [
+              "routes/tenantInfrastructureRoutes.js",
+              "test-tenant-infrastructure-readiness-tools.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -34990,17 +35117,24 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-infrastructure-readiness-tools.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-ssh-preflight-read-action-v1",
+            "owner": "tenant-infrastructure",
+            "rationale": "Reads one tenant-scoped SSH connection and returns readiness flags without decrypting credentials, opening a network connection, or executing a command.",
+            "evidence_refs": [
+              "routes/tenantInfrastructureRoutes.js",
+              "test-tenant-infrastructure-readiness-tools.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -35480,17 +35614,24 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-ssh-cli-dry-run.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-ssh-cli-dry-run-read-action-v1",
+            "owner": "tenant-infrastructure",
+            "rationale": "Validates a fixed allowlisted command plan after a tenant-scoped SELECT and explicitly performs no SSH authentication, network access, or command execution.",
+            "evidence_refs": [
+              "routes/tenantInfrastructureRoutes.js",
+              "test-tenant-ssh-cli-dry-run.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -35664,17 +35805,24 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-infrastructure-readiness-tools.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-generic-infrastructure-preflight-read-action-v1",
+            "owner": "tenant-infrastructure",
+            "rationale": "The compatibility preflight performs a tenant-scoped connection SELECT and reports non-executing readiness metadata only.",
+            "evidence_refs": [
+              "routes/tenantInfrastructureRoutes.js",
+              "test-tenant-infrastructure-readiness-tools.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -35697,14 +35845,15 @@
         "GET /me/infrastructure/ssh/connections/{connection_id}/status",
         "GET /me/infrastructure/connections/{connection_id}/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-tenant-infrastructure-readiness-tools.mjs",
+        "test-tenant-ssh-cli-dry-run.mjs"
+      ],
       "untested_operations": [
         "GET /me/infrastructure/database/connections/{connection_id}/status",
-        "POST /me/infrastructure/database/connections/{connection_id}/preflight",
         "POST /me/infrastructure/database/connections/{connection_id}/query-readonly",
         "GET /me/infrastructure/database/connections/{connection_id}/schema",
         "GET /me/infrastructure/ssh/connections/{connection_id}/status",
-        "POST /me/infrastructure/ssh/connections/{connection_id}/preflight",
         "GET /me/infrastructure/ssh/cli/approval-requests/{request_id}",
         "POST /me/infrastructure/ssh/cli/approval-requests/{request_id}/decision",
         "GET /me/infrastructure/ssh/cli/approval-requests/{request_id}",
@@ -35712,10 +35861,8 @@
         "POST /me/infrastructure/ssh/connections/{connection_id}/cli/execute",
         "GET /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result",
         "POST /me/infrastructure/ssh/connections/{connection_id}/cli/approval-request",
-        "POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run",
         "POST /me/infrastructure/ssh/connections/{connection_id}/probe",
-        "GET /me/infrastructure/connections/{connection_id}/status",
-        "POST /me/infrastructure/connections/{connection_id}/preflight"
+        "GET /me/infrastructure/connections/{connection_id}/status"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -35732,7 +35879,9 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantInfrastructureRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-tenant-infrastructure-readiness-tools.mjs",
+        "test-tenant-ssh-cli-dry-run.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -35741,19 +35890,7 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /me/infrastructure/database/connections/{connection_id}/preflight",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /me/infrastructure/database/connections/{connection_id}/query-readonly",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/infrastructure/ssh/connections/{connection_id}/preflight",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -35783,19 +35920,7 @@
           ]
         },
         {
-          "signature": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /me/infrastructure/ssh/connections/{connection_id}/probe",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/infrastructure/connections/{connection_id}/preflight",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -38613,17 +38738,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-engine-orchestration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-platform-engine-resolve-intent-read-action-v1",
+            "owner": "platform-engines",
+            "rationale": "Normalizes an engine task intent in memory and does not create an execution envelope or run.",
+            "evidence_refs": [
+              "platformEngineRegistry.js",
+              "routes/platformEngineRoutes.js",
+              "test-platform-engine-orchestration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -38685,17 +38818,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-engine-orchestration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-platform-engine-decision-brief-read-action-v1",
+            "owner": "platform-engines",
+            "rationale": "Builds a decision brief from registry reads and an in-memory execution envelope; the route does not invoke the separate run writers.",
+            "evidence_refs": [
+              "platformEngineRegistry.js",
+              "routes/platformEngineRoutes.js",
+              "test-platform-engine-orchestration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -38757,17 +38898,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-engine-orchestration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-database-lifecycle-decision-brief-read-action-v1",
+            "owner": "platform-engines",
+            "rationale": "Reads lifecycle and information-schema metadata to build a census brief without applying lifecycle changes.",
+            "evidence_refs": [
+              "databaseTableLifecycle.js",
+              "routes/platformEngineRoutes.js",
+              "test-platform-engine-orchestration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -38829,17 +38978,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-engine-orchestration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-database-lifecycle-register-plan-read-action-v1",
+            "owner": "platform-engines",
+            "rationale": "Computes proposed lifecycle-registry rows from SELECT-only census data and does not execute the proposed upsert.",
+            "evidence_refs": [
+              "databaseTableLifecycle.js",
+              "routes/platformEngineRoutes.js",
+              "test-platform-engine-orchestration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -39757,17 +39914,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-platform-engine-orchestration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-platform-engine-capability-check-read-action-v1",
+            "owner": "platform-engines",
+            "rationale": "Loads engine policy context and evaluates capability readiness without writing a run or validator result.",
+            "evidence_refs": [
+              "platformEngineRegistry.js",
+              "routes/platformEngineRoutes.js",
+              "test-platform-engine-orchestration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -40138,14 +40303,12 @@
         "GET /platform/engines/database-lifecycle/operational-status",
         "POST /platform/engines/database-lifecycle/scheduler-approval-readback"
       ],
-      "tests": [],
+      "tests": [
+        "test-platform-engine-orchestration.mjs"
+      ],
       "untested_operations": [
         "GET /platform/engines",
         "POST /platform/engines/task-plan",
-        "POST /platform/engines/resolve-intent",
-        "POST /platform/engines/decision-brief",
-        "POST /platform/engines/database-table-lifecycle/decision-brief",
-        "POST /platform/engines/database-table-lifecycle/register-plan",
         "GET /platform/engines/database-lifecycle/report-snapshots",
         "GET /platform/engines/database-lifecycle/operational-status",
         "POST /platform/engines/database-lifecycle/incident-bridge",
@@ -40158,7 +40321,6 @@
         "POST /platform/engines/database-lifecycle/scheduler-binding-readiness",
         "POST /platform/engines/database-lifecycle/scheduler-approval-metadata",
         "POST /platform/engines/database-lifecycle/scheduler-approval-readback",
-        "POST /platform/engines/capability-check",
         "GET /platform/engines/runs",
         "GET /platform/engines/feedback-summary",
         "GET /platform/engines/validator-results",
@@ -40180,7 +40342,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformEngineRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-engine-orchestration.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -40190,30 +40353,6 @@
       "operation_blockers": [
         {
           "signature": "POST /platform/engines/task-plan",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/engines/resolve-intent",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/engines/decision-brief",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/engines/database-table-lifecycle/decision-brief",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/engines/database-table-lifecycle/register-plan",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -40262,12 +40401,6 @@
         },
         {
           "signature": "POST /platform/engines/database-lifecycle/scheduler-approval-readback",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/engines/capability-check",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -40359,17 +40492,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-governance-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-agent-response-profile-resolve-read-action-v1",
+            "owner": "agent-governance",
+            "rationale": "Resolves layered response-profile metadata through scoped SELECT queries and returns a presentation-only model without persisting state.",
+            "evidence_refs": [
+              "agentGovernanceRuntime.js",
+              "routes/agentGovernanceRoutes.js",
+              "test-agent-governance-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -40429,17 +40570,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-governance-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-agent-research-policy-resolve-read-action-v1",
+            "owner": "agent-governance",
+            "rationale": "Selects the applicable research policy and builds recommended read-only plan steps without recording an execution.",
+            "evidence_refs": [
+              "agentGovernanceRuntime.js",
+              "routes/agentGovernanceRoutes.js",
+              "test-agent-governance-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -41193,17 +41342,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-agent-governance-runtime.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-agent-memory-scope-resolve-read-action-v1",
+            "owner": "agent-governance",
+            "rationale": "Resolves authorized memory links through tenant-scoped SELECT queries and explicitly grants no execution authority.",
+            "evidence_refs": [
+              "agentGovernanceRuntime.js",
+              "routes/agentGovernanceRoutes.js",
+              "test-agent-governance-runtime.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -41214,10 +41371,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-agent-governance-runtime.mjs"
+      ],
       "untested_operations": [
-        "POST /platform/agent-governance/response-profile/resolve",
-        "POST /platform/agent-governance/research-policy/resolve",
         "POST /platform/agent-governance/research-executions",
         "POST /platform/agent-governance/research-plans",
         "POST /platform/agent-governance/research-plans/{plan_id}/run",
@@ -41227,8 +41384,7 @@
         "POST /platform/agent-governance/handoffs/{state_id}/revoke",
         "POST /platform/agent-governance/external-prompts/classify",
         "GET /platform/agent-governance/skill-coverage",
-        "GET /platform/agent-governance/readiness",
-        "POST /platform/agent-governance/memory-scope/resolve"
+        "GET /platform/agent-governance/readiness"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -41244,7 +41400,8 @@
         "resource-api-coverage.manifest.json",
         "routes/agentGovernanceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-governance-runtime.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -41252,18 +41409,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /platform/agent-governance/response-profile/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/agent-governance/research-policy/resolve",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /platform/agent-governance/research-executions",
           "blockers": [
@@ -41302,12 +41447,6 @@
         },
         {
           "signature": "POST /platform/agent-governance/external-prompts/classify",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /platform/agent-governance/memory-scope/resolve",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -80996,9 +81135,7 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -81017,7 +81154,9 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repoConflictIntelligenceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -81029,7 +81168,9 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-repo-conflict-intelligence-phase2.mjs",
+        "node test-repo-conflict-intelligence-service.mjs"
       ]
     },
     {
@@ -81437,7 +81578,9 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantInfrastructureRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-tenant-infrastructure-readiness-tools.mjs",
+        "test-tenant-ssh-cli-dry-run.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -81449,7 +81592,9 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-infrastructure-readiness-tools.mjs",
+        "node test-tenant-ssh-cli-dry-run.mjs"
       ]
     },
     {
@@ -81897,7 +82042,8 @@
         "resource-api-coverage.manifest.json",
         "routes/agentGovernanceRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-agent-governance-runtime.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -81909,7 +82055,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-agent-governance-runtime.mjs"
       ]
     },
     {
@@ -83881,7 +84028,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformEngineRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-platform-engine-orchestration.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83893,7 +84041,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-platform-engine-orchestration.mjs"
       ]
     },
     {
@@ -84230,7 +84379,9 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repoConflictIntelligenceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-repo-conflict-intelligence-phase2.mjs",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -84242,7 +84393,9 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-repo-conflict-intelligence-phase2.mjs",
+        "node test-repo-conflict-intelligence-service.mjs"
       ]
     },
     {
@@ -85671,7 +85824,16 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-ticket-external-adapter-future-pr-scope.mjs",
+        "test-ticket-external-adapter-readiness-checklist.mjs",
+        "test-ticket-external-credential-activation-binding.mjs",
+        "test-ticket-external-delivery-approval-policy.mjs",
+        "test-ticket-external-provider-enablement-proposal.mjs",
+        "test-ticket-external-secret-intake-surface.mjs",
+        "test-ticket-external-send-execution-adapter.mjs",
+        "test-ticket-external-send-provider-gate.mjs",
+        "test-ticket-notification-delivery-adapters.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -85683,7 +85845,16 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-ticket-external-adapter-future-pr-scope.mjs",
+        "node test-ticket-external-adapter-readiness-checklist.mjs",
+        "node test-ticket-external-credential-activation-binding.mjs",
+        "node test-ticket-external-delivery-approval-policy.mjs",
+        "node test-ticket-external-provider-enablement-proposal.mjs",
+        "node test-ticket-external-secret-intake-surface.mjs",
+        "node test-ticket-external-send-execution-adapter.mjs",
+        "node test-ticket-external-send-provider-gate.mjs",
+        "node test-ticket-notification-delivery-adapters.mjs"
       ]
     },
     {

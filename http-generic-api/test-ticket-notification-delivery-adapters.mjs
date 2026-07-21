@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/support/tickets/{ticket_id}/notification-delivery/preview
+// frontend-read-action-proof: POST /admin/support/tickets/{ticket_id}/notification-delivery/preview
 import { readFileSync } from "node:fs";
 
 const service = readFileSync("supportTicketNotificationAdapterService.js", "utf8");

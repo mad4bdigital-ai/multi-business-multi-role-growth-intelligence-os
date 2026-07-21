@@ -8,7 +8,7 @@ import {
   syncOperationGovernance,
 } from "./scripts/frontend-operation-governance-generator.mjs";
 
-const EXPECTED_OPERATIONS = [
+const EXPECTED_MUTATION_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "POST /admin/container-authority/canary-closeouts",
@@ -17,9 +17,16 @@ const EXPECTED_OPERATIONS = [
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
 ].sort();
 
+const evidenceRegistry = JSON.parse(fs.readFileSync("frontend-operation-governance-tests.json", "utf8"));
+const EXPECTED_READ_ACTION_OPERATIONS = evidenceRegistry.read_action_batches
+  .flatMap((batch) => batch.operations.map((operation) => operation.operation))
+  .sort();
+const EXPECTED_OPERATIONS = [...EXPECTED_MUTATION_OPERATIONS, ...EXPECTED_READ_ACTION_OPERATIONS].sort();
+
 const EVIDENCE_FILES = [
   "scripts/frontend-operation-governance-generator.mjs",
   "frontend-operation-governance-tests.json",
+  "scripts/test-manifest.mjs",
   "routes/resourceApiRoutes.js",
   "src/application/resourceApi/resourceApiService.js",
   "src/infrastructure/resourceApi/resourceRepository.js",
@@ -31,7 +38,14 @@ const EVIDENCE_FILES = [
   "tenantConnectBootstrapService.js",
   "tenantConnectBootstrapTransaction.js",
   "test-tenant-connect-bootstrap-transaction.mjs",
-];
+  ...evidenceRegistry.tests.map((entry) => entry.file),
+  ...evidenceRegistry.read_action_batches.flatMap((batch) => [
+    batch.source_file,
+    batch.implementation_file,
+    batch.test_file,
+    ...batch.operations.flatMap((operation) => [operation.implementation_file, operation.test_file]),
+  ]),
+].filter(Boolean).filter((file, index, files) => files.indexOf(file) === index);
 
 function createFixture() {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-operation-governance-"));
@@ -61,15 +75,20 @@ assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 6,
-  generated_rule_count: 6,
+  candidate_count: 36,
+  generated_rule_count: 36,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
 assert(plan.source_authority.every((entry) => entry.present), "every generated decision must be checksum-bound to present evidence");
-assert(plan.operation_rules.every((rule) => rule.classification === "state_change"));
-assert(plan.operation_rules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
-assert(plan.operation_rules.every((rule) => rule.rollback.mode === "transaction"));
+const mutationRules = plan.operation_rules.filter((rule) => rule.classification === "state_change");
+const readActionRules = plan.operation_rules.filter((rule) => rule.classification === "read_action");
+assert.deepEqual(mutationRules.map((rule) => rule.operation).sort(), EXPECTED_MUTATION_OPERATIONS);
+assert.deepEqual(readActionRules.map((rule) => rule.operation).sort(), EXPECTED_READ_ACTION_OPERATIONS);
+assert(mutationRules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
+assert(mutationRules.every((rule) => rule.rollback.mode === "transaction"));
+assert(readActionRules.every((rule) => !Object.hasOwn(rule, "preflight") && !Object.hasOwn(rule, "approval")));
+assert(readActionRules.every((rule) => !Object.hasOwn(rule, "readback") && !Object.hasOwn(rule, "rollback") && !Object.hasOwn(rule, "parameter_bindings")));
 assert(plan.operation_rules.every((rule) => /^[a-f0-9]{64}$/.test(rule.generated_evidence.source_digest)));
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
@@ -82,7 +101,7 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 6);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 36);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
@@ -191,6 +210,58 @@ const noBootstrapRegistrationPlan = buildOperationGovernance({ apiRoot: noBootst
 assert(
   rejection(noBootstrapRegistrationPlan, "POST /connect/bootstrap")
     .missing_evidence.includes("registered_operation_test")
+);
+
+const noReadActionProofFixture = createFixture();
+replaceEvidence(
+  noReadActionProofFixture,
+  "test-agent-governance-runtime.mjs",
+  "// frontend-read-action-proof: POST /platform/agent-governance/response-profile/resolve",
+  "// explicit read-action proof removed for fail-closed regression"
+);
+const noReadActionProofPlan = buildOperationGovernance({ apiRoot: noReadActionProofFixture });
+assert(
+  rejection(noReadActionProofPlan, "POST /platform/agent-governance/response-profile/resolve")
+    .missing_evidence.includes("explicit_read_action_test_proof")
+);
+
+const readActionEffectFixture = createFixture();
+replaceEvidence(
+  readActionEffectFixture,
+  "platformEngineRegistry.js",
+  "return resolvePlatformEngineIntent(input);",
+  "writePlatformEngineIntent(input);\n  return resolvePlatformEngineIntent(input);"
+);
+const readActionEffectPlan = buildOperationGovernance({ apiRoot: readActionEffectFixture });
+assert(
+  rejection(readActionEffectPlan, "POST /platform/engines/resolve-intent")
+    .missing_evidence.includes("implementation_side_effect_free")
+);
+
+const readActionRouteDriftFixture = createFixture();
+replaceEvidence(
+  readActionRouteDriftFixture,
+  "routes/platformEngineRoutes.js",
+  "const result = resolvePlatformEngineTaskIntent(req.body || {});",
+  "const result = resolvePlatformEngineIntentEvidenceRemoved(req.body || {});"
+);
+const readActionRouteDriftPlan = buildOperationGovernance({ apiRoot: readActionRouteDriftFixture });
+assert(
+  rejection(readActionRouteDriftPlan, "POST /platform/engines/resolve-intent")
+    .missing_evidence.includes("route_binding_present")
+);
+
+const readActionManifestFixture = createFixture();
+replaceEvidence(
+  readActionManifestFixture,
+  "scripts/test-manifest.mjs",
+  '"node test-agent-governance-runtime.mjs"',
+  '"node test-agent-governance-runtime-unregistered.mjs"'
+);
+const readActionManifestPlan = buildOperationGovernance({ apiRoot: readActionManifestFixture });
+assert(
+  rejection(readActionManifestPlan, "POST /platform/agent-governance/response-profile/resolve")
+    .missing_evidence.includes("test_manifest_registered")
 );
 
 console.log("generated frontend operation governance evidence tests passed");

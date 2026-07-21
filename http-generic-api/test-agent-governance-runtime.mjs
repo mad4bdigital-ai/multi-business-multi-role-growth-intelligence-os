@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /platform/agent-governance/response-profile/resolve
+// frontend-read-action-proof: POST /platform/agent-governance/response-profile/resolve
+// frontend-surface-operation: POST /platform/agent-governance/research-policy/resolve
+// frontend-read-action-proof: POST /platform/agent-governance/research-policy/resolve
+// frontend-surface-operation: POST /platform/agent-governance/memory-scope/resolve
+// frontend-read-action-proof: POST /platform/agent-governance/memory-scope/resolve
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import {
@@ -15,6 +21,7 @@ import {
   executeBuiltInResearchSource,
   mergeResponseProfiles,
   recordResearchSourceExecution,
+  resolveAgentResponseProfile,
   resolveMemoryScope,
   resolveResearchSourcePolicy,
   runGovernedResearchPlan,
@@ -49,6 +56,19 @@ assert.equal(profile.verbosity, "detailed");
 assert.equal(profile.tone, "formal");
 assert.equal(profile.execution_authority, false);
 
+let responseProfileSql = "";
+const resolvedProfile = await resolveAgentResponseProfile(
+  { tenant_id: "tenant-1", workflow_key: "research" },
+  { pool: { query: async (sql) => {
+    responseProfileSql = String(sql).trim();
+    assert.match(responseProfileSql, /^SELECT\b/i, "response-profile resolution must remain SELECT-only");
+    return [[{ profile_key: "tenant", scope_type: "tenant", language: "ar", status: "active" }]];
+  } } }
+);
+assert.equal(resolvedProfile.language, "ar");
+assert.equal(resolvedProfile.execution_authority, false);
+assert.match(responseProfileSql, /agent_response_profile_registry/);
+
 const policy = {
   policy_key: "internal_first",
   source_order_json: ["internal_registry", "workspace_knowledge", "external_search"],
@@ -79,16 +99,22 @@ assert.equal(compiledContract.contract_hash.length, 64);
 assert.equal(compiled[2].depends_on[0], "research_2_workspace_knowledge");
 assert.equal(verifySequentialStepResult(compiled[0], { ok: true }).passed, false, "research steps must not pass without source evidence");
 
+let researchPolicySql = "";
 const resolved = await resolveResearchSourcePolicy(
   { tenant_id: "tenant-1", brand_key: "brand-1", workflow_key: "research" },
-  { pool: { query: async () => [[
-    { ...policy, policy_key: "wrong_class", priority: 100, question_classes_json: ["finance"] },
-    { ...policy, policy_key: "internal_first", priority: 10, question_classes_json: ["general"] },
-  ]] } }
+  { pool: { query: async (sql) => {
+    researchPolicySql = String(sql).trim();
+    assert.match(researchPolicySql, /^SELECT\b/i, "research-policy resolution must remain SELECT-only");
+    return [[
+      { ...policy, policy_key: "wrong_class", priority: 100, question_classes_json: ["finance"] },
+      { ...policy, policy_key: "internal_first", priority: 10, question_classes_json: ["general"] },
+    ]];
+  } } }
 );
 assert.equal(resolved.internal_first, true);
 assert.equal(resolved.policy_key, "internal_first");
 assert.equal(resolved.recommended_plan_steps.length, 3);
+assert.match(researchPolicySql, /research_source_policy_registry/);
 
 assert.deepEqual(assessHandoffState({ state_id: "x", one_time_use: 1, consumed_at: "2026-01-01" }).reason, "already_consumed");
 assert.deepEqual(assessHandoffState({ state_id: "x", expires_at: "2020-01-01" }).reason, "expired");
@@ -528,6 +554,7 @@ let memoryLinkSql = "";
 const memoryScope = await resolveMemoryScope(
   { tenant_id: "t1", scopes: { tenant: "t1", brand: "brand-1", workflow: "wf-1" } },
   { pool: { query: async (sql) => {
+    assert.match(String(sql).trim(), /^SELECT\b/i, "memory-scope resolution must remain SELECT-only");
     memoryQueryCount += 1;
     if (memoryQueryCount === 1) return [[
       { scope_type: "tenant", priority: 10 }, { scope_type: "brand", priority: 20 }, { scope_type: "workflow", priority: 50 },

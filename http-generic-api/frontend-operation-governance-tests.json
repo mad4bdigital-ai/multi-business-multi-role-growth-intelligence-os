@@ -1,17 +1,344 @@
 {
-  "schema_version": "frontend-operation-governance-test-registry-v1",
+  "schema_version": "frontend-operation-governance-test-registry-v2",
   "tests": [
+    { "file": "test-resource-api-service.mjs", "evidence_scope": "tenant-resource-transactions" },
+    { "file": "test-dynamic-container-rollout-safety.mjs", "evidence_scope": "canary-closeout-transaction" },
+    { "file": "test-tenant-connect-bootstrap-transaction.mjs", "evidence_scope": "tenant-connect-bootstrap-transaction" },
+    { "file": "test-agent-governance-runtime.mjs", "evidence_scope": "agent-governance-read-actions" },
+    { "file": "test-platform-engine-orchestration.mjs", "evidence_scope": "platform-engine-read-actions" },
+    { "file": "test-tenant-infrastructure-readiness-tools.mjs", "evidence_scope": "tenant-infrastructure-preflight-read-actions" },
+    { "file": "test-tenant-ssh-cli-dry-run.mjs", "evidence_scope": "tenant-ssh-cli-dry-run-read-action" },
+    { "file": "test-repo-conflict-intelligence-service.mjs", "evidence_scope": "repo-conflict-read-actions" },
+    { "file": "test-repo-conflict-intelligence-phase2.mjs", "evidence_scope": "repo-conflict-preview-read-actions" },
+    { "file": "test-repository-automation-control-plane.mjs", "evidence_scope": "repository-automation-read-actions" },
+    { "file": "test-ticket-external-credential-activation-binding.mjs", "evidence_scope": "ticket-external-credential-activation-plan" },
+    { "file": "test-ticket-external-secret-intake-surface.mjs", "evidence_scope": "ticket-external-secret-intake-plan" },
+    { "file": "test-ticket-external-adapter-future-pr-scope.mjs", "evidence_scope": "ticket-adapter-future-pr-plan" },
+    { "file": "test-ticket-external-adapter-readiness-checklist.mjs", "evidence_scope": "ticket-adapter-readiness-plan" },
+    { "file": "test-ticket-external-provider-enablement-proposal.mjs", "evidence_scope": "ticket-provider-enablement-candidates" },
+    { "file": "test-ticket-external-send-provider-gate.mjs", "evidence_scope": "ticket-provider-gate-plan" },
+    { "file": "test-ticket-external-send-execution-adapter.mjs", "evidence_scope": "ticket-external-send-execution-plan" },
+    { "file": "test-ticket-external-delivery-approval-policy.mjs", "evidence_scope": "ticket-external-delivery-readiness" },
+    { "file": "test-ticket-notification-delivery-adapters.mjs", "evidence_scope": "ticket-notification-preview" }
+  ],
+  "read_action_batches": [
     {
-      "file": "test-resource-api-service.mjs",
-      "evidence_scope": "tenant-resource-transactions"
+      "batch_id": "agent-governance-resolvers-v1",
+      "owner": "agent-governance",
+      "source_file": "routes/agentGovernanceRoutes.js",
+      "implementation_file": "agentGovernanceRuntime.js",
+      "test_file": "test-agent-governance-runtime.mjs",
+      "operations": [
+        {
+          "recipe_id": "agent-response-profile-resolve-read-action-v1",
+          "operation": "POST /platform/agent-governance/response-profile/resolve",
+          "proof_functions": ["resolveAgentResponseProfile"],
+          "route_markers": ["resolveAgentResponseProfile"],
+          "proof_markers": ["SELECT * FROM agent_response_profile_registry", "mergeResponseProfiles"],
+          "rationale": "Resolves layered response-profile metadata through scoped SELECT queries and returns a presentation-only model without persisting state."
+        },
+        {
+          "recipe_id": "agent-research-policy-resolve-read-action-v1",
+          "operation": "POST /platform/agent-governance/research-policy/resolve",
+          "proof_functions": ["resolveResearchSourcePolicy"],
+          "route_markers": ["resolveResearchSourcePolicy"],
+          "proof_markers": ["SELECT * FROM research_source_policy_registry", "buildResearchPlanSteps"],
+          "rationale": "Selects the applicable research policy and builds recommended read-only plan steps without recording an execution."
+        },
+        {
+          "recipe_id": "agent-memory-scope-resolve-read-action-v1",
+          "operation": "POST /platform/agent-governance/memory-scope/resolve",
+          "proof_functions": ["resolveMemoryScope"],
+          "route_markers": ["resolveMemoryScope"],
+          "proof_markers": ["SELECT * FROM memory_scope_type_registry", "SELECT * FROM memory_scope_links", "execution_authority: false"],
+          "rationale": "Resolves authorized memory links through tenant-scoped SELECT queries and explicitly grants no execution authority."
+        }
+      ]
     },
     {
-      "file": "test-dynamic-container-rollout-safety.mjs",
-      "evidence_scope": "canary-closeout-transaction"
+      "batch_id": "platform-engine-planners-v1",
+      "owner": "platform-engines",
+      "source_file": "routes/platformEngineRoutes.js",
+      "test_file": "test-platform-engine-orchestration.mjs",
+      "operations": [
+        {
+          "recipe_id": "platform-engine-resolve-intent-read-action-v1",
+          "operation": "POST /platform/engines/resolve-intent",
+          "implementation_file": "platformEngineRegistry.js",
+          "proof_functions": ["resolvePlatformEngineTaskIntent"],
+          "route_markers": ["resolvePlatformEngineTaskIntent"],
+          "proof_markers": ["resolvePlatformEngineIntent"],
+          "rationale": "Normalizes an engine task intent in memory and does not create an execution envelope or run."
+        },
+        {
+          "recipe_id": "platform-engine-decision-brief-read-action-v1",
+          "operation": "POST /platform/engines/decision-brief",
+          "implementation_file": "platformEngineRegistry.js",
+          "proof_functions": ["buildPlatformEngineDecisionBrief"],
+          "route_markers": ["buildPlatformEngineDecisionBrief"],
+          "proof_markers": ["checkPlatformEngineCapability", "planPlatformEngineTask", "buildPlatformEngineExecutionEnvelope", "recommended_next_step"],
+          "rationale": "Builds a decision brief from registry reads and an in-memory execution envelope; the route does not invoke the separate run writers."
+        },
+        {
+          "recipe_id": "database-lifecycle-decision-brief-read-action-v1",
+          "operation": "POST /platform/engines/database-table-lifecycle/decision-brief",
+          "implementation_file": "databaseTableLifecycle.js",
+          "proof_functions": ["runDatabaseTableLifecycleCensus", "loadDatabaseLifecycleRows"],
+          "route_markers": ["runDatabaseTableLifecycleCensus"],
+          "proof_markers": ["FROM information_schema.tables", "buildDatabaseTableLifecycleDecisionBrief"],
+          "rationale": "Reads lifecycle and information-schema metadata to build a census brief without applying lifecycle changes."
+        },
+        {
+          "recipe_id": "database-lifecycle-register-plan-read-action-v1",
+          "operation": "POST /platform/engines/database-table-lifecycle/register-plan",
+          "implementation_file": "databaseTableLifecycle.js",
+          "proof_functions": ["planDatabaseTableLifecycleRegistryUpsert", "loadDatabaseLifecycleRows"],
+          "route_markers": ["planDatabaseTableLifecycleRegistryUpsert"],
+          "proof_markers": ["FROM information_schema.tables", "buildDatabaseTableLifecycleRegisterPlan", "selection_mode"],
+          "rationale": "Computes proposed lifecycle-registry rows from SELECT-only census data and does not execute the proposed upsert."
+        },
+        {
+          "recipe_id": "platform-engine-capability-check-read-action-v1",
+          "operation": "POST /platform/engines/capability-check",
+          "implementation_file": "platformEngineRegistry.js",
+          "proof_functions": ["checkPlatformEngineCapability", "loadEngineDecisionContext"],
+          "route_markers": ["checkPlatformEngineCapability"],
+          "proof_markers": ["loadEngineDecisionContext", "evaluatePlatformEngineCapability"],
+          "rationale": "Loads engine policy context and evaluates capability readiness without writing a run or validator result."
+        }
+      ]
     },
     {
-      "file": "test-tenant-connect-bootstrap-transaction.mjs",
-      "evidence_scope": "tenant-connect-bootstrap-transaction"
+      "batch_id": "tenant-infrastructure-preflights-v1",
+      "owner": "tenant-infrastructure",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "implementation_file": "routes/tenantInfrastructureRoutes.js",
+      "test_file": "test-tenant-infrastructure-readiness-tools.mjs",
+      "operations": [
+        {
+          "recipe_id": "tenant-database-preflight-read-action-v1",
+          "operation": "POST /me/infrastructure/database/connections/{connection_id}/preflight",
+          "proof_functions": ["sendPreflight", "loadTenantConnection", "readinessFor"],
+          "route_markers": ["sendPreflight", "remote_database"],
+          "proof_markers": ["SELECT connection_id", "will_open_network_connection: false", "will_query_database: false"],
+          "rationale": "Reads one tenant-scoped connection and returns readiness flags while explicitly forbidding decryption, network access, and database execution."
+        },
+        {
+          "recipe_id": "tenant-ssh-preflight-read-action-v1",
+          "operation": "POST /me/infrastructure/ssh/connections/{connection_id}/preflight",
+          "proof_functions": ["sendPreflight", "loadTenantConnection", "readinessFor"],
+          "route_markers": ["sendPreflight", "ssh_key_pair"],
+          "proof_markers": ["SELECT connection_id", "will_open_network_connection: false", "will_execute_command: false"],
+          "rationale": "Reads one tenant-scoped SSH connection and returns readiness flags without decrypting credentials, opening a network connection, or executing a command."
+        },
+        {
+          "recipe_id": "tenant-generic-infrastructure-preflight-read-action-v1",
+          "operation": "POST /me/infrastructure/connections/{connection_id}/preflight",
+          "proof_functions": ["loadTenantConnection", "readinessFor"],
+          "route_markers": ["loadTenantConnection", "readinessFor", "will_open_network_connection: false", "will_execute_command: false", "will_query_database: false"],
+          "proof_markers": ["SELECT connection_id", "execution_enabled: false", "secrets_included: false"],
+          "rationale": "The compatibility preflight performs a tenant-scoped connection SELECT and reports non-executing readiness metadata only."
+        },
+        {
+          "recipe_id": "tenant-ssh-cli-dry-run-read-action-v1",
+          "operation": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run",
+          "test_file": "test-tenant-ssh-cli-dry-run.mjs",
+          "proof_functions": ["buildSshCliDryRunPlan", "loadTenantConnection", "readinessFor"],
+          "route_markers": ["buildSshCliDryRunPlan"],
+          "proof_markers": ["SSH_CLI_DRY_RUN_ALLOWLIST", "will_authenticate_ssh: false", "will_open_network_connection: false", "will_execute_command: false", "SELECT connection_id"],
+          "rationale": "Validates a fixed allowlisted command plan after a tenant-scoped SELECT and explicitly performs no SSH authentication, network access, or command execution."
+        }
+      ]
+    },
+    {
+      "batch_id": "repo-conflict-previews-v1",
+      "owner": "repository-governance",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "implementation_file": "repoConflictIntelligenceService.js",
+      "test_file": "test-repo-conflict-intelligence-service.mjs",
+      "operations": [
+        {
+          "recipe_id": "admin-repo-conflict-analyze-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/analyze",
+          "proof_functions": ["analyzeRepoConflict"],
+          "route_markers": ["analyzeRepoConflict"],
+          "proof_markers": ["classifyFiles", "safe_to_auto_resolve", "secrets_included: false"],
+          "rationale": "Classifies supplied repository metadata in memory and returns an advisory analysis without provider or Git mutation."
+        },
+        {
+          "recipe_id": "admin-repo-conflict-plan-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/plan",
+          "proof_functions": ["buildRepoConflictPlan"],
+          "route_markers": ["buildRepoConflictPlan"],
+          "proof_markers": ["acceptance_gates", "do_not_merge_until_resolved", "secrets_included: false"],
+          "rationale": "Builds an advisory conflict-resolution plan in memory and does not apply any plan step."
+        },
+        {
+          "recipe_id": "admin-repo-conflict-semantic-preview-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/semantic-preview",
+          "proof_functions": ["previewSemanticPatches", "insertImportIfMissing", "insertAfterAnchorIfMissing", "appendUniqueLine"],
+          "route_markers": ["previewSemanticPatches"],
+          "proof_markers": ["preview_count", "previews", "secrets_included: false"],
+          "rationale": "Computes bounded semantic patch previews from request content without writing repository files."
+        },
+        {
+          "recipe_id": "admin-repo-conflict-resolve-dry-run-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/resolve-dry-run",
+          "test_file": "test-repo-conflict-intelligence-phase2.mjs",
+          "proof_functions": ["buildRepoConflictResolutionDryRun"],
+          "route_markers": ["buildRepoConflictResolutionDryRun"],
+          "proof_markers": ["execution_allowed: false", "provider_write: false", "branch_mutation: false"],
+          "rationale": "Produces a no-execution resolution preview with provider and branch mutations explicitly disabled."
+        },
+        {
+          "recipe_id": "admin-repo-conflict-pr-preview-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/pr-automation-preview",
+          "test_file": "test-repo-conflict-intelligence-phase2.mjs",
+          "proof_functions": ["buildPrAutomationPreview"],
+          "route_markers": ["buildPrAutomationPreview"],
+          "proof_markers": ["provider_write: false", "comment_posted: false", "approval_hold_required"],
+          "rationale": "Builds a proposed PR advisory comment but neither posts it nor performs a provider write."
+        },
+        {
+          "recipe_id": "tenant-repo-conflict-analyze-read-action-v1",
+          "operation": "POST /me/repo-conflict-intelligence/analyze",
+          "proof_functions": ["buildTenantConflictSummary"],
+          "route_markers": ["buildTenantConflictSummary"],
+          "proof_markers": ["scope: \"tenant\"", "tenant_visible_files", "secrets_included: false"],
+          "rationale": "Projects an in-memory conflict analysis into a tenant-safe summary without provider or repository access."
+        },
+        {
+          "recipe_id": "tenant-repo-conflict-plan-read-action-v1",
+          "operation": "POST /me/repo-conflict-intelligence/plan",
+          "proof_functions": ["buildRepoConflictPlan"],
+          "route_markers": ["buildRepoConflictPlan", "execution_allowed: false"],
+          "proof_markers": ["acceptance_gates", "secrets_included: false"],
+          "rationale": "Returns a tenant-scoped advisory plan with route-level execution explicitly disabled."
+        },
+        {
+          "recipe_id": "tenant-repo-conflict-resolve-dry-run-read-action-v1",
+          "operation": "POST /me/repo-conflict-intelligence/resolve-dry-run",
+          "test_file": "test-repo-conflict-intelligence-phase2.mjs",
+          "proof_functions": ["buildTenantConflictResolutionDryRun"],
+          "route_markers": ["buildTenantConflictResolutionDryRun"],
+          "proof_markers": ["execution_allowed: false", "provider_write: false", "safe_next_actions"],
+          "rationale": "Returns a tenant-safe dry-run projection with execution and provider writes disabled."
+        }
+      ]
+    },
+    {
+      "batch_id": "repository-automation-read-models-v1",
+      "owner": "repository-automation",
+      "source_file": "routes/repositoryAutomationRoutes.js",
+      "implementation_file": "repositoryAutomationControlPlane.js",
+      "test_file": "test-repository-automation-control-plane.mjs",
+      "operations": [
+        {
+          "recipe_id": "repository-automation-status-read-action-v1",
+          "operation": "POST /admin/repository-automation/status",
+          "proof_functions": ["readRepositoryAutomationRun"],
+          "route_markers": ["readRepositoryAutomationRun"],
+          "proof_markers": ["SELECT * FROM repository_automation_runs", "SELECT * FROM repository_automation_step_runs", "SELECT * FROM repository_automation_receipts"],
+          "rationale": "Reads one automation run, its steps, and receipts through fixed SELECT queries and returns a sanitized read model."
+        }
+      ]
+    },
+    {
+      "batch_id": "support-ticket-planners-v1",
+      "owner": "support-delivery-governance",
+      "source_file": "routes/supportTicketRoutes.js",
+      "operations": [
+        {
+          "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan",
+          "implementation_file": "supportTicketExternalCredentialActivationService.js",
+          "test_file": "test-ticket-external-credential-activation-binding.mjs",
+          "proof_functions": ["planSupportTicketExternalCredentialActivation"],
+          "route_markers": ["planSupportTicketExternalCredentialActivation"],
+          "proof_markers": ["fetchTicket", "fetchSecretReference", "buildActivationPlan"],
+          "rationale": "Reads ticket and credential-reference metadata to build an activation plan without activating or binding the credential."
+        },
+        {
+          "recipe_id": "ticket-external-secret-intake-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-secret/intake-plan",
+          "implementation_file": "supportTicketExternalSecretIntakeService.js",
+          "test_file": "test-ticket-external-secret-intake-surface.mjs",
+          "proof_functions": ["planSupportTicketExternalSecretIntake"],
+          "route_markers": ["planSupportTicketExternalSecretIntake"],
+          "proof_markers": ["fetchTicket", "buildReferencePlan", "compactTicket"],
+          "rationale": "Reads ticket context and builds a secret-reference intake plan without registering, activating, or storing a secret."
+        },
+        {
+          "recipe_id": "ticket-adapter-future-pr-scope-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
+          "implementation_file": "supportTicketExternalAdapterFuturePrScopeService.js",
+          "test_file": "test-ticket-external-adapter-future-pr-scope.mjs",
+          "proof_functions": ["planSupportTicketExternalAdapterFuturePrScope"],
+          "route_markers": ["planSupportTicketExternalAdapterFuturePrScope"],
+          "proof_markers": ["fetchDecisionContext", "buildScope", "assertNoRawSecretPayload"],
+          "rationale": "Reads an adapter decision and builds a future-PR scope preview without recording the scope or enabling dispatch."
+        },
+        {
+          "recipe_id": "ticket-adapter-readiness-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/external-send/provider-adapter-readiness/plan",
+          "implementation_file": "supportTicketExternalAdapterReadinessChecklistService.js",
+          "test_file": "test-ticket-external-adapter-readiness-checklist.mjs",
+          "proof_functions": ["planSupportTicketExternalAdapterReadinessChecklist"],
+          "route_markers": ["planSupportTicketExternalAdapterReadinessChecklist"],
+          "proof_markers": ["fetchProposalAndAdapter", "checklistItemsForProposal", "summarizeChecklist"],
+          "rationale": "Reads proposal and adapter metadata to compute a readiness checklist without recording a decision or enabling a provider."
+        },
+        {
+          "recipe_id": "ticket-provider-enablement-candidates-read-action-v1",
+          "operation": "POST /admin/support/tickets/external-send/provider-adapter-enablement/candidates",
+          "implementation_file": "supportTicketExternalProviderEnablementProposalService.js",
+          "test_file": "test-ticket-external-provider-enablement-proposal.mjs",
+          "proof_functions": ["listSupportTicketExternalProviderEnablementCandidates"],
+          "route_markers": ["listSupportTicketExternalProviderEnablementCandidates"],
+          "proof_markers": ["SELECT", "external_delivery_provider_adapter_contract_registry", "external_send_performed: false"],
+          "rationale": "Lists provider-enablement candidates through a bounded SELECT and does not create a proposal or change dispatch state."
+        },
+        {
+          "recipe_id": "ticket-provider-gate-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan",
+          "implementation_file": "supportTicketExternalSendProviderGateService.js",
+          "test_file": "test-ticket-external-send-provider-gate.mjs",
+          "proof_functions": ["planSupportTicketExternalSendProviderGate"],
+          "route_markers": ["planSupportTicketExternalSendProviderGate"],
+          "proof_markers": ["planSupportTicketExternalSendExecution", "evaluateSupportTicketExternalProviderGatePreflight", "buildProviderPlan"],
+          "rationale": "Evaluates the external-send provider gate and returns a blocked/readiness plan without recording an attempt or dispatching."
+        },
+        {
+          "recipe_id": "ticket-external-send-execution-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-send/execution-plan",
+          "implementation_file": "supportTicketExternalSendExecutionService.js",
+          "test_file": "test-ticket-external-send-execution-adapter.mjs",
+          "proof_functions": ["planSupportTicketExternalSendExecution"],
+          "route_markers": ["planSupportTicketExternalSendExecution"],
+          "proof_markers": ["buildExecutionPlan", "compactTicket", "getConnection"],
+          "rationale": "Reads ticket execution prerequisites and builds a plan without recording an execution or sending externally."
+        },
+        {
+          "recipe_id": "ticket-external-delivery-readiness-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-delivery/readiness",
+          "implementation_file": "supportTicketExternalDeliveryPolicyService.js",
+          "test_file": "test-ticket-external-delivery-approval-policy.mjs",
+          "proof_functions": ["checkSupportTicketExternalDeliveryReadiness"],
+          "route_markers": ["checkSupportTicketExternalDeliveryReadiness"],
+          "proof_markers": ["fetchTicket", "findCredentialBinding", "external_send_performed: false"],
+          "rationale": "Reads ticket and credential-binding state to report delivery readiness without requesting approval or sending externally."
+        },
+        {
+          "recipe_id": "ticket-notification-preview-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview",
+          "implementation_file": "supportTicketNotificationAdapterService.js",
+          "test_file": "test-ticket-notification-delivery-adapters.mjs",
+          "proof_functions": ["previewSupportTicketNotificationDelivery"],
+          "route_markers": ["previewSupportTicketNotificationDelivery"],
+          "proof_markers": ["fetchTicket", "buildPreview", "compactTicket"],
+          "rationale": "Reads ticket context and builds a notification preview without dispatching an adapter or recording delivery."
+        }
+      ]
     }
   ]
 }

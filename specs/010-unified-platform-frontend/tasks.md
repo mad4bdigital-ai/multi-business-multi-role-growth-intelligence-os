@@ -34,7 +34,7 @@
       - [x] T018d.4e Replace adapter-execution-gate and backlog-target-write entries with canonical read-model contracts, and align lifecycle status enums with all migration-permitted values.
       - [x] T018d.4f Replace the remaining-scope-completion entry with a canonical read-model contract and migration-aligned lifecycle enums.
       - [x] T018d.4g Add canonical signed-user contracts for the tenant Activation session list and bounded turn-batch archive write.
-    - [ ] T018d.5 Classify 532 remaining non-GET candidates with exact evidence and controls where consequential.
+    - [ ] T018d.5 Classify 502 remaining non-GET candidates with exact evidence and controls where consequential.
       - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
       - [x] T018d.5b Classify the three SELECT-only promotion review and capability planning read models and register explicit test ownership.
       - [x] T018d.5c Classify the three SELECT-only capability-envelope lifecycle read models and register explicit test ownership.
@@ -45,6 +45,7 @@
       - [x] T018d.5h Classify seventeen source-proven read actions across manifest resolution, readiness/readback, health planning, governance proposals, smoke-certification policy history/preview/queue, runtime catalog, private contribution resolution, agent intelligence, and repository automation, with explicit test ownership.
       - [x] T018d.5i Govern the signed-user `POST /connect/bootstrap` state change with exact Managed-mode preflight and promote it to generated governance after transactional readback and rollback evidence is complete.
       - [x] T018d.5j Generate the canary-closeout state-change classification from its admin guard, capability envelope, typed confirmation, atomic transaction, readback, and registered regression evidence.
+      - [x] T018d.5k Generate thirty checksum-bound read-action classifications in one fail-closed batch across agent governance, platform-engine planning, tenant infrastructure preflights, repository conflict previews, repository-automation status, and support-delivery planners; reject route, implementation, static-effect, test-proof, or manifest drift.
     - [x] T018d.6 Complete rollback/post-commit compensation for consequential operations.
       - [x] T018d.6a Run the four tenant resource mutations and scoped readbacks in one SQL transaction with verified rollback on mutation/readback failure.
       - [x] T018d.6b Replace the tenant bootstrap's separate workspace/activation commits with one principal-locked SQL transaction, before-commit membership/connection readback, verified rollback, and partial-failure regression coverage.

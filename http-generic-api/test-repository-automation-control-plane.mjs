@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/repository-automation/plan
+// frontend-read-action-proof: POST /admin/repository-automation/plan
+// frontend-surface-operation: POST /admin/repository-automation/status
+// frontend-read-action-proof: POST /admin/repository-automation/status
 import { readFileSync } from "node:fs";
 import {
   REPOSITORY_AUTOMATION_CAPABILITIES,
@@ -6,6 +10,7 @@ import {
   classifySpecLifecycle,
   collectChunkedToolResponse,
   executeCiAutoRecovery,
+  readRepositoryAutomationRun,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "./repositoryAutomationControlPlane.js";
@@ -54,6 +59,26 @@ assert(fullPlan.steps.some((step) => step.step_key === "migration_apply"));
 assert(fullPlan.steps.some((step) => step.step_key === "deployment_parity"));
 assert(fullPlan.steps.some((step) => step.step_key === "hygiene_scan"));
 assert.equal(fullPlan.plan_sha256.length, 64);
+
+const statusSql = [];
+const statusReadback = await readRepositoryAutomationRun({ run_id: "run-read-only" }, {
+  pool: {
+    async query(sql) {
+      const statement = String(sql).trim();
+      statusSql.push(statement);
+      assert.match(statement, /^SELECT\b/i, "repository automation status must remain SELECT-only");
+      if (statement.includes("FROM repository_automation_runs")) {
+        return [[{ run_id: "run-read-only", status: "completed", plan_json: "{}", secrets_included: 0 }]];
+      }
+      return [[]];
+    },
+  },
+});
+assert.equal(statusReadback.ok, true);
+assert.equal(statusReadback.run.run_id, "run-read-only");
+assert.equal(statusReadback.steps.length, 0);
+assert.equal(statusReadback.receipts.length, 0);
+assert.equal(statusSql.length, 3);
 
 const historicalBlocked = classifySpecLifecycle({
   historical: true,

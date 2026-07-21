@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/resolve-dry-run
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/resolve-dry-run
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/pr-automation-preview
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/pr-automation-preview
+// frontend-surface-operation: POST /me/repo-conflict-intelligence/resolve-dry-run
+// frontend-read-action-proof: POST /me/repo-conflict-intelligence/resolve-dry-run
 import {
   analyzeRepoConflict,
   buildConflictCaseStudy,

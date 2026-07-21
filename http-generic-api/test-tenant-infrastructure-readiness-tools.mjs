@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /me/infrastructure/database/connections/{connection_id}/preflight
+// frontend-read-action-proof: POST /me/infrastructure/database/connections/{connection_id}/preflight
+// frontend-surface-operation: POST /me/infrastructure/ssh/connections/{connection_id}/preflight
+// frontend-read-action-proof: POST /me/infrastructure/ssh/connections/{connection_id}/preflight
+// frontend-surface-operation: POST /me/infrastructure/connections/{connection_id}/preflight
+// frontend-read-action-proof: POST /me/infrastructure/connections/{connection_id}/preflight
 import { readFileSync } from "node:fs";
 
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");

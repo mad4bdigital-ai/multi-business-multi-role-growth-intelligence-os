@@ -1,4 +1,14 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/analyze
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/analyze
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/plan
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/plan
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/semantic-preview
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/semantic-preview
+// frontend-surface-operation: POST /me/repo-conflict-intelligence/analyze
+// frontend-read-action-proof: POST /me/repo-conflict-intelligence/analyze
+// frontend-surface-operation: POST /me/repo-conflict-intelligence/plan
+// frontend-read-action-proof: POST /me/repo-conflict-intelligence/plan
 import { analyzeRepoConflict, buildRepoConflictPlan, buildTenantConflictSummary, previewSemanticPatches } from "./repoConflictIntelligenceService.js";
 
 const generated = analyzeRepoConflict({

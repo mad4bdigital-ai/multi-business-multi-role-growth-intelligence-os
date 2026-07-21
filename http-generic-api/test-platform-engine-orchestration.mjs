@@ -1,9 +1,26 @@
 import assert from "node:assert/strict";
-import { buildPlatformEngineDecisionBrief, writePlatformEngineRun } from "./platformEngineRegistry.js";
+// frontend-surface-operation: POST /platform/engines/resolve-intent
+// frontend-read-action-proof: POST /platform/engines/resolve-intent
+// frontend-surface-operation: POST /platform/engines/decision-brief
+// frontend-read-action-proof: POST /platform/engines/decision-brief
+// frontend-surface-operation: POST /platform/engines/database-table-lifecycle/decision-brief
+// frontend-read-action-proof: POST /platform/engines/database-table-lifecycle/decision-brief
+// frontend-surface-operation: POST /platform/engines/database-table-lifecycle/register-plan
+// frontend-read-action-proof: POST /platform/engines/database-table-lifecycle/register-plan
+// frontend-surface-operation: POST /platform/engines/capability-check
+// frontend-read-action-proof: POST /platform/engines/capability-check
+import {
+  buildPlatformEngineDecisionBrief,
+  checkPlatformEngineCapability,
+  resolvePlatformEngineTaskIntent,
+  writePlatformEngineRun,
+} from "./platformEngineRegistry.js";
 import {
   buildDatabaseTableLifecycleDecisionBrief,
   buildDatabaseTableLifecycleRegisterPlan,
   classifyDatabaseTableLifecycle,
+  planDatabaseTableLifecycleRegistryUpsert,
+  runDatabaseTableLifecycleCensus,
 } from "./databaseTableLifecycle.js";
 import {
   buildPlatformEngineExecutionEnvelope,
@@ -425,6 +442,34 @@ assert.equal(decisionBrief.envelope.will_execute, false);
 assert.equal(decisionBrief.envelope.no_repo_mutation, true);
 assert.equal(decisionBrief.envelope.model_executes_tools, false);
 assert.equal(decisionBrief.envelope.tool_execution_runtime_separate, true);
+
+const resolvedIntent = resolvePlatformEngineTaskIntent({
+  objective: "resolve package conflict",
+  resource_key: "http-generic-api/package.json",
+});
+assert.equal(resolvedIntent.engine_key, "repo_conflict_resolution_engine");
+
+const checkedCapability = await checkPlatformEngineCapability({
+  engine_key: "repo_conflict_resolution_engine",
+  task_class: "conflict_plan",
+}, { pool: makeEngineBriefPool() });
+assert.equal(checkedCapability.ready_for_plan, true);
+
+let lifecycleReadCount = 0;
+const lifecycleReadPool = {
+  async query(sql) {
+    lifecycleReadCount += 1;
+    assert.match(String(sql).trim(), /^SELECT\b/i, "database lifecycle planners must remain SELECT-only");
+    return [[]];
+  },
+};
+const lifecycleCensus = await runDatabaseTableLifecycleCensus({ limit: 25 }, { pool: lifecycleReadPool });
+assert.equal(lifecycleCensus.ok, true);
+assert.equal(lifecycleCensus.no_drop, true);
+const liveLifecycleRegisterPlan = await planDatabaseTableLifecycleRegistryUpsert({ limit: 25 }, { pool: lifecycleReadPool });
+assert.equal(liveLifecycleRegisterPlan.ok, true);
+assert.equal(liveLifecycleRegisterPlan.will_write, false);
+assert.equal(lifecycleReadCount, 2);
 
 let capturedAuditParams = null;
 await writePlatformEngineRun({

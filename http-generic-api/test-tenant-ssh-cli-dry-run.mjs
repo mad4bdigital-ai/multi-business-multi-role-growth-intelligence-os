@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run
+// frontend-read-action-proof: POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run
 import { readFileSync } from "node:fs";
 
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");

@@ -60,11 +60,6 @@
           "classification",
           "owner",
           "rationale",
-          "preflight",
-          "approval",
-          "readback",
-          "rollback",
-          "parameter_bindings",
           "evidence_refs",
           "generated_evidence"
         ],
@@ -72,7 +67,7 @@
           "rule_id": { "type": "string", "pattern": "^generated-" },
           "operation": { "type": "string", "pattern": "^(POST|PUT|PATCH|DELETE) /" },
           "source_file": { "type": "string", "pattern": "^routes/" },
-          "classification": { "enum": ["state_change", "external_effect"] },
+          "classification": { "enum": ["read_action", "state_change", "external_effect"] },
           "owner": { "type": "string", "minLength": 1 },
           "rationale": { "type": "string", "minLength": 1 },
           "preflight": { "$ref": "#/$defs/control" },
@@ -91,7 +86,18 @@
               "fail_closed": { "const": true }
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "classification": { "enum": ["state_change", "external_effect"] } },
+              "required": ["classification"]
+            },
+            "then": {
+              "required": ["preflight", "approval", "readback", "rollback", "parameter_bindings"]
+            }
+          }
+        ]
       }
     },
     "rejected_candidates": {

@@ -2,10 +2,20 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "0aa4e2b735d1fca48fc96f6200c25a1471188300f3a45ac2f2e84427b03bd715",
+    "source_digest": "3d1bf4c71514db29340e304db8564b522356f55aa78c72ef74a127e6cef8841c",
     "fail_closed": true
   },
   "source_authority": [
+    {
+      "file": "agentGovernanceRuntime.js",
+      "sha256": "fcafab9d627faf0f9c2a58c8413c2446878728a17dc13ada6d1ee94155addd77",
+      "present": true
+    },
+    {
+      "file": "databaseTableLifecycle.js",
+      "sha256": "c571c7db65f004a6a114628c7aa969eb9b7ec7fd95853e3fef249b37b7f2ad19",
+      "present": true
+    },
     {
       "file": "dynamicContainerRolloutSafety.js",
       "sha256": "c1de94a9ad9e96460c8bd30c6870f3993afbc7222da7db868d640824e6a7c12c",
@@ -13,7 +23,27 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "a9e77e6e7cda969fcf7bb926aac5c41c943e331d5fff3cccbd96f72332c00869",
+      "sha256": "48f0f5d9c43b81afb01a3ce2542380786611946865667fe0a58d1cab0c69c56e",
+      "present": true
+    },
+    {
+      "file": "platformEngineRegistry.js",
+      "sha256": "820667dfef851b11d549bdfdd8d03c57fc72719f8a7bc9ff1b45792d4d91927a",
+      "present": true
+    },
+    {
+      "file": "repoConflictIntelligenceService.js",
+      "sha256": "c7cdb138b21cc707f1fea6e00c132708648de292900f0d982ecbe610bc068a70",
+      "present": true
+    },
+    {
+      "file": "repositoryAutomationControlPlane.js",
+      "sha256": "cbb64a755cf9b6ae620978462c415ba90a54e220387fc92d09c63262675fc7e6",
+      "present": true
+    },
+    {
+      "file": "routes/agentGovernanceRoutes.js",
+      "sha256": "974a1b4d5f8412a033c948180818ef36f79d9245181475a4049bb7207670d813",
       "present": true
     },
     {
@@ -27,13 +57,43 @@
       "present": true
     },
     {
+      "file": "routes/platformEngineRoutes.js",
+      "sha256": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+      "present": true
+    },
+    {
+      "file": "routes/repoConflictIntelligenceRoutes.js",
+      "sha256": "16a1d498ab405b94abe8e888cf8835d6ae74752ea8e06f9824043b90447b444d",
+      "present": true
+    },
+    {
+      "file": "routes/repositoryAutomationRoutes.js",
+      "sha256": "78d5a043b43e2dff77c512c4b018205e749e9cda3ad89b09a9ace38837f97147",
+      "present": true
+    },
+    {
       "file": "routes/resourceApiRoutes.js",
       "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
       "present": true
     },
     {
+      "file": "routes/supportTicketRoutes.js",
+      "sha256": "c88d1ffc000f5c58e3fdd6cdb6067a5e726eb12c56913fa342356350e25d20f3",
+      "present": true
+    },
+    {
+      "file": "routes/tenantInfrastructureRoutes.js",
+      "sha256": "9b3eb33af00f8d5fbd40533a309ce5998ebc271c22af72449512b47614f8c325",
+      "present": true
+    },
+    {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+      "sha256": "6f4af308d192f8eeeabb5848ddf254f50ef50e967b4e50652e2ab655873288f1",
+      "present": true
+    },
+    {
+      "file": "scripts/test-manifest.mjs",
+      "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
       "present": true
     },
     {
@@ -47,6 +107,51 @@
       "present": true
     },
     {
+      "file": "supportTicketExternalAdapterFuturePrScopeService.js",
+      "sha256": "a3f0a51c6c823e24813a612a7404eaefe8679e233b6ea7e5c72fedebb227481d",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalAdapterReadinessChecklistService.js",
+      "sha256": "f120affd336e598d9c457aa00800d78d23f5662e4086793f7b9012f318c985f4",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalCredentialActivationService.js",
+      "sha256": "438abd99b99b6b620a6debee0681907ee4885b0cba18e8717ca72147f4c61dfe",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalDeliveryPolicyService.js",
+      "sha256": "aaddc822028c842497b0c4ccb7d6120758087b24d3e0f8ffddc6fba162eff29e",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalProviderEnablementProposalService.js",
+      "sha256": "c8f0134ef5c40ab8aba67d9f867b6ae0df5339454262c45a1f669274292e7f94",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalSecretIntakeService.js",
+      "sha256": "26ab82fd81804b7a15887c1655ca4e3c60cf195f55be77b7131915b884700b68",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalSendExecutionService.js",
+      "sha256": "05ac3adc7e7e48739da1c091e567942c232387d7296b410cb0146d3ed8687767",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalSendProviderGateService.js",
+      "sha256": "a97359bf0cc925e2d077a663a11125366386f73c5a12c5e149e830b714981703",
+      "present": true
+    },
+    {
+      "file": "supportTicketNotificationAdapterService.js",
+      "sha256": "1196dd50f1dc7b4f6a0617188a95f9e6645f4e77f2a2fc14d6bcee3263ba23cb",
+      "present": true
+    },
+    {
       "file": "tenantConnectBootstrapService.js",
       "sha256": "cb7bfbdb645e86c671585498e9d3f4b064f5b7c9d5a125a29aefcfc07a1aeef0",
       "present": true
@@ -57,8 +162,33 @@
       "present": true
     },
     {
+      "file": "test-agent-governance-runtime.mjs",
+      "sha256": "cb6fcec8be7145e9bc3321c6af5b2a25e934f4e05d14fcf4351b36286015b2d0",
+      "present": true
+    },
+    {
       "file": "test-dynamic-container-rollout-safety.mjs",
       "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
+      "present": true
+    },
+    {
+      "file": "test-platform-engine-orchestration.mjs",
+      "sha256": "eaf755f614d1d7d55ee9b22888a11832df6e3684f59b0a5857254007f7b3b0a3",
+      "present": true
+    },
+    {
+      "file": "test-repo-conflict-intelligence-phase2.mjs",
+      "sha256": "db5d47906679ae4917e6328b0789a47c88222ce449b049935a78b0beec453d49",
+      "present": true
+    },
+    {
+      "file": "test-repo-conflict-intelligence-service.mjs",
+      "sha256": "1f385c08d1a4a876fccec4a138cd714990dc8ca107eb69c1fb4bc3b2deffb292",
+      "present": true
+    },
+    {
+      "file": "test-repository-automation-control-plane.mjs",
+      "sha256": "a6c0a71edc7a882a04697315452cdd158abb0d6dd708d7f5491ff23ca70df9ae",
       "present": true
     },
     {
@@ -70,11 +200,66 @@
       "file": "test-tenant-connect-bootstrap-transaction.mjs",
       "sha256": "12b38133e5032cc6a108a9d0799f11de83b20b4feab20d26d54f138411980f67",
       "present": true
+    },
+    {
+      "file": "test-tenant-infrastructure-readiness-tools.mjs",
+      "sha256": "49db116c8970240f9e5378256926a960496b19ecdcb194d9b19641a0cf178922",
+      "present": true
+    },
+    {
+      "file": "test-tenant-ssh-cli-dry-run.mjs",
+      "sha256": "66238db0ca21469e3c00422b6f6464bd9b6972ba723d9ca94218b4dea2b583d2",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-adapter-future-pr-scope.mjs",
+      "sha256": "27d1b9b37a00b7dfa67e5226e999e4823ea02c2c4eb89eed05afcade37c38dea",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-adapter-readiness-checklist.mjs",
+      "sha256": "c03bd72f5b3dc90e78c9c62bfc21d1a52202537f202f21312cd77cd9b06a92b2",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-credential-activation-binding.mjs",
+      "sha256": "eb5204851c13986a169228af51827461d5e59367deeb87f5f82f5c1c8ff61c3b",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-delivery-approval-policy.mjs",
+      "sha256": "01d9bf3d39b87ec9d00b24bcba66b49fd825a18427dbcd75999cb4ac05428011",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-provider-enablement-proposal.mjs",
+      "sha256": "1c09fab186cafc284546584ce5f90110bdfef410ec721010b8827a2ab47defd2",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-secret-intake-surface.mjs",
+      "sha256": "a49747d916f645856f6c3aae1d6457a427430f8c9a687c2875cb3d073ea4c089",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-send-execution-adapter.mjs",
+      "sha256": "4c93ecf7d7c56cd20151298245d5b13806793bddaeac36749bf08ef96cb1d653",
+      "present": true
+    },
+    {
+      "file": "test-ticket-external-send-provider-gate.mjs",
+      "sha256": "fde5d6bca924008229ff48234d3a92bf653420ba8576f9b97701c70f158bf8d8",
+      "present": true
+    },
+    {
+      "file": "test-ticket-notification-delivery-adapters.mjs",
+      "sha256": "e131751ad19f5a147bc5c4761de5dba34ae815f0993569f7b369bce3a2b9edc0",
+      "present": true
     }
   ],
   "coverage": {
-    "candidate_count": 6,
-    "generated_rule_count": 6,
+    "candidate_count": 36,
+    "generated_rule_count": 36,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -85,29 +270,6 @@
       "classification": "state_change",
       "owner": "resource-platform",
       "rationale": "Checks tenant ownership and archive capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
-      "preflight": {
-        "mode": "inline_capability_check"
-      },
-      "approval": {
-        "mode": "runtime_authorization"
-      },
-      "readback": {
-        "mode": "transactional_readback",
-        "same_cycle": true,
-        "before_commit": true
-      },
-      "rollback": {
-        "mode": "transaction",
-        "on": [
-          "mutation_failure",
-          "readback_failure"
-        ]
-      },
-      "parameter_bindings": {
-        "tenant_id": "path.tenant_id",
-        "resource_key": "path.resourceKey",
-        "resource_id": "path.resourceId"
-      },
       "evidence_refs": [
         "routes/resourceApiRoutes.js",
         "src/application/resourceApi/resourceApiService.js",
@@ -118,15 +280,7 @@
         "recipe_id": "tenant-resource-archive-transaction-v1",
         "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
         "fail_closed": true
-      }
-    },
-    {
-      "rule_id": "generated-tenant-resource-update-governance",
-      "operation": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-      "source_file": "routes/resourceApiRoutes.js",
-      "classification": "state_change",
-      "owner": "resource-platform",
-      "rationale": "Checks tenant ownership and update capability, mutates the asset, and verifies the scoped readback before committing the same SQL transaction.",
+      },
       "preflight": {
         "mode": "inline_capability_check"
       },
@@ -149,7 +303,15 @@
         "tenant_id": "path.tenant_id",
         "resource_key": "path.resourceKey",
         "resource_id": "path.resourceId"
-      },
+      }
+    },
+    {
+      "rule_id": "generated-tenant-resource-update-governance",
+      "operation": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Checks tenant ownership and update capability, mutates the asset, and verifies the scoped readback before committing the same SQL transaction.",
       "evidence_refs": [
         "routes/resourceApiRoutes.js",
         "src/application/resourceApi/resourceApiService.js",
@@ -160,6 +322,29 @@
         "recipe_id": "tenant-resource-update-transaction-v1",
         "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
         "fail_closed": true
+      },
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "path.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
       }
     },
     {
@@ -169,6 +354,16 @@
       "classification": "state_change",
       "owner": "platform-governance",
       "rationale": "Applies a capability-envelope-authorized canary closeout only after typed confirmation, then verifies the exact accepted shadow state and consumes the envelope before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "dynamicContainerRolloutSafety.js",
+        "test-dynamic-container-rollout-safety.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
+        "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "fail_closed": true
+      },
       "preflight": {
         "mode": "capability_envelope_and_monitoring_check"
       },
@@ -192,15 +387,275 @@
         "capability_envelope_id": "request.body.capabilityEnvelopeId",
         "confirmation": "request.body.confirm",
         "canary_key": "response.readback.canary_key"
-      },
+      }
+    },
+    {
+      "rule_id": "generated-admin-repo-conflict-analyze-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/analyze",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Classifies supplied repository metadata in memory and returns an advisory analysis without provider or Git mutation.",
       "evidence_refs": [
-        "routes/dynamicContainerAuthorityRoutes.js",
-        "dynamicContainerRolloutSafety.js",
-        "test-dynamic-container-rollout-safety.mjs"
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-service.mjs"
       ],
       "generated_evidence": {
-        "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "recipe_id": "admin-repo-conflict-analyze-read-action-v1",
+        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-repo-conflict-plan-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/plan",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Builds an advisory conflict-resolution plan in memory and does not apply any plan step.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-repo-conflict-plan-read-action-v1",
+        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-repo-conflict-pr-preview-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/pr-automation-preview",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Builds a proposed PR advisory comment but neither posts it nor performs a provider write.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-phase2.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-repo-conflict-pr-preview-read-action-v1",
+        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-repo-conflict-resolve-dry-run-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/resolve-dry-run",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Produces a no-execution resolution preview with provider and branch mutations explicitly disabled.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-phase2.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-repo-conflict-resolve-dry-run-read-action-v1",
+        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-repo-conflict-semantic-preview-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/semantic-preview",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Computes bounded semantic patch previews from request content without writing repository files.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-repo-conflict-semantic-preview-read-action-v1",
+        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-repository-automation-status-read-action-v1",
+      "operation": "POST /admin/repository-automation/status",
+      "source_file": "routes/repositoryAutomationRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-automation",
+      "rationale": "Reads one automation run, its steps, and receipts through fixed SELECT queries and returns a sanitized read model.",
+      "evidence_refs": [
+        "repositoryAutomationControlPlane.js",
+        "routes/repositoryAutomationRoutes.js",
+        "test-repository-automation-control-plane.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "repository-automation-status-read-action-v1",
+        "source_digest": "d27685f8c262b108e4926f58a84d9dbbf843adf5ca6d094d7e54b23ddf76d735",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-external-credential-activation-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads ticket and credential-reference metadata to build an activation plan without activating or binding the credential.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalCredentialActivationService.js",
+        "test-ticket-external-credential-activation-binding.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
+        "source_digest": "dca30411eb4ab2e80eeb247fab9660b8cde1ea5a184c00ba9f66dc85c3fb91fc",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-external-delivery-readiness-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-delivery/readiness",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads ticket and credential-binding state to report delivery readiness without requesting approval or sending externally.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalDeliveryPolicyService.js",
+        "test-ticket-external-delivery-approval-policy.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-external-delivery-readiness-read-action-v1",
+        "source_digest": "c9572814a33f4a16bd9949c3f3b2198ffb943669c8c7680d0ed3d4e9109d0472",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-external-secret-intake-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-secret/intake-plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads ticket context and builds a secret-reference intake plan without registering, activating, or storing a secret.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalSecretIntakeService.js",
+        "test-ticket-external-secret-intake-surface.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-external-secret-intake-plan-read-action-v1",
+        "source_digest": "50ec2e9bdec66d1ae011ba3d56505e068f7a4538b0e0727eca4b03f4ff851c5d",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-external-send-execution-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-send/execution-plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads ticket execution prerequisites and builds a plan without recording an execution or sending externally.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalSendExecutionService.js",
+        "test-ticket-external-send-execution-adapter.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-external-send-execution-plan-read-action-v1",
+        "source_digest": "b0dc4fe32932b5cdd5be92ae11a9db90f2d87080091fd47aaf18d4ac6eb052ee",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-provider-gate-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Evaluates the external-send provider gate and returns a blocked/readiness plan without recording an attempt or dispatching.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalSendProviderGateService.js",
+        "test-ticket-external-send-provider-gate.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-provider-gate-plan-read-action-v1",
+        "source_digest": "4d325fbb87e22b30d75df6178f2be965857e562f864ef576868f2b3d6cde1cac",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-notification-preview-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads ticket context and builds a notification preview without dispatching an adapter or recording delivery.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketNotificationAdapterService.js",
+        "test-ticket-notification-delivery-adapters.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-notification-preview-read-action-v1",
+        "source_digest": "9d491cee2e40aea61bcd85be93c595eef078eb76123a11ee2a153503fa71ddae",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-provider-enablement-candidates-read-action-v1",
+      "operation": "POST /admin/support/tickets/external-send/provider-adapter-enablement/candidates",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Lists provider-enablement candidates through a bounded SELECT and does not create a proposal or change dispatch state.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalProviderEnablementProposalService.js",
+        "test-ticket-external-provider-enablement-proposal.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-provider-enablement-candidates-read-action-v1",
+        "source_digest": "4cdaabe15dc29c35a0a3cb91452ffe2a2b5f8bd283dcfda61ca746dfa5af5c39",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-adapter-future-pr-scope-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads an adapter decision and builds a future-PR scope preview without recording the scope or enabling dispatch.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalAdapterFuturePrScopeService.js",
+        "test-ticket-external-adapter-future-pr-scope.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-adapter-future-pr-scope-plan-read-action-v1",
+        "source_digest": "65b8668037bac28485edce3bce153deb37c7c198e02d55edf3ec6ba07f53f6b5",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-adapter-readiness-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/external-send/provider-adapter-readiness/plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads proposal and adapter metadata to compute a readiness checklist without recording a decision or enabling a provider.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalAdapterReadinessChecklistService.js",
+        "test-ticket-external-adapter-readiness-checklist.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-adapter-readiness-plan-read-action-v1",
+        "source_digest": "0f6a338257ddc6d44a5fd4601d3d6d827bf6ac92eca5d6842e7b1008f50c6d2f",
         "fail_closed": true
       }
     },
@@ -211,6 +666,17 @@
       "classification": "state_change",
       "owner": "tenant-activation",
       "rationale": "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/connectRoutes.js",
+        "tenantConnectBootstrapService.js",
+        "tenantConnectBootstrapTransaction.js",
+        "test-tenant-connect-bootstrap-transaction.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-connect-bootstrap-transaction-v1",
+        "source_digest": "73d246f3bd2c879e508e3fc88e7d5b349c0bb57481451ed3ccada84ef97dd1fd",
+        "fail_closed": true
+      },
       "preflight": {
         "mode": "inline_capability_check"
       },
@@ -233,16 +699,127 @@
         "user_id": "auth.user_id",
         "tenant_id": "auth.tenant_id|response.principal.workspace_key",
         "mode": "request.body.mode|managed"
-      },
+      }
+    },
+    {
+      "rule_id": "generated-tenant-generic-infrastructure-preflight-read-action-v1",
+      "operation": "POST /me/infrastructure/connections/{connection_id}/preflight",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "classification": "read_action",
+      "owner": "tenant-infrastructure",
+      "rationale": "The compatibility preflight performs a tenant-scoped connection SELECT and reports non-executing readiness metadata only.",
       "evidence_refs": [
-        "routes/connectRoutes.js",
-        "tenantConnectBootstrapService.js",
-        "tenantConnectBootstrapTransaction.js",
-        "test-tenant-connect-bootstrap-transaction.mjs"
+        "routes/tenantInfrastructureRoutes.js",
+        "test-tenant-infrastructure-readiness-tools.mjs"
       ],
       "generated_evidence": {
-        "recipe_id": "tenant-connect-bootstrap-transaction-v1",
-        "source_digest": "73d246f3bd2c879e508e3fc88e7d5b349c0bb57481451ed3ccada84ef97dd1fd",
+        "recipe_id": "tenant-generic-infrastructure-preflight-read-action-v1",
+        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-database-preflight-read-action-v1",
+      "operation": "POST /me/infrastructure/database/connections/{connection_id}/preflight",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "classification": "read_action",
+      "owner": "tenant-infrastructure",
+      "rationale": "Reads one tenant-scoped connection and returns readiness flags while explicitly forbidding decryption, network access, and database execution.",
+      "evidence_refs": [
+        "routes/tenantInfrastructureRoutes.js",
+        "test-tenant-infrastructure-readiness-tools.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-database-preflight-read-action-v1",
+        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-ssh-cli-dry-run-read-action-v1",
+      "operation": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "classification": "read_action",
+      "owner": "tenant-infrastructure",
+      "rationale": "Validates a fixed allowlisted command plan after a tenant-scoped SELECT and explicitly performs no SSH authentication, network access, or command execution.",
+      "evidence_refs": [
+        "routes/tenantInfrastructureRoutes.js",
+        "test-tenant-ssh-cli-dry-run.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-ssh-cli-dry-run-read-action-v1",
+        "source_digest": "0ef58c72b2fbb0bbe29cffc60f051a90306ab8fdabb8d3c06f9442f6315c77d3",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-ssh-preflight-read-action-v1",
+      "operation": "POST /me/infrastructure/ssh/connections/{connection_id}/preflight",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "classification": "read_action",
+      "owner": "tenant-infrastructure",
+      "rationale": "Reads one tenant-scoped SSH connection and returns readiness flags without decrypting credentials, opening a network connection, or executing a command.",
+      "evidence_refs": [
+        "routes/tenantInfrastructureRoutes.js",
+        "test-tenant-infrastructure-readiness-tools.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-ssh-preflight-read-action-v1",
+        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-repo-conflict-analyze-read-action-v1",
+      "operation": "POST /me/repo-conflict-intelligence/analyze",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Projects an in-memory conflict analysis into a tenant-safe summary without provider or repository access.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-repo-conflict-analyze-read-action-v1",
+        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-repo-conflict-plan-read-action-v1",
+      "operation": "POST /me/repo-conflict-intelligence/plan",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Returns a tenant-scoped advisory plan with route-level execution explicitly disabled.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-repo-conflict-plan-read-action-v1",
+        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-repo-conflict-resolve-dry-run-read-action-v1",
+      "operation": "POST /me/repo-conflict-intelligence/resolve-dry-run",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Returns a tenant-safe dry-run projection with execution and provider writes disabled.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-phase2.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-repo-conflict-resolve-dry-run-read-action-v1",
+        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
         "fail_closed": true
       }
     },
@@ -253,6 +830,17 @@
       "classification": "state_change",
       "owner": "resource-platform",
       "rationale": "Creates a tenant asset and verifies its scoped readback before committing the same SQL transaction; any mutation or readback failure rolls the transaction back.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-create-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      },
       "preflight": {
         "mode": "inline_capability_check"
       },
@@ -275,17 +863,6 @@
         "tenant_id": "path.tenant_id",
         "resource_key": "path.resourceKey",
         "resource_id": "response.id"
-      },
-      "evidence_refs": [
-        "routes/resourceApiRoutes.js",
-        "src/application/resourceApi/resourceApiService.js",
-        "src/infrastructure/resourceApi/resourceRepository.js",
-        "test-resource-api-service.mjs"
-      ],
-      "generated_evidence": {
-        "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
-        "fail_closed": true
       }
     },
     {
@@ -295,6 +872,17 @@
       "classification": "state_change",
       "owner": "resource-platform",
       "rationale": "Checks tenant ownership and restore capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resource-restore-transaction-v1",
+        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "fail_closed": true
+      },
       "preflight": {
         "mode": "inline_capability_check"
       },
@@ -317,16 +905,149 @@
         "tenant_id": "path.tenant_id",
         "resource_key": "path.resourceKey",
         "resource_id": "path.resourceId"
-      },
+      }
+    },
+    {
+      "rule_id": "generated-agent-memory-scope-resolve-read-action-v1",
+      "operation": "POST /platform/agent-governance/memory-scope/resolve",
+      "source_file": "routes/agentGovernanceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-governance",
+      "rationale": "Resolves authorized memory links through tenant-scoped SELECT queries and explicitly grants no execution authority.",
       "evidence_refs": [
-        "routes/resourceApiRoutes.js",
-        "src/application/resourceApi/resourceApiService.js",
-        "src/infrastructure/resourceApi/resourceRepository.js",
-        "test-resource-api-service.mjs"
+        "agentGovernanceRuntime.js",
+        "routes/agentGovernanceRoutes.js",
+        "test-agent-governance-runtime.mjs"
       ],
       "generated_evidence": {
-        "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "recipe_id": "agent-memory-scope-resolve-read-action-v1",
+        "source_digest": "4aad2046234a2a046ca5660d268cd0e59131b0091df94f9834d866c5dcd269f7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-agent-research-policy-resolve-read-action-v1",
+      "operation": "POST /platform/agent-governance/research-policy/resolve",
+      "source_file": "routes/agentGovernanceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-governance",
+      "rationale": "Selects the applicable research policy and builds recommended read-only plan steps without recording an execution.",
+      "evidence_refs": [
+        "agentGovernanceRuntime.js",
+        "routes/agentGovernanceRoutes.js",
+        "test-agent-governance-runtime.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "agent-research-policy-resolve-read-action-v1",
+        "source_digest": "4aad2046234a2a046ca5660d268cd0e59131b0091df94f9834d866c5dcd269f7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-agent-response-profile-resolve-read-action-v1",
+      "operation": "POST /platform/agent-governance/response-profile/resolve",
+      "source_file": "routes/agentGovernanceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-governance",
+      "rationale": "Resolves layered response-profile metadata through scoped SELECT queries and returns a presentation-only model without persisting state.",
+      "evidence_refs": [
+        "agentGovernanceRuntime.js",
+        "routes/agentGovernanceRoutes.js",
+        "test-agent-governance-runtime.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "agent-response-profile-resolve-read-action-v1",
+        "source_digest": "4aad2046234a2a046ca5660d268cd0e59131b0091df94f9834d866c5dcd269f7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-platform-engine-capability-check-read-action-v1",
+      "operation": "POST /platform/engines/capability-check",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Loads engine policy context and evaluates capability readiness without writing a run or validator result.",
+      "evidence_refs": [
+        "platformEngineRegistry.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "platform-engine-capability-check-read-action-v1",
+        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-database-lifecycle-decision-brief-read-action-v1",
+      "operation": "POST /platform/engines/database-table-lifecycle/decision-brief",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Reads lifecycle and information-schema metadata to build a census brief without applying lifecycle changes.",
+      "evidence_refs": [
+        "databaseTableLifecycle.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "database-lifecycle-decision-brief-read-action-v1",
+        "source_digest": "9b7d63be067b24bd7194f846456c7e57086c7f35831d321e3723843c0f2e8651",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-database-lifecycle-register-plan-read-action-v1",
+      "operation": "POST /platform/engines/database-table-lifecycle/register-plan",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Computes proposed lifecycle-registry rows from SELECT-only census data and does not execute the proposed upsert.",
+      "evidence_refs": [
+        "databaseTableLifecycle.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "database-lifecycle-register-plan-read-action-v1",
+        "source_digest": "9b7d63be067b24bd7194f846456c7e57086c7f35831d321e3723843c0f2e8651",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-platform-engine-decision-brief-read-action-v1",
+      "operation": "POST /platform/engines/decision-brief",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Builds a decision brief from registry reads and an in-memory execution envelope; the route does not invoke the separate run writers.",
+      "evidence_refs": [
+        "platformEngineRegistry.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "platform-engine-decision-brief-read-action-v1",
+        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-platform-engine-resolve-intent-read-action-v1",
+      "operation": "POST /platform/engines/resolve-intent",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Normalizes an engine task intent in memory and does not create an execution envelope or run.",
+      "evidence_refs": [
+        "platformEngineRegistry.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "platform-engine-resolve-intent-read-action-v1",
+        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
         "fail_closed": true
       }
     }
