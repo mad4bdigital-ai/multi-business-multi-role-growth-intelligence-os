@@ -29,6 +29,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Guard centralized fail-closed user JWT auth
+        working-directory: http-generic-api
+        run: node scripts/user-jwt-auth-governance.mjs
+
       - name: Guard merge and runtime interruption readiness
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
@@ -88,6 +92,14 @@ jobs:
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci
+
+      - name: Validate Connect auth, secret boundary, and atomic bootstrap
+        working-directory: http-generic-api
+        run: |
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
 
       - name: Guard dependency and runtime interruption readiness
         working-directory: http-generic-api

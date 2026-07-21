@@ -7,7 +7,6 @@
  */
 import { Router } from "express";
 import { randomUUID, createHash, randomBytes } from "node:crypto";
-import jwt from "jsonwebtoken";
 import {
   assessHybridIntegrationReadiness,
   hybridIntegrationCatalog,
@@ -20,29 +19,7 @@ import {
   toErrorEnvelope,
 } from "../cmsAccountClaimResolver.js";
 import { buildTenantConnectionSelfRepairRoutes } from "./tenantConnectionSelfRepairRoutes.js";
-
-function verifyUserJwt(authorization) {
-  if (!authorization || !authorization.startsWith("Bearer ")) return null;
-  try {
-    const token = authorization.slice(7);
-    return jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "user_jwt_required", message: "Sign in required." },
-    });
-  }
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
@@ -131,9 +108,9 @@ export function buildConnectApiRoutes(deps = {}) {
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
   const encrypt = deps.encryptCredentials || encryptCredentials;
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
 
-  router.use("/connect/api", requireUserJwt);
-  router.use("/connect/api", async (req, _res, next) => {
+  async function hydrateActiveTenant(req, _res, next) {
     try {
       if (!req.auth?.tenant_id && req.auth?.user_id) {
         req.auth.tenant_id = await resolveActiveTenantId(pool, req.auth.user_id);
@@ -142,7 +119,11 @@ export function buildConnectApiRoutes(deps = {}) {
     } catch (err) {
       next(err);
     }
-  });
+  }
+
+  router.use("/connect/api", requireUserJwt, hydrateActiveTenant);
+  router.use("/me/connections", requireUserJwt, hydrateActiveTenant);
+  router.use(buildTenantConnectionSelfRepairRoutes({ pool }));
 
   // GET /connect/api/app-integrations — discover apps the user can connect.
   router.get("/connect/api/app-integrations", async (_req, res, next) => {

@@ -15529,7 +15529,7 @@ paths:
       security: [userJwtAuth: []]
       operationId: postConnectActivate
       summary: Activate tenant backend connection
-      description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
+      description: "Activates the tenant backend connection in managed or dedicated mode. This control-plane operation never accepts raw credentials; dedicated provider secrets must be submitted through /connect/api/credential-intake/sessions. Upserts tenant_backend_connections and returns the resolved connection."
       requestBody:
         required: true
         content:
@@ -15549,13 +15549,24 @@ paths:
                 n8n_activation_mode:
                   type: string
                   enum: [managed_main_server, self_hosted_local]
-                cf_api_token:
-                  type: string
-                  description: Dedicated mode only â€” accepted but not stored.
-                cf_account_id:
-                  type: string
-                hostinger_api_key:
-                  type: string
+                integration_modes:
+                  type: object
+                  description: Per-app managed or dedicated source policy. Values may be a canonical mode string or a policy object; secret fields are rejected recursively.
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                        enum: [managed, dedicated]
+                      - type: object
+                        additionalProperties: false
+                        properties:
+                          source_mode: { type: string, enum: [managed, dedicated] }
+                          fallback_allowed: { type: boolean }
+                          required_for_device_install: { type: boolean }
+                          notes: { type: string, maxLength: 1000 }
+                agent_surface_modes:
+                  type: object
+                  description: Optional agent-surface deployment preferences. Raw credentials are not permitted at any nesting level.
+                  additionalProperties: true
       responses:
         "200":
           description: Activation result
@@ -15571,7 +15582,7 @@ paths:
                     type: object
                     additionalProperties: true
                   notice: { type: string }
-        "400": { description: Invalid mode or activation parameters, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "400": { description: "Invalid mode, activation parameters, or raw credential fields", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "500": { description: Activation write failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
@@ -15747,8 +15758,11 @@ paths:
       summary: Provision and activate the signed-in tenant workspace in Managed mode
       description: >
         Idempotently creates one eligible workspace when needed, activates Managed mode,
-        and returns success only after final connection-state readback. User and tenant
-        identity are derived from the signed user JWT; secrets are never returned.
+        and returns success only after membership and connection readback succeeds inside
+        the same SQL transaction, before commit. Optional onboarding-readiness enrichment
+        runs after that verified commit and cannot turn a successful mutation into a failed
+        response. User and tenant identity are derived from the signed user JWT; secrets
+        are never returned.
       requestBody:
         required: false
         content:
@@ -15827,7 +15841,12 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
         "503":
-          description: Managed activation could not be verified by final readback
+          description: Managed activation could not be verified by transactional readback
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "500":
+          description: Bootstrap failed or transaction rollback could not be verified
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
@@ -21061,6 +21080,86 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
         - userJwtAuth: []
+  /tenant/resolution/cases/{caseId}/task-source-repair/verify:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: verifyTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Verify an applied tenant task source repair
+      description: Performs an independent tenant-scoped lifecycle readback after Apply Gate without mutating the task or resolving the case.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_preview_fingerprint_sha256]
+              properties:
+                workspace_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                expected_preview_fingerprint_sha256:
+                  type: string
+                  pattern: "^[a-f0-9]{64}$"
+      responses:
+        "200":
+          description: Verification readback completed or an identical existing readback was returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, activation_layer, changed, case, verification, policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_verification_readback] }
+                  changed: { type: boolean }
+                  existing_readback_returned: { type: boolean }
+                  case:
+                    type: object
+                    additionalProperties: true
+                  task:
+                    type: [object, 'null']
+                    additionalProperties: true
+                  verification:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status: { type: string, enum: [passed, failed] }
+                      checked_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256:
+                        type: string
+                        pattern: "^[a-f0-9]{64}$"
+                      task_id: { type: string }
+                      failure_reasons:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /tenant/resolution/skill-approvals:
     get:
       tags: [activation]

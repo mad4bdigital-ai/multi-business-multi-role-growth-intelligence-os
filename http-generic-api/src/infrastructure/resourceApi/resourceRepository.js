@@ -50,15 +50,70 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   return { clauses, params };
 }
 
-export function createResourceRepository({ pool = null, resolvePool = null }) {
+export function createResourceRepository({ pool = null, resolvePool = null, transactionConnection = false }) {
   if (!pool?.query && typeof resolvePool !== "function") {
     throw new TypeError("Resource repository requires a SQL pool or lazy pool resolver.");
   }
-  const executeQuery = (...args) => {
-    const activePool = pool || resolvePool();
-    if (!activePool?.query) throw new TypeError("Resource repository pool resolver returned an invalid SQL pool.");
-    return activePool.query(...args);
+  const activeExecutor = () => {
+    const executor = pool || resolvePool();
+    if (!executor?.query) throw new TypeError("Resource repository pool resolver returned an invalid SQL pool.");
+    return executor;
   };
+  const executeQuery = (...args) => {
+    return activeExecutor().query(...args);
+  };
+
+  let repository = null;
+
+  async function withTransaction(operation) {
+    if (typeof operation !== "function") {
+      throw new TypeError("Resource repository transaction requires an operation callback.");
+    }
+    if (transactionConnection) return operation(repository);
+
+    const activePool = activeExecutor();
+    if (typeof activePool.getConnection !== "function") {
+      const error = new Error("Resource mutation requires a transaction-capable SQL pool.");
+      error.code = "resource_transaction_unavailable";
+      error.status = 503;
+      throw error;
+    }
+
+    const connection = await activePool.getConnection();
+    let transactionStarted = false;
+    try {
+      await connection.beginTransaction();
+      transactionStarted = true;
+      const transactionalRepository = createResourceRepository({
+        pool: connection,
+        transactionConnection: true,
+      });
+      const result = await operation(transactionalRepository);
+      await connection.commit();
+      transactionStarted = false;
+      return result;
+    } catch (error) {
+      if (transactionStarted) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          const failure = new Error("Resource transaction rollback could not be verified.");
+          failure.code = "resource_transaction_rollback_failed";
+          failure.status = 500;
+          failure.details = {
+            original_code: error?.code || null,
+            rollback_code: rollbackError?.code || null,
+            state: "indeterminate",
+          };
+          failure.cause = error;
+          throw failure;
+        }
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
 
   async function findMembership(userId, tenantId) {
     const [rows] = await executeQuery(
@@ -299,7 +354,8 @@ export function createResourceRepository({ pool = null, resolvePool = null }) {
     return { session, items: rows };
   }
 
-  return {
+  repository = {
+    withTransaction,
     findMembership,
     listResource,
     getResource,
@@ -312,6 +368,7 @@ export function createResourceRepository({ pool = null, resolvePool = null }) {
     listSessionTurns,
     listSessionEvents,
   };
+  return repository;
 }
 
 export const _testingResourceRepository = { buildQueryParts };

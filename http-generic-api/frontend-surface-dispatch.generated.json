@@ -2,16 +2,21 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "0e60237ac02f6b62e00d03da2bc3fe049736b0e29a9cb8eb184da291f99f5551",
+    "source_digest": "566778d77285a55f320154502bc5f0eed6f110cd1802a06c1347f445e8eaa7d7",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "6555cc38fa054ac444f0435b6e34b9241387250569aaa9dd0220d97002cae597",
+        "sha256": "f064819fb034e472a0c7b084f88618e25d7432519aaf6f0edb2bd30d32a07edd",
+        "present": true
+      },
+      {
+        "file": "frontend-operation-governance.generated.json",
+        "sha256": "c38b069fe28a020908dd0a26cf04889469c9f22dba0ad302b8778f60bc12ddc0",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "267af70ec8851a87e9b2858c0f3f6461b7a575d851afabfacf8b82cfced36422",
+        "sha256": "50f682d3b353e22a5a4b8619e8fcfd529a0b9450ac9fbce7f20f3edba1d4a143",
         "present": true
       },
       {
@@ -21,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "82a670b523ab0e6db0ee28d6708922964ca7385c3e58548f1cff32cccedd6786",
+        "sha256": "d933ee3c1a976cc77cad4d777d67769ca08ee05368a829ac20fbb71d785b379c",
         "present": true
       },
       {
@@ -36,7 +41,7 @@
       },
       {
         "file": "openapi/container-authority.yaml",
-        "sha256": "f834fc41ef8e55ad1a2c8aa3fd2a8667bf923f7f1b119e14edb8a2d679891756",
+        "sha256": "6df39c62d6db211d170536436d182657f4be352f48a663bdc28c1e04b7328259",
         "present": true
       },
       {
@@ -226,7 +231,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
+        "sha256": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
         "present": true
       },
       {
@@ -241,7 +246,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "5c33f44cad3dab70b9e8731baeff3f3c8f1f9e00e0a1cadbca2ba55d1f129086",
+        "sha256": "eea8ae48aa348a6fdf24ebf7203bcc0229d479e5623cb866088c1f483b9d5d7f",
         "present": true
       },
       {
@@ -341,12 +346,12 @@
       },
       {
         "file": "routes/connectApiRoutes.js",
-        "sha256": "f71b03c46246136b138e513e342f27a3427bd02e5db18a667456d32033a6ff9c",
+        "sha256": "63d7583f8068cb144a20c5b5cb856b935445c9dd9fecc2522068ee498231a07b",
         "present": true
       },
       {
         "file": "routes/connectRoutes.js",
-        "sha256": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+        "sha256": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
         "present": true
       },
       {
@@ -426,7 +431,7 @@
       },
       {
         "file": "routes/dynamicContainerAuthorityRoutes.js",
-        "sha256": "7e2ac65a350cf56b4af8aada7a0d401da1dde5ea8cf44cb74daa25348cd0033d",
+        "sha256": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
         "present": true
       },
       {
@@ -456,7 +461,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "33638a2c340d0669e1c5d786f2064e8dcbe17b9cb30e69288a4c3a5ad73c4e03",
+        "sha256": "9160b59cd6f0b9f03c4185b74a6147812c659ee00e96ba153d047afe51cc6359",
         "present": true
       },
       {
@@ -801,7 +806,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+        "sha256": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
         "present": true
       },
       {
@@ -870,13 +875,18 @@
         "present": true
       },
       {
+        "file": "scripts/frontend-operation-governance-generator.mjs",
+        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+        "present": true
+      },
+      {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "eadbafcff8c1bc7d16b225267132e9202cd082637083b6cb50b88d327e13fbb7",
+        "sha256": "a1a4de28f0ff5d8feddb21c4d2e92be5a7c2168a01f29a6cc4b81188d706d0ff",
         "present": true
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "4913c79f15e7e1ba4d6f5cf6e0b5bd33d1f8a5e87b5206e1c4b08b2d724af19f",
+        "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
         "present": true
       },
       {
@@ -897,6 +907,11 @@
       {
         "file": "test-connect-routes.mjs",
         "sha256": "08bdb7165576178c4db692690ec7dae4ff117cef29a556bf2f5739d6fd5853f4",
+        "present": true
+      },
+      {
+        "file": "test-dynamic-container-rollout-safety.mjs",
+        "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
         "present": true
       },
       {
@@ -926,7 +941,7 @@
       },
       {
         "file": "test-platform-routes.mjs",
-        "sha256": "afc50b0e59a76219ffd91253ef31c8547e498711f54766a39c429ad507f309a8",
+        "sha256": "31be43a564168e665c08951dbb58a243ec2ae99e01c0578ee00ba4b3804ead83",
         "present": true
       },
       {
@@ -941,7 +956,7 @@
       },
       {
         "file": "test-resource-api-service.mjs",
-        "sha256": "7b9447a56dc3417fc14668a808ae7966355db171d7c20adf71092d50cb89f44a",
+        "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
         "present": true
       },
       {
@@ -1031,12 +1046,17 @@
       },
       {
         "file": "test-tenant-activation-session-alias.mjs",
-        "sha256": "a0859e12c49019c3f719b9b3b869f3e90580699d4e59b10ccf044c79b8f33960",
+        "sha256": "057edb5d3079cc5458e1aa022f63a53b38c3c1b5348941da99e476e12c7ae456",
         "present": true
       },
       {
         "file": "../specs/010-unified-platform-frontend/contracts/frontend-dispatch-plan.schema.json",
         "sha256": "0f7d9a2cf39c0106ec7f9236ea988275e5c68274323c755acefa0d01bbbe6bb2",
+        "present": true
+      },
+      {
+        "file": "../specs/010-unified-platform-frontend/contracts/frontend-operation-governance.schema.json",
+        "sha256": "a6cc0bfa87c860e5716c0bf17cd049c5f5841d1db9dc4da0a458081e3eae9b28",
         "present": true
       },
       {
@@ -1064,29 +1084,29 @@
     "mounted_family_count": 162,
     "mounted_route_file_count": 130,
     "mixed_scope_route_file_count": 24,
-    "operation_count": 965,
-    "openapi_documented_count": 949,
-    "openapi_canonical_documented_count": 571,
+    "operation_count": 968,
+    "openapi_documented_count": 952,
+    "openapi_canonical_documented_count": 574,
     "openapi_generated_index_count": 378,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 378,
     "auth_parity_counts": {
-      "equivalent": 949,
+      "equivalent": 952,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 586,
-    "unresolved_operation_class_count": 530,
-    "classified_mutation_count": 7,
-    "governed_mutation_operation_count": 2,
+    "non_get_candidate_count": 589,
+    "unresolved_operation_class_count": 532,
+    "classified_mutation_count": 8,
+    "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 147,
     "test_owned_family_count": 6,
     "untested_family_count": 156,
-    "test_owned_operation_count": 52,
-    "untested_operation_count": 913,
+    "test_owned_operation_count": 53,
+    "untested_operation_count": 915,
     "ready_task_count": 3,
     "blocked_task_count": 159,
     "coverage_complete": false
@@ -1530,6 +1550,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -1682,6 +1703,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -1782,6 +1804,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -1891,6 +1914,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -2085,6 +2109,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -2572,6 +2597,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -2709,6 +2735,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -2908,6 +2935,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -3065,6 +3093,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -3192,6 +3221,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -3543,6 +3573,7 @@
         "GET /local-manager/beta"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -4198,6 +4229,7 @@
         "GET /app/local-manager/admin"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -4419,6 +4451,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -4630,6 +4663,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -4816,6 +4850,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5163,6 +5198,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5294,6 +5330,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5408,6 +5445,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5534,6 +5572,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5749,6 +5788,7 @@
         "POST /credential-intake/{token}"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -5965,6 +6005,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -6074,6 +6115,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -6484,6 +6526,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -6669,6 +6712,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -7008,6 +7052,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -7110,6 +7155,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -7137,7 +7183,7 @@
       "family_key": "connect.public.connect-assets",
       "label": "connect (public) [connect-assets]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7210,6 +7256,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -7243,7 +7290,7 @@
       "family_key": "connect.public.default",
       "label": "connect (public) [default]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7368,6 +7415,7 @@
         "GET /connect"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -7410,7 +7458,7 @@
       "family_key": "connect.tenant",
       "label": "connect (tenant)",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7591,9 +7639,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -7602,28 +7650,32 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "user_id": "auth.user_id",
               "tenant_id": "auth.tenant_id|response.principal.workspace_key",
               "mode": "request.body.mode|managed"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-connect-bootstrap-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-connect-bootstrap-governance",
             "owner": "tenant-activation",
-            "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
+            "rationale": "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
             "evidence_refs": [
-              "openapi.yaml",
               "routes/connectRoutes.js",
               "tenantConnectBootstrapService.js",
-              "test-connect-routes.mjs",
-              "test-tenant-connect-bootstrap-service.mjs"
+              "tenantConnectBootstrapTransaction.js",
+              "test-tenant-connect-bootstrap-transaction.mjs"
             ]
           },
           "mutation_candidate": true,
@@ -8272,6 +8324,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -8290,12 +8343,6 @@
         "owner": null
       },
       "operation_blockers": [
-        {
-          "signature": "POST /connect/bootstrap",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        },
         {
           "signature": "POST /connect/workspace",
           "blockers": [
@@ -8526,6 +8573,7 @@
         "GET /platform"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -8575,7 +8623,7 @@
       "family_key": "connect-api",
       "label": "connect api",
       "source_file": "routes/connectApiRoutes.js",
-      "source_digest": "f71b03c46246136b138e513e342f27a3427bd02e5db18a667456d32033a6ff9c",
+      "source_digest": "63d7583f8068cb144a20c5b5cb856b935445c9dd9fecc2522068ee498231a07b",
       "mount_prefix": "/",
       "mount_order": 12901,
       "split_from_mixed_scope_file": false,
@@ -9219,6 +9267,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -9283,7 +9332,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
       "mount_prefix": "/",
       "mount_order": 12941,
       "split_from_mixed_scope_file": true,
@@ -9932,6 +9981,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -9978,7 +10028,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "9a97f354998c892411b277c513a3260cfe46697af2130409fe927c04fd6c42d2",
+      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
       "mount_prefix": "/",
       "mount_order": 12941,
       "split_from_mixed_scope_file": true,
@@ -10274,6 +10324,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -10401,6 +10452,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -10868,6 +10920,7 @@
         "GET /auth/password/reset"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -11018,6 +11071,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -11184,6 +11238,7 @@
         "GET /status.html"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -11352,6 +11407,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -11476,6 +11532,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -12479,6 +12536,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -12684,6 +12742,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -12808,6 +12867,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -12841,7 +12901,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
+      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
       "mount_prefix": "/",
       "mount_order": 13420,
       "split_from_mixed_scope_file": true,
@@ -13399,6 +13459,130 @@
           "mutation": false
         },
         {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/apply",
+          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
+          "source_file": "routes/activationAwarenessRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/verify",
+          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
+          "source_file": "routes/activationAwarenessRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
           "method": "GET",
           "path": "/tenant/resolution/skill-approvals",
           "signature": "GET /tenant/resolution/skill-approvals",
@@ -13659,6 +13843,8 @@
         "POST /tenant/resolution/cases/{caseId}/transitions",
         "POST /tenant/resolution/cases/{caseId}/diagnostics",
         "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview",
+        "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
+        "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
         "GET /tenant/resolution/skill-approvals",
         "POST /tenant/resolution/skill-approvals/{approvalKey}/decision",
         "GET /tenant/activation/dynamic-tabs/detail",
@@ -13668,6 +13854,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -13710,6 +13897,18 @@
           ]
         },
         {
+          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
           "signature": "POST /tenant/resolution/skill-approvals/{approvalKey}/decision",
           "blockers": [
             "operation_classification_gap"
@@ -13726,7 +13925,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "735e1fc54f0e21d90aaa007c85b34dd979b926926d5325984c1cf7027a92cc0b",
+      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
       "mount_prefix": "/",
       "mount_order": 13420,
       "split_from_mixed_scope_file": true,
@@ -14300,6 +14499,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -14787,6 +14987,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -14913,6 +15114,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -15023,6 +15225,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -15492,6 +15695,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -16043,6 +16247,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -16617,6 +16822,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -16911,6 +17117,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -17254,6 +17461,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -17457,6 +17665,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -17654,6 +17863,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -17778,6 +17988,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -17975,6 +18186,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -18126,6 +18338,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -18229,6 +18442,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -18475,6 +18689,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -19097,6 +19312,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -19422,6 +19638,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -19612,6 +19829,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -20891,6 +21109,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -21581,6 +21800,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -21645,7 +21865,7 @@
       "family_key": "dynamic-container-authority.admin",
       "label": "dynamic container authority (admin)",
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
-      "source_digest": "7e2ac65a350cf56b4af8aada7a0d401da1dde5ea8cf44cb74daa25348cd0033d",
+      "source_digest": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
       "mount_prefix": "/",
       "mount_order": 14801,
       "split_from_mixed_scope_file": true,
@@ -22374,6 +22594,110 @@
         },
         {
           "method": "POST",
+          "path": "/admin/container-authority/canary-closeouts",
+          "signature": "POST /admin/container-authority/canary-closeouts",
+          "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/container-authority.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-dynamic-container-rollout-safety.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_and_monitoring_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "target_canary_key": "request.body.targetCanaryKey",
+              "capability_envelope_id": "request.body.capabilityEnvelopeId",
+              "confirmation": "request.body.confirm",
+              "canary_key": "response.readback.canary_key"
+            },
+            "blockers": [],
+            "rule_id": "generated-dynamic-container-canary-closeout-governance",
+            "owner": "platform-governance",
+            "rationale": "Applies a capability-envelope-authorized canary closeout only after typed confirmation, then verifies the exact accepted shadow state and consumes the envelope before committing one SQL transaction.",
+            "evidence_refs": [
+              "dynamicContainerRolloutSafety.js",
+              "routes/dynamicContainerAuthorityRoutes.js",
+              "test-dynamic-container-rollout-safety.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        },
+        {
+          "method": "POST",
           "path": "/admin/container-authority/canary-rollbacks",
           "signature": "POST /admin/container-authority/canary-rollbacks",
           "source_file": "routes/dynamicContainerAuthorityRoutes.js",
@@ -22882,7 +23206,9 @@
         "POST /admin/container-authority/projection-preview",
         "POST /admin/container-authority/preview-canary-probes"
       ],
-      "tests": [],
+      "tests": [
+        "test-dynamic-container-rollout-safety.mjs"
+      ],
       "untested_operations": [
         "POST /admin/container-authority/resolution-preview",
         "POST /container-relationships",
@@ -22906,6 +23232,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -22916,7 +23243,8 @@
         "resource-api-coverage.manifest.json",
         "routes/dynamicContainerAuthorityRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-dynamic-container-rollout-safety.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -23004,7 +23332,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 14,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -23013,7 +23341,7 @@
       "family_key": "dynamic-container-authority.unresolved",
       "label": "dynamic container authority (unresolved)",
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
-      "source_digest": "7e2ac65a350cf56b4af8aada7a0d401da1dde5ea8cf44cb74daa25348cd0033d",
+      "source_digest": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
       "mount_prefix": "/",
       "mount_order": 14801,
       "split_from_mixed_scope_file": true,
@@ -23173,6 +23501,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -23371,6 +23700,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -23567,6 +23897,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -23934,6 +24265,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -24501,6 +24833,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -24777,6 +25110,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -25234,6 +25568,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -26383,6 +26718,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -26682,9 +27018,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -26693,24 +27029,31 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "tenant_id": "path.tenant_id",
               "resource_key": "path.resourceKey",
               "resource_id": "response.id"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-resource-create-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-resource-create-governance",
             "owner": "resource-platform",
-            "rationale": "Creates a tenant asset and returns a repository readback; failure rollback after insertion is not yet implemented and remains an explicit blocker.",
+            "rationale": "Creates a tenant asset and verifies its scoped readback before committing the same SQL transaction; any mutation or readback failure rolls the transaction back.",
             "evidence_refs": [
+              "routes/resourceApiRoutes.js",
               "src/application/resourceApi/resourceApiService.js",
+              "src/infrastructure/resourceApi/resourceRepository.js",
               "test-resource-api-service.mjs"
             ]
           },
@@ -26769,9 +27112,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -26780,24 +27123,31 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "tenant_id": "path.tenant_id",
               "resource_key": "path.resourceKey",
               "resource_id": "path.resourceId"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-resource-update-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-resource-update-governance",
             "owner": "resource-platform",
-            "rationale": "Updates an owned tenant asset and returns same-cycle repository readback; before-snapshot compensation is still missing.",
+            "rationale": "Checks tenant ownership and update capability, mutates the asset, and verifies the scoped readback before committing the same SQL transaction.",
             "evidence_refs": [
+              "routes/resourceApiRoutes.js",
               "src/application/resourceApi/resourceApiService.js",
+              "src/infrastructure/resourceApi/resourceRepository.js",
               "test-resource-api-service.mjs"
             ]
           },
@@ -26856,9 +27206,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -26867,24 +27217,31 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "tenant_id": "path.tenant_id",
               "resource_key": "path.resourceKey",
               "resource_id": "path.resourceId"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-resource-archive-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-resource-archive-governance",
             "owner": "resource-platform",
-            "rationale": "Archives an owned tenant asset and returns lifecycle readback; automatic rollback when readback fails remains missing.",
+            "rationale": "Checks tenant ownership and archive capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
             "evidence_refs": [
+              "routes/resourceApiRoutes.js",
               "src/application/resourceApi/resourceApiService.js",
+              "src/infrastructure/resourceApi/resourceRepository.js",
               "test-resource-api-service.mjs"
             ]
           },
@@ -26943,9 +27300,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -26954,24 +27311,31 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "tenant_id": "path.tenant_id",
               "resource_key": "path.resourceKey",
               "resource_id": "path.resourceId"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-resource-restore-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-resource-restore-governance",
             "owner": "resource-platform",
-            "rationale": "Restores an owned tenant asset and returns lifecycle readback; automatic rollback when readback fails remains missing.",
+            "rationale": "Checks tenant ownership and restore capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
             "evidence_refs": [
+              "routes/resourceApiRoutes.js",
               "src/application/resourceApi/resourceApiService.js",
+              "src/infrastructure/resourceApi/resourceRepository.js",
               "test-resource-api-service.mjs"
             ]
           },
@@ -27311,6 +27675,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -27328,32 +27693,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        },
-        {
-          "signature": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        },
-        {
-          "signature": "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 8,
         "class": "high"
@@ -27870,6 +28210,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -28001,6 +28342,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -33010,6 +33352,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -33674,6 +34017,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -33884,6 +34228,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -34250,6 +34595,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -35375,6 +35721,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -35795,6 +36142,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -36310,6 +36658,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -36492,6 +36841,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -36526,7 +36876,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "33638a2c340d0669e1c5d786f2064e8dcbe17b9cb30e69288a4c3a5ad73c4e03",
+      "source_digest": "9160b59cd6f0b9f03c4185b74a6147812c659ee00e96ba153d047afe51cc6359",
       "mount_prefix": "/",
       "mount_order": 15728,
       "split_from_mixed_scope_file": false,
@@ -36686,6 +37036,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -37247,6 +37598,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -37465,6 +37817,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -38005,6 +38358,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -39815,6 +40169,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -40879,6 +41234,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -41835,6 +42191,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -42246,6 +42603,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -42473,6 +42831,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -42605,6 +42964,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -42735,6 +43095,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -42871,6 +43232,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43001,6 +43363,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43127,6 +43490,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43340,6 +43704,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43478,6 +43843,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43682,6 +44048,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -43894,6 +44261,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -44026,6 +44394,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -44236,6 +44605,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -44368,6 +44738,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -44578,6 +44949,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -44790,6 +45162,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -45002,6 +45375,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -45217,6 +45591,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -45429,6 +45804,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -45641,6 +46017,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -45925,6 +46302,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -46144,6 +46522,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -49690,6 +50069,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -50784,6 +51164,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -51323,6 +51704,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -51754,6 +52136,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -52056,6 +52439,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -52246,6 +52630,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -52869,6 +53254,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -53434,6 +53820,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -54554,6 +54941,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -54791,6 +55179,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -56391,6 +56780,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -57509,6 +57899,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -58392,6 +58783,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -59060,6 +59452,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -59694,6 +60087,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -60867,6 +61261,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -61173,6 +61568,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -61725,6 +62121,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -63992,6 +64389,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -64569,6 +64967,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -65209,6 +65608,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -66069,6 +66469,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -67077,6 +67478,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -67454,6 +67856,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -68362,6 +68765,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -68959,6 +69363,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -69255,6 +69660,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -70221,6 +70627,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -70524,6 +70931,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -71214,6 +71622,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -72076,6 +72485,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -73015,6 +73425,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -73305,6 +73716,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -73431,6 +73843,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -73557,6 +73970,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -74314,6 +74728,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -74536,6 +74951,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -74877,6 +75293,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -75014,6 +75431,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -76391,6 +76809,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -76602,6 +77021,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -76872,6 +77292,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -77002,6 +77423,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -77189,6 +77611,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -77385,6 +77808,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -77654,6 +78078,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -77993,6 +78418,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -78188,6 +78614,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79028,6 +79455,7 @@
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79119,6 +79547,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79159,6 +79588,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79199,6 +79629,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79239,6 +79670,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79279,6 +79711,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79319,6 +79752,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79357,6 +79791,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79394,6 +79829,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79433,6 +79869,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79471,6 +79908,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79510,6 +79948,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79547,6 +79986,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79584,6 +80024,7 @@
         "same-cycle-readback"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79621,6 +80062,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79672,6 +80114,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79713,6 +80156,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79751,6 +80195,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79788,6 +80233,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79827,6 +80273,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79867,6 +80314,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79906,6 +80354,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79962,6 +80411,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -79999,6 +80449,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80036,6 +80487,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80082,7 +80534,6 @@
       "blockers": [
         "test_ownership_gap",
         "surface_policy_decision_required",
-        "mutation_rollback_gap",
         "operation_classification_gap"
       ],
       "dependencies": [
@@ -80093,6 +80544,7 @@
         "same-cycle-readback"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80133,6 +80585,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80171,6 +80624,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80223,6 +80677,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80263,6 +80718,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80300,6 +80756,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80336,6 +80793,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80373,6 +80831,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80426,6 +80885,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80467,6 +80927,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80505,6 +80966,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80544,6 +81006,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80576,8 +81039,7 @@
       "state": "blocked",
       "blockers": [
         "test_ownership_gap",
-        "surface_policy_decision_required",
-        "mutation_rollback_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
@@ -80587,6 +81049,7 @@
         "same-cycle-readback"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80628,6 +81091,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80669,6 +81133,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80720,6 +81185,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80760,6 +81226,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80799,6 +81266,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80838,6 +81306,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80875,6 +81344,7 @@
         "F0-source-baseline"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80914,6 +81384,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80955,6 +81426,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -80997,6 +81469,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81038,6 +81511,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81079,6 +81553,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81120,6 +81595,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81161,6 +81637,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81200,6 +81677,7 @@
         "F2-admin-bff-session"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81240,6 +81718,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81282,6 +81761,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81323,6 +81803,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81364,6 +81845,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81405,6 +81887,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81444,6 +81927,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81487,6 +81971,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81529,6 +82014,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81570,6 +82056,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81610,6 +82097,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81650,6 +82138,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81691,6 +82180,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81731,6 +82221,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81772,6 +82263,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81814,6 +82306,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81855,6 +82348,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81896,6 +82390,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81937,6 +82432,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -81978,6 +82474,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82019,6 +82516,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82058,6 +82556,7 @@
         "F2-admin-bff-session"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82097,6 +82596,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82137,6 +82637,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82178,6 +82679,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82220,6 +82722,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82262,6 +82765,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82305,6 +82809,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82346,6 +82851,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82387,6 +82893,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82426,9 +82933,12 @@
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82439,7 +82949,8 @@
         "resource-api-coverage.manifest.json",
         "routes/dynamicContainerAuthorityRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-dynamic-container-rollout-safety.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82447,11 +82958,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-dynamic-container-rollout-safety.mjs"
       ]
     },
     {
@@ -82470,6 +82983,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82511,6 +83025,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82553,6 +83068,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82596,6 +83112,7 @@
         "same-cycle-readback"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82640,6 +83157,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82681,6 +83199,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82722,6 +83241,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82762,6 +83282,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82804,6 +83325,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82846,6 +83368,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82888,6 +83411,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82926,6 +83450,7 @@
         "F2-admin-bff-session"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -82965,6 +83490,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83007,6 +83533,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83049,6 +83576,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83091,6 +83619,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83133,6 +83662,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83174,6 +83704,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83212,6 +83743,7 @@
         "F2-admin-bff-session"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83252,6 +83784,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83294,6 +83827,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83336,6 +83870,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83377,6 +83912,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83417,6 +83953,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83458,6 +83995,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83513,6 +84051,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83554,6 +84093,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83595,6 +84135,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83636,6 +84177,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83677,6 +84219,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83718,6 +84261,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83760,6 +84304,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83801,6 +84346,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83842,6 +84388,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83883,6 +84430,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83924,6 +84472,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -83966,6 +84515,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84007,6 +84557,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84049,6 +84600,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84088,6 +84640,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84132,6 +84685,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84177,6 +84731,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84222,6 +84777,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84267,6 +84823,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84312,6 +84869,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84357,6 +84915,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84402,6 +84961,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84444,6 +85004,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84489,6 +85050,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84534,6 +85096,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84579,6 +85142,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84621,6 +85185,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84663,6 +85228,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84707,6 +85273,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84749,6 +85316,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84791,6 +85359,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84833,6 +85402,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84875,6 +85445,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84919,6 +85490,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -84963,6 +85535,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85005,6 +85578,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85044,6 +85618,7 @@
         "F2-admin-bff-session"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85085,6 +85660,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85126,6 +85702,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85167,6 +85744,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85209,6 +85787,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85251,6 +85830,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85293,6 +85873,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85334,6 +85915,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85376,6 +85958,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85418,6 +86001,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85457,6 +86041,7 @@
         "F4-device-trust"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85496,6 +86081,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85552,6 +86138,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85591,6 +86178,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85629,6 +86217,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85666,6 +86255,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85707,6 +86297,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85748,6 +86339,7 @@
         "operation-classification"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
@@ -85787,6 +86379,7 @@
         "F1-tenant-workspace-context"
       ],
       "source_refs": [
+        "frontend-operation-governance.generated.json",
         "frontend-surface-policy.json",
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
