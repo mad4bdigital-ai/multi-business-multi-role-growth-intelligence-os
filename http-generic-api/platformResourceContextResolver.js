@@ -632,6 +632,8 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
         site_ref: { type: "string", minLength: 1, maxLength: 2048 },
         site_url: { type: "string", minLength: 1, maxLength: 2048 },
         connection_id: { type: "string", minLength: 1, maxLength: 255 },
+        repository_ref: { type: "string", minLength: 1, maxLength: 2048 },
+        binding_key: { type: "string", minLength: 1, maxLength: 191 },
         candidate_refs: {
           type: "array",
           maxItems: 8,
