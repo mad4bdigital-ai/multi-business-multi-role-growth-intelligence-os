@@ -137,7 +137,7 @@ jobs:
           '''
           openapi = Path("http-generic-api/openapi.yaml")
           openapi_text = openapi.read_text()
-          if "operationId: verifyTenantTaskSourceRepair" not in openapi_text:
+          if "  /tenant/resolution/cases/{caseId}/task-source-repair/verify:" not in openapi_text:
               anchor = "  /tenant/resolution/skill-approvals:"
               if anchor not in openapi_text:
                   raise SystemExit("OpenAPI skill approvals anchor missing")
