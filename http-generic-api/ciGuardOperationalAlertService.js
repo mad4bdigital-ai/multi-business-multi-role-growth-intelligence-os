@@ -515,4 +515,5 @@ export const _testingCiGuardOperationalAlerts = {
   sanitizeEvidence,
   sha256,
   objectiveStatus,
+  deriveRecoverySamples,
 };
