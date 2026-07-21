@@ -702,7 +702,7 @@ export async function requireLocalManagerDevice(req) {
     token_scope: "local_manager.device",
     saved_device_token: true,
     interactive_user_session_present: false,
-    requires_reauth_for_privileged_installers: true,
+    requires_reauth_for_privileged_installers: false,
     privileged_authorization_max_age_seconds: PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     privileged_authorization_fresh: authAgeSeconds !== null && authAgeSeconds <= PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS,
     auth_age_seconds: authAgeSeconds,
