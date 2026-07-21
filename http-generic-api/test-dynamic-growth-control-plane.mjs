@@ -81,6 +81,25 @@ const manifest = validateActivityPackManifest({
 });
 assert.match(manifest.checksumSha256, /^[a-f0-9]{64}$/);
 
+const encodedCursor = _testingGrowthControlPlaneService.encodeCursor(25);
+assert.equal(_testingGrowthControlPlaneService.decodeCursor(encodedCursor), 25);
+assert.deepEqual(
+  _testingGrowthControlPlaneService.normalizeListPage({ limit: "50", cursor: encodedCursor }),
+  { limit: 50, offset: 25 }
+);
+assert.throws(
+  () => _testingGrowthControlPlaneService.decodeCursor("not-a-cursor"),
+  (error) => error.code === "GROWTH_CONTROL_CURSOR_INVALID"
+);
+assert.throws(
+  () => _testingGrowthControlPlaneService.normalizeListPage({ limit: 101 }),
+  (error) => error.code === "GROWTH_CONTROL_LIMIT_INVALID"
+);
+assert.throws(
+  () => _testingDynamicGrowthControlPlaneRoutes.assertAllowedKeys({ unsupported: "1" }, new Set(["limit", "cursor"])),
+  (error) => error.code === "GROWTH_CONTROL_VALIDATION_ERROR"
+);
+
 const stored = { definitions: new Map(), versions: [], snapshots: [] };
 const fakeRepository = {
   async listConfigurationDefinitions() { return [...stored.definitions.values()]; },
