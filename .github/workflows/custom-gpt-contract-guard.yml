@@ -16,6 +16,13 @@ on:
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
       - "http-generic-api/test-openapi-response-object-guard.mjs"
       - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
+      - "http-generic-api/activationAwarenessService.js"
+      - "http-generic-api/routes/activationAwarenessRoutes.js"
+      - "http-generic-api/migrations/20260721_ci_guard_operational_alert_ingestion_slo.sql"
+      - "docs/openapi-response-object-guard-runbook.md"
+      - "docs/openapi-guard-failure-recovery-drill-report.md"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
       - "http-generic-api/test-custom-gpt-schemas.mjs"
@@ -49,6 +56,13 @@ on:
       - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
       - "http-generic-api/test-openapi-response-object-guard.mjs"
       - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
+      - "http-generic-api/activationAwarenessService.js"
+      - "http-generic-api/routes/activationAwarenessRoutes.js"
+      - "http-generic-api/migrations/20260721_ci_guard_operational_alert_ingestion_slo.sql"
+      - "docs/openapi-response-object-guard-runbook.md"
+      - "docs/openapi-guard-failure-recovery-drill-report.md"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
       - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
       - "http-generic-api/activationGuidanceService.js"
@@ -59,6 +73,15 @@ on:
       - ".github/workflows/openapi-auto-sync.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
   workflow_dispatch:
+    inputs:
+      drill_mode:
+        description: "Run a controlled post-validation failure drill without modifying repository files"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - "none"
+          - "fail"
   schedule:
     - cron: "41 2 * * *"
 
@@ -89,16 +112,91 @@ jobs:
         run: |
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs
+      - name: Execute controlled failure drill
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.drill_mode == 'fail' }}
+        run: |
+          echo "::error::Controlled OpenAPI guard failure drill requested after all real validations passed."
+          exit 1
 
   alert:
-    name: OpenAPI guard issue lifecycle
+    name: OpenAPI guard alert lifecycle
     needs: guard
     if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: write
     steps:
+      - name: Ingest SQL operational signal
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GUARD_RESULT: ${{ needs.guard.result }}
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+        with:
+          script: |
+            const apiKey = process.env.BACKEND_API_KEY || "";
+            if (!apiKey) {
+              core.warning("BACKEND_API_KEY is unavailable; SQL guard signal ingestion was skipped.");
+              return;
+            }
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const guardResult = process.env.GUARD_RESULT || "unknown";
+            const status = guardResult === "success"
+              ? "success"
+              : guardResult === "cancelled"
+                ? "cancelled"
+                : "failure";
+            const run = await github.rest.actions.getWorkflowRun({
+              owner,
+              repo,
+              run_id: context.runId,
+            });
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const observedAt = new Date().toISOString();
+            const payload = {
+              signal_key: "custom_gpt_contract_guard",
+              status,
+              idempotency_key: `custom-gpt-contract-guard:${context.runId}:${process.env.GITHUB_RUN_ATTEMPT || "1"}:${status}`,
+              workflow_name: "Custom GPT Contract Guard",
+              workflow_run_id: String(context.runId),
+              workflow_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+              job_name: "guard",
+              source_ref: runUrl,
+              commit_sha: context.sha,
+              ref_name: context.ref,
+              started_at: run.data.run_started_at || run.data.created_at || observedAt,
+              observed_at: observedAt,
+              severity: status === "success" ? "info" : "high",
+              title: status === "success"
+                ? "Custom GPT Contract Guard recovered"
+                : "Custom GPT Contract Guard failed",
+              summary: `Default-branch guard result: ${guardResult}.`,
+              evidence: {
+                event_name: context.eventName,
+                drill_mode: context.payload.inputs?.drill_mode || "none",
+                run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+              },
+            };
+            const response = await fetch(`${process.env.RUNTIME_BASE_URL}/activation/operational-attention/ci-signals`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const responseText = await response.text();
+            let result = {};
+            try { result = responseText ? JSON.parse(responseText) : {}; } catch { result = {}; }
+            if (!response.ok) {
+              throw new Error(`CI guard SQL ingestion failed with HTTP ${response.status}: ${result?.error?.code || "unknown_error"}`);
+            }
+            core.info(`SQL guard signal stored: event=${result?.event?.event_id || "unknown"}, alert=${result?.alert?.alert_id || "none"}, slo=${result?.slo?.overall_status || "unknown"}.`);
+
       - name: Open, update, or resolve the OpenAPI guard incident
         continue-on-error: true
         uses: actions/github-script@v7
