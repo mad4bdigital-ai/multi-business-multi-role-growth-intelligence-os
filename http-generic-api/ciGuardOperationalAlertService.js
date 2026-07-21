@@ -391,8 +391,30 @@ export async function ingestCiGuardSignal({
         );
       } else if (current && OPEN_LIFECYCLE_STATES.has(current.lifecycle_status)) {
         alertId = current.alert_id;
+        const observedAtDb = dbDate(signal.observed_at);
+        const [previousSuccessRows] = await connection.query(
+          `SELECT MAX(observed_at) AS last_success_at
+             FROM operational_alert_ci_signal_events
+            WHERE signal_key = ? AND status = 'success' AND observed_at < ?`,
+          [signal.signal_key, observedAtDb]
+        );
+        const previousSuccessAt = dbDate(previousSuccessRows?.[0]?.last_success_at)
+          || "1970-01-01 00:00:00";
+        const [incidentRows] = await connection.query(
+          `SELECT MIN(observed_at) AS incident_started_at
+             FROM operational_alert_ci_signal_events
+            WHERE signal_key = ?
+              AND status IN ('failure','cancelled','timed_out','action_required')
+              AND observed_at > ?
+              AND observed_at < ?`,
+          [signal.signal_key, previousSuccessAt, observedAtDb]
+        );
+        const incidentStartedAt = parseDate(incidentRows?.[0]?.incident_started_at)
+          || parseDate(current.last_seen_at)
+          || parseDate(current.first_seen_at)
+          || signal.observed_at;
         recoverySeconds = Math.max(0, Math.round(
-          (signal.observed_at.getTime() - new Date(current.first_seen_at).getTime()) / 1000
+          (signal.observed_at.getTime() - incidentStartedAt.getTime()) / 1000
         ));
         await connection.query(
           `UPDATE operational_alerts
