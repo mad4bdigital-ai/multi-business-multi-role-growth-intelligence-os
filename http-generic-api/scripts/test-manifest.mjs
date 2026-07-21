@@ -1,6 +1,7 @@
 export const testCommands = [
   "node test-runtime-parity-startup-reconciler.mjs",
   "node test-platform-frontend-routes.mjs",
+  "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
   "node test-frontend-auth-openapi-parity.mjs",
   "node test-interruption-readiness.mjs",
