@@ -1,6 +1,6 @@
 # Mad4B Local Connector Safe Upgrade
-# Manifest-driven upgrade. Never replaces active server.mjs without hash check,
-# node syntax check, backup, service restart, local health validation, and rollback.
+# Manifest-driven upgrade. Replaces the runtime package only after hash checks,
+# node syntax validation, backups, service restart, local health validation, and rollback.
 
 param(
   [string]$Root = "C:\mad4b-connector\local-connector",
@@ -14,12 +14,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ServerPath = Join-Path $Root "server.mjs"
-$NextPath = Join-Path $Root "server.mjs.next"
-$StablePath = Join-Path $Root "server.mjs.stable"
 $WatchdogPath = Join-Path $Root "connector-watchdog.ps1"
 $SafeUpgradePath = Join-Path $Root "connector-safe-upgrade.ps1"
+$Browser4Path = Join-Path $Root "browser4-adapter.mjs"
+$LocalAgentRuntimePath = Join-Path $Root "local-agent-runtime.mjs"
 $LogPath = Join-Path $Root "safe-upgrade.log"
 $ManifestPath = Join-Path $Root "connector-agent-manifest.json"
+$RuntimePackage = @(
+  @{ Name = "server.mjs"; Destination = $ServerPath },
+  @{ Name = "browser4-adapter.mjs"; Destination = $Browser4Path },
+  @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath }
+)
+$RuntimePackageApplied = $false
 
 function Log($Message) {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
@@ -35,11 +41,10 @@ function Test-Health {
 
 function Restart-Connector {
   $svc = Get-Service -Name $ConnectorService -ErrorAction SilentlyContinue
-  if ($svc) {
-    if ($svc.Status -eq 'Running') { Restart-Service -Name $ConnectorService -Force -ErrorAction SilentlyContinue }
-    else { Start-Service -Name $ConnectorService -ErrorAction SilentlyContinue }
-    Start-Sleep -Seconds 5
-  }
+  if (-not $svc) { throw "connector service not found: $ConnectorService" }
+  if ($svc.Status -eq 'Running') { Restart-Service -Name $ConnectorService -Force -ErrorAction Stop }
+  else { Start-Service -Name $ConnectorService -ErrorAction Stop }
+  Start-Sleep -Seconds 5
 }
 
 function Assert-Hash($Path, $ExpectedSha256, $Label) {
@@ -53,7 +58,7 @@ function Assert-Hash($Path, $ExpectedSha256, $Label) {
 
 function Download-FileFromManifest($Manifest, $Name, $Destination) {
   $entry = $Manifest.files.$Name
-  if (-not $entry -or -not $entry.url) { throw "manifest missing file entry: $Name" }
+  if (-not $entry -or -not $entry.url -or -not $entry.sha256) { throw "manifest missing file entry: $Name" }
   Invoke-WebRequest -Uri $entry.url -OutFile $Destination -UseBasicParsing -TimeoutSec 90
   Assert-Hash -Path $Destination -ExpectedSha256 $entry.sha256 -Label $Name
 }
@@ -69,31 +74,74 @@ function Install-CompanionFile($Manifest, $Name, $Destination) {
   Log "companion_installed name=$Name destination=$Destination"
 }
 
+function Stage-RuntimePackage($Manifest) {
+  foreach ($file in $RuntimePackage) {
+    Download-FileFromManifest -Manifest $Manifest -Name $file.Name -Destination ("$($file.Destination).next")
+  }
+}
+
+function Backup-RuntimePackage {
+  foreach ($file in $RuntimePackage) {
+    $destination = $file.Destination
+    $stable = "$destination.stable"
+    $file.HadOriginal = Test-Path $destination
+    if ($file.HadOriginal) {
+      Copy-Item -LiteralPath $destination -Destination ("$destination.bak-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss")) -Force
+      Copy-Item -LiteralPath $destination -Destination $stable -Force
+    } else {
+      Remove-Item -LiteralPath $stable -Force -ErrorAction SilentlyContinue
+    }
+  }
+}
+
+function Apply-RuntimePackage {
+  foreach ($file in $RuntimePackage) {
+    $next = "$($file.Destination).next"
+    if (-not (Test-Path $next)) { throw "staged runtime file missing: $($file.Name)" }
+    Copy-Item -LiteralPath $next -Destination $file.Destination -Force
+  }
+  $script:RuntimePackageApplied = $true
+}
+
+function Save-StableRuntimePackage {
+  foreach ($file in $RuntimePackage) {
+    Copy-Item -LiteralPath $file.Destination -Destination ("$($file.Destination).stable") -Force
+    Remove-Item -LiteralPath ("$($file.Destination).next") -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Restore-RuntimePackage {
+  foreach ($file in $RuntimePackage) {
+    $stable = "$($file.Destination).stable"
+    if ($file.HadOriginal -and (Test-Path $stable)) {
+      Copy-Item -LiteralPath $stable -Destination $file.Destination -Force
+    } elseif (-not $file.HadOriginal) {
+      Remove-Item -LiteralPath $file.Destination -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item -LiteralPath ("$($file.Destination).next") -Force -ErrorAction SilentlyContinue
+  }
+}
+
 try {
   if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
   Log "upgrade_started source=$Source manifest=$ManifestUrl"
 
   $manifest = $null
   if ($Source -and (Test-Path $Source)) {
-    Copy-Item -LiteralPath $Source -Destination $NextPath -Force
+    Copy-Item -LiteralPath $Source -Destination "$ServerPath.next" -Force
     Log "server_source_local path=$Source"
   } else {
     Invoke-WebRequest -Uri $ManifestUrl -OutFile $ManifestPath -UseBasicParsing -TimeoutSec 60
     $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $manifest.ok -or -not $manifest.files) { throw "invalid connector agent manifest" }
     Log "manifest_loaded version=$($manifest.version)"
-    Download-FileFromManifest -Manifest $manifest -Name "server.mjs" -Destination $NextPath
+    Stage-RuntimePackage -Manifest $manifest
   }
 
   $node = (Get-Command node -ErrorAction Stop).Source
-  $check = & $node --check $NextPath 2>&1
+  $check = & $node --check "$ServerPath.next" 2>&1
   if ($LASTEXITCODE -ne 0) { throw "node --check failed: $check" }
-  Log "node_check_ok path=$NextPath"
-
-  if (Test-Path $ServerPath) {
-    Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $Root ("server.mjs.bak-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss"))) -Force
-    Copy-Item -LiteralPath $ServerPath -Destination $StablePath -Force
-  }
+  Log "node_check_ok path=$ServerPath.next"
 
   if ($manifest -and -not $SkipCompanionFiles) {
     Install-CompanionFile -Manifest $manifest -Name "connector-watchdog.ps1" -Destination $WatchdogPath
@@ -101,20 +149,33 @@ try {
     Install-CompanionFile -Manifest $manifest -Name "connector-safe-upgrade.ps1" -Destination $SafeUpgradePath
   }
 
-  Copy-Item -LiteralPath $NextPath -Destination $ServerPath -Force
+  if ($manifest) {
+    Backup-RuntimePackage
+    Apply-RuntimePackage
+  } else {
+    if (Test-Path $ServerPath) {
+      Copy-Item -LiteralPath $ServerPath -Destination "$ServerPath.stable" -Force
+    }
+    Copy-Item -LiteralPath "$ServerPath.next" -Destination $ServerPath -Force
+    $RuntimePackage[0].HadOriginal = Test-Path "$ServerPath.stable"
+    $script:RuntimePackageApplied = $true
+  }
+
   Restart-Connector
 
   if (Test-Health) {
     Log "upgrade_ok health=true"
-    Copy-Item -LiteralPath $ServerPath -Destination $StablePath -Force -ErrorAction SilentlyContinue
+    if ($manifest) { Save-StableRuntimePackage }
+    else {
+      Copy-Item -LiteralPath $ServerPath -Destination "$ServerPath.stable" -Force -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath "$ServerPath.next" -Force -ErrorAction SilentlyContinue
+    }
     exit 0
   }
 
   Log "upgrade_failed health=false rollback=true"
-  if (Test-Path $StablePath) {
-    Copy-Item -LiteralPath $StablePath -Destination $ServerPath -Force
-    Restart-Connector
-  }
+  Restore-RuntimePackage
+  Restart-Connector
 
   if (Test-Health) {
     Log "rollback_ok health=true"
@@ -124,6 +185,15 @@ try {
   Log "rollback_failed manual_required=true"
   exit 2
 } catch {
-  Log "upgrade_exception error=$($_.Exception.Message)"
+  Log "upgrade_exception error=$($_.Exception.Message) rollback=$RuntimePackageApplied"
+  if ($RuntimePackageApplied) {
+    try {
+      Restore-RuntimePackage
+      Restart-Connector
+      Log "exception_rollback health=$(Test-Health)"
+    } catch {
+      Log "exception_rollback_failed error=$($_.Exception.Message)"
+    }
+  }
   exit 1
 }
