@@ -1,6 +1,6 @@
-import jwt from "jsonwebtoken";
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
+import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 
 export function requireEnv(name, value) {
   if (value === undefined || value === null || value === "") {
@@ -29,14 +29,13 @@ export function createDebugLog(env) {
 export function createBackendApiKeyMiddleware(env) {
   const enabled = isBackendApiKeyEnabled(env);
   const expected = env?.BACKEND_API_KEY;
-  const jwtSecret = env?.JWT_SECRET || "development_fallback_secret_only";
 
   return async function requireBackendApiKey(req, res, next) {
     if (!enabled) return next();
 
     const auth = req.headers.authorization || req.header("Authorization") || "";
     const headerApiKey = req.headers["x-api-key"] || req.header("x-api-key") || "";
-    const bearerToken = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+    const bearerToken = String(auth).match(/^Bearer\s+([^\s]+)$/i)?.[1] || "";
     const apiKeyToken = String(headerApiKey || "");
 
     if (apiKeyToken) {
@@ -79,8 +78,9 @@ export function createBackendApiKeyMiddleware(env) {
       return next();
     }
 
-    try {
-      const payload = jwt.verify(bearerToken, jwtSecret);
+    const userJwt = verifyUserJwtAuthorization(auth, { env });
+    if (userJwt.ok) {
+      const payload = userJwt.claims;
       req.auth = {
         mode: "user_jwt",
         principal_type: "user",
@@ -91,23 +91,36 @@ export function createBackendApiKeyMiddleware(env) {
         claims: payload
       };
       return next();
-    } catch {
-      if (/^pk_[A-Za-z0-9]{8}_[A-Za-z0-9]+$/.test(String(bearerToken || "").trim())) {
-        const apiCredential = await resolveApiCredentialAuth(bearerToken).catch(() => null);
-        if (apiCredential) {
-          req.auth = apiCredential;
-          return next();
-        }
+    }
+
+    if (/^pk_[A-Za-z0-9]{8}_[A-Za-z0-9]+$/.test(String(bearerToken || "").trim())) {
+      const apiCredential = await resolveApiCredentialAuth(bearerToken).catch(() => null);
+      if (apiCredential) {
+        req.auth = apiCredential;
+        return next();
       }
-      return res.status(403).json({
+    }
+
+    if (userJwt.code === "user_jwt_verifier_unavailable") {
+      return res.status(503).json({
         ok: false,
         error: {
-          code: "invalid_auth_token",
-          message: "Invalid backend API key or user JWT.",
-          status: 403
-        }
+          code: userJwt.code,
+          message: userJwt.message,
+          status: 503,
+        },
+        secrets_included: false,
       });
     }
+
+    return res.status(403).json({
+      ok: false,
+      error: {
+        code: "invalid_auth_token",
+        message: "Invalid backend API key or user JWT.",
+        status: 403
+      }
+    });
   };
 }
 

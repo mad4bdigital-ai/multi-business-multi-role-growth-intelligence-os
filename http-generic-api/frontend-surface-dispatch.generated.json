@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c9559306e393156e79663b88089eba7dd0a78684034de5d3fc6aca573ed245cc",
+    "source_digest": "566778d77285a55f320154502bc5f0eed6f110cd1802a06c1347f445e8eaa7d7",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "17daf85ceb8689e2cfdf52fef7f5ec6842d1dd4f5fecc6d0b390e0c40dbfaebc",
+        "sha256": "c38b069fe28a020908dd0a26cf04889469c9f22dba0ad302b8778f60bc12ddc0",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "5ce84e15c3c4a26f61ca853ce04b800337b8e2762420335454dfc066075a7104",
+        "sha256": "50f682d3b353e22a5a4b8619e8fcfd529a0b9450ac9fbce7f20f3edba1d4a143",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "e2b87e4a896dbc2546c3360e333256bc1f75cb0ab4b68783436da8d01020514d",
+        "sha256": "d933ee3c1a976cc77cad4d777d67769ca08ee05368a829ac20fbb71d785b379c",
         "present": true
       },
       {
@@ -346,12 +346,12 @@
       },
       {
         "file": "routes/connectApiRoutes.js",
-        "sha256": "f71b03c46246136b138e513e342f27a3427bd02e5db18a667456d32033a6ff9c",
+        "sha256": "63d7583f8068cb144a20c5b5cb856b935445c9dd9fecc2522068ee498231a07b",
         "present": true
       },
       {
         "file": "routes/connectRoutes.js",
-        "sha256": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+        "sha256": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
         "present": true
       },
       {
@@ -876,7 +876,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "d3e5aa45da669db391c987e135773086d9752fe4232f0e1d8c7c95b7fc73df1f",
+        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
         "present": true
       },
       {
@@ -1100,7 +1100,7 @@
     "non_get_candidate_count": 589,
     "unresolved_operation_class_count": 532,
     "classified_mutation_count": 8,
-    "governed_mutation_operation_count": 7,
+    "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 147,
     "test_owned_family_count": 6,
@@ -7183,7 +7183,7 @@
       "family_key": "connect.public.connect-assets",
       "label": "connect (public) [connect-assets]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7290,7 +7290,7 @@
       "family_key": "connect.public.default",
       "label": "connect (public) [default]",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7458,7 +7458,7 @@
       "family_key": "connect.tenant",
       "label": "connect (tenant)",
       "source_file": "routes/connectRoutes.js",
-      "source_digest": "99eb1ba3cb71d318dda821dcffbf7270678cb4245806ba997cad869ab6088243",
+      "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
       "mount_order": 12664,
       "split_from_mixed_scope_file": true,
@@ -7639,9 +7639,9 @@
           ],
           "governance": {
             "classification": "state_change",
-            "classification_source": "operation_rule",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": {
               "preflight": {
                 "mode": "inline_capability_check"
@@ -7650,28 +7650,32 @@
                 "mode": "runtime_authorization"
               },
               "readback": {
-                "mode": "inline_post_commit",
-                "same_cycle": true
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
               },
-              "rollback": null
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
             },
             "parameter_bindings": {
               "user_id": "auth.user_id",
               "tenant_id": "auth.tenant_id|response.principal.workspace_key",
               "mode": "request.body.mode|managed"
             },
-            "blockers": [
-              "mutation_rollback_gap"
-            ],
-            "rule_id": "tenant-connect-bootstrap-governance",
+            "blockers": [],
+            "rule_id": "generated-tenant-connect-bootstrap-governance",
             "owner": "tenant-activation",
-            "rationale": "The signed-user bootstrap idempotently provisions a workspace when none exists, activates Managed mode, and verifies the resulting connection in the same cycle. Workspace creation and activation currently use separate committed database units, so compensation after a partial success remains an explicit blocker rather than an inferred rollback guarantee.",
+            "rationale": "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
             "evidence_refs": [
-              "openapi.yaml",
               "routes/connectRoutes.js",
               "tenantConnectBootstrapService.js",
-              "test-connect-routes.mjs",
-              "test-tenant-connect-bootstrap-service.mjs"
+              "tenantConnectBootstrapTransaction.js",
+              "test-tenant-connect-bootstrap-transaction.mjs"
             ]
           },
           "mutation_candidate": true,
@@ -8340,12 +8344,6 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /connect/bootstrap",
-          "blockers": [
-            "mutation_rollback_gap"
-          ]
-        },
-        {
           "signature": "POST /connect/workspace",
           "blockers": [
             "operation_classification_gap"
@@ -8625,7 +8623,7 @@
       "family_key": "connect-api",
       "label": "connect api",
       "source_file": "routes/connectApiRoutes.js",
-      "source_digest": "f71b03c46246136b138e513e342f27a3427bd02e5db18a667456d32033a6ff9c",
+      "source_digest": "63d7583f8068cb144a20c5b5cb856b935445c9dd9fecc2522068ee498231a07b",
       "mount_prefix": "/",
       "mount_order": 12901,
       "split_from_mixed_scope_file": false,
@@ -80536,7 +80534,6 @@
       "blockers": [
         "test_ownership_gap",
         "surface_policy_decision_required",
-        "mutation_rollback_gap",
         "operation_classification_gap"
       ],
       "dependencies": [
