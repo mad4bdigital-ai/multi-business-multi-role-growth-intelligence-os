@@ -155,6 +155,99 @@ assert.equal(happy.guarantees.runtime_authority_changed, false);
 assert.equal(happy.guarantees.provider_calls_performed, false);
 assert.equal(happy.guarantees.secrets_included, false);
 
+const tenantManifest = {
+  capability_key: "tenant_tool.tenant_connection_effective_credential_plan_view",
+  source: { table: "tenant_platform_endpoint_tools", key: "tenant_connection_effective_credential_plan_view" },
+  requirements: { certification: true, readback: true, adapter_required: true },
+};
+const tenantRows = baseRows({
+  manifest: [{
+    ...baseRows().manifest[0],
+    capability_key: tenantManifest.capability_key,
+    effect_class: "internal_read",
+    manifest_json: JSON.stringify(tenantManifest),
+  }],
+  adapters: [{
+    ...baseRows().adapters[0],
+    adapter_key: "tenant_connection_self_repair_routes_v1",
+    resource_type: "tenant_connection",
+    provider_key: "wordpress",
+    installed_tool_key: "tenant_connection_effective_credential_plan_view",
+    supports_read: 1,
+    supports_write: 0,
+  }],
+  generic: [],
+  runtime: [],
+  readbacks: [{
+    ...baseRows().readbacks[0],
+    contract_id: "tenant-contract-1",
+    contract_key: "tenant_connection_effective_credential_plan_view_readback_v1",
+    capability_key: tenantManifest.capability_key,
+    adapter_key: "tenant_connection_self_repair_routes_v1",
+    expected_effect_class: "internal_read",
+    status: "shadow",
+    expires_at: null,
+  }],
+  evidence: [],
+});
+
+const aliasReadback = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: tenantManifest.capability_key,
+  operation_mode: "preview",
+  adapter_key: "wordpress_rest",
+  resource_type: "tenant_connection",
+  provider_key: "wordpress",
+  runtime_surface: "tenant_connection_effective_credential_plan_view",
+  contract_key: "tenant_connection_effective_credential_plan_view_readback_v1",
+}, {
+  pool: fakePool(tenantRows),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(aliasReadback.adapter_resolution.state, "pass");
+assert.equal(aliasReadback.adapter_resolution.adapter.adapter_key, "tenant_connection_self_repair_routes_v1");
+assert.equal(aliasReadback.readback_contract_resolution.state, "pass");
+assert.equal(aliasReadback.readback_contract_resolution.contract.contract_id, "tenant-contract-1");
+
+const adapterMismatch = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: tenantManifest.capability_key,
+  operation_mode: "preview",
+  adapter_key: "google_drive_adapter",
+  resource_type: "tenant_connection",
+  provider_key: "google_drive",
+  contract_key: "tenant_connection_effective_credential_plan_view_readback_v1",
+}, {
+  pool: fakePool({
+    ...tenantRows,
+    adapters: [{
+      ...tenantRows.adapters[0],
+      adapter_key: "google_drive_adapter",
+      provider_key: "google_drive",
+    }],
+  }),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(adapterMismatch.adapter_resolution.state, "pass");
+assert.equal(adapterMismatch.readback_contract_resolution.state, "blocked");
+assert.equal(adapterMismatch.readback_contract_resolution.reason_code, "READBACK_ADAPTER_MISMATCH");
+
+const ambiguousReadback = await buildDynamicCapabilityCertificationReadbackPreview({
+  capability_key: tenantManifest.capability_key,
+  operation_mode: "preview",
+  resource_type: "tenant_connection",
+  provider_key: "wordpress",
+}, {
+  pool: fakePool({
+    ...tenantRows,
+    readbacks: [
+      tenantRows.readbacks[0],
+      { ...tenantRows.readbacks[0], contract_id: "tenant-contract-2", contract_key: "tenant_connection_effective_credential_plan_view_readback_v2" },
+    ],
+  }),
+  now: () => "2026-07-01T01:00:00.000Z",
+});
+assert.equal(ambiguousReadback.readback_contract_resolution.state, "ambiguous");
+assert.equal(ambiguousReadback.readback_contract_resolution.reason_code, "READBACK_CONTRACT_AMBIGUOUS");
+
 const adapterlessInternalWrite = await buildDynamicCapabilityCertificationReadbackPreview({
   capability_key: manifest.capability_key,
   operation_mode: "apply",
@@ -307,5 +400,20 @@ for (const marker of [
 assert(!migration.includes("CREATE TABLE IF NOT EXISTS platform_capability_certifications"));
 assert(!migration.includes("CREATE TABLE IF NOT EXISTS platform_resource_adapters"));
 assert(!migration.includes("CREATE TABLE IF NOT EXISTS runtime_dispatch_certification_registry"));
+
+const provenanceMigration = fs.readFileSync(
+  new URL("./migrations/20260719_tenant_connection_effective_credential_plan_readback_resolution.sql", import.meta.url),
+  "utf8",
+);
+for (const marker of [
+  "tenant_tool.tenant_connection_effective_credential_plan_view",
+  "tenant_platform_endpoint_tools:tenant_connection_effective_credential_plan_view",
+  "'mysql_registry'",
+  "'resolved'",
+  "ON DUPLICATE KEY UPDATE",
+  "no_provider_call=true",
+  "no_external_write=true",
+  "secrets_included=false",
+]) assert(provenanceMigration.includes(marker), marker);
 
 console.log("dynamic capability certification and readback preview tests passed");

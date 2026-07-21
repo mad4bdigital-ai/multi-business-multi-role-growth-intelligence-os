@@ -366,8 +366,7 @@ function resolveCertification(genericRows, runtimeRows, request, manifest, adapt
   };
 }
 
-async function loadReadbackContracts(pool, request, adapter) {
-  const adapterKey = adapter?.adapter_key || request.adapter_key;
+async function loadReadbackContracts(pool, request) {
   try {
     return rowsOf(await pool.query(
       `SELECT contract_id, contract_key, contract_version, capability_key,
@@ -381,10 +380,9 @@ async function loadReadbackContracts(pool, request, adapter) {
         WHERE is_current = 1
           AND capability_key = ?
           AND (? IS NULL OR contract_key = ?)
-          AND (? IS NULL OR adapter_key IS NULL OR adapter_key = ?)
         ORDER BY contract_version DESC, contract_key ASC
         LIMIT 20`,
-      [request.capability_key, request.contract_key, request.contract_key, adapterKey || null, adapterKey || null],
+      [request.capability_key, request.contract_key, request.contract_key],
     ));
   } catch (error) {
     if (["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(error?.code)) return [];
@@ -439,12 +437,31 @@ function boundedReadback(row) {
   };
 }
 
+function readbackAdapterMatches(row, adapter) {
+  const contractAdapterKey = text(row?.adapter_key);
+  const selectedAdapterKey = text(adapter?.adapter_key);
+  if (!contractAdapterKey || !selectedAdapterKey) return true;
+  return contractAdapterKey === selectedAdapterKey;
+}
+
 function resolveReadback(rows, request, manifest, adapter, nowMs) {
-  const ranked = rows
+  const candidates = rows
     .map((row) => ({ row, score: readbackScore(row, request, adapter), state: readbackState(row, request, manifest, nowMs) }))
-    .filter((item) => item.score > 0)
+    .filter((item) => item.score > 0);
+  const ranked = candidates
+    .filter((item) => readbackAdapterMatches(item.row, adapter))
     .sort((a, b) => b.score - a.score || String(a.row.contract_key).localeCompare(String(b.row.contract_key)));
-  if (!ranked.length) return { state: "missing", reason_code: "READBACK_CONTRACT_REQUIRED", candidate_count: 0, contract: null };
+  if (!ranked.length) {
+    if (adapter?.adapter_key && candidates.length) {
+      return {
+        state: "blocked",
+        reason_code: "READBACK_ADAPTER_MISMATCH",
+        candidate_count: candidates.length,
+        contract: null,
+      };
+    }
+    return { state: "missing", reason_code: "READBACK_CONTRACT_REQUIRED", candidate_count: 0, contract: null };
+  }
   const passing = ranked.filter((item) => item.state.state === "pass");
   if (passing.length > 1 && passing[0].score === passing[1].score) {
     return { state: "ambiguous", reason_code: "READBACK_CONTRACT_AMBIGUOUS", candidate_count: passing.length, contract: null };
@@ -556,6 +573,7 @@ function nextAction(reason) {
     READBACK_CONTRACT_STALE: "recertify_readback_contract",
     READBACK_CONTRACT_REVOKED: "replace_revoked_readback_contract",
     READBACK_CONTRACT_AMBIGUOUS: "resolve_readback_contract_ambiguity",
+    READBACK_ADAPTER_MISMATCH: "align_readback_contract_adapter",
     READBACK_EFFECT_CLASS_MISMATCH: "align_readback_effect_class",
   };
   return map[reason] || "review_assurance_gap";
@@ -571,22 +589,26 @@ export async function buildDynamicCapabilityCertificationReadbackPreview(input =
   const requirements = manifest.requirements && typeof manifest.requirements === "object" ? manifest.requirements : {};
 
   const manifestContext = { ...manifest, effect_class: manifestRow.effect_class };
-  const requestedAdapter = request.adapter_key ? { adapter_key: request.adapter_key } : null;
-  const readbackRows = await loadReadbackContracts(pool, request, requestedAdapter);
+  let adapterLookupRequest = request;
+  let adapterRows = await loadAdapters(pool, adapterLookupRequest, manifestContext);
+  let adapterResolution = resolveAdapter(adapterRows, adapterLookupRequest, manifestContext);
+  let selectedAdapter = adapterResolution.adapter;
+
+  const readbackRows = await loadReadbackContracts(pool, request);
   const preliminaryReadbackResolution = resolveReadback(
     readbackRows,
     request,
     manifestRow,
-    requestedAdapter,
+    selectedAdapter,
     nowMs,
   );
   const contractAdapterKey = preliminaryReadbackResolution.contract?.adapter_key || null;
-  const adapterLookupRequest = !request.adapter_key && contractAdapterKey
-    ? { ...request, adapter_key: contractAdapterKey }
-    : request;
-  const adapterRows = await loadAdapters(pool, adapterLookupRequest, manifestContext);
-  const adapterResolution = resolveAdapter(adapterRows, adapterLookupRequest, manifestContext);
-  const selectedAdapter = adapterResolution.adapter;
+  if (adapterResolution.state !== "pass" && !request.adapter_key && contractAdapterKey) {
+    adapterLookupRequest = { ...request, adapter_key: contractAdapterKey };
+    adapterRows = await loadAdapters(pool, adapterLookupRequest, manifestContext);
+    adapterResolution = resolveAdapter(adapterRows, adapterLookupRequest, manifestContext);
+    selectedAdapter = adapterResolution.adapter;
+  }
 
   const genericRows = await loadGenericCertifications(pool, request, manifest, selectedAdapter);
   const runtimeRows = await loadRuntimeCertifications(pool, request, manifest, selectedAdapter);
