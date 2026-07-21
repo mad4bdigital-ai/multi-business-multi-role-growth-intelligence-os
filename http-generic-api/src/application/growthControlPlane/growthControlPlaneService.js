@@ -211,4 +211,11 @@ export function createGrowthControlPlaneService({ repository, uuid = randomUUID 
   });
 }
 
-export const _testingGrowthControlPlaneService = Object.freeze({ ensureObject, actorId, idempotencyKey });
+export const _testingGrowthControlPlaneService = Object.freeze({
+  ensureObject,
+  actorId,
+  idempotencyKey,
+  encodeCursor,
+  decodeCursor,
+  normalizeListPage
+});
