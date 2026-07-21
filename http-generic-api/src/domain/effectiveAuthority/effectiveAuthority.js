@@ -1,6 +1,14 @@
 export const CONNECTOR_INVENTORY_CAPABILITY_KEY = "connector.inventory.read";
 
-const FORBIDDEN_EVIDENCE_KEY = /(secret|token|password|private[_-]?key|api[_-]?key|credential|ciphertext)/i;
+const FORBIDDEN_EVIDENCE_KEY = /(secret|token|password|private[_-]?key|api[_-]?key|ciphertext|credential(?:ref|reference|value|payload|body|blob|data|material))/i;
+const SAFE_NEGATIVE_METADATA_KEYS = new Set([
+  "secretsincluded",
+  "credentialpayloadreads",
+]);
+const SAFE_CREDENTIAL_METADATA_KEYS = new Set([
+  "credentialstatus",
+  "credentialreadiness",
+]);
 
 export class EffectiveAuthorityError extends Error {
   constructor(code, message, status = 500, details = undefined) {
@@ -142,16 +150,22 @@ export function assertNoSecretEvidence(value) {
     return;
   }
   if (!value || typeof value !== "object") return;
+
   for (const [key, item] of Object.entries(value)) {
     const normalizedKey = key.replace(/[_-]/g, "").toLowerCase();
-    if (normalizedKey === "secretsincluded") {
+    if (SAFE_NEGATIVE_METADATA_KEYS.has(normalizedKey)) {
       if (item !== false) {
         throw new EffectiveAuthorityError(
           "AUTHORITY_SECRET_EVIDENCE_FORBIDDEN",
           "Authority evidence cannot include secret material.",
-          500
+          500,
+          { field: key }
         );
       }
+      continue;
+    }
+    if (SAFE_CREDENTIAL_METADATA_KEYS.has(normalizedKey)) {
+      assertNoSecretEvidence(item);
       continue;
     }
     if (FORBIDDEN_EVIDENCE_KEY.test(key)) {

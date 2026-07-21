@@ -72,4 +72,26 @@ try {
   await new Promise((resolve) => server.close(resolve));
 }
 
+const previousJwtSecret = process.env.JWT_SECRET;
+delete process.env.JWT_SECRET;
+const failClosedApp = express();
+failClosedApp.use(express.json());
+failClosedApp.use(buildEffectiveAuthorityRoutes({ effectiveAuthorityService: service }));
+const failClosedServer = failClosedApp.listen(0, "127.0.0.1");
+await new Promise((resolve) => failClosedServer.once("listening", resolve));
+const failClosedBaseUrl = `http://127.0.0.1:${failClosedServer.address().port}`;
+try {
+  const adminFailure = await fetch(`${failClosedBaseUrl}/authority/projections/connectors`);
+  assert.equal(adminFailure.status, 503);
+  assert.equal((await adminFailure.json()).error.code, "BACKEND_AUTH_MIDDLEWARE_UNAVAILABLE");
+
+  const tenantFailure = await fetch(`${failClosedBaseUrl}/me/authority/projections/connectors`);
+  assert.equal(tenantFailure.status, 503);
+  assert.equal((await tenantFailure.json()).error.code, "USER_AUTH_CONFIGURATION_UNAVAILABLE");
+} finally {
+  await new Promise((resolve) => failClosedServer.close(resolve));
+  if (previousJwtSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = previousJwtSecret;
+}
+
 console.log("effective authority route tests passed");

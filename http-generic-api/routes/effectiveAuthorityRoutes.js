@@ -3,30 +3,64 @@ import jwt from "jsonwebtoken";
 import { getEffectiveAuthorityRuntimeService } from "../effectiveAuthorityRuntime.js";
 import { createEffectiveAuthorityController } from "../src/api/effectiveAuthority/effectiveAuthorityController.js";
 
-function pass(req, res, next) {
-  next();
-}
-
-function fallbackAdminGuard(req, res, next) {
-  if (req.auth?.is_admin === true || req.auth?.mode === "backend_api_key") return next();
-  return res.status(403).json({
+function errorEnvelope(req, code, message) {
+  return {
     ok: false,
     error: {
-      code: "ADMIN_PRINCIPAL_REQUIRED",
-      message: "A platform administrator is required.",
+      code,
+      message,
       details: [],
       requestId: req.requestId || null,
     },
     secrets_included: false,
-  });
+  };
+}
+
+function missingBackendAuthMiddleware(req, res) {
+  return res
+    .status(503)
+    .json(
+      errorEnvelope(
+        req,
+        "BACKEND_AUTH_MIDDLEWARE_UNAVAILABLE",
+        "Backend authentication is not configured for this authority surface."
+      )
+    );
+}
+
+function fallbackAdminGuard(req, res, next) {
+  if (req.auth?.is_admin === true || req.auth?.mode === "backend_api_key") return next();
+  return res
+    .status(403)
+    .json(
+      errorEnvelope(
+        req,
+        "ADMIN_PRINCIPAL_REQUIRED",
+        "A platform administrator is required."
+      )
+    );
 }
 
 function fallbackUserJwt(req, res, next) {
   if (req.auth?.mode === "user_jwt" && req.auth?.user_id && req.auth?.tenant_id) return next();
+
+  const jwtSecret = String(process.env.JWT_SECRET || "").trim();
+  if (!jwtSecret) {
+    return res
+      .status(503)
+      .json(
+        errorEnvelope(
+          req,
+          "USER_AUTH_CONFIGURATION_UNAVAILABLE",
+          "Tenant authentication is not configured for this authority surface."
+        )
+      );
+  }
+
   try {
     const authorization = String(req.headers.authorization || "");
     if (!authorization.startsWith("Bearer ")) throw new Error("missing bearer token");
-    const payload = jwt.verify(authorization.slice(7), process.env.JWT_SECRET || "dev-secret");
+    const payload = jwt.verify(authorization.slice(7), jwtSecret);
     if (!payload?.user_id || !payload?.tenant_id) throw new Error("missing tenant identity");
     req.auth = {
       mode: "user_jwt",
@@ -37,16 +71,15 @@ function fallbackUserJwt(req, res, next) {
     };
     return next();
   } catch {
-    return res.status(401).json({
-      ok: false,
-      error: {
-        code: "USER_JWT_REQUIRED",
-        message: "A signed tenant user session is required.",
-        details: [],
-        requestId: req.requestId || null,
-      },
-      secrets_included: false,
-    });
+    return res
+      .status(401)
+      .json(
+        errorEnvelope(
+          req,
+          "USER_JWT_REQUIRED",
+          "A signed tenant user session is required."
+        )
+      );
   }
 }
 
@@ -55,9 +88,13 @@ export function buildEffectiveAuthorityRoutes(deps = {}) {
   const service = deps.effectiveAuthorityService || getEffectiveAuthorityRuntimeService();
   const controller = createEffectiveAuthorityController({ service });
   const requireBackendApiKey =
-    typeof deps.requireBackendApiKey === "function" ? deps.requireBackendApiKey : pass;
+    typeof deps.requireBackendApiKey === "function"
+      ? deps.requireBackendApiKey
+      : missingBackendAuthMiddleware;
   const requireAdminPrincipal =
-    typeof deps.requireAdminPrincipal === "function" ? deps.requireAdminPrincipal : fallbackAdminGuard;
+    typeof deps.requireAdminPrincipal === "function"
+      ? deps.requireAdminPrincipal
+      : fallbackAdminGuard;
   const requireUserJwt =
     typeof deps.requireUserJwt === "function" ? deps.requireUserJwt : fallbackUserJwt;
 
