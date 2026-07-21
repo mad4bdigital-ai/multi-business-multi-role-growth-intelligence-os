@@ -102,7 +102,11 @@ assert.throws(
 
 const stored = { definitions: new Map(), versions: [], snapshots: [] };
 const fakeRepository = {
-  async listConfigurationDefinitions() { return [...stored.definitions.values()]; },
+  async listConfigurationDefinitions({ limit = 25, offset = 0 } = {}) {
+    return [...stored.definitions.values()]
+      .sort((a, b) => a.configKey.localeCompare(b.configKey))
+      .slice(offset, offset + limit);
+  },
   async createConfigurationDefinition(record) {
     const saved = { ...record, revision: 1, status: "draft", secretsIncluded: false };
     stored.definitions.set(record.configKey, saved);
