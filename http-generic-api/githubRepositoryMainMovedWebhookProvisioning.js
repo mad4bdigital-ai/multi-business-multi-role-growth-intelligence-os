@@ -317,13 +317,13 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
         secrets_included: false,
       });
     }
-    const markReferenced = deps.markEnvelopeReferenced || markCapabilityEnvelopeReferenced;
-    const referenced = await markReferenced({
+    const claimEnvelope = deps.claimEnvelopeReferenced || claimCapabilityEnvelopeForWebhook;
+    const referenced = await claimEnvelope({
       pool: governancePool,
       envelopeId: governance.envelope_id,
       executionRef: `github_repository_main_moved_webhook_provision:${expectedCommitSha.slice(0, 12)}`,
     });
-    if (!referenced?.ok) throw capabilityEnvelopeError(referenced, "The capability envelope could not be referenced before GitHub webhook provisioning.");
+    if (!referenced?.ok) throw capabilityEnvelopeError(referenced, "The capability envelope could not be claimed before GitHub webhook provisioning.");
   }
 
   const inspected = await inspectTarget(input, deps);
