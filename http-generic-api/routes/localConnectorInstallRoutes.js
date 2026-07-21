@@ -1380,7 +1380,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         app_managed: appManaged,
         run_as_admin_required: true,
         auth_context: device.auth_context,
-        reauth_required_for_stale_device_tokens: true,
+        reauth_required_for_stale_device_tokens: false,
         secrets_included: false,
       });
     } catch (err) {
