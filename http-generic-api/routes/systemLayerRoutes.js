@@ -501,6 +501,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
     readiness_args: {},
   },
   {
+    source_key: "github_repository_main_moved_webhook_provisioning_v1",
+    tools: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
+    handlers: GitHubRepositoryMainMovedWebhookProvisioningRuntime,
+    readiness_tool: "github_repository_main_moved_webhook_provisioning_readiness_smoke",
+    readiness_args: {},
+  },
+  {
     source_key: "capability_enablement_broker_v1",
     tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
     handlers: CapabilityEnablementBrokerRuntime,
