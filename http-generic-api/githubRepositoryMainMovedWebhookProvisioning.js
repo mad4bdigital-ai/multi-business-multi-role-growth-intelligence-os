@@ -3,6 +3,12 @@ import { writeAuditLogAsync } from "./auditLogger.js";
 import { resolveCredentialReference } from "./credentialResolver.js";
 import { getGitHubAppInstallationToken, resolveGitHubAppConfig } from "./githubAppAuth.js";
 import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+  transitionCapabilityEnvelopeLifecycle,
+} from "./capabilityResolutionEnvelopeGuard.js";
+import {
   GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH,
   GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
 } from "./githubRepositoryMainMovedWebhookService.js";
