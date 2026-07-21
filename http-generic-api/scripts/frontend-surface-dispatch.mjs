@@ -8,6 +8,7 @@ import YAML from "yaml";
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const DEFAULT_OUTPUT = "frontend-surface-dispatch.generated.json";
 const DEFAULT_POLICY = "frontend-surface-policy.json";
+const DEFAULT_GENERATED_GOVERNANCE = "frontend-operation-governance.generated.json";
 const DEFAULT_OPENAPI_INDEX = "openapi/frontend-runtime-routes.generated.yaml";
 const AUTH_GUARDS = new Set([
   "requireBackendApiKey",
@@ -957,7 +958,7 @@ function mutationGovernance(operation, policy, discoveredSignatures) {
   }
   return {
     classification,
-    classification_source: "operation_rule",
+    classification_source: rule.generated_evidence ? "generated_operation_rule" : "operation_rule",
     mutation_candidate: true,
     governed: blockers.length === 0,
     controls,
@@ -1141,6 +1142,8 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const resourcePath = path.join(apiRoot, "resource-api-coverage.manifest.json");
   const testManifestPath = path.join(apiRoot, "scripts", "test-manifest.mjs");
   const policyPath = path.join(apiRoot, DEFAULT_POLICY);
+  const generatedGovernancePath = path.join(apiRoot, DEFAULT_GENERATED_GOVERNANCE);
+  const governanceGeneratorPath = path.join(apiRoot, "scripts", "frontend-operation-governance-generator.mjs");
   const indexSource = readText(indexPath);
   const openapiSource = readText(openapiPath);
   const resourceManifest = readJson(resourcePath, {});
@@ -1149,7 +1152,24 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     ...filesUnder(path.join(apiRoot, "public", "connect")),
     ...filesUnder(path.join(apiRoot, "public", "platform")),
   ]);
-  const policy = readJson(policyPath, { schema_version: "frontend-surface-policy-v1", default_decision: "requires_review", rules: [] });
+  const manualPolicy = readJson(policyPath, { schema_version: "frontend-surface-policy-v1", default_decision: "requires_review", rules: [] });
+  const generatedGovernance = readJson(generatedGovernancePath, {});
+  const generatedGovernanceValid = generatedGovernance.schema_version === "frontend-operation-governance-v1"
+    && Array.isArray(generatedGovernance.operation_rules)
+    && Array.isArray(generatedGovernance.rejected_candidates)
+    && generatedGovernance.generator?.fail_closed === true
+    && generatedGovernance.safety?.writes_runtime_source === false
+    && generatedGovernance.safety?.writes_database === false
+    && generatedGovernance.safety?.executes_provider_calls === false
+    && generatedGovernance.safety?.deploys === false
+    && generatedGovernance.safety?.secrets_included === false;
+  const policy = {
+    ...manualPolicy,
+    operation_rules: [
+      ...(Array.isArray(manualPolicy.operation_rules) ? manualPolicy.operation_rules : []),
+      ...(generatedGovernanceValid ? generatedGovernance.operation_rules : []),
+    ],
+  };
   const openapiReferencePaths = openApiReferenceFiles(openapiSource, openapiPath, apiRoot);
   const openApiAuthority = canonicalOpenApiAuthority({ apiRoot, openapiPath, runtimeOpenapiPath });
   const canonicalOpenApiPaths = openApiAuthority.files;
@@ -1275,6 +1295,7 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
           "scripts/test-manifest.mjs",
           ...familyTests,
           DEFAULT_POLICY,
+          DEFAULT_GENERATED_GOVERNANCE,
         ]),
       };
       family.surface_decision = policyDecision(family, policy);
@@ -1314,7 +1335,10 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
     testManifestPath,
     ...testEvidence.claimedFiles,
     policyPath,
+    generatedGovernancePath,
+    governanceGeneratorPath,
     path.resolve(apiRoot, "..", "specs", "010-unified-platform-frontend", "contracts", "frontend-dispatch-plan.schema.json"),
+    path.resolve(apiRoot, "..", "specs", "010-unified-platform-frontend", "contracts", "frontend-operation-governance.schema.json"),
     path.resolve(apiRoot, "..", "specs", "010-unified-platform-frontend", "contracts", "ui-surface-catalog.schema.json"),
   ]).map((file) => ({
     file: path.relative(apiRoot, file).replace(/\\/g, "/"),
@@ -1341,6 +1365,14 @@ export function buildDispatchPlan({ apiRoot = process.cwd(), baselineRef = proce
   const authRuleKeys = expandedAuthRules.map(({ rule, operation }) => `${operation}|${rule.source_file || "*"}`);
   const duplicateAuthRuleKeys = unique(authRuleKeys.filter((key, index) => authRuleKeys.indexOf(key) !== index));
   const policyIssues = [
+    ...(!fs.existsSync(generatedGovernancePath) ? [{ code: "generated_operation_governance_missing" }] : []),
+    ...(fs.existsSync(generatedGovernancePath) && !generatedGovernanceValid ? [{ code: "generated_operation_governance_invalid" }] : []),
+    ...(generatedGovernanceValid ? generatedGovernance.rejected_candidates.map((candidate) => ({
+      code: "generated_operation_governance_evidence_gap",
+      recipe_id: candidate.recipe_id || null,
+      operation: candidate.operation || null,
+      missing_evidence: candidate.missing_evidence || [],
+    })) : []),
     ...unusedOperationRules.map((rule) => ({ code: "unused_operation_rule", rule_id: rule.rule_id || null, operation: rule.operation || null })),
     ...duplicateOperationRuleKeys.map((key) => ({ code: "duplicate_operation_rule", key })),
     ...operationRules.filter((rule) => !OPERATION_CLASSIFICATIONS.has(rule.classification)).map((rule) => ({ code: "invalid_operation_classification", rule_id: rule.rule_id || null, operation: rule.operation || null })),

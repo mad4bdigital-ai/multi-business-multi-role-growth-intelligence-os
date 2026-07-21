@@ -21063,6 +21063,86 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
       security:
         - userJwtAuth: []
+  /tenant/resolution/cases/{caseId}/task-source-repair/verify:
+    post:
+      tags: [activation]
+      security:
+        - userJwtAuth: []
+      operationId: verifyTenantTaskSourceRepair
+      x-custom-gpt-exclude: false
+      x-openai-isConsequential: true
+      summary: Verify an applied tenant task source repair
+      description: Performs an independent tenant-scoped lifecycle readback after Apply Gate without mutating the task or resolving the case.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_preview_fingerprint_sha256]
+              properties:
+                workspace_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                expected_preview_fingerprint_sha256:
+                  type: string
+                  pattern: "^[a-f0-9]{64}$"
+      responses:
+        "200":
+          description: Verification readback completed or an identical existing readback was returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, activation_layer, changed, case, verification, policy, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  activation_layer: { type: string, enum: [tenant_task_source_repair_verification_readback] }
+                  changed: { type: boolean }
+                  existing_readback_returned: { type: boolean }
+                  case:
+                    type: object
+                    additionalProperties: true
+                  task:
+                    type: [object, 'null']
+                    additionalProperties: true
+                  verification:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status: { type: string, enum: [passed, failed] }
+                      checked_at: { type: string, format: date-time }
+                      preview_fingerprint_sha256:
+                        type: string
+                        pattern: "^[a-f0-9]{64}$"
+                      task_id: { type: string }
+                      failure_reasons:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      secrets_included: { type: boolean, enum: [false] }
+                  policy:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /tenant/resolution/skill-approvals:
     get:
       tags: [activation]

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createResourceApiService } from "./src/application/resourceApi/resourceApiService.js";
+import { createResourceRepository } from "./src/infrastructure/resourceApi/resourceRepository.js";
 
 // frontend-surface-operation: POST /me/workspaces/{tenant_id}/resources/{resourceKey}
 // frontend-surface-operation: PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
@@ -16,7 +17,18 @@ function createFakeRepository(overrides = {}) {
     ["asset-other", { asset_id: "asset-other", tenant_id: "tenant-1", created_by: "user-2", lifecycle_status: "active", created_at: "2026-06-22T00:00:00Z" }],
   ]);
 
-  const repository = {
+  let repository = null;
+  repository = {
+    async withTransaction(operation) {
+      const assetSnapshot = new Map([...assets].map(([key, value]) => [key, { ...value }]));
+      try {
+        return await operation(repository);
+      } catch (error) {
+        assets.clear();
+        for (const [key, value] of assetSnapshot) assets.set(key, value);
+        throw error;
+      }
+    },
     async findMembership(userId, tenantId) {
       if (tenantId !== "tenant-1") return null;
       return { user_id: userId, tenant_id: tenantId, role: userId === "user-owner" ? "owner" : "member", status: "active", tenant_status: "active" };
@@ -74,7 +86,30 @@ function createFakeRepository(overrides = {}) {
       const session = sessions.get(sessionId);
       return session ? { session: { ...session }, items: [] } : null;
     },
+    inspectAsset(assetId) {
+      const item = assets.get(assetId);
+      return item ? { ...item } : null;
+    },
     ...overrides,
+  };
+  return repository;
+}
+
+function failNextReadbackAfter(repository, mutationMethod) {
+  const mutate = repository[mutationMethod].bind(repository);
+  const read = repository.getResource.bind(repository);
+  let failNextReadback = false;
+  repository[mutationMethod] = async (...args) => {
+    const result = await mutate(...args);
+    failNextReadback = true;
+    return result;
+  };
+  repository.getResource = async (...args) => {
+    if (failNextReadback) {
+      failNextReadback = false;
+      return null;
+    }
+    return read(...args);
   };
   return repository;
 }
@@ -143,6 +178,51 @@ assert.equal(tenantArchived.data.lifecycle_status, "archived", "archive must ret
 const tenantRestored = await service.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "active", ownerAuth);
 assert.equal(tenantRestored.data.lifecycle_status, "active", "restore must return lifecycle readback");
 
+const createRollbackRepository = failNextReadbackAfter(createFakeRepository(), "insertAsset");
+const createRollbackService = createResourceApiService({ repository: createRollbackRepository });
+await assert.rejects(
+  () => createRollbackService.tenantCreateResource(
+    "tenant-1",
+    "assets",
+    { asset_id: "asset-rollback-create", asset_type: "document", display_name: "Rollback create" },
+    userAuth
+  ),
+  (error) => error.code === "resource_not_found"
+);
+assert.equal(createRollbackRepository.inspectAsset("asset-rollback-create"), null, "failed create readback must roll back insertion");
+
+const updateRollbackRepository = failNextReadbackAfter(createFakeRepository(), "updateAssetFields");
+const updateRollbackService = createResourceApiService({ repository: updateRollbackRepository });
+await assert.rejects(
+  () => updateRollbackService.tenantUpdateResource(
+    "tenant-1",
+    "assets",
+    "asset-owned",
+    { display_name: "Must roll back" },
+    userAuth
+  ),
+  (error) => error.code === "resource_not_found"
+);
+assert.notEqual(updateRollbackRepository.inspectAsset("asset-owned").display_name, "Must roll back", "failed update readback must restore the before-state");
+
+const archiveRollbackRepository = failNextReadbackAfter(createFakeRepository(), "setAssetLifecycle");
+const archiveRollbackService = createResourceApiService({ repository: archiveRollbackRepository });
+await assert.rejects(
+  () => archiveRollbackService.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "archived", ownerAuth),
+  (error) => error.code === "resource_not_found"
+);
+assert.equal(archiveRollbackRepository.inspectAsset("asset-owned").lifecycle_status, "active", "failed archive readback must restore active state");
+
+const restoreRollbackRepository = createFakeRepository();
+await restoreRollbackRepository.setAssetLifecycle("asset-owned", "archived");
+failNextReadbackAfter(restoreRollbackRepository, "setAssetLifecycle");
+const restoreRollbackService = createResourceApiService({ repository: restoreRollbackRepository });
+await assert.rejects(
+  () => restoreRollbackService.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "active", ownerAuth),
+  (error) => error.code === "resource_not_found"
+);
+assert.equal(restoreRollbackRepository.inspectAsset("asset-owned").lifecycle_status, "archived", "failed restore readback must restore archived state");
+
 await assert.rejects(
   () => service.tenantUpdateResource("tenant-1", "assets", "asset-other", { display_name: "blocked" }, userAuth),
   (error) => error.code === "asset_update_forbidden" && error.status === 403
@@ -182,5 +262,70 @@ assert.equal(generated.generation.generated, true);
 assert.equal(generated.summary.summary_id, "summary-1");
 assert.equal(summaryInput.session.session_id, "session-owned");
 assert.equal(summaryInput.force, true);
+
+function createTransactionPool() {
+  const calls = [];
+  const connection = {
+    async beginTransaction() { calls.push("begin"); },
+    async commit() { calls.push("commit"); },
+    async rollback() { calls.push("rollback"); },
+    release() { calls.push("release"); },
+    async query(sql) {
+      calls.push(sql.trim().split(/\s+/).slice(0, 3).join(" "));
+      if (/^SELECT\s+/i.test(sql)) {
+        return [[{
+          asset_id: "asset-transaction",
+          tenant_id: "tenant-1",
+          created_by: "user-1",
+          lifecycle_status: "active",
+          created_at: "2026-06-22T00:00:00Z",
+        }]];
+      }
+      return [{ affectedRows: 1 }];
+    },
+  };
+  return {
+    calls,
+    async getConnection() {
+      calls.push("getConnection");
+      return connection;
+    },
+    async query() {
+      throw new Error("transactional resource queries must use the acquired connection");
+    },
+  };
+}
+
+const commitPool = createTransactionPool();
+const transactionalRepository = createResourceRepository({ pool: commitPool });
+const transactionReadback = await transactionalRepository.withTransaction(async (activeRepository) => {
+  await activeRepository.insertAsset({
+    tenantId: "tenant-1",
+    actorId: "user-1",
+    input: { asset_id: "asset-transaction", asset_type: "document", display_name: "Transactional" },
+  });
+  return activeRepository.getResource("assets", "asset-transaction");
+});
+assert.equal(transactionReadback.asset_id, "asset-transaction");
+assert.deepEqual(
+  commitPool.calls.filter((entry) => ["getConnection", "begin", "commit", "rollback", "release"].includes(entry)),
+  ["getConnection", "begin", "commit", "release"],
+  "successful mutation and readback must commit one connection-scoped transaction"
+);
+
+const rollbackPool = createTransactionPool();
+const rollbackRepository = createResourceRepository({ pool: rollbackPool });
+await assert.rejects(
+  () => rollbackRepository.withTransaction(async (activeRepository) => {
+    await activeRepository.updateAssetFields("asset-transaction", { display_name: "Rollback" });
+    throw Object.assign(new Error("readback failed"), { code: "forced_readback_failure" });
+  }),
+  (error) => error.code === "forced_readback_failure"
+);
+assert.deepEqual(
+  rollbackPool.calls.filter((entry) => ["getConnection", "begin", "commit", "rollback", "release"].includes(entry)),
+  ["getConnection", "begin", "rollback", "release"],
+  "a failed same-cycle readback must roll back and release the transaction connection"
+);
 
 console.log("resource API application service tests passed");

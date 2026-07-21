@@ -257,6 +257,8 @@ section("activation host gateway boundary");
     "/tenant/resolution/cases/case-test/transitions",
     "/tenant/resolution/cases/case-test/diagnostics",
     "/tenant/resolution/cases/case-test/task-source-repair/preview",
+    "/tenant/resolution/cases/case-test/task-source-repair/apply",
+    "/tenant/resolution/cases/case-test/task-source-repair/verify",
   ]) {
     const allowed = await postWithHost(path, "activation.mad4b.com", {});
     ok(`activation host lets tenant Activation resolution mutation ${path} reach its downstream router`, allowed.body.error?.code !== "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(allowed.body));
@@ -264,7 +266,6 @@ section("activation host gateway boundary");
 
   for (const path of [
     "/tenant/resolution/skill-approvals",
-    "/tenant/resolution/cases/case-test/task-source-repair/apply",
   ]) {
     const blocked = await postWithHost(path, "activation.mad4b.com", {});
     ok(`activation host keeps non-Activation tenant resolution route ${path} blocked`, blocked.body.error?.code === "ACTIVATION_HOST_ROUTE_NOT_ALLOWED", JSON.stringify(blocked.body));
