@@ -171,6 +171,12 @@ assert.match(migration, /CREATE TABLE IF NOT EXISTS operation_managed_git_worker
 assert.match(migration, /UNIQUE KEY uq_operation_managed_git_worker_active_lease/);
 assert.match(migration, /CHECK \(secrets_included = 0\)/);
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
+const workerStatusOffset = migration.indexOf("worker_status ENUM(");
+const activeLeaseKeyOffset = migration.indexOf("active_lease_key CHAR(64)");
+assert.ok(
+  activeLeaseKeyOffset > workerStatusOffset,
+  "generated active_lease_key must follow worker_status for MariaDB compatibility",
+);
 
 const openapi = readFileSync(
   new URL("../openapi/managed-git-workers.yaml", import.meta.url),
