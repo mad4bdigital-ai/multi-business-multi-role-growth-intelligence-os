@@ -7,7 +7,7 @@ import {
 import { stableCapabilityHash } from "./dynamicCapabilityGovernanceCompiler.js";
 
 export const GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_VERSION =
-  "github-file-patch-shadow-certification-v1";
+  "github-file-patch-shadow-certification-v2";
 export const GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM =
   "ISSUE_SHADOW_CERTIFICATION_GITHUB_FILE_PATCH_APPLY";
 
@@ -105,10 +105,38 @@ function parseJson(value, fallback = {}) {
   }
 }
 
-function planHash() {
+function runtimeAuthoritySnapshot(row) {
+  if (!row) return null;
+  const iso = (value) => (value ? new Date(value).toISOString() : null);
+  return Object.freeze({
+    certification_key: String(row.certification_key || ""),
+    surface_key: String(row.surface_key || ""),
+    tool_or_action_key: String(row.tool_or_action_key || ""),
+    certification_status: String(row.certification_status || ""),
+    dispatch_allowed: Boolean(Number(row.dispatch_allowed || 0)),
+    apply_allowed: Boolean(Number(row.apply_allowed || 0)),
+    requires_resource_authority: Boolean(Number(row.requires_resource_authority || 0)),
+    requires_dry_run: Boolean(Number(row.requires_dry_run || 0)),
+    requires_audit_evidence: Boolean(Number(row.requires_audit_evidence || 0)),
+    requires_readback: Boolean(Number(row.requires_readback || 0)),
+    last_evidence_ref: String(row.last_evidence_ref || ""),
+    last_certified_at: iso(row.last_certified_at),
+    expires_at: iso(row.expires_at),
+    updated_at: iso(row.updated_at),
+  });
+}
+
+function buildPlan(state) {
+  return Object.freeze({
+    ...FIXED_PLAN,
+    runtime_authority_before: runtimeAuthoritySnapshot(state?.runtime_certification),
+  });
+}
+
+function planHash(state) {
   return stableCapabilityHash({
     version: GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_VERSION,
-    plan: FIXED_PLAN,
+    plan: buildPlan(state),
   });
 }
 
@@ -163,7 +191,8 @@ async function loadState(pool) {
   const [runtimeRows] = await pool.query(
     `SELECT certification_key,surface_key,tool_or_action_key,certification_status,
             dispatch_allowed,apply_allowed,requires_resource_authority,
-            requires_dry_run,requires_audit_evidence,requires_readback
+            requires_dry_run,requires_audit_evidence,requires_readback,
+            last_evidence_ref,last_certified_at,expires_at,updated_at
        FROM runtime_dispatch_certification_registry WHERE certification_key=? LIMIT 1`,
     [RUNTIME_CERTIFICATION_KEY],
   );
@@ -244,11 +273,15 @@ function verifyPreconditions(state) {
   if (!state.capability) errors.push("CAPABILITY_REQUIRED");
   if (state.capability && Number(state.capability.apply_allowed || 0) !== 0) errors.push("CAPABILITY_APPLY_MUST_REMAIN_DISABLED");
   if (!state.runtime_certification) errors.push("RUNTIME_CERTIFICATION_REQUIRED");
-  if (state.runtime_certification && Number(state.runtime_certification.dispatch_allowed || 0) !== 0) {
-    errors.push("RUNTIME_DISPATCH_MUST_REMAIN_DISABLED");
-  }
-  if (state.runtime_certification && Number(state.runtime_certification.apply_allowed || 0) !== 0) {
-    errors.push("RUNTIME_APPLY_MUST_REMAIN_DISABLED");
+  if (state.runtime_certification) {
+    if (state.runtime_certification.certification_key !== RUNTIME_CERTIFICATION_KEY) errors.push("RUNTIME_CERTIFICATION_KEY_MISMATCH");
+    if (state.runtime_certification.surface_key !== "github.file.patch_apply_after_review") errors.push("RUNTIME_CERTIFICATION_SURFACE_MISMATCH");
+    if (state.runtime_certification.tool_or_action_key !== "repo_patch_apply") errors.push("RUNTIME_CERTIFICATION_TOOL_MISMATCH");
+    if (!String(state.runtime_certification.certification_status || "")) errors.push("RUNTIME_CERTIFICATION_STATUS_REQUIRED");
+    if (Number(state.runtime_certification.requires_resource_authority || 0) !== 1) errors.push("RUNTIME_RESOURCE_AUTHORITY_GUARD_REQUIRED");
+    if (Number(state.runtime_certification.requires_dry_run || 0) !== 1) errors.push("RUNTIME_DRY_RUN_GUARD_REQUIRED");
+    if (Number(state.runtime_certification.requires_audit_evidence || 0) !== 1) errors.push("RUNTIME_AUDIT_GUARD_REQUIRED");
+    if (Number(state.runtime_certification.requires_readback || 0) !== 1) errors.push("RUNTIME_READBACK_GUARD_REQUIRED");
   }
   if (state.exports.some((row) => row.export_status === "active")) errors.push("ACTIVE_CAPABILITY_EXPORT_FORBIDDEN");
   if (state.exports.some((row) => String(row.exposure_scope || "").toLowerCase() === "tenant")) {
@@ -282,14 +315,20 @@ function boundedState(state) {
     capability_apply_allowed: Boolean(Number(state.capability?.apply_allowed || 0)),
     runtime_dispatch_allowed: Boolean(Number(state.runtime_certification?.dispatch_allowed || 0)),
     runtime_apply_allowed: Boolean(Number(state.runtime_certification?.apply_allowed || 0)),
+    runtime_certification_status: state.runtime_certification?.certification_status || null,
+    runtime_authority_snapshot: runtimeAuthoritySnapshot(state.runtime_certification),
     secrets_included: false,
   };
 }
 
-function verifyReadback(state) {
+function verifyReadback(state, expectedRuntimeAuthority) {
   const errors = verifyPreconditions(state);
   const acknowledgement = state.evidence[ACK_EVIDENCE_ID] || null;
   const verification = state.evidence[VERIFY_EVIDENCE_ID] || null;
+  if (!expectedRuntimeAuthority) errors.push("RUNTIME_AUTHORITY_BASELINE_REQUIRED");
+  else if (stableCapabilityHash(runtimeAuthoritySnapshot(state.runtime_certification)) !== stableCapabilityHash(expectedRuntimeAuthority)) {
+    errors.push("RUNTIME_AUTHORITY_CHANGED");
+  }
   if (!state.adapter) errors.push("CERTIFIED_ADAPTER_MISSING");
   if (state.adapter && state.adapter.status !== "active") errors.push("CERTIFIED_ADAPTER_INACTIVE");
   if (state.adapter && Number(state.adapter.supports_write || 0) !== 1) errors.push("CERTIFIED_ADAPTER_WRITE_SUPPORT_MISSING");
@@ -313,14 +352,20 @@ function verifyReadback(state) {
   if (state.contract && state.contract.certification_status !== CONTRACT_CERTIFICATION_STATUS) {
     errors.push("READBACK_CONTRACT_CERTIFICATION_NOT_LINKED");
   }
-  return { ok: errors.length === 0, errors, ...boundedState(state) };
+  return {
+    ok: errors.length === 0,
+    errors,
+    runtime_authority_preserved: !errors.includes("RUNTIME_AUTHORITY_CHANGED") && !errors.includes("RUNTIME_AUTHORITY_BASELINE_REQUIRED"),
+    ...boundedState(state),
+  };
 }
 
 export async function issueGithubFilePatchShadowCertification(args = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const mode = normalizeMode(args.mode);
-  const expectedPlanHash = planHash();
   const before = await loadState(pool);
+  const plan = buildPlan(before);
+  const expectedPlanHash = planHash(before);
   const preconditionErrors = verifyPreconditions(before);
 
   if (mode === "dry_run") {
@@ -331,7 +376,7 @@ export async function issueGithubFilePatchShadowCertification(args = {}, deps = 
       mode,
       plan_hash: expectedPlanHash,
       expected_confirmation: GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM,
-      target: FIXED_PLAN,
+      target: plan,
       current_state: boundedState(before),
       precondition_errors: preconditionErrors,
       apply_ready: preconditionErrors.length === 0,
@@ -402,6 +447,15 @@ export async function issueGithubFilePatchShadowCertification(args = {}, deps = 
       });
     }
 
+    const lockedPlanHash = planHash(lockedState);
+    if (lockedPlanHash !== expectedPlanHash) {
+      fail("github_file_patch_shadow_certification_plan_state_changed", "The runtime-authority-bound certification plan changed before apply.", 409, {
+        expected_plan_hash: expectedPlanHash,
+        observed_plan_hash: lockedPlanHash,
+      });
+    }
+    const lockedRuntimeAuthority = runtimeAuthoritySnapshot(lockedState.runtime_certification);
+
     const commonEvidence = {
       version: GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_VERSION,
       plan_hash: expectedPlanHash,
@@ -412,6 +466,8 @@ export async function issueGithubFilePatchShadowCertification(args = {}, deps = 
       smoke_blob_sha: SMOKE_BLOB_SHA,
       runtime_dispatch_changed: false,
       runtime_apply_changed: false,
+      runtime_authority_before: lockedRuntimeAuthority,
+      runtime_authority_preserved: true,
       active_capability_exports_created: false,
       tenant_authority_changed: false,
       provider_calls_performed: false,
@@ -438,8 +494,9 @@ export async function issueGithubFilePatchShadowCertification(args = {}, deps = 
       ...commonEvidence,
       certification_scope: "shadow_only",
       apply_certification_granted: false,
-      runtime_dispatch_allowed: false,
-      runtime_apply_allowed: false,
+      runtime_dispatch_allowed: Boolean(lockedRuntimeAuthority?.dispatch_allowed),
+      runtime_apply_allowed: Boolean(lockedRuntimeAuthority?.apply_allowed),
+      runtime_certification_status: lockedRuntimeAuthority?.certification_status || null,
       capability_exports_promoted: false,
       tenant_exports_created: false,
     };
@@ -554,7 +611,7 @@ export async function issueGithubFilePatchShadowCertification(args = {}, deps = 
     }
 
     const readback = await loadState(connection);
-    const verified = verifyReadback(readback);
+    const verified = verifyReadback(readback, lockedRuntimeAuthority);
     if (!verified.ok) {
       fail("github_file_patch_shadow_certification_readback_failed", "Transactional readback did not match the fixed certification plan.", 500, verified);
     }
@@ -618,7 +675,9 @@ export const _testingGithubFilePatchShadowCertification = Object.freeze({
   SMOKE_BLOB_SHA,
   SMOKE_BRANCH,
   FIXED_PLAN,
+  buildPlan,
   planHash,
+  runtimeAuthoritySnapshot,
   verifyPreconditions,
   verifyReadback,
 });
