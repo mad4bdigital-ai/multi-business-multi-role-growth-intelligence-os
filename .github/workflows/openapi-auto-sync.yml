@@ -1,28 +1,54 @@
 name: OpenAPI Auto Sync
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "http-generic-api/routes/**"
+      - "http-generic-api/migrations/**"
+      - "http-generic-api/test-*.mjs"
+      - "http-generic-api/test-openapi-builder-schema-guard.mjs"
+      - "http-generic-api/openapi.yaml"
+      - "http-generic-api/openapi.*.yaml"
+      - "http-generic-api/openapi/**/*.yaml"
+      - "http-generic-api/openapi-route-coverage.allowlist.json"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - "http-generic-api/scripts/openapi-*.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/surface-contract-discovery.mjs"
+      - "http-generic-api/scripts/repo-maintenance-sync.mjs"
+      - "http-generic-api/scripts/update-repo-planning-docs.mjs"
+      - "canonicals/openapi/**/*.yaml"
+      - "edge/activation-gateway/**"
+      - "docs/**/*.md"
+      - "canonicals/**/*.md"
+      - "*.md"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
-  group: spec009-complete-${{ github.ref }}
+  group: openapi-auto-sync-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  complete:
+  repo-contract-sync:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+
     steps:
-      - name: Checkout current branch
-        uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
           fetch-depth: 0
-          persist-credentials: true
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -32,235 +58,108 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Apply reviewed idempotent source edits
+      - name: Report auto-sync PR credential mode
         shell: bash
+        env:
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
+            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
+          else
+            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
+          fi
 
-          def replace_once(path, old, new, present=None):
-              p = Path(path)
-              text = p.read_text()
-              if present and present in text:
-                  return
-              if old not in text:
-                  raise SystemExit(f"Expected source block not found: {path}")
-              p.write_text(text.replace(old, new, 1))
+      - name: Run repository contract maintenance sync
+        id: maintenance
+        working-directory: http-generic-api
+        run: |
+          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
 
-          replace_once(
-              "http-generic-api/scripts/test-manifest.mjs",
-              '  "node test-tenant-resolution-diagnostic-core.mjs",\n  "node test-tenant-skill-approval-center.mjs",',
-              '  "node test-tenant-resolution-diagnostic-core.mjs",\n  "node test-tenant-task-source-repair-preview.mjs",\n  "node test-tenant-task-source-repair-apply.mjs",\n  "node test-tenant-task-source-repair-verification.mjs",\n  "node test-tenant-skill-approval-center.mjs",',
-              "test-tenant-task-source-repair-verification.mjs",
-          )
-
-          verify_block = '''  /tenant/resolution/cases/{caseId}/task-source-repair/verify:
-            post:
-              tags: [activation]
-              security:
-                - userJwtAuth: []
-              operationId: verifyTenantTaskSourceRepair
-              x-custom-gpt-exclude: false
-              x-openai-isConsequential: true
-              summary: Verify an applied tenant task source repair
-              description: Performs an independent tenant-scoped lifecycle readback after Apply Gate without mutating the task or resolving the case.
-              parameters:
-                - in: path
-                  name: caseId
-                  required: true
-                  schema:
-                    type: string
-                    minLength: 1
-                    maxLength: 64
-              requestBody:
-                required: true
-                content:
-                  application/json:
-                    schema:
-                      type: object
-                      additionalProperties: false
-                      required: [expected_preview_fingerprint_sha256]
-                      properties:
-                        workspace_id:
-                          type: string
-                          minLength: 1
-                          maxLength: 64
-                        expected_preview_fingerprint_sha256:
-                          type: string
-                          pattern: "^[a-f0-9]{64}$"
-              responses:
-                "200":
-                  description: Verification readback completed or an identical existing readback was returned.
-                  content:
-                    application/json:
-                      schema:
-                        type: object
-                        additionalProperties: true
-                        required: [ok, activation_layer, changed, case, verification, policy, secrets_included]
-                        properties:
-                          ok: { type: boolean, enum: [true] }
-                          activation_layer: { type: string, enum: [tenant_task_source_repair_verification_readback] }
-                          changed: { type: boolean }
-                          existing_readback_returned: { type: boolean }
-                          case:
-                            type: object
-                            additionalProperties: true
-                          task:
-                            type: [object, 'null']
-                            additionalProperties: true
-                          verification:
-                            type: object
-                            additionalProperties: true
-                            properties:
-                              status: { type: string, enum: [passed, failed] }
-                              checked_at: { type: string, format: date-time }
-                              preview_fingerprint_sha256:
-                                type: string
-                                pattern: "^[a-f0-9]{64}$"
-                              task_id: { type: string }
-                              failure_reasons:
-                                type: array
-                                items:
-                                  type: object
-                                  additionalProperties: true
-                              secrets_included: { type: boolean, enum: [false] }
-                          policy:
-                            type: object
-                            additionalProperties: true
-                          secrets_included: { type: boolean, enum: [false] }
-                "400": { $ref: "#/components/responses/BadRequest" }
-                "401": { $ref: "#/components/responses/Unauthorized" }
-                "403": { $ref: "#/components/responses/Forbidden" }
-                "404": { $ref: "#/components/responses/NotFound" }
-                "409": { $ref: "#/components/responses/Conflict" }
-
-          '''
-          openapi = Path("http-generic-api/openapi.yaml")
-          openapi_text = openapi.read_text()
-          if "  /tenant/resolution/cases/{caseId}/task-source-repair/verify:" not in openapi_text:
-              anchor = "  /tenant/resolution/skill-approvals:"
-              if anchor not in openapi_text:
-                  raise SystemExit("OpenAPI skill approvals anchor missing")
-              openapi.write_text(openapi_text.replace(anchor, verify_block + anchor, 1))
-
-          replace_once(
-              "http-generic-api/routes/activationHostGatewayRoutes.js",
-              '  { methods: new Set(["POST"]), pattern: /^\\/tenant\\/resolution\\/cases\\/[^/]+\\/task-source-repair\\/preview$/ },',
-              '  { methods: new Set(["POST"]), pattern: /^\\/tenant\\/resolution\\/cases\\/[^/]+\\/task-source-repair\\/(?:preview|apply|verify)$/ },',
-              "(?:preview|apply|verify)",
-          )
-
-          platform_routes = Path("http-generic-api/test-platform-routes.mjs")
-          platform_text = platform_routes.read_text()
-          verify_path = '    "/tenant/resolution/cases/case-test/task-source-repair/verify",'
-          if verify_path not in platform_text:
-              preview_line = '    "/tenant/resolution/cases/case-test/task-source-repair/preview",\n'
-              allowed_lines = preview_line + '    "/tenant/resolution/cases/case-test/task-source-repair/apply",\n' + verify_path + '\n'
-              if preview_line not in platform_text:
-                  raise SystemExit("Platform route preview boundary anchor missing")
-              platform_text = platform_text.replace(preview_line, allowed_lines, 1)
-              blocked_pair = '    "/tenant/resolution/skill-approvals",\n    "/tenant/resolution/cases/case-test/task-source-repair/apply",\n'
-              platform_text = platform_text.replace(blocked_pair, '    "/tenant/resolution/skill-approvals",\n', 1)
-              platform_routes.write_text(platform_text)
-
-          alias = Path("http-generic-api/test-tenant-activation-session-alias.mjs")
-          alias_text = alias.read_text()
-          if "customGptSurfaceRegistry" not in alias_text:
-              old = '''const tenantCore = await stage("tenant_core_split_parse", async () =>
-            YAML.parse(fs.readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"))
-          );
-
-          await stage("tenant_surface_operation_budgets", async () => {
-            const countOperations = (document) => Object.values(document.paths || {})
-              .flatMap((pathItem) => Object.keys(pathItem || {}))
-              .filter((method) => ["get", "post", "put", "patch", "delete"].includes(method)).length;
-            assert.equal(countOperations(tenantCore), 30);
-            assert.equal(countOperations(tenantActivation), 13);
-            assert.equal(tenantCore.paths?.["/sessions"], undefined);
-            assert.equal(tenantCore.paths?.["/gpt/sessions/{id}/turns"], undefined);
-            assert.equal(tenantCore.paths?.["/tenant/activation/sessions"], undefined);
-          });'''
-              new = '''const tenantCore = await stage("tenant_core_split_parse", async () =>
-            YAML.parse(fs.readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"))
-          );
-
-          const customGptSurfaceRegistry = await stage("custom_gpt_surface_registry_parse", async () =>
-            YAML.parse(fs.readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8"))
-          );
-
-          await stage("tenant_surface_operation_budgets", async () => {
-            const countOperations = (document) => Object.values(document.paths || {})
-              .flatMap((pathItem) => Object.keys(pathItem || {}))
-              .filter((method) => ["get", "post", "put", "patch", "delete"].includes(method)).length;
-
-            const expectedOperationCount = (surfaceKey) => {
-              const operationIds = customGptSurfaceRegistry.surfaces?.[surfaceKey]?.selector?.tenant_operation_ids;
-              assert.ok(Array.isArray(operationIds), `${surfaceKey} must declare selector.tenant_operation_ids in the canonical surface registry`);
-              assert.equal(new Set(operationIds).size, operationIds.length, `${surfaceKey} selector.tenant_operation_ids must not contain duplicates`);
-              return operationIds.length;
-            };
-
-            assert.equal(countOperations(tenantCore), expectedOperationCount("tenant_core"));
-            assert.equal(countOperations(tenantActivation), expectedOperationCount("tenant_activation"));
-            assert.equal(tenantCore.paths?.["/sessions"], undefined);
-            assert.equal(tenantCore.paths?.["/gpt/sessions/{id}/turns"], undefined);
-            assert.equal(tenantCore.paths?.["/tenant/activation/sessions"], undefined);
-          });'''
-              if old not in alias_text:
-                  raise SystemExit("Tenant operation budget block missing")
-              alias.write_text(alias_text.replace(old, new, 1))
-
-          policy = Path("http-generic-api/frontend-surface-policy.json")
-          policy_text = policy.read_text()
-          policy_text = policy_text.replace('"profile": "github_webhook_signature"', '"profile": "github_webhook_hmac"')
-          policy.write_text(policy_text)
-          PY
-
-      - name: Generate Custom GPT schemas
+      - name: Generate Custom GPT schemas from canonical sources
         working-directory: http-generic-api
         run: npm run schemas:generate
 
-      - name: Sync activation gateway bundles
+      - name: Sync activation gateway runtime bundle
         working-directory: http-generic-api
         run: npm run activation-gateway:bundle:sync
 
-      - name: Generate frontend dispatch evidence
+      - name: Validate generated schemas and parity
         working-directory: http-generic-api
-        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+        run: npm run schemas:guard
 
-      - name: Run focused verification tests
-        working-directory: http-generic-api
-        run: |
-          node test-tenant-task-source-repair-preview.mjs
-          node test-tenant-task-source-repair-apply.mjs
-          node test-tenant-task-source-repair-verification.mjs
-          node test-platform-routes.mjs
-          node test-tenant-activation-session-alias.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-
-      - name: Commit source and generated artifacts to current branch
+      - name: Check generated diff
+        id: diff
         shell: bash
         run: |
-          git config user.name "admin-assitant-growth-os[bot]"
-          git config user.email "283129699+admin-assitant-growth-os[bot]@users.noreply.github.com"
-          git add canonicals/openapi/custom-gpt-surfaces.yaml
-          git add http-generic-api/openapi.yaml
-          git add http-generic-api/routes/activationAwarenessRoutes.js
-          git add http-generic-api/routes/activationHostGatewayRoutes.js
-          git add http-generic-api/scripts/test-manifest.mjs
-          git add http-generic-api/test-platform-routes.mjs
-          git add http-generic-api/test-tenant-activation-session-alias.mjs
-          git add http-generic-api/frontend-surface-policy.json
-          git add http-generic-api/openapi/openapi.tenant-gpt.activation.yaml
-          git add edge/activation-gateway/generated/route-policy.json
-          git add http-generic-api/activation-gateway-runtime/generated/route-policy.json
-          git add http-generic-api/activation-gateway-runtime/bundle-manifest.json
-          git add http-generic-api/frontend-surface-dispatch.generated.json
-          git add http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          if git diff --cached --quiet; then
-            echo "No source or generated changes to commit."
+          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "Spec 009: complete verification contracts and evidence"
-          git push origin HEAD:${GITHUB_REF_NAME}
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          AUTO_MERGE=true
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
+                ;;
+              *)
+                AUTO_MERGE=false
+                ;;
+            esac
+          done <<< "$CHANGED_FILES"
+
+          if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
+            AUTO_MERGE=false
+          fi
+
+          echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
+
+      - name: Create repository contract sync PR
+        id: cpr
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
+          delete-branch: true
+          title: "Auto-sync repository contracts"
+          commit-message: "Auto-sync repository contracts"
+          labels: |
+            openapi
+            docs
+            automated
+          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          body: |
+            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
+
+            Generation sequence:
+            1. Update the canonical `openapi.yaml` and repository planning docs.
+            2. Generate split Custom GPT schemas into a temporary directory.
+            3. Validate all request/response schemas recursively.
+            4. Write generated artifacts only after validation succeeds.
+            5. Verify committed artifacts exactly match their canonical sources.
+
+            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
+            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
+
+            Review checklist:
+            - Replace any `TODO document ...` summaries with precise contracts.
+            - Confirm request and response properties match implementation.
+            - Confirm authentication and authorization notes.
+            - Confirm `x-openai-isConsequential` is correct.
+            - Confirm each Custom GPT schema stays within its operation budget.
+            - Confirm canonical and generated artifacts remain byte-for-byte aligned.
+
+      - name: Enable auto-merge for safe docs-only sync PRs
+        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
