@@ -4,17 +4,22 @@ on:
   pull_request:
     paths:
       - "http-generic-api/routes/**"
+      - "http-generic-api/dynamicContainerRolloutSafety.js"
+      - "http-generic-api/src/application/resourceApi/**"
+      - "http-generic-api/src/infrastructure/resourceApi/**"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi/**"
       - "http-generic-api/openapi-route-coverage.allowlist.json"
       - "http-generic-api/resource-api-coverage.manifest.json"
       - "http-generic-api/frontend-surface-policy.json"
+      - "http-generic-api/frontend-operation-governance.generated.json"
       - "http-generic-api/frontend-surface-dispatch.generated.json"
       - "http-generic-api/public/connect/**"
       - "http-generic-api/public/platform/**"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
+      - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/openapi-route-coverage.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
@@ -46,15 +51,16 @@ jobs:
         run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}"
       - name: Verify generator contract
         run: |
+          node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
       - name: Enforce committed deterministic output
         run: |
-          if [[ -n "$(git status --porcelain -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            echo "::error::frontend dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
+          if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
+            echo "::error::frontend operation governance/dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
             exit 1
           fi
       - name: Upload dispatch evidence
@@ -63,6 +69,7 @@ jobs:
         with:
           name: frontend-surface-dispatch
           path: |
+            http-generic-api/frontend-operation-governance.generated.json
             http-generic-api/frontend-surface-dispatch.generated.json
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if-no-files-found: error
@@ -98,18 +105,18 @@ jobs:
           git fetch origin main --depth=1
           BASE_REF="main"
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${UNEXPECTED}" ]]; then
             echo "::error::generator changed files outside the bounded evidence set"
             printf '%s\n' "${UNEXPECTED}"
             exit 1
           fi
-          if git diff --quiet -- frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
+          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
             echo "Generated evidence is already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
           git commit -m "chore(ci): refresh frontend dispatch evidence"
           git push origin "HEAD:${GITHUB_REF_NAME}"
