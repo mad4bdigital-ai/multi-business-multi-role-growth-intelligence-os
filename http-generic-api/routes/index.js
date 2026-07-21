@@ -75,6 +75,7 @@ import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
+import { buildEffectiveAuthorityRoutes } from "./effectiveAuthorityRoutes.js";
 import { buildResourceAuthorityGrantRoutes } from "./resourceAuthorityGrantRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
@@ -211,6 +212,7 @@ export function registerRoutes(app, deps) {
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
+  app.use(buildEffectiveAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
