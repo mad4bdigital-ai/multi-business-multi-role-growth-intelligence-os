@@ -1,4 +1,8 @@
 export const testCommands = [
+  "node test-effective-authority-evidence-domain.mjs",
+  "node test-effective-authority-evidence-repository.mjs",
+  "node test-effective-authority-evidence-service.mjs",
+  "node test-ueacp-shadow-decision-ledger-migration.mjs",
   "node test-runtime-parity-startup-reconciler.mjs",
   "node test-platform-frontend-routes.mjs",
   "node test-frontend-surface-dispatch.mjs",
