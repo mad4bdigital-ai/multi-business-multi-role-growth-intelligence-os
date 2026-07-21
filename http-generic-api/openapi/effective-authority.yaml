@@ -1,0 +1,220 @@
+openapi: 3.1.0
+info:
+  title: Unified Effective Authority Read API
+  version: 0.1.0
+  description: Read-only shadow UEACP contracts for connector inventory and authority decisions.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /authority/projections/connectors:
+    get:
+      operationId: listAdminConnectorAuthorityProjection
+      summary: List connector readiness across platform or an explicit tenant scope
+      tags: [Effective Authority]
+      security:
+        - backendApiKey: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': {$ref: '#/components/responses/ConnectorProjection'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /authority/decisions/resolve:
+    post:
+      operationId: resolveAdminEffectiveAuthorityDecision
+      summary: Resolve a read-only shadow authority decision
+      tags: [Effective Authority]
+      security:
+        - backendApiKey: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminDecisionRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/Decision'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /me/authority/projections/connectors:
+    get:
+      operationId: listTenantConnectorAuthorityProjection
+      summary: List connector readiness for the authenticated tenant
+      tags: [Effective Authority]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': {$ref: '#/components/responses/ConnectorProjection'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /me/authority/decisions/resolve:
+    post:
+      operationId: resolveTenantEffectiveAuthorityDecision
+      summary: Resolve a read-only shadow authority decision for the authenticated tenant
+      tags: [Effective Authority]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TenantDecisionRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/Decision'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    backendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+  parameters:
+    TenantId:
+      name: tenantId
+      in: query
+      required: false
+      schema: {type: string, minLength: 1, maxLength: 191}
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string, minLength: 1}
+  schemas:
+    AdminDecisionRequest:
+      type: object
+      properties:
+        capabilityKey: {type: string, enum: [connector.inventory.read]}
+        tenantId: {type: string, minLength: 1, maxLength: 191}
+      additionalProperties: false
+    TenantDecisionRequest:
+      type: object
+      properties:
+        capabilityKey: {type: string, enum: [connector.inventory.read]}
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: {const: false}
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details: {type: array, items: {type: object}}
+            requestId: {type: [string, 'null']}
+        secrets_included: {const: false}
+    AuthorityManifest:
+      type: object
+      required: [decisionId, decision, authorityGranted, enforcementMode, subjectScope, capability, projectionEligibility, secretsIncluded]
+      properties:
+        decisionId: {type: string}
+        decision: {const: shadow_ready}
+        authorityGranted: {const: false}
+        enforcementMode: {const: shadow_only}
+        principal: {type: object}
+        subjectScope: {type: object}
+        capability: {type: object}
+        resource: {type: object}
+        readiness: {type: object}
+        projectionEligibility: {type: object}
+        gaps: {type: array, items: {type: object}}
+        versions: {type: object}
+        evaluatedAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+        providerCalls: {const: false}
+        credentialPayloadReads: {const: false}
+        externalWrites: {const: false}
+        secretsIncluded: {const: false}
+    ConnectorItem:
+      type: object
+      required: [systemId, tenantId, systemKey, registryStatus, authorizationStatus, installationStatus, executionReadiness, blockedReasonCodes, secretsIncluded]
+      properties:
+        systemId: {type: string}
+        tenantId: {type: string}
+        systemKey: {type: string}
+        displayName: {type: [string, 'null']}
+        providerFamily: {type: [string, 'null']}
+        connectorFamily: {type: [string, 'null']}
+        registryStatus: {type: string}
+        authorizationStatus: {const: visible}
+        configurationStatus: {type: string}
+        installationStatus: {type: string}
+        credentialStatus: {type: string}
+        connectivityStatus: {type: string}
+        certificationStatus: {type: string}
+        freshnessStatus: {type: string}
+        executionReadiness: {type: string}
+        activeInstallationCount: {type: integer, minimum: 0}
+        blockedReasonCodes: {type: array, items: {type: string}}
+        secretsIncluded: {const: false}
+    ConnectorProjectionResponse:
+      type: object
+      required: [ok, manifest, items, page, secretsIncluded, secrets_included]
+      properties:
+        ok: {const: true}
+        manifest: {$ref: '#/components/schemas/AuthorityManifest'}
+        items: {type: array, items: {$ref: '#/components/schemas/ConnectorItem'}}
+        page:
+          type: object
+          required: [nextCursor, hasMore]
+          properties:
+            nextCursor: {type: [string, 'null']}
+            hasMore: {type: boolean}
+        secretsIncluded: {const: false}
+        secrets_included: {const: false}
+    DecisionResponse:
+      type: object
+      required: [ok, manifest, secretsIncluded, secrets_included]
+      properties:
+        ok: {const: true}
+        manifest: {$ref: '#/components/schemas/AuthorityManifest'}
+        secretsIncluded: {const: false}
+        secrets_included: {const: false}
+  responses:
+    ConnectorProjection:
+      description: Scope-aware no-secret connector readiness projection
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ConnectorProjectionResponse'}
+    Decision:
+      description: Read-only shadow effective-authority decision
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DecisionResponse'}
+    Error:
+      description: Structured authority error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
