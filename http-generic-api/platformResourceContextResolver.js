@@ -265,6 +265,13 @@ async function loadGraph(pool, scope, membership = null) {
     );
   }
 
+  const repositoryContext = await loadAuthorizedRepositoryContext({
+    pool,
+    scope,
+    membership,
+    resourceGrants,
+  });
+
   return {
     brands,
     workspaces,
@@ -273,6 +280,8 @@ async function loadGraph(pool, scope, membership = null) {
     cmsGrants,
     sites,
     connections,
+    repositories: repositoryContext.repositories,
+    repositorySummary: repositoryContext.summary,
   };
 }
 
