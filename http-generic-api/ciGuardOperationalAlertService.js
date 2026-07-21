@@ -141,7 +141,7 @@ export function calculateCiGuardSlo(events = [], currentAlert = null, {
   const successes = normalizedEvents.filter((event) => event.status === "success");
   const failures = normalizedEvents.filter((event) => FAILURE_STATUSES.has(event.status));
   const detectionSamples = failures.map((event) => Number(event.detection_seconds)).filter(Number.isFinite);
-  const recoverySamples = successes.map((event) => Number(event.recovery_seconds)).filter(Number.isFinite);
+  const recoverySamples = deriveRecoverySamples(normalizedEvents);
   const maxDetection = detectionSamples.length ? Math.max(...detectionSamples) : null;
   const averageDetection = detectionSamples.length
     ? Math.round(detectionSamples.reduce((sum, value) => sum + value, 0) / detectionSamples.length)
