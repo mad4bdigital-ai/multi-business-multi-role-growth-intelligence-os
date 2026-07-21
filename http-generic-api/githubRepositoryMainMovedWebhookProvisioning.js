@@ -154,6 +154,40 @@ async function resolveSecret(includeSecret, deps = {}) {
   return result;
 }
 
+async function claimCapabilityEnvelopeForWebhook({ pool, envelopeId, executionRef }) {
+  const normalizedEnvelopeId = text(envelopeId, 64);
+  const normalizedExecutionRef = text(executionRef, 191);
+  const [result] = await pool.query(
+    `UPDATE capability_resolution_envelope_ledger
+        SET execution_status = 'referenced',
+            execution_ref = COALESCE(NULLIF(?, ''), execution_ref),
+            updated_at = NOW()
+      WHERE envelope_id = ?
+        AND envelope_status = 'ready_for_dispatch'
+        AND execution_status = 'not_executed'
+        AND dispatch_allowed = 1
+        AND apply_allowed = 1
+        AND secrets_included = 0`,
+    [normalizedExecutionRef, normalizedEnvelopeId],
+  );
+  if (Number(result?.affectedRows || 0) !== 1) {
+    return {
+      ok: false,
+      status: "capability_resolution_envelope_claim_failed",
+      envelope_id: normalizedEnvelopeId || null,
+      affected_rows: Number(result?.affectedRows || 0),
+      secrets_included: false,
+    };
+  }
+  return {
+    ok: true,
+    status: "capability_resolution_envelope_referenced",
+    envelope_id: normalizedEnvelopeId,
+    execution_ref: normalizedExecutionRef || null,
+    secrets_included: false,
+  };
+}
+
 async function inspectTarget(input = {}, deps = {}) {
   const target = normalizeTarget(input);
   const secretStatus = await resolveSecret(false, deps);
