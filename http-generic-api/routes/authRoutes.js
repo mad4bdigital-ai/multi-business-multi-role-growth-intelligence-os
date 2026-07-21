@@ -10,6 +10,12 @@ import {
   TENANT_GPT_SCOPE_LINKS,
 } from "../tenantGptOAuthPreset.js";
 import {
+  TENANT_GPT_CORE_RESOURCE,
+  normalizeTenantGptOAuthResource,
+  resolveTenantGptOAuthResourceProfile,
+  tenantGptRequestHostFromHeaders,
+} from "../tenantGptOAuthResourceProfile.js";
+import {
   resolveTenantGptOAuthClientConfig,
   validateTenantGptOAuthClientCredentials,
 } from "../tenantGptOAuthClientConfig.js";
@@ -37,7 +43,6 @@ const PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS = 15 * 60;
 const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
-const TENANT_GPT_JWT_AUDIENCE = process.env.TENANT_GPT_JWT_AUDIENCE || "mad4b-tenant-gpt";
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
 const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
@@ -185,7 +190,12 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID, jwtid = randomUUID(), compact = false } = {}) {
+function issueTenantGptAccessToken(payload, {
+  clientId = TENANT_GPT_OAUTH_CLIENT_ID,
+  jwtid = randomUUID(),
+  compact = false,
+  resource,
+} = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -196,9 +206,20 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
   const email = payload?.email ? String(payload.email).trim() : null;
   const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+  const normalizedClientId = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
+  const normalizedResource = normalizeTenantGptOAuthResource(resource);
+  if (!normalizedResource) {
+    const err = new Error("Cannot issue tenant GPT token without a registered protected resource.");
+    err.code = "missing_oauth_resource";
+    throw err;
+  }
+
   const claims = {
     iss: PLATFORM_JWT_ISSUER,
-    aud: TENANT_GPT_JWT_AUDIENCE,
+    aud: normalizedResource,
+    azp: normalizedClientId,
+    client_id: normalizedClientId,
+    resource: normalizedResource,
     sub: subject,
     user_id: userId,
     tenant_id: tenantId,
@@ -209,7 +230,6 @@ function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT
   if (!compact) {
     claims.email = email;
     claims.scope_links = TENANT_GPT_SCOPE_LINKS;
-    claims.client_id = String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID;
   }
 
   return jwt.sign(claims, JWT_SECRET, { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
@@ -507,7 +527,15 @@ async function recordOAuthTokenDiagnostic(queryFn, event = {}) {
   }
 }
 
-function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationContext, requestedScope = "" }) {
+function buildOAuthAuthorizeHtml({
+  clientId,
+  redirectUri,
+  state,
+  activationContext,
+  requestedScope = "",
+  oauthClientId = TENANT_GPT_OAUTH_CLIENT_ID,
+  oauthResource = "",
+}) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
     : ["google", "email", "register"];
@@ -588,6 +616,8 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
     const STATE = ${JSON.stringify(String(state || ""))};
     const ACTIVATION_CONTEXT = ${JSON.stringify(activationContext || {})};
     const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
+    const OAUTH_CLIENT_ID = ${JSON.stringify(String(oauthClientId || TENANT_GPT_OAUTH_CLIENT_ID))};
+    const OAUTH_RESOURCE = ${JSON.stringify(String(oauthResource || ""))};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
@@ -601,7 +631,7 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) {
@@ -938,7 +968,14 @@ export function buildAuthRoutes(deps) {
   if (typeof requireBackendApiKey === "function") {
     router.post("/platform-jwt/issue", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
       try {
-        const { user_id, email, tenant_id = null, ttl_seconds, reason = "admin_assistant_jwt_client" } = req.body || {};
+        const {
+          user_id,
+          email,
+          tenant_id = null,
+          ttl_seconds,
+          reason = "admin_assistant_jwt_client",
+          resource = TENANT_GPT_CORE_RESOURCE,
+        } = req.body || {};
         const pool = resolvePool();
         const user = await fetchActiveUserForJwtClient(pool, { user_id, email });
         if (!user) {
@@ -965,10 +1002,23 @@ export function buildAuthRoutes(deps) {
 
         const expiresIn = cleanTtlSeconds(ttl_seconds);
         const resolvedTenantId = requestedTenantId || membership?.tenant_id || null;
+        const normalizedResource = normalizeTenantGptOAuthResource(resource);
+        if (!normalizedResource) {
+          return res.status(400).json({
+            ok: false,
+            error: {
+              code: "invalid_target",
+              message: "resource must be a registered Tenant GPT protected resource.",
+            },
+          });
+        }
         const token = jwt.sign(
           {
             iss: PLATFORM_JWT_ISSUER,
-            aud: TENANT_GPT_JWT_AUDIENCE,
+            aud: normalizedResource,
+            azp: TENANT_GPT_OAUTH_CLIENT_ID,
+            client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+            resource: normalizedResource,
             sub: resolvedTenantId ? `tenant:${resolvedTenantId}:user:${user.user_id}` : `user:${user.user_id}`,
             user_id: user.user_id,
             email: user.email,
@@ -976,7 +1026,6 @@ export function buildAuthRoutes(deps) {
             scope: TENANT_GPT_SCOPE,
             scope_links: TENANT_GPT_SCOPE_LINKS,
             purpose: "tenant_gpt_access",
-            client_id: TENANT_GPT_OAUTH_CLIENT_ID,
             client: "admin_assistant",
             reason: cleanText(reason, 120) || "admin_assistant_jwt_client",
           },
@@ -1019,6 +1068,12 @@ export function buildAuthRoutes(deps) {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
     const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
+    const requestedResource = String(req.query.resource || "").trim();
+    const resourceProfile = resolveTenantGptOAuthResourceProfile({
+      clientId: oauthClientId,
+      requestHost: tenantGptRequestHostFromHeaders(req.headers),
+      requestedResource,
+    });
     const activationContext = parseActivationContext(req.query);
 
     if (oauthClientId !== TENANT_GPT_OAUTH_CLIENT_ID) {
@@ -1029,6 +1084,9 @@ export function buildAuthRoutes(deps) {
     }
     if (!state) {
       return res.status(400).type("text/plain").send("OAuth state is required for the Tenant GPT client.");
+    }
+    if (!resourceProfile.ok) {
+      return res.status(400).type("text/plain").send(resourceProfile.message);
     }
 
     const query = (sql, params) => resolvePool().query(sql, params);
@@ -1044,15 +1102,28 @@ export function buildAuthRoutes(deps) {
     return res
       .status(200)
       .type("html")
-      .send(buildOAuthAuthorizeHtml({ clientId: GOOGLE_CLIENT_ID, redirectUri, state, activationContext, requestedScope }));
+      .send(buildOAuthAuthorizeHtml({
+        clientId: GOOGLE_CLIENT_ID,
+        redirectUri,
+        state,
+        activationContext,
+        requestedScope,
+        oauthClientId: resourceProfile.client_id,
+        oauthResource: resourceProfile.resource,
+      }));
   });
 
   router.post("/oauth/code", async (req, res) => {
     const requestId = randomUUID();
     let stage = "request_validation";
     try {
-      const { token, credential, redirect_uri, state } = req.body || {};
+      const { token, credential, redirect_uri, state, oauth_client_id, oauth_resource } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
+      const resourceProfile = resolveTenantGptOAuthResourceProfile({
+        clientId: oauth_client_id || TENANT_GPT_OAUTH_CLIENT_ID,
+        requestHost: tenantGptRequestHostFromHeaders(req.headers),
+        requestedResource: oauth_resource,
+      });
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
@@ -1061,6 +1132,9 @@ export function buildAuthRoutes(deps) {
       }
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
+      }
+      if (!resourceProfile.ok) {
+        return res.status(400).json({ ok: false, error: { code: resourceProfile.error, message: resourceProfile.message } });
       }
       const query = (sql, params) => resolvePool().query(sql, params);
       stage = "oauth_client_config";
@@ -1093,6 +1167,8 @@ export function buildAuthRoutes(deps) {
           tenant_id: payload.tenant_id || null,
           redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
+          client_id: resourceProfile.client_id,
+          resource: resourceProfile.resource,
           activation_context,
         },
         JWT_SECRET,
@@ -1104,7 +1180,7 @@ export function buildAuthRoutes(deps) {
         jti: codeJti,
         user_id: payload.user_id,
         tenant_id: payload.tenant_id || null,
-        client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+        client_id: resourceProfile.client_id,
         redirect_uri: canonicalRedirectUri,
         expires_at: codeExpiresAt,
       });
@@ -1113,6 +1189,7 @@ export function buildAuthRoutes(deps) {
         ok: true,
         code,
         expires_in: OAUTH_CODE_TTL_SECONDS,
+        resource: resourceProfile.resource,
         activation_context,
         redirect_to: appendOAuthParams(canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri, { code, state }),
       });
@@ -1214,6 +1291,18 @@ export function buildAuthRoutes(deps) {
         });
       }
       tokenLogContext.client_validation_source = clientValidation.source || null;
+      const resourceProfile = resolveTenantGptOAuthResourceProfile({
+        clientId: clientValidation.client_id,
+        requestHost: tenantGptRequestHostFromHeaders(req.headers),
+        requestedResource: req.body?.resource,
+      });
+      if (!resourceProfile.ok) {
+        logTokenExchange("failed", resourceProfile.error, 400);
+        return res.status(400).json({
+          error: resourceProfile.error,
+          error_description: resourceProfile.message,
+        });
+      }
 
       const codePayload = jwt.verify(code, JWT_SECRET);
       tokenLogContext.code_redirect_uri = safeOAuthRedirectEvidence(codePayload.redirect_uri);
@@ -1221,6 +1310,21 @@ export function buildAuthRoutes(deps) {
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
       tokenLogContext.tenant_id_present = Boolean(codePayload.tenant_id);
       tokenLogContext.requested_scope = safeOAuthScopeEvidence(codePayload.scope);
+      const codeClientId = String(codePayload.client_id || "").trim();
+      const codeResource = normalizeTenantGptOAuthResource(codePayload.resource);
+      if (codeClientId && codeClientId !== clientValidation.client_id) {
+        logTokenExchange("failed", "oauth_code_client_mismatch", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code does not match this client." });
+      }
+      if (codePayload.resource && !codeResource) {
+        logTokenExchange("failed", "oauth_code_resource_invalid", 400);
+        return res.status(400).json({ error: "invalid_grant", error_description: "OAuth code resource is invalid." });
+      }
+      if (codeResource && codeResource !== resourceProfile.resource) {
+        logTokenExchange("failed", "oauth_code_resource_mismatch", 400);
+        return res.status(400).json({ error: "invalid_target", error_description: "OAuth code does not match this protected resource." });
+      }
+      const effectiveResource = codeResource || resourceProfile.resource;
       if (codePayload.purpose !== "custom_gpt_oauth_code" || !codePayload.user_id) {
         logTokenExchange("failed", "invalid_oauth_code_payload", 400);
         return res.status(400).json({ error: "invalid_grant", error_description: "Invalid OAuth code." });
@@ -1259,7 +1363,7 @@ export function buildAuthRoutes(deps) {
       const accessExpiresAt = new Date(Date.now() + USER_TOKEN_TTL_SECONDS * 1000);
       const accessToken = issueTenantGptAccessToken(
         { user_id: tokenUser.user_id, email: tokenUser.email, tenant_id: tenantId },
-        { clientId: clientValidation.client_id, jwtid: accessJti, compact: true }
+        { clientId: clientValidation.client_id, jwtid: accessJti, compact: true, resource: effectiveResource }
       );
       const activationContextRecord = await recordTenantGptActivationContext({
         query: tokenQuery,

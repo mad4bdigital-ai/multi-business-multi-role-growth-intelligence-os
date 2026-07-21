@@ -7,6 +7,7 @@ import {
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
+import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
 
 function bodyOf(req) {
   const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
@@ -43,6 +44,11 @@ function automationDeps(req) {
 export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+
+  router.use(buildOperationObservabilityRoutes({
+    requireBackendApiKey,
+    requireAdminPrincipal,
+  }));
 
   router.post("/admin/repository-automation/plan", ...requireAdmin, async (req, res) => {
     try {

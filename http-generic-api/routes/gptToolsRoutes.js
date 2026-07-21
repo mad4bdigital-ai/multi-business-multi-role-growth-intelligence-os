@@ -21,6 +21,11 @@ import {
   loadTenantToolManifestBlocks,
 } from "../tenantToolManifestGuard.js";
 import {
+  assertTenantToolSchemaAllows,
+  filterTenantToolsByStrictSchema,
+  loadTenantToolSchemaBlocks,
+} from "../tenantToolSchemaGuard.js";
+import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
@@ -72,6 +77,10 @@ import {
   PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM,
   issuePlatformCapabilityShadowCertification,
 } from "../platformCapabilityShadowCertificationIssuer.js";
+import {
+  GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM,
+  issueGithubFilePatchShadowCertification,
+} from "../githubFilePatchShadowCertificationIssuer.js";
 import { runGrowthIntelligencePilotAdmin } from "../growthIntelligenceAdminTool.js";
 import {
   approveRepositoryAdvisoryCommentApprovalHoldAdmin,
@@ -706,6 +715,24 @@ const VIRTUAL_ADMIN_TOOLS = [
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
         confirm: { type: "string", const: PLATFORM_CAPABILITY_SHADOW_CERTIFICATION_CONFIRM },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "github_file_patch_shadow_certification_issue",
+    displayName: "Issue GitHub File Patch Shadow Certification",
+    description: "Dry-run or apply one fixed evidence-backed shadow certification for github_file_patch_apply. Apply requires typed confirmation and an apply-authorized platform_orchestration capability envelope. It activates only the canonical readback adapter, certifies the current readback contract, keeps target runtime dispatch and apply blocked, keeps target capability exports shadow-only, creates no Tenant authority, calls no provider, performs no external write, and returns no secrets.",
+    method: "VIRTUAL",
+    path: "internal://github-file-patch-shadow-certification-issue",
+    tags: ["capability", "github", "repository", "certification", "shadow", "state_changing", "dry_run_default", "typed_confirmation", "capability_envelope", "same_cycle_readback", "no_provider_call", "no_external_write", "no_runtime_promotion", "no_tenant_authority", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        confirm: { type: "string", const: GITHUB_FILE_PATCH_SHADOW_CERTIFICATION_CONFIRM },
         capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
       },
       additionalProperties: false,
@@ -2253,7 +2280,7 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
   const rows = await cachedSqlRead(
-    sqlCacheKey("tools", callerType, "list", "v2"),
+    sqlCacheKey("tools", callerType, "list", "v3"),
     toolCacheTtl(),
     async () => {
       const [toolRows] = await getPool().query(
@@ -2266,13 +2293,19 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
-  const blockedTenantManifests = callerType === "tenant"
-    ? await loadTenantToolManifestBlocks(getPool())
-    : new Map();
+  const [blockedTenantManifests, blockedTenantSchemas] = callerType === "tenant"
+    ? await Promise.all([
+        loadTenantToolManifestBlocks(getPool()),
+        loadTenantToolSchemaBlocks(getPool()),
+      ])
+    : [new Map(), new Map()];
   const visibleRows = callerType === "tenant"
-    ? filterTenantToolsByManifest(
-        rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
-        blockedTenantManifests
+    ? filterTenantToolsByStrictSchema(
+        filterTenantToolsByManifest(
+          rows.filter((r) => !isTenantBlockedToolPath(r.http_path) && !isTenantBlockedToolName(r.tool_key)),
+          blockedTenantManifests
+        ),
+        blockedTenantSchemas
       )
     : rows;
   const dbTools = visibleRows.map((r) => ({
@@ -2349,8 +2382,12 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 
 async function dispatchTool(callerType, toolKey, args, req) {
   if (callerType === "tenant") {
-    const blockedTenantManifests = await loadTenantToolManifestBlocks(getPool());
+    const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
+      loadTenantToolManifestBlocks(getPool()),
+      loadTenantToolSchemaBlocks(getPool()),
+    ]);
     assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests);
+    assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas);
   }
   const descriptor = await resolveToolPreflightDescriptor(callerType, toolKey);
   if (descriptor) {
@@ -2438,6 +2475,12 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "platform_capability_shadow_certification_issue") {
     const result = await issuePlatformCapabilityShadowCertification(args || {}, {
+      auth: req?.auth || {},
+    });
+    return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "github_file_patch_shadow_certification_issue") {
+    const result = await issueGithubFilePatchShadowCertification(args || {}, {
       auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
