@@ -58,6 +58,8 @@ function requestedAnchor(args = {}) {
     ["site", "site_ref", args.site_ref],
     ["site", "site_url", args.site_url],
     ["connection", "connection_id", args.connection_id],
+    ["repository", "repository_ref", args.repository_ref],
+    ["repository", "binding_key", args.binding_key],
     [args.resource_type || "auto", "resource_ref", args.resource_ref],
     [args.resource_type || "auto", "reference", args.reference],
   ];
