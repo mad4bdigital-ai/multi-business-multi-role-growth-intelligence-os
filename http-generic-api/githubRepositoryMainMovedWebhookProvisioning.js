@@ -367,6 +367,18 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
   }
 
   await markSecretValidated(deps);
+  const transitionEnvelope = deps.transitionEnvelopeLifecycle || transitionCapabilityEnvelopeLifecycle;
+  const consumed = await transitionEnvelope({
+    pool: governancePool,
+    envelopeId: governance.envelope_id,
+    action: "consume",
+    executionRef: `github_repository_main_moved_webhook:${hookId}`,
+    reason: governanceReason,
+  });
+  if (!consumed?.ok) {
+    throw capabilityEnvelopeError(consumed, "The capability envelope could not be consumed after GitHub webhook verification.");
+  }
+
   const audit = deps.audit || writeAuditLogAsync;
   await audit({
     tenant_id: null,
@@ -384,6 +396,9 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
       ping_status_code: ping.status_code,
       signature_verified_by_endpoint: true,
       secret_reference_validation_marked: true,
+      capability_envelope_id: governance.envelope_id,
+      capability_envelope_execution_status: consumed.after?.execution_status || "executed",
+      expected_commit_sha: expectedCommitSha,
       secrets_included: false,
     },
   });
@@ -396,6 +411,12 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     hook: safeReadback,
     ping,
     signature_verified: true,
+    governance: {
+      capability_envelope_id: governance.envelope_id,
+      execution_status: consumed.after?.execution_status || "executed",
+      expected_commit_sha: expectedCommitSha,
+      secrets_included: false,
+    },
     secret_reference: {
       credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
       validation_status: "validated",
