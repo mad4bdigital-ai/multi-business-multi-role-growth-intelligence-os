@@ -24,6 +24,11 @@ function mapCapability(row) {
   };
 }
 
+function numericCount(value) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+}
+
 export function createEffectiveAuthorityRepository({ resolvePool }) {
   if (typeof resolvePool !== "function") {
     throw new TypeError("Effective authority repository requires a lazy resolvePool function.");
@@ -86,12 +91,58 @@ export function createEffectiveAuthorityRepository({ resolvePool }) {
     };
   }
 
+  async function summarizeConnectorProjectionStages({ scope }) {
+    const pool = requirePool(await resolvePool());
+    const tenantScoped = scope?.scopeType === "tenant";
+    if (tenantScoped && !String(scope?.tenantId || "").trim()) {
+      throw new TypeError("Tenant connector projection summary requires scope.tenantId.");
+    }
+    const authorizationPredicate = tenantScoped ? "cs.tenant_id = ?" : "1 = 1";
+    const params = tenantScoped
+      ? [scope.tenantId, scope.tenantId, scope.tenantId]
+      : [];
+    const [rows] = await pool.execute(
+      `SELECT
+         COUNT(DISTINCT cs.system_id) AS registered_count,
+         COUNT(DISTINCT CASE
+           WHEN ${authorizationPredicate} THEN cs.system_id ELSE NULL END) AS authorized_count,
+         COUNT(DISTINCT CASE
+           WHEN ${authorizationPredicate}
+            AND NULLIF(TRIM(cs.system_key),'') IS NOT NULL
+            AND cs.tenant_id IS NOT NULL
+           THEN cs.system_id ELSE NULL END) AS projected_count,
+         COUNT(DISTINCT CASE
+           WHEN ${authorizationPredicate}
+            AND NULLIF(TRIM(cs.system_key),'') IS NOT NULL
+            AND cs.tenant_id IS NOT NULL
+            AND cs.status = 'active'
+            AND i.status = 'active'
+            AND (i.expires_at IS NULL OR i.expires_at > NOW())
+           THEN cs.system_id ELSE NULL END) AS executable_candidate_count
+       FROM connected_systems cs
+       LEFT JOIN installations i
+         ON i.system_id = cs.system_id
+        AND i.tenant_id = cs.tenant_id
+      WHERE cs.status <> 'archived'`,
+      params
+    );
+    const row = rows?.[0] || {};
+    return Object.freeze({
+      registeredCount: numericCount(row.registered_count),
+      authorizedCount: numericCount(row.authorized_count),
+      projectedCount: numericCount(row.projected_count),
+      executableCandidateCount: numericCount(row.executable_candidate_count),
+    });
+  }
+
   return Object.freeze({
     findCapabilityByKey,
     listConnectorInventory,
+    summarizeConnectorProjectionStages,
   });
 }
 
 export const _testingEffectiveAuthorityRepository = Object.freeze({
   mapCapability,
+  numericCount,
 });

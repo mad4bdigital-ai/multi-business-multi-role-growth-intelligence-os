@@ -65,12 +65,29 @@ const repository = {
       nextSystemId: "system-1",
     };
   },
+  async summarizeConnectorProjectionStages({ scope }) {
+    return {
+      registeredCount: 4,
+      authorizedCount: scope.scopeType === "platform" ? 4 : 1,
+      projectedCount: scope.scopeType === "platform" ? 4 : 1,
+      executableCandidateCount: 1,
+    };
+  },
+};
+const evidenceCalls = [];
+const evidenceService = {
+  enabled: true,
+  async record(input) {
+    evidenceCalls.push(input);
+    return { status: "persisted" };
+  },
 };
 const service = createEffectiveAuthorityService({
   authorityScopeService,
   repository,
+  evidenceService,
   now: () => new Date("2026-07-21T00:00:00.000Z"),
-  decisionIdFactory: () => "decision-1",
+  decisionIdFactory: () => `decision-${evidenceCalls.length + 1}`,
 });
 
 const adminProjection = await service.listConnectorProjection({
@@ -84,6 +101,8 @@ assert.equal(adminProjection.items[0].executionReadiness, "candidate");
 assert.equal(adminProjection.page.hasMore, true);
 assert.ok(adminProjection.page.nextCursor);
 assert.equal(adminProjection.secretsIncluded, false);
+assert.equal(evidenceCalls[0].source, "connector_projection_api");
+assert.equal(evidenceCalls[0].projectionConsistency.driftDetected, false);
 
 const tenantDecision = await service.resolveDecision({
   auth: { user_id: "user-1", tenant_id: "tenant-1" },
@@ -91,13 +110,27 @@ const tenantDecision = await service.resolveDecision({
 });
 assert.equal(tenantDecision.manifest.subjectScope.tenantId, "tenant-1");
 assert.equal(calls.at(-1).tenantId, "tenant-1");
+assert.equal(evidenceCalls[1].source, "authority_decision_api");
+assert.equal(evidenceCalls[1].projectionConsistency.counts.authorizedCount, 1);
 
 await assert.rejects(
-  () => service.resolveDecision({
-    auth: { is_admin: true, user_id: "admin-1" },
-    capabilityKey: "content.article.publish",
-  }),
+  () =>
+    service.resolveDecision({
+      auth: { is_admin: true, user_id: "admin-1" },
+      capabilityKey: "content.article.publish",
+    }),
   (error) => error.code === "CAPABILITY_NOT_SUPPORTED_BY_UEACP_STAGE"
 );
+
+const disabledService = createEffectiveAuthorityService({
+  authorityScopeService,
+  repository,
+  evidenceService: { enabled: false },
+  decisionIdFactory: () => "decision-disabled",
+});
+await disabledService.resolveDecision({
+  auth: { is_admin: true, user_id: "admin-1" },
+});
+assert.equal(evidenceCalls.length, 2);
 
 console.log("effective authority service tests passed");

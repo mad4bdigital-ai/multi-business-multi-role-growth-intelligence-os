@@ -9,6 +9,7 @@ import {
   normalizeAuthorityLimit,
   normalizeSemanticCapability,
 } from "../../domain/effectiveAuthority/effectiveAuthority.js";
+import { evaluateConnectorProjectionConsistency } from "../../domain/effectiveAuthority/effectiveAuthorityEvidence.js";
 
 function requireDependencies(authorityScopeService, repository) {
   if (!authorityScopeService || typeof authorityScopeService.resolve !== "function") {
@@ -17,10 +18,11 @@ function requireDependencies(authorityScopeService, repository) {
   if (
     !repository ||
     typeof repository.findCapabilityByKey !== "function" ||
-    typeof repository.listConnectorInventory !== "function"
+    typeof repository.listConnectorInventory !== "function" ||
+    typeof repository.summarizeConnectorProjectionStages !== "function"
   ) {
     throw new TypeError(
-      "Effective authority service requires capability and connector inventory repository methods."
+      "Effective authority service requires capability, connector inventory, and projection summary repository methods."
     );
   }
 }
@@ -28,6 +30,7 @@ function requireDependencies(authorityScopeService, repository) {
 export function createEffectiveAuthorityService({
   authorityScopeService,
   repository,
+  evidenceService = null,
   now = () => new Date(),
   decisionIdFactory = () => randomUUID(),
 }) {
@@ -62,12 +65,29 @@ export function createEffectiveAuthorityService({
     return { resolution, capability, manifest };
   }
 
+  async function recordEvidence({ manifest, resolution, source }) {
+    if (evidenceService?.enabled !== true) return;
+    const counts = await repository.summarizeConnectorProjectionStages({
+      scope: resolution.scope,
+    });
+    const projectionConsistency = evaluateConnectorProjectionConsistency({
+      scopeType: resolution.scope.scopeType,
+      ...counts,
+    });
+    await evidenceService.record({ manifest, projectionConsistency, source });
+  }
+
   async function resolveDecision({
     auth = {},
     tenantId = null,
     capabilityKey = CONNECTOR_INVENTORY_CAPABILITY_KEY,
   } = {}) {
-    const { manifest } = await resolveContext({ auth, tenantId, capabilityKey });
+    const { resolution, manifest } = await resolveContext({ auth, tenantId, capabilityKey });
+    await recordEvidence({
+      manifest,
+      resolution,
+      source: "authority_decision_api",
+    });
     return Object.freeze({ manifest, secretsIncluded: false });
   }
 
@@ -87,6 +107,11 @@ export function createEffectiveAuthorityService({
       afterSystemId,
     });
     const items = Object.freeze(page.rows.map(buildConnectorReadinessItem));
+    await recordEvidence({
+      manifest,
+      resolution,
+      source: "connector_projection_api",
+    });
     return Object.freeze({
       manifest,
       items,
