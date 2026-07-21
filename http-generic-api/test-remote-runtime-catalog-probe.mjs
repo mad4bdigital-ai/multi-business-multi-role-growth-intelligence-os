@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// frontend-surface-operation: POST /platform/remote-runtime/targets/catalog
+
 const service = readFileSync("remoteRuntime.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/151_sprint65_remote_runtime_catalog_probe_tools.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
+
+const catalogStart = service.indexOf("export async function listRemoteRuntimeTargets");
+const catalogEnd = service.indexOf("\nexport async function ", catalogStart + 1);
+assert.notEqual(catalogStart, -1, "catalog function must be exported");
+const catalogSource = service.slice(catalogStart, catalogEnd === -1 ? service.length : catalogEnd);
+assert.match(catalogSource, /SELECT \* FROM remote_runtime_targets/);
+assert.match(catalogSource, /SELECT \* FROM remote_runtime_command_allowlists/);
+assert.doesNotMatch(catalogSource, /writeExecutionEvidence|\b(?:INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b/i, "catalog must remain SELECT-only");
 
 assert(service.includes("listRemoteRuntimeTargets"), "service must export target catalog function");
 assert(service.includes("probeRemoteRuntimeTarget"), "service must export readiness probe function");

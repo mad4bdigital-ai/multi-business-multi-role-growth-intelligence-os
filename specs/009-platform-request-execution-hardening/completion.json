@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "feature_key": "009-platform-request-execution-hardening",
+  "title": "Platform Request Execution Hardening",
+  "status": "complete",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 2551,
+        "role": "runtime_implementation_and_spec",
+        "status": "merged",
+        "merge_sha": "70c6861cff5534f4f9356d0f80e09fa58a8809db"
+      },
+      {
+        "number": 2900,
+        "role": "mariadb_generated_column_ordering_repair",
+        "status": "merged",
+        "merge_sha": "2036c7f961cb2e448a2fc02376b90e845fd3a106"
+      },
+      {
+        "number": 2907,
+        "role": "application_managed_active_lease_key_repair",
+        "status": "merged",
+        "merge_sha": "836be846c0570285224c73965e16c8e60313bc3c"
+      }
+    ],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/closeout-spec-009-20260721",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pass",
+      "head_sha": "0ad4f906a33cf22d91926e9897e0b86a229304d5",
+      "checks_passed": 4,
+      "checks_total": 4
+    },
+    "release_readiness": {
+      "status": "pass",
+      "checked_at": "2026-07-21T10:35:41.645Z",
+      "checks_passed": 4,
+      "checks_total": 4
+    },
+    "migration": {
+      "status": "applied",
+      "file": "20260715_operation_managed_git_worker_leases.sql",
+      "checksum_sha256": "7763cede1b21165b99c91e6f494a212475e5a29a475553815214e50983699ac2",
+      "statement_count": 1,
+      "ledger_run_id": "0a3dff8a-de39-4d0c-a029-7d6f2d142eea"
+    },
+    "migrations": [
+      {
+        "status": "applied",
+        "file": "20260713_operation_run_ownership.sql",
+        "checksum_sha256": "21258f3df9dd11041165b7b568ee5f378ce4c742d13e106a50316548aa64c538",
+        "statement_count": 1,
+        "ledger_run_id": "cea67306-04da-4ad5-b231-63d8f2a65498",
+        "capability_envelope_id": "417da1cd-6c64-4c5c-97fb-90556d97a4d1",
+        "schema_object": "operation_run_ownership",
+        "applied_at": "2026-07-20T21:35:47.754Z",
+        "preflight_status": "pass",
+        "preflight_risk_count": 0
+      },
+      {
+        "status": "applied",
+        "file": "20260714_operation_generated_artifacts.sql",
+        "checksum_sha256": "a56e7ce216d3d2894497a99e34e31fd825e3b1416827cfa7393411b58d4685f9",
+        "statement_count": 1,
+        "ledger_run_id": "38c37277-001f-49f4-b3b5-3cf2fcff056e",
+        "capability_envelope_id": "8cd52c93-c54c-49e0-9fb7-63793e68fa73",
+        "schema_object": "operation_generated_artifacts",
+        "applied_at": "2026-07-20T21:42:37.196Z",
+        "preflight_status": "pass",
+        "preflight_risk_count": 0
+      },
+      {
+        "status": "applied",
+        "file": "20260715_operation_managed_git_worker_leases.sql",
+        "checksum_sha256": "7763cede1b21165b99c91e6f494a212475e5a29a475553815214e50983699ac2",
+        "statement_count": 1,
+        "ledger_run_id": "0a3dff8a-de39-4d0c-a029-7d6f2d142eea",
+        "capability_envelope_id": "923b983f-7268-4458-9856-93450a884fef",
+        "schema_object": "operation_managed_git_worker_leases",
+        "applied_at": "2026-07-21T10:25:09.310Z",
+        "preflight_status": "pass",
+        "preflight_risk_count": 0
+      }
+    ],
+    "production_verification": {
+      "status": "verified",
+      "run_id": "c64f4890-b79b-4e93-9cf8-7205ae22e171",
+      "expected_commit_sha": "ca9fd487e1504fea82e62f5f7543cc0a10382696",
+      "deployed_commit_sha": "ca9fd487e1504fea82e62f5f7543cc0a10382696"
+    },
+    "post_merge_audit": {
+      "status": "completed",
+      "run_id": "spec009-post-merge-audit-20260721",
+      "schema_readback_verified": true,
+      "migration_ledger_readback_verified": true,
+      "release_readiness_verified": true,
+      "repair_pull_requests": [
+        2900,
+        2907
+      ],
+      "migration_ledger_run_ids": [
+        "cea67306-04da-4ad5-b231-63d8f2a65498",
+        "38c37277-001f-49f4-b3b5-3cf2fcff056e",
+        "0a3dff8a-de39-4d0c-a029-7d6f2d142eea"
+      ],
+      "completed_at": "2026-07-21T10:35:41.645Z"
+    }
+  },
+  "secrets_included": false
+}

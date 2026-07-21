@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readSessionInsightTargetAdapterRegistry } from "./sessionInsightPromotionTargetAdapterRegistryService.js";
 
-function makePool() {
+// frontend-surface-operation: POST /platform/session-insight-promotions/target-adapters/list
+
+function makePool({ adapterOverrides = {} } = {}) {
   const state = { calls: [] };
   return {
     state,
@@ -42,6 +44,7 @@ function makePool() {
             }),
             status: "active",
             secrets_included: 0,
+            ...adapterOverrides,
           },
         ]];
       }
@@ -95,6 +98,23 @@ function makePool() {
   assert.equal(result.registry_policy.apply_supported_default, false);
   assert.equal(result.registry_policy.execution_allowed, false);
   assert.equal(result.registry_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "target adapter registry read action must execute SELECT statements only"
+  );
+}
+
+{
+  const pool = makePool({
+    adapterOverrides: {
+      implementation_status: "implemented",
+      execution_mode: "dry_run",
+    },
+  });
+  const result = await readSessionInsightTargetAdapterRegistry({ pool, filters: { limit: 5 } });
+  assert.equal(result.adapters[0].implementation_status, "implemented");
+  assert.equal(result.adapters[0].execution_mode, "dry_run");
 }
 
 console.log("session insight target adapter registry service tests passed");

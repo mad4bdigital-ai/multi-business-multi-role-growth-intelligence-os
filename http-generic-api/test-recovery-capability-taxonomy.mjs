@@ -9,7 +9,7 @@ const toolsMigration = readFileSync(
   new URL("./migrations/167_sprint65_ai_intelligence_runtime_governance_tools.sql", import.meta.url),
   "utf8"
 );
-const tenantOpenApi = readFileSync(new URL("./openapi.tenant-gpt.auth.yaml", import.meta.url), "utf8");
+const tenantOpenApi = readFileSync(new URL("./openapi/openapi.tenant-gpt.auth.yaml", import.meta.url), "utf8");
 
 assert(migration.includes("CREATE TABLE IF NOT EXISTS platform_recovery_failure_taxonomy"));
 assert(migration.includes("recovery_capability_taxonomy_engine"));

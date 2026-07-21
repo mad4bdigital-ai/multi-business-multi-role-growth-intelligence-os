@@ -9,6 +9,10 @@ import {
   runContainerRollbackDrill,
   buildContainerCanaryPromotionPlan,
   runContainerCanaryPromotion,
+  buildContainerCanaryRollbackPlan,
+  runContainerCanaryRollback,
+  buildContainerCanaryCloseoutPlan,
+  runContainerCanaryCloseout,
   evaluateContainerBypassRetirementReadiness
 } from "./dynamicContainerRolloutSafety.js";
 import { runContainerQueryPlanPreflight } from "./dynamicContainerQueryPlanPreflight.js";
@@ -177,18 +181,59 @@ assert.throws(
   error => error.code === "container_canary_operation_not_read_only" && error.status === 422
 );
 
-function canaryExecutor() {
+function canaryExecutor({ envelopePresent=true,applyAllowed=true,lifecycleAffectedRows=1 } = {}) {
   let mode="shadow";
   let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  let dispatchAllowed=true;
+  let currentApplyAllowed=applyAllowed;
   const calls=[];
+  const envelopeId="11111111-2222-4333-8444-555555555555";
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,
+    tenant_id:null,
+    user_id:null,
+    workspace_id:null,
+    workspace_key:null,
+    brand_key:null,
+    app_key:"platform_orchestration",
+    capability_key:"dynamic_container_canary_promotion",
+    operation_intent:"dynamic_container_canary_promotion",
+    risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",
+    selected_runtime_surface:"auth_host",
+    authority_status:"passed",
+    decision:"ready_for_dispatch",
+    envelope_status:"ready_for_dispatch",
+    dispatch_allowed:dispatchAllowed ? 1 : 0,
+    apply_allowed:currentApplyAllowed ? 1 : 0,
+    approval_required:0,
+    quota_required:1,
+    audit_required:1,
+    readback_required:1,
+    blocking_gap_count:0,
+    execution_status:executionStatus,
+    expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,
+    envelope_sha256:"a".repeat(64),
+    envelope_json:"{}"
+  });
   return {
     calls,
+    envelopeId,
     get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    get executionStatus() { return executionStatus; },
     beginTransaction:async () => calls.push("begin"),
     commit:async () => calls.push("commit"),
     rollback:async () => calls.push("rollback"),
-    query:async (sql) => {
+    query:async (sql,params=[]) => {
       calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [envelopePresent ? [envelopeRow()] : []];
+      }
       if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
         return [[{ ...canaries[0],rollout_mode:mode },canaries[1]]];
       }
@@ -199,38 +244,386 @@ function canaryExecutor() {
         return [{ affectedRows:1 }];
       }
       if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
-        return [[{ ...canaries[0],rollout_mode:mode }]];
+        return [[{ ...canaries[0],rollout_mode:mode,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) {
+          executionStatus="executed";
+          dispatchAllowed=false;
+          currentApplyAllowed=false;
+        }
+        return [{ affectedRows:lifecycleAffectedRows }];
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     }
   };
 }
 
-const canaryDryRunExecutor=canaryExecutor();
+const canaryDryRunExecutor=canaryExecutor({ envelopePresent:false });
 const canaryDryRun=await runContainerCanaryPromotion({ executor:canaryDryRunExecutor,targetCanaryKey:"preview-resolution" });
 assert.equal(canaryDryRun.mode,"dry_run");
+assert.equal(canaryDryRun.enforcementApplied,false);
 assert.equal(canaryDryRunExecutor.updateCount,0);
+assert.equal(canaryDryRunExecutor.envelopeUpdateCount,0);
 assert(!canaryDryRunExecutor.calls.includes("begin"));
+
+const canaryMissingEnvelopeExecutor=canaryExecutor();
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryMissingEnvelopeExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_required" && error.status === 403
+);
+assert.deepEqual(canaryMissingEnvelopeExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryMissingEnvelopeExecutor.updateCount,0);
+
+const canaryApplyDisabledExecutor=canaryExecutor({ applyAllowed:false });
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryApplyDisabledExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    capabilityEnvelopeId:canaryApplyDisabledExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_apply_not_allowed" && error.status === 403
+);
+assert.deepEqual(canaryApplyDisabledExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryApplyDisabledExecutor.updateCount,0);
 
 const canaryWrongConfirmExecutor=canaryExecutor();
 await assert.rejects(
-  runContainerCanaryPromotion({ executor:canaryWrongConfirmExecutor,targetCanaryKey:"preview-resolution",apply:true,confirm:"WRONG" }),
+  runContainerCanaryPromotion({
+    executor:canaryWrongConfirmExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"WRONG",
+    capabilityEnvelopeId:canaryWrongConfirmExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
   error => error.code === "container_canary_confirmation_required" && error.status === 409
 );
 assert.deepEqual(canaryWrongConfirmExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
 assert.equal(canaryWrongConfirmExecutor.updateCount,0);
+assert.equal(canaryWrongConfirmExecutor.envelopeUpdateCount,0);
 
 const canaryApplyExecutor=canaryExecutor();
 const canaryApplied=await runContainerCanaryPromotion({
   executor:canaryApplyExecutor,
   targetCanaryKey:"preview-resolution",
   apply:true,
-  confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION"
+  confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+  capabilityEnvelopeId:canaryApplyExecutor.envelopeId,
+  requireCapabilityEnvelope:true,
+  actor:"test_admin"
 });
 assert.equal(canaryApplied.mode,"apply");
 assert.equal(canaryApplied.readback.rollout_mode,"read_only_canary");
+assert.equal(canaryApplied.capabilityEnvelope.envelopeId,canaryApplyExecutor.envelopeId);
+assert.equal(canaryApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryApplied.enforcementApplied,false);
 assert.equal(canaryApplyExecutor.updateCount,1);
+assert.equal(canaryApplyExecutor.envelopeUpdateCount,1);
+assert.equal(canaryApplyExecutor.executionStatus,"executed");
 assert.deepEqual(canaryApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
+const canaryLifecycleFailureExecutor=canaryExecutor({ lifecycleAffectedRows:0 });
+await assert.rejects(
+  runContainerCanaryPromotion({
+    executor:canaryLifecycleFailureExecutor,
+    targetCanaryKey:"preview-resolution",
+    apply:true,
+    confirm:"PROMOTE_DYNAMIC_CONTAINER_CANARY_PREVIEW_RESOLUTION",
+    capabilityEnvelopeId:canaryLifecycleFailureExecutor.envelopeId,
+    requireCapabilityEnvelope:true
+  }),
+  error => error.code === "capability_resolution_envelope_lifecycle_transition_blocked" && error.status === 403
+);
+assert.equal(canaryLifecycleFailureExecutor.updateCount,1);
+assert.deepEqual(canaryLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+
+const rollbackCanaries=[
+  { canary_key:"rollout-readiness",capability_key:"getContainerAuthorityRolloutReadiness",operation_class:"read_only",rollout_mode:"read_only_canary",status:"active" },
+  { canary_key:"preview-resolution",capability_key:"createContainerContextResolution",operation_class:"read_only",rollout_mode:"shadow",status:"active" }
+];
+const rollbackPlan=buildContainerCanaryRollbackPlan({ canaries:rollbackCanaries,targetCanaryKey:"rollout-readiness",reason:"runtime_canary_not_observed" });
+assert.equal(rollbackPlan.targetMode,"shadow");
+assert.equal(rollbackPlan.currentMode,"read_only_canary");
+assert.equal(rollbackPlan.confirmation,"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW");
+assert.equal(rollbackPlan.enforcementApplied,false);
+assert.throws(
+  () => buildContainerCanaryRollbackPlan({ canaries:rollbackCanaries,targetCanaryKey:"missing" }),
+  error => error.code === "container_canary_not_found" && error.status === 404
+);
+
+function canaryRollbackExecutor({ envelopePresent=true,applyAllowed=true,lifecycleAffectedRows=1 } = {}) {
+  let mode="read_only_canary";
+  let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  let dispatchAllowed=true;
+  let currentApplyAllowed=applyAllowed;
+  const calls=[];
+  const envelopeId="22222222-3333-4444-8555-666666666666";
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,
+    tenant_id:null,
+    user_id:null,
+    workspace_id:null,
+    workspace_key:null,
+    brand_key:null,
+    app_key:"platform_orchestration",
+    capability_key:"dynamic_container_canary_rollback",
+    operation_intent:"dynamic_container_canary_rollback",
+    risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",
+    selected_runtime_surface:"auth_host",
+    authority_status:"passed",
+    decision:"ready_for_dispatch",
+    envelope_status:"ready_for_dispatch",
+    dispatch_allowed:dispatchAllowed ? 1 : 0,
+    apply_allowed:currentApplyAllowed ? 1 : 0,
+    approval_required:0,
+    quota_required:1,
+    audit_required:1,
+    readback_required:1,
+    blocking_gap_count:0,
+    execution_status:executionStatus,
+    expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,
+    envelope_sha256:"b".repeat(64),
+    envelope_json:"{}"
+  });
+  return {
+    calls,
+    envelopeId,
+    get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    get executionStatus() { return executionStatus; },
+    beginTransaction:async () => calls.push("begin"),
+    commit:async () => calls.push("commit"),
+    rollback:async () => calls.push("rollback"),
+    query:async (sql,params=[]) => {
+      calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [envelopePresent ? [envelopeRow()] : []];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode },rollbackCanaries[1]]];
+      }
+      if(sql.startsWith("UPDATE container_shadow_canary_registry")) {
+        mode="shadow";
+        updateCount += 1;
+        return [{ affectedRows:1 }];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) {
+          executionStatus="executed";
+          dispatchAllowed=false;
+          currentApplyAllowed=false;
+        }
+        return [{ affectedRows:lifecycleAffectedRows }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    }
+  };
+}
+
+const canaryRollbackDryRunExecutor=canaryRollbackExecutor({ envelopePresent:false });
+const canaryRollbackDryRun=await runContainerCanaryRollback({
+  executor:canaryRollbackDryRunExecutor,
+  targetCanaryKey:"rollout-readiness",
+  reason:"runtime_canary_not_observed"
+});
+assert.equal(canaryRollbackDryRun.mode,"dry_run");
+assert.equal(canaryRollbackDryRun.plan.targetMode,"shadow");
+assert.equal(canaryRollbackDryRunExecutor.updateCount,0);
+assert(!canaryRollbackDryRunExecutor.calls.includes("begin"));
+
+const canaryRollbackMissingEnvelopeExecutor=canaryRollbackExecutor();
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackMissingEnvelopeExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW"
+  }),
+  error => error.code === "capability_resolution_envelope_required" && error.status === 403
+);
+assert.deepEqual(canaryRollbackMissingEnvelopeExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+assert.equal(canaryRollbackMissingEnvelopeExecutor.updateCount,0);
+
+const canaryRollbackWrongConfirmExecutor=canaryRollbackExecutor();
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackWrongConfirmExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"WRONG",
+    capabilityEnvelopeId:canaryRollbackWrongConfirmExecutor.envelopeId
+  }),
+  error => error.code === "container_canary_rollback_confirmation_required" && error.status === 409
+);
+assert.equal(canaryRollbackWrongConfirmExecutor.updateCount,0);
+assert.equal(canaryRollbackWrongConfirmExecutor.envelopeUpdateCount,0);
+assert.deepEqual(canaryRollbackWrongConfirmExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+
+const canaryRollbackApplyExecutor=canaryRollbackExecutor();
+const canaryRollbackApplied=await runContainerCanaryRollback({
+  executor:canaryRollbackApplyExecutor,
+  targetCanaryKey:"rollout-readiness",
+  apply:true,
+  confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW",
+  capabilityEnvelopeId:canaryRollbackApplyExecutor.envelopeId,
+  reason:"runtime_canary_not_observed",
+  actor:"test_admin"
+});
+assert.equal(canaryRollbackApplied.mode,"apply");
+assert.equal(canaryRollbackApplied.readback.rollout_mode,"shadow");
+assert.equal(canaryRollbackApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryRollbackApplied.enforcementApplied,false);
+assert.equal(canaryRollbackApplyExecutor.updateCount,1);
+assert.equal(canaryRollbackApplyExecutor.envelopeUpdateCount,1);
+assert.deepEqual(canaryRollbackApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
+
+const canaryRollbackLifecycleFailureExecutor=canaryRollbackExecutor({ lifecycleAffectedRows:0 });
+await assert.rejects(
+  runContainerCanaryRollback({
+    executor:canaryRollbackLifecycleFailureExecutor,
+    targetCanaryKey:"rollout-readiness",
+    apply:true,
+    confirm:"ROLLBACK_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_TO_SHADOW",
+    capabilityEnvelopeId:canaryRollbackLifecycleFailureExecutor.envelopeId
+  }),
+  error => error.code === "capability_resolution_envelope_lifecycle_transition_blocked" && error.status === 403
+);
+assert.equal(canaryRollbackLifecycleFailureExecutor.updateCount,1);
+assert.deepEqual(canaryRollbackLifecycleFailureExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","rollback"]);
+
+const closeoutMonitoring=[{
+  canary_key:"rollout-readiness",
+  capability_key:"getContainerAuthorityRolloutReadiness",
+  rollout_mode:"read_only_canary",
+  required_observation_count:100,
+  observation_count:202,
+  success_count:202,
+  failure_count:0,
+  audit_coverage_percent:100,
+  monitoring_code:"ready_for_review"
+}];
+const closeoutPlan=buildContainerCanaryCloseoutPlan({
+  canaries:rollbackCanaries,
+  monitoringRows:closeoutMonitoring,
+  targetCanaryKey:"rollout-readiness"
+});
+assert.equal(closeoutPlan.closeoutStatus,"accepted");
+assert.equal(closeoutPlan.targetMode,"shadow");
+assert.equal(closeoutPlan.confirmation,"ACCEPT_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_CLOSEOUT");
+assert.equal(closeoutPlan.evidence.observationCount,202);
+assert.equal(closeoutPlan.enforcementApplied,false);
+assert.throws(
+  () => buildContainerCanaryCloseoutPlan({ canaries:rollbackCanaries,monitoringRows:[{ ...closeoutMonitoring[0],failure_count:1 }],targetCanaryKey:"rollout-readiness" }),
+  error => error.code === "container_canary_closeout_failures_present" && error.status === 409
+);
+assert.throws(
+  () => buildContainerCanaryCloseoutPlan({ canaries:rollbackCanaries,monitoringRows:[{ ...closeoutMonitoring[0],observation_count:99,success_count:99 }],targetCanaryKey:"rollout-readiness" }),
+  error => error.code === "container_canary_closeout_observations_incomplete" && error.status === 409
+);
+
+function canaryCloseoutExecutor({ lifecycleAffectedRows=1 } = {}) {
+  let mode="read_only_canary";
+  let closeoutStatus=null;
+  let updateCount=0;
+  let envelopeUpdateCount=0;
+  let executionStatus="not_executed";
+  const envelopeId="33333333-4444-4555-8666-777777777777";
+  const calls=[];
+  const envelopeRow=() => ({
+    envelope_id:envelopeId,tenant_id:null,user_id:null,workspace_id:null,workspace_key:null,brand_key:null,
+    app_key:"platform_orchestration",capability_key:"dynamic_container_canary_closeout",
+    operation_intent:"dynamic_container_canary_closeout",risk_class:"high",
+    selected_source_tier:"platform_managed_fallback",selected_runtime_surface:"auth_host",
+    authority_status:"passed",decision:"ready_for_dispatch",envelope_status:"ready_for_dispatch",
+    dispatch_allowed:1,apply_allowed:1,approval_required:0,quota_required:1,audit_required:1,readback_required:1,
+    blocking_gap_count:0,execution_status:executionStatus,expires_at:"2999-01-01T00:00:00.000Z",
+    secrets_included:0,envelope_sha256:"c".repeat(64),envelope_json:"{}"
+  });
+  return {
+    calls,envelopeId,
+    get updateCount() { return updateCount; },
+    get envelopeUpdateCount() { return envelopeUpdateCount; },
+    beginTransaction:async () => calls.push("begin"),
+    commit:async () => calls.push("commit"),
+    rollback:async () => calls.push("rollback"),
+    query:async (sql,params=[]) => {
+      calls.push(sql);
+      if(sql.includes("FROM capability_resolution_envelope_ledger") && sql.includes("WHERE envelope_id = ?")) {
+        assert.equal(params[0],envelopeId);
+        return [[envelopeRow()]];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE status='active'")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode },rollbackCanaries[1]]];
+      }
+      if(sql.includes("FROM v_container_canary_monitoring_summary")) return [closeoutMonitoring];
+      if(sql.startsWith("UPDATE container_shadow_canary_registry")) {
+        mode="shadow";
+        closeoutStatus="accepted";
+        updateCount += 1;
+        return [{ affectedRows:1 }];
+      }
+      if(sql.includes("FROM container_shadow_canary_registry WHERE canary_key=?")) {
+        return [[{ ...rollbackCanaries[0],rollout_mode:mode,closeout_status:closeoutStatus,metadata_json:"{}" }]];
+      }
+      if(sql.startsWith("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdateCount += 1;
+        if(lifecycleAffectedRows === 1) executionStatus="executed";
+        return [{ affectedRows:lifecycleAffectedRows }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    }
+  };
+}
+
+const canaryCloseoutDryRunExecutor=canaryCloseoutExecutor();
+const canaryCloseoutDryRun=await runContainerCanaryCloseout({ executor:canaryCloseoutDryRunExecutor,targetCanaryKey:"rollout-readiness" });
+assert.equal(canaryCloseoutDryRun.mode,"dry_run");
+assert.equal(canaryCloseoutDryRun.plan.closeoutStatus,"accepted");
+assert.equal(canaryCloseoutDryRunExecutor.updateCount,0);
+
+const canaryCloseoutWrongConfirmExecutor=canaryCloseoutExecutor();
+await assert.rejects(
+  runContainerCanaryCloseout({
+    executor:canaryCloseoutWrongConfirmExecutor,targetCanaryKey:"rollout-readiness",apply:true,
+    confirm:"WRONG",capabilityEnvelopeId:canaryCloseoutWrongConfirmExecutor.envelopeId
+  }),
+  error => error.code === "container_canary_closeout_confirmation_required" && error.status === 409
+);
+assert.equal(canaryCloseoutWrongConfirmExecutor.updateCount,0);
+
+const canaryCloseoutApplyExecutor=canaryCloseoutExecutor();
+const canaryCloseoutApplied=await runContainerCanaryCloseout({
+  executor:canaryCloseoutApplyExecutor,targetCanaryKey:"rollout-readiness",apply:true,
+  confirm:"ACCEPT_DYNAMIC_CONTAINER_CANARY_ROLLOUT_READINESS_CLOSEOUT",
+  capabilityEnvelopeId:canaryCloseoutApplyExecutor.envelopeId,actor:"test_admin"
+});
+assert.equal(canaryCloseoutApplied.mode,"apply");
+assert.equal(canaryCloseoutApplied.readback.rollout_mode,"shadow");
+assert.equal(canaryCloseoutApplied.readback.closeout_status,"accepted");
+assert.equal(canaryCloseoutApplied.capabilityEnvelope.executionStatus,"executed");
+assert.equal(canaryCloseoutApplyExecutor.updateCount,1);
+assert.equal(canaryCloseoutApplyExecutor.envelopeUpdateCount,1);
+assert.deepEqual(canaryCloseoutApplyExecutor.calls.filter(value => ["begin","commit","rollback"].includes(value)),["begin","commit"]);
 
 const enforcedReady={
   rolloutMode:"enforced",
@@ -257,6 +650,12 @@ assert.equal(evaluateContainerBypassRetirementReadiness({ rolloutReadiness:enfor
 const migration319 = readFileSync(new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql",import.meta.url),"utf8");
 const migration320 = readFileSync(new URL("./migrations/320_sprint69_dynamic_container_authority_runtime_contracts.sql",import.meta.url),"utf8");
 const openapi = readFileSync(new URL("./openapi/container-authority.yaml",import.meta.url),"utf8");
+const rootOpenapi = readFileSync(new URL("./openapi.yaml",import.meta.url),"utf8");
+const routes = readFileSync(new URL("./routes/dynamicContainerAuthorityRoutes.js",import.meta.url),"utf8");
+const canaryMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_promotion_tool.sql",import.meta.url),"utf8");
+const canaryObservabilityMigration = readFileSync(new URL("./migrations/20260715_dynamic_container_canary_runtime_observability.sql",import.meta.url),"utf8");
+const canaryCloseoutMigration = readFileSync(new URL("./migrations/20260720_dynamic_container_canary_closeout_tool.sql",import.meta.url),"utf8");
+const canaryRuntime = readFileSync(new URL("./dynamicContainerCanaryRuntime.js",import.meta.url),"utf8");
 const repository = readFileSync(new URL("./dynamicContainerAuthorityRepository.js",import.meta.url),"utf8");
 const projection = readFileSync(new URL("./dynamicContainerProjectionService.js",import.meta.url),"utf8");
 
@@ -282,4 +681,70 @@ assert.match(projection,/runtime_role,runtime_enforced/);
 assert.match(projection,/'context_only',0/);
 assert.doesNotMatch(projection,/authority_status='authoritative'/);
 
-console.log("dynamic container rollout safety, rollback, query-index, and graph projection contracts passed");
+assert.match(routes,/router\.post\("\/admin\/container-authority\/canary-promotions"/);
+assert.match(routes,/runContainerCanaryPromotion/);
+assert.match(routes,/capabilityEnvelopeId:req\.body\?\.capabilityEnvelopeId/);
+assert.match(openapi,/adminContainerAuthorityCanaryPromotions:/);
+assert.match(openapi,/operationId: createAdminContainerAuthorityCanaryPromotion/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_promotion/);
+assert.match(openapi,/x-openai-isConsequential: true/);
+assert.match(openapi,/CanaryPromotionRequest:/);
+assert.match(openapi,/CanaryPromotionResponse:/);
+assert.match(rootOpenapi,/\/admin\/container-authority\/canary-promotions:/);
+assert.match(rootOpenapi,/adminContainerAuthorityCanaryPromotions/);
+assert.match(canaryMigration,/dynamic_container_canary_promotion_policy_v1/);
+assert.match(canaryMigration,/transactional_envelope_consumption_required/);
+assert.match(canaryMigration,/read_only_canary_only/);
+assert.match(canaryMigration,/global_rollout_policy_change_forbidden/);
+assert.match(canaryMigration,/'dynamic_container_canary_promotion'/);
+assert.match(canaryMigration,/'\/admin\/container-authority\/canary-promotions'/);
+assert.match(canaryMigration,/no_provider_call/);
+assert.match(canaryMigration,/no_external_write/);
+assert.match(canaryMigration,/secrets_included=false/);
+
+assert.match(routes,/router\.post\("\/admin\/container-authority\/canary-rollbacks"/);
+assert.match(routes,/router\.get\("\/container-authority\/canary-monitoring"/);
+assert.match(routes,/executeObservedReadOnlyCanary/);
+assert.match(routes,/container_authority_rollout_readiness_v1/);
+assert.match(routes,/getContainerAuthorityRolloutReadiness/);
+assert.match(canaryRuntime,/INSERT INTO container_canary_observations/);
+assert.match(canaryRuntime,/read_only_canary/);
+assert.match(canaryRuntime,/responseSha256/);
+assert.match(canaryRuntime,/providerCalls:false/);
+assert.match(openapi,/adminContainerAuthorityCanaryRollbacks:/);
+assert.match(openapi,/containerAuthorityCanaryMonitoring:/);
+assert.match(openapi,/CanaryRollbackRequest:/);
+assert.match(openapi,/CanaryRollbackResponse:/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_rollback/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_monitoring/);
+assert.match(rootOpenapi,/\/admin\/container-authority\/canary-rollbacks:/);
+assert.match(rootOpenapi,/\/container-authority\/canary-monitoring:/);
+assert.match(canaryObservabilityMigration,/CREATE TABLE IF NOT EXISTS `container_canary_observations`/);
+assert.match(canaryObservabilityMigration,/CREATE OR REPLACE VIEW `v_container_canary_monitoring_summary`/);
+assert.match(canaryObservabilityMigration,/dynamic_container_canary_rollback_policy_v1/);
+assert.match(canaryObservabilityMigration,/rollback_to_shadow_only/);
+assert.match(canaryObservabilityMigration,/historical_evidence_preserved/);
+assert.match(canaryObservabilityMigration,/no_provider_call/);
+assert.match(canaryObservabilityMigration,/no_external_write/);
+assert.match(canaryObservabilityMigration,/secrets_included=false/);
+
+assert.match(routes,/router\.post\("\/admin\/container-authority\/canary-closeouts"/);
+assert.match(routes,/runContainerCanaryCloseout/);
+assert.match(openapi,/adminContainerAuthorityCanaryCloseouts:/);
+assert.match(openapi,/operationId: createAdminContainerAuthorityCanaryCloseout/);
+assert.match(openapi,/x-registry-tool-key: dynamic_container_canary_closeout/);
+assert.match(openapi,/CanaryCloseoutRequest:/);
+assert.match(openapi,/CanaryCloseoutResponse:/);
+assert.match(rootOpenapi,/\/admin\/container-authority\/canary-closeouts:/);
+assert.match(rootOpenapi,/adminContainerAuthorityCanaryCloseouts/);
+assert.match(canaryCloseoutMigration,/dynamic_container_canary_closeout_policy_v1/);
+assert.match(canaryCloseoutMigration,/minimum_observation_count/);
+assert.match(canaryCloseoutMigration,/accepted_return_to_shadow_only/);
+assert.match(canaryCloseoutMigration,/transactional_envelope_consumption_required/);
+assert.match(canaryCloseoutMigration,/'dynamic_container_canary_closeout'/);
+assert.match(canaryCloseoutMigration,/'\/admin\/container-authority\/canary-closeouts'/);
+assert.match(canaryCloseoutMigration,/no_provider_call/);
+assert.match(canaryCloseoutMigration,/no_external_write/);
+assert.match(canaryCloseoutMigration,/secrets_included=false/);
+
+console.log("dynamic container rollout safety, rollback, query-index, graph projection, canary promotion, closeout, and runtime observation contracts passed");

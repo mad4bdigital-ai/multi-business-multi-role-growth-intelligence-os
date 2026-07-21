@@ -122,5 +122,10 @@ assert.match(routes, /toolKey === "sql_cache_controlled_load_test"/);
 assert.match(routes, /isolated_in_memory/);
 assert.match(alerts, /source: "sql_cache_runtime"/);
 assert.match(alerts, /sql_cache\.review_runtime/);
+assert.doesNotMatch(
+  alerts,
+  /sql_cache_runtime:\s*1/,
+  "synthetic singleton runtime diagnostics must not be treated as a SQL row-cap source"
+);
 
 console.log("SQL cache operational diagnostics tests passed.");

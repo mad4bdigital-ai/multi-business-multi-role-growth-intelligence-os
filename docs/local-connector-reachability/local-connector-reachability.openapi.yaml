@@ -1,0 +1,201 @@
+openapi: 3.1.0
+info:
+  title: Local Connector Reachability Recovery API
+  version: 0.1.0
+  summary: Contract for canonical device selection, reachability readback, heartbeat, probes, and gated recovery.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Local Connector Devices
+  - name: Local Connector Reachability
+  - name: Local Connector Recovery
+paths:
+  /local-connector/devices:
+    get:
+      tags: [Local Connector Devices]
+      summary: List canonical local connector devices for the caller scope.
+      operationId: listLocalConnectorDevices
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': { description: Canonical devices visible to the caller, content: { application/json: { schema: { $ref: '#/components/schemas/DeviceListResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/devices/{canonicalDeviceId}/reachability:
+    get:
+      tags: [Local Connector Reachability]
+      summary: Read reachability evidence for one selected canonical device.
+      operationId: getLocalConnectorReachability
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CanonicalDeviceId'
+      responses:
+        '200': { description: Current reachability evidence and classification, content: { application/json: { schema: { $ref: '#/components/schemas/ReachabilityResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/devices/{canonicalDeviceId}/recovery-plan:
+    post:
+      tags: [Local Connector Recovery]
+      summary: Create a no-execution recovery plan preview for one canonical device.
+      operationId: createLocalConnectorRecoveryPlan
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CanonicalDeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRecoveryPlanRequest' }
+      responses:
+        '201': { description: Recovery plan preview created, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryPlanResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+  /local-connector/recovery-actions:
+    post:
+      tags: [Local Connector Recovery]
+      summary: Execute an approved recovery action and return readback requirements.
+      operationId: executeLocalConnectorRecoveryAction
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExecuteRecoveryActionRequest' }
+      responses:
+        '202': { description: Recovery action accepted and verification may still be pending, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryActionAcceptedResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    TenantId:
+      name: tenant_id
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    UserId:
+      name: user_id
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    CanonicalDeviceId:
+      name: canonicalDeviceId
+      in: path
+      required: true
+      schema: { type: string, minLength: 3, maxLength: 191 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 191 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, maxLength: 512 }
+  responses:
+    ValidationError: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unauthorized: { description: Missing or invalid authentication, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Caller is authenticated but not authorized, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Resource not found in caller scope, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: State or authority conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    RateLimited: { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    DependencyUnavailable: { description: Required dependency unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+    DeviceListResponse:
+      type: object
+      required: [items, page, secrets_included]
+      properties:
+        items: { type: array, items: { type: object } }
+        page: { type: object, required: [hasMore], properties: { nextCursor: { type: [string, 'null'] }, hasMore: { type: boolean } } }
+        secrets_included: { type: boolean, const: false }
+    ReachabilityResponse:
+      type: object
+      required: [ok, target_selection, route_lifecycle, health_summary, secrets_included]
+      properties:
+        ok: { type: boolean }
+        target_selection: { type: object }
+        route_lifecycle: { type: object }
+        health_summary: { type: object }
+        recovery_recommendation: { type: object }
+        secrets_included: { type: boolean, const: false }
+    CreateRecoveryPlanRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, requested_recovery_mode]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        requested_recovery_mode: { type: string, enum: [preview, relink, reinstall, replace_device, auto_install] }
+    RecoveryPlanResponse:
+      type: object
+      required: [ok, plan, secrets_included]
+      properties:
+        ok: { type: boolean }
+        plan: { type: object }
+        secrets_included: { type: boolean, const: false }
+    ExecuteRecoveryActionRequest:
+      type: object
+      required: [tenant_id, user_id, canonical_device_id, recovery_plan_id, action]
+      properties:
+        tenant_id: { type: string, minLength: 1, maxLength: 64 }
+        user_id: { type: string, minLength: 1, maxLength: 64 }
+        canonical_device_id: { type: string, minLength: 3, maxLength: 191 }
+        recovery_plan_id: { type: string, minLength: 3, maxLength: 64 }
+        action: { type: string, enum: [start_relink, request_installer_link, mark_installed_for_probe, retry_readback] }
+    RecoveryActionAcceptedResponse:
+      type: object
+      required: [ok, accepted, verification, secrets_included]
+      properties:
+        ok: { type: boolean }
+        accepted: { type: boolean }
+        verification:
+          type: object
+          required: [same_cycle_readback_complete, recovered]
+          properties:
+            same_cycle_readback_complete: { type: boolean }
+            recovered: { type: boolean }
+        secrets_included: { type: boolean, const: false }

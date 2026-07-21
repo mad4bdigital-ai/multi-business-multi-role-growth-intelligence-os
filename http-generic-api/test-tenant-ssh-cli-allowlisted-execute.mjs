@@ -37,6 +37,12 @@ assert(routes.includes('source: "tenant_ssh_cli_allowlisted_execute"'), "execute
 assert(routes.includes('secrets_included: false'), "execute route must never return secrets");
 assert(!routes.includes('exec('), "execute route must not use shell exec");
 assert(routes.includes('const commandKey = String(req.body?.command_key || "").trim();'), "execute route must accept only command_key, not freeform command text");
+assert(routes.includes("assertAllowlistedArgvIsTypedAndLiteral"), "execute route must validate registered argv before approval or execution");
+assert(routes.includes("SHELL_ARG_METACHARACTER"), "execute route must reject shell metacharacter drift in registered argv");
+assert(routes.includes("ssh_cli_allowlist_argv_metacharacter"), "execute route must produce a structured argv metacharacter error");
+assert(routes.includes('permission: "file_read"'), "execute route must classify file-read commands separately");
+assert(routes.includes('permission: "shell_read"'), "execute route must classify shell-read commands separately");
+assert(routes.includes("permission: command.permission"), "dry-run plan must expose command permission metadata");
 assert(!migration.includes('"command"'), "execute migration must not define a freeform command field");
 
 for (const commandKey of ['pwd', 'whoami', 'uname_s', 'uptime']) {
@@ -46,15 +52,21 @@ for (const commandKey of ['pwd', 'whoami', 'uname_s', 'uptime']) {
 assert(migration.includes('tenant_ssh_cli_allowlisted_execute'), "migration must register tenant_ssh_cli_allowlisted_execute");
 assert(migration.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute'), "migration must use explicit execute path");
 assert(migration.includes('approval_required'), "migration tags must disclose approval requirement");
+assert(migration.includes('typed_command_key'), "migration tags must disclose typed command selectors");
+assert(migration.includes('literal_argv'), "migration tags must disclose literal argv execution");
+assert(migration.includes('no_shell_metacharacters'), "migration tags must disclose shell metacharacter rejection");
 assert(migration.includes('no_freeform_command'), "migration tags must disclose no freeform command");
 assert(migration.includes('uses_ssh_auth'), "migration tags must disclose SSH auth");
 assert(migration.includes('opens_network'), "migration tags must disclose network access");
 assert(migration.includes('executes_command'), "migration tags must disclose command execution");
 assert(migration.includes('output_capped'), "migration tags must disclose output cap");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
+assert(migration.includes('file_read_permission'), "migration tags must disclose file read permission class");
+assert(migration.includes('shell_read_permission'), "migration tags must disclose shell read permission class");
 assert(runner.includes('"202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql"'), "governed migration runner must allowlist migration 202");
 assert(openapi.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute'), "OpenAPI must document SSH CLI execute endpoint");
 assert(openapi.includes('tenantSshCliAllowlistedExecute'), "OpenAPI must expose stable operationId for SSH CLI execute");
-assert(openapi.includes('Rejects freeform commands, caps output, uses a bounded timeout'), "OpenAPI must document execute constraints");
+assert(openapi.includes('Requires a typed command_key, rejects freeform commands and shell metacharacter argv drift'), "OpenAPI must document typed command and argv constraints");
+assert(openapi.includes('Typed allowlisted command selector'), "OpenAPI must describe command_key as a typed selector");
 
 console.log("Tenant SSH CLI allowlisted execute guard passed");

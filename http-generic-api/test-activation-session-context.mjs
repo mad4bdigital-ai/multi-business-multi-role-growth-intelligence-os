@@ -115,7 +115,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(source.includes("session_status = 'completed'"), true);
   assert.equal(source.includes("deferred_until_first_turn"), true);
   assert.equal(source.includes("archive_allocation: \"lazy_on_first_turn\""), true);
-  assert.equal(source.includes("VALUES (?, ?, ?, 'gpt_action', 'active', ?, ?)"), true);
+  assert.equal(source.includes("VALUES (?, ?, ?, ?, ?, 'gpt_action', 'active', ?, ?)"), true);
   assert.equal(source.includes("ensureSessionArchive(pool"), false);
   assert.equal(source.includes("close_previous_sessions: asBoolean(req.query.close_previous_sessions)"), true);
   assert.equal(source.includes("conversation_memory: conversationMemory"), true);
@@ -148,6 +148,9 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(source.includes("NULL AS activation_prompt"), true);
   assert.equal(source.includes("NULL AS conversation_context_ref"), true);
   assert.equal(source.includes("resolvePlatformGraphMemory"), true);
+  assert.equal(source.includes("loadTenantGptActivationContext"), true);
+  assert.equal(source.includes("activation_context: activationContext"), true);
+  assert.equal(source.includes("accessJti = req.auth?.claims?.jti"), true);
 }
 
 {
@@ -206,12 +209,13 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [{ system_id: "system-1", tenant_id: "tenant-a", system_key: "wp", display_name: "WordPress", provider_family: "wordpress", connector_family: "wordpress_rest", auth_type: "oauth", service_mode: "managed", status: "active" }] };
     if (sql.includes("FROM `installations`")) return { ok: true, rows: [{ installation_id: "install-1", system_id: "system-1", tenant_id: "tenant-a", scope: "posts.read,posts.write", status: "active", expires_at: null }] };
     if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "wp_publish", tenant_id: "tenant-a", installation_id: "install-1", granted: 1 }] };
+    if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [{ access_jti: "access-1", user_id: "user-a", tenant_id: "tenant-a", activation_context_json: JSON.stringify({ purpose: "tenant_activation", activation_mode: "managed", workspace_name: "Brand A Workspace", secrets_included: false }), created_at: "2026-07-09T00:00:00.000Z", updated_at: "2026-07-09T00:00:00.000Z", expires_at: "2026-07-16T00:00:00.000Z" }] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "wp_publish", action_title: "Publish", action_class: "content", connector_family: "wordpress_rest", runtime_capability_class: "cms_write", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner,growth_operator", allowed_governance_levels: "tenant" }] };
     return { ok: false, rows: [], error: { code: "unexpected_query", message: sql } };
   };
 
   const access = await buildActivationAuthorizedAccess(
-    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a", claims: { jti: "access-1" } }, query: {} },
     { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
     { query }
   );
@@ -231,6 +235,9 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(access.activation_policy.do_not_infer_access_from_global_counts, true);
   assert.equal(access.authorized.registered_surfaces.length, 1);
   assert.equal(access.authorized.registered_surfaces[0].surface_key, "workspace_registry");
+  assert.equal(access.authorized.activation_context.available, true);
+  assert.equal(access.authorized.activation_context.context.activation_mode, "managed");
+  assert.equal(access.authorized.activation_context.context.workspace_name, "Brand A Workspace");
   assert.equal(JSON.stringify(access.authorized.registered_surfaces).includes("credential_ref"), false);
   assert.equal(JSON.stringify(access.authorized.registered_surfaces).includes("config_json"), false);
   assert.equal(access.secrets_included, false);
@@ -246,6 +253,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [] };
     if (sql.includes("FROM `admin_platform_endpoint_tools`")) return { ok: true, rows: [{ tool_key: "release_readiness", display_name: "Release Readiness", http_method: "POST", http_path: "/gpt/tools/call", tags: "admin,readiness" }] };
+    if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [] };
     return { ok: true, rows: [] };
   };
   const access = await buildActivationAuthorizedAccess(
@@ -256,6 +264,61 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(access.scope_resolution, "platform_admin_all_with_optional_subject_filter");
   assert.equal(access.counts.admin_tools, 1);
   assert.equal(access.authorized.admin_tools[0].tool_key, "release_readiness");
+}
+
+{
+  const runConnectedAppAuthGapCase = async (connectedAppRows) => {
+    const query = async (sql) => {
+      if (sql.includes("FROM `activation_authorized_surface_registry`")) {
+        return {
+          ok: true,
+          rows: [{
+            surface_key: "connected_app_connections",
+            display_name: "Connected App Connections",
+            source_table: "v_activation_connected_app_connections",
+            result_key_column: "app_key",
+            result_label_column: "app_key",
+            tenant_column: "tenant_id",
+            user_column: null,
+            status_column: "connection_status",
+            active_status_values_json: JSON.stringify(["active"]),
+            result_columns_json: JSON.stringify(["tenant_id", "app_key", "connection_status"]),
+            include_for_admin: 1,
+            include_for_tenant: 1,
+            max_rows: 5,
+            sort_order: 10,
+            status: "active"
+          }]
+        };
+      }
+      if (sql.includes("FROM `v_activation_connected_app_connections`")) return { ok: true, rows: connectedAppRows };
+      if (sql.includes("FROM `memberships`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "owner", status: "active" }] };
+      if (sql.includes("FROM `role_assignments`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [{ workspace_id: "workspace-1", tenant_id: "tenant-a", workspace_key: "tenant-a", display_name: "Tenant A", workspace_type: "tenant", bootstrap_status: "ready" }] };
+      if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `installations`")) return { ok: true, rows: [] };
+      if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "tenant_status", tenant_id: "tenant-a", installation_id: null, granted: 1 }] };
+      if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "tenant_status", action_title: "Tenant Status", action_class: "read", connector_family: null, runtime_capability_class: "tenant_read", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner", allowed_governance_levels: "tenant" }] };
+      if (sql.includes("FROM `tenant_gpt_activation_contexts`")) return { ok: true, rows: [] };
+      return { ok: true, rows: [] };
+    };
+
+    return buildActivationAuthorizedAccess(
+      { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+      { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
+      { query }
+    );
+  };
+
+  const withConnectedApp = await runConnectedAppAuthGapCase([
+    { tenant_id: "tenant-a", app_key: "tenant_gpt", connection_status: "active" }
+  ]);
+  assert.equal(withConnectedApp.counts.connected_systems, 0);
+  assert.equal(withConnectedApp.auth_gaps.includes("no_visible_connected_systems"), false);
+  assert.equal(withConnectedApp.authorized.registered_surfaces[0].surface_key, "connected_app_connections");
+
+  const withoutAnyConnection = await runConnectedAppAuthGapCase([]);
+  assert.equal(withoutAnyConnection.auth_gaps.includes("no_visible_connected_systems"), true);
 }
 
 console.log("activation session context tests passed");

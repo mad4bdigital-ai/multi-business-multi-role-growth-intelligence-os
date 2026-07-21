@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
+  MUTATION_POLICY_REQUIREMENT,
   classifyMutationPolicyRequirement,
+  classifyMutationPolicyRequirementEnum,
   resolveGptToolInvocationMutationRequirement,
   hasDeclaredMutationPolicy,
   evaluateRepositoryMutationPreflight,
@@ -40,6 +42,9 @@ const emptyPolicyDeps = {
 assert.deepEqual(classifyMutationPolicyRequirement({ method: "GET" }), { required: false, classification: "read_only_http_method" });
 assert.deepEqual(classifyMutationPolicyRequirement({ method: "POST", tags: ["read_only"] }), { required: false, classification: "read_only_tag" });
 assert.deepEqual(classifyMutationPolicyRequirement({ method: "POST", tags: ["mutation"] }), { required: true, classification: "mutation_tag" });
+assert.equal(classifyMutationPolicyRequirementEnum({ method: "GET" }).requirement, MUTATION_POLICY_REQUIREMENT.NOT_REQUIRED);
+assert.equal(classifyMutationPolicyRequirementEnum({ method: "POST", tags: ["mutation"] }).requirement, MUTATION_POLICY_REQUIREMENT.REQUIRED);
+assert.equal(classifyMutationPolicyRequirementEnum({ method: "TRACE" }).requirement, MUTATION_POLICY_REQUIREMENT.UNCLASSIFIED);
 assert.equal(hasDeclaredMutationPolicy({ tags: ["mutation", "capability_envelope", "readback"] }), true);
 assert.equal(hasDeclaredMutationPolicy({ tags: ["mutation"] }), false);
 
@@ -208,7 +213,15 @@ const classifiedAppActions = {
   slack: { list_channels: false, read_channel: false, list_users: false, send_message: true, upload_file: true },
   mcp: { tools_list: false, tools_call: true },
   makecom: { list_scenarios: false, get_scenario: false, trigger_webhook: true, run_scenario: true },
-  n8n: { list_workflows: false, get_workflow: false, list_executions: false, trigger_webhook: true, execute_workflow: true },
+  n8n: {
+    list_workflows: false,
+    get_workflow: false,
+    list_executions: false,
+    trigger_webhook: true,
+    execute_workflow: true,
+    activate_workflow: true,
+    deactivate_workflow: true,
+  },
   makecom_mcp: { mcp_initialize: false, mcp_tools_list: false, mcp_tools_call: true },
   wordpress_rest: {
     "wordpress_rest.validate_connection": false,

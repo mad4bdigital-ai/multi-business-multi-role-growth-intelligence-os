@@ -40,6 +40,24 @@ The foundation adds:
 
 Compatibility views remain available during cutover. Migration 314 backfills the canonical graph from current live registries without deleting or rewriting legacy authority rows.
 
+## Virtual governed tools
+
+Migrations `20260717_virtual_tool_capability_projection.sql` and `20260717_virtual_tool_readback_readiness.sql` project active `platform_tool_dispatch_bindings` into the canonical assurance graph. Tool names and aliases are provenance and export descriptors only; they never create authority.
+
+The projection resolves one canonical capability identity, operation class, risk class, and exposure scope per virtual tool. Missing or conflicting identity, scope, operation semantics, readback policy, or source ownership becomes persistent typed debt and fails closed. Virtual Admin and Admin CLI surfaces cannot be projected to Tenant scope.
+
+State-changing virtual capabilities require resource authority, audit evidence, and an explicit readback contract. Shadow readback readiness is separate from generic certification, and every projected capability remains `apply_allowed=0` until certification plus shadow/canary evidence authorize promotion.
+
+Readback contract selection is adapter-first. Resolve the canonical `platform_resource_adapters.adapter_key` before filtering `platform_capability_readback_contracts`; app keys, provider keys, resource types, and runtime surfaces are selectors rather than canonical adapter identities. An explicit contract bound to another adapter, or multiple equally ranked current contracts, must return a typed fail-closed mismatch or ambiguity instead of a false missing-contract result.
+
+Bounded mutation atomicity modes must classify consistently before aliases are aggregated into a canonical capability. `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` are state-changing. Unclassified or conflicting mutation semantics remain fail-closed debt. Tool-catalog tags accept arrays, JSON-array strings, and legacy CSV only after deterministic normalization.
+
+Capability-export aliases derived from virtual-tool bindings remain `shadow` until the canonical capability is certified and explicitly promoted. Runtime Admin tool catalogs and dispatch bindings are separate authorities and remain unchanged. Projection preview must report no active Admin capability export while the canonical manifest is blocked, and Tenant exports must remain absent.
+
+The `github_file_patch_apply` shadow-certification stage is intentionally narrower than runtime-authority mutation. It verifies consumed smoke envelopes and branch-scoped resource authority, activates the canonical readback adapter, records acknowledgement and same-cycle verification evidence, certifies the current readback contract, and preserves the pre-existing specialized runtime-certification snapshot unchanged. Active target exports, Tenant authority, and protected-branch writes remain outside this stage and require separately governed decisions.
+
+`platformVirtualToolCapabilityReconciler.js` maintains the projection, source links, shadow readback contracts, and debt inside the existing capability-assurance transaction. It performs no provider call, credential payload read, external write, or secret return.
+
 ## Readiness vector
 
 `v_platform_capability_readiness_vector` reports independent dimensions instead of a single misleading score:

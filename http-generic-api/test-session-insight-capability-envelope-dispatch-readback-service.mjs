@@ -4,6 +4,8 @@ import {
   listSessionInsightCapabilityEnvelopeDispatchReadbacks,
 } from "./sessionInsightCapabilityEnvelopeDispatchReadbackService.js";
 
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list
+
 function makePool() {
   const state = {
     calls: [],
@@ -153,6 +155,7 @@ function makePool() {
 {
   const pool = makePool();
   await createSessionInsightCapabilityEnvelopeDispatchReadback({ pool, input: { approval_decision_id: "approval_decision_1" } });
+  const listCallStart = pool.state.calls.length;
   const result = await listSessionInsightCapabilityEnvelopeDispatchReadbacks({ pool, filters: { limit: 5 } });
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
@@ -164,6 +167,11 @@ function makePool() {
   assert.equal(result.dispatch_readback_policy.ready_for_adapter_execution_gate, true);
   assert.equal(result.dispatch_readback_policy.adapter_apply_executed, false);
   assert.equal(result.dispatch_readback_policy.secrets_included, false);
+  assert.equal(
+    pool.state.calls.slice(listCallStart).every(({ sql }) => String(sql).trimStart().startsWith("SELECT")),
+    true,
+    "capability-envelope dispatch-readback list read action must execute SELECT statements only"
+  );
 }
 
 {

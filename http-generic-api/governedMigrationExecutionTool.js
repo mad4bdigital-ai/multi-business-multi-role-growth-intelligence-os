@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -29,10 +30,7 @@ export function governedMigrationApplyConfirmation(migration = "") {
 }
 
 export function splitGovernedMigrationStatements(sql = "") {
-  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
-  const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
-  const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
-  return String(sql || "").split(statementBoundary).map((statement) => statement.trim()).filter(Boolean);
+  return splitMigrationSqlStatements(sql);
 }
 
 function normalizeInput(input = {}) {
@@ -172,6 +170,49 @@ function runnerFailureDetails(error, inspection) {
   };
 }
 
+function parseRunnerErrorPayload(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const candidates = [raw];
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(raw.slice(firstBrace, lastBrace + 1));
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch {
+    }
+  }
+  return null;
+}
+
+function classifyRunnerFailure(error, inspection) {
+  const payload = parseRunnerErrorPayload(error?.stderr) || parseRunnerErrorPayload(error?.stdout);
+  const runnerMessage = String(payload?.error || payload?.message || error?.message || "").trim();
+  const authorizationMatch = runnerMessage.match(
+    /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i
+  );
+  if (!authorizationMatch) return null;
+  return {
+    code: "governed_migration_authorization_required",
+    status: 409,
+    message: "Governed migration authorization is required before dry-run or apply.",
+    details: {
+      migration: inspection.migration,
+      runner_migration: authorizationMatch[1] || inspection.migration,
+      execution_mode: inspection.mode,
+      authorization_required: true,
+      authorization_reason: authorizationMatch[2] || "migration_not_authorized",
+      next_step: "run governed_migration_authorization_bootstrap for the checksum-bound migration before governed_migration_execute",
+      runner_error_message: sanitizeRunnerDiagnostic(runnerMessage, 1000) || null,
+      secrets_included: false,
+    },
+  };
+}
+
 function validateRunnerReadback(result, inspection) {
   if (!result || result.ok !== true) {
     throw toolError("governed_migration_runner_blocked", "Governed migration runner did not return a successful result.", 409, result || undefined);
@@ -223,6 +264,10 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   const runnerPath = deps.runnerPath || DEFAULT_RUNNER_PATH;
   const args = [runnerPath, `--migration=${inspection.migration}`, inspection.mode === "apply" ? "--apply" : "--dry-run"];
   if (inspection.mode === "apply") args.push(`--confirm=${inspection.required_confirmation}`);
+  const approvedCapabilityEnvelopeId = capability?.envelope_id || inspection.capabilityEnvelopeId || "";
+  if (inspection.mode === "apply" && approvedCapabilityEnvelopeId) {
+    args.push(`--capability-envelope-id=${approvedCapabilityEnvelopeId}`);
+  }
   const execute = deps.execFile || execFileAsync;
   let execution;
   try {
@@ -233,6 +278,10 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
       windowsHide: true,
     });
   } catch (error) {
+    const classified = classifyRunnerFailure(error, inspection);
+    if (classified) {
+      throw toolError(classified.code, classified.message, classified.status, classified.details);
+    }
     const details = runnerFailureDetails(error, inspection);
     const diagnostic = details.runner_error_code
       || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
@@ -240,7 +289,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
     throw toolError(
       "governed_migration_runner_failed",
       `Governed migration runner failed: ${diagnostic}`,
-      502,
+      409,
       details
     );
   }
@@ -250,7 +299,7 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
   return {
     ...result,
     execution_mode: inspection.mode,
-    capability_envelope_id: capability?.envelope_id || null,
+    capability_envelope_id: approvedCapabilityEnvelopeId || null,
     checksum_verified_before_execution: true,
     statement_count_verified_before_execution: true,
     same_cycle_readback_verified: true,

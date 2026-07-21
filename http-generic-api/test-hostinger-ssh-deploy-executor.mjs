@@ -21,6 +21,9 @@ assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "exec
 assert(executor.includes("ConnectionAttempts=1"), "executor must avoid repeated SSH connection attempts");
 assert(executor.includes("ServerAliveInterval"), "executor must bound established SSH liveness checks");
 assert(executor.includes("NumberOfPasswordPrompts=1"), "password auth must not hang on repeated prompts");
+assert(executor.includes("sshpass"), "password auth must use sshpass helper when selected");
+assert(executor.includes('"-d"') && executor.includes('"3"'), "password auth must pass the password through file descriptor 3, not argv or env");
+assert(!executor.includes("SSHPASS"), "password auth must not place passwords in SSHPASS env");
 assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "read-only probe timeout must stay below proxy/request limits");
 assert(executor.includes("mkdtemp"), "private key must be written only to a temporary file");
 assert(executor.includes("rm(tempDir"), "temporary private key directory must be cleaned up");

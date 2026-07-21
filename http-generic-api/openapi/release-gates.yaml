@@ -1,0 +1,181 @@
+openapi: 3.1.0
+info:
+  title: Dynamic Release Gate Manager API
+  version: 1.0.0
+  description: Target-bound, TTL-limited release gates with verified hard-disable readback.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: release-gates
+paths:
+  /admin/release-gates/open:
+    post:
+      tags: [release-gates]
+      operationId: openReleaseGate
+      summary: Open a target-bound release gate
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OpenGateRequest' } } } }
+      responses:
+        '201': { description: Gate opened with same-cycle readback, content: { application/json: { schema: { $ref: '#/components/schemas/GateDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates/reconcile:
+    post:
+      tags: [release-gates]
+      operationId: reconcileReleaseGates
+      summary: Detect or hard-disable expired and orphaned release gates
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/ReconcileRequest' } } } }
+      responses:
+        '200': { description: Reconciliation plan or result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates:
+    get:
+      tags: [release-gates]
+      operationId: listReleaseGates
+      summary: List release gates
+      parameters:
+        - { in: query, name: status, schema: { type: string } }
+        - { in: query, name: adapter_key, schema: { type: string } }
+        - { in: query, name: target_id, schema: { type: string, format: uuid } }
+        - { in: query, name: operation_id, schema: { type: string, format: uuid } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200': { description: Release gate list, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates/{gateId}:
+    get:
+      tags: [release-gates]
+      operationId: getReleaseGate
+      summary: Read a release gate and compatibility-config state
+      parameters: [{ $ref: '#/components/parameters/GateId' }]
+      responses:
+        '200': { description: Gate detail, content: { application/json: { schema: { $ref: '#/components/schemas/GateDetail' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates/{gateId}/close:
+    post:
+      tags: [release-gates]
+      operationId: closeReleaseGate
+      summary: Close a gate after verified runtime parity
+      parameters: [{ $ref: '#/components/parameters/GateId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CloseGateRequest' } } } }
+      responses:
+        '200': { description: Gate closed and hard-disabled, content: { application/json: { schema: { $ref: '#/components/schemas/GateDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates/{gateId}/expire:
+    post:
+      tags: [release-gates]
+      operationId: expireReleaseGate
+      summary: Expire a release gate and hard-disable compatibility config
+      parameters: [{ $ref: '#/components/parameters/GateId' }]
+      requestBody: { required: false, content: { application/json: { schema: { type: object, additionalProperties: false, properties: { force: { type: boolean, default: false }, reason: { type: string }, expired_by: { type: string } } } } } }
+      responses:
+        '200': { description: Gate expired, content: { application/json: { schema: { $ref: '#/components/schemas/GateDetail' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/release-gates/{gateId}/hard-disable:
+    post:
+      tags: [release-gates]
+      operationId: hardDisableReleaseGate
+      summary: Immediately hard-disable an open release gate
+      parameters: [{ $ref: '#/components/parameters/GateId' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], additionalProperties: false, properties: { reason: { type: string, minLength: 20 }, disabled_by: { type: string } } } } } }
+      responses:
+        '200': { description: Gate hard-disabled, content: { application/json: { schema: { $ref: '#/components/schemas/GateDetail' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key supplied as a bearer token and accepted only when the runtime admin-principal guard also succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    GateId: { in: path, name: gateId, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    OpenGateRequest:
+      type: object
+      required: [operation_id, target_id, expected_commit_sha, capability_envelope_id, reason]
+      properties:
+        operation_id: { type: string, format: uuid }
+        adapter_key: { type: string, default: hostinger_ssh_executor }
+        target_id: { type: string, format: uuid }
+        app_key: { type: string, default: hostinger }
+        expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+        capability_envelope_id: { type: string, format: uuid }
+        ttl_minutes: { type: integer, minimum: 5, maximum: 120, default: 30 }
+        reason: { type: string, minLength: 20 }
+        opened_by: { type: string }
+        metadata: { type: object, additionalProperties: true }
+      additionalProperties: false
+    CloseGateRequest:
+      type: object
+      required: [runtime_verification_run_id, verified_commit_sha, reason]
+      properties:
+        runtime_verification_run_id: { type: string, format: uuid }
+        verified_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
+        reason: { type: string, minLength: 20 }
+        closed_by: { type: string }
+      additionalProperties: false
+    ReconcileRequest:
+      type: object
+      properties:
+        dry_run: { type: boolean, default: true }
+        limit: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        capability_envelope_id: { type: string, format: uuid }
+        reconciled_by: { type: string }
+      additionalProperties: false
+    GateDetail:
+      type: object
+      required: [ok, gate, adapter, readback, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        gate: { type: object, additionalProperties: true }
+        adapter: { type: object, additionalProperties: true }
+        compatibility_config: { type: [object, 'null'], additionalProperties: true }
+        readback: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unauthorized: { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Not authorized, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Release gate not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Gate lifecycle conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    InternalError: { description: Unexpected server failure, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }

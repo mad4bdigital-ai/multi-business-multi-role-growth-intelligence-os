@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync("migrations/1016_sprint69_tenant_safe_tool_route_rebinding.sql", "utf8");
 const fullOpenApi = readFileSync("openapi.yaml", "utf8");
-const tenantOpenApi = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const tenantOpenApi = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
 
 for (const tool of [
   "local_gateway_tools_list",

@@ -276,6 +276,9 @@ function makeDriveDeps() {
   app.use(express.json());
   app.use(buildReleaseRoutes({
     requireBackendApiKey: (_req, _res, next) => next(),
+    getPool: () => ({}),
+    resolveToolCapabilityFamilyAuthorization: async () => ({ ok: true }),
+    markCapabilityEnvelopeReferenced: async () => {},
     runSessionArchiveSmoke: async (input) => {
       received = input;
       return { ok: true, status: "pass", smoke_type: "session_archive_drive_writeback", checks: [] };

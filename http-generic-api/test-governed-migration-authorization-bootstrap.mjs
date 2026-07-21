@@ -34,7 +34,7 @@ function createFakePool() {
   const ledger = new Map();
   const applyPolicies = new Map();
   const certifications = new Map();
-  const applyPolicyKey = "platform_orchestration:governed_migration_execute:governed_migration_execute";
+  const applyPolicyKey = "platform_orchestration:governed_migration_execute:auth_host";
   const certificationKey = "governed_migration_execute";
   return {
     authorizations,
@@ -247,12 +247,12 @@ async function main() {
   assert.equal(created.applies_migration, false);
   assert.equal(created.migration_executor_apply_policy.app_key, "platform_orchestration");
   assert.equal(created.migration_executor_apply_policy.capability_key, "governed_migration_execute");
-  assert.equal(created.migration_executor_apply_policy.operation_intent, "governed_migration_apply");
-  assert.equal(created.migration_executor_apply_policy.runtime_surface, "governed_migration_execute");
+  assert.equal(created.migration_executor_apply_policy.operation_intent, "governed_migration_execute");
+  assert.equal(created.migration_executor_apply_policy.runtime_surface, "auth_host");
   assert.equal(created.migration_executor_apply_policy.allow_external_write, 0);
   assert.equal(created.migration_executor_apply_policy.requires_same_cycle_dry_run, 1);
-  assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound, true);
-  assert.equal(created.migration_executor_apply_policy.policy_json.governed_ledger_required, true);
+  assert.equal(created.migration_executor_apply_policy.policy_json.checksum_bound_authorization_required, true);
+  assert.equal(created.migration_executor_apply_policy.policy_json.same_cycle_ledger_readback_required, true);
   assert.equal(created.migration_executor_apply_policy.secrets_included, false);
   assert.equal(created.migration_executor_dispatch_certification.certification_key, "governed_migration_execute");
   assert.equal(created.migration_executor_dispatch_certification.dispatch_allowed, 1);
@@ -274,7 +274,7 @@ async function main() {
   assert.equal(metadata.external_send, false);
   assert.equal(metadata.secrets_included, false);
 
-  const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:governed_migration_execute");
+  const storedPolicy = pool.applyPolicies.get("platform_orchestration:governed_migration_execute:auth_host");
   storedPolicy.requires_readback = 0;
   storedPolicy.policy_json = JSON.stringify({ provider_call_allowed: true, secrets_included: false });
   const storedCertification = pool.certifications.get("governed_migration_execute");
@@ -287,8 +287,8 @@ async function main() {
   assert.equal(second.idempotent, true);
   assert.equal(second.migration_sql_executed, false);
   assert.equal(second.migration_executor_apply_policy.requires_readback, 1);
-  assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_allowed, false);
-  assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_schema_readback_required, true);
+  assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_forbidden, true);
+  assert.equal(second.migration_executor_apply_policy.policy_json.same_cycle_ledger_readback_required, true);
   assert.equal(second.migration_executor_dispatch_certification.dispatch_allowed, 1);
   assert.equal(second.migration_executor_dispatch_certification.apply_allowed, 0);
   assert.equal(second.migration_executor_dispatch_certification.requires_readback, 1);

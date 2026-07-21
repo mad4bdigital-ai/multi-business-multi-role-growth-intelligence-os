@@ -6,6 +6,9 @@ import {
   searchAgentTools,
 } from "./agentIntelligenceRuntime.js";
 
+// frontend-surface-operation: POST /ai/model-runs
+// frontend-surface-operation: POST /ai/tool-search
+
 const routesIndex = fs.readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");
 const agentRoutes = fs.readFileSync(new URL("./routes/agentIntelligenceRoutes.js", import.meta.url), "utf8");
 const openapi = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");

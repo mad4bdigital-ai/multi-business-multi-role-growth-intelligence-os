@@ -1,0 +1,340 @@
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  buildOutboxBatch,
+  enqueuePlatformOutboxEvent,
+  findSensitivePayloadPaths,
+  getPlatformOutboxStatus,
+  sanitizeOutboxPayload,
+  stableStringify,
+  validateConsumerReadiness,
+} from "./platformOutbox.js";
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+
+assert.equal(
+  stableStringify({ z: 1, a: { y: 2, x: 3 } }),
+  '{"a":{"x":3,"y":2},"z":1}',
+  "stableStringify must produce deterministic key ordering"
+);
+
+const sensitivePaths = findSensitivePayloadPaths({
+  safe: true,
+  nested: {
+    refresh_token: "blocked",
+    profile: { email: "user@example.com" },
+  },
+});
+assert.deepEqual(sensitivePaths, ["$.nested.refresh_token"]);
+
+const policy = {
+  deny_keys: ["password", "refresh_token", "credential"],
+  mask_keys: ["email", "phone", "name"],
+  maximum_event_bytes: 131072,
+  secrets_allowed: false,
+};
+const sanitized = sanitizeOutboxPayload({
+  email: "user@example.com",
+  phone: "+201000000000",
+  password: "must-not-leave",
+  profile: {
+    name: "Example User",
+    city: "Cairo",
+    api_key: "must-not-leave",
+  },
+}, policy);
+assert.deepEqual(sanitized, {
+  email: "[masked]",
+  phone: "[masked]",
+  profile: {
+    name: "[masked]",
+    city: "Cairo",
+  },
+});
+
+const disabledReadiness = validateConsumerReadiness({
+  consumer_key: "prod_shadow_v1",
+  status: "disabled",
+  transport_key: "noop",
+  endpoint_url: null,
+  auth_scheme: "none",
+  mask_policy_key: "default_shadow_mask_v1",
+}, policy, {
+  deliveryEnabled: false,
+  allowedHosts: new Set(),
+});
+assert.equal(disabledReadiness.ready, false);
+assert.ok(disabledReadiness.reasons.includes("delivery_feature_flag_disabled"));
+assert.ok(disabledReadiness.reasons.includes("consumer_not_enabled"));
+assert.ok(disabledReadiness.reasons.includes("transport_not_https_batch_v1"));
+
+const readyReadiness = validateConsumerReadiness({
+  consumer_key: "prod_shadow_v1",
+  status: "shadow",
+  transport_key: "https_batch_v1",
+  endpoint_url: "https://shadow.example.internal/outbox/batch",
+  auth_scheme: "x_api_key",
+  credential_ref: "env:OUTBOX_SHADOW_API_KEY",
+  mask_policy_key: "default_shadow_mask_v1",
+}, policy, {
+  deliveryEnabled: true,
+  allowedHosts: new Set(["shadow.example.internal"]),
+});
+assert.deepEqual(readyReadiness, { ready: true, reasons: [] });
+
+const batch = buildOutboxBatch({
+  consumer: { consumer_key: "prod_shadow_v1" },
+  policy,
+  rows: [{
+    event_id: "11111111-1111-4111-8111-111111111111",
+    event_type: "customer.profile.updated",
+    schema_version: 1,
+    aggregate_type: "customer",
+    aggregate_id: "customer-1",
+    tenant_id: null,
+    workspace_id: null,
+    occurred_at: "2026-07-12T00:00:00.000Z",
+    payload_json: JSON.stringify({ email: "user@example.com", display_name: "Visible" }),
+    metadata_json: JSON.stringify({ request_id: "req-1", authorization: "blocked" }),
+    payload_sha256: "a".repeat(64),
+    payload_classification: "restricted",
+    contains_pii: 1,
+    source_environment: "production",
+  }],
+});
+assert.equal(batch.contract, "mad4b.platform.outbox.batch.v1");
+assert.equal(batch.secrets_included, false);
+assert.equal(batch.events[0].payload.email, "[masked]");
+assert.equal(batch.events[0].payload.display_name, "Visible");
+assert.equal(Object.hasOwn(batch.events[0].metadata, "authorization"), false);
+
+const statusQueries = [];
+const statusResponses = [
+  [[{ event_count: 0, latest_event_at: null }]],
+  [[]],
+  [[{ oldest_pending_age_seconds: null }]],
+  [[{
+    consumer_key: "prod_shadow_v1",
+    display_name: "Production shadow synchronization v1",
+    target_environment: "shadow",
+    transport_key: "noop",
+    status: "disabled",
+    endpoint_configured: 0,
+    credential_reference_configured: 0,
+    mask_policy_key: "default_shadow_mask_v1",
+    batch_size: 100,
+    timeout_ms: 10000,
+    max_attempts: 8,
+    last_success_at: null,
+    last_failure_at: null,
+    last_error_code: null,
+    updated_at: null,
+  }]],
+  [[{
+    event_type: "growth_intelligence.report_persisted",
+    current_schema_version: 1,
+    producer_key: "growth_intelligence_registry",
+    payload_classification: "internal",
+    contains_pii: 0,
+    status: "draft",
+    created_at: null,
+    updated_at: null,
+  }]],
+];
+const status = await getPlatformOutboxStatus({
+  pool: {
+    async query(sql) {
+      statusQueries.push(sql);
+      return statusResponses.shift();
+    },
+  },
+});
+assert.equal(status.event_count, 0);
+assert.deepEqual(status.delivery_counts, {});
+assert.equal(status.consumers[0].status, "disabled");
+assert.equal(status.consumers[0].transport_key, "noop");
+assert.deepEqual(status.event_types, [{
+  event_type: "growth_intelligence.report_persisted",
+  current_schema_version: 1,
+  producer_key: "growth_intelligence_registry",
+  payload_classification: "internal",
+  contains_pii: false,
+  status: "draft",
+  created_at: null,
+  updated_at: null,
+}]);
+assert.equal(Object.hasOwn(status.event_types[0], "payload_json"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "metadata_json"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "endpoint_url"), false);
+assert.equal(Object.hasOwn(status.event_types[0], "credential_ref"), false);
+assert.equal(status.secrets_included, false);
+assert.equal(statusQueries.length, 5);
+assert.match(statusQueries[4], /FROM platform_outbox_event_types/);
+assert.doesNotMatch(statusQueries[4], /payload_json|metadata_json|endpoint_url|credential_ref/i);
+
+const migration = await fs.readFile(
+  path.join(root, "migrations", "20260711_transactional_outbox_shadow_sync_foundation.sql"),
+  "utf8"
+);
+for (const table of [
+  "platform_outbox_event_types",
+  "platform_outbox_mask_policies",
+  "platform_outbox_consumers",
+  "platform_outbox_events",
+  "platform_outbox_deliveries",
+]) {
+  assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+}
+assert.match(migration, /'prod_shadow_v1'/);
+assert.match(migration, /'noop'/);
+assert.match(migration, /'disabled'/);
+assert.doesNotMatch(migration, /\bDROP\s+(?:TABLE|DATABASE|COLUMN)\b/i);
+assert.doesNotMatch(migration, /\bTRUNCATE\s+TABLE\b/i);
+
+const cli = await fs.readFile(path.join(root, "scripts", "platform-outbox-worker.mjs"), "utf8");
+assert.match(cli, /--apply/);
+assert.match(cli, /action === "status"/);
+assert.match(cli, /action === "dry-run"/);
+assert.match(cli, /action === "run-once"/);
+assert.match(cli, /action === "loop"/);
+
+const adminCliRoutes = await fs.readFile(path.join(root, "routes", "adminCliRoutes.js"), "utf8");
+assert.match(adminCliRoutes, /platform_outbox_worker/);
+assert.match(adminCliRoutes, /platform-outbox-worker\.mjs/);
+
+const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+assert.equal(packageJson.scripts["outbox:status"], "node scripts/platform-outbox-worker.mjs --action=status");
+assert.equal(packageJson.scripts["outbox:dry-run"], "node scripts/platform-outbox-worker.mjs --action=dry-run");
+assert.match(packageJson.scripts["outbox:run-once"], /--apply$/);
+assert.match(packageJson.scripts["outbox:loop"], /--apply$/);
+
+const blockedEndpointReadiness = validateConsumerReadiness({
+  consumer_key: "prod_shadow_v1",
+  status: "shadow",
+  transport_key: "https_batch_v1",
+  endpoint_url: "https://user:pass@shadow.example.internal/outbox/batch?access_token=blocked",
+  auth_scheme: "none",
+  mask_policy_key: "default_shadow_mask_v1",
+}, policy, {
+  deliveryEnabled: true,
+  allowedHosts: new Set(["shadow.example.internal"]),
+});
+assert.equal(blockedEndpointReadiness.ready, false);
+assert.ok(blockedEndpointReadiness.reasons.includes("endpoint_embedded_credentials_forbidden"));
+assert.ok(blockedEndpointReadiness.reasons.includes("endpoint_secret_query_parameter_forbidden"));
+
+const activeEventType = {
+  event_type: "growth_intelligence.report_persisted",
+  current_schema_version: 1,
+  payload_classification: "internal",
+  contains_pii: 0,
+  status: "active",
+};
+const eventInput = {
+  eventId: "11111111-1111-4111-8111-111111111112",
+  eventType: activeEventType.event_type,
+  schemaVersion: 1,
+  aggregateType: "growth_intelligence_report",
+  aggregateId: "report-1",
+  payload: { report_id: "report-1" },
+  metadata: { producer_key: "growth_intelligence_registry" },
+  sourceEnvironment: "development",
+  occurredAt: new Date("2026-07-17T00:00:00.000Z"),
+  availableAt: new Date("2026-07-17T00:00:00.000Z"),
+};
+
+const callerQueries = [];
+const callerResult = await enqueuePlatformOutboxEvent({
+  connection: {
+    async query(sql) {
+      callerQueries.push(sql);
+      if (/FROM platform_outbox_event_types/.test(sql)) return [[activeEventType]];
+      return [{ affectedRows: 1 }];
+    },
+  },
+  ...eventInput,
+});
+assert.equal(callerResult.transaction_owner, "caller");
+assert.equal(callerQueries.length, 3);
+
+const ownedSteps = [];
+const ownedResult = await enqueuePlatformOutboxEvent({
+  pool: {
+    async query() {
+      ownedSteps.push("event_type_query");
+      return [[activeEventType]];
+    },
+    async getConnection() {
+      ownedSteps.push("get_connection");
+      return {
+        async beginTransaction() { ownedSteps.push("begin"); },
+        async query(sql) {
+          ownedSteps.push(/INSERT INTO platform_outbox_events/.test(sql) ? "insert_event" : "insert_deliveries");
+          return [{ affectedRows: 1 }];
+        },
+        async commit() { ownedSteps.push("commit"); },
+        async rollback() { ownedSteps.push("rollback"); },
+        release() { ownedSteps.push("release"); },
+      };
+    },
+  },
+  ...eventInput,
+  eventId: "11111111-1111-4111-8111-111111111113",
+});
+assert.equal(ownedResult.transaction_owner, "outbox_service");
+assert.deepEqual(ownedSteps, [
+  "event_type_query",
+  "get_connection",
+  "begin",
+  "insert_event",
+  "insert_deliveries",
+  "commit",
+  "release",
+]);
+
+const failureSteps = [];
+await assert.rejects(
+  enqueuePlatformOutboxEvent({
+    pool: {
+      async query() {
+        failureSteps.push("event_type_query");
+        return [[activeEventType]];
+      },
+      async getConnection() {
+        failureSteps.push("get_connection");
+        return {
+          async beginTransaction() { failureSteps.push("begin"); },
+          async query() {
+            failureSteps.push("insert_event");
+            throw new Error("synthetic outbox insert failure");
+          },
+          async commit() { failureSteps.push("commit"); },
+          async rollback() { failureSteps.push("rollback"); },
+          release() { failureSteps.push("release"); },
+        };
+      },
+    },
+    ...eventInput,
+    eventId: "11111111-1111-4111-8111-111111111114",
+  }),
+  /synthetic outbox insert failure/
+);
+assert.deepEqual(failureSteps, [
+  "event_type_query",
+  "get_connection",
+  "begin",
+  "insert_event",
+  "rollback",
+  "release",
+]);
+
+
+const outboxSource = await fs.readFile(path.join(root, "platformOutbox.js"), "utf8");
+assert.match(outboxSource, /async function releaseExpiredClaims/);
+assert.match(outboxSource, /outbox_claim_expired/);
+assert.match(outboxSource, /redirect: "error"/);
+assert.match(outboxSource, /mask_policy_not_active/);
+
+console.log("platform outbox foundation contract tests passed");

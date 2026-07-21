@@ -9,7 +9,7 @@ const doc = fs.readFileSync(
   new URL('../docs/dynamic-capability-audit-foundation.md', import.meta.url),
   'utf8'
 );
-const tenantOpenApi = fs.readFileSync(new URL('./openapi.tenant-gpt.auth.yaml', import.meta.url), 'utf8');
+const tenantOpenApi = fs.readFileSync(new URL('./openapi/openapi.tenant-gpt.auth.yaml', import.meta.url), 'utf8');
 const releaseReadiness = fs.readFileSync(new URL('./releaseReadiness.js', import.meta.url), 'utf8');
 const governedMigrationRunner = fs.readFileSync(
   new URL('./scripts/governed-migration-runner.mjs', import.meta.url),

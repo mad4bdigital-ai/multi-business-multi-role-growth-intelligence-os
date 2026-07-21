@@ -2,6 +2,8 @@ import { Router } from "express";
 import { spawn } from "child_process";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
+import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
+import { finalizeCloudflareEnvelopeLifecycle } from "../cloudflareEnvelopeLifecycle.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -378,7 +380,34 @@ export async function executeSafe(cmd, args, options = {}) {
   });
 }
 
-async function executeDbControl(body = {}) {
+export function serializeDbControlQueryResult(result, fields = null) {
+  if (Array.isArray(result)) {
+    return {
+      statement_result_type: "rows",
+      rows: result,
+      fields: Array.isArray(fields)
+        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
+        : undefined,
+      secrets_included: false,
+    };
+  }
+
+  const header = result && typeof result === "object" ? result : {};
+  return {
+    statement_result_type: "mutation",
+    result: {
+      affectedRows: Number(header.affectedRows || 0),
+      changedRows: Number(header.changedRows || 0),
+      insertId: Number(header.insertId || 0),
+      warningStatus: Number(header.warningStatus || 0),
+      serverStatus: header.serverStatus === undefined ? undefined : Number(header.serverStatus || 0),
+      info: typeof header.info === "string" ? header.info : undefined,
+    },
+    secrets_included: false,
+  };
+}
+
+export async function executeDbControl(body = {}) {
   const action = String(body.action || "run").trim().toLowerCase();
   if (action !== "run") {
     const err = new Error("Unsupported db action. Use run.");
@@ -407,11 +436,8 @@ async function executeDbControl(body = {}) {
   if (statements.length === 1) {
     const [result, fields] = await getPool().query(statements[0], params);
     return {
-      rows: Array.isArray(result) ? result : undefined,
-      result: Array.isArray(result) ? undefined : result,
-      fields: Array.isArray(fields)
-        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
-        : undefined,
+      statement_count: 1,
+      ...serializeDbControlQueryResult(result, fields),
     };
   }
 
@@ -421,9 +447,11 @@ async function executeDbControl(body = {}) {
     const [result] = await getPool().query(stmt);
     results.push({
       statement: stmt.slice(0, 120),
-      affectedRows: result?.affectedRows,
-      insertId: result?.insertId,
-      warningStatus: result?.warningStatus,
+      affectedRows: Number(result?.affectedRows || 0),
+      changedRows: Number(result?.changedRows || 0),
+      insertId: Number(result?.insertId || 0),
+      warningStatus: Number(result?.warningStatus || 0),
+      secrets_included: false,
     });
   }
   return { statements_executed: results.length, results };
@@ -1338,6 +1366,40 @@ async function executeGitHubRestFallbackCore(args = []) {
     const filenames = (payload || []).map((file) => file.filename).filter(Boolean);
     return { stdout: `${filenames.join("\n")}${filenames.length ? "\n" : ""}`, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
+
+  if (resource === "pr" && command === "ready" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.draft !== true) {
+      return {
+        stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, already_ready: true }, null, 2),
+        stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+        exit_code: 0,
+        fallback: "github_graphql",
+      };
+    }
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query: "mutation($pullRequestId: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) { pullRequest { number isDraft } } }",
+        variables: { pullRequestId: pr.node_id },
+      },
+    });
+    const readback = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (readback?.draft === true) {
+      const err = new Error("GitHub PR ready fallback did not clear draft state on readback.");
+      err.status = 409;
+      err.code = "github_pr_ready_readback_failed";
+      err.details = { pr_number: Number(prNumber), secrets_included: false };
+      throw err;
+    }
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, mutation: payload?.data?.markPullRequestReadyForReview || null }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+      exit_code: 0,
+      fallback: "github_graphql",
+    };
+  }
   if (resource === "api" && command && String(command).includes("/branches")) {
     const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
     return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
@@ -1372,11 +1434,14 @@ async function executeGitHubRestFallbackCore(args = []) {
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
     const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
+    const allowedCheckRunAnnotationsRead = method === "GET" && /^\/check-runs\/\d+\/annotations(?:\?.*)?$/.test(apiTarget); const allowedReleaseMetadataRead = method === "GET" && /^\/releases\/tags\/[^/?#]+(?:\?.*)?$/.test(apiTarget); const allowedWorkflowRunArtifactsRead = method === "GET" && /^\/actions\/runs\/\d+\/artifacts(?:\?.*)?$/.test(apiTarget); if (allowedReleaseMetadataRead || allowedWorkflowRunArtifactsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only release/artifact metadata.\n", exit_code: 0, fallback: "github_rest", }; } if (allowedCheckRunAnnotationsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only check-run annotations.\n", exit_code: 0, fallback: "github_rest", }; }
       const allowedRead = method === "GET" && (
         apiTarget.startsWith("/compare/") ||
         apiTarget.startsWith("/pulls") ||
         apiTarget.startsWith("/commits/") ||
-        allowedContentsRead
+        allowedContentsRead ||
+        allowedReleaseMetadataRead ||
+        allowedWorkflowRunArtifactsRead
       );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
@@ -1395,7 +1460,7 @@ async function executeGitHubRestFallbackCore(args = []) {
       || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits/contents/release/artifact reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -1901,7 +1966,7 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
-    db_backup_export_cleanup: {
+    platform_outbox_worker: { command: process.execPath, args: ["http-generic-api/scripts/platform-outbox-worker.mjs"], display_name: "Transactional outbox shadow sync worker", allow_extra_args: true, max_extra_args: 8, timeout_ms: 600000, built_in: true }, db_backup_export_cleanup: {
       command: process.execPath,
       args: ["http-generic-api/scripts/db-backup-export-cleanup.mjs"],
       display_name: "Temporary DB backup export cleanup",
@@ -2003,7 +2068,7 @@ function builtInShellAllowlist() {
     webhook_delivery_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/webhook-delivery-dispatcher.mjs"], display_name: "Webhook delivery dispatcher", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
     database_table_lifecycle_registry_upsert: { command: process.execPath, args: ["http-generic-api/scripts/database-table-lifecycle-registry-upsert.mjs"], display_name: "Database table lifecycle registry upsert", allow_extra_args: true, max_extra_args: 6, timeout_ms: 180000, built_in: true },
     openrouter_provider_smoke: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-provider-smoke.mjs"], display_name: "OpenRouter provider live smoke", allow_extra_args: true, max_extra_args: 8, timeout_ms: 180000, built_in: true },
-    supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true },
+    supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true }, supervisor_runtime_readiness: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-runtime-readiness.mjs"], display_name: "Supervisor runtime readiness", allow_extra_args: true, max_extra_args: 1, timeout_ms: 180000, built_in: true }, supervisor_behavioral_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-behavioral-certification.mjs"], display_name: "Supervisor behavioral certification", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
     openrouter_model_policy: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-model-policy.mjs"], display_name: "OpenRouter model policy control", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
     capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true },
     tool_bus_descriptor_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-descriptor-dry-run.mjs"], display_name: "Tool Bus descriptor dry-run", allow_extra_args: true, max_extra_args: 6, timeout_ms: 120000, built_in: true },
@@ -2014,7 +2079,7 @@ function builtInShellAllowlist() {
     capability_resolution_simulation_suite: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-simulation-suite.mjs"], display_name: "Dynamic capability resolution simulation suite", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
     capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
     platform_capability_assurance_reconcile: { command: process.execPath, args: ["http-generic-api/scripts/platform-capability-assurance-reconcile.mjs"], display_name: "Reconcile platform capability assurance graph", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_approve: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
-    capability_resolution_envelope_apply_authorize: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs"], display_name: "Apply-authorize capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    capability_resolution_envelope_lifecycle: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-lifecycle.mjs"], display_name: "Transition capability resolution envelope lifecycle", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_apply_authorize: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs"], display_name: "Apply-authorize capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
     budget_quota_authority_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/budget-quota-authority-dry-run.mjs"], display_name: "Budget and quota authority dry-run", allow_extra_args: true, max_extra_args: 24, timeout_ms: 120000, built_in: true },
     google_ads_budget_change_preflight: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-preflight.mjs"], display_name: "Google Ads budget change preflight", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
     google_ads_budget_change_execution_adapter: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-execution-adapter.mjs"], display_name: "Google Ads budget change execution adapter skeleton", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
@@ -2042,7 +2107,7 @@ function builtInShellAllowlist() {
     agent_runtime_live_trace_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs"], display_name: "Agent runtime live trace smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 180000, built_in: true },
     execution_log_runtime_evidence_smoke: { command: process.execPath, args: ["http-generic-api/scripts/execution-log-runtime-evidence-smoke.mjs"], display_name: "Execution log runtime evidence smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
   activation_authorized_access_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-smoke.mjs"], display_name: "Activation authorized access smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
-    activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
+    activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true }, 
     activation_authorized_surface_registry_sync: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-surface-registry-sync.mjs"], display_name: "Activation authorized surface registry sync", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
     activation_source_table_coverage_audit: { command: process.execPath, args: ["http-generic-api/scripts/activation-surface-db-coverage-audit.mjs"], display_name: "Activation source table coverage audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
@@ -2144,7 +2209,7 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
-    dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
+    dev_governed_migration_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client.mjs"], display_name: "Dev-only governed migration client", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_governed_migration_client_apply: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client-apply.mjs"], display_name: "Dev-only governed migration client with process-local apply gate", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
       display_name: "Backup artifact URL smoke diagnostic",
@@ -2619,7 +2684,22 @@ export function buildAdminCliRoutes(deps) {
         payload: { method: body.method || "GET", path: body.path },
       });
       const result = await executeCloudflareControl(body);
-      return res.status(200).json({ ok: true, result });
+      const envelopeLifecycle = await finalizeCloudflareEnvelopeLifecycle({
+        body,
+        mutationResult: result,
+        executeReadback: executeCloudflareControl,
+        consumeEnvelope: ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return res.status(200).json({
+        ok: true,
+        result: { ...result, envelope_lifecycle: envelopeLifecycle },
+      });
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,

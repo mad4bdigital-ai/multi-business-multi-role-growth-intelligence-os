@@ -9,6 +9,7 @@ import {
   parseArgs,
   parseGithubPrAddLabelArgs,
   requireAdminPrincipal,
+  serializeDbControlQueryResult,
 } from "./routes/adminCliRoutes.js";
 import { inspectRepoReadOnly } from "./routes/gptToolsRoutes.js";
 
@@ -32,6 +33,7 @@ try {
   console.log("\n== admin control helpers");
 
   const adminCliSource = fs.readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
+  const gptToolsSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
   assert("local connector JSON responses omit inline installer secrets",
     !adminCliSource.includes("script_content: batContent"),
     "JSON action responses must not expose generated .bat content with live credentials");
@@ -66,7 +68,7 @@ try {
     adminCliSource.includes("continuation") &&
     adminCliSource.includes("secrets_included: false"),
     "missing cf_token/CLOUDFLARE_TUNNEL_TOKEN should be resumable and must not be a dead-end 404");
-  const localConnectorMigrationName = "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql";
+  const updateSerialization = serializeDbControlQueryResult({ affectedRows: 2, changedRows: 1, insertId: 0, warningStatus: 0, serverStatus: 34, info: "Rows matched: 2  Changed: 1  Warnings: 0" }); assert("db mutation serializer returns bounded affected-row evidence", updateSerialization.statement_result_type === "mutation" && updateSerialization.result.affectedRows === 2 && updateSerialization.result.changedRows === 1 && updateSerialization.result.warningStatus === 0 && updateSerialization.result.info.includes("Rows matched"), JSON.stringify(updateSerialization)); assert("db mutation serializer never returns raw ResultSetHeader only", updateSerialization.rows === undefined && updateSerialization.secrets_included === false, JSON.stringify(updateSerialization)); const selectSerialization = serializeDbControlQueryResult([{ id: 1 }], [{ name: "id", columnType: 3 }]); assert("db row serializer preserves rows and field metadata", selectSerialization.statement_result_type === "rows" && selectSerialization.rows[0].id === 1 && selectSerialization.fields[0].name === "id" && selectSerialization.secrets_included === false, JSON.stringify(selectSerialization)); assert("admin control db single statement uses serializer", adminCliSource.includes("statement_count: 1") && adminCliSource.includes("...serializeDbControlQueryResult(result, fields)"), "single-statement DB control must not return raw mutation headers"); assert("governed DB mutation smoke tool is exposed", gptToolsSource.includes('name: "admin_control_db_mutation_serialization_smoke"') && gptToolsSource.includes('internal://admin-control-db-mutation-serialization-smoke'), "DB mutation serializer smoke must be catalog-visible"); assert("governed DB mutation smoke uses fixed no-op SQL only", gptToolsSource.includes("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0") && gptToolsSource.includes('sql_kind: "fixed_noop_update"') && gptToolsSource.includes('"no_freeform_sql"'), "DB mutation smoke must not accept freeform SQL"); assert("governed DB mutation smoke returns serializer assertions", gptToolsSource.includes("serializeDbControlQueryResult(result, fields)") && gptToolsSource.includes("mutation_serialized") && gptToolsSource.includes("affected_rows_present") && gptToolsSource.includes("secrets_included_false") && gptToolsSource.includes("secrets_included: false"), "DB mutation smoke must prove bounded no-secret serialization"); const localConnectorMigrationName = "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql";
   const localConnectorMigration = fs.readFileSync(new URL(`./migrations/${localConnectorMigrationName}`, import.meta.url), "utf8");
   const migrationRunnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
   const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
@@ -192,6 +194,13 @@ try {
     adminCliSource.includes("update_branch_requested") &&
     adminCliSource.includes("expected_head_sha"),
     "PR update-branch fallback should support conflict recovery attempts without gh CLI");
+  assert("github GraphQL fallback supports gh pr ready with readback",
+    adminCliSource.includes('resource === "pr" && command === "ready"') &&
+    adminCliSource.includes("markPullRequestReadyForReview") &&
+    adminCliSource.includes("github_pr_ready_readback_failed") &&
+    adminCliSource.includes("readback?.draft === true") &&
+    adminCliSource.includes('fallback: "github_graphql"'),
+    "PR ready fallback must be a narrow GraphQL mutation with same-cycle draft-state readback");
   assert("github REST fallback exposes governed PR label mutation",
     adminCliSource.includes('resource === "pr" && command === "edit"') &&
     adminCliSource.includes('/issues/${encodeURIComponent(parsed.pr_number)}/labels') &&

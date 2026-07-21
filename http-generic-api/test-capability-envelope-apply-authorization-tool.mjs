@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { validateCredentialEnvelope } from "./scripts/capability-resolution-envelope-apply-authorize.mjs";
 
 const script = readFileSync("scripts/capability-resolution-envelope-apply-authorize.mjs", "utf8");
 const migration = readFileSync("migrations/902_sprint68_dynamic_capability_apply_authorization_policy.sql", "utf8");
@@ -24,7 +25,6 @@ for (const expected of [
   "apply_allowed = 1",
   "capability_envelope_apply_capability_not_allowlisted",
   "capability_envelope_apply_requires_credential_binding",
-  "capability_envelope_apply_requires_no_credential_binding",
   "capability_envelope_apply_credential_binding_not_allowed",
   "capability_envelope_apply_source_tier_not_allowed",
   "no_provider_call",
@@ -67,5 +67,55 @@ assert(snapshotRecord.includes("capability_envelope_apply_not_allowed"), "snapsh
 assert(snapshotRecord.includes("Number(envelope.apply_allowed) !== 1"), "snapshot record apply must check apply_allowed before insert");
 assert.doesNotMatch(script, /fetch\(|axios|GoogleAdsApi|GoogleAdsClient|mutateCampaignBudgets|child_process|exec\(|spawn\(/i, "apply authorization must not call providers or spawn processes");
 assert.doesNotMatch(script, /decryptToken|value_ciphertext|encrypted_credentials|private_key|oauth_token|client_secret|refresh_token/i, "apply authorization must not read credential payloads");
+
+const noCredentialPolicy = {
+  policy_key: "test_no_credential_policy",
+  allow_credential_binding: 0,
+  allow_no_credential_binding: 1,
+};
+assert.doesNotThrow(
+  () => validateCredentialEnvelope({
+    selected_source: {
+      credential_source_candidates: ["platform_managed"],
+      active_credential_binding_count: 0,
+    },
+  }, noCredentialPolicy),
+  "platform-managed transport metadata must not be treated as an active credential binding",
+);
+assert.throws(
+  () => validateCredentialEnvelope({
+    selected_source: {
+      credential_source_candidates: ["none"],
+      active_credential_binding_count: 1,
+    },
+  }, noCredentialPolicy),
+  (err) => err?.code === "capability_envelope_apply_credential_binding_not_allowed",
+  "an active binding must remain blocked when credential bindings are forbidden",
+);
+
+const credentialRequiredPolicy = {
+  policy_key: "test_credential_required_policy",
+  allow_credential_binding: 1,
+  allow_no_credential_binding: 0,
+};
+assert.throws(
+  () => validateCredentialEnvelope({
+    selected_source: {
+      credential_source_candidates: ["tenant_connection"],
+      active_credential_binding_count: 0,
+    },
+  }, credentialRequiredPolicy),
+  (err) => err?.code === "capability_envelope_apply_requires_credential_binding",
+  "zero active bindings must remain blocked when the policy requires a credential binding",
+);
+assert.doesNotThrow(
+  () => validateCredentialEnvelope({
+    selected_source: {
+      credential_source_candidates: ["tenant_connection"],
+      active_credential_binding_count: 1,
+    },
+  }, credentialRequiredPolicy),
+  "an active binding must pass when the policy explicitly permits credential-backed execution",
+);
 
 console.log("capability envelope apply authorization is dynamic-policy driven, no-provider, and no-secret");

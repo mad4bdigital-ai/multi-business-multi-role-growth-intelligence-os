@@ -6,7 +6,17 @@ import { buildTenantGptOAuthPreset } from "../tenantGptOAuthPreset.js";
 import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCHEMA_DIR = resolve(__dirname, "..");
+const SCHEMA_ROOT_DIR = resolve(__dirname, "..");
+const SCHEMA_ARTIFACT_DIR = resolve(SCHEMA_ROOT_DIR, "openapi");
+
+async function readPublicSchemaFile(schemaFile) {
+  try {
+    return await readFile(resolve(SCHEMA_ARTIFACT_DIR, schemaFile), "utf8");
+  } catch (err) {
+    if (err?.code !== "ENOENT") throw err;
+    return readFile(resolve(SCHEMA_ROOT_DIR, schemaFile), "utf8");
+  }
+}
 
 const DEFAULT_SCOPE = {
   scope: "runtime",
@@ -73,6 +83,20 @@ const SCOPES_BY_HOST = {
       admin_activation: "openapi.custom-gpt.activation-admin.yaml"
     }
   },
+  "activation.mad4b.com": {
+    scope: "activation",
+    schema_file: "openapi.tenant-gpt.activation.yaml",
+    primary_paths: [
+      "/activation/session-context",
+      "/activation/platform-access",
+      "/tenant/activation/session-context",
+      "/tenant/activation/awareness"
+    ],
+    schema_variants: {
+      tenant_activation: "openapi.tenant-gpt.activation.yaml",
+      admin_activation: "openapi.custom-gpt.activation-admin.yaml"
+    }
+  },
   "ops.mad4b.com": {
     scope: "ops",
     schema_file: "openapi.custom-gpt.ops.yaml",
@@ -129,7 +153,7 @@ export function buildRootDiscoveryRoutes() {
     }
 
     try {
-      const schema = await readFile(resolve(SCHEMA_DIR, requestedFile), "utf8");
+      const schema = await readPublicSchemaFile(requestedFile);
       return res
         .status(200)
         .type("application/yaml")
@@ -146,9 +170,69 @@ export function buildRootDiscoveryRoutes() {
     }
   });
 
+  router.get("/tenant-gpt/activation-openapi", async (req, res) => {
+    const host = requestHost(req);
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_not_found",
+          message: "No public Tenant Activation OpenAPI schema is available for this host."
+        }
+      });
+    }
+
+    try {
+      const schema = await readPublicSchemaFile("openapi.tenant-gpt.activation.yaml");
+      return res
+        .status(200)
+        .type("application/yaml")
+        .set("Cache-Control", "public, max-age=300")
+        .send(schema);
+    } catch {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_file_missing",
+          message: "The advertised Tenant Activation OpenAPI schema file is not available."
+        }
+      });
+    }
+  });
+
+  router.get("/admin-gpt/activation-openapi", async (req, res) => {
+    const host = requestHost(req);
+    if (host !== "activation.mad4b.com" && host !== "auth.mad4b.com") {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_not_found",
+          message: "No public Admin Activation OpenAPI schema is available for this host."
+        }
+      });
+    }
+
+    try {
+      const schema = await readPublicSchemaFile("openapi.custom-gpt.activation-admin.yaml");
+      return res
+        .status(200)
+        .type("application/yaml")
+        .set("Cache-Control", "public, max-age=300")
+        .send(schema);
+    } catch {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "schema_file_missing",
+          message: "The advertised Admin Activation OpenAPI schema file is not available."
+        }
+      });
+    }
+  });
+
   router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
-    if (host !== "auth.mad4b.com") {
+    if (host !== "auth.mad4b.com" && host !== "activation.mad4b.com") {
       return res.status(404).json({
         ok: false,
         error: {
@@ -166,7 +250,12 @@ export function buildRootDiscoveryRoutes() {
     return res.status(200).json({
       ok: true,
       source: clientConfig.source,
-      preset: buildTenantGptOAuthPreset({ callbackUrlsToAllow }),
+      preset: buildTenantGptOAuthPreset({
+        callbackUrlsToAllow,
+        ...(host === "activation.mad4b.com" ? {
+          baseUrl: "https://activation.mad4b.com",
+        } : {}),
+      }),
     });
   });
 

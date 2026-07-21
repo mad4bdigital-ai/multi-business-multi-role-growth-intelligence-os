@@ -2,6 +2,7 @@ import { summarizePolicies } from "./runtimePolicyLoader.js";
 import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
 import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
 import { resolveDynamicResourceAuthority } from "./dynamicResourceAuthority.js";
+import { capabilityFamilyFromTags, resolveToolCapabilityFamilyAuthorization } from "./toolCapabilityFamilyAuthorization.js";
 
 function parseBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
@@ -33,6 +34,18 @@ const DECLARED_MUTATION_POLICY_TAGS = new Set([
 ]);
 const READ_ONLY_FORWARDED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const STATE_CHANGING_FORWARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+export const MUTATION_POLICY_REQUIREMENT = Object.freeze({
+  REQUIRED: "mutation_policy_required",
+  NOT_REQUIRED: "mutation_policy_not_required",
+  UNCLASSIFIED: "mutation_policy_unclassified",
+});
+
+export function mutationPolicyRequirementFromBoolean(value) {
+  if (value === true) return MUTATION_POLICY_REQUIREMENT.REQUIRED;
+  if (value === false) return MUTATION_POLICY_REQUIREMENT.NOT_REQUIRED;
+  return MUTATION_POLICY_REQUIREMENT.UNCLASSIFIED;
+}
 
 function normalizedPolicyTags(tags = []) {
   return new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
@@ -216,6 +229,14 @@ export function classifyMutationPolicyRequirement({ method = "", tags = [], muta
     return { required: true, classification: "conservative_state_changing_default" };
   }
   return { required: null, classification: "mutation_classification_missing" };
+}
+
+export function classifyMutationPolicyRequirementEnum(input = {}) {
+  const result = classifyMutationPolicyRequirement(input);
+  return {
+    ...result,
+    requirement: mutationPolicyRequirementFromBoolean(result.required),
+  };
 }
 
 export function hasDeclaredMutationPolicy({ tags = [], mutationPolicyDeclared = null } = {}) {
@@ -519,13 +540,31 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
   const invocationMutationRequired = mutationRequired === null
     ? resolveGptToolInvocationMutationRequirement({ toolKey, args, method, tags })
     : mutationRequired;
+  const expectedCapabilityFamily = capabilityFamilyFromTags(tags);
+  const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+    pool: deps.pool,
+    callerType,
+    principal,
+    toolKey,
+    args,
+    expectedFamily: expectedCapabilityFamily,
+    requirePolicy: Boolean(expectedCapabilityFamily),
+  });
   const dynamicResourceAuthority = deps.skipSurfaceAuthority === true
     ? { ok: true, required: false, reason_code: "dynamic_resource_authority_test_bypass", mutation_policy_declared: false, secrets_included: false }
     : await resolveDynamicResourceAuthority({ callerType, principal, toolKey, args, mutationRequired: invocationMutationRequired, pool: deps.pool });
   const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired: invocationMutationRequired });
-  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared }) || dynamicResourceAuthority.mutation_policy_declared === true;
-  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
-  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, dynamic_resource_authority: dynamicResourceAuthority, matching_policy_count: policies.length };
+  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared })
+    || dynamicResourceAuthority.mutation_policy_declared === true
+    || capabilityFamilyAuthorization.mutation_policy_declared === true;
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
+    execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey, capabilityFamilyAuthorization.capability_family, capabilityFamilyAuthorization.operation].filter(Boolean),
+    affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
+  }, deps);
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, dynamic_resource_authority: dynamicResourceAuthority, capability_family_authorization: capabilityFamilyAuthorization, matching_policy_count: policies.length };
+  if (capabilityFamilyAuthorization.applicable && !capabilityFamilyAuthorization.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [capabilityFamilyAuthorization.reason_code], evidence, runtimePolicyResolution });
+  }
   if (!dynamicResourceAuthority.ok) {
     return makePreflightResult({ classification: "blocked", policies, errors: [dynamicResourceAuthority.reason_code || "dynamic_resource_authority_denied"], evidence, runtimePolicyResolution });
   }
@@ -536,7 +575,11 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
   if (!policies.length) {
     return makePreflightResult({ classification: mutation.required ? "allow_with_declared_mutation_policy" : "allow", evidence: { ...evidence, reason: mutation.required ? "descriptor_mutation_policy_declared" : "read_only_tool_without_execution_policy" }, runtimePolicyResolution });
   }
-  const blockingPolicies = policies.filter(policyAllowsBlocking);
+  const blockingPolicies = policies.filter((policy) => policyAllowsBlocking(policy)
+    && policy.policy_key !== capabilityFamilyAuthorization.policy_key);
+  if (capabilityFamilyAuthorization.applicable && capabilityFamilyAuthorization.ok && !blockingPolicies.length) {
+    return makePreflightResult({ classification: "allow_with_capability_family_authorization", policies, evidence, runtimePolicyResolution });
+  }
   return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [], evidence, runtimePolicyResolution });
 }
 

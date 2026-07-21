@@ -11,6 +11,7 @@ Evidence sources:
 - `../traceability.md`
 - `../rollout.md`
 - `../tasks.md`
+- `../phase12-verification-release-readiness.md`
 
 ## Scope and governance
 
@@ -21,7 +22,7 @@ Evidence sources:
 
 ## Implementation
 
-- [ ] Canonical capability resolver is not yet production-ready; T020–T045 remain open.
+- [x] Canonical capability resolver, strict selector contract, and security decision engine are implemented for the reviewed increment through T045.
 - [x] Strict selector validation is active on the reviewed Platform Plugin path.
 - [x] Tenant/admin surface isolation is active on the reviewed paths.
 - [x] Credential requirement, resolution, and usability decisions are separated on reviewed paths.
@@ -37,9 +38,8 @@ Evidence sources:
 - [x] The error catalog contains the stable denial and containment codes used by the reviewed implementation.
 - [x] Existing Phase 0 migrations are additive; the current P1 review fix adds no schema migration.
 - [x] Rollback controls and the no-production-promotion boundary are documented.
-- [ ] Registry alias migration and complete live inventory verification remain open under T010–T026.
-- [ ] Client migration guidance for strict one-selector requests remains open under T099/T102.
-
+- [x] Registry alias discovery and current increment integrity checks are complete through T026; full release parity remains gated by Phase 12.
+- [x] Client migration guidance and legacy selector deprecation timeline are published for strict one-selector requests under T099/T102.
 ## Tests
 
 - [x] Focused unit/regression tests pass for mutation policy, runtime policy, and connect routes.
@@ -77,6 +77,21 @@ Evidence sources:
 - [ ] Device/local connector approval remains required.
 - [ ] Full release-readiness approval remains blocked by the unchecked controls above.
 - [ ] Explicit production-promotion approval has not been granted.
+
+## Phase 12 release gates
+
+- [ ] T103 full unit/integration/security suites have current-head CI evidence.
+- [ ] T104 acceptance matrix A01-J08 has run in staging preview mode.
+- [ ] T105 shadow mismatches have been triaged with zero unreviewed P0/P1 mismatch.
+- [ ] T106 latency and resource budgets have been ratified against the Phase 1 baseline.
+- [ ] T107 dependency-outage drills prove fail-closed behavior.
+- [ ] T108 bounded staging mutations have approval, readback, cleanup, and rollback metadata.
+- [ ] T109 security and architecture reviews are complete.
+- [ ] T110 rollback exercise preserves P0 containment.
+- [ ] T111 this checklist is complete with evidence links.
+- [ ] T112 explicit production-promotion approval is recorded.
+- [ ] T113 enforcement-group rollout has monitoring evidence.
+- [ ] T114 legacy branches are retired only after stability and parity criteria pass.
 
 ## Current decision
 

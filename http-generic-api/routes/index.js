@@ -1,6 +1,7 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
+import { buildActivationHostGatewayRoutes } from "./activationHostGatewayRoutes.js";
 import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
 import { buildTenantGrowthDashboardRoutes } from "./tenantGrowthDashboardRoutes.js";
 import { buildTenantActivationOverlayRoutes } from "./tenantActivationOverlayRoutes.js";
@@ -30,6 +31,7 @@ import { buildConnectorRoutes } from "./connectorRoutes.js";
 import { buildBatchRoutes } from "./batchRoutes.js";
 import { buildLegalRoutes } from "./legalRoutes.js";
 import { buildAuthRoutes } from "./authRoutes.js";
+import { buildTenantGptOAuthMetadataRoutes } from "./tenantGptOAuthMetadataRoutes.js";
 import { buildAdminCliRoutes, buildAdminControlHandler, buildSessionContinuityHandler, requireAdminPrincipal } from "./adminCliRoutes.js";
 import { buildAgentRegistryRoutes } from "./agentRegistryRoutes.js";
 import { buildOutputSinkRoutes } from "./outputSinkRoutes.js";
@@ -73,6 +75,7 @@ import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
+import { buildResourceAuthorityGrantRoutes } from "./resourceAuthorityGrantRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildTenantInfrastructureRoutes } from "./tenantInfrastructureRoutes.js";
@@ -106,6 +109,12 @@ import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsi
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
 import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
+import { buildReleaseOperationRoutes } from "./releaseOperationRoutes.js";
+import { buildReleaseGateManagerRoutes } from "./releaseGateManagerRoutes.js";
+import { buildAsyncReleaseDeployRoutes } from "./asyncReleaseDeployRoutes.js";
+import { buildCapabilityEnvelopeTemplateRoutes } from "./capabilityEnvelopeTemplateRoutes.js";
+import { buildSelfHealingReleaseAdvisorRoutes } from "./selfHealingReleaseAdvisorRoutes.js";
+import { buildRepositoryMainMovedTriggerRoutes } from "./repositoryMainMovedTriggerRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
@@ -114,6 +123,10 @@ import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorit
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
+import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoutes.js";
+import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
+import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
+import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -138,6 +151,8 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(buildTenantGptOAuthMetadataRoutes());
+  app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
@@ -158,6 +173,7 @@ export function registerRoutes(app, deps) {
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes());
   app.use(buildConnectRoutes(deps));
+  app.use(buildPlatformFrontendRoutes());
   // Tenant Connect API must mount before root-level admin/protected routers
   // so user JWT callers can create secure intake sessions and list app catalog.
   app.use(buildConnectApiRoutes(deps));
@@ -172,6 +188,12 @@ export function registerRoutes(app, deps) {
   app.use(buildActivationRoutes(deps));
   app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseOperationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildReleaseGateManagerRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAsyncReleaseDeployRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildCapabilityEnvelopeTemplateRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSelfHealingReleaseAdvisorRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryMainMovedTriggerRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
@@ -186,8 +208,11 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());

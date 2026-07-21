@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { assertNoSecretBearingFields } from "./capabilityEnvelopeSecretPolicy.js";
+import { redactDangerousKeys } from "./scripts/capability-resolution-envelope-create.mjs";
 import { generateDeploymentManifest, isDirectExecution } from "./scripts/generate-deployment-manifest.mjs";
 
 const activationSource = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
@@ -76,5 +77,24 @@ assert.throws(
   /Capability envelope refuses sensitive field/,
   "secret-bearing values must remain blocked"
 );
+
+const redactedEnvelope = redactDangerousKeys({
+  secrets_included: false,
+  secrets_returned_to_agent: false,
+  nested: {
+    secret_value_included: false,
+    raw_secret_values_included: false,
+    api_key: "not-allowed",
+    token: "not-allowed",
+    secrets_returned_to_agent: true,
+  },
+});
+assert.equal(redactedEnvelope.secrets_included, false);
+assert.equal(redactedEnvelope.secrets_returned_to_agent, false);
+assert.equal(redactedEnvelope.nested.secret_value_included, false);
+assert.equal(redactedEnvelope.nested.raw_secret_values_included, false);
+assert.equal(redactedEnvelope.nested.api_key, "[redacted_by_capability_envelope_ledger]");
+assert.equal(redactedEnvelope.nested.token, "[redacted_by_capability_envelope_ledger]");
+assert.equal(redactedEnvelope.nested.secrets_returned_to_agent, "[redacted_by_capability_envelope_ledger]");
 
 console.log("root cause activation runtime repair tests passed");

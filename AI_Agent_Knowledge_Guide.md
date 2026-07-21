@@ -1,5 +1,63 @@
 # AI Agent Knowledge Guide
 
+## In-app Activation Host Gateway
+
+Production Tenant GPT OAuth verification uses `http-generic-api/scripts/tenant-gpt-oauth-live-smoke.mjs` only after CI, merge, and production deployment readback. It requires typed confirmation plus an active user and tenant membership, resolves credentials internally, verifies `authorize -> code -> token`, tenant binding and replay rejection, cleans transient activation context, and returns no raw token, code, credential, or secret. See `docs/tenant-gpt-oauth-live-smoke.md`.
+
+### Tenant GPT JIT onboarding authority
+
+Tenant account creation and sign-in remain inside the ChatGPT OAuth popup. Normal onboarding must not redirect to `/connect`; `/connect` is optional support, administration, or device-recovery infrastructure only. Google JIT identity requires a stable subject and verified normalized email, and duplicate races must recover the canonical active account without creating replacement workspaces for blocked principals.
+
+Tenant GPT OAuth authorization codes use durable hash-only persistence with client, redirect, expiry, and one-time atomic-consumption bindings. Process-local replay maps are not sufficient. Reuse, expiry, or binding mismatch must fail as `invalid_grant` without logging or returning raw code material.
+
+Tenant onboarding should call `connect_bootstrap` when available. The operation derives identity from the signed JWT, provisions one eligible workspace when absent, activates Managed mode idempotently, and performs final `connect_status`-equivalent readback. Never report activation success unless readback confirms Managed and active; multiple eligible workspaces require explicit selection, while inactive accounts, revoked memberships, and suspended tenants remain blocked.
+
+`activation.mad4b.com` is the distinct GPT Builder Action server URL for Tenant and Admin Activation schemas. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only and must not be treated as the runtime gateway. The Node application mounted on the Hostinger app enforces the activation host boundary through `http-generic-api/routes/activationHostGatewayRoutes.js` before normal route registration.
+
+Activation host requests may serve only `/`, `/health`, Activation OpenAPI schemas, `/activation/*`, `/tenant/activation/*`, and the exact Tenant GPT OAuth handoffs `GET /auth/oauth/authorize`, `POST /auth/oauth/code`, and `POST /auth/oauth/token`. The in-app gateway serves `openapi.tenant-gpt.activation.yaml`, `openapi.custom-gpt.activation-admin.yaml`, and the extensionless Tenant Activation import URL `/tenant-gpt/activation-openapi` directly before root-level protected routers. Tenant GPT builders should import Tenant Activation from `https://activation.mad4b.com/tenant-gpt/activation-openapi`; that schema uses activation-host authorization and token URLs, while the three handoffs enter the same shared `authRoutes` implementation backed by `auth.mad4b.com`. Wrong methods, wildcard OAuth paths, `/auth/login`, `/auth/register`, `/auth/google`, admin auth, and unrelated core routes remain blocked. The gateway strips cookies, preserves bearer-token activation transport, returns `secrets_included=false`, and must not itself mint tokens, perform business authorization, call providers, or transform Activation business responses.
+
+This boundary exists because GPT Builder requires distinct public servers across Action schemas. Do not collapse Activation schemas back to `https://auth.mad4b.com`. Production deployment for this Hostinger Cloud app is the GitHub-to-Hostinger auto-deploy path: merge the approved PR to `main`, then Hostinger deploys the latest main automatically. Do not use SSH restart/deploy or Cloudflare Worker rollout as the normal promotion path. Cloudflare Worker Activation Gateway rollout remains separate and disabled unless its signed attestation, resource binding, feature gate, dark-deploy readback, and custom-domain rollout evidence are complete.
+
+## Tenant Tool Input-Schema Authority
+
+Every enabled Tenant GPT tool must expose a valid top-level JSON Schema object with `type: "object"` and `additionalProperties: false`. This invariant applies to the complete `tenant_platform_endpoint_tools` registry, not only current projection candidates. Nested object schemas may remain intentionally flexible when their own contracts require it.
+
+Tenant listing and direct `/gpt/tools/call` dispatch must resolve current enabled-row schema state independently from manifest state. A missing, invalid, non-object, or top-level open schema is fail-closed: hide the tool from Tenant discovery and reject direct dispatch before preflight with `403 tenant_tool_input_schema_not_strict`, structured reason details, and `secrets_included=false`. Admin tools remain unaffected.
+
+The database must enforce the same contract for future enabled rows through `chk_tenant_platform_enabled_input_schema_strict`. Seeds, migrations, bootstrap paths, and registry updates may not enable a Tenant tool until its schema is strict. Visibility-policy changes must advance the Tenant tool-list cache version. Regression coverage must prove missing/invalid/non-object/open schemas are blocked, top-level strict schemas with intentionally flexible nested objects remain allowed, listing and dispatch use the same authority, the guard runs before preflight, and the migration repairs all enabled legacy rows before installing the invariant.
+
+## Tenant Tool Manifest Export Authority
+
+Tenant GPT tool exposure and execution are governed by both the Tenant tool registry and the current compiled capability manifest. `tenant_platform_endpoint_tools.is_enabled=1` is necessary but not sufficient authority to expose or dispatch a Tenant tool. The Tenant GPT tool catalog and direct `/gpt/tools/call` dispatch must resolve `platform_capability_compiled_manifests` for `tenant_tool.<tool_key>` and fail closed when the current manifest status is not exportable.
+
+The current exportable manifest statuses are `shadow_ready`, `active`, and `certified`. A current `blocked` or unknown manifest status must hide the tool from Tenant listing and reject direct dispatch with `403 tenant_tool_capability_blocked`, structured details, and `secrets_included=false`. Admin tools remain outside this Tenant-specific guard. Tools without a compiled manifest retain temporary compatibility until the manifest cutover policy explicitly changes; adding a new manifest status requires updating the guard and regression tests in the same change.
+
+Listing may use a versioned cache, but direct dispatch must read the current manifest without relying on stale listing state. Cache versions must be advanced whenever visibility policy changes. Capability-key matching must use exact `tenant_tool.` prefix semantics rather than SQL wildcard matching. Regression coverage must prove hidden listing, direct-dispatch denial, Admin non-interference, compatibility for unmanifested tools, exact prefix matching, structured errors, and guard execution before dispatch preflight.
+
+## Tenant Activation Session Context Isolation
+
+`GET /tenant/activation/session-context` is the Tenant-safe alias for opening or reusing Activation session context. Tenant and user identity, plus any workspace and brand context, must come from the signed OAuth JWT and authenticated membership context; Tenant callers must not override `tenant_id`, `user_id`, `workspace_id`, `workspace_key`, or `brand_key` through query parameters. The shared subject resolver rejects cross-user and cross-tenant overrides with structured `403` errors.
+
+Tenant Activation does not expose raw turn content by default. The Tenant schema and route policy must not expose `include_turns` or `context_scope`; unknown query parameters are rejected. Stored turn availability, bounded session summaries, graph memory, and product guidance remain scoped to the signed Tenant/User/Workspace/Brand context, and responses must keep `secrets_included=false`. Admin-only `/activation/session-context` remains a separate surface with `admin_service` authorization.
+
+`buildTenantActivationOverlayRoutes` accepts injectable route dependencies only to support deterministic regression tests. Production defaults remain `buildActivationSessionContext`, `buildTenantGrowthDashboard`, the runtime SQL pool, activation run lifecycle writers, and governed chunking. Dependency injection must not become caller-controlled configuration, widen Tenant permissions, expose raw turns, bypass OAuth, call providers, or change production behavior.
+
+Regression coverage must prove cross-tenant isolation, rejection of identity and raw-turn query overrides, Tenant/Admin OpenAPI separation, gateway auth-profile separation, no-secret responses, and preservation of production defaults. No per-Tenant migration or duplicated route implementation is required because the shared resolver and Tenant overlay enforce the contract centrally.
+
+## Dynamic Container Projection Closeout Authority
+
+Spec 006 Dynamic Container projection preview must remain dry-run, SQL-source-only, and shadow-only until a separately authorized projection apply and production verification complete. The projection source loader reads authority sources sequentially to avoid exhausting the bounded MySQL pool. A source-read dependency failure returns `503` with `container_projection_source_load_failed`, `stage=load_projection_sources`, and a bounded source name through the shared error envelope. It must not expose SQL text, stack traces, credential identifiers, tokens, headers, secrets, or raw provider payloads.
+
+Agents must not treat projection preview, shadow evidence, sample generation, or completion metadata as authority to enable enforcement, promotion, provider calls, credential reads, or production activation. Closeout evidence belongs in `specs/006-platform-dynamic-workflow-runtime/completion.json`; unresolved production deploy parity, shadow sample minimums, retention, latency, and audit coverage remain post-merge gates unless the same-cycle runtime evidence proves them.
+
+## Dynamic Container Canary Closeout Authority
+
+An accepted Dynamic Container canary closeout is distinct from rollback and enforcement. The governed `dynamic_container_canary_closeout` operation may accept exactly one active `read_only_canary` only after the current monitoring window contains at least 100 observations, every observation succeeded, failures are zero, audit coverage is 100 percent, and `monitoring_code=ready_for_review`. Dry-run, exact typed confirmation, an apply-authorized plan-bound Capability Envelope, transactional envelope consumption, and same-cycle readback are mandatory.
+
+Accepted closeout records immutable evidence in the canary registry metadata and returns the exact canary to `shadow` so the single-canary slot can be reused. It must not change the global rollout policy, enable mutation enforcement, call providers, read credential payloads, perform external writes, expose secrets, or imply approval for another canary. Promotion of a subsequent candidate remains a separate governed operation with a fresh dry-run, envelope, typed confirmation, monitoring window, and rollback readiness.
+
+Rollback remains the failure or operator-reversal path and records rollback evidence rather than `closeout_status=accepted`. Agents must not substitute rollback for acceptance, infer acceptance from sample counts alone, or reuse a closeout envelope for promotion, deployment, or enforcement.
+
 ## OpenAPI Endpoint Inventory Synchronization Authority
 
 Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` and `openApiEndpointInventorySync.js` maintain SQL endpoint inventory from committed OpenAPI operations. This is discovery metadata only: rows remain non-callable and pending governance review, OpenAPI extensions do not create runtime authority, and callable promotion requires a separate governed migration or approval flow. Manual apply requires `SYNC_OPENAPI_ENDPOINT_INVENTORY`, a ready `platform_orchestration` capability envelope, advisory locking, transaction boundaries, and same-cycle readback. Startup apply is runtime-config controlled and can be stopped with `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true`.
@@ -41,6 +99,8 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 | `brands` | Brand context, auth target binding |
 | `hosting_accounts` | Per-target credentials |
 | `connected_systems` | MCP/external connectors |
+| `v_activation_connected_app_connections` | Active app-level connections used by Activation auth-gap classification when no traditional `connected_systems` row exists; traditional connector counts remain unchanged |
+| `runtime_deployment_parity_status` | Production parity ledger; production `main` startup reconciles a new deployment-manifest SHA through the governed `repository.main_moved` coordinator, never by direct ledger mutation |
 | `business_type_profiles` | Business-type knowledge and engine compatibility |
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
@@ -76,6 +136,33 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 `shadow` bindings resolve and compare only; they cannot call providers or activate exports. `canary` and `active` bindings require same-cycle policy, authority, certification, approval, audit, and readback validation. The initial `content.article.create_draft` WordPress binding remains draft-only and shadow-only until separately promoted.
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
+
+### Capability Enablement Broker runtime
+
+The descriptor source `capability_enablement_broker_v1` is the long-term governance entry point for role-aware capability enablement. It exposes `capability_enablement_resolve`, `capability_enablement_proposal_preview`, `capability_enablement_decision_report`, `capability_enablement_tenant_projection`, and `capability_enablement_readiness_smoke` through the system-layer descriptor registry.
+
+The broker runtime remains no-provider and no-external-mutation. It may compose `tenantEffectiveCapabilityPreview` and `runCapabilityResolutionDryRun` to classify readiness, produce next actions, generate guided proposal metadata, and optionally write bounded no-secret internal request/step ledger rows when `record_decision=true`. For Admin-only virtual tools that are not provider endpoint semantic capabilities, it may use the guarded `platform_tool_dispatch_bindings` bridge only after `CAPABILITY_NOT_REGISTERED` or `CAPABILITY_BINDING_MISSING`, only for Admin principals, and only as diagnostic metadata. It must not call providers, create or approve envelopes, promote credentials, issue runtime dispatch certifications, grant apply authority, execute external mutations, or return secrets. Apply/publish/deploy/spend/destructive intents must remain blocked or proposed as explicit next actions until a separate policy, typed approval, and readback contract authorize a specific handoff.
+
+Release readiness must show `capability_enablement_broker_v1` as a descriptor source with five tools, zero missing handlers, readiness classification `capability_enablement_broker_ready`, required ledger tables and rollup view present, and checks confirming no provider call, no external mutation, no auto-approval, no certification issuance, explicit-only internal persistence, and no secrets. Explicit handoff execution remains delegated to existing governed tools and must not be embedded inside the broker.
+
+Operational details and the backlog live in `docs/capability-enablement-broker-runtime.md`.
+
+### Generic platform resource context
+
+Use the descriptor-backed `platform_resource_context_resolve` as the primary context entry point whenever an Admin or Tenant request names a Brand, Workspace, Asset, CMS Site, or Connection. The resource may be supplied through a typed field or through generic `reference` plus `resource_type=auto`. Brand and Workspace are optional graph nodes, not mandatory starting points.
+
+Helper tools are purpose-specific:
+
+- `platform_resource_context_catalog` lists the signed principal's authorized resources with type/search filters and cursor pagination.
+- `platform_resource_context_related` expands an exact canonical resource key without language interpretation.
+- `platform_resource_context_diagnostic_handoff` returns safe Site, grant, Connection, and diagnostic-tool identifiers while keeping live connectivity `not_checked` until a provider diagnostic succeeds.
+- `platform_resource_context_readiness_smoke` is the Admin-only descriptor/schema/no-secret readiness check.
+
+When deterministic matching fails, use `resource_reference_interpreter_v1` only to generate bounded `candidate_refs` from the returned authorized catalog, then repeat the resolver call. Prompt output is never authority. The backend must still perform deterministic matching, ambiguity checks, signed principal resolution, membership validation, and effective resource authorization.
+
+Tenant-supplied `tenant_id` and `user_id` are ignored. Tenant Owner/Admin may receive Tenant-level authorized resources; Member/Viewer catalogs are filtered before prompt exposure through effective grants, user-owned Connections, and active CMS grants. Safe Connection metadata may expose only identifiers, labels, status, validation status, and credential-material presence; encrypted credentials, credential references, passwords, tokens, and headers are forbidden.
+
+The legacy `brand_workspace_context_resolve` remains available for backward compatibility and explicitly Brand-first workflows. New generic routing must use the resource-first resolver. See `docs/platform-resource-context.md`.
 
 ### Growth-audit evidence workflow
 
@@ -117,6 +204,16 @@ The MySQL-primary SQL cache exposes four governed Admin tools:
 Critical/high SQL cache runtime conditions are projected into the Admin operational-alert control plane only. Diagnostics counters reset on process restart and are runtime evidence, not durable warehouse metrics. Use `docs/runbooks/sql-cache-operations.md` for policy updates, revision conflicts, rollback, checksum reauthorization, migration ledger verification, and incident response.
 
 Governed migration child-process failures return bounded redacted diagnostics. They may include exit code, signal, detected database error code, and sanitized stderr/stdout summaries, but never raw credentials, bearer values, URL credentials, or unbounded logs.
+
+### Repository automation control plane
+
+Use the Admin-only Repository Automation Control Plane to coordinate repeated repository delivery work instead of manually chaining the same tools. The four registered surfaces are `repository_automation_plan`, `repository_automation_run`, `repository_automation_status`, and `repository_automation_hygiene_scan`. Supported templates are `pr_delivery`, `migration_release`, `post_merge_closeout`, `branch_cleanup`, `spec_lifecycle`, `hygiene_scan`, and `full_workstream`.
+
+Planning and hygiene are read-only. Apply requires a ready outer `platform_orchestration` capability envelope, but the outer envelope never replaces the nested mutation tool's own approval, typed confirmation, expected SHA/checksum, ledger, or readback contract. The orchestrator must stop at `awaiting_input` rather than inventing missing authority.
+
+Mutation retries are bounded to two transport attempts and must perform same-cycle readback before replay after 502, 503, or 504. Successful or recovered mutations persist no-secret idempotency receipts. Large responses must be fully consumed through `response_chunk_read` before fallback. PR delivery must wait for a stable post-automation head SHA, preserve the four required CI checks, use no-force branch reconciliation, and verify production/main parity after merge. Migration release must bind authorization and apply to the published checksum and statement count. Historical specifications belong under `docs/history/<topic>/`; active governed delivery remains under `specs/<feature>/`.
+
+The read-only hygiene cadence is disabled by default until a governed Admin job or n8n runner is separately certified. See `docs/repository-automation-control-plane.md`.
 
 ### Hostinger production deployment policy
 
@@ -205,6 +302,8 @@ Activation lifecycle reporting must keep `validation_state`, `evidence_state`, `
 Activation run archive lookup is a bounded metadata read. Platform Admin callers use `GET /activation/runs/{runId}/archive`; signed tenant users use `GET /tenant/activation/runs/{runId}/archive`, which must resolve tenant and user identity from JWT plus active membership and restrict the lookup to the caller-owned activation run. The response may expose the exact `session_id`, lifecycle states, workspace/Brand references, turn count, timestamps, and Drive archive pointers, but must not return raw transcript content or secrets.
 
 `admin_control` database requests must classify a single `SELECT`, `SHOW`, `DESCRIBE`, `DESC`, `EXPLAIN`, or read-only CTE as non-mutation. Multi-statement SQL, stateful reads, DML, DDL, transaction/control statements, and unclassified SQL remain fail-closed. Mutating `admin_control` calls must not derive authority from Admin role or a hard-coded provider/connection type. They require an active dynamic resource binding whose `allowed_modes_json` includes the requested operation, valid referenced `connected_systems` and `installations` rows when present, and tenant ownership/grant evidence for tenant-scoped callers. Tenant/user identity overrides are forbidden.
+
+Repository reconciliation is a governed application workflow, not an ad hoc sequence of Git calls. `repo.pr.reconcile_and_finalize` must pin the default-branch and work-branch SHAs, acquire an exclusive branch mutation lease, classify overlap before mutation, preserve non-overlapping generated and human-authored files, build one reviewed resolution tree whose sole parent is the pinned default branch, update the work branch without force, verify ancestry and exact path/blob readback, and only then evaluate required CI checks. Every mutation step requires a fresh capability envelope and idempotency key; unknown transport outcomes require same-cycle readback before retry. Docs or generation agents must not mutate a leased branch during reconciliation.
 
 
 `conversation_memory` is summary-first. Prefer `session_summaries`, tagged `platform_pending_tasks.conversation_context_ref` references, and graph-memory hints before loading turn previews. Bounded previews from `gpt_session_turns` should be loaded only when `include_turns=true` with a bounded `turns_limit`; full transcript content should be retrieved from Drive only for targeted continuation/debugging. The backend does not have general access to native ChatGPT history unless turns were explicitly archived into platform tables or Drive.
@@ -324,6 +423,14 @@ Capability -> Envelope -> Evidence -> Authority -> Dispatch -> Readback -> Certi
 
 Migration `314_sprint69_capability_assurance_graph.sql` adds the additive canonical plugin/capability graph, generic evidence and certification registries, persistent capability debt, closure threads, source provenance, and hash-only secret movement evidence. Compatibility views remain valid until canonical parity and cutover evidence pass.
 
+Virtual governed tools must be projected from `platform_tool_dispatch_bindings` through deterministic registry reconciliation. Tool names and aliases are not authority. Identity, scope, operation, readback, or source conflicts create persistent debt and block execution. Virtual Admin surfaces must not project to Tenant, shadow readback readiness remains separate from generic certification, and all projected state-changing capabilities remain `apply_allowed=0` until certification and shadow/canary evidence pass.
+
+Treat bounded mutation atomicity modes such as `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` as one `state_changing` operation family for canonical capability projection. Do not infer authority from aliases. Normalize registry tool tags from arrays, JSON-array strings, or legacy CSV before evaluating mutation, confirmation, and readback policy tags.
+
+Treat virtual-tool rows in `platform_plugin_capability_exports` as shadow assurance aliases until canonical certification and promotion complete. An `active` runtime Admin tool or dispatch binding does not authorize an active capability export. Export shadow alignment must not alter Admin tool catalogs, runtime dispatch bindings, Tenant scope, certification status, or `apply_allowed`.
+
+For `github_file_patch_apply`, shadow certification must be evidence-backed by consumed smoke write and cleanup envelopes plus branch-scoped resource-authority bindings. The certification issuer may activate `repository_change_set_apply`, record acknowledgement and same-cycle verification evidence, and certify the current readback contract only. It must not promote runtime dispatch/apply, active target exports, Tenant authority, or protected-branch access, and it must not call GitHub or any provider during certification issuance.
+
 Agents must keep static capability requirements separate from invocation evidence. A fresh capability envelope is scoped to one actor, tenant, workspace, operation, resource, policy state, and expiry window. Admin or Tenant exposure and POST method alone do not prove an external-resource authority requirement.
 
 Use `v_platform_capability_readiness_vector` for independent readiness dimensions and `v_platform_capability_assurance_gaps` for typed gaps. A maturity score must never override a failed resource, approval, quota, credential, readback, or certification gate. Resource readiness requires a capability-specific envelope-to-binding relationship; an unrelated active binding is never sufficient.
@@ -368,6 +475,11 @@ Do not use oversized `admin_control`, `connector_ps`, or `connector_github` call
 Managed and dedicated activation modes are governed by `activationModePolicy.js`. Tenant GPTs must call `connect_activate` with `tool_args.mode` set to `managed` or `dedicated`; aliases may be normalized server-side, but stored mode is canonical. Managed uses platform-managed infrastructure and credentials. Dedicated uses tenant-owned credentials/local runtime defaults, including `self_hosted_local` n8n where applicable. Mixed/hybrid behavior is per-app, not a third activation mode: use `integration_modes` or `connect_integration_policy_update` to set apps like Cloudflare/Hostinger to `dedicated` while keeping Google apps `managed`. Dedicated app secrets must be entered only through OAuth or credential intake, never pasted into GPT chat. Device install must not proceed until all integrations configured as dedicated and required for device install are active.
 
 ### Development environment governance
+
+Growth Intelligence development pilots must run only through the fixed `dev_governed_migration_client` and `dev_governed_migration_client_apply` aliases after deployment readback proves the expected commit and a database name ending in `_dev`. Dynamic authority for these aliases must use the dedicated `dev_growth_intelligence_pilot_read` or `dev_growth_intelligence_pilot_apply` recipe, an exact `shell://<alias>` resource URI, the matching single operation mode, a pinned commit SHA, bounded TTL, typed confirmation, and same-cycle readback. These recipes never authorize arbitrary shell commands, production execution, provider writes, external sends, consumer activation, or transport activation.
+
+The apply alias may dispatch only the allowlisted `growth_intelligence_pilot_run` contract with `persistence_mode=internal_registry` and `outbox_mode=dev_transactional`. Capture database and Outbox baselines before execution, require exactly one report/event outcome, confirm delivery counts remain unchanged, and keep consumer and transport states disabled/noop unless a separate governed rollout is explicitly approved.
+
 
 `dev.mad4b.com` is the governed development/staging environment for testing repo-branch deployments before production. It is not a brand site and must not be treated as production. Its active evidence should include GitHub branch, commit SHA, deployment mode, Hostinger root, and latest validation result.
 
@@ -470,7 +582,9 @@ Customer agents must:
 
 ### Local Manager connector capability installer governance
 
-Local Manager is now the app-owned surface for connector repair and capability installer application. For repair and capability flows, the app must request a short-lived installer link from `POST /local-connector/install/device-download-link` using its DPAPI-protected device token. App-owned flows must send `app_managed=true` and `suppress_pause=true`, launch the returned BAT through Windows UAC, handle UAC cancellation, wait for the elevated process when possible, then refresh controls.
+Local Manager is now the app-owned surface for connector repair and capability installer application.
+
+Local Manager Windows `0.2.16` must register its per-user installation under the Windows uninstall registry so it appears in Installed Apps and supports explicit and quiet uninstall commands, block privileged Repair/Capabilities flows until the app confirms it is current, and use atomic signed-installer downloads through an exclusive `.download` temporary file before file-size and SHA validation. After startup or successful device linking, the app checks the `cloudflared` and `local-connector` Windows service footprint. Missing services indicate a fresh/formatted Windows installation and trigger the existing short-lived signed repair installer through UAC; stopped services remain a bounded recovery suggestion. Desktop command polling classifies DNS failures, same-cycle DNS recovery, Cloudflare tunnel `1033`/HTTP `530`, platform-origin `502`/`503`/`504`, rate limits, timeouts, and transport failures into secret-safe diagnostics with backoff. Recovered status remains forbidden without same-cycle service/provider readback. For repair and capability flows, the app must request a short-lived installer link from `POST /local-connector/install/device-download-link` using its DPAPI-protected device token. App-owned flows must send `app_managed=true` and `suppress_pause=true`, launch the returned BAT through Windows UAC, handle UAC cancellation, wait for the elevated process when possible, then refresh controls.
 
 Do not treat `section=settings` refresh as proof that capabilities were applied. Validate the effective connector behavior after a capability installer runs:
 
@@ -512,7 +626,7 @@ Admin-side local app access uses backend/service auth and is limited to platform
 
 For customer flows, prefer this sequence:
 
-1. User signs in through the GPT Action OAuth popup backed by `https://auth.mad4b.com/auth/oauth/authorize` and `https://auth.mad4b.com/auth/oauth/token`; `/auth/login` and `/auth/google` are trusted web-flow or fallback paths.
+1. User signs in through the GPT Action OAuth popup. Tenant Core uses the `auth.mad4b.com` OAuth URLs; Tenant Activation uses `https://activation.mad4b.com/auth/oauth/authorize` and `https://activation.mad4b.com/auth/oauth/token`. The Activation popup submits Google, existing-account, and registration credentials only to the narrow `POST /auth/oauth/code` handoff; it never exposes `/auth/login`, `/auth/register`, or `/auth/google` on the activation host.
 2. Runtime resolves tenant membership, entitlement, and risk level.
 3. Customer starts or configures the local Windows connector on their own device.
 4. GPT checks connector status through a scoped runtime/local-connection action.
@@ -556,6 +670,10 @@ For example, `/activation/session-context` is a runtime/admin-and-customer activ
 ### Engineering guardrails
 
 API contracts must follow OpenAPI 3.1. Public and Custom GPT schemas should use stable structured error envelopes, normally `ErrorResponse` with nested `ErrorObject` carrying machine-readable `code`, human-readable `message`, optional HTTP `status`, and optional bounded `details`.
+
+Checked-in contracts must pass deterministic lint and any applicable checked-in compatibility baseline before merge. Compatibility checks must fail closed for removed operations or success responses, changed `operationId` values, newly required parameters or request properties, removed required response properties, incompatible schema-reference or property-type changes, removed component properties, and removed enum values. Additive optional properties, operations, success responses, descriptions, examples, and enum values remain compatible unless a stricter contract policy applies.
+
+For Feature 006, the authoritative contract is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml` and its reviewed baseline is `specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json`. Run `npm run openapi:lint:compat` and `npm run test:openapi:lint:compat` from `http-generic-api`; both remain included in `npm run schemas:guard`. Baseline regeneration requires explicit confirmation after lint passes, and must never be used solely to silence CI. Approved breaking changes require a documented migration or deprecation plan before the baseline is accepted.
 
 When implementing layered application code, preserve folder boundaries:
 
@@ -937,7 +1055,7 @@ Treat `/http-execute` as the main provider execution boundary. Use `/dispatch` a
 
 Agents must not manually inject credentials into request headers unless the backend contract explicitly asks for non-sensitive caller headers. `Authorization` is controlled by the backend and registry auth mode.
 
-Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. Tenant Core and Tenant Activation use the same governed OAuth client and scope set but must be configured as separate Action schemas because their server hosts differ. Tenant/customer GPT Actions should use OAuth with authorization URL `https://auth.mad4b.com/auth/oauth/authorize`, token URL `https://auth.mad4b.com/auth/oauth/token`, and scope `tenant`; the imported tenant OpenAPI schema must still keep only one `components.securitySchemes` entry for ChatGPT importer compatibility. The authorize URL may carry safe tenant activation hints (`screen_hint`, `activation_mode`, `device_id`, `workspace_name`, `sign_in_options`) so the popup can show Google, existing-account, and new-workspace options. Never place passwords, API keys, connector secrets, Google ID tokens, or provider tokens in redirect parameters. Admin/service access uses `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`. User access may use `Authorization: Bearer <USER_JWT>` issued by the OAuth popup bridge, `/auth/login`, or `/auth/google` in a trusted web flow. Treat the GCloud `BACKEND_API_KEY` as an admin/service credential, not a shared per-user credential. Google Identity Services sign-in surfaces must not hardcode or dynamically inject a button `locale` or client-library `hl` value by default; let the Google Account or browser select the language, and require validated BCP 47 parity plus regression tests before any explicit override.
+Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. Tenant Core and Tenant Activation use the same governed OAuth client and scope set but must be configured as separate Action schemas because their server hosts differ. Tenant Core uses authorization URL `https://auth.mad4b.com/auth/oauth/authorize` and token URL `https://auth.mad4b.com/auth/oauth/token`; Tenant Activation uses the corresponding `https://activation.mad4b.com/auth/oauth/authorize` and `https://activation.mad4b.com/auth/oauth/token` gateway URLs. Both use scope `tenant`, and each imported schema must keep only one `components.securitySchemes` entry for ChatGPT importer compatibility. The authorize URL may carry safe tenant activation hints (`screen_hint`, `activation_mode`, `device_id`, `workspace_name`, `sign_in_options`) so the popup can show Google, existing-account, and new-workspace options. Never place passwords, API keys, connector secrets, Google ID tokens, or provider tokens in redirect parameters. Admin/service access uses `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`. User access may use `Authorization: Bearer <USER_JWT>` issued by the OAuth popup bridge, `/auth/login`, or `/auth/google` in a trusted auth-host web flow. Treat the GCloud `BACKEND_API_KEY` as an admin/service credential, not a shared per-user credential. Google Identity Services sign-in surfaces must not hardcode or dynamically inject a button `locale` or client-library `hl` value by default; let the Google Account or browser select the language, and require validated BCP 47 parity plus regression tests before any explicit override.
 
 If secured routes return 401 or 403, classify activation as `authorization_gated (backend_action_auth_missing_or_invalid)` and stop the provider bootstrap chain for that cycle. Do not continue with Drive, Sheets, tenants, or release-readiness calls until Action authentication is corrected.
 
@@ -951,6 +1069,12 @@ If auth fails:
 - `invalid_grant` in a user-owned Drive/Sheets flow means refresh-token repair may be required
 - platform bootstrap auth failures point to service account, ADC, sharing, scope, or deployment configuration
 - do not switch a platform-owned bootstrap file to user refresh-token auth just to make a probe pass
+
+### Credential source metadata and active binding evidence
+
+Credential-source candidates are routing metadata, not proof that a credential binding was materialized or selected. In capability-envelope apply authorization, `selected_source.credential_source_candidates` may describe transport choices such as `platform_managed`, `tenant_connection`, or `none`, while `selected_source.active_credential_binding_count` is the authority for whether the envelope is credential-backed.
+
+When `active_credential_binding_count = 0`, a policy with `allow_no_credential_binding = 1` may authorize the no-binding path even when the transport candidate is platform-managed. When the count is greater than zero, policies with `allow_credential_binding = 0` must remain blocked. Conversely, policies that require a credential binding must reject a zero count. Candidate metadata must never create authority, override the active-binding count, trigger credential payload reads, or weaken provider, approval, audit, and readback gates.
 
 ### Passive auth lifecycle and Google action context
 

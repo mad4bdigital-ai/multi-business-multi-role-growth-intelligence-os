@@ -29,9 +29,13 @@ const REQUIRED_ENDPOINTS = [
   {
     parent_action_key: "github_api_mcp",
     endpoint_key: "github_update_pull_request_branch",
-    expectation: "update-branch endpoint exists for conflict handling",
+    expectation: "update-branch endpoint includes 503 service unavailable response contract",
     validateSchema(schema) {
-      return schema?.method === "put" || schema?.method === "PUT" || schema?.operationId === "updatePullRequestBranch";
+      const methodReady = schema?.method === "put" || schema?.method === "PUT" || schema?.operationId === "updatePullRequestBranch";
+      const serviceUnavailableSchema = schema?.responses?.["503"]?.content?.["application/json"]?.schema;
+      return methodReady &&
+        serviceUnavailableSchema?.type === "object" &&
+        serviceUnavailableSchema?.additionalProperties === true;
     },
   },
   {
