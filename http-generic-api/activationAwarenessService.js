@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { readOperationalAlerts } from "./operationalAlertService.js";
+import { readCiGuardSlo } from "./ciGuardOperationalAlertService.js";
 
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt|payload_json)/i;
@@ -699,7 +700,7 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
   const subject = resolveSubject(sessionContext || {});
   const systemWhere = subject.is_admin ? "status <> 'archived'" : "tenant_id = ? AND status <> 'archived'";
   const systemParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
-  const [tiles, callbacks, systems, freshness] = await Promise.all([
+  const [tiles, callbacks, systems, freshness, ciGuardSlo] = await Promise.all([
     safeRows(
       `SELECT tile_key, provider_family, connector_family, scope_class, display_name,
               category, default_visibility, source_mode, freshness_sla_seconds,
@@ -731,6 +732,24 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
         GROUP BY surface_key, freshness_status`,
       subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"]
     ),
+    subject.is_admin
+      ? readCiGuardSlo().catch((err) => ({
+          ok: false,
+          signal_key: "custom_gpt_contract_guard",
+          overall_status: "unavailable",
+          error: compactError(err, "ci_guard_slo_read_failed"),
+          objectives: {},
+          counts: {},
+          secrets_included: false,
+        }))
+      : Promise.resolve({
+          ok: true,
+          signal_key: "custom_gpt_contract_guard",
+          overall_status: "not_authorized",
+          objectives: {},
+          counts: {},
+          secrets_included: false,
+        }),
   ]);
 
   const callbackByTile = new Map(callbacks.rows.map((row) => [row.tile_key, row]));
@@ -745,6 +764,39 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
     const error = matches.reduce((sum, row) => sum + (row.status === "error" ? safeNumber(row.count) : 0), 0);
     const pending = matches.reduce((sum, row) => sum + (row.status === "pending" ? safeNumber(row.count) : 0), 0);
     const callback = callbackByTile.get(tile.tile_key) || {};
+    if (tile.tile_key === "openapi_guard_slo") {
+      const sloStatus = ciGuardSlo.overall_status === "fail"
+        ? "attention"
+        : ciGuardSlo.overall_status === "pass"
+          ? "active"
+          : "pending";
+      return {
+        tile_key: tile.tile_key,
+        display_name: tile.display_name,
+        category: tile.category,
+        scope_class: tile.scope_class,
+        visibility: tile.default_visibility,
+        provider_family: tile.provider_family,
+        connector_family: tile.connector_family,
+        risk_level: tile.risk_level,
+        status: sloStatus,
+        counts: {
+          successful_runs_24h: safeNumber(ciGuardSlo.counts?.successful_runs_24h),
+          failed_runs_24h: safeNumber(ciGuardSlo.counts?.failed_runs_24h),
+          open_incidents: ciGuardSlo.current_alert && ["open", "acknowledged", "investigating"].includes(ciGuardSlo.current_alert.lifecycle_status) ? 1 : 0,
+        },
+        slo: ciGuardSlo,
+        callback_count: safeNumber(callback.count),
+        read_only_callback_count: safeNumber(callback.read_only_count),
+        freshness_sla_seconds: safeNumber(tile.freshness_sla_seconds),
+        hydration_state: ciGuardSlo.overall_status === "unavailable" ? "degraded" : "summary_loaded",
+        details_ref: {
+          tool_key: "activation_awareness_read_api",
+          tile_key: tile.tile_key,
+          snapshot_id: snapshot?.snapshot_id || null,
+        },
+      };
+    }
     return {
       tile_key: tile.tile_key,
       display_name: tile.display_name,
@@ -768,6 +820,9 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
     };
   });
   const degraded = [tiles, callbacks, systems, freshness].filter((result) => result.ok === false).map((result) => result.error);
+  if (ciGuardSlo.overall_status === "unavailable") {
+    degraded.push(ciGuardSlo.error || { code: "ci_guard_slo_unavailable", message: "CI guard SLO source is unavailable." });
+  }
   return {
     attempted: true,
     ok: degraded.length === 0,
@@ -779,9 +834,11 @@ export async function buildActivationDashboardManifest({ sessionContext = null, 
       attention_tiles: tileManifests.filter((tile) => tile.status === "attention").length,
       pending_tiles: tileManifests.filter((tile) => tile.status === "pending").length,
       not_connected_tiles: tileManifests.filter((tile) => tile.status === "not_connected").length,
+      ci_guard_slo_status: ciGuardSlo.overall_status,
       degraded_surface_count: degraded.length,
     },
     tiles: tileManifests,
+    ci_guard_slo: ciGuardSlo,
     freshness_manifest: freshness.rows.map(stripSensitive),
     degraded_surfaces: degraded,
     policy: {

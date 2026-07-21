@@ -180,6 +180,7 @@ flowchart TD
 | `domain_generalization_before_provider_specific_policy_v1` | 1 |
 | `dr_isolated_restore_certification_policy_v1` | 1 |
 | `dynamic_capability_resolution_policy_v1` | 2 |
+| `dynamic_container_canary_closeout_policy_v1` | 1 |
 | `dynamic_container_canary_promotion_policy_v1` | 1 |
 | `dynamic_container_canary_rollback_policy_v1` | 1 |
 | `dynamic_container_projection_apply_policy_v1` | 1 |
