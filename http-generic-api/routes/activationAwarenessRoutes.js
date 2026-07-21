@@ -25,6 +25,7 @@ import {
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
 import { applyTenantTaskSourceRepair } from "../tenantTaskSourceRepairApplyService.js";
+import { verifyTenantTaskSourceRepair } from "../tenantTaskSourceRepairVerificationService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
