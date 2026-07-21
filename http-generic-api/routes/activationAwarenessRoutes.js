@@ -25,7 +25,6 @@ import {
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
 import { applyTenantTaskSourceRepair } from "../tenantTaskSourceRepairApplyService.js";
-import { verifyTenantTaskSourceRepair } from "../tenantTaskSourceRepairVerificationService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
@@ -378,21 +377,6 @@ async function tenantTaskSourceRepairApplyResponse(req) {
   });
 }
 
-async function tenantTaskSourceRepairVerificationResponse(req) {
-  return verifyTenantTaskSourceRepair({
-    sessionContext: subjectContext(req, false),
-    explicitSubject: {
-      is_admin: false,
-      tenant_id: req.auth?.tenant_id || null,
-      user_id: req.auth?.user_id || null,
-      auth_mode: req.auth?.mode || null,
-    },
-    caseId: req.params.caseId,
-    workspaceId: tenantWorkspaceScope(req),
-    input: req.body || {},
-  });
-}
-
 async function tenantSkillApprovalListResponse(req) {
   return listTenantSkillApprovals({
     sessionContext: subjectContext(req, false),
@@ -623,22 +607,6 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/task-source-repair/apply", requireTenantUserJwt, async (req, res) => {
-    try {
-      return res.status(200).json(await tenantTaskSourceRepairApplyResponse(req));
-    } catch (err) {
-      return errorResponse(res, err, "tenant_task_source_repair_apply_failed");
-    }
-  });
-
-  router.post("/tenant/resolution/cases/:caseId/task-source-repair/verify", requireTenantUserJwt, async (req, res) => {
-    try {
-      return res.status(200).json(await tenantTaskSourceRepairVerificationResponse(req));
-    } catch (err) {
-      return errorResponse(res, err, "tenant_task_source_repair_verification_failed");
-    }
-  });
-
   router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantSkillApprovalListResponse(req));
@@ -682,9 +650,6 @@ export const _testingActivationAwarenessRoutes = {
   tenantResolutionCaseDetailResponse,
   tenantResolutionCaseTransitionResponse,
   tenantResolutionDiagnosticActionResponse,
-  tenantTaskSourceRepairPreviewResponse,
-  tenantTaskSourceRepairApplyResponse,
-  tenantTaskSourceRepairVerificationResponse,
   tenantSkillApprovalListResponse,
   tenantSkillApprovalDecisionResponse,
 };

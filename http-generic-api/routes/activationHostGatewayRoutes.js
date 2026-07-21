@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireActivationTenantGptAccessToken } from "../tenantGptAccessTokenVerifier.js";
 
 export const ACTIVATION_HOST_GATEWAY_HOST = "activation.mad4b.com";
 const AUTH_HOST = "auth.mad4b.com";
@@ -37,7 +38,7 @@ const ALLOWED_TENANT_RESOLUTION_ROUTES = [
   { methods: new Set(["GET", "POST"]), pattern: /^\/tenant\/resolution\/cases$/ },
   { methods: new Set(["GET"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+$/ },
   { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/(?:transitions|diagnostics)$/ },
-  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/task-source-repair\/(?:preview|apply|verify)$/ },
+  { methods: new Set(["POST"]), pattern: /^\/tenant\/resolution\/cases\/[^/]+\/task-source-repair\/preview$/ },
 ];
 
 const TENANT_GPT_OAUTH_HANDOFF_ROUTES = new Map([
@@ -106,6 +107,12 @@ function isActivationSchemaHost(host, activationHost) {
 function isActivationHostAllowedPath(pathname, method) {
   return ALLOWED_EXACT_PATHS.has(pathname)
     || ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
+      route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
+}
+
+function isTenantGptProtectedPath(pathname, method) {
+  return pathname.startsWith("/tenant/activation/")
     || ALLOWED_TENANT_RESOLUTION_ROUTES.some((route) =>
       route.methods.has(String(method || "").toUpperCase()) && route.pattern.test(pathname));
 }
@@ -204,6 +211,11 @@ export function buildActivationHostGatewayRoutes({
       enforced: true,
       secrets_included: false,
     };
+
+    if (isTenantGptProtectedPath(pathname, req.method)) {
+      return requireActivationTenantGptAccessToken(req, res, next);
+    }
+
     return next();
   });
 

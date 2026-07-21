@@ -2,6 +2,8 @@ import { Router } from "express";
 import { spawn } from "child_process";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
+import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
+import { finalizeCloudflareEnvelopeLifecycle } from "../cloudflareEnvelopeLifecycle.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -2105,7 +2107,7 @@ function builtInShellAllowlist() {
     agent_runtime_live_trace_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs"], display_name: "Agent runtime live trace smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 180000, built_in: true },
     execution_log_runtime_evidence_smoke: { command: process.execPath, args: ["http-generic-api/scripts/execution-log-runtime-evidence-smoke.mjs"], display_name: "Execution log runtime evidence smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
   activation_authorized_access_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-smoke.mjs"], display_name: "Activation authorized access smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
-    activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true }, tenant_gpt_oauth_live_smoke: { command: process.execPath, args: ["http-generic-api/scripts/tenant-gpt-oauth-live-smoke-capture.mjs"], display_name: "Tenant GPT OAuth live smoke", allow_extra_args: true, max_extra_args: 3, timeout_ms: 120000, built_in: true },
+    activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true }, 
     activation_authorized_surface_registry_sync: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-surface-registry-sync.mjs"], display_name: "Activation authorized surface registry sync", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
     activation_source_table_coverage_audit: { command: process.execPath, args: ["http-generic-api/scripts/activation-surface-db-coverage-audit.mjs"], display_name: "Activation source table coverage audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
@@ -2682,7 +2684,22 @@ export function buildAdminCliRoutes(deps) {
         payload: { method: body.method || "GET", path: body.path },
       });
       const result = await executeCloudflareControl(body);
-      return res.status(200).json({ ok: true, result });
+      const envelopeLifecycle = await finalizeCloudflareEnvelopeLifecycle({
+        body,
+        mutationResult: result,
+        executeReadback: executeCloudflareControl,
+        consumeEnvelope: ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return res.status(200).json({
+        ok: true,
+        result: { ...result, envelope_lifecycle: envelopeLifecycle },
+      });
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,

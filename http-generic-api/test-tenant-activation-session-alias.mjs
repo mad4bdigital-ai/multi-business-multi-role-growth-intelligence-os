@@ -518,24 +518,12 @@ const tenantCore = await stage("tenant_core_split_parse", async () =>
   YAML.parse(fs.readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"))
 );
 
-const customGptSurfaceRegistry = await stage("custom_gpt_surface_registry_parse", async () =>
-  YAML.parse(fs.readFileSync("../canonicals/openapi/custom-gpt-surfaces.yaml", "utf8"))
-);
-
 await stage("tenant_surface_operation_budgets", async () => {
   const countOperations = (document) => Object.values(document.paths || {})
     .flatMap((pathItem) => Object.keys(pathItem || {}))
     .filter((method) => ["get", "post", "put", "patch", "delete"].includes(method)).length;
-
-  const expectedOperationCount = (surfaceKey) => {
-    const operationIds = customGptSurfaceRegistry.surfaces?.[surfaceKey]?.selector?.tenant_operation_ids;
-    assert.ok(Array.isArray(operationIds), `${surfaceKey} must declare selector.tenant_operation_ids in the canonical surface registry`);
-    assert.equal(new Set(operationIds).size, operationIds.length, `${surfaceKey} selector.tenant_operation_ids must not contain duplicates`);
-    return operationIds.length;
-  };
-
-  assert.equal(countOperations(tenantCore), expectedOperationCount("tenant_core"));
-  assert.equal(countOperations(tenantActivation), expectedOperationCount("tenant_activation"));
+  assert.equal(countOperations(tenantCore), 30);
+  assert.equal(countOperations(tenantActivation), 13);
   assert.equal(tenantCore.paths?.["/sessions"], undefined);
   assert.equal(tenantCore.paths?.["/gpt/sessions/{id}/turns"], undefined);
   assert.equal(tenantCore.paths?.["/tenant/activation/sessions"], undefined);

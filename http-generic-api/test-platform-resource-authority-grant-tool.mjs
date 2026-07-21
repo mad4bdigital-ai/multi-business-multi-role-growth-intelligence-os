@@ -26,6 +26,9 @@ assert.equal(dry.resource_ref.requires_typed_confirmation, true);
 assert.equal(dry.resource_ref.requires_same_cycle_readback, true);
 assert.equal(dry.secrets_included, false);
 assert.match(dry.expected_confirm, /^GRANT_RESOURCE_AUTHORITY_/);
+assert.equal(dry.principal.principal_type, "user");
+assert.equal(dry.principal.principal_id, base.user_id);
+assert.deepEqual(dry.resource_ref.principal, { principal_type: "user", principal_id: base.user_id });
 
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...base, mode: "apply", confirm: "WRONG", ttl_minutes: 60 }), /exact typed confirmation/);
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...base, mode: "apply", confirm: dry.expected_confirm }), /ttl_minutes/);
@@ -35,6 +38,75 @@ assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...base, allowed_m
 
 const apply = buildPlatformResourceAuthorityGrantPlan({ ...base, mode: "apply", confirm: dry.expected_confirm, ttl_minutes: 30 });
 assert.equal(apply.ttl_minutes, 30);
+
+const servicePrincipalBase = {
+  ...base,
+  user_id: undefined,
+  principal: {
+    principal_type: "service",
+    principal_id: "platform_admin_service",
+  },
+};
+const servicePrincipalDry = buildPlatformResourceAuthorityGrantPlan(servicePrincipalBase);
+assert.equal(servicePrincipalDry.user_id, "platform_admin_service");
+assert.equal(servicePrincipalDry.principal.principal_type, "service");
+assert.equal(servicePrincipalDry.principal.principal_id, "platform_admin_service");
+assert.deepEqual(servicePrincipalDry.resource_ref.principal, {
+  principal_type: "service",
+  principal_id: "platform_admin_service",
+});
+assert.match(servicePrincipalDry.expected_confirm, /^GRANT_RESOURCE_AUTHORITY_.+_[A-F0-9]{16}$/);
+
+const alternateServicePrincipalDry = buildPlatformResourceAuthorityGrantPlan({
+  ...servicePrincipalBase,
+  principal: { principal_type: "service", principal_id: "platform_secondary_service" },
+});
+assert.notEqual(
+  alternateServicePrincipalDry.expected_confirm,
+  servicePrincipalDry.expected_confirm,
+  "changing principal_id must change typed confirmation"
+);
+
+const backendSameIdDry = buildPlatformResourceAuthorityGrantPlan({
+  ...servicePrincipalBase,
+  principal: { principal_type: "backend_api_key", principal_id: "platform_admin_service" },
+});
+assert.notEqual(
+  backendSameIdDry.expected_confirm,
+  servicePrincipalDry.expected_confirm,
+  "changing principal_type must change typed confirmation"
+);
+
+const backendPrincipalDry = buildPlatformResourceAuthorityGrantPlan({
+  ...base,
+  user_id: undefined,
+  principal: { principal_type: "backend_api_key", principal_id: "platform_backend_api_key" },
+});
+assert.equal(backendPrincipalDry.principal.principal_type, "backend_api_key");
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "robot", principal_id: "x" } }),
+  /principal_type must be user, service, or backend_api_key/
+);
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "service" } }),
+  /principal_id is required/
+);
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "service", principal_id: "invalid principal" } }),
+  /unsupported characters/
+);
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "service", principal_id: "a".repeat(65) } }),
+  /must not exceed 64 characters/
+);
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, user_id: base.user_id }),
+  /may only accompany a matching user principal/
+);
+assert.throws(
+  () => buildPlatformResourceAuthorityGrantPlan({ ...servicePrincipalBase, principal: { principal_type: "user", principal_id: "not-a-uuid" } }),
+  /must be a UUID/
+);
 
 const shellReadBase = {
   tenant_id: base.tenant_id,
@@ -65,20 +137,6 @@ assert.equal(shellApplyDry.resource_ref.alias, "dev_governed_migration_client_ap
 const shellApply = buildPlatformResourceAuthorityGrantPlan({ ...shellApplyBase, mode: "apply", confirm: shellApplyDry.expected_confirm, ttl_minutes: 15 });
 assert.equal(shellApply.ttl_minutes, 15);
 
-const oauthSmokeBase = {
-  ...shellReadBase,
-  resource_uri: "shell://tenant_gpt_oauth_live_smoke",
-  recipe_key: "tenant_gpt_oauth_live_smoke",
-};
-const oauthSmokeDry = buildPlatformResourceAuthorityGrantPlan(oauthSmokeBase);
-assert.equal(oauthSmokeDry.permission_level, "diagnostic");
-assert.deepEqual(oauthSmokeDry.allowed_modes, ["tenant_gpt_oauth_live_smoke"]);
-assert.equal(oauthSmokeDry.resource_ref.alias, "tenant_gpt_oauth_live_smoke");
-assert.equal(oauthSmokeDry.resource_ref.arbitrary_shell_allowed, false);
-assert.equal(oauthSmokeDry.resource_ref.production_execution_allowed, true);
-assert.equal(oauthSmokeDry.resource_ref.requires_same_cycle_readback, true);
-const oauthSmokeApply = buildPlatformResourceAuthorityGrantPlan({ ...oauthSmokeBase, mode: "apply", confirm: oauthSmokeDry.expected_confirm, ttl_minutes: 10 });
-assert.equal(oauthSmokeApply.ttl_minutes, 10);
 
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...shellReadBase, resource_uri: "shell://powershell" }), /exact allowlisted shell alias/);
 assert.throws(() => buildPlatformResourceAuthorityGrantPlan({ ...shellReadBase, allowed_modes: ["dev_governed_migration_client_apply"] }), /outside the recipe allowlist/);
@@ -92,9 +150,11 @@ assert(routeFile.includes("requireAdminPrincipal"));
 const source = fs.readFileSync(new URL("./platformResourceAuthorityGrantTool.js", import.meta.url), "utf8");
 assert(source.includes("dev_growth_intelligence_pilot_read"));
 assert(source.includes("dev_growth_intelligence_pilot_apply"));
-assert(source.includes("tenant_gpt_oauth_live_smoke"));
 assert(source.includes("shell://"));
 assert(source.includes("arbitrary_shell_allowed: false"));
+assert(source.includes("PRINCIPAL_TYPES"));
+assert(source.includes("principal_type"));
+assert(source.includes("legacy_user_id"));
 assert(source.includes("production_execution_allowed: recipe.production_execution_allowed === true"));
 
 const migration = fs.readFileSync(new URL("./migrations/20260704_platform_resource_authority_grant_tool.sql", import.meta.url), "utf8");
@@ -138,26 +198,31 @@ assert.equal(contractPreflight.status, "pass", JSON.stringify(contractPreflight,
 assert.equal(contractPreflight.risk_count, 0, JSON.stringify(contractPreflight, null, 2));
 assert.equal(contractPreflight.secrets_included, false, JSON.stringify(contractPreflight, null, 2));
 
-const oauthSmokeContractMigrationName = "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql";
-const oauthSmokeContractMigration = fs.readFileSync(new URL(`./migrations/${oauthSmokeContractMigrationName}`, import.meta.url), "utf8");
+const principalContractMigrationName = "20260719_expand_resource_authority_principal_contract.sql";
+const principalContractMigration = fs.readFileSync(new URL(`./migrations/${principalContractMigrationName}`, import.meta.url), "utf8");
 for (const marker of [
-  "tenant_gpt_oauth_live_smoke",
-  "bounded_production_smoke",
-  "temporary",
-  "diagnostic",
-  "typed confirmation",
-  "same-cycle readback",
-  "arbitrary_shell_allowed=false",
-  "temporary_production_smoke=true",
+  "platform_resource_authority_grant_apply",
+  "principal_type",
+  "principal_id",
+  "backend_api_key",
+  "platform_admin_service",
+  "deprecated",
+  "anyOf",
+]) {
+  assert.ok(principalContractMigration.includes(marker), `principal contract migration missing ${marker}`);
+}
+assert.doesNotMatch(principalContractMigration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
+for (const marker of [
+  "no_provider_call=true",
+  "no_credential_payload_read=true",
+  "no_raw_secrets=true",
+  "no_external_write=true",
   "secrets_included=false",
 ]) {
-  assert.ok(oauthSmokeContractMigration.includes(marker), `OAuth smoke resource authority migration missing ${marker}`);
+  assert.ok(principalContractMigration.includes(marker), `principal contract migration missing safety marker ${marker}`);
 }
-assert.doesNotMatch(oauthSmokeContractMigration, /shell:\/\/powershell|shell:\/\/bash|client_secret|backend_api_key|jwt_secret/i);
-assert.doesNotMatch(oauthSmokeContractMigration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
-const oauthSmokeContractPreflight = assessMigrationSqlPreflight(oauthSmokeContractMigrationName, oauthSmokeContractMigration);
-assert.equal(oauthSmokeContractPreflight.status, "pass", JSON.stringify(oauthSmokeContractPreflight, null, 2));
-assert.equal(oauthSmokeContractPreflight.risk_count, 0, JSON.stringify(oauthSmokeContractPreflight, null, 2));
-assert.equal(oauthSmokeContractPreflight.secrets_included, false, JSON.stringify(oauthSmokeContractPreflight, null, 2));
+const principalContractPreflight = assessMigrationSqlPreflight(principalContractMigrationName, principalContractMigration);
+assert.equal(principalContractPreflight.status, "pass", JSON.stringify(principalContractPreflight, null, 2));
+assert.equal(principalContractPreflight.risk_count, 0, JSON.stringify(principalContractPreflight, null, 2));
 
 console.log("platform resource authority grant tool tests passed");

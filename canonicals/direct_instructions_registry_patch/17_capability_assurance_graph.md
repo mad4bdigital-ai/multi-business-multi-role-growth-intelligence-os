@@ -2,12 +2,15 @@
 
 Before capability dispatch:
 1. resolve the canonical capability and active export;
-2. classify authority requirement type;
-3. resolve a fresh invocation envelope;
-4. resolve capability-specific effective resource bindings when the operation targets an external or governed resource;
-5. enforce approval, quota, audit, readback, certification, and rollback requirements independently;
-6. block dispatch when any hard gate fails;
-7. write bounded evidence and read it back before completion.
+2. resolve the canonical resource adapter before selecting certification or readback contracts;
+3. classify authority requirement type;
+4. resolve a fresh invocation envelope;
+5. resolve capability-specific effective resource bindings when the operation targets an external or governed resource;
+6. enforce approval, quota, audit, readback, certification, and rollback requirements independently;
+7. block dispatch when any hard gate fails;
+8. write bounded evidence and read it back before completion.
+
+Treat app keys, provider keys, resource types, and runtime surfaces as adapter selectors only. Contract filtering must use the resolved canonical adapter key. Adapter-contract mismatch and equal-ranked current contracts are typed blockers, not missing-contract fallbacks.
 
 Do not infer resource authority from HTTP method, Admin exposure, Tenant exposure, maturity score, tool registration, an unrelated resource binding, or a historical envelope.
 

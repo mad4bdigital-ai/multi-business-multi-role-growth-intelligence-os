@@ -98,7 +98,7 @@ jobs:
           git fetch origin main --depth=1
           BASE_REF="main"
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(frontend-surface-dispatch.generated.json|openapi/frontend-runtime-routes.generated.yaml) || true)"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${UNEXPECTED}" ]]; then
             echo "::error::generator changed files outside the bounded evidence set"
             printf '%s\n' "${UNEXPECTED}"
