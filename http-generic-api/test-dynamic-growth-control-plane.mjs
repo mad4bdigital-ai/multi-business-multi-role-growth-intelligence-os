@@ -130,7 +130,9 @@ const fakeRepository = {
     return stored.versions.filter((item) => includeDraftVersionIds.includes(item.configVersionId));
   },
   async recordResolutionSnapshot(record) { stored.snapshots.push(record); return { resolutionId: record.resolutionId, ...record.result }; },
-  async listActivityPacks() { return []; },
+  async listActivityPacks({ limit = 25, offset = 0 } = {}) {
+    return [].slice(offset, offset + limit);
+  },
   async createActivityPackDefinition(record) { return { ...record, status: "draft" }; },
   async createActivityPackVersion(record) { return { ...record, versionNumber: 1, lifecycle: "draft" }; },
   async createBrandActivityBinding(record) { return { activityBindingId: record.activityBindingId, ...record.binding }; }
