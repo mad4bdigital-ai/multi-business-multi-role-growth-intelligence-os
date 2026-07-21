@@ -885,6 +885,9 @@ internal static class Program
             }
         }
 
+        private const int ConnectorRuntimeVerificationAttempts = 18;
+        private static readonly TimeSpan ConnectorRuntimeVerificationDelay = TimeSpan.FromSeconds(5);
+
         private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task<bool>>? verifyAfterInstall)
         {
             var result = MessageBox.Show(
@@ -944,8 +947,8 @@ internal static class Program
             }
 
             _progress.Value = Math.Max(_progress.Value, 92);
-            _status.Text = $"{installerLabel} finished. Waiting for connector service to restart…";
-            await Task.Delay(TimeSpan.FromSeconds(8));
+            _status.Text = $"{installerLabel} finished. Waiting for post-install runtime verification…";
+            await Task.Delay(TimeSpan.FromSeconds(3));
 
             var postInstallVerified = verifyAfterInstall is null || await verifyAfterInstall();
             _progress.Value = 100;
@@ -967,16 +970,74 @@ internal static class Program
                 return false;
             }
 
-            var verification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
-            _output.Text = verification.ControlEnvelope.GetRawText();
-            if (!verification.RuntimeVerified)
+            var attempts = string.Equals(section, "repairs", StringComparison.OrdinalIgnoreCase)
+                ? ConnectorRuntimeVerificationAttempts
+                : 1;
+            ConnectorFootprintAssessment? lastFootprint = null;
+            ConnectorCapabilityVerification? lastVerification = null;
+            string? lastTransientError = null;
+
+            for (var attempt = 1; attempt <= attempts; attempt++)
             {
-                _status.Text = label + ": installer completed but connector runtime is not active.";
-                return false;
+                if (string.Equals(section, "repairs", StringComparison.OrdinalIgnoreCase))
+                {
+                    lastFootprint = await LocalConnectorFootprint.AssessAsync();
+                    _status.Text = $"{label}: waiting for connector services, tunnel, heartbeat, and route ({attempt}/{attempts})…";
+                    _progress.Value = Math.Min(99, 92 + (attempt * 7 / attempts));
+                }
+
+                try
+                {
+                    lastVerification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
+                    _output.Text = lastVerification.ControlEnvelope.GetRawText();
+                    if (lastVerification.RuntimeVerified)
+                    {
+                        _status.Text = label + " verified.";
+                        return true;
+                    }
+                }
+                catch (Exception ex) when (IsTransientConnectorVerificationFailure(ex))
+                {
+                    lastTransientError = ex.GetBaseException().Message;
+                }
+
+                if (attempt < attempts)
+                {
+                    await Task.Delay(ConnectorRuntimeVerificationDelay);
+                }
             }
 
-            _status.Text = label + " verified.";
-            return true;
+            _output.Text = JsonSerializer.Serialize(new
+            {
+                ok = false,
+                section,
+                runtime_verified = false,
+                verification_attempts = attempts,
+                verification_window_seconds = (int)ConnectorRuntimeVerificationDelay.TotalSeconds * Math.Max(0, attempts - 1),
+                cloudflared_present = lastFootprint?.CloudflaredPresent,
+                cloudflared_running = lastFootprint?.CloudflaredRunning,
+                connector_service_present = lastFootprint?.ConnectorServicePresent,
+                connector_service_running = lastFootprint?.ConnectorServiceRunning,
+                local_footprint_reason = lastFootprint?.Reason,
+                last_runtime_evidence = lastVerification?.Evidence,
+                last_transient_error = lastTransientError,
+                token_plaintext_shown = false,
+                secrets_included = false
+            }, _json);
+            _status.Text = label + ": installer completed but connector runtime did not become active within the bounded verification window.";
+            return false;
+        }
+
+        private static bool IsTransientConnectorVerificationFailure(Exception exception)
+        {
+            var root = exception.GetBaseException();
+            if (root is HttpRequestException or TaskCanceledException or TimeoutException) return true;
+            if (root is not InvalidOperationException invalidOperation) return false;
+
+            var match = Regex.Match(invalidOperation.Message ?? string.Empty, @"status (?<code>\d{3})\.");
+            return match.Success
+                && int.TryParse(match.Groups["code"].Value, out var statusCode)
+                && (statusCode == 429 || statusCode >= 500);
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
