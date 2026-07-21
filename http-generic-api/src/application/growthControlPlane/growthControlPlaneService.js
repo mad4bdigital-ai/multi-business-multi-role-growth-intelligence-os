@@ -34,6 +34,32 @@ function idempotencyKey(value) {
   return key;
 }
 
+function encodeCursor(offset) {
+  return Buffer.from(String(offset), "utf8").toString("base64url");
+}
+
+function decodeCursor(value) {
+  if (value == null || value === "") return 0;
+  const cursor = String(value).trim();
+  try {
+    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+    if (!/^\d+$/.test(decoded) || Buffer.from(decoded, "utf8").toString("base64url") !== cursor) throw new Error("invalid");
+    const offset = Number(decoded);
+    if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("invalid");
+    return offset;
+  } catch {
+    throw new GrowthControlPlaneError("GROWTH_CONTROL_CURSOR_INVALID", "cursor is invalid.", 400, [{ field: "cursor", issue: "invalid" }]);
+  }
+}
+
+function normalizeListPage(input = {}) {
+  const limit = input.limit == null || input.limit === "" ? 25 : Number(input.limit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new GrowthControlPlaneError("GROWTH_CONTROL_LIMIT_INVALID", "limit must be an integer from 1 to 100.", 400, [{ field: "limit", issue: "out_of_range" }]);
+  }
+  return Object.freeze({ limit, offset: decodeCursor(input.cursor) });
+}
+
 export function createGrowthControlPlaneService({ repository, uuid = randomUUID }) {
   if (!repository) throw new TypeError("Growth Control Plane repository is required.");
 
