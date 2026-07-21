@@ -1,0 +1,45 @@
+{
+  "spec_key": "011-durable-governed-execution-and-agent-delegation",
+  "status": "draft",
+  "delivery_mode": "multi_pr",
+  "scope": [
+    "admin",
+    "tenant_user",
+    "agent_runtime",
+    "repository_automation",
+    "ci_governance",
+    "migration_governance",
+    "operational_intelligence"
+  ],
+  "design_only": true,
+  "runtime_changes": false,
+  "database_migrations": false,
+  "deployment": false,
+  "merge": false,
+  "source_main_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
+  "branch": "gpt/spec-011-durable-governed-execution-20260721",
+  "pull_request": 2934,
+  "deliverables": [
+    "spec",
+    "plan",
+    "tasks",
+    "completion_contract",
+    "requirements_checklist",
+    "approval_delegation_modes",
+    "execution_policy_framework",
+    "ci_automation_framework",
+    "data_model",
+    "openapi_draft",
+    "quickstart"
+  ],
+  "constraints": [
+    "no_runtime_implementation",
+    "no_provider_call",
+    "no_external_send",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment",
+    "no_merge",
+    "no_secrets"
+  ]
+}
