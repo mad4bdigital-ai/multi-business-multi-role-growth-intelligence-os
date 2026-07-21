@@ -113,6 +113,26 @@ function objectiveStatus(sampleCount, value, target, { noSamples = "not_applicab
   return Number(value) <= Number(target) ? "pass" : "fail";
 }
 
+export function deriveRecoverySamples(events = []) {
+  const chronological = [...events]
+    .map((event) => ({ event, observedAt: parseDate(event?.observed_at) }))
+    .filter((entry) => entry.observedAt)
+    .sort((a, b) => a.observedAt - b.observedAt);
+  const samples = [];
+  let incidentStartedAt = null;
+  for (const { event, observedAt } of chronological) {
+    if (FAILURE_STATUSES.has(String(event?.status || "").toLowerCase())) {
+      incidentStartedAt ||= observedAt;
+      continue;
+    }
+    if (String(event?.status || "").toLowerCase() === "success" && incidentStartedAt) {
+      samples.push(Math.max(0, Math.round((observedAt.getTime() - incidentStartedAt.getTime()) / 1000)));
+      incidentStartedAt = null;
+    }
+  }
+  return samples;
+}
+
 export function calculateCiGuardSlo(events = [], currentAlert = null, {
   generatedAt = new Date(),
   targets = DEFAULT_TARGETS,
