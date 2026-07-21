@@ -107,6 +107,57 @@ assert.equal(recovered.objectives.detection_time.status, "pass");
 assert.equal(recovered.objectives.recovery_time.status, "pass");
 assert.equal(recovered.objectives.recovery_time.maximum_seconds, 600);
 
+const repeatedIncidentEvents = [
+  {
+    signal_key: "custom_gpt_contract_guard",
+    status: "success",
+    workflow_run_id: "203",
+    observed_at: "2026-07-21T01:50:00.000Z",
+    recovery_seconds: 99999,
+  },
+  {
+    signal_key: "custom_gpt_contract_guard",
+    status: "failure",
+    workflow_run_id: "202",
+    observed_at: "2026-07-21T01:10:00.000Z",
+    detection_seconds: 62,
+  },
+  {
+    signal_key: "custom_gpt_contract_guard",
+    status: "failure",
+    workflow_run_id: "201",
+    observed_at: "2026-07-21T01:00:00.000Z",
+    detection_seconds: 58,
+  },
+  {
+    signal_key: "custom_gpt_contract_guard",
+    status: "success",
+    workflow_run_id: "200",
+    observed_at: "2026-07-21T00:05:00.000Z",
+    recovery_seconds: 88888,
+  },
+  {
+    signal_key: "custom_gpt_contract_guard",
+    status: "failure",
+    workflow_run_id: "199",
+    observed_at: "2026-07-21T00:03:00.000Z",
+    detection_seconds: 60,
+  },
+];
+assert.deepEqual(
+  _testingCiGuardOperationalAlerts.deriveRecoverySamples(repeatedIncidentEvents),
+  [120, 3000],
+  "recovery must be measured from the first failure of each incident cycle, not historical alert first_seen_at or stored legacy values",
+);
+const repeatedIncidentSlo = calculateCiGuardSlo(repeatedIncidentEvents, {
+  alert_id: "alert-1",
+  lifecycle_status: "resolved",
+  severity: "high",
+}, { generatedAt: now });
+assert.equal(repeatedIncidentSlo.overall_status, "pass");
+assert.equal(repeatedIncidentSlo.objectives.recovery_time.sample_count, 2);
+assert.equal(repeatedIncidentSlo.objectives.recovery_time.maximum_seconds, 3000);
+
 assert.equal(_testingCiGuardOperationalAlerts.DEFAULT_TARGETS.maximum_detection_seconds, 300);
 assert.equal(_testingCiGuardOperationalAlerts.DEFAULT_TARGETS.maximum_recovery_seconds, 3600);
 console.log("CI guard operational alert service tests passed.");
