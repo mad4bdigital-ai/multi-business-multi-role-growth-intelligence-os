@@ -1,6 +1,6 @@
 export const CONNECTOR_INVENTORY_CAPABILITY_KEY = "connector.inventory.read";
 
-const FORBIDDEN_EVIDENCE_KEY = /(secret|token|password|private[_-]?key|api[_-]?key|ciphertext|credential(?:ref|reference|value|payload|body|blob|data|material))/i;
+const FORBIDDEN_EVIDENCE_KEY = /(secret|token|password|private[_-]?key|api[_-]?key|ciphertext|credential[_-]?(?:ref|reference|value|payload|body|blob|data|material))/i;
 const SAFE_NEGATIVE_METADATA_KEYS = new Set([
   "secretsincluded",
   "credentialpayloadreads",
