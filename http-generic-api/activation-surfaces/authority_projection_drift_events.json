@@ -1,0 +1,39 @@
+{
+  "surface_key": "authority_projection_drift_events",
+  "display_name": "Authority Projection Drift Events",
+  "description": "Read-only activation evidence for no-secret connector projection consistency findings.",
+  "source_table": "authority_projection_drift_events",
+  "result_key_column": "drift_event_id",
+  "result_label_column": "issue_code",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": [
+    "open",
+    "resolved",
+    "ignored"
+  ],
+  "result_columns": [
+    "drift_event_id",
+    "decision_id",
+    "tenant_id",
+    "projection_key",
+    "issue_code",
+    "registered_count",
+    "authorized_count",
+    "projected_count",
+    "executable_candidate_count",
+    "status",
+    "enforcement_mode",
+    "authority_granted",
+    "detected_at",
+    "resolved_at",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 322,
+  "status": "active",
+  "notes": "Read-only and tenant-filtered. details_json and all provider, credential, and external-write markers are intentionally excluded from projection output."
+}
