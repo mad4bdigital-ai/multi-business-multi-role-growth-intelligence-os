@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "011-database-driven-operation-fabric",
   "title": "Database-Driven Operation Fabric",
-  "status": "specification_complete",
+  "status": "in_progress",
   "delivery_mode": "multi_pr",
   "requirements": {
     "migration": true,
