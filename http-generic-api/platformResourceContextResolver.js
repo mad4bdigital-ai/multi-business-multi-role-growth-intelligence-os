@@ -677,12 +677,12 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
   },
   {
     name: "platform_resource_context_related",
-    description: "Expand the authorized one-hop resource graph for one canonical Brand, Workspace, Asset, CMS Site, or Connection key. Uses deterministic exact-key resolution and returns no interpretation catalog. Read-only; no provider call, mutation, or secrets.",
+    description: "Expand the authorized one-hop resource graph for one canonical Brand, Workspace, Asset, CMS Site, Connection, or Repository key. Repository results include safe inherited capability metadata, source maps, authority fingerprints, and capability fingerprints without credential references. Uses deterministic exact-key resolution and returns no interpretation catalog. Read-only; no provider call, mutation, or secrets.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        resource_type: { type: "string", enum: ["brand", "workspace", "asset", "site", "connection"] },
+        resource_type: { type: "string", enum: ["brand", "workspace", "asset", "site", "connection", "repository"] },
         resource_key: { type: "string", minLength: 1, maxLength: 2048 },
         tenant_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
         user_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
