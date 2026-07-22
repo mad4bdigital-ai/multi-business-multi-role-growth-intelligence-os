@@ -232,9 +232,12 @@ const authorityDeps = {
       confirm: __test__.APPLY_CONFIRMATION,
       capability_envelope_id: "envelope-1",
       expected_commit_sha: expectedCommitSha,
+      binding_sha256: bindingSha256,
+      capability_sha256: capabilitySha256,
       reason: applyReason,
     },
     {
+      ...authorityDeps,
       resolveCapabilityEnvelope: async (args) => {
         lifecycle.push("envelope:resolved");
         assert.equal(args.envelopeId, "envelope-1");
