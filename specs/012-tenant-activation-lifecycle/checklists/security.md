@@ -19,7 +19,7 @@
 - [x] New access tokens use one Activation audience.
 - [x] Multi-audience tokens are rejected.
 - [x] Resource claim mismatch is rejected.
-- [ ] Legacy audience cutoff date and emergency extension policy are approved. Blocked by Q-002.
+- [x] Legacy generic-token cutoff, emergency extension policy, unified OAuth client, and resource-bound external access-token architecture are approved by ADR-002 and ADR-003.
 
 ## Authorization and tenant isolation
 
