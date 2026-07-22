@@ -505,6 +505,52 @@ function testRepositoryContracts() {
   assert.match(criticalClosureMigration, /raw_secrets_included', FALSE/);
   assert.match(criticalClosureMigration, /secrets_included', FALSE/);
   assert.doesNotMatch(criticalClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
+
+  const mediumClosureMigration = read("./migrations/20260722_resolve_verified_medium_readiness_and_connector_attention.sql");
+  assert.equal((mediumClosureMigration.match(/UPDATE readiness_checks/g) || []).length, 4);
+  assert.equal((mediumClosureMigration.match(/UPDATE connected_systems/g) || []).length, 1);
+  assert.equal((mediumClosureMigration.match(/UPDATE operational_alerts/g) || []).length, 6);
+  for (const checkId of [
+    "4226f266-6287-11f1-8ecd-456940024c79",
+    "84d2dc4c-627a-11f1-8ecd-456940024c79",
+    "07f00750-6267-11f1-8ecd-456940024c79",
+    "eb8b482f-625b-11f1-8ecd-456940024c79",
+    "c43d3458-61c6-11f1-8ecd-456940024c79",
+    "3efd554e-61b5-11f1-8ecd-456940024c79",
+    "openclaude-provider-bridge-contract-",
+    "9346bcab-4b65-11f1-b256-614c56cd019b",
+    "e36d7196-4b64-11f1-b256-614c56cd019b",
+    "a7e37ab2-4b63-11f1-b256-614c56cd019b",
+  ]) assert.ok(mediumClosureMigration.includes(checkId), `medium closure migration must target readiness check ${checkId}`);
+  for (const alertId of [
+    "a1035373-9ab4-4cc1-93f5-54f4a66d84b6",
+    "a8c8f20e-cba7-4318-b778-0295f589da3c",
+    "9c6ea599-f149-47f0-929b-7eb08dc497db",
+    "e964acba-6684-4bb2-98aa-a8a15eca8fae",
+    "546b79a1-e2fc-48d7-bf4e-297582b4a0ff",
+    "be604cb0-e550-4b71-93e6-948028c410ae",
+    "8858b083-5afd-4d1d-b878-68c90ba825a2",
+    "2c18a318-22aa-4e33-97a4-cc7d93ff1fdb",
+    "b812e948-2e57-4a4d-aa1c-823c99ec529c",
+    "191fc2a7-e864-4c7a-81d2-ac8a416173b8",
+    "150a5110-6b16-11f1-8ecd-456940024c79",
+    "aa5ad403-92f1-4ffd-bf04-9ec7b49b43b1",
+  ]) assert.ok(mediumClosureMigration.includes(alertId), `medium closure migration must target alert ${alertId}`);
+  assert.match(mediumClosureMigration, /check_status = 'pass'/);
+  assert.match(mediumClosureMigration, /status = 'archived'/);
+  assert.match(mediumClosureMigration, /lifecycle_status = 'resolved'/);
+  assert.match(mediumClosureMigration, /github_main_auto_deploy/);
+  assert.match(mediumClosureMigration, /credential_intake_contract_and_test_readback/);
+  assert.match(mediumClosureMigration, /ready_for_live_provider_dispatch/);
+  assert.match(mediumClosureMigration, /system_facade_callability_readback/);
+  assert.match(mediumClosureMigration, /durable_response_chunk_contract_readback/);
+  assert.match(mediumClosureMigration, /active_connector_replacement_readback/);
+  assert.match(mediumClosureMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(mediumClosureMigration, /migration_external_write_executed', FALSE/);
+  assert.match(mediumClosureMigration, /migration_external_send_executed', FALSE/);
+  assert.match(mediumClosureMigration, /credential_payload_read', FALSE/);
+  assert.match(mediumClosureMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(mediumClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
 }
 
 async function main() {

@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 47,
+  "total_items": 48,
   "class_counts": {
     "critical_review": 21,
-    "high_review": 24,
+    "high_review": 25,
     "medium_review": 2,
     "low_review": 0
   },
@@ -173,7 +173,7 @@
     },
     {
       "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
-      "score": 982,
+      "score": 981,
       "queue_class": "critical_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1708,7 +1708,7 @@
     },
     {
       "migration_file": "20260722_close_verified_high_operational_attention.sql",
-      "score": 664,
+      "score": 663,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1790,7 +1790,7 @@
     },
     {
       "migration_file": "20260718_virtual_tool_single_file_mutation_classification.sql",
-      "score": 647,
+      "score": 646,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1860,6 +1860,87 @@
             "no_raw_secrets",
             "no_external_send",
             "no_external_write"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260722_resolve_verified_medium_readiness_and_connector_attention.sql",
+      "score": 640,
+      "queue_class": "high_review",
+      "gap_severity": "medium",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 8,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "active_connector_replacement_readback",
+            "credential_intake_contract_and_test_readback",
+            "durable_response_chunk_contract_readback",
+            "invalid_request",
+            "live_openclaude_health_readback",
+            "readiness_policy_supersession_readback",
+            "ready_for_live_provider_dispatch",
+            "system_facade_callability_readback"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "verify_readback_view",
+          "owner_hint": "db-readback-review",
+          "targets": [
+            "v_agent_openclaude_bridge_health"
+          ],
+          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_raw_secrets",
+            "no_external_send"
           ],
           "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
         }
@@ -2434,7 +2515,7 @@
     },
     {
       "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
-      "score": 557,
+      "score": 556,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
