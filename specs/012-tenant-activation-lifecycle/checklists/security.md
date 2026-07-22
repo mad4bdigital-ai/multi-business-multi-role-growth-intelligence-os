@@ -84,4 +84,4 @@
 
 ## Security approval gate
 
-Implementation cannot begin until the legacy cutoff, Tenant Resolution scope/resource policy, durable operation ownership, retention, and public deployment-evidence decision are approved or explicitly deferred with compensating controls.
+ADR-001 has finalized durable operation ownership. Implementation cannot begin until the legacy cutoff, Tenant Resolution scope/resource policy, retention, and public deployment-evidence decision are approved or explicitly deferred with compensating controls; physical table mapping must also pass T001-T003/T014 before migration.
