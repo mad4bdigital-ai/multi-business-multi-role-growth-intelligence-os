@@ -419,6 +419,14 @@ function remediationFor(entry) {
   if (routeCoverage.missing_count) {
     actions.push({ action_key: "review_openapi_contract", owner_hint: "api-contract-review", targets: routeCoverage.missing_routes, reason: "SQL-declared route-like surfaces are not covered by an OpenAPI path." });
   }
+  if (routeCoverage.callability_review_count) {
+    actions.push({
+      action_key: "verify_callable_handler_or_admin_preview",
+      owner_hint: "runtime-registry-review",
+      targets: routeCoverage.callability_review_routes,
+      reason: "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion.",
+    });
+  }
   if (entry.surfaces.tools.length) {
     actions.push({ action_key: "verify_tool_registry_binding", owner_hint: "runtime-registry-review", targets: entry.surfaces.tools.slice(0, 25), reason: "Tool-like surfaces need registry binding/readback evidence before promotion." });
   }
