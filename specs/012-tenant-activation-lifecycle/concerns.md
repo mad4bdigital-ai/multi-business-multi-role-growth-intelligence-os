@@ -44,6 +44,14 @@ This document captures risks and controls that apply across OAuth, gateway, tena
 | C-034 | Multi-region/cache | Stale config or branch metadata produces inconsistent results | Versioned config/read-after-write and cache bypass on critical readback | Version mismatch evidence | Refresh/reconcile | Cached branch/deployment state |
 | C-035 | Cost | Excess validation/tool discovery increases provider cost | Cache safe read-only evidence, limits, reuse windows | Cost/volume metrics | Throttle/optimize | Repeated activation load |
 | C-036 | Supportability | User gets wrong remediation | Stage-specific next action and runbook links | Remediation outcome metrics | Operator handoff | Auth vs membership vs deploy errors |
+| C-037 | Questionnaire complexity | Users cannot understand or complete configuration | Guided profiles, progressive disclosure, contextual help | Abandonment/error metrics | Save draft, recommend safe profile | Guided vs advanced usability |
+| C-038 | Unsafe dynamic policy | Answers compile to excessive timeout/retry/permission behavior | Immutable domain safety bounds and schema validation | Blocked compilation and policy alerts | Reject proposal | Boundary and malicious-answer tests |
+| C-039 | Version drift | Questionnaire/template/compiler changes alter meaning | Pin all versions and persist provenance/hash | Drift/parity checks | Recompile as new proposal, never silent mutation | Version migration and reproducibility |
+| C-040 | Approval bypass | High-risk proposal activates without required authority | Risk-derived approval class, typed confirmation, proposal/resource binding | Approval audit and activation denial | Revoke/rollback | Missing/stale/wrong approval tests |
+| C-041 | AI overreach | AI invents values or activates policy autonomously | Registry-only options, deterministic compiler, human approval gates | Recommendation/proposal audit | Reject/reset session | Hallucinated values and unauthorized activation |
+| C-042 | Policy cache staleness | Runtime continues old critical policy | Versioned readback, cache invalidation/bypass for critical changes | Policy-version mismatch metrics | Refresh/rollback | Immediate narrowing tests |
+| C-043 | Misleading impact preview | User trusts unsupported cost/performance estimate | Evidence provenance, uncertainty disclosure, blocked claims without data | Preview completeness checks | Require review/measurement | Missing-evidence preview tests |
+| C-044 | Questionnaire data privacy | Answers reveal sensitive tenant strategy or configuration | Minimize fields, tenant scope, retention, no-secret validation | Data classification and access audit | Redact/delete under policy | Cross-tenant and secret-input tests |
 
 ## Threat scenarios
 
