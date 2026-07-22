@@ -496,11 +496,11 @@ const sequentialSourceExecutor={
   }
 };
 const sequentialSources=await _testingDynamicContainerProjectionService.loadProjectionSources(sequentialSourceExecutor);
-assert.equal(sequentialSourceExecutor.calls.length,14);
+assert.equal(sequentialSourceExecutor.calls.length,15);
 assert.equal(sequentialSourceExecutor.maxActive,1);
 assert.deepEqual(Object.keys(sequentialSources),[
   "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
+  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","tenantBrandLinks","existingContainers"
 ]);
 
 const failingSourceExecutor={
