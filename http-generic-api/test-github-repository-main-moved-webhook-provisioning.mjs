@@ -155,10 +155,12 @@ const authorityDeps = {
         confirm: __test__.APPLY_CONFIRMATION,
         capability_envelope_id: "envelope-race",
         expected_commit_sha: expectedCommitSha,
+        binding_sha256: bindingSha256,
+        capability_sha256: capabilitySha256,
         reason: applyReason,
       },
       {
-        pool: {},
+        ...authorityDeps,
         auth: { user_id: "admin-user" },
         resolveCapabilityEnvelope: async () => ({
           ok: true,
