@@ -834,7 +834,7 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   if (normalizeSha(readback.payload?.object?.sha) !== newCommitSha) {
     throw lifecycleError(502, "github_change_set_readback_failed", "Change-set commit was created but branch head readback did not match.", { branch, expected_commit_sha: newCommitSha, readback_sha: readback.payload?.object?.sha || null });
   }
-  return {
+  return attachRepositoryMutationCoordination({
     ok: true,
     branch,
     base_sha: expectedBaseSha,
