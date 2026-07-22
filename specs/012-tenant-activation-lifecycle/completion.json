@@ -32,7 +32,7 @@
       "version": "1.0.0"
     },
     "specification": {
-      "status": "in_progress",
+      "status": "complete",
       "manifest": true,
       "spec": true,
       "research": true,
@@ -42,8 +42,8 @@
       "data_model": true,
       "quickstart": true,
       "tasks": true,
-      "contracts": false,
-      "checklists": false
+      "contracts": true,
+      "checklists": true
     },
     "clarification": {
       "status": "blocked_on_open_questions",
