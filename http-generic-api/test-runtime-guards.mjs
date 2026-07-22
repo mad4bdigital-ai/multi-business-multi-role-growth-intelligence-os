@@ -67,11 +67,25 @@ function callMiddleware(headers = {}, env = { BACKEND_API_KEY: "secret" }) {
 }
 
 {
-  const result = callMiddleware({ Authorization: "Bearer wrong" });
+  const result = callMiddleware(
+    { Authorization: "Bearer wrong" },
+    { BACKEND_API_KEY: "secret", JWT_SECRET: "jwt-secret" }
+  );
   assert.equal(result.nextCalled, false);
   assert.equal(result.responseStatus, 403);
   assert.equal(result.responseBody.ok, false);
   assert.equal(result.responseBody.error.code, "invalid_auth_token");
+}
+
+{
+  const result = callMiddleware(
+    { Authorization: "Bearer jwt-shaped-but-unverifiable" },
+    { BACKEND_API_KEY: "secret" }
+  );
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.responseStatus, 503);
+  assert.equal(result.responseBody.error.code, "user_jwt_verifier_unavailable");
+  assert.equal(result.responseBody.secrets_included, false);
 }
 
 {

@@ -14,6 +14,13 @@
       "number": 2934,
       "branch": "gpt/spec-011-durable-governed-execution-20260721",
       "role": "specification",
+      "status": "merged",
+      "merge_sha": "3846b295e1d657a6555ca6f601112958e0c215f0"
+    },
+    "phase0_pr": {
+      "number": 2954,
+      "branch": "gpt/spec-011-phase0-contract-baseline-20260721",
+      "role": "contract_baseline",
       "status": "current_pr"
     },
     "implementation_prs": [],
@@ -38,14 +45,29 @@
       "auto_closeout": true,
       "goal_filtered_attention": true
     },
+    "phase0": {
+      "status": "complete_on_branch",
+      "source_main_sha": "56a646bef5edf3422b2812f0ed06b8c2f42ed7d5",
+      "reuse_inventory": "phase0-inventory-and-reuse.md",
+      "compatibility_adapters": "compatibility-adapters.md",
+      "openapi_draft_governance": "openapi-draft-governance.md",
+      "schema_count": 5,
+      "stable_error_codes": "contracts/error-codes.md",
+      "ci_guard": "http-generic-api/test-spec-011-phase0-contract-baseline.mjs",
+      "runtime_implementation": false,
+      "database_migration": false,
+      "provider_write": false,
+      "deployment": false,
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "not_started"
+      "status": "phase0_contract_baseline_complete_on_branch"
     },
     "ci": {
-      "status": "pending_specification_pr"
+      "status": "pending_phase0_pr"
     },
     "migration": {
-      "status": "pending_gap_analysis_and_design"
+      "status": "not_required_for_phase0"
     },
     "production_verification": {
       "status": "pending"

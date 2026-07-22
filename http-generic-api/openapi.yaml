@@ -15529,7 +15529,7 @@ paths:
       security: [userJwtAuth: []]
       operationId: postConnectActivate
       summary: Activate tenant backend connection
-      description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
+      description: "Activates the tenant backend connection in managed or dedicated mode. This control-plane operation never accepts raw credentials; dedicated provider secrets must be submitted through /connect/api/credential-intake/sessions. Upserts tenant_backend_connections and returns the resolved connection."
       requestBody:
         required: true
         content:
@@ -15549,13 +15549,24 @@ paths:
                 n8n_activation_mode:
                   type: string
                   enum: [managed_main_server, self_hosted_local]
-                cf_api_token:
-                  type: string
-                  description: Dedicated mode only â€” accepted but not stored.
-                cf_account_id:
-                  type: string
-                hostinger_api_key:
-                  type: string
+                integration_modes:
+                  type: object
+                  description: Per-app managed or dedicated source policy. Values may be a canonical mode string or a policy object; secret fields are rejected recursively.
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                        enum: [managed, dedicated]
+                      - type: object
+                        additionalProperties: false
+                        properties:
+                          source_mode: { type: string, enum: [managed, dedicated] }
+                          fallback_allowed: { type: boolean }
+                          required_for_device_install: { type: boolean }
+                          notes: { type: string, maxLength: 1000 }
+                agent_surface_modes:
+                  type: object
+                  description: Optional agent-surface deployment preferences. Raw credentials are not permitted at any nesting level.
+                  additionalProperties: true
       responses:
         "200":
           description: Activation result
@@ -15571,7 +15582,7 @@ paths:
                     type: object
                     additionalProperties: true
                   notice: { type: string }
-        "400": { description: Invalid mode or activation parameters, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "400": { description: "Invalid mode, activation parameters, or raw credential fields", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "500": { description: Activation write failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
@@ -15747,8 +15758,11 @@ paths:
       summary: Provision and activate the signed-in tenant workspace in Managed mode
       description: >
         Idempotently creates one eligible workspace when needed, activates Managed mode,
-        and returns success only after final connection-state readback. User and tenant
-        identity are derived from the signed user JWT; secrets are never returned.
+        and returns success only after membership and connection readback succeeds inside
+        the same SQL transaction, before commit. Optional onboarding-readiness enrichment
+        runs after that verified commit and cannot turn a successful mutation into a failed
+        response. User and tenant identity are derived from the signed user JWT; secrets
+        are never returned.
       requestBody:
         required: false
         content:
@@ -15827,7 +15841,12 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
         "503":
-          description: Managed activation could not be verified by final readback
+          description: Managed activation could not be verified by transactional readback
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "500":
+          description: Bootstrap failed or transaction rollback could not be verified
           content:
             application/json:
               schema: { type: object, additionalProperties: true }
