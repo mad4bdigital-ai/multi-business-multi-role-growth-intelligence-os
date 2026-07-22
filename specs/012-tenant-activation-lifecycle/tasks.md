@@ -49,6 +49,10 @@
 - [ ] **T027** `[domain]` Implement activation lifecycle state machine.
 - [ ] **T028** `[domain]` Implement stage classification and reconnect-guidance policy.
 - [ ] **T029** `[domain]` Implement retry, idempotency, and reconcile-before-retry policy.
+- [ ] **T029A** `[ADR-005]` Implement versioned questionnaire definitions, context-aware question selection, pinned answer sessions, and schema validation.
+- [ ] **T029B** `[ADR-005]` Implement deterministic policy compilation, immutable safety-bound validation, impact preview, risk classification, and approval resolution.
+- [ ] **T029C** `[ADR-005]` Implement governed policy proposal activation, exact-version SQL registry readback, cache invalidation, supersession, and rollback.
+- [ ] **T029D** `[ADR-005][T007A]` Implement the Activation stage SLO questionnaire adapter and versioned starter profiles after production baseline measurement.
 
 ## Phase 3 — OAuth and gateway correlation
 
