@@ -38,9 +38,11 @@ const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
   "capability_resolution_envelope_approve",
   "platform_outbox_worker",
+  "auth_email_outbox_worker",
 ]);
 
 const READ_ONLY_OUTBOX_ACTIONS = new Set(["status", "dry-run"]);
+const READ_ONLY_SHELL_WORKER_ALIASES = new Set(["platform_outbox_worker", "auth_email_outbox_worker"]);
 
 export function validateShellAliasInvocation(alias, extraArgs) {
   if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
