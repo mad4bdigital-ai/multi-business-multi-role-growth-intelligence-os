@@ -276,10 +276,11 @@ The implementation plan must use additive data/schema changes, feature-gated enf
 - **ADR-003**: Use one public Tenant GPT OAuth client and centrally governed secret for all users and tenants, while issuing resource-bound access tokens for exactly one user, tenant, protected resource, scope set, and purpose.
 - **ADR-004 / former Q-003**: Keep Tenant Activation and Tenant Resolution under the same Activation protected resource and unified OAuth client. Use five stable Resolution scopes (`read`, `manage`, `diagnose`, `repair`, `approve`) while resolving route/action requirements, roles, capabilities, object authority, risk, approvals, idempotency, and readback dynamically from a governed versioned SQL policy registry. See `decisions/ADR-004-dynamic-resolution-authorization-policy.md`.
 - **ADR-005 / former Q-004**: Adopt a platform-wide Governed Interactive Policy Questionnaire Engine. Activation stage SLO, timeout, retry, freshness, degradation, and synchronous/asynchronous behavior are compiled from context-aware guided/advanced questionnaires into versioned SQL policy proposals within immutable safety bounds. Exact operational targets are measured and published as versioned profiles rather than hardcoded across routes/providers. See `decisions/ADR-005-governed-interactive-policy-questionnaire-engine.md`.
+- **ADR-006 / former Q-005**: Adopt tiered deployment evidence exposure. Tenant/public responses receive an opaque release ID and normalized `current/deploying/stale/diverged/unknown` state when relevant; Admin-authorized diagnostics may receive full Git/deployment parity evidence. Dynamic policy may select only bounded exposure below the principal's immutable maximum. See `decisions/ADR-006-tiered-deployment-evidence-exposure.md`.
 
 ## Open questions
 
-- **Q-005**: Should deployment SHA be exposed as a public response field, response header, or only correlated internally? Owner: API/security. Gate: before contract finalization.
+No architecture-level clarification questions remain. Physical inventory, production baseline measurement, canonical contract mapping, and implementation evidence remain governed tasks.
 
 ## Delivery state
 
