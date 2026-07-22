@@ -71,8 +71,8 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
-      "status": "not_opened"
+      "number": 2984,
+      "status": "draft_open"
     },
     "implementation_prs": [],
     "closeout_pr": {
