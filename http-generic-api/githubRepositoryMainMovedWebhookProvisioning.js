@@ -11,6 +11,7 @@ import {
   GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH,
 } from "./githubRepositoryMainMovedWebhookService.js";
 import { resolveRepositoryCapabilityAuthority } from "./repositoryAuthorityContextResolver.js";
+import { recordGithubRepositoryWebhookCertification } from "./githubRepositoryWebhookCertificationService.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const DEFAULT_CALLBACK_URL = `https://auth.mad4b.com${GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH}`;
