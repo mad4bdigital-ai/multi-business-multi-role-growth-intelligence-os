@@ -81,9 +81,10 @@ function mergeLayer(target, source, sourceMap, sourceLabel, path = "") {
 }
 
 function layerMatches(layer, authority) {
-  const scopeRef = normalize(layer.scope_ref);
+  const rawScopeRef = text(layer.scope_ref, 255);
+  const scopeRef = normalize(rawScopeRef);
   switch (layer.scope_type) {
-    case "platform": return scopeRef === "*";
+    case "platform": return rawScopeRef === "*";
     case "tenant": return scopeRef === normalize(authority.tenant_id);
     case "workspace": return Boolean(authority.workspace_id) && scopeRef === normalize(authority.workspace_id);
     case "brand": return Boolean(authority.brand_target_key) && scopeRef === normalize(authority.brand_target_key);
