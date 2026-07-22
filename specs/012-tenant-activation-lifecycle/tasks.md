@@ -21,7 +21,7 @@
 - [x] **T006** `[ADR-004][FR-008..012][FR-022..025]` Keep Resolution under the Activation protected resource, adopt five stable coarse scopes, and resolve route/action authorization dynamically from a versioned governed SQL policy registry. Route inventory, policy-row mapping, parity tests, and canonical contract work remain implementation tasks.
 - [x] **T007** `[ADR-005][NFR-002..004]` Adopt the Governed Interactive Policy Questionnaire Engine for Activation stage SLO, timeout, retry, freshness, degradation, and synchronous/asynchronous policy.
 - [ ] **T007A** `[ADR-005][NFR-002..004]` Measure production baselines and publish versioned starter profiles (`fast`, `balanced`, `complete`, `high_reliability`) with approved safety bounds, compiler version, impact model, rollout, and rollback evidence.
-- [ ] **T008** `[Q-005][FR-033..035]` Decide public/internal deployment version evidence contract.
+- [x] **T008** `[ADR-006][FR-033..035]` Adopt tiered deployment evidence exposure: opaque release/version states for Tenant/public diagnostics and full Git/deployment parity evidence for authorized Admin/service diagnostics.
 - [ ] **T009** `[C-017][C-018]` Complete data classification, retention, and redaction review.
 
 ## Phase 1 — Contract and state finalization
