@@ -92,9 +92,19 @@ assert.throws(
   }),
   (error) => error.code === "capability_envelope_template_commit_invalid" && error.status === 400,
 );
+assert.throws(
+  () => normalizeCapabilityEnvelopeTemplateContext(template, { ...context, binding_sha256: "not-a-sha256" }),
+  (error) => error.code === "capability_envelope_template_binding_sha256_invalid" && error.status === 400,
+);
+assert.throws(
+  () => normalizeCapabilityEnvelopeTemplateContext(template, { ...context, capability_sha256: "not-a-sha256" }),
+  (error) => error.code === "capability_envelope_template_capability_sha256_invalid" && error.status === 400,
+);
 
 const passthrough = buildCapabilityEnvelopeTemplatePassthrough(template, context);
 assert.ok(passthrough.includes("--tenant-id"));
+assert.ok(passthrough.includes("--binding-sha256"));
+assert.ok(passthrough.includes("--capability-sha256"));
 assert.ok(passthrough.includes("--requested-source-tier"));
 assert.deepEqual(passthrough.slice(-8), [
   "--capability-key", "repo_patch_apply",
