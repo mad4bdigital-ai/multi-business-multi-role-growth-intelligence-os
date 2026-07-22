@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "566778d77285a55f320154502bc5f0eed6f110cd1802a06c1347f445e8eaa7d7",
+    "source_digest": "442cf499bdbc136c8c3c182befa6656a7b00b53428e15775cb81bcb4af3b5450",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -256,7 +256,7 @@
       },
       {
         "file": "routes/adminCliRoutes.js",
-        "sha256": "72f99c6ba0342ea572d6cad7745ce118fda5bd5c50211f0a45a9bde2c0952a71",
+        "sha256": "77e755355c4f9a7a6143c074d48483472e1bf27853d3864773dba436a0a3b26d",
         "present": true
       },
       {
@@ -401,7 +401,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "c6416193df9381f0f563fe38a3d3a7135e7925e5e070a0ff713950dd064ff391",
+        "sha256": "cdc521d505a952b6423ba773259ad5ec27c6400643e1531c3c6effac79638c62",
         "present": true
       },
       {
@@ -886,7 +886,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
+        "sha256": "249eb5625b35249e3aa4b48ea5ccd3dfc7745a7d598761a7c56f101e6b9648c3",
         "present": true
       },
       {
@@ -1731,7 +1731,7 @@
       "family_key": "deployment-info",
       "label": "deployment info",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "c6416193df9381f0f563fe38a3d3a7135e7925e5e070a0ff713950dd064ff391",
+      "source_digest": "cdc521d505a952b6423ba773259ad5ec27c6400643e1531c3c6effac79638c62",
       "mount_prefix": "/",
       "mount_order": 11435,
       "split_from_mixed_scope_file": false,
@@ -78654,7 +78654,7 @@
       "family_key": "admin-cli",
       "label": "admin cli",
       "source_file": "routes/adminCliRoutes.js",
-      "source_digest": "72f99c6ba0342ea572d6cad7745ce118fda5bd5c50211f0a45a9bde2c0952a71",
+      "source_digest": "77e755355c4f9a7a6143c074d48483472e1bf27853d3864773dba436a0a3b26d",
       "mount_prefix": "/admin/cli",
       "mount_order": 20741,
       "split_from_mixed_scope_file": false,

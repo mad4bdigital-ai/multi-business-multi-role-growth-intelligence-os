@@ -162,7 +162,7 @@ export function buildDeploymentInfoRoutes() {
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
-    const expectedDevBranch = firstString(process.env.DEV_DEPLOYMENT_BRANCH, process.env.GOVERNED_DEV_BRANCH, "dev");
+    const expectedDevBranch = firstString(process.env.DEV_DEPLOYMENT_BRANCH, process.env.GOVERNED_DEV_BRANCH, "main");
     const branch = firstString(
       deployment?.branch,
       process.env.GITHUB_REF_NAME,
