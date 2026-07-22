@@ -268,6 +268,19 @@ function makePool({ role = "owner" } = {}) {
         return [connections];
       }
 
+      if (normalized.includes(" FROM v_repository_authority_binding_readiness authority ")) {
+        return [repositoryAuthority];
+      }
+      if (normalized.includes(" FROM repository_authority_aliases ")) {
+        return [repositoryAliases];
+      }
+      if (normalized.includes(" FROM v_repository_capability_binding_readiness ")) {
+        return [repositoryCapabilities];
+      }
+      if (normalized.includes(" FROM repository_capability_policy_layers ")) {
+        return [repositoryPolicyLayers];
+      }
+
       if (normalized.includes(" FROM information_schema.tables ")) {
         return [[
           "brands",
@@ -278,6 +291,12 @@ function makePool({ role = "owner" } = {}) {
           "cms_sites",
           "cms_site_access_grants",
           "user_app_connections",
+          "repository_authority_bindings",
+          "repository_authority_aliases",
+          "repository_capability_bindings",
+          "repository_capability_policy_layers",
+          "v_repository_authority_binding_readiness",
+          "v_repository_capability_binding_readiness",
         ].map((table_name) => ({ table_name }))];
       }
 
