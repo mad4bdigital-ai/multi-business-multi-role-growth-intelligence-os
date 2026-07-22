@@ -471,6 +471,40 @@ function testRepositoryContracts() {
   assert.match(persistedAlertClosureMigration, /migration_external_write_executed', FALSE/);
   assert.match(persistedAlertClosureMigration, /secrets_included', FALSE/);
   assert.doesNotMatch(persistedAlertClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
+
+  const criticalClosureMigration = read("./migrations/20260722_resolve_remaining_critical_operational_attention.sql");
+  assert.equal((criticalClosureMigration.match(/UPDATE platform_pending_tasks/g) || []).length, 3);
+  assert.equal((criticalClosureMigration.match(/UPDATE operational_alerts/g) || []).length, 5);
+  for (const taskId of [
+    "3fa74049-64af-11f1-8ecd-456940024c79",
+    "3fa74621-64af-11f1-8ecd-456940024c79",
+    "1874d119-5890-11f1-9baf-8e76a7e1749f",
+  ]) assert.ok(criticalClosureMigration.includes(taskId), `critical closure migration must target task ${taskId}`);
+  for (const alertId of [
+    "794d27b0-4e22-4098-bed9-662787393255",
+    "2f9b466d-10a6-40a6-a652-3dc05e4a76fd",
+    "6216cf2b-96e3-4cc4-8bc8-4e6b8ae7cf4d",
+    "0a46b352-18d6-49e2-b8f8-147558d62768",
+    "6b1cb6c7-032a-4911-bd37-731064d4073f",
+  ]) assert.ok(criticalClosureMigration.includes(alertId), `critical closure migration must target alert ${alertId}`);
+  assert.match(criticalClosureMigration, /status = 'done'/);
+  assert.match(criticalClosureMigration, /lifecycle_status = 'resolved'/);
+  assert.match(criticalClosureMigration, /verification_state = 'verified'/);
+  assert.match(criticalClosureMigration, /policy_disabled_by_design/);
+  assert.match(criticalClosureMigration, /google_ads_execution_enablement_intentionally_disabled/);
+  assert.match(criticalClosureMigration, /production_uses_github_main_auto_deploy/);
+  assert.match(criticalClosureMigration, /ssh_normal_updates_allowed', FALSE/);
+  assert.match(criticalClosureMigration, /ssh_break_glass_only', TRUE/);
+  assert.match(criticalClosureMigration, /openclaude_bridge_ready_for_live_provider_dispatch/);
+  assert.match(criticalClosureMigration, /ready_for_live_provider_dispatch/);
+  assert.match(criticalClosureMigration, /apply_allowed', FALSE/);
+  assert.match(criticalClosureMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(criticalClosureMigration, /migration_external_write_executed', FALSE/);
+  assert.match(criticalClosureMigration, /migration_external_send_executed', FALSE/);
+  assert.match(criticalClosureMigration, /credential_payload_read', FALSE/);
+  assert.match(criticalClosureMigration, /raw_secrets_included', FALSE/);
+  assert.match(criticalClosureMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(criticalClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
 }
 
 async function main() {
