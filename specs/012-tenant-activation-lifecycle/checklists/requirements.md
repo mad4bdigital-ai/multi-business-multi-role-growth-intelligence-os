@@ -64,7 +64,8 @@
 - [x] Draft JSON Schema is 2020-12.
 - [x] Public operations include operation IDs, security, inputs, success, and error responses.
 - [x] Logical data model, states, transitions, indexes, concurrency, retention, and migration questions are documented.
-- [ ] Existing versus new SQL table mapping is finalized. Blocked by Q-001/T001-T004.
+- [x] Logical ownership is finalized by ADR-001: one general operation identity with an Activation-specific projection.
+- [ ] Existing versus additive physical SQL table mapping is finalized. Pending T001-T003/T014.
 - [ ] Tenant Resolution scope/resource inventory is finalized. Blocked by Q-003.
 
 ## Plan and tasks
