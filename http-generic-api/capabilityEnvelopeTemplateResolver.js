@@ -17,6 +17,8 @@ export const CAPABILITY_ENVELOPE_TEMPLATE_CONTEXT_FIELDS = Object.freeze([
   "resource_uri",
   "recipe_key",
   "expected_commit_sha",
+  "binding_sha256",
+  "capability_sha256",
 ]);
 
 const CONTEXT_LIMITS = Object.freeze({
@@ -33,6 +35,8 @@ const CONTEXT_LIMITS = Object.freeze({
   resource_uri: 512,
   recipe_key: 191,
   expected_commit_sha: 40,
+  binding_sha256: 64,
+  capability_sha256: 64,
 });
 
 function fail(code, message, status = 400, details = undefined) {
