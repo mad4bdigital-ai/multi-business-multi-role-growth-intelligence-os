@@ -712,6 +712,20 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   const branchRef = await githubLifecycleRequest({ owner, repo, apiPath: `/git/ref/heads/${encodeBranch(branch)}`, token, fetchImpl: options.fetchImpl, allowNotFound: true });
   const branchExists = branchRef.status !== 404;
   const currentBranchSha = branchExists ? normalizeSha(branchRef.payload?.object?.sha) : "";
+  const repositoryCoordination = evaluateRepositoryMutationCoordination("repo_patch_batch_apply", {
+    ...options,
+    branch,
+    expected_base_sha: expectedBaseSha,
+    expected_branch_sha: expectedBranchSha,
+    changes: normalizedChanges,
+    repository_current_state: {
+      ...(options.repository_current_state || {}),
+      base_sha: currentBaseSha,
+      branch_sha: currentBranchSha || "",
+      unknown_provider_outcome: options.unknown_provider_outcome === true,
+      same_cycle_readback_verified: options.same_cycle_readback_verified === true,
+    },
+  });
   let commitParentSha = expectedBaseSha;
   if (branchExists && currentBranchSha === expectedBaseSha && defaultBranchMoved) {
     commitParentSha = currentBaseSha;
