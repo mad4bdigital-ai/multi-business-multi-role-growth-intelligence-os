@@ -416,17 +416,20 @@ async function pollSignedPingDelivery(target, hookId, token, startedAtMs, deps =
   return null;
 }
 
-async function markSecretValidated(deps = {}) {
+async function markSecretValidated(credentialRef, deps = {}) {
+  const secretKey = text(credentialRef, 255).replace(/^ref:secret:/, "");
+  if (!secretKey || secretKey === credentialRef) {
+    fail("github_webhook_secret_reference_invalid", "The repository capability secret reference is invalid.", 409);
+  }
   const pool = deps.pool || getPool();
   const [result] = await pool.query(
     `UPDATE secret_references
         SET rotation_status = 'validated', validation_status = 'validated', last_validated_at = NOW(), status = 'active'
       WHERE secret_key = ? AND owner_type = 'platform'`,
-    [SECRET_KEY],
+    [secretKey],
   );
   if (Number(result?.affectedRows || 0) !== 1) {
     fail("github_webhook_secret_validation_state_update_failed", "The webhook secret reference was not marked validated exactly once.", 500, {
-      secret_key: SECRET_KEY,
       affected_rows: Number(result?.affectedRows || 0),
     });
   }
@@ -436,10 +439,9 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
   const mode = text(input.mode || "dry_run", 32).toLowerCase();
   if (!new Set(["dry_run", "apply"]).has(mode)) fail("github_webhook_mode_invalid", "mode must be dry_run or apply.");
 
-  let governance = null;
-  let governancePool = null;
   const expectedCommitSha = text(input.expected_commit_sha, 64).toLowerCase();
   const governanceReason = text(input.reason, 1000);
+  const capabilityEnvelopeId = text(input.capability_envelope_id, 64);
   if (mode === "apply") {
     if (text(input.confirm, 128) !== APPLY_CONFIRMATION) {
       fail("github_webhook_apply_confirmation_required", `Apply requires confirm=${APPLY_CONFIRMATION}.`, 409);
@@ -450,20 +452,34 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     if (governanceReason.length < 20) {
       fail("github_webhook_apply_reason_required", "Apply requires a reason of at least 20 characters.", 400);
     }
-    const capabilityEnvelopeId = text(input.capability_envelope_id, 64);
     if (!capabilityEnvelopeId) {
-      fail("capability_resolution_envelope_required", "Apply requires a capability_envelope_id before any database, secret, or GitHub access.", 403);
+      fail("capability_resolution_envelope_required", "Apply requires a capability_envelope_id before repository authority, secret, or GitHub access.", 403);
     }
-    governancePool = deps.pool || getPool();
+    if (!/^[0-9a-f]{64}$/.test(text(input.binding_sha256, 64).toLowerCase()) || !/^[0-9a-f]{64}$/.test(text(input.capability_sha256, 64).toLowerCase())) {
+      fail("github_webhook_planning_fingerprints_required", "Apply requires valid binding_sha256 and capability_sha256 values from the reviewed dry-run.", 400);
+    }
+  }
+
+  const authorityContext = await resolveProvisioningAuthority(input, deps, { requireFingerprints: mode === "apply" });
+  let governance = null;
+  const governancePool = authorityContext.pool;
+  if (mode === "apply") {
     const resolveEnvelope = deps.resolveCapabilityEnvelope || resolveCapabilityExecutionEnvelope;
     governance = await resolveEnvelope({
       pool: governancePool,
       envelopeId: capabilityEnvelopeId,
       acceptedAppKeys: ["github"],
-      acceptedCapabilityKeys: ["github_repository_main_moved_webhook_provision"],
-      acceptedIntents: ["github_repository_main_moved_webhook_provision"],
+      acceptedCapabilityKeys: [CAPABILITY_KEY],
+      acceptedIntents: [CAPABILITY_KEY],
+      expectedTenantId: authorityContext.authority.tenant_id || "",
       expectedUserId: deps.auth?.user_id || "",
+      expectedWorkspaceId: authorityContext.authority.workspace_id || "",
+      expectedBrandKey: authorityContext.authority.brand_target_key || "",
+      expectedResourceUri: authorityContext.evidence.resource_uri,
       expectedCommitSha,
+      expectedBindingSha256: authorityContext.evidence.binding_sha256,
+      expectedCapabilitySha256: authorityContext.evidence.capability_sha256,
+      requireCommitHint: true,
       allowReferenced: false,
     });
     if (!governance?.ok) throw capabilityEnvelopeError(governance);
@@ -479,12 +495,12 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     const referenced = await claimEnvelope({
       pool: governancePool,
       envelopeId: governance.envelope_id,
-      executionRef: `github_repository_main_moved_webhook_provision:${expectedCommitSha.slice(0, 12)}`,
+      executionRef: `github_webhook:${authorityContext.authority.binding_key}:${expectedCommitSha.slice(0, 12)}`,
     });
     if (!referenced?.ok) throw capabilityEnvelopeError(referenced, "The capability envelope could not be claimed before GitHub webhook provisioning.");
   }
 
-  const inspected = await inspectTarget(input, deps);
+  const inspected = await inspectTarget(authorityContext, deps);
   const current = inspected.hook ? safeHook(inspected.hook) : null;
   const plannedAction = inspected.hook ? "update" : "create";
   if (mode === "dry_run") {
@@ -492,25 +508,37 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
       ok: true,
       mode: "dry_run",
       planned_action: plannedAction,
+      binding: inspected.evidence,
       repository: `${inspected.target.owner}/${inspected.target.repo}`,
       callback_url: inspected.target.callbackUrl,
+      inherited_events: inspected.target.events,
       current_hook: current,
       secret: inspected.secret_status,
+      apply_requirements: {
+        binding_key: inspected.evidence.binding_key,
+        resource_uri: inspected.evidence.resource_uri,
+        binding_sha256: inspected.evidence.binding_sha256,
+        capability_sha256: inspected.evidence.capability_sha256,
+        confirmation: APPLY_CONFIRMATION,
+        commit_sha_required: true,
+        single_use_capability_envelope_required: true,
+        secrets_included: false,
+      },
       provider_write: false,
       external_write: false,
       secrets_included: false,
     };
   }
 
-  const resolvedSecret = await resolveSecret(true, deps);
+  const resolvedSecret = await resolveSecret(inspected.credentialRef, true, deps);
   const hookBody = {
-    name: "web",
-    active: true,
-    events: ["push"],
+    name: inspected.target.hookName,
+    active: inspected.target.active,
+    events: inspected.target.events,
     config: {
       url: inspected.target.callbackUrl,
-      content_type: "json",
-      insecure_ssl: "0",
+      content_type: inspected.target.contentType,
+      insecure_ssl: inspected.target.insecureSsl,
       secret: resolvedSecret.secret,
     },
   };
@@ -518,7 +546,7 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
   if (inspected.hook) {
     mutation = await githubRequest(
       `/repos/${encodeURIComponent(inspected.target.owner)}/${encodeURIComponent(inspected.target.repo)}/hooks/${Number(inspected.hook.id)}`,
-      { method: "PATCH", body: { active: true, events: ["push"], config: hookBody.config }, token: inspected.token },
+      { method: "PATCH", body: { active: hookBody.active, events: hookBody.events, config: hookBody.config }, token: inspected.token },
       deps,
     );
   } else {
@@ -551,19 +579,28 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     deps,
   );
   const safeReadback = safeHook(readback.body);
-  if (safeReadback.callback_url !== inspected.target.callbackUrl || safeReadback.active !== true || !safeReadback.events.includes("push")) {
-    fail("github_webhook_readback_invariant_failed", "GitHub repository webhook readback did not match the governed configuration.", 502, {
+  const expectedEvents = [...inspected.target.events].sort();
+  const observedEvents = [...safeReadback.events].sort();
+  if (
+    safeReadback.callback_url !== inspected.target.callbackUrl
+    || safeReadback.active !== inspected.target.active
+    || JSON.stringify(observedEvents) !== JSON.stringify(expectedEvents)
+    || safeReadback.content_type !== inspected.target.contentType
+    || safeReadback.insecure_ssl !== inspected.target.insecureSsl
+  ) {
+    fail("github_webhook_readback_invariant_failed", "GitHub repository webhook readback did not match the inherited capability configuration.", 502, {
       hook: safeReadback,
+      binding_key: inspected.evidence.binding_key,
     });
   }
 
-  await markSecretValidated(deps);
+  await markSecretValidated(inspected.credentialRef, deps);
   const transitionEnvelope = deps.transitionEnvelopeLifecycle || transitionCapabilityEnvelopeLifecycle;
   const consumed = await transitionEnvelope({
     pool: governancePool,
     envelopeId: governance.envelope_id,
     action: "consume",
-    executionRef: `github_repository_main_moved_webhook:${hookId}`,
+    executionRef: `github_repository_main_moved_webhook:${inspected.evidence.binding_key}:${hookId}`,
     reason: governanceReason,
   });
   if (!consumed?.ok) {
@@ -572,15 +609,16 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
 
   const audit = deps.audit || writeAuditLogAsync;
   await audit({
-    tenant_id: null,
+    tenant_id: inspected.authority.tenant_id || null,
     actor_id: deps.auth?.user_id || "platform_admin",
     actor_type: "backend_admin",
     action: "github.repository_main_moved_webhook_provisioned",
-    resource_type: "github_repository_webhook",
-    resource_id: String(hookId),
+    resource_type: "repository_capability_binding",
+    resource_id: inspected.capability.capability_binding_id || inspected.evidence.binding_key,
     after_json: {
-      repository: `${inspected.target.owner}/${inspected.target.repo}`,
+      ...inspected.evidence,
       callback_url: inspected.target.callbackUrl,
+      inherited_events: inspected.target.events,
       hook_id: hookId,
       action: plannedAction,
       ping_delivery_id: ping.delivery_id,
@@ -598,6 +636,7 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     ok: true,
     mode: "apply",
     action: plannedAction,
+    binding: inspected.evidence,
     repository: `${inspected.target.owner}/${inspected.target.repo}`,
     hook: safeReadback,
     ping,
@@ -605,11 +644,14 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
     governance: {
       capability_envelope_id: governance.envelope_id,
       execution_status: consumed.after?.execution_status || "executed",
+      resource_uri: inspected.evidence.resource_uri,
       expected_commit_sha: expectedCommitSha,
+      binding_sha256: inspected.evidence.binding_sha256,
+      capability_sha256: inspected.evidence.capability_sha256,
       secrets_included: false,
     },
     secret_reference: {
-      credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
+      credential_reference_present: true,
       validation_status: "validated",
       rotation_status: "validated",
       secrets_included: false,
