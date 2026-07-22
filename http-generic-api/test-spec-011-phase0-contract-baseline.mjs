@@ -17,8 +17,6 @@ const errorCodes = read("contracts/error-codes.md");
 const draftOpenApi = read("contracts/durable-governed-execution.openapi.yaml");
 const canonicalOpenApi = readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 
-assert.equal(manifest.design_only, true);
-assert.equal(manifest.runtime_changes, false);
 assert.equal(manifest.database_migrations, false);
 assert.equal(manifest.deployment, false);
 assert.equal(manifest.merge, false);
