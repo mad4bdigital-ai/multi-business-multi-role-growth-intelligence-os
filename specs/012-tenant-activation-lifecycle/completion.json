@@ -70,11 +70,6 @@
   },
   "unresolved_gaps": [
     {
-      "id": "Q-001",
-      "severity": "high",
-      "summary": "Durable activation operation ledger ownership is not finalized."
-    },
-    {
       "id": "Q-002",
       "severity": "high",
       "summary": "Legacy audience cutoff and cleanup policy require approval."
