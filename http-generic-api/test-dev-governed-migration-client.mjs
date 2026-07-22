@@ -241,6 +241,21 @@ assert.deepEqual(
   }
 );
 assert.deepEqual(
+  validateShellAliasInvocation("auth_email_outbox_worker", ["--action=status"]),
+  { mutation_requested: false, extra_args: ["--action=status"] }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("auth_email_outbox_worker", [
+    "--action=dry-run",
+    "--purposes=support_ticket_admin_notification",
+    "--limit=10",
+  ]),
+  {
+    mutation_requested: false,
+    extra_args: ["--action=dry-run", "--purposes=support_ticket_admin_notification", "--limit=10"],
+  }
+);
+assert.deepEqual(
   validateShellAliasInvocation("capability_resolution_envelope_create", []),
   { mutation_requested: true, extra_args: [] }
 );
