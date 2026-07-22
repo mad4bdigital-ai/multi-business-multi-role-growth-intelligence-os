@@ -55,6 +55,8 @@ const template = {
     "workspace_id",
     "expected_commit_sha",
     "resource_uri",
+    "binding_sha256",
+    "capability_sha256",
   ],
   defaults: { ttl_minutes: 90, context: {} },
   max_ttl_minutes: 180,
@@ -67,8 +69,12 @@ const context = normalizeCapabilityEnvelopeTemplateContext(template, {
   workspace_id: "workspace-1",
   expected_commit_sha: "b".repeat(40),
   resource_uri: "repo://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  binding_sha256: "c".repeat(64),
+  capability_sha256: "d".repeat(64),
 });
 assert.equal(context.workspace_id, "workspace-1");
+assert.equal(context.binding_sha256, "c".repeat(64));
+assert.equal(context.capability_sha256, "d".repeat(64));
 assert.throws(
   () => normalizeCapabilityEnvelopeTemplateContext(template, { ...context, password: "forbidden" }),
   (error) => error.code === "capability_envelope_template_unknown_context" && error.status === 400,
