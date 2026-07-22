@@ -87,14 +87,15 @@ function readContractSource(relativePath, findings, familyKey, role) {
 }
 
 function validateCallabilityContracts(manifest, findings) {
+  const coveredToolKeys = new Set();
   const gate = manifest.callability_gate || {};
   if (gate.required !== true) {
     findings.push({ type: "callability_gate_not_enabled" });
-    return;
+    return coveredToolKeys;
   }
   if (!Array.isArray(gate.contracts) || gate.contracts.length === 0) {
     findings.push({ type: "callability_contracts_missing" });
-    return;
+    return coveredToolKeys;
   }
 
   for (const contract of gate.contracts) {
