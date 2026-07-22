@@ -666,6 +666,46 @@ components:
         resource_documentation:
           type: [string, 'null']
           format: uri
+    DeploymentSummary:
+      type: object
+      additionalProperties: false
+      required: [status, runtime_version, observed_at, exposure_level]
+      properties:
+        status:
+          type: string
+          enum: [current, deploying, stale, diverged, unknown]
+        runtime_version:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Opaque public release identifier; not a Git SHA or authorization value.
+        expected_version:
+          type: [string, 'null']
+          maxLength: 120
+        observed_at:
+          type: string
+          format: date-time
+        fresh_until:
+          type: [string, 'null']
+          format: date-time
+        exposure_level:
+          type: string
+          enum: [none, opaque, diagnostic]
+        complete:
+          type: boolean
+        reconnect_required:
+          type: boolean
+          enum: [false]
+        next_action:
+          type: [string, 'null']
+          maxLength: 500
+        details_omitted_silently:
+          type: boolean
+          enum: [false]
+      description: >-
+        Tenant/public deployment evidence. Full Git SHA, branch, repository, host path,
+        credential, and infrastructure details are excluded and available only through
+        separately authorized Admin contracts.
     ErrorEnvelope:
       type: object
       additionalProperties: false
