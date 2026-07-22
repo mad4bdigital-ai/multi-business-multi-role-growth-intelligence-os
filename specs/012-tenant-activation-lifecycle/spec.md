@@ -274,10 +274,10 @@ The implementation plan must use additive data/schema changes, feature-gated enf
 - **ADR-001 / former Q-001**: Adopt a hybrid operation model: the general operation ledger owns shared identity, idempotency, ownership, and general lifecycle facts; an Activation-specific projection owns Activation stages, readiness, evidence, delivery, acknowledgement, reconciliation, and deployment interpretation. See `decisions/ADR-001-hybrid-activation-operation-ledger.md`.
 - **ADR-002 / former Q-002**: End support for legacy generic, unbound Tenant GPT tokens through a phased migration with a hard cutoff at `2026-10-31T23:59:59Z`, targeted notices, canary enforcement, and a maximum 14-day explicitly approved emergency extension.
 - **ADR-003**: Use one public Tenant GPT OAuth client and centrally governed secret for all users and tenants, while issuing resource-bound access tokens for exactly one user, tenant, protected resource, scope set, and purpose.
+- **ADR-004 / former Q-003**: Keep Tenant Activation and Tenant Resolution under the same Activation protected resource and unified OAuth client. Use five stable Resolution scopes (`read`, `manage`, `diagnose`, `repair`, `approve`) while resolving route/action requirements, roles, capabilities, object authority, risk, approvals, idempotency, and readback dynamically from a governed versioned SQL policy registry. See `decisions/ADR-004-dynamic-resolution-authorization-policy.md`.
 
 ## Open questions
 
-- **Q-003**: Which protected Tenant Resolution routes require the same activation token versus a separate scope/resource policy? Owner: auth/API. Gate: before canonical OpenAPI change.
 - **Q-004**: What service-level targets apply to session context and provider-bootstrap validation? Owner: operations. Gate: before alert thresholds.
 - **Q-005**: Should deployment SHA be exposed as a public response field, response header, or only correlated internally? Owner: API/security. Gate: before contract finalization.
 
