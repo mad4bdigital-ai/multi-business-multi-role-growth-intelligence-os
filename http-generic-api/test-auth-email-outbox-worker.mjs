@@ -5,6 +5,7 @@ import {
   buildMimeMessage,
   compactEmailOutboxRow,
   encodeGmailRawMessage,
+  evaluateAuthEmailOutboxSendEligibility,
   normalizePurposeList,
 } from "./authEmailOutboxWorker.js";
 
