@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 import { applyUnifiedDiffToText } from "./unifiedDiff.js";
+import { attachRepositoryMutationCoordination, evaluateRepositoryMutationCoordination } from "./repositoryMutationCoordinationTelemetry.js";
 
 const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
 export const DEFAULT_DISPOSABLE_BRANCH_PREFIXES = Object.freeze([
