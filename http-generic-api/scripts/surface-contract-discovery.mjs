@@ -311,6 +311,9 @@ function routeCoverageFor(entry, openapiPathSet) {
   const classifications = entry.surfaces.route_classifications || routes.map((route) => ({ route, route_class: "http_route", openapi_required: true, reason: "legacy classification fallback" }));
   const required = classifications.filter((item) => item.openapi_required).map((item) => item.route);
   const exempted = classifications.filter((item) => !item.openapi_required);
+  const callabilityReview = classifications
+    .filter((item) => item.callability_evidence_required === true)
+    .map((item) => item.route);
   const documented = required.filter((route) => openapiPathSet.has(normalizePathForCoverage(route)) || openapiPathSet.has(route));
   const missing = required.filter((route) => !documented.includes(route));
   const routeClassCounts = Object.fromEntries(ROUTE_CLASSES.map((routeClass) => [routeClass, classifications.filter((item) => item.route_class === routeClass).length]));
