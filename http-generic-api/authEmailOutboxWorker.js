@@ -303,6 +303,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
 
     const delivered = [];
     const failed = [];
+    const skipped = [];
     for (let index = 0; index < safeLimit; index += 1) {
       await connection.beginTransaction();
       const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: 1 });
@@ -312,6 +313,45 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
         break;
       }
       const metadata = parseJsonObject(email.metadata_json, {});
+      const eligibility = evaluateAuthEmailOutboxSendEligibility(email);
+      if (!eligibility.eligible) {
+        const nextMetadata = {
+          ...metadata,
+          delivery_provider: null,
+          external_send_performed: false,
+          skip_reason: eligibility.reason,
+          skipped_by: "auth_email_outbox_worker",
+          secrets_included: false,
+        };
+        await connection.query(
+          `UPDATE auth_email_outbox
+              SET status = 'skipped', metadata_json = ?, last_error = ?, provider = COALESCE(provider, 'support_ticket_router')
+            WHERE email_id = ? AND status = 'queued'`,
+          [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
+        );
+        if (metadata.ticket_id && metadata.tenant_id) {
+          await connection.query(
+            `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+             VALUES (UUID(), ?, ?, 'ticket_admin_notification_skipped', NULL, NULL, 'auth_email_outbox_worker', 'system', 'internal_support', ?, ?)`,
+            [
+              metadata.ticket_id,
+              metadata.tenant_id,
+              eligibility.reason,
+              JSON.stringify({
+                email_id: email.email_id,
+                recipient_email: email.recipient_email,
+                recipient_route_reason: metadata.recipient_route_reason || null,
+                skip_reason: eligibility.reason,
+                external_send_performed: false,
+                secrets_included: false,
+              }),
+            ]
+          );
+        }
+        await connection.commit();
+        skipped.push({ email_id: email.email_id, recipient_email: email.recipient_email, skip_reason: eligibility.reason, secrets_included: false });
+        continue;
+      }
       try {
         const sender = await resolveGmailSenderConnection(connection, {
           senderConnectionId: senderConnectionId || metadata.sender_connection_id || "",
