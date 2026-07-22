@@ -208,7 +208,11 @@ export function validateRepository(options = {}) {
       push(findings, "changed_spec_kit_missing_completion_manifest", feature, { file: path.relative(root, completionPath).replaceAll("\\", "/") });
       continue;
     }
-    findings.push(...validateFeatureDirectory(feature, { root, policy }));
+    findings.push(...validateFeatureDirectory(feature, {
+      root,
+      policy,
+      headRef: changedFeatures.has(feature) ? currentHeadRef : "",
+    }));
   }
   return { findings, changedFiles, targets, policy };
 }
