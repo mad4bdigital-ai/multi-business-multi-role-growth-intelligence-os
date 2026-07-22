@@ -110,8 +110,30 @@ export function encodeGmailRawMessage(mimeText = "") {
   return Buffer.from(String(mimeText), "utf8").toString("base64url");
 }
 
+export function evaluateAuthEmailOutboxSendEligibility(row = {}) {
+  const metadata = parseJsonObject(row.metadata_json, {});
+  const ticketId = metadata.ticket_id || null;
+  if (metadata.smoke_test === true || metadata.internal_smoke === true) {
+    return { eligible: false, reason: "smoke_test_notification" };
+  }
+  if (!ticketId) {
+    return { eligible: true, reason: null };
+  }
+  if (!row.resolved_ticket_id) {
+    return { eligible: false, reason: "ticket_not_found" };
+  }
+  const status = String(row.ticket_status || "").trim().toLowerCase();
+  const lifecycleState = String(row.ticket_lifecycle_state || "").trim().toLowerCase();
+  const customerStatus = String(row.ticket_customer_status || "").trim().toLowerCase();
+  if ([status, lifecycleState, customerStatus].some((value) => ["closed", "resolved", "cancelled", "canceled"].includes(value))) {
+    return { eligible: false, reason: "ticket_not_open" };
+  }
+  return { eligible: true, reason: null };
+}
+
 export function compactEmailOutboxRow(row = {}) {
   const metadata = parseJsonObject(row.metadata_json, {});
+  const eligibility = evaluateAuthEmailOutboxSendEligibility(row);
   return {
     email_id: row.email_id,
     purpose: row.purpose,
@@ -123,6 +145,8 @@ export function compactEmailOutboxRow(row = {}) {
     tenant_id: metadata.tenant_id || null,
     event_type: metadata.event_type || null,
     recipient_route_reason: metadata.recipient_route_reason || null,
+    send_eligible: eligibility.eligible,
+    skip_reason: eligibility.eligible ? null : eligibility.reason,
     created_at: row.created_at || null,
     secrets_included: false,
   };
