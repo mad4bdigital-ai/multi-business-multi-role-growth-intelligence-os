@@ -3131,6 +3131,38 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       };
     }
   }
+  if (callerType === "admin" && toolKey === "repository_reconciliation_orchestrator") {
+    try {
+      if (String(args?.mode || "dry_run") !== "dry_run") {
+        const error = new Error("The Admin repository reconciliation orchestrator surface is dry-run only.");
+        error.status = 403;
+        error.code = "repository_reconciliation_admin_surface_dry_run_only";
+        throw error;
+      }
+      const result = await runRepositoryReconciliationOrchestrator(
+        { ...args, mode: "dry_run" },
+        {
+          reconcileBranch: (input) => runAdminBranchReconcile(
+            { ...input, mode: "dry_run" },
+            { auth: req?.auth }
+          ),
+        }
+      );
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "repository_reconciliation_orchestrator_failed",
+            message: err?.message || "Repository reconciliation orchestrator dry-run failed.",
+            details: err?.details || null,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "admin_branch_reconcile") {
     try {
       const result = await runAdminBranchReconcile(args, { auth: req?.auth });
