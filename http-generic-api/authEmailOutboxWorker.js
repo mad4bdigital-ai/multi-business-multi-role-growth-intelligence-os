@@ -110,8 +110,30 @@ export function encodeGmailRawMessage(mimeText = "") {
   return Buffer.from(String(mimeText), "utf8").toString("base64url");
 }
 
+export function evaluateAuthEmailOutboxSendEligibility(row = {}) {
+  const metadata = parseJsonObject(row.metadata_json, {});
+  const ticketId = metadata.ticket_id || null;
+  if (metadata.smoke_test === true || metadata.internal_smoke === true) {
+    return { eligible: false, reason: "smoke_test_notification" };
+  }
+  if (!ticketId) {
+    return { eligible: true, reason: null };
+  }
+  if (!row.resolved_ticket_id) {
+    return { eligible: false, reason: "ticket_not_found" };
+  }
+  const status = String(row.ticket_status || "").trim().toLowerCase();
+  const lifecycleState = String(row.ticket_lifecycle_state || "").trim().toLowerCase();
+  const customerStatus = String(row.ticket_customer_status || "").trim().toLowerCase();
+  if ([status, lifecycleState, customerStatus].some((value) => ["closed", "resolved", "cancelled", "canceled"].includes(value))) {
+    return { eligible: false, reason: "ticket_not_open" };
+  }
+  return { eligible: true, reason: null };
+}
+
 export function compactEmailOutboxRow(row = {}) {
   const metadata = parseJsonObject(row.metadata_json, {});
+  const eligibility = evaluateAuthEmailOutboxSendEligibility(row);
   return {
     email_id: row.email_id,
     purpose: row.purpose,
@@ -123,6 +145,8 @@ export function compactEmailOutboxRow(row = {}) {
     tenant_id: metadata.tenant_id || null,
     event_type: metadata.event_type || null,
     recipient_route_reason: metadata.recipient_route_reason || null,
+    send_eligible: eligibility.eligible,
+    skip_reason: eligibility.eligible ? null : eligibility.reason,
     created_at: row.created_at || null,
     secrets_included: false,
   };
@@ -133,11 +157,17 @@ async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limi
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
   const [rows] = await connection.query(
-    `SELECT email_id, purpose, recipient_email, subject, body_text, body_html, status, provider, metadata_json, created_at
-       FROM auth_email_outbox
-      WHERE status = 'queued'
-        AND purpose IN (${placeholders})
-      ORDER BY created_at ASC
+    `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
+            t.ticket_id AS resolved_ticket_id,
+            t.status AS ticket_status,
+            t.lifecycle_state AS ticket_lifecycle_state,
+            t.customer_status AS ticket_customer_status
+       FROM auth_email_outbox e
+       LEFT JOIN tickets t
+         ON t.ticket_id = JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json, '$.ticket_id'))
+      WHERE e.status = 'queued'
+        AND e.purpose IN (${placeholders})
+      ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
     normalizedPurposes
   );
@@ -255,12 +285,16 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
   try {
     if (!apply) {
       const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: safeLimit });
+      const eligibleRows = rows.filter((row) => evaluateAuthEmailOutboxSendEligibility(row).eligible);
+      const skippedRows = rows.filter((row) => !evaluateAuthEmailOutboxSendEligibility(row).eligible);
       return {
         ok: true,
         mode: "dry_run",
         purposes: normalizedPurposes,
-        eligible_count: rows.length,
-        emails: rows.map(compactEmailOutboxRow),
+        eligible_count: eligibleRows.length,
+        skipped_candidate_count: skippedRows.length,
+        emails: eligibleRows.map(compactEmailOutboxRow),
+        skipped_candidates: skippedRows.map(compactEmailOutboxRow),
         readiness,
         applies_delivery: false,
         secrets_included: false,
@@ -269,6 +303,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
 
     const delivered = [];
     const failed = [];
+    const skipped = [];
     for (let index = 0; index < safeLimit; index += 1) {
       await connection.beginTransaction();
       const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: 1 });
@@ -278,6 +313,45 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
         break;
       }
       const metadata = parseJsonObject(email.metadata_json, {});
+      const eligibility = evaluateAuthEmailOutboxSendEligibility(email);
+      if (!eligibility.eligible) {
+        const nextMetadata = {
+          ...metadata,
+          delivery_provider: null,
+          external_send_performed: false,
+          skip_reason: eligibility.reason,
+          skipped_by: "auth_email_outbox_worker",
+          secrets_included: false,
+        };
+        await connection.query(
+          `UPDATE auth_email_outbox
+              SET status = 'skipped', metadata_json = ?, last_error = ?, provider = COALESCE(provider, 'support_ticket_router')
+            WHERE email_id = ? AND status = 'queued'`,
+          [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
+        );
+        if (metadata.ticket_id && metadata.tenant_id) {
+          await connection.query(
+            `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+             VALUES (UUID(), ?, ?, 'ticket_admin_notification_skipped', NULL, NULL, 'auth_email_outbox_worker', 'system', 'internal_support', ?, ?)`,
+            [
+              metadata.ticket_id,
+              metadata.tenant_id,
+              eligibility.reason,
+              JSON.stringify({
+                email_id: email.email_id,
+                recipient_email: email.recipient_email,
+                recipient_route_reason: metadata.recipient_route_reason || null,
+                skip_reason: eligibility.reason,
+                external_send_performed: false,
+                secrets_included: false,
+              }),
+            ]
+          );
+        }
+        await connection.commit();
+        skipped.push({ email_id: email.email_id, recipient_email: email.recipient_email, skip_reason: eligibility.reason, secrets_included: false });
+        continue;
+      }
       try {
         const sender = await resolveGmailSenderConnection(connection, {
           senderConnectionId: senderConnectionId || metadata.sender_connection_id || "",
@@ -341,11 +415,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
       ok: failed.length === 0,
       mode: "apply",
       purposes: normalizedPurposes,
-      attempted_count: delivered.length + failed.length,
+      attempted_count: delivered.length + failed.length + skipped.length,
       delivered_count: delivered.length,
       failed_count: failed.length,
+      skipped_count: skipped.length,
       delivered,
       failed,
+      skipped,
       external_send_performed: delivered.length > 0,
       secrets_included: false,
     };
