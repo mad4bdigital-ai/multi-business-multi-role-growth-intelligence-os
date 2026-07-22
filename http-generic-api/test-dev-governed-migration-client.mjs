@@ -270,6 +270,16 @@ for (const blockedArgs of [
 ]) {
   assert.throws(() => validateShellAliasInvocation("platform_outbox_worker", blockedArgs));
 }
+for (const blockedArgs of [
+  ["--action=run-once"],
+  ["--action=status", "--apply"],
+  ["--action=status", "--confirm=SEND_AUTH_EMAIL_OUTBOX"],
+  ["--action=status", "--sender-connection-id=abc"],
+  ["--action=status", "--consumer=prod_shadow_v1"],
+  ["--action=status", "--purposes=bad purpose"],
+]) {
+  assert.throws(() => validateShellAliasInvocation("auth_email_outbox_worker", blockedArgs));
+}
 
 assert.deepEqual(sanitizeResult({
   ok: true,
