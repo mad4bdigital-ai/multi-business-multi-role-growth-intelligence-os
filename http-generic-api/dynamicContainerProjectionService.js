@@ -190,6 +190,14 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       brandsByName.get(key).push(brand);
     }
   }
+  const tenantBrandLinksByTenant = new Map();
+  for (const link of (source.tenantBrandLinks || []).filter(row => activeValue(row.status))) {
+    const tenantId = String(link.tenant_id || "");
+    const brandTargetKey = String(link.brand_target_key || "").trim();
+    if (!tenantId || !brandTargetKey) continue;
+    if (!tenantBrandLinksByTenant.has(tenantId)) tenantBrandLinksByTenant.set(tenantId,[]);
+    tenantBrandLinksByTenant.get(tenantId).push(link);
+  }
 
   for (const workspace of source.workspaces) {
     const tenantId = String(workspace.tenant_id || "");
