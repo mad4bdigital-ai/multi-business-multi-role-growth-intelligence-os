@@ -30,6 +30,8 @@ const templateRow = {
     "workspace_id",
     "expected_commit_sha",
     "resource_uri",
+    "binding_sha256",
+    "capability_sha256",
   ]),
   defaults_json: JSON.stringify({ ttl_minutes: 90, context: {} }),
   max_ttl_minutes: 180,
