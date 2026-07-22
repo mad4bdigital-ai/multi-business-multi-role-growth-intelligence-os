@@ -153,10 +153,10 @@ The lifecycle must be secure, tenant-isolated, replay-safe, observable, backward
 
 ### Tool discovery and governed execution
 
-- **FR-022**: Tenant tool discovery must expose only registry-callable actions permitted by tenant, user, membership, workspace, app, capability, and resource scopes.
-- **FR-023**: Runtime dispatch must resolve `parent_action_key` and `endpoint_key` from registry authority and reject forbidden or invented provider keys.
-- **FR-024**: Activation must distinguish tool visibility, dependency readiness, credential readiness, and execution readiness.
-- **FR-025**: Provider writes, external sends, live executions, billing, or other sensitive actions remain blocked unless separately approved by their own plan-bound typed authorization.
+- **FR-022**: Tenant tool discovery and Tenant Resolution authorization must expose only registry-callable actions permitted by tenant, user, membership, workspace, app, protected resource, broad OAuth scopes, active dynamic operation policy, role, capability, and object-level authority.
+- **FR-023**: Runtime dispatch must resolve `parent_action_key`, `endpoint_key`, public `operation_id`, and active authorization policy from registry authority and reject forbidden, missing, expired, ambiguous, or invented keys/policies.
+- **FR-024**: Activation must distinguish tool visibility, dependency readiness, credential readiness, execution readiness, and authorization-policy readiness.
+- **FR-025**: Provider writes, external sends, live executions, billing, repair application, approval decisions, or other sensitive actions remain blocked unless the active dynamic policy's capability, object authority, plan-bound approval, typed confirmation, idempotency, dependency, and readback requirements are satisfied.
 
 ### Durable lifecycle and evidence
 
