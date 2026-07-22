@@ -136,6 +136,16 @@ Spec Kit provides constitution-driven `specify`, `clarify`, `plan`, `tasks`, and
 
 **Boundary**: AI may explain and recommend, but cannot invent registry values, relax safety invariants, or activate high-risk policy without required approval.
 
+### D-011 — Tiered deployment evidence exposure
+
+**Decision**: Adopt ADR-006. Tenant/public consumers receive an opaque release identifier and normalized deployment state only when relevant or explicitly requested; authorized Admin/service diagnostics may receive full Git/deployment parity evidence.
+
+**Why**: This lets the Tenant GPT distinguish stale runtime from OAuth, membership, workspace, provider, or tool failures without exposing full Git/infrastructure details publicly or coupling the public API to Git SHA.
+
+**Dynamic boundary**: ADR-005 may configure `none`, `opaque`, or `diagnostic` exposure within immutable principal ceilings. Tenant policy can never grant `admin_full`.
+
+**Historical rule**: Deployment evidence remains correlated to the runtime observed at the original request and is not rewritten by later deployment convergence.
+
 ## Existing authority sources to preserve
 
 - `AI_Agent_Knowledge_Guide.md` for engineering/runtime rules.
