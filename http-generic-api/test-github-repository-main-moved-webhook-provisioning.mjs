@@ -310,15 +310,25 @@ const authorityDeps = {
   assert.equal(result.governance.execution_status, "executed");
   assert.equal(result.governance.expected_commit_sha, expectedCommitSha);
   assert.equal(result.secret_reference.validation_status, "validated");
+  assert.equal(result.certification.evidence_id, "github-webhook-readback:envelope-1");
+  assert.equal(result.certification.certification_id, "github-webhook:repository-capability-id:production");
+  assert.equal(result.certification.certification_status, "same_cycle_readback_certified");
   assert.equal(JSON.stringify(result).includes("super-secret-value"), false);
+  assert.equal(JSON.stringify(result).includes("ref:secret:"), false);
   assert.equal(JSON.stringify(audits).includes("super-secret-value"), false);
+  assert.equal(JSON.stringify(audits).includes("ref:secret:"), false);
   assert.equal(audits[0]?.after_json?.capability_envelope_id, "envelope-1");
   assert.equal(audits[0]?.after_json?.expected_commit_sha, expectedCommitSha);
+  assert.equal(audits[0]?.after_json?.evidence_id, "github-webhook-readback:envelope-1");
+  assert.equal(audits[0]?.after_json?.certification_id, "github-webhook:repository-capability-id:production");
+  assert.equal(audits[0]?.after_json?.certification_status, "same_cycle_readback_certified");
   const referencedIndex = lifecycle.indexOf("envelope:referenced");
   const firstProviderIndex = lifecycle.findIndex((row) => row.startsWith("provider:"));
+  const certificationIndex = lifecycle.indexOf("certification:recorded");
   const consumedIndex = lifecycle.indexOf("envelope:consumed");
   assert(referencedIndex >= 0 && referencedIndex < firstProviderIndex, "envelope must be referenced before the first provider call");
-  assert(consumedIndex > firstProviderIndex, "envelope must be consumed after provider readback");
+  assert(certificationIndex > firstProviderIndex, "certification must be recorded after provider readback");
+  assert(consumedIndex > certificationIndex, "envelope must be consumed only after certification readback");
   const createRequest = requests.find((row) => row.method === "POST" && row.url.endsWith("/hooks"));
   assert(createRequest.body.includes("super-secret-value"), "secret must be sent only inside the GitHub hook request");
 }
