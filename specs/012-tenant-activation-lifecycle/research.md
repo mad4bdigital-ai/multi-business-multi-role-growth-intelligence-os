@@ -126,6 +126,16 @@ Spec Kit provides constitution-driven `specify`, `clarify`, `plan`, `tasks`, and
 
 **Why**: The feature crosses authentication, gateway, data, application, observability, contracts, and deployment boundaries; smaller reviewed PRs reduce risk.
 
+### D-010 — Governed interactive policy questionnaires
+
+**Decision**: Adopt ADR-005 as a platform-wide policy intake and compilation pattern. Operational choices are collected through versioned context-aware questionnaires, compiled deterministically into policy proposals, checked against immutable safety bounds, previewed, approved according to risk, activated through SQL registry authority, and verified by readback.
+
+**Why**: This prevents hardcoded per-tenant/per-provider settings from proliferating while avoiding an unsafe generic configuration editor. It supports explainable growth across Activation, Resolution, onboarding, integrations, agent runtime, notifications, rollout, and data governance.
+
+**First domain**: Activation stage SLO, timeout, retry, freshness, degradation, and synchronous/asynchronous response policy.
+
+**Boundary**: AI may explain and recommend, but cannot invent registry values, relax safety invariants, or activate high-risk policy without required approval.
+
 ## Existing authority sources to preserve
 
 - `AI_Agent_Knowledge_Guide.md` for engineering/runtime rules.
