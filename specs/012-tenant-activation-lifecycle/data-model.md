@@ -487,6 +487,44 @@ The first ADR-005 domain adapter compiles questionnaire answers into a versioned
 
 Runtime safety ceilings and mandatory security/tenant/idempotency/reconciliation rules are not configurable by this policy.
 
+## DeploymentEvidenceExposurePolicy
+
+ADR-006 defines a versioned policy controlling bounded deployment-evidence presentation without granting access beyond the principal's immutable audience ceiling.
+
+| Field | Type | Rules |
+|---|---|---|
+| `policy_key` | string | Stable identity |
+| `policy_version` | string/integer | Immutable active version |
+| `operation_id_or_pattern` | string | Registered applicability; no arbitrary caller pattern |
+| `principal_class` | enum | `tenant_user`, `tenant_admin`, `platform_admin`, `service` |
+| `maximum_exposure_level` | enum | `none`, `opaque`, `diagnostic`, `admin_full` |
+| `default_exposure_level` | enum | Must not exceed maximum |
+| `include_parameter_allowed` | boolean | Whether bounded detail can be requested |
+| `freshness_window_seconds` | integer | Positive and within safety limits |
+| `classification_policy_key` | string | Current/deploying/stale/diverged/unknown rules |
+| `public_release_id_source_key` | string | Opaque release identifier authority |
+| `header_enabled` | boolean | Optional `Deployment-Revision` channel |
+| `attention_policy_key` | string/null | Alert/operational-attention mapping |
+| `status` | enum | `active`, `disabled`, `deprecated`, `expired` |
+| `effective_at` | timestamp | Required |
+| `expires_at` | timestamp/null | Optional |
+| `questionnaire_provenance_json` | JSON/null | ADR-005 definition/template/compiler/proposal versions |
+| `created_by` | string | Audited principal/reference |
+| `created_at/updated_at` | timestamp | Required |
+
+Immutable rules:
+
+- Tenant principals can never resolve `admin_full`.
+- Public `runtime_version` is opaque and is not authorization, idempotency, or ordering authority.
+- Full Git SHA, branch, repository, host path, credentials, and infrastructure topology remain Admin-only.
+- Missing/stale/invalid deployment evidence classifies as `unknown`, never false `current`.
+- Deployment mismatch never creates OAuth reconnect guidance.
+- Policy activation requires exact-version registry readback and critical cache invalidation.
+
+## DeploymentObservation linkage
+
+`DeploymentObservation` remains the authoritative internal evidence projection. Public/Tenant output is derived through the active exposure policy and release-ID adapter. Historical activation operations retain the observation applicable at request time and are not rewritten when a later deployment converges.
+
 ## Migration questions
 
 - Can existing execution/operation tables express activation stages and delivery/ack states?
