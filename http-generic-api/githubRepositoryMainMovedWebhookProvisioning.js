@@ -596,6 +596,24 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
   }
 
   await markSecretValidated(inspected.credentialRef, deps);
+  const certifyWebhook = deps.recordCertification || recordGithubRepositoryWebhookCertification;
+  const certification = await certifyWebhook({
+    pool: governancePool,
+    authority: inspected.authority,
+    capability: inspected.capability,
+    governance: {
+      ...governance,
+      resource_uri: inspected.evidence.resource_uri,
+    },
+    hook: safeReadback,
+    ping,
+    expectedCommitSha,
+    bindingSha256: inspected.evidence.binding_sha256,
+    capabilitySha256: inspected.evidence.capability_sha256,
+  }, { pool: governancePool });
+  if (!certification?.ok) {
+    fail("github_webhook_certification_failed", "Verified webhook evidence and certification were not persisted.", 500);
+  }
   const transitionEnvelope = deps.transitionEnvelopeLifecycle || transitionCapabilityEnvelopeLifecycle;
   const consumed = await transitionEnvelope({
     pool: governancePool,
