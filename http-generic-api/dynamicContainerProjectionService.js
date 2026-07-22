@@ -214,7 +214,18 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const tenantEdge = relationshipRow({ tenantId,fromId:tenantContainer.container_id,toId:workspaceContainer.container_id,source:"workspace_registry" });
     relationships.set(tenantEdge.relationship_id,tenantEdge);
 
-    const linkedBrandKey = String(workspace.linked_brand_key || "").trim();
+    let linkedBrandKey = String(workspace.linked_brand_key || "").trim();
+    const workspaceType = String(workspace.workspace_type || "").trim().toLowerCase();
+    if (!linkedBrandKey) {
+      if (workspaceType && workspaceType !== "brand") continue;
+      const tenantBrandLinks = tenantBrandLinksByTenant.get(tenantId) || [];
+      if (tenantBrandLinks.length === 1) {
+        linkedBrandKey = String(tenantBrandLinks[0].brand_target_key || "").trim();
+      } else if (tenantBrandLinks.length > 1) {
+        issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"tenant_brand_links",source_ref:tenantId,issue_code:"tenant_brand_link_ambiguous",severity:"high",issue_detail:"Brand workspace fallback requires exactly one active tenant_brand_links row.",candidate_refs:tenantBrandLinks.map(row => row.brand_target_key).filter(Boolean) }));
+        continue;
+      }
+    }
     if (!linkedBrandKey) {
       issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,issue_code:"workspace_brand_link_missing",severity:"medium",issue_detail:"Workspace has no canonical linked_brand_key.",candidate_refs:[] }));
       continue;
