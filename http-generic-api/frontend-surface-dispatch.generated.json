@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "732f9aeace98d0ab9f836cab6bf4e40e6b7c79cb698a2c40e8f4420b2dbae3b3",
+    "source_digest": "442cf499bdbc136c8c3c182befa6656a7b00b53428e15775cb81bcb4af3b5450",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -256,7 +256,7 @@
       },
       {
         "file": "routes/adminCliRoutes.js",
-        "sha256": "72f99c6ba0342ea572d6cad7745ce118fda5bd5c50211f0a45a9bde2c0952a71",
+        "sha256": "77e755355c4f9a7a6143c074d48483472e1bf27853d3864773dba436a0a3b26d",
         "present": true
       },
       {
@@ -78654,7 +78654,7 @@
       "family_key": "admin-cli",
       "label": "admin cli",
       "source_file": "routes/adminCliRoutes.js",
-      "source_digest": "72f99c6ba0342ea572d6cad7745ce118fda5bd5c50211f0a45a9bde2c0952a71",
+      "source_digest": "77e755355c4f9a7a6143c074d48483472e1bf27853d3864773dba436a0a3b26d",
       "mount_prefix": "/admin/cli",
       "mount_order": 20741,
       "split_from_mixed_scope_file": false,
