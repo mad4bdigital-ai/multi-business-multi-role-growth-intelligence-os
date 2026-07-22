@@ -68,12 +68,6 @@
       "status": "pending"
     }
   },
-  "unresolved_gaps": [
-    {
-      "id": "Q-005",
-      "severity": "medium",
-      "summary": "Public versus internal deployment version evidence is undecided."
-    }
-  ],
+  "unresolved_gaps": [],
   "sensitive_values_included": false
 }
