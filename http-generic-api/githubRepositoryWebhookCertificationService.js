@@ -43,7 +43,7 @@ function buildEvidencePayload(input) {
     capability_sha256: input.capabilitySha256,
     capability_envelope_id: input.governance.envelope_id,
     hook: {
-      id: Number(input.hook.id || 0),
+      id: Number(input.hook.id || input.hook.hook_id || 0),
       callback_url: input.hook.callback_url,
       events: Array.isArray(input.hook.events) ? [...input.hook.events].sort() : [],
       active: input.hook.active === true,
