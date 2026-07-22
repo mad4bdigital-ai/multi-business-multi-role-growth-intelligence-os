@@ -67,7 +67,7 @@
   "clarification": {
     "blocking_questions": [],
     "pre_contract_questions": ["Q-005"],
-    "pre_observability_questions": ["Q-004"]
+    "pre_observability_questions": []
   },
   "delivery": {
     "specification_pr": {
