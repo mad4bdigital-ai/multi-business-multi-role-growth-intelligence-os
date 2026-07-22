@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "title": "Tenant GPT Activation Lifecycle",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": "to_be_determined_after_inventory",
+    "production_verification": true,
+    "post_merge_audit": true,
+    "protected_user_path_smoke": true,
+    "rollback_verification": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
+      "role": "specification",
+      "status": "not_opened"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "constitution": {
+      "status": "complete",
+      "version": "1.0.0"
+    },
+    "specification": {
+      "status": "in_progress",
+      "manifest": true,
+      "spec": true,
+      "research": true,
+      "concerns": true,
+      "operation_paths": true,
+      "plan": true,
+      "data_model": true,
+      "quickstart": true,
+      "tasks": true,
+      "contracts": false,
+      "checklists": false
+    },
+    "clarification": {
+      "status": "blocked_on_open_questions",
+      "open_questions": ["Q-001", "Q-002", "Q-003", "Q-004", "Q-005"]
+    },
+    "implementation": {
+      "status": "not_started"
+    },
+    "ci": {
+      "status": "pending_specification_pr"
+    },
+    "migration": {
+      "status": "pending_inventory"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    },
+    "rollback_verification": {
+      "status": "pending"
+    }
+  },
+  "unresolved_gaps": [
+    {
+      "id": "Q-001",
+      "severity": "high",
+      "summary": "Durable activation operation ledger ownership is not finalized."
+    },
+    {
+      "id": "Q-002",
+      "severity": "high",
+      "summary": "Legacy audience cutoff and cleanup policy require approval."
+    },
+    {
+      "id": "Q-003",
+      "severity": "high",
+      "summary": "Tenant Resolution resource/scope policy requires inventory and approval."
+    },
+    {
+      "id": "Q-004",
+      "severity": "medium",
+      "summary": "Production SLO thresholds require measurement and approval."
+    },
+    {
+      "id": "Q-005",
+      "severity": "medium",
+      "summary": "Public versus internal deployment version evidence is undecided."
+    }
+  ],
+  "sensitive_values_included": false
+}
