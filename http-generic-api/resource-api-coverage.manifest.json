@@ -282,6 +282,7 @@
     "platform_resource_restore",
     "platform_resource_purge",
     "platform_resource_coverage_audit",
+    "tenant_connection_operation_preview",
     "platform_operation_get",
     "tenant_resource_catalog",
     "tenant_resource_list",
