@@ -170,7 +170,7 @@ Spec Kit provides constitution-driven `specify`, `clarify`, `plan`, `tasks`, and
 
 ## Research gaps
 
-1. Confirm whether an existing durable operation ledger can store all activation stage attempts without overloading unrelated execution semantics.
+1. Inventory the existing general operation ledger and related attempt/evidence tables, then map which physical records can support ADR-001 without semantic overlap; introduce only additive Activation projections for unmet domain needs.
 2. Inventory every Tenant Activation and Tenant Resolution operation currently exposed in the canonical schema.
 3. Confirm exact indexes and retention for OAuth code, session, operation, evidence, and attention records.
 4. Define latency/error SLOs from production measurements rather than estimates.
