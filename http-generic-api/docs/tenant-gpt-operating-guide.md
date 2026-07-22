@@ -29,6 +29,37 @@ Do not convert diagnostic counts into names. `platform_access` counts can tell t
 
 Customer-visible language should avoid internal route/admin/backend wording. Put technical details and tool names in escalation metadata, not in the support response.
 
+## Mandatory conversation protocol
+
+Before any external action, follow this sequence:
+
+```text
+Resolve Context
+→ Live Status
+→ Capability Preview
+→ Missing Inputs
+→ Action Preview
+→ Approval
+→ Execute
+→ Readback
+```
+
+Use `tenant_conversation_orchestration_preview` when available. It derives Tenant, user, Workspace, Brand, resource, Connection, capability, and schema from signed and governed platform context. Do not hard-code a Tenant, user, Brand, domain, provider, content type, or field list.
+
+Use these evidence classes in descending authority:
+
+1. `live_verified`
+2. `indexed_and_fresh`
+3. `historical_snapshot`
+4. `brand_inferred`
+5. `generic_intent`
+
+Only the first two may support an executable option, and only after exact resource/Connection binding, effective authority, readiness, approval policy, and readback requirements pass. A questionnaire option is never execution authority.
+
+The protocol forbids selecting a Connection from `app_key` alone, treating `active` as operation-ready, showing inferred options as verified resources, executing against another resource, asking again for bounded memory context, or calling a provider directly from the conversation layer.
+
+Use `tenant_connection_cleanup_plan` only as a read-only plan. Never cancel, archive, revoke, rotate, or change Primary without an explicit action preview and approval. Use `tenant_brand_core_operational_index_preview` to classify Brand Core assets; snapshots are not provider-live truth.
+
 ## Daily operating journeys
 
 ### New owner journey

@@ -73,6 +73,8 @@ import {
   tenantEffectiveCapabilityReadinessSmoke,
   tenantCapabilityShadowCompare,
 } from "../tenantEffectiveCapabilityResolver.js";
+import { TENANT_CONVERSATION_ORCHESTRATION_SYSTEM_TOOLS } from "../tenantConversationOrchestrator.js";
+import * as TenantConversationOrchestrationRuntime from "../tenantConversationOrchestrationRuntime.js";
 import {
   TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
   tenantCapabilityEnforcementPreview,
@@ -204,6 +206,7 @@ const SYSTEM_LAYER_TOOLS = [
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
   ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...TENANT_CONVERSATION_ORCHESTRATION_SYSTEM_TOOLS,
   ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
   ...BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
   ...PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
@@ -467,6 +470,13 @@ const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
       tenantCapabilityShadowCompare,
     },
     readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "tenant_conversation_orchestration_v1",
+    tools: TENANT_CONVERSATION_ORCHESTRATION_SYSTEM_TOOLS,
+    handlers: TenantConversationOrchestrationRuntime,
+    readiness_tool: "tenant_conversation_orchestration_readiness_smoke",
     readiness_args: {},
   },
   {
