@@ -175,7 +175,9 @@ function classifyRoute(route, source = "") {
       route,
       route_class: "tenant_tool_registry_route",
       openapi_required: false,
-      reason: "Route literal belongs to a tenant tool registry row and is governed through tenant tool dispatch rather than inferred as a standalone Express route.",
+      callability_evidence_required: true,
+      registry_presence_sufficient: false,
+      reason: "Route literal belongs to a Tenant tool registry row, so per-route OpenAPI inference is not required. Registry presence alone is not callability evidence: the tool family must provide an executable handler or an explicit Admin preview fallback through the governed callability contract.",
     };
   }
   if (/INSERT\s+INTO\s+endpoints/i.test(source)
