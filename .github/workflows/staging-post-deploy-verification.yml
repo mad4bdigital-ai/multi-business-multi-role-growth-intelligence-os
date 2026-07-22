@@ -118,13 +118,39 @@ jobs:
         working-directory: http-generic-api
         env:
           EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
+          SMOKE_MAX_ATTEMPTS: "6"
+          SMOKE_RETRY_SECONDS: "20"
         run: |
-          set -o pipefail
-          node scripts/dev-autopilot-smoke.mjs \
-            --base-url="${STAGING_BASE_URL}" \
-            --expected-branch="${EXPECTED_BRANCH}" \
-            --expected-commit="${EXPECTED_COMMIT}" \
-            | tee ../staging-verification-artifacts/staging-smoke.json
+          set -euo pipefail
+          artifact="../staging-verification-artifacts/staging-smoke.json"
+          temporary="${artifact}.tmp"
+
+          for attempt in $(seq 1 "${SMOKE_MAX_ATTEMPTS}"); do
+            echo "Staging smoke attempt ${attempt}/${SMOKE_MAX_ATTEMPTS}"
+            set +e
+            node scripts/dev-autopilot-smoke.mjs \
+              --base-url="${STAGING_BASE_URL}" \
+              --expected-branch="${EXPECTED_BRANCH}" \
+              --expected-commit="${EXPECTED_COMMIT}" \
+              > "${temporary}"
+            smoke_status=$?
+            set -e
+
+            cat "${temporary}"
+            mv "${temporary}" "${artifact}"
+
+            if (( smoke_status == 0 )); then
+              exit 0
+            fi
+
+            if (( attempt == SMOKE_MAX_ATTEMPTS )); then
+              echo "::error::Staging smoke did not pass after ${SMOKE_MAX_ATTEMPTS} attempts."
+              exit "${smoke_status}"
+            fi
+
+            echo "Staging dependencies are still warming up; retrying in ${SMOKE_RETRY_SECONDS} seconds."
+            sleep "${SMOKE_RETRY_SECONDS}"
+          done
 
       - name: Publish verification summary
         if: always()
