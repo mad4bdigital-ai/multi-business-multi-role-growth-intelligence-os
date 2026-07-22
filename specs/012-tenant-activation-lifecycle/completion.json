@@ -13,10 +13,10 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
+      "number": 2984,
       "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
       "role": "specification",
-      "status": "not_opened"
+      "status": "draft_open"
     },
     "implementation_prs": [],
     "closeout_pr": {
