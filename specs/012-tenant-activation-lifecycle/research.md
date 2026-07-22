@@ -102,13 +102,11 @@ Spec Kit provides constitution-driven `specify`, `clarify`, `plan`, `tasks`, and
 
 **Why**: Transport success, execution success, and user receipt are not equivalent.
 
-### D-006 — Durable operation identity across activation stages
+### D-006 — Hybrid durable operation identity across activation stages
 
-**Decision**: Introduce or reuse a durable operation ledger with stage attempts and evidence references.
+**Decision**: Adopt the hybrid model recorded in `decisions/ADR-001-hybrid-activation-operation-ledger.md`. The general operation ledger owns shared operation identity, tenant/user ownership, idempotency, fingerprint, general status, timestamps, and audit correlation. An Activation-specific projection linked by the same `operation_id` owns Activation stages, readiness, evidence, delivery, acknowledgement, reconciliation, and deployment interpretation.
 
-**Why**: Correlation is required for retry safety, diagnosis, unknown outcomes, and truthful recovery.
-
-**Open**: final table ownership and projection design.
+**Why**: This preserves one durable operation identity and reuses common execution controls without overloading shared tables or creating a competing Activation ledger.
 
 ### D-007 — Reconnect guidance is stage-specific
 
