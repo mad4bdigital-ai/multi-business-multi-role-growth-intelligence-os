@@ -855,7 +855,7 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     branch_created: !branchExists,
     readback_verified: true,
     secrets_included: false,
-  };
+  }, repositoryCoordination);
 }
 async function readGithubBlobShaAtPath({ owner, repo, treeSha, filePath, token, fetchImpl }) {
   const parts = validateChangePath(filePath).split("/");
