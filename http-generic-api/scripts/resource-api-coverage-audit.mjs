@@ -219,7 +219,7 @@ if (manifest.new_feature_gate?.require_surface_policy_decision !== true) finding
 if (manifest.new_feature_gate?.require_callable_handler_or_explicit_admin_preview !== true) {
   findings.push({ type: "callable_handler_or_admin_preview_gate_not_enabled" });
 }
-validateCallabilityContracts(manifest, findings);
+const callabilityCoveredTools = validateCallabilityContracts(manifest, findings);
 
 for (const resource of manifest.resources || []) {
   if (!resource.resource_key || !Array.isArray(resource.source_tables) || !resource.operations) {
