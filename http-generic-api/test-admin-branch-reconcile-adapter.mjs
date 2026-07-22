@@ -215,7 +215,15 @@ assert.match(adapter, /expected_branch_sha/);
 assert.match(adapter, /github_branch_fast_forward_stale_dry_run_evidence/);
 assert.match(adapter, /body: \{ sha: baseSha, force: false \}/);
 assert.match(adapter, /github_branch_fast_forward_readback_failed/);
+assert.match(adapter, /export async function assertRepositoryReconciliationMergeLease/);
 assert.doesNotMatch(adapter, /force: true/);
+
+const mergeFunctionIndex = adapter.indexOf("export async function runGithubBranchMergeCommitCreate");
+const mergeLeaseGuardIndex = adapter.indexOf("const repositoryLease = await assertRepositoryReconciliationMergeLease", mergeFunctionIndex);
+const mergeProviderTokenIndex = adapter.indexOf("const token = deps.token || await getGitHubAppInstallationToken({});", mergeFunctionIndex);
+assert.ok(mergeFunctionIndex > -1, "merge adapter function must remain exported");
+assert.ok(mergeLeaseGuardIndex > mergeFunctionIndex, "merge adapter must invoke the reconciliation lease guard");
+assert.ok(mergeProviderTokenIndex > mergeLeaseGuardIndex, "reconciliation lease guard must run before provider token resolution");
 
 const repoPatchTokenIndex = source.indexOf("const token = await getGitHubAppInstallationToken({});");
 const envelopeGateIndex = source.lastIndexOf("await requireRepoPatchCapabilityEnvelope", repoPatchTokenIndex);
