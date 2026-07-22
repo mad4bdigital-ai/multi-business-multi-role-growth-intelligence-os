@@ -155,6 +155,55 @@ export async function resolveCapabilityExecutionEnvelope({
     return capabilityEnvelopeFailure("capability_resolution_envelope_user_mismatch", { envelope_id: resolvedEnvelopeId });
   }
 
+  const workspaceId = compact(expectedWorkspaceId, 64);
+  if (workspaceId && compact(row.workspace_id, 64) !== workspaceId) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_workspace_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_workspace_id: compact(row.workspace_id, 64) || null,
+      expected_workspace_id: workspaceId,
+    });
+  }
+
+  const brandKey = compact(expectedBrandKey, 255);
+  if (brandKey && compact(row.brand_key, 255) !== brandKey) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_brand_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_brand_key: compact(row.brand_key, 255) || null,
+      expected_brand_key: brandKey,
+    });
+  }
+
+  const requestContext = envelopeRequestContext(row);
+  const envelopeResourceUri = compact(requestContext.resource_uri || requestContext.resourceUri, 2048);
+  const resourceUri = compact(expectedResourceUri, 2048);
+  if (resourceUri && envelopeResourceUri !== resourceUri) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_resource_uri_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_resource_uri: envelopeResourceUri || null,
+      expected_resource_uri: resourceUri,
+    });
+  }
+
+  const envelopeBindingSha256 = compact(requestContext.binding_sha256 || requestContext.bindingSha256, 64).toLowerCase();
+  const bindingSha256 = compact(expectedBindingSha256, 64).toLowerCase();
+  if (bindingSha256 && envelopeBindingSha256 !== bindingSha256) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_binding_sha256_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_binding_sha256: envelopeBindingSha256 || null,
+      expected_binding_sha256: bindingSha256,
+    });
+  }
+
+  const envelopeCapabilitySha256 = compact(requestContext.capability_sha256 || requestContext.capabilitySha256, 64).toLowerCase();
+  const capabilitySha256 = compact(expectedCapabilitySha256, 64).toLowerCase();
+  if (capabilitySha256 && envelopeCapabilitySha256 !== capabilitySha256) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_capability_sha256_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_capability_sha256: envelopeCapabilitySha256 || null,
+      expected_capability_sha256: capabilitySha256,
+    });
+  }
+
   if (requireReadyForDispatch && row.envelope_status !== "ready_for_dispatch") {
     return capabilityEnvelopeFailure("capability_resolution_envelope_not_dispatch_ready", { envelope_id: resolvedEnvelopeId, envelope_status: row.envelope_status, decision: row.decision });
   }
