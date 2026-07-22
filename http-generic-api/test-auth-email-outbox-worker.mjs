@@ -94,8 +94,40 @@ assert.deepEqual(compact, {
   tenant_id: "tenant_123",
   event_type: "ticket_created",
   recipient_route_reason: "platform_admin_escalation",
+  send_eligible: false,
+  skip_reason: "ticket_not_found",
   created_at: "2026-07-22T00:00:00.000Z",
   secrets_included: false,
 });
+
+assert.deepEqual(
+  evaluateAuthEmailOutboxSendEligibility({
+    metadata_json: JSON.stringify({ smoke_test: true, ticket_id: "ticket_123" }),
+  }),
+  { eligible: false, reason: "smoke_test_notification" },
+  "smoke-test notifications must never be sent",
+);
+assert.deepEqual(
+  evaluateAuthEmailOutboxSendEligibility({
+    metadata_json: JSON.stringify({ ticket_id: "ticket_123" }),
+    resolved_ticket_id: "ticket_123",
+    ticket_status: "closed",
+    ticket_lifecycle_state: "resolved",
+    ticket_customer_status: "resolved",
+  }),
+  { eligible: false, reason: "ticket_not_open" },
+  "closed or resolved ticket notifications must be skipped",
+);
+assert.deepEqual(
+  evaluateAuthEmailOutboxSendEligibility({
+    metadata_json: JSON.stringify({ ticket_id: "ticket_123" }),
+    resolved_ticket_id: "ticket_123",
+    ticket_status: "open",
+    ticket_lifecycle_state: "triage_pending",
+    ticket_customer_status: "under_review",
+  }),
+  { eligible: true, reason: null },
+  "open ticket notifications should remain eligible",
+);
 
 console.log("auth email outbox worker tests passed");
