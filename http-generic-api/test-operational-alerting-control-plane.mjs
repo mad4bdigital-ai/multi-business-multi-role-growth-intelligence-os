@@ -441,6 +441,36 @@ function testRepositoryContracts() {
   assert.match(highAttentionClosureMigration, /migration_external_write_executed', FALSE/);
   assert.match(highAttentionClosureMigration, /secrets_included', FALSE/);
   assert.doesNotMatch(highAttentionClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
+
+  const persistedAlertClosureMigration = read("./migrations/20260722_resolve_persisted_completed_task_alerts.sql");
+  assert.equal((persistedAlertClosureMigration.match(/UPDATE operational_alerts/g) || []).length, 6);
+  for (const alertId of [
+    "0caaa888-3da1-4db1-93fe-07ba2b00cc13",
+    "239736b0-26e0-492b-8cef-f77731b263b2",
+    "52f68ac6-7e1d-4d31-977b-cb74085b43f2",
+    "5efecea9-bb01-49ea-99fd-534dba5bbc5e",
+    "8e36b98d-0424-4600-b3b8-e662fcb56baa",
+    "9f1d3538-76f9-4579-9308-16b7a2fb7a97",
+  ]) assert.ok(persistedAlertClosureMigration.includes(alertId), `persisted alert closure migration must target alert ${alertId}`);
+  for (const sourceTaskId of [
+    "8fbb84a1-61a9-11f1-8ecd-456940024c79",
+    "527cafca-61b9-11f1-8ecd-456940024c79",
+    "90cb38e5-618e-11f1-8ecd-456940024c79",
+    "b7667095-61cd-11f1-8ecd-456940024c79",
+    "3fa74909-64af-11f1-8ecd-456940024c79",
+    "22a15347-619d-11f1-8ecd-456940024c79",
+  ]) assert.ok(persistedAlertClosureMigration.includes(sourceTaskId), `persisted alert closure migration must bind source task ${sourceTaskId}`);
+  assert.match(persistedAlertClosureMigration, /lifecycle_status = 'resolved'/);
+  assert.match(persistedAlertClosureMigration, /verification_state = 'verified'/);
+  assert.match(persistedAlertClosureMigration, /completed_source_task_readback/);
+  assert.match(persistedAlertClosureMigration, /source_task_status', 'done'/);
+  assert.match(persistedAlertClosureMigration, /policy_disabled_by_design/);
+  assert.match(persistedAlertClosureMigration, /verified_complete/);
+  assert.match(persistedAlertClosureMigration, /superseded/);
+  assert.match(persistedAlertClosureMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(persistedAlertClosureMigration, /migration_external_write_executed', FALSE/);
+  assert.match(persistedAlertClosureMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(persistedAlertClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
 }
 
 async function main() {
