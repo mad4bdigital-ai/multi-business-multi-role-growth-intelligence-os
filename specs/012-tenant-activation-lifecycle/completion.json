@@ -16,7 +16,7 @@
       "number": 2984,
       "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
       "role": "specification",
-      "status": "draft_open"
+      "status": "ready_for_review"
     },
     "implementation_prs": [],
     "closeout_pr": {
