@@ -106,6 +106,10 @@ import {
   approveActivateBindAndVerifySupportTicketExternalCredential,
   planSupportTicketExternalCredentialOrchestration,
 } from "../supportTicketExternalCredentialOrchestrationService.js";
+import {
+  getAuthEmailOutboxStatus,
+  runAuthEmailOutboxWorker,
+} from "../authEmailOutboxWorker.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
