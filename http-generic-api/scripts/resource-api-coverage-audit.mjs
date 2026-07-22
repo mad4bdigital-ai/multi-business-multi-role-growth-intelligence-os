@@ -204,6 +204,7 @@ function validateCallabilityContracts(manifest, findings) {
       findings.push({ type: "callability_preview_runtime_execution_not_explicitly_blocked", family_key: familyKey });
     }
   }
+  return coveredToolKeys;
 }
 
 const args = new Set(process.argv.slice(2));
