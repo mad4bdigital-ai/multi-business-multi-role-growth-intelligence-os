@@ -285,12 +285,16 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
   try {
     if (!apply) {
       const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: safeLimit });
+      const eligibleRows = rows.filter((row) => evaluateAuthEmailOutboxSendEligibility(row).eligible);
+      const skippedRows = rows.filter((row) => !evaluateAuthEmailOutboxSendEligibility(row).eligible);
       return {
         ok: true,
         mode: "dry_run",
         purposes: normalizedPurposes,
-        eligible_count: rows.length,
-        emails: rows.map(compactEmailOutboxRow),
+        eligible_count: eligibleRows.length,
+        skipped_candidate_count: skippedRows.length,
+        emails: eligibleRows.map(compactEmailOutboxRow),
+        skipped_candidates: skippedRows.map(compactEmailOutboxRow),
         readiness,
         applies_delivery: false,
         secrets_included: false,
