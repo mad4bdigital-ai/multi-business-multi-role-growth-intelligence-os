@@ -53,7 +53,8 @@
       "status": "not_started"
     },
     "ci": {
-      "status": "pending_specification_pr"
+      "status": "tracked_by_live_pr_gate",
+      "pull_request": 2984
     },
     "migration": {
       "status": "pending_inventory"
