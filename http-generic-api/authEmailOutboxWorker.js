@@ -157,11 +157,17 @@ async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limi
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
   const [rows] = await connection.query(
-    `SELECT email_id, purpose, recipient_email, subject, body_text, body_html, status, provider, metadata_json, created_at
-       FROM auth_email_outbox
-      WHERE status = 'queued'
-        AND purpose IN (${placeholders})
-      ORDER BY created_at ASC
+    `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
+            t.ticket_id AS resolved_ticket_id,
+            t.status AS ticket_status,
+            t.lifecycle_state AS ticket_lifecycle_state,
+            t.customer_status AS ticket_customer_status
+       FROM auth_email_outbox e
+       LEFT JOIN tickets t
+         ON t.ticket_id = JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json, '$.ticket_id'))
+      WHERE e.status = 'queued'
+        AND e.purpose IN (${placeholders})
+      ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
     normalizedPurposes
   );
