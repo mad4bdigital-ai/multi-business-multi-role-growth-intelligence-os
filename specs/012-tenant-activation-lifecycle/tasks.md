@@ -16,7 +16,7 @@
 - [ ] **T001** `[FR-001..040][OP-001..018]` Inventory all current Tenant Activation and Resolution public operations, operation IDs, auth schemes, route handlers, middleware, and consumers.
 - [ ] **T002** `[FR-019][OP-006][OP-008]` Inventory SQL/bootstrap/provider validation authority and deprecated paths.
 - [ ] **T003** `[FR-026..032][OP-010..014]` Inventory existing operation, attempt, evidence, delivery, acknowledgement, and reconciliation tables/services.
-- [ ] **T004** `[Q-001]` Decide whether to extend an existing ledger or create an activation projection; record ADR-quality decision.
+- [x] **T004** `[ADR-001]` Adopt the hybrid operation model: general operation ledger for shared identity/idempotency/audit plus an Activation-specific projection linked by `operation_id`. Decision recorded in `decisions/ADR-001-hybrid-activation-operation-ledger.md`. Physical table mapping remains T001-T003/T014.
 - [ ] **T005** `[Q-002][FR-006]` Approve legacy audience cutoff, telemetry, user communication, and cleanup policy.
 - [ ] **T006** `[Q-003][FR-008..012]` Finalize protected Tenant Resolution route/resource/scope policy.
 - [ ] **T007** `[Q-004][NFR-002..004]` Measure production baselines and approve latency/error SLOs.
