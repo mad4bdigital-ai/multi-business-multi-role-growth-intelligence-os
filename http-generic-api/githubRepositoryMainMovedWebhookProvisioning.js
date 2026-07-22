@@ -663,25 +663,92 @@ export async function githubRepositoryMainMovedWebhookProvision(input = {}, deps
 }
 
 export async function githubRepositoryMainMovedWebhookProvisioningReadinessSmoke(_input = {}, deps = {}) {
-  const resolver = deps.resolveCredential || resolveCredentialReference;
-  const secret = await resolver(GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF, { includeSecret: false }, deps.credentialDeps || {});
+  const pool = deps.pool || getPool();
+  const requiredObjects = [
+    "repository_authority_bindings",
+    "repository_authority_aliases",
+    "repository_capability_bindings",
+    "repository_capability_policy_layers",
+    "v_repository_authority_binding_readiness",
+    "v_repository_capability_binding_readiness",
+  ];
+  let schemaObjects = [];
+  let capabilityRows = [];
+  let authorityContext = null;
+  let secret = null;
+  let readinessError = null;
+  try {
+    const [objectRows] = await pool.query(
+      `SELECT table_name
+         FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name IN (${requiredObjects.map(() => "?").join(",")})`,
+      requiredObjects,
+    );
+    schemaObjects = Array.isArray(objectRows) ? objectRows : [];
+    if (schemaObjects.length === requiredObjects.length) {
+      const [rows] = await pool.query(
+        `SELECT binding_key
+           FROM v_repository_capability_binding_readiness
+          WHERE capability_key = ?
+            AND lifecycle_status = 'active'
+            AND readiness_status = 'ready'
+            AND is_primary = 1
+          ORDER BY capability_binding_key
+          LIMIT 2`,
+        [CAPABILITY_KEY],
+      );
+      capabilityRows = Array.isArray(rows) ? rows : [];
+      if (capabilityRows.length === 1) {
+        const authorityResolver = deps.resolveRepositoryAuthority || resolveRepositoryCapabilityAuthority;
+        authorityContext = await authorityResolver({
+          bindingKey: text(capabilityRows[0].binding_key, 191),
+          capabilityKey: CAPABILITY_KEY,
+          pool,
+        });
+        const secretResolver = deps.resolveCredential || resolveCredentialReference;
+        secret = await secretResolver(authorityContext.credential_ref, { includeSecret: false }, deps.credentialDeps || {});
+      }
+    }
+  } catch (error) {
+    readinessError = text(error?.code || error?.message || "repository_capability_readiness_error", 191);
+  }
+
+  const configuration = authorityContext?.configuration && typeof authorityContext.configuration === "object"
+    ? authorityContext.configuration
+    : {};
+  const events = safeConfigurationEvents(configuration.events);
+  const present = new Set(schemaObjects.map((row) => row.table_name));
   const resolveAppConfig = deps.resolveAppConfig || resolveGitHubAppConfig;
   const appConfig = resolveAppConfig();
   const checks = [
-    { check: "governed_callback_allowlisted", pass: DEFAULT_CALLBACK_URL === `https://auth.mad4b.com${GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH}` },
+    { check: "repository_v2_schema_present", pass: requiredObjects.every((name) => present.has(name)), missing: requiredObjects.filter((name) => !present.has(name)) },
+    { check: "one_primary_ready_capability_binding", pass: capabilityRows.length === 1, binding_count: capabilityRows.length },
+    { check: "governed_callback_inherited", pass: text(configuration.callback_url, 2048) === DEFAULT_CALLBACK_URL },
+    { check: "governed_push_event_inherited", pass: events.length === 1 && events[0] === "push" },
     { check: "webhook_secret_reference_resolved", pass: secret?.status === "resolved" && secret?.secret_present === true },
     { check: "github_app_id_configured", pass: Boolean(appConfig?.appId) },
     { check: "github_app_installation_configured", pass: Boolean(appConfig?.installationId) },
     { check: "github_app_private_key_configured", pass: Boolean(appConfig?.privateKey) },
+    { check: "provider_call_not_executed", pass: true },
+    { check: "mutation_not_executed", pass: true },
+    { check: "credential_reference_not_exposed", pass: true },
   ];
-  const pass = checks.every((row) => row.pass === true);
+  const pass = !readinessError && checks.every((row) => row.pass === true);
   return {
     ok: pass,
     status: pass ? "pass" : "fail",
     classification: pass ? "github_repository_main_moved_webhook_provisioning_ready" : "github_repository_main_moved_webhook_provisioning_blocked",
     checks,
+    readiness_error: readinessError,
+    binding: authorityContext ? {
+      binding_key: authorityContext.authority?.binding_key || null,
+      resource_uri: authorityContext.resource_uri || null,
+      binding_sha256: authorityContext.binding_sha256 || null,
+      capability_sha256: authorityContext.capability_sha256 || null,
+      secrets_included: false,
+    } : null,
     callback_url: DEFAULT_CALLBACK_URL,
-    credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
     provider_call_executed: false,
     mutations_executed: false,
     secrets_included: false,
@@ -690,7 +757,10 @@ export async function githubRepositoryMainMovedWebhookProvisioningReadinessSmoke
 
 export const __test__ = {
   APPLY_CONFIRMATION,
+  CAPABILITY_KEY,
   DEFAULT_CALLBACK_URL,
-  normalizeTarget,
+  validateLegacyRepositorySelector,
+  resolveBindingKey,
+  resolveProvisioningAuthority,
   safeHook,
 };
