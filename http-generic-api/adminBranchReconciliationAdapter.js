@@ -476,6 +476,7 @@ export function validateGithubMergeResolutionEvidence({
 }
 
 export async function runGithubBranchMergeCommitCreate(args = {}, deps = {}) {
+  const repositoryLease = await assertRepositoryReconciliationMergeLease(args, deps);
   const expectedBaseSha = requireMergeCommitSha(args.expected_base_sha || args.base_ref_sha, "expected_base_sha");
   const expectedBranchSha = requireMergeCommitSha(args.expected_branch_sha || args.branch_ref_sha, "expected_branch_sha");
   const resolutionCommitSha = requireMergeCommitSha(args.resolution_commit_sha, "resolution_commit_sha");
