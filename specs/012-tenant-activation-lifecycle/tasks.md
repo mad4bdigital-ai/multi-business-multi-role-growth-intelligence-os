@@ -34,6 +34,8 @@
 - [ ] **T015** `[state machine]` Approve operation/stage/delivery/ack state transitions and terminal semantics.
 - [ ] **T016** `[errors]` Freeze stable error taxonomy and reconnect-guidance mapping.
 - [ ] **T017** `[compatibility]` Define optional fields, compatibility window, and deprecation/cutoff.
+- [ ] **T018** `[ADR-005]` Finalize generic questionnaire/session/answer/compilation/proposal/preview/approval/activation/readback/rollback API and JSON Schema contracts.
+- [ ] **T019** `[ADR-005]` Finalize domain safety-bound registry, deterministic compiler contract, risk-to-approval matrix, version provenance, cache-invalidation policy, and platform domain-adoption gate.
 
 ## Phase 2 — Data and domain foundation
 
