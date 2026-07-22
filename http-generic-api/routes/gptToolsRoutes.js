@@ -2488,6 +2488,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "platform_capability_certification_readback_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityCertificationReadbackPreview(args) } };
   }
+  if (callerType === "admin" && toolKey === "tenant_connection_operation_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildTenantConnectionOperationPreview(args) } };
+  }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
       ...(args || {}),
