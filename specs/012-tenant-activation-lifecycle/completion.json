@@ -70,11 +70,6 @@
   },
   "unresolved_gaps": [
     {
-      "id": "Q-003",
-      "severity": "high",
-      "summary": "Tenant Resolution resource/scope policy requires inventory and approval."
-    },
-    {
       "id": "Q-004",
       "severity": "medium",
       "summary": "Production SLO thresholds require measurement and approval."
