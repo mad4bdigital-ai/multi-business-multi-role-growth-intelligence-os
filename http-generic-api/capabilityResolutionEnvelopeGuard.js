@@ -231,8 +231,13 @@ export async function resolveCapabilityExecutionEnvelope({
 
   const sha = compact(expectedCommitSha, 64).toLowerCase();
   const hintedSha = envelopeCommitHint(row);
-  if (sha && hintedSha && hintedSha !== sha) {
-    return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", { envelope_id: resolvedEnvelopeId, expected_commit_sha: sha, envelope_commit_sha: hintedSha });
+  if (sha && ((requireCommitHint && hintedSha !== sha) || (!requireCommitHint && hintedSha && hintedSha !== sha))) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      expected_commit_sha: sha,
+      envelope_commit_sha: hintedSha || null,
+      commit_hint_required: requireCommitHint === true,
+    });
   }
 
   return {
@@ -241,9 +246,17 @@ export async function resolveCapabilityExecutionEnvelope({
     envelope_id: resolvedEnvelopeId,
     envelope_status: row.envelope_status,
     decision: row.decision,
+    tenant_id: row.tenant_id || null,
+    user_id: row.user_id || null,
+    workspace_id: row.workspace_id || null,
+    brand_key: row.brand_key || null,
     app_key: row.app_key || null,
     capability_key: row.capability_key || null,
     operation_intent: row.operation_intent || null,
+    resource_uri: envelopeResourceUri || null,
+    expected_commit_sha: hintedSha || null,
+    binding_sha256: envelopeBindingSha256 || null,
+    capability_sha256: envelopeCapabilitySha256 || null,
     selected_source_tier: row.selected_source_tier || null,
     selected_runtime_surface: row.selected_runtime_surface || null,
     dispatch_allowed: true,
