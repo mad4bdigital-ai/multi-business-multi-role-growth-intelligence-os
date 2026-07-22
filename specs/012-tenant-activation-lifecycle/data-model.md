@@ -323,6 +323,170 @@ Required uniqueness/validation:
 
 The stable scope catalog contains `tenant.resolution.read`, `manage`, `diagnose`, `repair`, and `approve`. New scopes require a distinct user-understandable consent category and a new reviewed decision; new routes normally reuse an existing scope with dynamic role/capability/object/approval policy.
 
+## GovernedInteractivePolicyQuestionnaire
+
+ADR-005 defines a reusable platform intake and policy-compilation model. The physical implementation must reuse existing policy, approval, audit, and registry tables where semantics fit and introduce only additive schema where required.
+
+### QuestionnaireDefinition
+
+| Field | Type | Rules |
+|---|---|---|
+| `questionnaire_key` | string | Stable domain/purpose identity |
+| `version` | string/integer | Immutable published version |
+| `domain_key` | string | Activation, Resolution, onboarding, integrations, agent runtime, notifications, rollout, or data governance |
+| `purpose_key` | string | Specific policy outcome |
+| `applicable_actor_roles_json` | JSON | Who may start/use the questionnaire |
+| `applicable_context_rule_key` | string/null | Tenant tier, mode, app, stage, risk, etc. |
+| `schema_json` | JSON Schema | Answer contract |
+| `ui_schema_json` | JSON/null | Presentation/progressive-disclosure hints only |
+| `policy_template_key` | string | Compiler target template |
+| `compiler_key` | string | Deterministic compiler implementation/version |
+| `impact_model_key` | string | Preview calculator |
+| `approval_policy_key` | string | Approval/typed-confirmation resolver |
+| `status` | enum | `draft`, `active`, `deprecated`, `disabled`, `expired` |
+| `effective_at` | timestamp | Required for active version |
+| `expires_at` | timestamp/null | Optional |
+
+### QuestionDefinition
+
+| Field | Type | Rules |
+|---|---|---|
+| `question_key` | string | Stable within questionnaire version |
+| `questionnaire_key/version` | FK | Immutable parent version |
+| `label` | string | User-readable |
+| `description/help_text` | string | Explain impact and terminology |
+| `answer_type` | enum | Boolean, enum, number, string, multi-select, structured object |
+| `allowed_values_json` | JSON/null | Registry values only |
+| `constraints_json` | JSON | Bounds/patterns/cardinality |
+| `required` | boolean | Context-aware requirement |
+| `visibility_rule_key` | string/null | Deterministic conditional display |
+| `dependency_questions_json` | JSON/null | Prior-answer dependencies |
+| `risk_weight` | number/null | Input to governed risk model |
+| `default_strategy_key` | string/null | Profile/recommendation source |
+
+### QuestionnaireSession
+
+| Field | Type | Rules |
+|---|---|---|
+| `session_id` | string/UUID | Stable identity |
+| `tenant_id` | string | Verified principal scope |
+| `user_id` | string | Verified principal scope |
+| `questionnaire_key/version` | FK | Pinned for session lifetime |
+| `context_snapshot_json` | JSON | Bounded, no-secret, compiler-relevant context |
+| `status` | enum | `open`, `ready_for_preview`, `submitted`, `expired`, `cancelled` |
+| `created_at` | timestamp | Required |
+| `expires_at` | timestamp | Required |
+| `version` | integer | Optimistic concurrency |
+
+### QuestionnaireAnswer
+
+| Field | Type | Rules |
+|---|---|---|
+| `answer_id` | string/UUID | Stable identity |
+| `session_id` | FK | Required |
+| `question_key` | string | Must exist in pinned questionnaire version |
+| `answer_json` | JSON | Schema-validated and bounded |
+| `source` | enum | `user`, `recommended_profile`, `admin_override` |
+| `created_at/updated_at` | timestamp | Audited |
+
+Answers never become runtime authority and must not contain credentials or raw secrets.
+
+### PolicyCompilation
+
+| Field | Type | Rules |
+|---|---|---|
+| `compilation_id` | string/UUID | Stable identity |
+| `session_id` | FK | Required |
+| `compiler_key/version` | string | Provenance |
+| `template_key/version` | string | Provenance |
+| `normalized_input_hash` | string | Deterministic replay/audit |
+| `compiled_policy_json` | JSON | Candidate policy |
+| `safety_validation_json` | JSON | Bounds and blocked rules |
+| `risk_tier` | enum | `low`, `medium`, `high`, `critical` |
+| `required_approval_class` | string/null | Derived |
+| `status` | enum | `compiled`, `invalid`, `blocked` |
+| `created_at` | timestamp | Required |
+
+Same pinned inputs and versions must produce the same normalized policy output.
+
+### ImpactPreview
+
+| Field | Type | Rules |
+|---|---|---|
+| `preview_id` | string/UUID | Stable identity |
+| `compilation_id` | FK | Required |
+| `affected_resources_json` | JSON | Tenants/apps/stages/operations |
+| `user_experience_json` | JSON | Expected bounded behavior |
+| `security_impact_json` | JSON | Permissions and immutable safeguards |
+| `performance_cost_json` | JSON/null | Evidence-backed estimate with uncertainty |
+| `compatibility_impact_json` | JSON | Clients/policies/cutoffs |
+| `rollout_json` | JSON | Shadow/canary/GA |
+| `rollback_json` | JSON | Prior policy/version or disable plan |
+| `warnings_json` | JSON | Explicit incomplete/blocked evidence |
+| `created_at` | timestamp | Required |
+
+### PolicyProposal
+
+| Field | Type | Rules |
+|---|---|---|
+| `proposal_id` | string/UUID | Stable identity |
+| `compilation_id` | FK | Required |
+| `tenant_id` | string/null | Null only for platform policy with admin authority |
+| `policy_type` | string | Registered policy domain |
+| `proposed_version` | string/integer | Immutable candidate |
+| `resource_uri` | string | Approval/resource authority binding |
+| `status` | enum | `draft`, `submitted`, `approved`, `rejected`, `activation_pending`, `active`, `superseded`, `rolled_back`, `expired` |
+| `effective_at/expires_at` | timestamp/null | Governed activation window |
+| `supersedes_policy_id` | string/null | Version lineage |
+| `created_by` | string | Audited principal |
+| `created_at/updated_at` | timestamp | Required |
+
+### PolicyApproval
+
+| Field | Type | Rules |
+|---|---|---|
+| `approval_id` | string/UUID | Stable identity |
+| `proposal_id` | FK | Required |
+| `approval_class` | string | Must satisfy compiled requirement |
+| `decision` | enum | `approved`, `rejected`, `expired`, `revoked` |
+| `approved_by` | string | Governed principal/reference |
+| `typed_confirmation_hash` | string/null | Never store reusable plain confirmation |
+| `proposal_hash` | string | Invalidates approval on drift |
+| `resource_uri` | string | Exact bound resource |
+| `created_at/expires_at` | timestamp | Bounded |
+
+### PolicyActivation and PolicyReadback
+
+Activation records the approved proposal, exact policy version, previous version, idempotency identity, effective time, activation result, and runtime registry readback. A policy is not reported active until authoritative registry readback confirms the exact version and resource.
+
+### PolicyRollback/Supersession
+
+Rollback is a new governed operation that restores a prior valid version or disables the policy according to domain rules. It must preserve audit lineage, reconcile in-flight operations, and verify runtime readback.
+
+## ActivationStageSloPolicy
+
+The first ADR-005 domain adapter compiles questionnaire answers into a versioned policy with fields such as:
+
+- `stage_key`;
+- `operation_profile`;
+- `activation_mode`;
+- `dependency_class`;
+- `tenant_tier`;
+- `soft_deadline_ms`;
+- `hard_deadline_ms`;
+- `overall_budget_ms`;
+- `max_attempts`;
+- `backoff_policy_key`;
+- `freshness_window_seconds`;
+- `degradation_policy`;
+- `availability_target`;
+- `alert_policy_key`;
+- `safety_bounds_version`;
+- `questionnaire/template/compiler provenance`;
+- `status/effective/expiry/version`.
+
+Runtime safety ceilings and mandatory security/tenant/idempotency/reconciliation rules are not configurable by this policy.
+
 ## Migration questions
 
 - Can existing execution/operation tables express activation stages and delivery/ack states?
