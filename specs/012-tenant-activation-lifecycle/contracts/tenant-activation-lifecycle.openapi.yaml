@@ -287,6 +287,11 @@ components:
             https://auth.mad4b.com/scopes/tenant.activation: Activate managed, dedicated, or mixed tenant mode.
             https://auth.mad4b.com/scopes/tenant.install: Provision approved tenant connector installation.
             https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools.
+            https://auth.mad4b.com/scopes/tenant.resolution.read: Read tenant Resolution problem cards, cases, approval status, and bounded evidence.
+            https://auth.mad4b.com/scopes/tenant.resolution.manage: Create and manage permitted tenant Resolution cases and state transitions.
+            https://auth.mad4b.com/scopes/tenant.resolution.diagnose: Run permitted diagnostics, previews, and verification operations.
+            https://auth.mad4b.com/scopes/tenant.resolution.repair: Request governed repair application subject to dynamic capability, approval, idempotency, and readback policy.
+            https://auth.mad4b.com/scopes/tenant.resolution.approve: Request governed Resolution approval decisions subject to object authority and lifecycle policy.
   parameters:
     OperationId:
       name: operationId
