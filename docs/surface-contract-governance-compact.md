@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 44
-- Docs completion: 513/557 (92.1%)
-- Queue items: 44
+- Blocking new items: 45
+- Docs completion: 513/558 (91.94%)
+- Queue items: 45
 - OpenAPI missing SQL routes: 2
 - OpenAPI-exempt SQL route-like literals: 664/688
 - Safety marker gap migrations: 8
@@ -17,7 +17,7 @@
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 885; add targeted patch-index, parity, and governance documentation
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, score 868; add targeted patch-index, parity, and governance documentation
 - `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 849; add targeted patch-index, parity, and governance documentation
-- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 837; add targeted patch-index, parity, and governance documentation
+- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 836; add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 831; add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 815; add targeted patch-index, parity, and governance documentation
-- `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, score 809; add targeted patch-index, parity, and governance documentation
+- `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, score 808; add targeted patch-index, parity, and governance documentation
