@@ -12,12 +12,12 @@
 
 ## Phase 0 — Baseline and contract design
 
-- [ ] T010 Inventory reusable operation, plan, approval, envelope, idempotency, receipt, reconciliation, and audit tables.
-- [ ] T011 Produce a gap analysis and table-reuse decision record.
-- [ ] T012 Finalize operation, delegation, policy, receipt, and evidence JSON Schemas.
-- [ ] T013 Finalize OpenAPI 3.1 contracts and error codes.
-- [ ] T014 Define compatibility adapters for existing governed tools.
-- [ ] T015 Add registry and runtime contract drift tests before runtime implementation.
+- [x] T010 Inventory reusable operation, plan, approval, envelope, idempotency, receipt, reconciliation, and audit tables.
+- [x] T011 Produce a gap analysis and table-reuse decision record.
+- [x] T012 Finalize operation, delegation, policy, receipt, and evidence JSON Schemas.
+- [x] T013 Finalize OpenAPI 3.1 draft governance and stable error codes.
+- [x] T014 Define compatibility adapters for existing governed tools.
+- [x] T015 Add registry and runtime contract drift tests before runtime implementation.
 
 ## Phase 1 — Durable Execution Kernel
 
