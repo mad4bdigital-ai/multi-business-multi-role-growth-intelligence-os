@@ -7,11 +7,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: staging-automation-final-frontend-evidence-${{ github.ref }}
+  group: staging-automation-finalize-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  regenerate:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch
@@ -36,23 +36,27 @@ jobs:
         working-directory: http-generic-api
         run: npm run frontend:dispatch:generate -- --baseline-ref=main
 
-      - name: Validate frontend evidence
+      - name: Validate staging automation and frontend evidence
         working-directory: http-generic-api
         run: |
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-runtime-gate-deployment-info-parity.mjs
 
-      - name: Commit generated frontend evidence
+      - name: Restore canonical workflow and commit final artifacts
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "admin-assitant-growth-os[bot]"
           git config user.email "283129699+admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/openapi-auto-sync.yml
+          git add .github/workflows/openapi-auto-sync.yml
           git add http-generic-api/frontend-surface-dispatch.generated.json
           git add http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if git diff --cached --quiet; then
-            echo "No generated changes to commit."
+            echo "No final changes to commit."
             exit 0
           fi
-          git commit -m "Regenerate frontend evidence on final staging automation head"
+          git commit -m "Finalize main staging automation evidence"
           git push origin HEAD:${GITHUB_REF_NAME}
