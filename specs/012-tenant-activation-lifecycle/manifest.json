@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "012-tenant-activation-lifecycle",
   "title": "Tenant GPT Activation Lifecycle",
-  "status": "ready_for_specification_pr",
+  "status": "in_specification_review",
   "current_phase": "review",
   "delivery_mode": "multi_pr",
   "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
