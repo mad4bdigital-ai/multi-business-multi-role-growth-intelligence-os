@@ -7,7 +7,7 @@
 
 ## Context
 
-Legacy Tenant GPT access tokens may use the generic audience `mad4b-tenant-gpt`. The current protected-resource contract issues and verifies single-audience tokens for `https://activation.mad4b.com` with matching resource and authorized-party claims.
+Legacy Tenant GPT access tokens may use the generic audience `mad4b-tenant-gpt` without the mandatory Activation protected-resource binding and token profile. Under ADR-003, the public Tenant GPT continues to use one OAuth client, while the external access token returned to ChatGPT uses the single Activation audience `https://activation.mad4b.com` with matching resource and authorized-party claims. Any internal generic user-identity token remains internal and is never accepted directly by Activation.
 
 Immediate rejection of all legacy tokens maximizes short-term isolation but risks avoidable user interruption. Leaving legacy acceptance enabled until a single unobserved deadline reduces immediate disruption but creates a cliff event and prolongs acceptance of a weaker audience contract.
 
