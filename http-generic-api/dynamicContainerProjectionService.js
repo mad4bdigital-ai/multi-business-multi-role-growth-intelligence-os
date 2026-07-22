@@ -97,7 +97,7 @@ function containerRow({ tenantId, type, key, subjectType, subjectRef, displayNam
 async function loadProjectionSources(executor = getPool()) {
   const names = [
     "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
+    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","tenantBrandLinks","existingContainers"
   ];
   const queries = [
     "SELECT tenant_id,tenant_type,display_name,status,updated_at FROM tenants",
@@ -113,8 +113,10 @@ async function loadProjectionSources(executor = getPool()) {
     "SELECT grant_id,connection_id,workspace_id,agent_id,app_key,action_key,grant_mode,granted_by,expires_at,status,created_at FROM app_action_grants",
     "SELECT grant_id,agent_id,skill_id,tenant_id,brand_key,granted_by,granted_at,expires_at,status FROM agent_skill_grants",
     "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets",
+    "SELECT tenant_id,brand_target_key,link_source,status,updated_at FROM tenant_brand_links WHERE status='active'",
     "SELECT container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,status,updated_at FROM containers"
   ];
+  const optionalSources = new Set(["tenantBrandLinks"]);
   const source = {};
   for (let index = 0; index < queries.length; index += 1) {
     const sourceName = names[index];
@@ -122,6 +124,10 @@ async function loadProjectionSources(executor = getPool()) {
       const [rows] = await executor.query(queries[index]);
       source[sourceName] = Array.isArray(rows) ? rows : [];
     } catch (cause) {
+      if (optionalSources.has(sourceName) && ["ER_NO_SUCH_TABLE","ER_BAD_TABLE_ERROR"].includes(cause?.code)) {
+        source[sourceName] = [];
+        continue;
+      }
       const error = new Error(`Container projection source load failed for ${sourceName}.`);
       error.code = "container_projection_source_load_failed";
       error.status = 503;
@@ -184,6 +190,14 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       brandsByName.get(key).push(brand);
     }
   }
+  const tenantBrandLinksByTenant = new Map();
+  for (const link of (source.tenantBrandLinks || []).filter(row => activeValue(row.status))) {
+    const tenantId = String(link.tenant_id || "");
+    const brandTargetKey = String(link.brand_target_key || "").trim();
+    if (!tenantId || !brandTargetKey) continue;
+    if (!tenantBrandLinksByTenant.has(tenantId)) tenantBrandLinksByTenant.set(tenantId,[]);
+    tenantBrandLinksByTenant.get(tenantId).push(link);
+  }
 
   for (const workspace of source.workspaces) {
     const tenantId = String(workspace.tenant_id || "");
@@ -200,7 +214,18 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const tenantEdge = relationshipRow({ tenantId,fromId:tenantContainer.container_id,toId:workspaceContainer.container_id,source:"workspace_registry" });
     relationships.set(tenantEdge.relationship_id,tenantEdge);
 
-    const linkedBrandKey = String(workspace.linked_brand_key || "").trim();
+    let linkedBrandKey = String(workspace.linked_brand_key || "").trim();
+    const workspaceType = String(workspace.workspace_type || "").trim().toLowerCase();
+    if (!linkedBrandKey) {
+      if (workspaceType && workspaceType !== "brand") continue;
+      const tenantBrandLinks = tenantBrandLinksByTenant.get(tenantId) || [];
+      if (tenantBrandLinks.length === 1) {
+        linkedBrandKey = String(tenantBrandLinks[0].brand_target_key || "").trim();
+      } else if (tenantBrandLinks.length > 1) {
+        issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"tenant_brand_links",source_ref:tenantId,issue_code:"tenant_brand_link_ambiguous",severity:"high",issue_detail:"Brand workspace fallback requires exactly one active tenant_brand_links row.",candidate_refs:tenantBrandLinks.map(row => row.brand_target_key).filter(Boolean) }));
+        continue;
+      }
+    }
     if (!linkedBrandKey) {
       issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,issue_code:"workspace_brand_link_missing",severity:"medium",issue_detail:"Workspace has no canonical linked_brand_key.",candidate_refs:[] }));
       continue;
@@ -235,7 +260,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const brandKey = String(brand.target_key);
     const brandContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
     brandContainerByTenantAndTarget.set(`${tenantId}|${brandKey}`,brandContainer);
-    const brandEdge = relationshipRow({ tenantId,fromId:workspaceContainer.container_id,toId:brandContainer.container_id,source:"workspace_registry.linked_brand_key" });
+    const brandEdge = relationshipRow({ tenantId,fromId:workspaceContainer.container_id,toId:brandContainer.container_id,source:workspace.linked_brand_key ? "workspace_registry.linked_brand_key" : "tenant_brand_links.brand_target_key" });
     relationships.set(brandEdge.relationship_id,brandEdge);
 
     const paths = source.brandPaths.filter(row => activeValue(row.active || row.status) && [row.brand_key,row.target_key].filter(Boolean).some(value => String(value).toLowerCase() === brandKey.toLowerCase()));
