@@ -277,6 +277,52 @@ Final durations require security/legal approval. Proposed categories:
 - Deployment observations: release/audit retention.
 - Raw diagnostic dumps: disabled by default; bounded, elevated, shortest retention.
 
+## DynamicResolutionOperationPolicy
+
+ADR-004 requires a governed versioned policy record for every protected Tenant Resolution operation. The final implementation may extend an existing endpoint/capability policy registry or add an Activation/Resolution projection when existing semantics are insufficient.
+
+| Field | Type | Rules |
+|---|---|---|
+| `policy_key` | string | Stable primary identity |
+| `policy_version` | integer/string | Monotonic/versioned |
+| `operation_id` | string | Stable public OpenAPI operation ID |
+| `parent_action_key` | string/null | Registered action authority |
+| `endpoint_key` | string/null | Registered endpoint authority |
+| `http_method` | enum | Registered method |
+| `route_pattern` | string | Normalized declared route |
+| `protected_resource` | URI origin | Must equal the accepted resource for this policy |
+| `required_scopes_json` | JSON array | One or more stable broad scopes |
+| `eligible_roles_json` | JSON/null | Role policy; not a substitute for membership |
+| `required_capabilities_json` | JSON array | Dynamic capability gates |
+| `object_authority_rule_key` | string | Tenant/workspace/case/approval ownership policy |
+| `workspace_brand_app_constraints_json` | JSON/null | Additional governed boundaries |
+| `risk_tier` | enum | `low`, `medium`, `high`, `critical` |
+| `approval_class` | string/null | Plan/approval class where required |
+| `typed_confirmation_required` | boolean | Active policy requirement |
+| `idempotency_required` | boolean | Required for unsafe retryable operations |
+| `idempotency_scope_key` | string/null | Deterministic scope definition |
+| `readback_contract_key` | string/null | Authoritative completion/reconciliation contract |
+| `retry_policy_key` | string/null | Registered retry/rate policy |
+| `status` | enum | `active`, `disabled`, `deprecated`, `expired` |
+| `effective_at` | timestamp | Required |
+| `expires_at` | timestamp/null | Optional bounded expiry |
+| `created_by` | string | Audited principal/reference |
+| `created_at` | timestamp | Required |
+| `updated_at` | timestamp | Required |
+
+Required uniqueness/validation:
+
+- one active unambiguous policy per registered operation identity and effective time;
+- route/method/operation/action/endpoint mappings must not conflict;
+- missing or ambiguous policy fails closed;
+- scope values must come from the accepted stable scope catalog;
+- critical policy changes invalidate or bypass stale caches;
+- policy activation is audited and contract-parity tested.
+
+## ResolutionScopeCatalog
+
+The stable scope catalog contains `tenant.resolution.read`, `manage`, `diagnose`, `repair`, and `approve`. New scopes require a distinct user-understandable consent category and a new reviewed decision; new routes normally reuse an existing scope with dynamic role/capability/object/approval policy.
+
 ## Migration questions
 
 - Can existing execution/operation tables express activation stages and delivery/ack states?
