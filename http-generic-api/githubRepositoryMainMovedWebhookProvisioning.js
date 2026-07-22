@@ -9,13 +9,13 @@ import {
 } from "./capabilityResolutionEnvelopeGuard.js";
 import {
   GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH,
-  GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
 } from "./githubRepositoryMainMovedWebhookService.js";
+import { resolveRepositoryCapabilityAuthority } from "./repositoryAuthorityContextResolver.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const DEFAULT_CALLBACK_URL = `https://auth.mad4b.com${GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PATH}`;
 const APPLY_CONFIRMATION = "PROVISION_GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK";
-const SECRET_KEY = GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF.replace(/^ref:secret:/, "");
+const CAPABILITY_KEY = "github_repository_main_moved_webhook_provision";
 
 export const GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS = [
   {
