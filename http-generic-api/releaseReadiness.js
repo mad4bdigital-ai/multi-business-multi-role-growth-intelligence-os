@@ -29,6 +29,7 @@ const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRout
 const REPOSITORY_TENANT_INTELLIGENCE_V2_PATH = path.join(__dirname, "repositoryTenantIntelligenceV2.js");
 const REPOSITORY_GOVERNANCE_V6_PATH = path.join(__dirname, "repositoryGovernanceV6.js");
 const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
+const RESOURCE_API_COVERAGE_MANIFEST_PATH = path.join(__dirname, "resource-api-coverage.manifest.json");
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
 
