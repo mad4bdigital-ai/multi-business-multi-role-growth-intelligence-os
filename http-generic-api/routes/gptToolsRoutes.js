@@ -65,6 +65,7 @@ import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGov
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
 import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
+import { buildTenantConnectionOperationPreview } from "../tenantConnectionOperationPreview.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
