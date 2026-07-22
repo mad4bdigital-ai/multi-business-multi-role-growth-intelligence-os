@@ -541,8 +541,9 @@ components:
           type: [object, 'null']
           additionalProperties: true
         deployment:
-          type: [object, 'null']
-          additionalProperties: true
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/DeploymentSummary'
         completeness:
           type: object
           additionalProperties: false
