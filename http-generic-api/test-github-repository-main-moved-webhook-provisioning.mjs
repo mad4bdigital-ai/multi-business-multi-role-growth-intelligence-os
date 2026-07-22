@@ -16,8 +16,75 @@ function reply(status, body = undefined) {
 }
 
 const target = { owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" };
+const bindingKey = "growth_intelligence_platform.github.primary.production";
+const bindingSha256 = "b".repeat(64);
+const capabilitySha256 = "c".repeat(64);
 const expectedCommitSha = "a".repeat(40);
 const applyReason = "Provision the governed repository webhook after reviewed readiness evidence.";
+
+function repositoryAuthorityResult(overrides = {}) {
+  return {
+    authority: {
+      binding_id: "repository-binding-id",
+      binding_key: bindingKey,
+      tenant_id: "tenant-1",
+      workspace_id: "workspace-1",
+      brand_target_key: "growth_intelligence_platform",
+      app_key: "github",
+      provider_key: "github",
+      repository_external_id: "1213257854",
+      repository_node_id: "R_kgDOSFDYfg",
+      canonical_owner: target.owner,
+      canonical_name: target.repo,
+      environment: "production",
+      ...overrides.authority,
+    },
+    capability: {
+      capability_binding_id: "repository-capability-id",
+      capability_binding_key: "growth_intelligence_platform.github.repository_main_moved_webhook.production",
+      capability_key: __test__.CAPABILITY_KEY,
+      operation_intent: __test__.CAPABILITY_KEY,
+      effect_class: "external_write",
+      ...overrides.capability,
+    },
+    resource_uri: `repository-binding://${bindingKey}`,
+    binding_sha256: bindingSha256,
+    capability_sha256: capabilitySha256,
+    configuration: {
+      callback_url: __test__.DEFAULT_CALLBACK_URL,
+      events: ["push"],
+      hook_name: "web",
+      content_type: "json",
+      insecure_ssl: "0",
+      active: true,
+      ...overrides.configuration,
+    },
+    configuration_source_map: {
+      callback_url: `repository:${bindingKey}`,
+      events: "brand:growth_intelligence_platform",
+      active: "environment:production",
+    },
+    credential_ref: "ref:secret:GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET",
+    secrets_included: false,
+    ...overrides.result,
+  };
+}
+
+const authorityDeps = {
+  pool: {},
+  resolveLegacyBindingSelector: async ({ owner, repo }) => {
+    assert.equal(owner, target.owner);
+    assert.equal(repo, target.repo);
+    return { binding_key: bindingKey };
+  },
+  resolveRepositoryAuthority: async ({ bindingKey: requestedBindingKey, capabilityKey, expectedBindingSha256 = "", expectedCapabilitySha256 = "" }) => {
+    assert.equal(requestedBindingKey, bindingKey);
+    assert.equal(capabilityKey, __test__.CAPABILITY_KEY);
+    if (expectedBindingSha256) assert.equal(expectedBindingSha256, bindingSha256);
+    if (expectedCapabilitySha256) assert.equal(expectedCapabilitySha256, capabilitySha256);
+    return repositoryAuthorityResult();
+  },
+};
 
 {
   const calls = [];
