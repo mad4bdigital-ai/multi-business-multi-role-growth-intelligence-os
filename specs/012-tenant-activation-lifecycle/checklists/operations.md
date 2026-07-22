@@ -48,7 +48,7 @@
 - [x] Health and protected Tenant user-path smoke are required.
 - [x] Stale-runtime attempts are classified separately.
 - [x] Feature-gated shadow/internal/canary/GA rollout is defined.
-- [ ] Final deployment version exposure contract is approved. Pending Q-005.
+- [x] Tiered deployment evidence exposure is approved by ADR-006: opaque/diagnostic release evidence for Tenant/public consumers and full parity evidence for authorized Admin/service principals.
 
 ## Rollback and recovery
 
