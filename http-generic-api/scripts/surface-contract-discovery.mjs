@@ -443,7 +443,12 @@ function remediationFor(entry) {
 }
 
 function scoreGap(entry, index, total) {
-  if (!entry.coverage.requires_docs_review && !entry.coverage.route_coverage.missing_count && safetyGapsFor(entry).length === 0) return 0;
+  if (
+    !entry.coverage.requires_docs_review
+    && !entry.coverage.route_coverage.missing_count
+    && !entry.coverage.route_coverage.callability_review_count
+    && safetyGapsFor(entry).length === 0
+  ) return 0;
   const severity = entry.coverage.gap_severity;
   const recencyRank = total ? index / total : 0;
   let score = 0;
@@ -452,6 +457,7 @@ function scoreGap(entry, index, total) {
   if (severity === "low") score += 150;
   score += entry.missing_docs.length * 20;
   score += entry.coverage.route_coverage.missing_count * 80;
+  score += entry.coverage.route_coverage.callability_review_count * 160;
   score += entry.surfaces.plugins.length * 120;
   score += entry.coverage.route_coverage.openapi_required_route_count * 100;
   score += entry.surfaces.tools.length * 18;
