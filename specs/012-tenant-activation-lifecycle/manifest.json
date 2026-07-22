@@ -72,7 +72,7 @@
   "delivery": {
     "specification_pr": {
       "number": 2984,
-      "status": "draft_open"
+      "status": "ready_for_review"
     },
     "implementation_prs": [],
     "closeout_pr": {
