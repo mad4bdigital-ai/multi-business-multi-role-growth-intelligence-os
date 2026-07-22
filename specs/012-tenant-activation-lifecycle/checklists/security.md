@@ -85,4 +85,4 @@
 
 ## Security approval gate
 
-ADR-001 has finalized durable operation ownership. Implementation cannot begin until the legacy cutoff, Tenant Resolution scope/resource policy, retention, and public deployment-evidence decision are approved or explicitly deferred with compensating controls; physical table mapping must also pass T001-T003/T014 before migration.
+ADR-001 through ADR-006 finalize the architecture-level ownership, token, Resolution authorization, questionnaire-policy, and deployment-evidence decisions. Runtime implementation remains gated on current-route/table inventory, physical SQL mapping, retention approval, production baseline/profile measurement, canonical contract parity, security tests, rollout controls, and governed migration/readback where required.
