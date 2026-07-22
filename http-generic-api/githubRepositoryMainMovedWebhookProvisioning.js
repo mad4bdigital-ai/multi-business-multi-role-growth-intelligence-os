@@ -83,19 +83,158 @@ function fail(code, message, status = 400, details = {}) {
   throw error;
 }
 
-function normalizeTarget(input = {}) {
+function validateLegacyRepositorySelector(input = {}) {
   const owner = text(input.owner, 100);
   const repo = text(input.repo, 100);
-  const callbackUrl = text(input.callback_url || DEFAULT_CALLBACK_URL, 2048);
   const safeName = /^[A-Za-z0-9_.-]+$/;
-  if (!owner || !safeName.test(owner)) fail("github_webhook_owner_invalid", "A valid GitHub repository owner is required.");
-  if (!repo || !safeName.test(repo)) fail("github_webhook_repo_invalid", "A valid GitHub repository name is required.");
+  if ((owner && !repo) || (!owner && repo)) {
+    fail("github_webhook_legacy_selector_incomplete", "owner and repo must be supplied together when using the backward-compatible selector.");
+  }
+  if (owner && !safeName.test(owner)) fail("github_webhook_owner_invalid", "A valid GitHub repository owner selector is required.");
+  if (repo && !safeName.test(repo)) fail("github_webhook_repo_invalid", "A valid GitHub repository name selector is required.");
+  return { owner, repo };
+}
+
+async function resolveBindingKey(input = {}, deps = {}) {
+  const bindingKey = text(input.binding_key, 191);
+  const legacy = validateLegacyRepositorySelector(input);
+  if (bindingKey) return { bindingKey, legacy };
+  if (!legacy.owner || !legacy.repo) {
+    fail("repository_authority_binding_selector_required", "A binding_key or owner/repo selector is required.");
+  }
+  const resolver = deps.resolveLegacyBindingSelector;
+  if (typeof resolver === "function") {
+    const result = await resolver({ owner: legacy.owner, repo: legacy.repo });
+    const resolvedKey = text(result?.binding_key || result, 191);
+    if (!resolvedKey) fail("repository_authority_binding_not_found", "No active repository authority binding matched the owner/repo selector.", 404);
+    return { bindingKey: resolvedKey, legacy };
+  }
+  const pool = deps.pool || getPool();
+  const [rows] = await pool.query(
+    `SELECT binding_key
+       FROM v_repository_authority_binding_readiness
+      WHERE provider_key = 'github'
+        AND canonical_owner = ?
+        AND canonical_name = ?
+        AND lifecycle_status = 'active'
+      LIMIT 2`,
+    [legacy.owner, legacy.repo],
+  );
+  const matches = Array.isArray(rows) ? rows : [];
+  if (matches.length !== 1) {
+    fail(
+      matches.length ? "repository_authority_binding_ambiguous" : "repository_authority_binding_not_found",
+      matches.length ? "The owner/repo selector matched multiple active repository authority bindings." : "No active repository authority binding matched the owner/repo selector.",
+      matches.length ? 409 : 404,
+      { owner: legacy.owner, repo: legacy.repo, binding_count: matches.length },
+    );
+  }
+  return { bindingKey: text(matches[0].binding_key, 191), legacy };
+}
+
+function safeConfigurationEvents(value) {
+  return [...new Set((Array.isArray(value) ? value : []).map((event) => text(event, 64)).filter(Boolean))];
+}
+
+async function resolveProvisioningAuthority(input = {}, deps = {}, { requireFingerprints = false } = {}) {
+  const expectedBindingSha256 = text(input.binding_sha256, 64).toLowerCase();
+  const expectedCapabilitySha256 = text(input.capability_sha256, 64).toLowerCase();
+  for (const [value, code, label] of [
+    [expectedBindingSha256, "github_webhook_binding_sha256_invalid", "binding_sha256"],
+    [expectedCapabilitySha256, "github_webhook_capability_sha256_invalid", "capability_sha256"],
+  ]) {
+    if (value && !/^[0-9a-f]{64}$/.test(value)) fail(code, `${label} must be a 64-character hexadecimal SHA-256 fingerprint.`);
+  }
+  if (requireFingerprints && (!expectedBindingSha256 || !expectedCapabilitySha256)) {
+    fail("github_webhook_planning_fingerprints_required", "Apply requires binding_sha256 and capability_sha256 from the reviewed dry-run.", 400);
+  }
+
+  const selector = await resolveBindingKey(input, deps);
+  const pool = deps.pool || getPool();
+  const resolver = deps.resolveRepositoryAuthority || resolveRepositoryCapabilityAuthority;
+  const resolved = await resolver({
+    bindingKey: selector.bindingKey,
+    capabilityKey: CAPABILITY_KEY,
+    expectedBindingSha256,
+    expectedCapabilitySha256,
+    pool,
+  });
+  const authority = resolved?.authority || {};
+  const capability = resolved?.capability || {};
+  const configuration = resolved?.configuration && typeof resolved.configuration === "object"
+    ? resolved.configuration
+    : {};
+  const owner = text(authority.canonical_owner, 100);
+  const repo = text(authority.canonical_name, 100);
+  const safeName = /^[A-Za-z0-9_.-]+$/;
+  if (authority.provider_key !== "github" || authority.app_key !== "github") {
+    fail("github_webhook_repository_provider_invalid", "The repository authority binding must resolve to the governed GitHub application.", 409);
+  }
+  if (!owner || !safeName.test(owner) || !repo || !safeName.test(repo)) {
+    fail("github_webhook_repository_identity_invalid", "The repository authority binding contains an invalid GitHub repository identity.", 409);
+  }
+  if (selector.legacy.owner && (selector.legacy.owner !== owner || selector.legacy.repo !== repo)) {
+    fail("github_webhook_legacy_selector_mismatch", "The owner/repo selector no longer matches the canonical repository authority binding.", 409, {
+      binding_key: selector.bindingKey,
+      canonical_repository: `${owner}/${repo}`,
+    });
+  }
+  if (capability.capability_key !== CAPABILITY_KEY || capability.operation_intent !== CAPABILITY_KEY) {
+    fail("github_webhook_capability_binding_invalid", "The repository capability binding does not authorize repository-main-moved webhook provisioning.", 409);
+  }
+  if (capability.effect_class !== "external_write") {
+    fail("github_webhook_capability_effect_invalid", "The repository capability binding must declare external_write.", 409);
+  }
+
+  const callbackUrl = text(configuration.callback_url, 2048);
   if (callbackUrl !== DEFAULT_CALLBACK_URL) {
-    fail("github_webhook_callback_not_allowed", "The repository-main-moved webhook callback must use the governed production endpoint.", 403, {
+    fail("github_webhook_callback_not_allowed", "The inherited repository capability callback must use the governed production endpoint.", 403, {
       allowed_callback_url: DEFAULT_CALLBACK_URL,
     });
   }
-  return { owner, repo, callbackUrl };
+  const assertedCallback = text(input.callback_url, 2048);
+  if (assertedCallback && assertedCallback !== callbackUrl) {
+    fail("github_webhook_callback_assertion_mismatch", "The callback_url assertion does not match the inherited repository capability configuration.", 409);
+  }
+  const events = safeConfigurationEvents(configuration.events);
+  if (events.length !== 1 || events[0] !== "push") {
+    fail("github_webhook_events_not_governed", "The repository-main-moved capability must inherit exactly the push event.", 409, { events });
+  }
+  const hookName = text(configuration.hook_name || "web", 64);
+  const contentType = text(configuration.content_type || "json", 64);
+  const insecureSsl = text(configuration.insecure_ssl || "0", 8);
+  const active = configuration.active !== false;
+  if (hookName !== "web" || contentType !== "json" || insecureSsl !== "0" || active !== true) {
+    fail("github_webhook_configuration_not_governed", "The inherited webhook configuration violates the governed repository-main-moved contract.", 409);
+  }
+  const credentialRef = text(resolved?.credential_ref, 255);
+  if (!credentialRef.startsWith("ref:secret:")) {
+    fail("github_webhook_secret_reference_invalid", "The repository capability binding must reference a governed server-side secret.", 409);
+  }
+
+  return {
+    pool,
+    authority,
+    capability,
+    credentialRef,
+    target: { owner, repo, callbackUrl, events, hookName, contentType, insecureSsl, active },
+    evidence: {
+      binding_key: authority.binding_key,
+      resource_uri: resolved.resource_uri,
+      binding_sha256: resolved.binding_sha256,
+      capability_binding_key: capability.capability_binding_key,
+      capability_sha256: resolved.capability_sha256,
+      tenant_id: authority.tenant_id || null,
+      workspace_id: authority.workspace_id || null,
+      brand_key: authority.brand_target_key || null,
+      repository_node_id: authority.repository_node_id || null,
+      repository_external_id: authority.repository_external_id || null,
+      repository: `${owner}/${repo}`,
+      environment: authority.environment || null,
+      configuration_source_map: resolved.configuration_source_map || {},
+      secrets_included: false,
+    },
+  };
 }
 
 function safeHook(hook = {}) {
