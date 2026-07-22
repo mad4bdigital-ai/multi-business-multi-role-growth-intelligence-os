@@ -22,6 +22,9 @@
   "phase0_pull_request": 2954,
   "phase0_merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
   "phase1_branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+  "phase1_pull_request": 2960,
+  "phase1_ci_head_sha": "ab87d726c66be2518d6632687c89a25a6641d267",
+  "phase1_ci_base_sha": "5e4608bce056e373aa716ec66978994d40f5a1a9",
   "phase1_source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
   "deliverables": [
     "spec",
