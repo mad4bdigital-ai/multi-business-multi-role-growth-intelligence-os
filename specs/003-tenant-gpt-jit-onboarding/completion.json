@@ -4,7 +4,7 @@
   "title": "Tenant GPT JIT Signup and In-Chat Activation",
   "status": "complete",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-20T22:13:26Z",
+  "last_updated_at": "2026-07-22T02:30:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -26,73 +26,52 @@
       },
       {
         "number": 2874,
-        "role": "temporary_smoke_capture",
-        "status": "merged_and_removed",
+        "role": "production_verification_capture",
+        "status": "merged",
         "merge_sha": "03b3579ec82d78894b3941ef3d836dfd6f04598f"
+      },
+      {
+        "number": 2891,
+        "role": "cleanup_implementation",
+        "status": "merged",
+        "merge_sha": "cb7d28d679d689561ca455efd69e7b4415a1a4c4"
       }
     ],
     "closeout_pr": {
-      "number": 2891,
-      "role": "cleanup_and_completion",
-      "status": "merged",
-      "head_sha": "c8d698c364293a404e3043aacf258bee199fe303",
-      "merge_sha": "cb7d28d679d689561ca455efd69e7b4415a1a4c4"
+      "number": "current",
+      "branch": "docs/tenant-gpt-jit-completion-evidence",
+      "role": "completion",
+      "status": "current_pr"
     }
   },
   "evidence": {
     "ci": {
       "status": "pass",
       "head_sha": "c8d698c364293a404e3043aacf258bee199fe303",
-      "required_checks": 4,
-      "successful_checks": 4
+      "checks_passed": 4,
+      "checks_total": 4
     },
     "release_readiness": {
       "status": "pass",
+      "run_id": "5d74623b-3f86-4500-b8cd-6ce247f96560",
       "production_parity": "verified",
       "checked_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
-      "run_id": "5d74623b-3f86-4500-b8cd-6ce247f96560",
       "blocking_gaps": 0
     },
-    "migrations": {
-      "status": "pass",
-      "ledgers": [
-        {
-          "migration": "20260717_tenant_gpt_jit_identity_hardening.sql",
-          "run_id": "85536d5a-f2e1-4f75-9d9a-f6aec5be5430"
-        },
-        {
-          "migration": "20260717_tenant_gpt_oauth_authorization_codes.sql",
-          "run_id": "820ef552-07a6-469a-bdb4-b4100ceb2318"
-        },
-        {
-          "migration": "20260718_tenant_connect_bootstrap_tool.sql",
-          "run_id": "be55a0b8-16e-4c58-8c62-08961aa0a5bb"
-        },
-        {
-          "migration": "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql",
-          "run_id": "2dd0fe09-7631-470c-b95b-14840af465d8",
-          "status": "superseded_by_cleanup"
-        },
-        {
-          "migration": "20260719_reactivate_github_raw_contents_endpoint.sql",
-          "run_id": "9d046096-74ee-4c4d-a9cc-9138c001c317"
-        },
-        {
-          "migration": "20260720_github_raw_contents_text_response_contract.sql",
-          "run_id": "305a3b05-26d7-419b-9945-e9130dabc459"
-        },
-        {
-          "migration": "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
-          "run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
-          "checksum_sha256": "1d2807db7ca9966dabfb3e3e6421d5cdf93d98f5eebc115cddb2294d688e3c78",
-          "statement_count": 2,
-          "preflight_status": "pass",
-          "preflight_risk_count": 0
-        }
-      ]
+    "migration": {
+      "status": "applied",
+      "migration": "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
+      "checksum_sha256": "1d2807db7ca9966dabfb3e3e6421d5cdf93d98f5eebc115cddb2294d688e3c78",
+      "statement_count": 2,
+      "ledger_run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0
     },
     "production_verification": {
-      "status": "pass",
+      "status": "verified",
+      "run_id": "oauth-smoke-31436-31437",
+      "expected_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
+      "deployed_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
       "oauth": {
         "first_exchange_execution_log_id": 31436,
         "first_exchange_http_status": 200,
@@ -117,20 +96,19 @@
         "endpoint_key": "getFileContents",
         "response_mode": "raw_text",
         "response_schema_alignment_status": "not_applicable_raw_text"
-      },
+      }
+    },
+    "post_merge_audit": {
+      "status": "completed",
+      "run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
+      "same_cycle_readback_verified": true,
       "cleanup": {
-        "status": "pass",
         "smoke_recipe_present": false,
         "smoke_resource_uri_present": false,
         "smoke_alias_present": false,
         "active_smoke_bindings": 0,
         "revoked_smoke_bindings": 4
-      }
-    },
-    "post_merge_audit": {
-      "status": "pass",
-      "cleanup_ledger_run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
-      "same_cycle_readback_verified": true,
+      },
       "secrets_included": false
     }
   },
