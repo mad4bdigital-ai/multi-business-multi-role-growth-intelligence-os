@@ -334,6 +334,87 @@ const authorityDeps = {
 }
 
 {
+  let consumed = false;
+  let audited = false;
+  const pool = {
+    async query(sql, params) {
+      assert(sql.includes("validation_status = 'validated'"));
+      assert.deepEqual(params, ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"]);
+      return [{ affectedRows: 1 }];
+    },
+  };
+  const hook = {
+    id: 199,
+    name: "web",
+    active: true,
+    events: ["push"],
+    config: { url: __test__.DEFAULT_CALLBACK_URL, content_type: "json", insecure_ssl: "0" },
+  };
+  const fetchImpl = async (url, options = {}) => {
+    const method = options.method || "GET";
+    if (url.endsWith("/hooks?per_page=100") && method === "GET") return reply(200, []);
+    if (url.endsWith("/hooks") && method === "POST") return reply(201, hook);
+    if (url.endsWith("/hooks/199/pings") && method === "POST") return reply(204);
+    if (url.endsWith("/hooks/199/deliveries?per_page=20") && method === "GET") {
+      return reply(200, [{ id: 9001, event: "ping", delivered_at: new Date().toISOString(), status_code: 200 }]);
+    }
+    if (url.endsWith("/hooks/199") && method === "GET") return reply(200, hook);
+    throw new Error(`Unexpected request ${method} ${url}`);
+  };
+  await assert.rejects(
+    githubRepositoryMainMovedWebhookProvision(
+      {
+        ...target,
+        mode: "apply",
+        confirm: __test__.APPLY_CONFIRMATION,
+        capability_envelope_id: "envelope-certification-failure",
+        expected_commit_sha: expectedCommitSha,
+        binding_sha256: bindingSha256,
+        capability_sha256: capabilitySha256,
+        reason: applyReason,
+      },
+      {
+        ...authorityDeps,
+        pool,
+        auth: { user_id: "admin-user" },
+        resolveCapabilityEnvelope: async () => ({
+          ok: true,
+          envelope_id: "envelope-certification-failure",
+          apply_allowed: true,
+          secrets_included: false,
+        }),
+        claimEnvelopeReferenced: async () => ({
+          ok: true,
+          envelope_id: "envelope-certification-failure",
+          secrets_included: false,
+        }),
+        transitionEnvelopeLifecycle: async () => {
+          consumed = true;
+          return { ok: true, after: { execution_status: "executed" }, secrets_included: false };
+        },
+        recordCertification: async () => ({
+          ok: false,
+          status: "github_webhook_certification_readback_failed",
+          secrets_included: false,
+        }),
+        resolveCredential: async (_ref, options) => ({
+          status: "resolved",
+          secret_present: true,
+          ...(options.includeSecret ? { secret: "super-secret-value" } : {}),
+        }),
+        getInstallationToken: async () => "installation-token",
+        fetchImpl,
+        audit: async () => { audited = true; },
+        sleep: async () => {},
+      },
+    ),
+    (error) => error.code === "github_webhook_certification_failed",
+  );
+  assert.equal(consumed, false, "failed certification must block envelope consumption");
+  assert.equal(audited, false, "failed certification must block success audit");
+}
+
+{
   const duplicate = { id: 1, config: { url: __test__.DEFAULT_CALLBACK_URL } };
   await assert.rejects(
     githubRepositoryMainMovedWebhookStatus(target, {
