@@ -19,7 +19,8 @@
 - [x] Reconnect-guidance reason metric is specified.
 - [x] Unknown-outcome and reconciliation metrics are specified.
 - [x] Deployment parity/stale classification is specified.
-- [ ] Production SLO thresholds and alert windows are approved. Pending Q-004.
+- [x] SLO, timeout, retry, freshness, degradation, and alert-policy architecture is approved through ADR-005 and governed questionnaires.
+- [ ] Production baselines, starter profiles, alert windows, and hard safety bounds are measured and published under T007A.
 
 ## Availability and retry
 
