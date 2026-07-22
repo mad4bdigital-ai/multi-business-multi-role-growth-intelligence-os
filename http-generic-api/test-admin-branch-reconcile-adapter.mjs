@@ -125,6 +125,55 @@ assert.equal(plan.continuation.checkpoint.resource_scope.scope_type, "repository
 assert.equal(plan.dry_run.apply_supported, false);
 assert.equal(plan.secrets_included, false);
 
+await assert.rejects(
+  () => assertRepositoryReconciliationMergeLease({}, {
+    assertLeaseHolder: async () => {
+      throw new Error("lease verifier must not run for missing evidence");
+    },
+  }),
+  (error) => error?.code === "repository_reconciliation_lease_required"
+);
+
+await assert.rejects(
+  () => assertRepositoryReconciliationMergeLease({
+    recipe_key: "repo.pr.reconcile_and_finalize",
+    repository_reconciliation_operation_id: "operation-12345",
+    repository_holder_run_id: "holder-12345678",
+    repository_lease_id: "lease-123456789",
+    repository_resource_fingerprint: "a".repeat(64),
+  }, {
+    assertLeaseHolder: async () => {
+      throw new Error("lease verifier must not run for mismatched operation and holder ids");
+    },
+  }),
+  (error) => error?.code === "repository_reconciliation_operation_holder_mismatch"
+);
+
+let leaseVerifierCalls = 0;
+const verifiedLease = await assertRepositoryReconciliationMergeLease({
+  recipe_key: "repo.pr.reconcile_and_finalize",
+  repository_reconciliation_operation_id: "run-12345678",
+  repository_holder_run_id: "run-12345678",
+  repository_lease_id: "lease-12345678",
+  repository_resource_fingerprint: "b".repeat(64),
+}, {
+  assertLeaseHolder: async (input) => {
+    leaseVerifierCalls += 1;
+    assert.deepEqual(input, {
+      lease_id: "lease-12345678",
+      holder_run_id: "run-12345678",
+      resource_fingerprint: "b".repeat(64),
+    });
+    return { lease_status: "active" };
+  },
+});
+assert.equal(leaseVerifierCalls, 1);
+assert.equal(verifiedLease.ok, true);
+assert.equal(verifiedLease.lease_status, "active");
+assert.equal(verifiedLease.provider_calls, false);
+assert.equal(verifiedLease.external_writes, false);
+assert.equal(verifiedLease.secrets_included, false);
+
 const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const adapter = readFileSync(new URL("./adminBranchReconciliationAdapter.js", import.meta.url), "utf8");
 assert.equal((source.match(/name: "admin_branch_reconcile"/g) || []).length, 1, "admin_branch_reconcile should be registered exactly once");
