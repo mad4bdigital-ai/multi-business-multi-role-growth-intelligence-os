@@ -28,7 +28,8 @@
 - [x] Membership is refreshed at protected operation entry.
 - [x] Tool visibility requires tenant/user/workspace/app/capability/resource scope.
 - [x] Provider write and sensitive execution remain independently approval-gated.
-- [ ] Full Tenant Resolution route/scope/resource inventory is approved. Blocked by Q-003.
+- [x] Tenant Resolution remains under the Activation protected resource with stable `read/manage/diagnose/repair/approve` scopes and dynamic registry-driven operation policies per ADR-004.
+- [ ] Every current Resolution route is inventoried and mapped to exactly one active versioned policy before enforcement.
 
 ## Replay and idempotency
 
