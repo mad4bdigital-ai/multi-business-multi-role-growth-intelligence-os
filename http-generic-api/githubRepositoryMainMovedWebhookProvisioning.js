@@ -286,19 +286,20 @@ async function githubRequest(path, options = {}, deps = {}) {
   return { status: response.status, body, token };
 }
 
-async function resolveSecret(includeSecret, deps = {}) {
+async function resolveSecret(credentialRef, includeSecret, deps = {}) {
+  const normalizedRef = text(credentialRef, 255);
+  if (!normalizedRef.startsWith("ref:secret:")) {
+    fail("github_webhook_secret_reference_invalid", "The repository capability secret reference is invalid.", 409);
+  }
   const resolver = deps.resolveCredential || resolveCredentialReference;
-  const result = await resolver(GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF, { includeSecret }, deps.credentialDeps || {});
+  const result = await resolver(normalizedRef, { includeSecret }, deps.credentialDeps || {});
   if (result?.status !== "resolved" || result?.secret_present !== true) {
     fail("github_webhook_secret_unavailable", "The governed GitHub webhook secret is unavailable.", 503, {
-      credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
       credential_status: result?.status || "blocked_missing_secret",
     });
   }
   if (includeSecret && !String(result?.secret || "")) {
-    fail("github_webhook_secret_unavailable", "The governed GitHub webhook secret could not be resolved for provisioning.", 503, {
-      credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
-    });
+    fail("github_webhook_secret_unavailable", "The governed GitHub webhook secret could not be resolved for provisioning.", 503);
   }
   return result;
 }
