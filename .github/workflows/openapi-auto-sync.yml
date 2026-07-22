@@ -7,37 +7,43 @@ permissions:
   contents: write
 
 concurrency:
-  group: staging-automation-final-frontend-${{ github.ref }}
+  group: staging-automation-final-frontend-evidence-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   regenerate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout current branch
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: actions/setup-node@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - working-directory: http-generic-api
+      - name: Install dependencies
+        working-directory: http-generic-api
         run: npm ci
 
-      - name: Generate and validate frontend evidence
+      - name: Generate frontend dispatch evidence
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+
+      - name: Validate frontend evidence
         working-directory: http-generic-api
         run: |
-          npm run frontend:dispatch:generate -- --baseline-ref=main
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-runtime-gate-deployment-info-parity.mjs
 
-      - name: Commit deterministic frontend artifacts
+      - name: Commit generated frontend evidence
         shell: bash
         run: |
           git config user.name "admin-assitant-growth-os[bot]"
@@ -48,5 +54,5 @@ jobs:
             echo "No generated changes to commit."
             exit 0
           fi
-          git commit -m "Regenerate frontend evidence on final PR head"
+          git commit -m "Regenerate frontend evidence on final staging automation head"
           git push origin HEAD:${GITHUB_REF_NAME}
