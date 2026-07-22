@@ -654,6 +654,8 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
         { required: ["site_ref"] },
         { required: ["site_url"] },
         { required: ["connection_id"] },
+        { required: ["repository_ref"] },
+        { required: ["binding_key"] },
       ],
     },
   },
