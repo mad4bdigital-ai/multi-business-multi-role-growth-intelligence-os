@@ -324,8 +324,53 @@ assert.equal(workspaceContext.match.resource_key, workspaceId);
 assert.equal(workspaceContext.context.brands[0].target_key, "growth_intelligence_platform");
 assert.equal(workspaceContext.context.sites[0].site_id, siteId);
 assert.equal(workspaceContext.context.connections[0].connection_id, platformConnectionId);
+assert.equal(workspaceContext.context.repositories.length, 1);
+assert.equal(workspaceContext.context.repositories[0].binding_key, "growth_intelligence_platform.github.primary.production");
+assert.equal(workspaceContext.context.repository_capabilities.length, 1);
+assert.equal(workspaceContext.context.repository_capabilities[0].configuration.security.require_signed_ping, true);
+assert.equal(workspaceContext.context.repository_capabilities[0].configuration_source_map.events, "brand:growth_intelligence_platform");
+assert.equal(JSON.stringify(workspaceContext).includes("TEST_ONLY_MUST_NOT_LEAK"), false);
 assert.equal(workspaceContext.principal.tenant_id, tenantId);
 assert.equal(workspaceContext.principal.tenant_override_ignored, true);
+
+const repositoryContext = await platformResourceContextResolve(
+  {
+    binding_key: "growth_intelligence_platform.github.primary.production",
+    include_brand_context: false,
+  },
+  { auth, pool: ownerPool }
+);
+assert.equal(repositoryContext.ok, true);
+assert.equal(repositoryContext.match.resource_type, "repository");
+assert.equal(repositoryContext.match.resource_key, "growth_intelligence_platform.github.primary.production");
+assert.equal(repositoryContext.context.repositories[0].repository_node_id, "R_kgDOSFDYfg");
+assert.match(repositoryContext.context.repositories[0].binding_sha256, /^[0-9a-f]{64}$/);
+assert.match(repositoryContext.context.repository_capabilities[0].capability_sha256, /^[0-9a-f]{64}$/);
+assert.equal(repositoryContext.context.workspaces[0].workspace_id, workspaceId);
+assert.equal(repositoryContext.context.connections[0].connection_id, platformConnectionId);
+assert.equal(JSON.stringify(repositoryContext).includes("ref:secret:"), false);
+
+const repositoryCatalog = await platformResourceContextCatalog(
+  { resource_type: "repository", search: "mad4bdigital-ai", limit: 10 },
+  { auth, pool: ownerPool }
+);
+assert.equal(repositoryCatalog.ok, true);
+assert.equal(repositoryCatalog.items.length, 1);
+assert.equal(repositoryCatalog.items[0].resource_key, "growth_intelligence_platform.github.primary.production");
+
+const repositoryRelated = await platformResourceContextRelated(
+  {
+    resource_type: "repository",
+    resource_key: "R_kgDOSFDYfg",
+    include_brand_context: false,
+  },
+  { auth, pool: ownerPool }
+);
+assert.equal(repositoryRelated.ok, true);
+assert.equal(repositoryRelated.context.repositories.length, 1);
+assert.equal(repositoryRelated.context.repository_capabilities.length, 1);
+assert.equal(repositoryRelated.context.brands[0].target_key, "growth_intelligence_platform");
+assert.equal(JSON.stringify(repositoryRelated).includes("TEST_ONLY_MUST_NOT_LEAK"), false);
 
 const assetContext = await platformResourceContextResolve(
   { asset_ref: "growth-intelligence-platform-strategy", include_brand_context: false },
