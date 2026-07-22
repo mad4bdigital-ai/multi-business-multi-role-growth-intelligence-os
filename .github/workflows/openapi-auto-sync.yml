@@ -164,3 +164,34 @@ jobs:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
+
+      - name: Dispatch staging verification after safe auto-merge
+        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
+        timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          merged_sha=""
+
+          for attempt in $(seq 1 80); do
+            merged_sha="$(gh pr view "${PR_NUMBER}" --json mergeCommit,mergedAt --jq 'select(.mergedAt != null) | .mergeCommit.oid // empty')"
+            if [[ "${merged_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+              break
+            fi
+            echo "Auto-sync PR #${PR_NUMBER} is not merged yet; checking again in 15 seconds."
+            sleep 15
+          done
+
+          if [[ ! "${merged_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Auto-sync PR #${PR_NUMBER} did not produce a merge commit within the verification window."
+            exit 1
+          fi
+
+          echo "Dispatching staging verification for main@${merged_sha}."
+          gh workflow run staging-post-deploy-verification.yml \
+            --ref main \
+            -f expected_sha="${merged_sha}" \
+            -f timeout_seconds="900"
