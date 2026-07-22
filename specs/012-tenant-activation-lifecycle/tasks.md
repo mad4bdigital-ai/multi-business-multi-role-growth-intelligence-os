@@ -43,7 +43,9 @@
 - [ ] **T021** `[FR-027][OP-010..014]` Implement stage attempt and evidence repositories with bounded no-secret summaries.
 - [ ] **T022** `[FR-031][OP-011]` Implement delivery and acknowledgement repositories/services.
 - [ ] **T023** `[FR-029..030][OP-014]` Implement reconciliation repository and state transitions.
-- [ ] **T024** `[FR-033..035][OP-016]` Implement deployment observation adapter/projection.
+- [ ] **T024** `[FR-033..035][OP-016]` Implement deployment observation adapter/projection with request-time historical correlation and authoritative main/deployed/health/contract evidence.
+- [ ] **T024A** `[ADR-006][FR-033..035]` Implement opaque release-ID generation, `current/deploying/stale/diverged/unknown` classification, tenant `none/opaque/diagnostic` exposure, optional `Deployment-Revision` header, and Admin-only full parity evidence.
+- [ ] **T024B** `[ADR-005][ADR-006]` Implement versioned `deployment_evidence_exposure_policy` questionnaire adapter, immutable principal exposure ceilings, exact-version registry readback, and critical cache invalidation.
 - [ ] **T025** `[FR-037][concerns]` Implement operational attention projection rules.
 - [ ] **T026** `[migration]` Add governed additive migration and readback if inventory requires schema change.
 - [ ] **T027** `[domain]` Implement activation lifecycle state machine.
