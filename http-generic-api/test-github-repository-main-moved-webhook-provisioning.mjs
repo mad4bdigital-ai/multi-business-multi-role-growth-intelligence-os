@@ -254,6 +254,27 @@ const authorityDeps = {
         assert(args.executionRef.includes(expectedCommitSha.slice(0, 12)));
         return { ok: true, envelope_id: "envelope-1", secrets_included: false };
       },
+      recordCertification: async (args) => {
+        lifecycle.push("certification:recorded");
+        assert.equal(args.authority.binding_id, "repository-binding-id");
+        assert.equal(args.capability.capability_binding_id, "repository-capability-id");
+        assert.equal(args.governance.envelope_id, "envelope-1");
+        assert.equal(args.governance.resource_uri, `repository-binding://${bindingKey}`);
+        assert.equal(args.hook.hook_id, 99);
+        assert.equal(args.ping.status_code, 200);
+        assert.equal(args.expectedCommitSha, expectedCommitSha);
+        assert.equal(args.bindingSha256, bindingSha256);
+        assert.equal(args.capabilitySha256, capabilitySha256);
+        return {
+          ok: true,
+          evidence_id: "github-webhook-readback:envelope-1",
+          certification_id: "github-webhook:repository-capability-id:production",
+          certification_type: "provider_external_write_readback",
+          certification_status: "same_cycle_readback_certified",
+          environment: "production",
+          secrets_included: false,
+        };
+      },
       transitionEnvelopeLifecycle: async (args) => {
         lifecycle.push("envelope:consumed");
         assert.equal(args.envelopeId, "envelope-1");
