@@ -1155,6 +1155,12 @@ export async function platformResourceContextReadinessSmoke(_args = {}, { pool =
     "cms_sites",
     "cms_site_access_grants",
     "user_app_connections",
+    "repository_authority_bindings",
+    "repository_authority_aliases",
+    "repository_capability_bindings",
+    "repository_capability_policy_layers",
+    "v_repository_authority_binding_readiness",
+    "v_repository_capability_binding_readiness",
   ];
   const rows = await queryRows(
     pool,
@@ -1171,8 +1177,9 @@ export async function platformResourceContextReadinessSmoke(_args = {}, { pool =
       pass: requiredObjects.every((name) => present.has(name)),
       missing: requiredObjects.filter((name) => !present.has(name)),
     },
-    { name: "resource_types_supported", pass: RESOURCE_TYPES.length === 6 },
+    { name: "seven_resource_types_supported", pass: RESOURCE_TYPES.length === 7 && RESOURCE_TYPES.includes("repository") },
     { name: "five_descriptor_tools_present", pass: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS.length === 5 },
+    { name: "repository_authority_resolver_registered", pass: typeof loadAuthorizedRepositoryContext === "function" },
     { name: "no_provider_call", pass: true },
     { name: "no_mutation", pass: true },
     { name: "no_external_send", pass: true },
