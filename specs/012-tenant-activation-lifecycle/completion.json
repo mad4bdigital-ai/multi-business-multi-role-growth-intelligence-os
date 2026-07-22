@@ -70,11 +70,6 @@
   },
   "unresolved_gaps": [
     {
-      "id": "Q-002",
-      "severity": "high",
-      "summary": "Legacy audience cutoff and cleanup policy require approval."
-    },
-    {
       "id": "Q-003",
       "severity": "high",
       "summary": "Tenant Resolution resource/scope policy requires inventory and approval."
