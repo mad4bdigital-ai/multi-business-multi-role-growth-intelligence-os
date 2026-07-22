@@ -2354,6 +2354,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     admin_tool_registry_smoke: null,
     migration_drift: null,
     runtime_policy_seed_readiness: null,
+    resource_api_callability_readiness: null,
     system_layer_descriptor_callability: null,
     repository_intelligence_v2_readiness: null,
     repository_governance_v6_readiness: null,
