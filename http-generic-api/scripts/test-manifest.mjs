@@ -284,6 +284,7 @@ export const testCommands = [
   "node test-execution-policy-enforcement-closure.mjs",
   "node test-ticket-external-provider-adapter-contracts.mjs",
   "node test-auth-email-outbox-worker.mjs",
+  "node test-skip-ineligible-auth-email-outbox-migration.mjs",
   "node test-ticket-external-provider-enablement-proposal.mjs",
   "node test-ticket-external-adapter-readiness-checklist.mjs",
   "node test-ticket-external-adapter-readiness-decision.mjs",
