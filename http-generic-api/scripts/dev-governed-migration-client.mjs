@@ -38,47 +38,61 @@ const ALLOWED_SHELL_ALIASES = new Set([
   "capability_resolution_envelope_create",
   "capability_resolution_envelope_approve",
   "platform_outbox_worker",
+  "auth_email_outbox_worker",
 ]);
 
 const READ_ONLY_OUTBOX_ACTIONS = new Set(["status", "dry-run"]);
+const READ_ONLY_SHELL_WORKER_ALIASES = new Set(["platform_outbox_worker", "auth_email_outbox_worker"]);
 
 export function validateShellAliasInvocation(alias, extraArgs) {
   if (!Array.isArray(extraArgs) || extraArgs.some((item) => typeof item !== "string")) {
     throw new Error("extra_args must decode to an array of strings.");
   }
-  if (alias !== "platform_outbox_worker") {
+  if (!READ_ONLY_SHELL_WORKER_ALIASES.has(alias)) {
     return { mutation_requested: true, extra_args: extraArgs };
   }
 
   let action = "";
   let consumerSeen = false;
+  let purposesSeen = false;
   let limitSeen = false;
   for (const arg of extraArgs) {
-    if (arg === "--apply") throw new Error("platform_outbox_worker read-only calls forbid --apply.");
+    if (arg === "--apply") throw new Error(`${alias} read-only calls forbid --apply.`);
+    if (arg.startsWith("--confirm=")) throw new Error(`${alias} read-only calls forbid --confirm.`);
+    if (arg.startsWith("--sender-connection-id=")) throw new Error(`${alias} read-only calls forbid --sender-connection-id.`);
     if (arg.startsWith("--action=")) {
-      if (action) throw new Error("platform_outbox_worker accepts one --action value.");
+      if (action) throw new Error(`${alias} accepts one --action value.`);
       action = arg.slice("--action=".length).trim().toLowerCase();
       continue;
     }
     if (arg.startsWith("--consumer=")) {
-      if (consumerSeen) throw new Error("platform_outbox_worker accepts one --consumer value.");
+      if (alias !== "platform_outbox_worker") throw new Error(`${alias} does not accept --consumer.`);
+      if (consumerSeen) throw new Error(`${alias} accepts one --consumer value.`);
       const consumer = arg.slice("--consumer=".length).trim();
       if (!/^[A-Za-z0-9._-]{1,120}$/.test(consumer)) throw new Error("Invalid outbox consumer key.");
       consumerSeen = true;
       continue;
     }
+    if (arg.startsWith("--purposes=")) {
+      if (alias !== "auth_email_outbox_worker") throw new Error(`${alias} does not accept --purposes.`);
+      if (purposesSeen) throw new Error(`${alias} accepts one --purposes value.`);
+      const purposes = arg.slice("--purposes=".length).trim();
+      if (!/^[A-Za-z0-9._:,|-]{1,240}$/.test(purposes)) throw new Error("Invalid auth email outbox purposes.");
+      purposesSeen = true;
+      continue;
+    }
     if (arg.startsWith("--limit=")) {
-      if (limitSeen) throw new Error("platform_outbox_worker accepts one --limit value.");
+      if (limitSeen) throw new Error(`${alias} accepts one --limit value.`);
       const limit = Number.parseInt(arg.slice("--limit=".length), 10);
       if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Outbox limit must be between 1 and 500.");
       limitSeen = true;
       continue;
     }
-    throw new Error(`Unsupported platform_outbox_worker argument: ${arg}`);
+    throw new Error(`Unsupported ${alias} argument: ${arg}`);
   }
 
   if (!READ_ONLY_OUTBOX_ACTIONS.has(action)) {
-    throw new Error("platform_outbox_worker only permits --action=status or --action=dry-run.");
+    throw new Error(`${alias} only permits --action=status or --action=dry-run.`);
   }
   return { mutation_requested: false, extra_args: extraArgs };
 }
