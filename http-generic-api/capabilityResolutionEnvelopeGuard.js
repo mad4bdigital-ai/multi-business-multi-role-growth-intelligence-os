@@ -80,6 +80,14 @@ function envelopeCommitHint(row = {}) {
   ).toLowerCase();
 }
 
+function envelopeRequestContext(row = {}) {
+  const envelopeJson = parseJson(row.envelope_json, {});
+  const requestContext = envelopeJson?.request_context;
+  return requestContext && typeof requestContext === "object" && !Array.isArray(requestContext)
+    ? requestContext
+    : {};
+}
+
 export async function resolveCapabilityExecutionEnvelope({
   pool = null,
   envelopeId = "",
@@ -90,7 +98,13 @@ export async function resolveCapabilityExecutionEnvelope({
   acceptedCapabilityKeys = [],
   expectedTenantId = "",
   expectedUserId = "",
+  expectedWorkspaceId = "",
+  expectedBrandKey = "",
+  expectedResourceUri = "",
   expectedCommitSha = "",
+  expectedBindingSha256 = "",
+  expectedCapabilitySha256 = "",
+  requireCommitHint = false,
   allowReferenced = true,
   requireReadyForDispatch = true,
   requireDispatchAllowed = true,
