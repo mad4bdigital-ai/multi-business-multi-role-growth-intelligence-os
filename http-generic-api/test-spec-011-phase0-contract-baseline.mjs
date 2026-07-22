@@ -21,7 +21,7 @@ assert.equal(manifest.database_migrations, false);
 assert.equal(manifest.deployment, false);
 assert.equal(manifest.merge, false);
 assert.equal(completion.status, "in_progress");
-assert.equal(completion.evidence.phase0.status, "complete_on_branch");
+assert.equal(completion.evidence.phase0.status, "complete_on_main");
 assert.equal(completion.evidence.phase0.runtime_implementation, false);
 assert.equal(completion.evidence.phase0.database_migration, false);
 assert.equal(completion.evidence.phase0.provider_write, false);
