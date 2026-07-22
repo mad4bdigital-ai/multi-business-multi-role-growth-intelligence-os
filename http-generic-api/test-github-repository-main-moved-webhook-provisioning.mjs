@@ -306,6 +306,7 @@ const authorityDeps = {
   const duplicate = { id: 1, config: { url: __test__.DEFAULT_CALLBACK_URL } };
   await assert.rejects(
     githubRepositoryMainMovedWebhookStatus(target, {
+      ...authorityDeps,
       resolveCredential: async () => ({ status: "resolved", secret_present: true }),
       getInstallationToken: async () => "token",
       fetchImpl: async () => reply(200, [duplicate, { ...duplicate, id: 2 }]),
@@ -316,13 +317,39 @@ const authorityDeps = {
 
 {
   await assert.rejects(
-    githubRepositoryMainMovedWebhookProvision({ ...target, callback_url: "https://example.com/webhook", mode: "dry_run" }),
-    (error) => error.code === "github_webhook_callback_not_allowed",
+    githubRepositoryMainMovedWebhookProvision(
+      { ...target, callback_url: "https://example.com/webhook", mode: "dry_run" },
+      authorityDeps,
+    ),
+    (error) => error.code === "github_webhook_callback_assertion_mismatch",
   );
 }
 
 {
+  const requiredObjects = [
+    "repository_authority_bindings",
+    "repository_authority_aliases",
+    "repository_capability_bindings",
+    "repository_capability_policy_layers",
+    "v_repository_authority_binding_readiness",
+    "v_repository_capability_binding_readiness",
+  ];
+  const readinessPool = {
+    async query(sql, params) {
+      if (sql.includes("information_schema.tables")) {
+        assert.deepEqual(params, requiredObjects);
+        return [requiredObjects.map((table_name) => ({ table_name }))];
+      }
+      if (sql.includes("v_repository_capability_binding_readiness")) {
+        assert.deepEqual(params, [__test__.CAPABILITY_KEY]);
+        return [[{ binding_key: bindingKey }]];
+      }
+      throw new Error(`Unexpected readiness SQL: ${sql}`);
+    },
+  };
   const readiness = await githubRepositoryMainMovedWebhookProvisioningReadinessSmoke({}, {
+    pool: readinessPool,
+    resolveRepositoryAuthority: authorityDeps.resolveRepositoryAuthority,
     resolveCredential: async (_ref, options) => {
       assert.equal(options.includeSecret, false);
       return { status: "resolved", secret_present: true };
@@ -333,6 +360,7 @@ const authorityDeps = {
   assert.equal(readiness.provider_call_executed, false);
   assert.equal(readiness.mutations_executed, false);
   assert.equal(readiness.secrets_included, false);
+  assert.equal(JSON.stringify(readiness).includes("ref:secret:"), false);
 }
 
 {
