@@ -299,6 +299,9 @@ function countMigrationsBySurface(entries) {
 }
 
 function classifyGap(entry) {
+  const callabilityReviewCount = (entry.surfaces.route_classifications || [])
+    .filter((item) => item.callability_evidence_required === true).length;
+  if (callabilityReviewCount) return "high";
   if (entry.documentation_complete) return "none";
   if (entry.surfaces.routes.length || entry.surfaces.plugins.length) return "high";
   if (entry.surfaces.tools.length || entry.surfaces.policies.length) return "medium";
