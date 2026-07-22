@@ -126,6 +126,108 @@ const connections = [
   },
 ];
 
+const repositoryAuthority = [{
+  binding_id: "repository-binding-id",
+  binding_key: "growth_intelligence_platform.github.primary.production",
+  tenant_id: tenantId,
+  workspace_id: workspaceId,
+  brand_target_key: "growth_intelligence_platform",
+  app_key: "github",
+  system_id: "github-system-id",
+  installation_id: null,
+  connection_id: platformConnectionId,
+  provider_key: "github",
+  repository_external_id: "1213257854",
+  repository_node_id: "R_kgDOSFDYfg",
+  canonical_owner: "mad4bdigital-ai",
+  canonical_name: "multi-business-multi-role-growth-intelligence-os",
+  default_branch: "main",
+  environment: "production",
+  system_binding_mode: "shared_platform_adapter",
+  lifecycle_status: "active",
+  authority_version: 1,
+  lock_version: 1,
+  is_primary: 1,
+  readiness_status: "ready",
+  issue_code: null,
+}];
+
+const repositoryAliases = [
+  {
+    alias_id: "repository-alias-node",
+    binding_id: "repository-binding-id",
+    alias_type: "node_id",
+    alias_value: "R_kgDOSFDYfg",
+    normalized_alias: "r_kgdosfdyfg",
+    lifecycle_status: "active",
+  },
+  {
+    alias_id: "repository-alias-name",
+    binding_id: "repository-binding-id",
+    alias_type: "full_name",
+    alias_value: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    normalized_alias: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    lifecycle_status: "active",
+  },
+];
+
+const repositoryCapabilities = [{
+  repository_binding_id: "repository-binding-id",
+  capability_binding_id: "repository-capability-id",
+  capability_binding_key: "growth_intelligence_platform.github.repository_main_moved_webhook.production",
+  capability_key: "github_repository_main_moved_webhook_provision",
+  operation_intent: "github_repository_main_moved_webhook_provision",
+  business_activity_type_key: "software",
+  adapter_key: "github_repository_webhook_v2",
+  policy_key: "github_repository_main_moved_webhook_dynamic_binding_apply_v2",
+  readback_contract_key: "github_repository_main_moved_webhook_readback_v2",
+  credential_ref: "ref:secret:TEST_ONLY_MUST_NOT_LEAK",
+  effect_class: "external_write",
+  configuration_json: '{"hook_name":"web"}',
+  lifecycle_status: "active",
+  capability_version: 1,
+  lock_version: 1,
+  is_primary: 1,
+  readiness_status: "ready",
+  issue_code: null,
+}];
+
+const repositoryPolicyLayers = [
+  {
+    layer_id: "repository-layer-platform",
+    capability_binding_id: "repository-capability-id",
+    scope_type: "platform",
+    scope_ref: "*",
+    precedence: 100,
+    configuration_json: '{"security":{"require_signed_ping":true}}',
+    lifecycle_status: "active",
+    layer_version: 1,
+    lock_version: 1,
+  },
+  {
+    layer_id: "repository-layer-brand",
+    capability_binding_id: "repository-capability-id",
+    scope_type: "brand",
+    scope_ref: "growth_intelligence_platform",
+    precedence: 400,
+    configuration_json: '{"events":["push"]}',
+    lifecycle_status: "active",
+    layer_version: 1,
+    lock_version: 1,
+  },
+  {
+    layer_id: "repository-layer-environment",
+    capability_binding_id: "repository-capability-id",
+    scope_type: "environment",
+    scope_ref: "production",
+    precedence: 700,
+    configuration_json: '{"active":true}',
+    lifecycle_status: "active",
+    layer_version: 1,
+    lock_version: 1,
+  },
+];
+
 function makePool({ role = "owner" } = {}) {
   return {
     async query(sql, params = []) {
