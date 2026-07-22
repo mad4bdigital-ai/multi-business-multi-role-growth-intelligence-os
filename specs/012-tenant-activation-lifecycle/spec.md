@@ -269,9 +269,12 @@ The implementation plan must use additive data/schema changes, feature-gated enf
 - **SC-007**: Retry/reconciliation tests prove no duplicate unsafe operation after timeout or 5xx ambiguity.
 - **SC-008**: Operational attention surfaces stalled, repeated, stale-deployment, and unacknowledged activation operations within the defined monitoring interval.
 
+## Resolved decisions
+
+- **ADR-001 / former Q-001**: Adopt a hybrid operation model: the general operation ledger owns shared identity, idempotency, ownership, and general lifecycle facts; an Activation-specific projection owns Activation stages, readiness, evidence, delivery, acknowledgement, reconciliation, and deployment interpretation. See `decisions/ADR-001-hybrid-activation-operation-ledger.md`.
+
 ## Open questions
 
-- **Q-001**: Which SQL table should become the canonical durable activation operation ledger: extend an existing operation ledger or introduce an activation-specific projection? Owner: application/runtime architecture. Gate: before implementation plan approval.
 - **Q-002**: What is the final legacy audience cutoff and tenant communication policy? Owner: security/product. Gate: before enforcement rollout.
 - **Q-003**: Which protected Tenant Resolution routes require the same activation token versus a separate scope/resource policy? Owner: auth/API. Gate: before canonical OpenAPI change.
 - **Q-004**: What service-level targets apply to session context and provider-bootstrap validation? Owner: operations. Gate: before alert thresholds.
