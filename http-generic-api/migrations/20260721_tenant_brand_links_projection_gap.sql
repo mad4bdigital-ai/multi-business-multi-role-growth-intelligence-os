@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `tenant_brand_links` (
   KEY `idx_tenant_brand_links_tenant_status` (`tenant_id`,`status`),
   KEY `idx_tenant_brand_links_brand_status` (`brand_target_key`,`status`),
   CONSTRAINT `fk_tenant_brand_links_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 INSERT INTO `tenant_brand_links`
   (`link_id`,`tenant_id`,`brand_target_key`,`link_source`,`status`,`metadata_json`)
