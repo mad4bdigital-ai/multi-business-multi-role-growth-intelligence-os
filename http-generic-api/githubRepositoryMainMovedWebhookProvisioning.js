@@ -20,42 +20,52 @@ const CAPABILITY_KEY = "github_repository_main_moved_webhook_provision";
 export const GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS = [
   {
     name: "github_repository_main_moved_webhook_status",
-    description: "Admin-only readback of the repository-main-moved GitHub webhook and governed secret readiness. Never returns the secret value.",
+    description: "Admin-only readback of one repository-main-moved GitHub webhook resolved from governed repository authority and capability bindings. binding_key is preferred; owner/repo are backward-compatible selectors only and never become execution authority. Never returns credential references or secret values.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        owner: { type: "string", minLength: 1, maxLength: 100 },
-        repo: { type: "string", minLength: 1, maxLength: 100 },
-        callback_url: { type: "string", default: DEFAULT_CALLBACK_URL },
+        binding_key: { type: "string", minLength: 1, maxLength: 191 },
+        owner: { type: "string", minLength: 1, maxLength: 100, description: "Backward-compatible selector only." },
+        repo: { type: "string", minLength: 1, maxLength: 100, description: "Backward-compatible selector only." },
+        callback_url: { type: "string", description: "Optional compatibility assertion; must equal the inherited governed callback." },
       },
-      required: ["owner", "repo"],
+      anyOf: [
+        { required: ["binding_key"] },
+        { required: ["owner", "repo"] }
+      ],
     },
   },
   {
     name: "github_repository_main_moved_webhook_provision",
-    description: "Admin-only idempotent create/update and signed-ping verification for the repository-main-moved GitHub webhook. Resolves the webhook secret inside the server and never returns it.",
+    description: "Admin-only idempotent dry-run/apply for a repository-main-moved GitHub webhook inherited from SQL repository authority and capability bindings. Apply requires commit-bound authority and capability fingerprints, an approved single-use envelope, signed ping status 200, and provider readback. The secret is resolved inside the server and never returned.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        owner: { type: "string", minLength: 1, maxLength: 100 },
-        repo: { type: "string", minLength: 1, maxLength: 100 },
-        callback_url: { type: "string", default: DEFAULT_CALLBACK_URL },
+        binding_key: { type: "string", minLength: 1, maxLength: 191 },
+        owner: { type: "string", minLength: 1, maxLength: 100, description: "Backward-compatible selector only." },
+        repo: { type: "string", minLength: 1, maxLength: 100, description: "Backward-compatible selector only." },
+        callback_url: { type: "string", description: "Optional compatibility assertion; must equal the inherited governed callback." },
+        binding_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        capability_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
         mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         confirm: { type: "string" },
         capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
         expected_commit_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
         reason: { type: "string", minLength: 20, maxLength: 1000 },
       },
-      required: ["owner", "repo"],
+      anyOf: [
+        { required: ["binding_key"] },
+        { required: ["owner", "repo"] }
+      ],
     },
   },
   {
     name: "github_repository_main_moved_webhook_provisioning_readiness_smoke",
-    description: "Admin-only no-provider readiness smoke for GitHub App configuration, webhook secret reference, callback allowlist, and no-secret guarantees.",
+    description: "Admin-only no-provider readiness smoke for Repository Authority V2, repository capability readiness, GitHub App configuration, governed callback constraints, and no-secret guarantees.",
     requires_admin: true,
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
