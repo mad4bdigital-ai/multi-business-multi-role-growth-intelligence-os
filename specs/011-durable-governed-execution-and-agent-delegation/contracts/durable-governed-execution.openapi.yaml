@@ -1,4 +1,7 @@
 openapi: 3.1.0
+x-runtime-authority: false
+x-contract-status: design_only
+x-promotion-gate: route_handler_registry_parity
 info:
   title: Durable Governed Execution Draft API
   version: 0.1.0-draft
