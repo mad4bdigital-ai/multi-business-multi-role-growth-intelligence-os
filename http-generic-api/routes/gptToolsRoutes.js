@@ -54,6 +54,7 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
+import { runRepositoryReconciliationOrchestrator } from "../repositoryReconciliationOrchestrator.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
