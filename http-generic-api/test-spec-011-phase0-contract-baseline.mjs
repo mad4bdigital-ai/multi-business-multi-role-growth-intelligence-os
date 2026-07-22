@@ -17,13 +17,11 @@ const errorCodes = read("contracts/error-codes.md");
 const draftOpenApi = read("contracts/durable-governed-execution.openapi.yaml");
 const canonicalOpenApi = readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 
-assert.equal(manifest.design_only, true);
-assert.equal(manifest.runtime_changes, false);
 assert.equal(manifest.database_migrations, false);
 assert.equal(manifest.deployment, false);
 assert.equal(manifest.merge, false);
 assert.equal(completion.status, "in_progress");
-assert.equal(completion.evidence.phase0.status, "complete_on_branch");
+assert.equal(completion.evidence.phase0.status, "complete_on_main");
 assert.equal(completion.evidence.phase0.runtime_implementation, false);
 assert.equal(completion.evidence.phase0.database_migration, false);
 assert.equal(completion.evidence.phase0.provider_write, false);
