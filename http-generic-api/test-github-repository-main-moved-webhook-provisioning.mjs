@@ -91,6 +91,7 @@ const authorityDeps = {
   const result = await githubRepositoryMainMovedWebhookProvision(
     { ...target, mode: "dry_run" },
     {
+      ...authorityDeps,
       resolveCredential: async (_ref, options) => {
         calls.push({ kind: "credential", includeSecret: options.includeSecret });
         return { status: "resolved", secret_present: true, source: "platform_secrets", storage_backend: "db_encrypted", value_sha256: "hash" };
