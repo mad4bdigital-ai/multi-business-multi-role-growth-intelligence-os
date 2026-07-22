@@ -338,28 +338,29 @@ async function claimCapabilityEnvelopeForWebhook({ pool, envelopeId, executionRe
   };
 }
 
-async function inspectTarget(input = {}, deps = {}) {
-  const target = normalizeTarget(input);
-  const secretStatus = await resolveSecret(false, deps);
+async function inspectTarget(authorityContext, deps = {}) {
+  const target = authorityContext.target;
+  const secretStatus = await resolveSecret(authorityContext.credentialRef, false, deps);
   const list = await githubRequest(`/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/hooks?per_page=100`, {}, deps);
   const hooks = Array.isArray(list.body) ? list.body : [];
   const matches = hooks.filter((hook) => text(hook?.config?.url, 2048) === target.callbackUrl);
   if (matches.length > 1) {
-    fail("github_webhook_duplicate_hooks_detected", "Multiple repository-main-moved hooks use the governed callback URL.", 409, {
+    fail("github_webhook_duplicate_hooks_detected", "Multiple repository-main-moved hooks use the inherited governed callback URL.", 409, {
       hook_ids: matches.map((hook) => Number(hook.id || 0)).filter(Boolean),
+      binding_key: authorityContext.evidence.binding_key,
       callback_url: target.callbackUrl,
     });
   }
   return {
-    target,
+    ...authorityContext,
     token: list.token,
     secret_status: {
-      credential_ref: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET_REF,
       status: secretStatus.status,
       source: secretStatus.source || null,
       storage_backend: secretStatus.storage_backend || null,
       secret_present: secretStatus.secret_present === true,
       value_sha256_present: Boolean(secretStatus.value_sha256),
+      credential_reference_present: true,
       secrets_included: false,
     },
     hook: matches[0] || null,
@@ -367,12 +368,15 @@ async function inspectTarget(input = {}, deps = {}) {
 }
 
 export async function githubRepositoryMainMovedWebhookStatus(input = {}, deps = {}) {
-  const inspected = await inspectTarget(input, deps);
+  const authorityContext = await resolveProvisioningAuthority(input, deps);
+  const inspected = await inspectTarget(authorityContext, deps);
   return {
     ok: true,
     status: inspected.hook ? "configured" : "not_configured",
+    binding: inspected.evidence,
     repository: `${inspected.target.owner}/${inspected.target.repo}`,
     callback_url: inspected.target.callbackUrl,
+    inherited_events: inspected.target.events,
     secret: inspected.secret_status,
     hook: inspected.hook ? safeHook(inspected.hook) : null,
     provider_write: false,
