@@ -322,6 +322,8 @@ function routeCoverageFor(entry, openapiPathSet) {
     total_route_count: routes.length,
     openapi_required_route_count: required.length,
     exempted_route_count: exempted.length,
+    callability_review_count: callabilityReview.length,
+    callability_review_routes: callabilityReview,
     route_class_counts: routeClassCounts,
     documented_count: documented.length,
     missing_count: missing.length,
