@@ -104,7 +104,8 @@ export async function recordGithubRepositoryWebhookCertification(input = {}, dep
   });
   const payloadHash = stableCapabilityHash(payload);
   const sourceSha = stableCapabilityHash({ expectedCommitSha, bindingSha256, capabilitySha256 });
-  const sourceRef = `github_hook:${Number(input.hook.id || 0)}:delivery:${text(input.ping.delivery_id, 191) || "unknown"}`;
+  const hookId = Number(input.hook.id || input.hook.hook_id || 0);
+  const sourceRef = `github_hook:${hookId}:delivery:${text(input.ping.delivery_id, 191) || "unknown"}`;
   const certificationMetadata = {
     version: "github-repository-webhook-certification-v1",
     repository_binding_id: bindingId,
@@ -116,7 +117,7 @@ export async function recordGithubRepositoryWebhookCertification(input = {}, dep
     binding_sha256: bindingSha256,
     capability_sha256: capabilitySha256,
     expected_commit_sha: expectedCommitSha,
-    latest_hook_id: Number(input.hook.id || 0),
+    latest_hook_id: hookId,
     latest_ping_delivery_id: input.ping.delivery_id || null,
     scope: "repository_capability_binding_and_environment",
     runtime_dispatch_changed: false,
