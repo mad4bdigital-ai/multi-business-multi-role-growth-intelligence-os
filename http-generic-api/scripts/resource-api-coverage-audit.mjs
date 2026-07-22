@@ -128,6 +128,7 @@ function validateCallabilityContracts(manifest, findings) {
           if (match[0] === "") expression.lastIndex += 1;
         }
         const uniqueKeys = new Set(keys.filter(Boolean));
+        for (const key of uniqueKeys) coveredToolKeys.add(key);
         if (Number.isInteger(contract.expected_contract_count) && keys.length !== contract.expected_contract_count) {
           findings.push({
             type: "callability_contract_count_mismatch",
