@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
-import jwt from "jsonwebtoken";
 import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
 import {
   activationModeCatalog,
@@ -28,11 +27,17 @@ import {
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
 import { createOrAppendSupportTicket } from "../supportTicketService.js";
 import { orchestrateTenantConnectBootstrap } from "../tenantConnectBootstrapService.js";
+import { executeTenantConnectBootstrapTransaction } from "../tenantConnectBootstrapTransaction.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
+import {
+  findSensitiveRequestPaths,
+  sanitizeMetadataPayload,
+  SECRET_KEY_SUBSTRINGS,
+} from "../requestSecretBoundary.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 
 const LOCAL_MANAGER_ACTIVATION_BINDING = {
@@ -94,37 +99,7 @@ const BUSINESS_PROFILE_FIELD_ALLOWLIST = new Set([
   "locations", "products", "socials", "cms", "cmsUrl", "analytics",
 ]);
 
-const SECRET_KEY_SUBSTRINGS = [
-  "password", "passwd", "secret", "token", "credential", "private_key",
-  "api_key", "apikey", "auth_key", "authkey", "cmskey", "appkey", "app_key",
-  "client_secret", "access_token", "refresh_token", "encrypted",
-];
-
 const PROFILE_MAX_BYTES = 65536; // 64 KiB upper bound for metadata_json payloads
-
-function isSensitiveKey(key) {
-  const lower = String(key || "").toLowerCase();
-  return SECRET_KEY_SUBSTRINGS.some((s) => lower.includes(s));
-}
-
-// Drop tenant_id (auth-derived only) plus any key matching the sensitive
-// pattern, then restrict to the allowlist if one is supplied. Returns the
-// sanitized object and a list of dropped/forbidden keys so the route can
-// echo a clear notice without exposing the raw values.
-function sanitizeMetadataPayload(rawBody, allowlist = null) {
-  const source = (rawBody && typeof rawBody === "object" && !Array.isArray(rawBody)) ? rawBody : {};
-  const sanitized = {};
-  const dropped = [];
-
-  for (const [key, value] of Object.entries(source)) {
-    if (key === "tenant_id" || key === "user_id") { dropped.push(key); continue; }
-    if (isSensitiveKey(key)) { dropped.push(key); continue; }
-    if (allowlist && !allowlist.has(key)) { dropped.push(key); continue; }
-    sanitized[key] = value;
-  }
-
-  return { sanitized, dropped };
-}
 
 export function _testingSanitizeMetadataPayload(rawBody, allowlist) {
   return sanitizeMetadataPayload(rawBody, allowlist);
@@ -135,27 +110,6 @@ export const _testingAllowlists = {
   SECRET_KEY_SUBSTRINGS,
   PROFILE_MAX_BYTES,
 };
-
-// ── Auth helpers ──────────────────────────────────────────────────────────────
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." } });
-  }
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
 
 // ── DB query helpers ──────────────────────────────────────────────────────────
 
@@ -410,36 +364,10 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
   }
 }
 
-async function activateManagedConnectionForTenant({ userId, tenantId } = {}) {
-  const pool = getPool();
-  const existing = await fetchTenantConnection(tenantId);
-  if (existing?.status === "active" && existing?.connection_mode === "managed") {
-    return { activated: false, connection: existing };
-  }
-
-  const connectionId = randomUUID();
-  await pool.query(
-    `INSERT INTO \`tenant_backend_connections\`
-       (connection_id, tenant_id, connection_mode, cloudflare_mode, google_auth_mode, n8n_activation_mode, status, activated_at)
-     VALUES (?, ?, 'managed', 'managed', 'managed', 'managed_main_server', 'active', NOW())
-     ON DUPLICATE KEY UPDATE
-       connection_mode = 'managed',
-       cloudflare_mode = 'managed',
-       google_auth_mode = 'managed',
-       n8n_activation_mode = 'managed_main_server',
-       status = 'active',
-       activated_at = COALESCE(activated_at, NOW()),
-       updated_at = NOW()`,
-    [connectionId, tenantId]
-  );
-  await upsertTenantIntegrationPolicies({
-    tenantId,
-    userId,
-    integrationModes: {},
-    source: "connect_bootstrap",
-  });
-  const connection = await fetchTenantConnection(tenantId);
-  return { activated: true, connection };
+// Stable domain adapter retained for route/test compatibility. The implementation
+// is the principal-locked, single-transaction bootstrap executor.
+async function activateManagedConnectionForTenant(input, dependencies) {
+  return executeTenantConnectBootstrapTransaction(input, dependencies);
 }
 
 function cleanEscalationPriority(value) {
@@ -551,8 +479,9 @@ function buildConnectHtml(googleClientId) {
 
 // ── Route builder ─────────────────────────────────────────────────────────────
 
-export function buildConnectRoutes(deps) {
+export function buildConnectRoutes(deps = {}) {
   const { requireBackendApiKey } = deps;
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
   const router = Router();
 
   // Serve connect page static assets
@@ -708,8 +637,7 @@ export function buildConnectRoutes(deps) {
         mode: req.body?.mode || "managed",
       }, {
         resolveState: resolveConnectState,
-        createWorkspace: createWorkspaceForUser,
-        activateManaged: activateManagedConnectionForTenant,
+        applyManagedBootstrap: activateManagedConnectionForTenant,
       });
       return res.status(200).json(result);
     } catch (err) {
@@ -845,7 +773,22 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/activate", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
+      const sensitivePaths = findSensitiveRequestPaths(req.body);
+      if (sensitivePaths.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "raw_credentials_not_accepted",
+            message: "Activation accepts policy and connection references only. Submit secrets through the secure credential-intake flow.",
+            details: {
+              rejected_field_count: sensitivePaths.length,
+              rejected_fields_redacted: true,
+              credential_intake_endpoint: "/connect/api/credential-intake/sessions",
+            },
+          },
+          secrets_included: false,
+        });
+      }
       let modePolicy;
       try {
         modePolicy = resolveActivationModePolicy(req.body || {});
@@ -868,18 +811,6 @@ export function buildConnectRoutes(deps) {
       }
 
       const pool = getPool();
-
-      // If dedicated + CF token provided: register in connected_systems (token not stored)
-      if (mode === "dedicated" && cf_api_token) {
-        const systemId = randomUUID();
-        const configJson = JSON.stringify({ cf_account_id: cf_account_id || null, note: "CF API token must be set as CLOUDFLARE_API_TOKEN env var; not stored here." });
-        await pool.query(
-          `INSERT INTO \`connected_systems\` (system_id, tenant_id, system_key, display_name, provider_family, auth_type, service_mode, config_json, status)
-           VALUES (?, ?, 'cloudflare_connector', 'Cloudflare (Dedicated)', 'cloudflare', 'api_token', 'self_serve', ?, 'active')
-           ON DUPLICATE KEY UPDATE config_json = VALUES(config_json), status = 'active', updated_at = NOW()`,
-          [systemId, resolvedTenantId, configJson]
-        );
-      }
 
       // Upsert tenant_backend_connections
       const connectionId = randomUUID();
@@ -970,7 +901,6 @@ export function buildConnectRoutes(deps) {
           device_count: connection.device_count,
           activated_at: connection.activated_at,
         },
-        ...(mode === "dedicated" && cf_api_token ? { notice: "CF API token received but not stored in DB. Set it as CLOUDFLARE_API_TOKEN env var on your Cloud Run service." } : {}),
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "activate_failed", message: err.message } });

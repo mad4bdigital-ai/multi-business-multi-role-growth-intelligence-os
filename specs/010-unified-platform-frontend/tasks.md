@@ -43,12 +43,13 @@
       - [x] T018d.5f Classify the SELECT-only remaining-scope list and three Platform Plugin smoke-certification status/policy read actions with explicit test ownership.
       - [x] T018d.5g Govern the raw and tenant Activation turn-batch archive mutations with capability-family authorization, same-cycle readback, and immutable-audit compensation rationale.
       - [x] T018d.5h Classify seventeen source-proven read actions across manifest resolution, readiness/readback, health planning, governance proposals, smoke-certification policy history/preview/queue, runtime catalog, private contribution resolution, agent intelligence, and repository automation, with explicit test ownership.
-      - [x] T018d.5i Govern the signed-user `POST /connect/bootstrap` state change with exact Managed-mode preflight and same-cycle readback while retaining its partial-success compensation gap as an explicit blocker.
+      - [x] T018d.5i Govern the signed-user `POST /connect/bootstrap` state change with exact Managed-mode preflight and promote it to generated governance after transactional readback and rollback evidence is complete.
       - [x] T018d.5j Generate the canary-closeout state-change classification from its admin guard, capability envelope, typed confirmation, atomic transaction, readback, and registered regression evidence.
-    - [ ] T018d.6 Complete rollback/post-commit compensation for consequential operations.
+    - [x] T018d.6 Complete rollback/post-commit compensation for consequential operations.
       - [x] T018d.6a Run the four tenant resource mutations and scoped readbacks in one SQL transaction with verified rollback on mutation/readback failure.
-      - [ ] T018d.6b Compensate the tenant bootstrap partial-success path across its separate workspace and activation commits.
+      - [x] T018d.6b Replace the tenant bootstrap's separate workspace/activation commits with one principal-locked SQL transaction, before-commit membership/connection readback, verified rollback, and partial-failure regression coverage.
     - [x] T018d.7 Add a deterministic fail-closed governance generator that emits checksum-bound operation rules only when route, authorization, transaction, readback, rollback, and registered-test evidence all pass.
+    - [x] T018d.8 Replace Connect-local JWT verifiers with a shared fail-closed guard, reject raw activation credentials in favor of secure intake, recursively strip nested secrets from metadata, and add a diff-aware CI rule that blocks new fallback secrets or route-local JWT guards.
 - [x] T019 Add generated-plan schema contract and changed-scope CI drift gate.
 
 ## F1 tenant shell

@@ -14,7 +14,21 @@
       "number": 2934,
       "branch": "gpt/spec-011-durable-governed-execution-20260721",
       "role": "specification",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "3846b295e1d657a6555ca6f601112958e0c215f0"
+    },
+    "phase0_pr": {
+      "number": 2954,
+      "branch": "gpt/spec-011-phase0-contract-baseline-20260721",
+      "role": "contract_baseline",
+      "status": "merged",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501"
+    },
+    "phase1_pr": {
+      "number": null,
+      "branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+      "role": "shadow_durable_kernel",
+      "status": "current_branch"
     },
     "implementation_prs": [],
     "closeout_pr": {
@@ -26,29 +40,42 @@
   },
   "evidence": {
     "specification": {
-      "status": "complete",
-      "durable_execution_kernel": true,
-      "canonical_execution_resolver": true,
-      "approval_delegation_modes": true,
-      "plan_bound_sessions": true,
-      "reconciliation_framework": true,
-      "migration_validation_lab": true,
-      "structured_ci": true,
-      "managed_pr_release": true,
-      "auto_closeout": true,
-      "goal_filtered_attention": true
+      "status": "complete"
+    },
+    "phase0": {
+      "status": "complete_on_main",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
+      "ci_status": "pass",
+      "production_parity": "verified",
+      "runtime_implementation": false,
+      "database_migration": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
+    "phase1_shadow": {
+      "status": "complete_on_branch",
+      "source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
+      "service": "http-generic-api/durableExecutionShadowService.js",
+      "test": "http-generic-api/test-durable-execution-shadow-service.mjs",
+      "design": "phase1-shadow-kernel.md",
+      "runtime_authority": false,
+      "public_route": false,
+      "database_migration": false,
+      "provider_write": false,
+      "delegation_active": false,
+      "secrets_included": false
     },
     "implementation": {
-      "status": "not_started"
+      "status": "phase1_shadow_projection_complete_on_branch"
     },
     "ci": {
-      "status": "pending_specification_pr"
+      "status": "pending_phase1_pr"
     },
     "migration": {
-      "status": "pending_gap_analysis_and_design"
+      "status": "not_required_for_phase1_shadow"
     },
     "production_verification": {
-      "status": "pending"
+      "status": "pending_phase1_merge"
     },
     "post_merge_audit": {
       "status": "pending"

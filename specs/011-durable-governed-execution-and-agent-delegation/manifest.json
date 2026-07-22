@@ -1,6 +1,6 @@
 {
   "spec_key": "011-durable-governed-execution-and-agent-delegation",
-  "status": "draft",
+  "status": "in_progress",
   "delivery_mode": "multi_pr",
   "scope": [
     "admin",
@@ -11,14 +11,21 @@
     "migration_governance",
     "operational_intelligence"
   ],
-  "design_only": true,
-  "runtime_changes": false,
+  "design_only": false,
+  "runtime_changes": true,
   "database_migrations": false,
   "deployment": false,
   "merge": false,
   "source_main_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
-  "branch": "gpt/spec-011-durable-governed-execution-20260721",
-  "pull_request": 2934,
+  "specification_branch": "gpt/spec-011-durable-governed-execution-20260721",
+  "specification_pull_request": 2934,
+  "phase0_pull_request": 2954,
+  "phase0_merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
+  "phase1_branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+  "phase1_pull_request": 2960,
+  "phase1_ci_head_sha": "ab87d726c66be2518d6632687c89a25a6641d267",
+  "phase1_ci_base_sha": "5e4608bce056e373aa716ec66978994d40f5a1a9",
+  "phase1_source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
   "deliverables": [
     "spec",
     "plan",
@@ -30,16 +37,28 @@
     "ci_automation_framework",
     "data_model",
     "openapi_draft",
-    "quickstart"
+    "quickstart",
+    "phase0_inventory_and_reuse",
+    "compatibility_adapters",
+    "openapi_draft_governance",
+    "stable_error_codes",
+    "json_schemas",
+    "phase0_ci_guard",
+    "phase1_shadow_projection",
+    "phase1_state_machine_tests",
+    "phase1_tenant_scope_tests"
   ],
   "constraints": [
-    "no_runtime_implementation",
     "no_provider_call",
     "no_external_send",
     "no_database_write",
     "no_migration_apply",
     "no_deployment",
     "no_merge",
-    "no_secrets"
+    "no_secrets",
+    "reuse_first",
+    "shadow_only",
+    "runtime_authority_false",
+    "draft_openapi_non_authoritative"
   ]
 }
