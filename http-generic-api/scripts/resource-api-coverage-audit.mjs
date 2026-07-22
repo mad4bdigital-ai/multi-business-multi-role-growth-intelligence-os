@@ -261,8 +261,16 @@ if (combined) {
   const manifestTools = new Set(manifest.tool_exports || []);
   for (const match of combined.matchAll(/(?:admin_platform_endpoint_tools|tenant_platform_endpoint_tools)[\s\S]{0,400}?['"]([a-z][a-z0-9_]{3,})['"]/gi)) {
     const toolKey = match[1];
-    if (!manifestTools.has(toolKey) && !surfacePolicyDecisions.has(`tool:${toolKey}`) && !["tool_key", "display_name", "description"].includes(toolKey)) {
-      findings.push({ type: "new_tool_missing_surface_policy_decision", tool_key: toolKey });
+    if (
+      !manifestTools.has(toolKey)
+      && !callabilityCoveredTools.has(toolKey)
+      && !surfacePolicyDecisions.has(`tool:${toolKey}`)
+      && !["tool_key", "display_name", "description"].includes(toolKey)
+    ) {
+      findings.push({
+        type: "new_tool_missing_callability_contract_or_surface_policy_decision",
+        tool_key: toolKey,
+      });
     }
   }
 
