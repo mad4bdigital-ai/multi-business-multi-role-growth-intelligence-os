@@ -194,6 +194,7 @@ export function validateRepository(options = {}) {
   const allFeatures = listFeatureDirectories(root, policy.spec_root);
   const policySurfaceChanged = changedFiles.some((file) => file === ".specify/spec-kit-governance.json" || file.startsWith(".specify/templates/") || file.endsWith("spec-kit-completion-gate.mjs"));
   const changedFeatures = new Set(changedFiles.map((file) => featureKeyFromFile(file, policy.spec_root)).filter(Boolean));
+  const currentHeadRef = options.headRef || process.env.GITHUB_HEAD_REF || "";
   const targets = options.all
     ? allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, "completion.json")))
     : policySurfaceChanged
