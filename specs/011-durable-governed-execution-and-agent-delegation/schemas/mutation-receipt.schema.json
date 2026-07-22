@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/spec-011/mutation-receipt.schema.json",
+  "title": "Spec 011 Mutation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "operation_id", "step_id", "idempotency_key", "request_fingerprint", "provider_or_adapter", "state", "outcome_classification", "retry_allowed", "readback_complete", "secrets_included"],
+  "properties": {
+    "schema_version": { "const": "spec011-mutation-receipt-v1" },
+    "receipt_id": { "type": "string", "format": "uuid" },
+    "operation_id": { "type": "string", "format": "uuid" },
+    "step_id": { "type": "string", "format": "uuid" },
+    "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 191 },
+    "request_fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "provider_or_adapter": { "type": "string", "minLength": 1, "maxLength": 191 },
+    "state": { "type": "string", "enum": ["pending", "dispatched", "reconciling", "completed", "failed"] },
+    "outcome_classification": { "type": "string", "enum": ["pending", "confirmed_success", "confirmed_failure", "unknown_outcome", "reconciliation_required"] },
+    "external_reference": { "type": ["string", "null"], "maxLength": 500 },
+    "readback_fingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "retry_allowed": { "type": "boolean" },
+    "readback_complete": { "type": "boolean" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "dispatched_at": { "type": ["string", "null"], "format": "date-time" },
+    "reconciled_at": { "type": ["string", "null"], "format": "date-time" },
+    "secrets_included": { "const": false }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome_classification": { "enum": ["unknown_outcome", "reconciliation_required"] } } },
+      "then": { "properties": { "retry_allowed": { "const": false } } }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 {
   "spec_key": "009-platform-request-execution-hardening",
-  "status": "implemented_pending_merge",
+  "status": "complete",
+  "delivery_mode": "multi_pr",
   "scope": [
     "admin",
     "tenant_user"
@@ -8,12 +9,16 @@
   "design_only": false,
   "runtime_changes": true,
   "database_migrations": true,
-  "deployment": false,
-  "merge": false,
+  "deployment": true,
+  "merge": true,
   "source_main_sha": "ae772d80d7f73300a5e39dece31b689dbdf6e514",
-  "validated_implementation_head_sha": "3e623ce8973aa3c27ec384ad7e8a0715468d23c9",
-  "branch": "gpt/platform-request-execution-hardening-spec-kit-20260712",
+  "validated_implementation_head_sha": "ca9fd487e1504fea82e62f5f7543cc0a10382696",
+  "branch": "main",
   "pull_request": 2551,
+  "repair_pull_requests": [
+    2900,
+    2907
+  ],
   "deliverables": [
     "runtime_implementation",
     "database_migrations",
@@ -24,13 +29,15 @@
     "requirements_checklist",
     "openapi_contracts",
     "quickstart",
-    "integration_index"
+    "integration_index",
+    "production_verification",
+    "post_merge_audit"
   ],
   "constraints": [
     "no_provider_write",
-    "migrations_included_not_applied",
-    "no_production_deployment",
     "no_force_push",
-    "no_merge"
+    "migrations_applied_through_governed_runner",
+    "production_parity_verified",
+    "post_merge_audit_recorded"
   ]
 }

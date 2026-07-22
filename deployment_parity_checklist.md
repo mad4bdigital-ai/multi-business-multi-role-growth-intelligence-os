@@ -21,7 +21,8 @@ Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-compl
 - [ ] Virtual-tool capability-export aliases are `shadow` while the canonical manifest is blocked or uncertified; `UNSAFE_ACTIVE_ADMIN_EXPORT` is absent and Tenant exports remain zero.
 - [ ] Admin tool catalog rows and `platform_tool_dispatch_bindings` remain unchanged, and `apply_allowed=0` remains enforced.
 - [ ] Migration `20260720_github_file_patch_shadow_certification_issue.sql` is checksum-bound, additive, non-destructive, and registers only the Admin certification issuer and its policies.
-- [ ] Issuer dry-run verifies the fixed write/cleanup envelopes, execution refs, branch-scoped resource-authority bindings, target shadow exports, and blocked runtime certification before apply.
+- [ ] Corrective migration `20260721_github_file_patch_runtime_authority_preservation_metadata.sql` is checksum-bound and updates only issuer descriptions and policy metadata; it does not update the specialized runtime-certification registry, target exports, dispatch bindings, Tenant authority, or protected-branch authority.
+- [ ] Issuer v2 dry-run verifies the fixed write/cleanup envelopes, execution refs, branch-scoped resource-authority bindings, target shadow exports, and the current specialized runtime-certification snapshot plus its resource-authority, dry-run, audit-evidence, and readback guards before apply.
 - [ ] Certification apply activates only `repository_change_set_apply`, records acknowledgement and same-cycle verification evidence, and certifies the current readback contract with a bounded expiry.
 - [ ] Target runtime dispatch/apply, active capability exports, Tenant authority, and protected-branch access remain unchanged after certification readback.
 

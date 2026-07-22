@@ -15,6 +15,7 @@ import {
   synchronizeOperationalAlerts,
   updateOperationalAlertLifecycle,
 } from "../operationalAlertService.js";
+import { ingestCiGuardSignal } from "../ciGuardOperationalAlertService.js";
 import { readTenantResolutionProblemCards } from "../tenantResolutionProjectionService.js";
 import { createTenantResolutionCase } from "../tenantResolutionCaseService.js";
 import {
@@ -25,6 +26,7 @@ import {
 import { runTenantResolutionDiagnosticAction } from "../tenantResolutionDiagnosticService.js";
 import { previewTenantTaskSourceRepair } from "../tenantTaskSourceRepairPreviewService.js";
 import { applyTenantTaskSourceRepair } from "../tenantTaskSourceRepairApplyService.js";
+import { verifyTenantTaskSourceRepair } from "../tenantTaskSourceRepairVerificationService.js";
 import {
   listTenantSkillApprovals,
   decideTenantSkillApproval,
@@ -377,6 +379,21 @@ async function tenantTaskSourceRepairApplyResponse(req) {
   });
 }
 
+async function tenantTaskSourceRepairVerificationResponse(req) {
+  return verifyTenantTaskSourceRepair({
+    sessionContext: subjectContext(req, false),
+    explicitSubject: {
+      is_admin: false,
+      tenant_id: req.auth?.tenant_id || null,
+      user_id: req.auth?.user_id || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    caseId: req.params.caseId,
+    workspaceId: tenantWorkspaceScope(req),
+    input: req.body || {},
+  });
+}
+
 async function tenantSkillApprovalListResponse(req) {
   return listTenantSkillApprovals({
     sessionContext: subjectContext(req, false),
@@ -421,6 +438,13 @@ async function operationalAttentionSyncResponse(req, isAdmin) {
     },
     lookbackHours: boundedInt(req.body?.lookback_hours, 168, 1, 2160),
     requestedBy: queryText(req.body?.requested_by || req.auth?.user_id || "platform_admin", 191),
+  });
+}
+
+async function operationalCiSignalResponse(req) {
+  return ingestCiGuardSignal({
+    input: req.body || {},
+    requestedBy: queryText(req.auth?.user_id || "github_actions", 191),
   });
 }
 
@@ -486,6 +510,15 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
       return res.status(200).json(await operationalAttentionSyncResponse(req, true));
     } catch (err) {
       return errorResponse(res, err, "activation_operational_attention_sync_failed");
+    }
+  });
+
+  router.post("/activation/operational-attention/ci-signals", ...adminGuards, async (req, res) => {
+    try {
+      const result = await operationalCiSignalResponse(req);
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return errorResponse(res, err, "activation_operational_ci_signal_ingest_failed");
     }
   });
 
@@ -607,6 +640,22 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/apply", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantTaskSourceRepairApplyResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_task_source_repair_apply_failed");
+    }
+  });
+
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/verify", requireTenantUserJwt, async (req, res) => {
+    try {
+      return res.status(200).json(await tenantTaskSourceRepairVerificationResponse(req));
+    } catch (err) {
+      return errorResponse(res, err, "tenant_task_source_repair_verification_failed");
+    }
+  });
+
   router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantSkillApprovalListResponse(req));
@@ -650,6 +699,9 @@ export const _testingActivationAwarenessRoutes = {
   tenantResolutionCaseDetailResponse,
   tenantResolutionCaseTransitionResponse,
   tenantResolutionDiagnosticActionResponse,
+  tenantTaskSourceRepairPreviewResponse,
+  tenantTaskSourceRepairApplyResponse,
+  tenantTaskSourceRepairVerificationResponse,
   tenantSkillApprovalListResponse,
   tenantSkillApprovalDecisionResponse,
 };
