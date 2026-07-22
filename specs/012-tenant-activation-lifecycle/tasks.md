@@ -18,7 +18,7 @@
 - [ ] **T003** `[FR-026..032][OP-010..014]` Inventory existing operation, attempt, evidence, delivery, acknowledgement, and reconciliation tables/services.
 - [x] **T004** `[ADR-001]` Adopt the hybrid operation model: general operation ledger for shared identity/idempotency/audit plus an Activation-specific projection linked by `operation_id`. Decision recorded in `decisions/ADR-001-hybrid-activation-operation-ledger.md`. Physical table mapping remains T001-T003/T014.
 - [x] **T005** `[ADR-002][ADR-003][FR-006]` Approve phased legacy generic-token cutoff, targeted telemetry/communication, cleanup policy, and one unified Tenant GPT OAuth client with resource-bound external access tokens.
-- [ ] **T006** `[Q-003][FR-008..012]` Finalize protected Tenant Resolution route/resource/scope policy.
+- [x] **T006** `[ADR-004][FR-008..012][FR-022..025]` Keep Resolution under the Activation protected resource, adopt five stable coarse scopes, and resolve route/action authorization dynamically from a versioned governed SQL policy registry. Route inventory, policy-row mapping, parity tests, and canonical contract work remain implementation tasks.
 - [ ] **T007** `[Q-004][NFR-002..004]` Measure production baselines and approve latency/error SLOs.
 - [ ] **T008** `[Q-005][FR-033..035]` Decide public/internal deployment version evidence contract.
 - [ ] **T009** `[C-017][C-018]` Complete data classification, retention, and redaction review.
