@@ -80,4 +80,4 @@
 
 ## Requirement review outcome
 
-The specification is complete enough to enter Clarify. Implementation remains blocked until Q-001, Q-002, Q-003, and all security/data contract gates are resolved. Q-004 and Q-005 must be resolved before observability and public contract finalization respectively.
+Architecture-level clarification is complete through ADR-001..ADR-006, and the specification is ready for a specification PR/review. Runtime implementation remains separately gated on current route/table/registry inventory, physical SQL mapping, retention approval, measured starter policy profiles, canonical OpenAPI mapping and generated parity, security/fault-injection tests, rollout controls, governed migrations/readback where required, and implementation-specific approvals.
