@@ -277,6 +277,44 @@ Structured events per operation/stage with request and operation IDs, stage stat
 - production/main divergence;
 - stalled or unacknowledged operations.
 
+## Governed questionnaire implementation plan
+
+ADR-005 introduces a reusable platform component rather than route-local settings.
+
+### Foundation
+
+- Define questionnaire, question, session, answer, compilation, proposal, preview, approval, activation, readback, and rollback contracts.
+- Define deterministic compiler and version provenance.
+- Define immutable safety bounds by domain.
+- Reuse existing approval, audit, operation, and policy registries where semantics fit.
+
+### Activation SLO adapter
+
+- Publish versioned starter profiles: `fast`, `balanced`, `complete`, and `high_reliability`.
+- Compile profile/custom answers into `activation_stage_slo_policy` proposals.
+- Resolve policy by stage, operation profile, mode, dependency class, tenant tier, and effective time.
+- Keep critical safety ceilings in domain/runtime code.
+- Measure production baselines before activating alert/SLO commitments.
+
+### Approval and activation
+
+- Risk-score the proposal and derive approval class.
+- Bind approval to exact proposal hash, resource, policy version, and effective window.
+- Activate through governed SQL registry mutation and exact-version readback.
+- Invalidate or bypass caches for critical narrowing changes.
+
+### Rollout
+
+- Start in recommendation/draft mode.
+- Enable previews without activation.
+- Enable tenant-owner activation for low-risk bounded profiles.
+- Enable governed advanced/expert flows after security and operational validation.
+- Expand domain adoption only after the common engine and first adapter are stable.
+
+### Platform reuse gate
+
+A new domain may use the engine only after defining its own schema, safety bounds, compiler, risk model, approval policy, runtime registry mapping, parity tests, observability, and rollback contract.
+
 ## Rollout plan
 
 ### R0 — Specification and baseline
