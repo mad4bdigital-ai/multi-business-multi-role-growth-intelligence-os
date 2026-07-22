@@ -63,7 +63,8 @@ Adopt a phased migration with a fixed hard cutoff:
 
 **Effective**: 2026-10-31T23:59:59Z.
 
-- Reject `aud=mad4b-tenant-gpt` for the Activation protected resource.
+- Reject legacy generic tokens that are not bound to the Activation protected resource under the accepted token profile. In the current external contract, this includes `aud=mad4b-tenant-gpt` tokens presented directly to Activation.
+- Continue accepting only resource-bound external tokens whose audience/resource/purpose/client profile matches the Activation contract.
 - Return a stable `401` authentication error with reconnect guidance.
 - Do not classify membership, workspace, provider, tool, contract, or deployment failures as reconnect-required.
 
