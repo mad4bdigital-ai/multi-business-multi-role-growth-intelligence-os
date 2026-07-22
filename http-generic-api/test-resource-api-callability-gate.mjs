@@ -13,6 +13,8 @@ assert.match(preview, /credential_payload_read:\s*false/);
 const registeredTools = [...service.matchAll(/tool_key:\s*"([^"]+)"/g)].map((match) => match[1]);
 assert.equal(registeredTools.length, 9);
 assert.equal(new Set(registeredTools).size, 9);
-assert.equal(routes.includes("tenant_connection_operation_preview"), false);
+assert.match(routes, /name:\s*"tenant_connection_operation_preview"/);
+assert.match(routes, /toolKey === "tenant_connection_operation_preview"/);
+assert.match(routes, /buildTenantConnectionOperationPreview\(args\)/);
 
-console.log("resource API callability gate pre-registration tests passed");
+console.log("resource API callability gate registration tests passed");
