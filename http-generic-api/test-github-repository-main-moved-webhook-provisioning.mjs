@@ -282,4 +282,32 @@ const applyReason = "Provision the governed repository webhook after reviewed re
   assert.doesNotMatch(policyMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|DATABASE)\b|\bTRUNCATE\b/i);
 }
 
+{
+  const metadataHardeningMigration = fs.readFileSync(
+    "./migrations/20260722_github_repository_main_moved_webhook_policy_metadata_hardening.sql",
+    "utf8",
+  );
+  assert.match(metadataHardeningMigration, /github_repository_main_moved_webhook_provision_apply_v1/);
+  assert.match(metadataHardeningMigration, /server_side_reference_resolution_allowed/);
+  assert.match(metadataHardeningMigration, /inline_sensitive_input_allowed/);
+  assert.match(metadataHardeningMigration, /JSON_REMOVE/);
+  assert.match(metadataHardeningMigration, /server_side_secret_resolution_allowed/);
+  assert.match(metadataHardeningMigration, /inline_secret_input_allowed/);
+  assert.doesNotMatch(metadataHardeningMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|DATABASE)\b|\bTRUNCATE\b/i);
+
+  const { assertNoSecretBearingFields } = await import("./capabilityEnvelopeSecretPolicy.js");
+  assert.doesNotThrow(() => assertNoSecretBearingFields({
+    policy: {
+      server_side_reference_resolution_allowed: true,
+      inline_sensitive_input_allowed: false,
+      credential_payload_return_allowed: false,
+      secrets_included: false,
+    },
+  }));
+  assert.throws(
+    () => assertNoSecretBearingFields({ policy: { server_side_secret_resolution_allowed: true } }),
+    (error) => error.code === "capability_envelope_sensitive_field_rejected",
+  );
+}
+
 console.log("github repository-main-moved webhook provisioning tests passed");
