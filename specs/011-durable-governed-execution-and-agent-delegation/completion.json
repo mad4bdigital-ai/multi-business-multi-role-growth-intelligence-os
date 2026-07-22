@@ -21,7 +21,14 @@
       "number": 2954,
       "branch": "gpt/spec-011-phase0-contract-baseline-20260721",
       "role": "contract_baseline",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501"
+    },
+    "phase1_pr": {
+      "number": null,
+      "branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+      "role": "shadow_durable_kernel",
+      "status": "current_branch"
     },
     "implementation_prs": [],
     "closeout_pr": {
@@ -33,44 +40,42 @@
   },
   "evidence": {
     "specification": {
-      "status": "complete",
-      "durable_execution_kernel": true,
-      "canonical_execution_resolver": true,
-      "approval_delegation_modes": true,
-      "plan_bound_sessions": true,
-      "reconciliation_framework": true,
-      "migration_validation_lab": true,
-      "structured_ci": true,
-      "managed_pr_release": true,
-      "auto_closeout": true,
-      "goal_filtered_attention": true
+      "status": "complete"
     },
     "phase0": {
-      "status": "complete_on_branch",
-      "source_main_sha": "56a646bef5edf3422b2812f0ed06b8c2f42ed7d5",
-      "reuse_inventory": "phase0-inventory-and-reuse.md",
-      "compatibility_adapters": "compatibility-adapters.md",
-      "openapi_draft_governance": "openapi-draft-governance.md",
-      "schema_count": 5,
-      "stable_error_codes": "contracts/error-codes.md",
-      "ci_guard": "http-generic-api/test-spec-011-phase0-contract-baseline.mjs",
+      "status": "complete_on_main",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
+      "ci_status": "pass",
+      "production_parity": "verified",
       "runtime_implementation": false,
       "database_migration": false,
       "provider_write": false,
-      "deployment": false,
+      "secrets_included": false
+    },
+    "phase1_shadow": {
+      "status": "complete_on_branch",
+      "source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
+      "service": "http-generic-api/durableExecutionShadowService.js",
+      "test": "http-generic-api/test-durable-execution-shadow-service.mjs",
+      "design": "phase1-shadow-kernel.md",
+      "runtime_authority": false,
+      "public_route": false,
+      "database_migration": false,
+      "provider_write": false,
+      "delegation_active": false,
       "secrets_included": false
     },
     "implementation": {
-      "status": "phase0_contract_baseline_complete_on_branch"
+      "status": "phase1_shadow_projection_complete_on_branch"
     },
     "ci": {
-      "status": "pending_phase0_pr"
+      "status": "pending_phase1_pr"
     },
     "migration": {
-      "status": "not_required_for_phase0"
+      "status": "not_required_for_phase1_shadow"
     },
     "production_verification": {
-      "status": "pending"
+      "status": "pending_phase1_merge"
     },
     "post_merge_audit": {
       "status": "pending"
