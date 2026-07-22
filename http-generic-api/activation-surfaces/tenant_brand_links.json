@@ -1,0 +1,27 @@
+{
+  "surface_key": "tenant_brand_links",
+  "display_name": "Tenant Brand Links",
+  "description": "Tenant-scoped canonical brand links used by Dynamic Container projection when a brand workspace has no linked_brand_key.",
+  "source_table": "tenant_brand_links",
+  "result_key_column": "brand_target_key",
+  "result_label_column": "brand_target_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "link_id",
+    "tenant_id",
+    "brand_target_key",
+    "link_source",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 11,
+  "status": "active",
+  "notes": "Repo-managed activation surface. No credential fields. Does not imply authority or enable enforcement."
+}
