@@ -66,7 +66,8 @@
 - [x] Logical data model, states, transitions, indexes, concurrency, retention, and migration questions are documented.
 - [x] Logical ownership is finalized by ADR-001: one general operation identity with an Activation-specific projection.
 - [ ] Existing versus additive physical SQL table mapping is finalized. Pending T001-T003/T014.
-- [ ] Tenant Resolution scope/resource inventory is finalized. Blocked by Q-003.
+- [x] Tenant Resolution resource and scope architecture is finalized by ADR-004: one Activation resource, five stable coarse scopes, and dynamic versioned operation policies.
+- [ ] Every existing Resolution route/action is inventoried and mapped to the accepted dynamic policy model before canonical contract enforcement.
 
 ## Plan and tasks
 
