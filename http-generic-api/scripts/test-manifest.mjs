@@ -264,6 +264,7 @@ export const testCommands = [
   "node test-ticket-activation-inbox-feedback.mjs",
   "node test-ticket-auto-resolve-policy-engine.mjs",
   "node test-ticket-notification-delivery-cycle.mjs",
+  "node test-support-ticket-dynamic-routing-notifications.mjs",
   "node test-ticket-notification-delivery-adapters.mjs",
   "node test-ticket-external-delivery-approval-policy.mjs",
   "node test-tenant-ticket-admin-gpt-link-support.mjs",
