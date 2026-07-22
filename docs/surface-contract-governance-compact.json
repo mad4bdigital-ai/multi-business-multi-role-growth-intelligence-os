@@ -1,17 +1,17 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 91.77,
+  "docs_completion_percent": 91.61,
   "docs_complete_count": 513,
-  "docs_gap_count": 46,
-  "queue_items": 46,
-  "blocking_new_item_count": 46,
+  "docs_gap_count": 47,
+  "queue_items": 47,
+  "blocking_new_item_count": 47,
   "gate_ok": false,
   "top_actionable": [
     {
       "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
       "queue_class": "critical_review",
-      "score": 1075,
+      "score": 1074,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 46,
-    "warning_new_item_count": 46
+    "blocking_new_item_count": 47,
+    "warning_new_item_count": 47
   },
   "safety": {
     "executes_provider_calls": false,
