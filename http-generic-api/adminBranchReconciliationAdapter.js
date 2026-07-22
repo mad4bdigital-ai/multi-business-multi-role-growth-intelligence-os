@@ -7,6 +7,7 @@ import {
   planContinuationResume,
   sanitizeContinuationPayload,
 } from "./sharedReconciliationEngine.js";
+import { assertRepositoryOperationLeaseHolder } from "./repositoryOperationLeaseService.js";
 
 export const ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION = "admin-branch-reconciliation-v1";
 
