@@ -97,7 +97,7 @@ function containerRow({ tenantId, type, key, subjectType, subjectRef, displayNam
 async function loadProjectionSources(executor = getPool()) {
   const names = [
     "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
+    "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","tenantBrandLinks","existingContainers"
   ];
   const queries = [
     "SELECT tenant_id,tenant_type,display_name,status,updated_at FROM tenants",
@@ -113,8 +113,10 @@ async function loadProjectionSources(executor = getPool()) {
     "SELECT grant_id,connection_id,workspace_id,agent_id,app_key,action_key,grant_mode,granted_by,expires_at,status,created_at FROM app_action_grants",
     "SELECT grant_id,agent_id,skill_id,tenant_id,brand_key,granted_by,granted_at,expires_at,status FROM agent_skill_grants",
     "SELECT asset_id,tenant_id,asset_type,asset_ref,display_name,brand_ref,site_ref,workflow_ref,visibility,lifecycle_status,metadata_json,created_by FROM workspace_assets",
+    "SELECT tenant_id,brand_target_key,link_source,status,updated_at FROM tenant_brand_links WHERE status='active'",
     "SELECT container_id,tenant_id,container_key,container_type_key,canonical_subject_type,canonical_subject_ref,status,updated_at FROM containers"
   ];
+  const optionalSources = new Set(["tenantBrandLinks"]);
   const source = {};
   for (let index = 0; index < queries.length; index += 1) {
     const sourceName = names[index];
