@@ -120,7 +120,7 @@ jobs:
           EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
         run: |
           set -o pipefail
-          npm run smoke:dev-autopilot -- \
+          node scripts/dev-autopilot-smoke.mjs \
             --base-url="${STAGING_BASE_URL}" \
             --expected-branch="${EXPECTED_BRANCH}" \
             --expected-commit="${EXPECTED_COMMIT}" \
