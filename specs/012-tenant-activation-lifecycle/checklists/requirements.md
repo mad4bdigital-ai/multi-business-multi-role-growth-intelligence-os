@@ -40,7 +40,8 @@
 - [x] Summary-first bounded response behavior is explicit.
 - [x] Observability/audit requirements are explicit.
 - [x] Compatibility and maintainability requirements are explicit.
-- [ ] Production SLO thresholds are numerically approved. Blocked by Q-004.
+- [x] SLO/timeout/retry/freshness architecture is finalized by ADR-005 as questionnaire-driven, versioned policy within immutable safety bounds.
+- [ ] Production baselines and starter policy profiles are measured, reviewed, and published under T007A before rollout.
 
 ## Operation paths
 
