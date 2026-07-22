@@ -47,7 +47,7 @@
     },
     "clarification": {
       "status": "blocked_on_open_questions",
-      "open_questions": ["Q-003", "Q-004", "Q-005"]
+      "open_questions": ["Q-004", "Q-005"]
     },
     "implementation": {
       "status": "not_started"
