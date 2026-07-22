@@ -45,7 +45,7 @@ Per-tenant/per-app connection, mode, installation, health, credential reference,
 
 ## Proposed lifecycle entities
 
-The final implementation may map these logical entities to existing tables. Names below are conceptual until inventory resolves Q-001.
+ADR-001 adopts a hybrid physical model. The existing general operation ledger remains authoritative for shared operation identity, ownership, idempotency, fingerprint, general status, timestamps, and audit correlation. The logical Activation entities below form an Activation-specific projection linked by the same `operation_id`. Inventory tasks T001-T003 and mapping task T014 will decide which existing tables can be reused and which additive projection tables are required.
 
 ### ActivationOperation
 
