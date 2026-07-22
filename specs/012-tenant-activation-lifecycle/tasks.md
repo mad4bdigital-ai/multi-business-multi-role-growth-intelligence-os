@@ -100,7 +100,7 @@
 - [ ] **T072** `[P][FR-013..021][OP-005..008]` Add session/bootstrap/mode/provider classification tests.
 - [ ] **T073** `[P][FR-022..025][OP-009..010]` Add tool scope/readiness/forbidden key/sensitive-action tests.
 - [ ] **T074** `[P][FR-026..032][OP-011..014]` Add state/idempotency/unknown-outcome/reconciliation/delivery/ack tests.
-- [ ] **T075** `[P][FR-033..040][OP-016..018]` Add deployment freshness/rollback/recovery tests.
+- [ ] **T075** `[P][ADR-006][FR-033..040][OP-016..018]` Add deployment freshness/rollback/recovery tests covering opaque versus Admin evidence, tenant denial of `admin_full`, header/body consistency, all five deployment states, historical request-time correlation, `unknown` on incomplete evidence, and no reconnect guidance for deployment mismatch.
 - [ ] **T076** `[contracts]` Add OpenAPI/JSON Schema/canonical-generated parity tests.
 - [ ] **T077** `[C-017][C-031]` Add secret/log-injection/oversized-input security tests.
 - [ ] **T078** `[fault injection]` Add dependency 401/403/429/5xx/timeout/database conflict/cache-stale scenarios.
