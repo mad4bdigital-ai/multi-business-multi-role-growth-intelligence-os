@@ -16,7 +16,7 @@
 
 CREATE TABLE IF NOT EXISTS `tenant_brand_links` (
   `link_id` varchar(64) NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(36) NOT NULL,
   `brand_target_key` varchar(191) NOT NULL,
   `link_source` varchar(64) NOT NULL DEFAULT 'tenant_metadata_brand_key',
   `status` enum('active','inactive','superseded') NOT NULL DEFAULT 'active',
