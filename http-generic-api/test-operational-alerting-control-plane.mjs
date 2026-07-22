@@ -409,6 +409,68 @@ function testRepositoryContracts() {
   assert.match(auditCanonical, /Operational Alerting Evidence Contract/);
   assert.match(repairCanonical, /Operational Alerting Control Plane/);
   assert.match(guide, /Unified Operational Alerting/);
+
+  const highAttentionClosureMigration = read("./migrations/20260722_close_verified_high_operational_attention.sql");
+  assert.equal((highAttentionClosureMigration.match(/UPDATE platform_pending_tasks/g) || []).length, 7);
+  assert.equal((highAttentionClosureMigration.match(/UPDATE operational_alerts/g) || []).length, 2);
+  for (const taskId of [
+    "12c6a37f-838b-11f1-9a4d-d342cf4a053c",
+    "3fa74909-64af-11f1-8ecd-456940024c79",
+    "8fbb84a1-61a9-11f1-8ecd-456940024c79",
+    "b7667095-61cd-11f1-8ecd-456940024c79",
+    "527cafca-61b9-11f1-8ecd-456940024c79",
+    "22a15347-619d-11f1-8ecd-456940024c79",
+    "90cb38e5-618e-11f1-8ecd-456940024c79",
+  ]) assert.ok(highAttentionClosureMigration.includes(taskId), `closure migration must target task ${taskId}`);
+  for (const alertId of [
+    "150a4ebd-6b16-11f1-8ecd-456940024c79",
+    "150a48ac-6b16-11f1-8ecd-456940024c79",
+  ]) assert.ok(highAttentionClosureMigration.includes(alertId), `closure migration must target alert ${alertId}`);
+  assert.match(highAttentionClosureMigration, /status = 'done'/);
+  assert.match(highAttentionClosureMigration, /lifecycle_status = 'resolved'/);
+  assert.match(highAttentionClosureMigration, /github_repository_main_moved_webhook_configured_and_verified/);
+  assert.match(highAttentionClosureMigration, /webhook_hook_id', 655391973/);
+  assert.match(highAttentionClosureMigration, /ping_delivery_status_code', 200/);
+  assert.match(highAttentionClosureMigration, /production_uses_github_main_auto_deploy/);
+  assert.match(highAttentionClosureMigration, /ssh_break_glass_only', TRUE/);
+  assert.match(highAttentionClosureMigration, /ready_for_live_provider_dispatch/);
+  assert.match(highAttentionClosureMigration, /policy_disabled_by_design/);
+  assert.match(highAttentionClosureMigration, /release-operation:\/\/5cdc3adc-2022-4f37-908c-eb5cb3c7339d/);
+  assert.match(highAttentionClosureMigration, /policy:\/\/hostinger_deploy_release_apply_policy_v1/);
+  assert.match(highAttentionClosureMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(highAttentionClosureMigration, /migration_external_write_executed', FALSE/);
+  assert.match(highAttentionClosureMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(highAttentionClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
+
+  const persistedAlertClosureMigration = read("./migrations/20260722_resolve_persisted_completed_task_alerts.sql");
+  assert.equal((persistedAlertClosureMigration.match(/UPDATE operational_alerts/g) || []).length, 6);
+  for (const alertId of [
+    "0caaa888-3da1-4db1-93fe-07ba2b00cc13",
+    "239736b0-26e0-492b-8cef-f77731b263b2",
+    "52f68ac6-7e1d-4d31-977b-cb74085b43f2",
+    "5efecea9-bb01-49ea-99fd-534dba5bbc5e",
+    "8e36b98d-0424-4600-b3b8-e662fcb56baa",
+    "9f1d3538-76f9-4579-9308-16b7a2fb7a97",
+  ]) assert.ok(persistedAlertClosureMigration.includes(alertId), `persisted alert closure migration must target alert ${alertId}`);
+  for (const sourceTaskId of [
+    "8fbb84a1-61a9-11f1-8ecd-456940024c79",
+    "527cafca-61b9-11f1-8ecd-456940024c79",
+    "90cb38e5-618e-11f1-8ecd-456940024c79",
+    "b7667095-61cd-11f1-8ecd-456940024c79",
+    "3fa74909-64af-11f1-8ecd-456940024c79",
+    "22a15347-619d-11f1-8ecd-456940024c79",
+  ]) assert.ok(persistedAlertClosureMigration.includes(sourceTaskId), `persisted alert closure migration must bind source task ${sourceTaskId}`);
+  assert.match(persistedAlertClosureMigration, /lifecycle_status = 'resolved'/);
+  assert.match(persistedAlertClosureMigration, /verification_state = 'verified'/);
+  assert.match(persistedAlertClosureMigration, /completed_source_task_readback/);
+  assert.match(persistedAlertClosureMigration, /source_task_status', 'done'/);
+  assert.match(persistedAlertClosureMigration, /policy_disabled_by_design/);
+  assert.match(persistedAlertClosureMigration, /verified_complete/);
+  assert.match(persistedAlertClosureMigration, /superseded/);
+  assert.match(persistedAlertClosureMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(persistedAlertClosureMigration, /migration_external_write_executed', FALSE/);
+  assert.match(persistedAlertClosureMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(persistedAlertClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
 }
 
 async function main() {
