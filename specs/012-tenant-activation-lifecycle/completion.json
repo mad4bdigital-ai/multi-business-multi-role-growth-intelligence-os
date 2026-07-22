@@ -46,8 +46,8 @@
       "checklists": true
     },
     "clarification": {
-      "status": "blocked_on_open_questions",
-      "open_questions": ["Q-005"]
+      "status": "complete",
+      "open_questions": []
     },
     "implementation": {
       "status": "not_started"
