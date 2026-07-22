@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { queueSupportTicketRoutingNotifications } from "./supportTicketRoutingNotificationService.js";
 
 const VALID_TICKET_CATEGORIES = new Set(["support", "review_request", "escalation", "managed_task", "billing", "general"]);
 const VALID_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
@@ -306,8 +307,13 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
         summary: ticket.customer_message,
         payload_json: { customer_visible: true, deduped: true, secrets_included: false },
       });
+      const notification = await queueSupportTicketRoutingNotifications({
+        ticket: { ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() },
+        event_type: "dedupe_matched",
+        deduped: true,
+      }, { connection });
       if (ownsConnection) await connection.commit();
-      return { ok: true, created: false, deduped: true, ticket: compactTicket({ ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() }), secrets_included: false };
+      return { ok: true, created: false, deduped: true, ticket: compactTicket({ ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() }), notification, secrets_included: false };
     }
 
     await connection.query(
@@ -353,9 +359,15 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
     await attachResourceLink(connection, ticket, ticket.resource);
     await capturePermissionSnapshot(connection, ticket, ticket);
 
+    const notification = await queueSupportTicketRoutingNotifications({
+      ticket,
+      event_type: "ticket_created",
+      deduped: false,
+    }, { connection });
+
     const inserted = await fetchTicketById(connection, ticket.tenant_id, ticket.ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), secrets_included: false };
+    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), notification, secrets_included: false };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;

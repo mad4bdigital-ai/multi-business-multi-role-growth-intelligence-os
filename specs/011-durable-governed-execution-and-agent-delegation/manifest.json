@@ -1,6 +1,6 @@
 {
   "spec_key": "011-durable-governed-execution-and-agent-delegation",
-  "status": "draft",
+  "status": "in_progress",
   "delivery_mode": "multi_pr",
   "scope": [
     "admin",
@@ -17,8 +17,10 @@
   "deployment": false,
   "merge": false,
   "source_main_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
-  "branch": "gpt/spec-011-durable-governed-execution-20260721",
-  "pull_request": 2934,
+  "specification_branch": "gpt/spec-011-durable-governed-execution-20260721",
+  "specification_pull_request": 2934,
+  "phase0_branch": "gpt/spec-011-phase0-contract-baseline-20260721",
+  "phase0_source_main_sha": "56a646bef5edf3422b2812f0ed06b8c2f42ed7d5",
   "deliverables": [
     "spec",
     "plan",
@@ -30,7 +32,13 @@
     "ci_automation_framework",
     "data_model",
     "openapi_draft",
-    "quickstart"
+    "quickstart",
+    "phase0_inventory_and_reuse",
+    "compatibility_adapters",
+    "openapi_draft_governance",
+    "stable_error_codes",
+    "json_schemas",
+    "phase0_ci_guard"
   ],
   "constraints": [
     "no_runtime_implementation",
@@ -40,6 +48,8 @@
     "no_migration_apply",
     "no_deployment",
     "no_merge",
-    "no_secrets"
+    "no_secrets",
+    "reuse_first",
+    "draft_openapi_non_authoritative"
   ]
 }
