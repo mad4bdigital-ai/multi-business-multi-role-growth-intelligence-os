@@ -65,7 +65,7 @@
     "omitted": []
   },
   "clarification": {
-    "blocking_questions": ["Q-001", "Q-002", "Q-003"],
+    "blocking_questions": ["Q-002", "Q-003"],
     "pre_contract_questions": ["Q-005"],
     "pre_observability_questions": ["Q-004"]
   },
