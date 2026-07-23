@@ -49,6 +49,13 @@
       "number": 3025,
       "branch": "gpt/spec-011-phase2-closeout-20260723",
       "role": "phase2_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "46704094e65374687e03435cfb15b5d53214a788"
+    },
+    "phase3_pr": {
+      "number": 3042,
+      "branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
+      "role": "plan_bound_session_shadow",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -63,6 +70,11 @@
         "role": "phase2_canonical_execution_contract_resolver",
         "status": "merged",
         "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+      },
+      {
+        "number": 3042,
+        "role": "phase3_plan_bound_session_shadow",
+        "status": "current_pr"
       }
     ],
     "closeout_pr": {
@@ -122,8 +134,30 @@
       "delegation_active": false,
       "secrets_included": false
     },
+    "phase3_session_shadow": {
+      "status": "complete_on_branch",
+      "source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
+      "pull_request": 3042,
+      "service": "http-generic-api/planBoundSessionShadow.js",
+      "test": "http-generic-api/test-plan-bound-session-shadow.mjs",
+      "design": "phase3-plan-bound-session-shadow.md",
+      "reused_durable_operation_shadow": "http-generic-api/durableExecutionShadowService.js",
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_projection": true,
+      "session_limits_and_expiry": true,
+      "self_approval_detection": true,
+      "tenant_scope": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase2_contract_resolver_complete_on_main"
+      "status": "phase3_plan_bound_session_shadow_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -147,11 +181,23 @@
         "Unit & Integration Tests"
       ]
     },
+    "phase3_ci": {
+      "status": "pending_phase3_pr",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
     "migration": {
       "status": "not_required_for_phase1_shadow"
     },
     "phase2_migration": {
       "status": "not_required_for_phase2_shadow_resolver"
+    },
+    "phase3_migration": {
+      "status": "not_required_for_phase3_shadow_session"
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -190,7 +236,8 @@
     "post_merge_audit": {
       "phase1_status": "complete",
       "phase2_status": "complete_on_main",
-      "phase2_closeout_status": "current_pr",
+      "phase2_closeout_status": "merged",
+      "phase3_status": "pending_phase3_merge",
       "spec_status": "pending_remaining_phases"
     }
   },

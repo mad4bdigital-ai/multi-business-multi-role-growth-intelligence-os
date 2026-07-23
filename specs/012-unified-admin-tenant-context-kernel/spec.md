@@ -1,0 +1,148 @@
+# Specification: Unified Dynamic Context Kernel
+
+## 1. Problem statement
+
+The platform currently exposes multiple context and capability surfaces that can independently resolve tenants, workspaces, brands, resources, connections, and execution authority. Administrators may be authorized across many tenants and workspaces, while tenant users may belong to more than one tenant or workspace. When these surfaces are not coordinated, the runtime can select a textually similar but operationally wrong context, retain stale context across requests, or begin capability resolution before the effective subject and exact target resource are known.
+
+This specification defines one shared kernel for every principal type. Admin is not a separate execution architecture. Admin only has a broader visibility and authority set. All principals use the same resolution stages, invariants, error model, pinning model, approval model, and readback model.
+
+## 2. Goals
+
+- Resolve every request dynamically from authenticated principal evidence and live SQL registries.
+- Separate authenticated principal, effective subject, target resource, exact connection, and authority path.
+- Support any number of tenants, workspaces, brands, resources, and connections.
+- Prevent cross-tenant candidate leakage and implicit Admin impersonation.
+- Produce deterministic, explainable context decisions.
+- Stop ambiguous or stale high-risk operations before execution.
+- Preserve a smooth experience by reusing only verified, revision-bound context pins.
+- Recover safely from transport failures and unknown provider outcomes.
+- Eliminate production hardcoding of customer identifiers.
+
+## 3. Non-goals
+
+- No provider-specific business workflow is implemented by this specification.
+- No production deployment or migration is performed from this branch.
+- No protected branch is modified.
+- No new authority is inferred from labels, historical usage, or broad Admin visibility.
+
+## 4. Principal model
+
+Supported principal types include:
+
+- tenant user;
+- administrator;
+- service principal;
+- delegated agent;
+- future principal types registered in SQL.
+
+Every request MUST begin with an authenticated principal. A principal MAY have multiple authorized tenant and workspace scopes. An effective subject MUST be resolved before any tenant-scoped mutation. An administrator MUST NOT silently become a tenant user.
+
+## 5. Canonical resolution stages
+
+1. Authenticate principal.
+2. Enumerate authorized visibility set.
+3. Resolve effective subject.
+4. Resolve tenant.
+5. Resolve workspace.
+6. Resolve optional brand and required target resource.
+7. Resolve exact connection and credential scope.
+8. Resolve authority path.
+9. Resolve semantic capability and runtime binding.
+10. Compile execution plan.
+11. Validate context revision, readiness, quota, and approval.
+12. Dispatch.
+13. Read back and reconcile.
+
+A later stage MUST NOT repair or replace a missing earlier stage silently.
+
+## 6. Functional requirements
+
+### Context discovery
+
+- FR-001: The kernel MUST enumerate authorized tenant candidates from live registry data.
+- FR-002: The kernel MUST enumerate workspace candidates within the selected tenant scope.
+- FR-003: The kernel MUST expose candidate labels together with stable references, ownership scope, authority source, and readiness summary.
+- FR-004: The kernel MUST distinguish visibility candidates from execution candidates.
+- FR-005: The kernel MUST exclude resources outside the request tenant from execution ranking even when visible to an administrator.
+- FR-006: The kernel MUST support resource-first operations where no brand is required.
+- FR-007: The kernel MUST support brand-scoped operations only after Brand Core and brand authority checks pass.
+
+### Deterministic resolution
+
+- FR-008: Explicit identifiers supplied by an authorized caller take precedence over labels.
+- FR-009: A verified conversation or workflow context pin MAY be reused when its revision remains current.
+- FR-010: Exact resource and connection bindings take precedence over historical usage.
+- FR-011: A single authorized candidate MAY be auto-selected.
+- FR-012: Multiple valid candidates MUST produce `interpretation_required` unless an explicit deterministic binding resolves them.
+- FR-013: Text similarity alone MUST NOT authorize a mutation.
+- FR-014: Selection decisions MUST include reason codes and evidence references.
+
+### Effective subject and authority
+
+- FR-015: Tenant-scoped mutations MUST have an effective tenant subject.
+- FR-016: User-scoped mutations MUST have an effective user subject where the provider or policy requires one.
+- FR-017: Service principals MUST use explicit service bindings.
+- FR-018: Admin visibility MUST NOT imply tenant execution authority.
+- FR-019: Authority MUST be resource-scoped and capability-scoped.
+- FR-020: Authority expiry or revocation MUST invalidate pending execution contexts.
+
+### Context pinning and switching
+
+- FR-021: A context pin MUST include tenant, workspace, optional brand, resource, connection, context revision, source, scope, and expiry.
+- FR-022: Changing tenant MUST invalidate workspace, brand, resource, connection, plan, approval, and execution envelopes derived from the previous tenant.
+- FR-023: Changing workspace MUST invalidate dependent brand, resource, connection, plan, approval, and execution envelopes.
+- FR-024: Context pins MUST be scoped to request, workflow, or conversation.
+- FR-025: Low-risk reads MAY reuse a valid last-confirmed pin; high-risk writes MUST revalidate it.
+
+### Capability and readiness
+
+- FR-026: Context readiness and operation readiness MUST be evaluated separately.
+- FR-027: Operation readiness MUST include configuration, credentials, authorization, reachability, schema verification, quota, approval, and readback readiness.
+- FR-028: High-risk operations MUST NOT select platform fallback, provider fallback, or the first connection silently.
+- FR-029: The runtime MUST bind one exact connection before provider dispatch.
+- FR-030: The runtime MUST reject capability and runtime-surface mismatches.
+
+### Planning, approval, and execution
+
+- FR-031: The request compiler MUST bind context hash and plan hash.
+- FR-032: Approval MUST reference the exact plan, context revision, target resource, and capability.
+- FR-033: Context changes after approval MUST invalidate the approval.
+- FR-034: Unsafe retryable operations MUST require an idempotency key.
+- FR-035: Dispatch MUST validate optimistic concurrency for mutable repository or provider resources.
+- FR-036: Provider writes MUST be followed by same-cycle readback when the provider supports it.
+
+### Unknown outcome and continuity
+
+- FR-037: Transport loss after dispatch MUST produce `outcome_unknown`, not an immediate retry.
+- FR-038: Reconciliation MUST use idempotency evidence, provider readback, or resource fingerprints.
+- FR-039: The runtime MUST distinguish `not_executed_verified`, `executed_readback_recovered`, and `outcome_unresolved`.
+- FR-040: Support escalation MUST preserve the context decision, plan, approvals, dispatch evidence, and reconciliation history without secrets.
+
+### Dynamic and generalized implementation
+
+- FR-041: Production source and shared configuration MUST NOT contain fixed tenant, user, workspace, brand, connection, or provider-account identifiers.
+- FR-042: Repository and database adapters MUST discover schema and bindings from governed registries rather than guessed table or column names.
+- FR-043: New principal, resource, and capability types MUST be registerable without adding customer-specific branches to the domain layer.
+- FR-044: UI and API projections MUST be principal-safe and tenant-safe.
+- FR-045: Synthetic examples MUST be clearly marked and isolated from production configuration.
+
+## 7. Non-functional requirements
+
+- NFR-001: Resolution decisions MUST be deterministic for the same registry revision and request.
+- NFR-002: Every decision MUST be traceable with request ID, context hash, registry revision, and reason codes.
+- NFR-003: No secret or raw provider error may appear in customer projections.
+- NFR-004: Context resolution MUST support bounded pagination and candidate limits.
+- NFR-005: Registry changes MUST invalidate affected caches by revision.
+- NFR-006: Public contracts MUST remain backward compatible through additive rollout.
+- NFR-007: Failure modes MUST be structured and actionable.
+- NFR-008: Multi-tenant isolation tests are release blocking.
+
+## 8. Success criteria
+
+- Admin and tenant callers use the same resolver contract.
+- No production identifier hardcoding is detected by CI.
+- Ambiguous high-risk requests never dispatch.
+- Context switching invalidates all dependent state.
+- Cross-tenant candidates never enter the execution set.
+- Unknown outcomes are reconciled without duplicate writes.
+- All public endpoints are documented in OpenAPI 3.1.
