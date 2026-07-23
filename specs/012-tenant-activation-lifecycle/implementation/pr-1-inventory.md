@@ -25,7 +25,8 @@ The governed Admin system tool `activation_provider_bootstrap_validate` performs
 | Surface | Route authority | Service authority |
 |---|---|---|
 | OAuth handoff | `activationHostGatewayRoutes.js` → `authRoutes.js` | Tenant OAuth resource/profile and token services |
-| Session context | `tenantActivationOverlayRoutes.js` | Activation context, lifecycle, dashboard services |
+| Session context and list | `tenantActivationOverlayRoutes.js` | Activation context, lifecycle, dashboard, and tenant/user-scoped session-list handling |
+| Session turn archive | `gptSessionRoutes.js` | Bounded turn batching, tenant/user session ownership, and per-turn readback |
 | Awareness/detail/attention | `activationAwarenessRoutes.js` | Awareness and operational alert services |
 | Resolution cases | `activationAwarenessRoutes.js` | Projection, case, lifecycle, diagnostic services |
 | Task-source repair | `activationAwarenessRoutes.js` | Preview, apply, verification, capability, approval, readback services |
