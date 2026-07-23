@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   __test__,
   githubRepositoryMainMovedWebhookProvision,
@@ -259,6 +260,54 @@ const applyReason = "Provision the governed repository webhook after reviewed re
   assert.equal(readiness.provider_call_executed, false);
   assert.equal(readiness.mutations_executed, false);
   assert.equal(readiness.secrets_included, false);
+}
+
+{
+  const policyMigration = fs.readFileSync(
+    "./migrations/20260721_github_repository_main_moved_webhook_apply_policy.sql",
+    "utf8",
+  );
+  assert.match(policyMigration, /github_repository_main_moved_webhook_provision_apply_v1/);
+  assert.match(policyMigration, /'github',\s*\n\s*'github_repository_main_moved_webhook_provision',\s*\n\s*'github_repository_main_moved_webhook_provision',\s*\n\s*'system_layer'/);
+  assert.match(policyMigration, /`allow_external_write`/);
+  assert.match(policyMigration, /`requires_readback`/);
+  assert.match(policyMigration, /`requires_typed_confirmation`/);
+  assert.match(policyMigration, /`requires_same_cycle_dry_run`/);
+  assert.match(policyMigration, /github_app\.repository_hooks\.create_or_update_and_ping/);
+  assert.match(policyMigration, /signed_ping_status_required', 200/);
+  assert.match(policyMigration, /callback_url_fixed', 'https:\/\/auth\.mad4b\.com\/webhooks\/github\/repository-main-moved'/);
+  assert.match(policyMigration, /credential_payload_return_allowed', FALSE/);
+  assert.match(policyMigration, /inline_secret_input_allowed', FALSE/);
+  assert.match(policyMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(policyMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|DATABASE)\b|\bTRUNCATE\b/i);
+}
+
+{
+  const metadataHardeningMigration = fs.readFileSync(
+    "./migrations/20260722_github_repository_main_moved_webhook_policy_metadata_hardening.sql",
+    "utf8",
+  );
+  assert.match(metadataHardeningMigration, /github_repository_main_moved_webhook_provision_apply_v1/);
+  assert.match(metadataHardeningMigration, /server_side_reference_resolution_allowed/);
+  assert.match(metadataHardeningMigration, /inline_sensitive_input_allowed/);
+  assert.match(metadataHardeningMigration, /JSON_REMOVE/);
+  assert.match(metadataHardeningMigration, /server_side_secret_resolution_allowed/);
+  assert.match(metadataHardeningMigration, /inline_secret_input_allowed/);
+  assert.doesNotMatch(metadataHardeningMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|DATABASE)\b|\bTRUNCATE\b/i);
+
+  const { assertNoSecretBearingFields } = await import("./capabilityEnvelopeSecretPolicy.js");
+  assert.doesNotThrow(() => assertNoSecretBearingFields({
+    policy: {
+      server_side_reference_resolution_allowed: true,
+      inline_sensitive_input_allowed: false,
+      credential_payload_return_allowed: false,
+      secrets_included: false,
+    },
+  }));
+  assert.throws(
+    () => assertNoSecretBearingFields({ policy: { server_side_secret_resolution_allowed: true } }),
+    (error) => error.code === "capability_envelope_sensitive_field_rejected",
+  );
 }
 
 console.log("github repository-main-moved webhook provisioning tests passed");

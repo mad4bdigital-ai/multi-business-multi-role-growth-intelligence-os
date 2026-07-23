@@ -12,13 +12,14 @@ const EXPECTED_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "POST /admin/container-authority/canary-closeouts",
+  "POST /connect/bootstrap",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
 ].sort();
 
 const EVIDENCE_FILES = [
   "scripts/frontend-operation-governance-generator.mjs",
-  "scripts/test-manifest.mjs",
+  "frontend-operation-governance-tests.json",
   "routes/resourceApiRoutes.js",
   "src/application/resourceApi/resourceApiService.js",
   "src/infrastructure/resourceApi/resourceRepository.js",
@@ -26,6 +27,10 @@ const EVIDENCE_FILES = [
   "routes/dynamicContainerAuthorityRoutes.js",
   "dynamicContainerRolloutSafety.js",
   "test-dynamic-container-rollout-safety.mjs",
+  "routes/connectRoutes.js",
+  "tenantConnectBootstrapService.js",
+  "tenantConnectBootstrapTransaction.js",
+  "test-tenant-connect-bootstrap-transaction.mjs",
 ];
 
 function createFixture() {
@@ -56,8 +61,8 @@ assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 5,
-  generated_rule_count: 5,
+  candidate_count: 6,
+  generated_rule_count: 6,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
@@ -77,7 +82,7 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 5);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 6);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
@@ -133,6 +138,58 @@ replaceEvidence(
 const noCanaryTestPlan = buildOperationGovernance({ apiRoot: noCanaryTestFixture });
 assert(
   rejection(noCanaryTestPlan, "POST /admin/container-authority/canary-closeouts")
+    .missing_evidence.includes("registered_operation_test")
+);
+
+const noBootstrapRollbackFixture = createFixture();
+replaceEvidence(
+  noBootstrapRollbackFixture,
+  "tenantConnectBootstrapTransaction.js",
+  "transaction.rollback",
+  "transactionRollbackEvidenceRemoved"
+);
+const noBootstrapRollbackPlan = buildOperationGovernance({ apiRoot: noBootstrapRollbackFixture });
+assert(
+  rejection(noBootstrapRollbackPlan, "POST /connect/bootstrap")
+    .missing_evidence.includes("verified_rollback")
+);
+
+const noBootstrapReadbackFixture = createFixture();
+replaceEvidence(
+  noBootstrapReadbackFixture,
+  "tenantConnectBootstrapTransaction.js",
+  "const [readbackMembershipRows]",
+  "const [readbackMembershipEvidenceRemoved]"
+);
+const noBootstrapReadbackPlan = buildOperationGovernance({ apiRoot: noBootstrapReadbackFixture });
+assert(
+  rejection(noBootstrapReadbackPlan, "POST /connect/bootstrap")
+    .missing_evidence.includes("transactional_readback_follows_mutation")
+);
+
+const noBootstrapTestFixture = createFixture();
+replaceEvidence(
+  noBootstrapTestFixture,
+  "test-tenant-connect-bootstrap-transaction.mjs",
+  "// frontend-surface-operation: POST /connect/bootstrap",
+  "// operation claim removed for fail-closed regression"
+);
+const noBootstrapTestPlan = buildOperationGovernance({ apiRoot: noBootstrapTestFixture });
+assert(
+  rejection(noBootstrapTestPlan, "POST /connect/bootstrap")
+    .missing_evidence.includes("registered_operation_test")
+);
+
+const noBootstrapRegistrationFixture = createFixture();
+replaceEvidence(
+  noBootstrapRegistrationFixture,
+  "frontend-operation-governance-tests.json",
+  '"file": "test-tenant-connect-bootstrap-transaction.mjs"',
+  '"file": "test-unregistered-bootstrap-transaction.mjs"'
+);
+const noBootstrapRegistrationPlan = buildOperationGovernance({ apiRoot: noBootstrapRegistrationFixture });
+assert(
+  rejection(noBootstrapRegistrationPlan, "POST /connect/bootstrap")
     .missing_evidence.includes("registered_operation_test")
 );
 

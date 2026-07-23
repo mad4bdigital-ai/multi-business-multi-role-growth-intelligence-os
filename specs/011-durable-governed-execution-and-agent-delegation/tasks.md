@@ -1,0 +1,107 @@
+# Tasks: Durable Governed Execution and Agent Delegation
+
+## Specification and authority
+
+- [x] T001 Define the problem, objectives, users, scope, risks, and success criteria.
+- [x] T002 Define approval delegation modes and default-deny boundaries.
+- [x] T003 Define the target framework, delivery order, and compatibility strategy.
+- [x] T004 Define explicit runtime policies and degradation-prevention gates.
+- [x] T005 Define proposed data model and OpenAPI draft.
+- [x] T006 Define CI automation and fault-injection framework.
+- [x] T007 Define Spec Kit completion contract and requirements checklist.
+
+## Phase 0 — Baseline and contract design
+
+- [x] T010 Inventory reusable operation, plan, approval, envelope, idempotency, receipt, reconciliation, and audit tables.
+- [x] T011 Produce a gap analysis and table-reuse decision record.
+- [x] T012 Finalize operation, delegation, policy, receipt, and evidence JSON Schemas.
+- [x] T013 Finalize OpenAPI 3.1 draft governance and stable error codes.
+- [x] T014 Define compatibility adapters for existing governed tools.
+- [x] T015 Add registry and runtime contract drift tests before runtime implementation.
+
+## Phase 1 — Durable Execution Kernel
+
+- [ ] T100 Add durable operation and step lifecycle persistence.
+- [ ] T101 Add transition guards and terminal-state invariants.
+- [ ] T102 Add idempotency scope and pending mutation receipt before dispatch.
+- [ ] T103 Add status, resume, cancel, and explain operations.
+- [ ] T104 Add canonical `next_action` and blocker response.
+- [ ] T105 Add bounded operation timeline and evidence references.
+- [ ] T106 Add read-only pilot and low-risk internal mutation pilot.
+
+## Phase 2 — Canonical Execution Resolver
+
+- [x] T120 Add execution-contract registry and exact resolution rules.
+- [x] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
+- [x] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
+- [ ] T123 Convert selected operations to intent-first input.
+- [ ] T124 Add Admin and Tenant isolation and no-secret resolver tests.
+
+## Phase 3 — Plan-Bound Sessions and Delegation
+
+- [ ] T140 Add execution session with plan hash, resource snapshot, risk ceiling, limits, and expiry.
+- [ ] T141 Add delegation grant preview, create, inspect, revoke, and expire.
+- [ ] T142 Implement `user_approval_only`.
+- [ ] T143 Implement `agent_recommend_only`.
+- [ ] T144 Implement `agent_queue_for_approval`.
+- [ ] T145 Implement `delegated_low_risk`.
+- [ ] T146 Implement `delegated_plan_bound`.
+- [ ] T147 Add human-on-drift pause and typed escalation.
+- [ ] T148 Add separation-of-duties foundation for later `multi_agent_approval`.
+- [ ] T149 Prove that Agent renewal cannot widen authority or approve itself.
+
+## Phase 4 — Reconciliation and Readback
+
+- [ ] T160 Add outcome classifier.
+- [ ] T161 Add read-before-retry enforcement after unknown outcomes.
+- [ ] T162 Add repository and PR reconcilers.
+- [ ] T163 Add migration schema and ledger reconciler.
+- [ ] T164 Add deployment and production-parity reconciler.
+- [ ] T165 Add provider adapter reconciliation contract.
+- [ ] T166 Add duplicate-mutation fault-injection suite.
+
+## Phase 5 — Validation Lab and Structured CI
+
+- [ ] T180 Add disposable MariaDB-compatible validation environment.
+- [ ] T181 Record engine, SQL mode, collation, constraints, indexes, schema diff, and rollback assessment.
+- [ ] T182 Block migration apply authorization without engine validation.
+- [ ] T183 Add structured CI failure artifact schema and reporter.
+- [ ] T184 Add contract drift gate.
+- [ ] T185 Add state-machine model gate.
+- [ ] T186 Add idempotency replay and unknown-outcome gates.
+- [ ] T187 Add delegation-boundary and policy-drift gates.
+- [ ] T188 Add semantic JSON, YAML, OpenAPI, and completion mutation gates.
+- [ ] T189 Fail CI checks that do not emit structured diagnosis.
+
+## Phase 6 — Managed PR and Release Lifecycle
+
+- [ ] T200 Add managed delivery operation on top of the durable kernel.
+- [ ] T201 Add semantic patch intent and stable anchors.
+- [ ] T202 Add automatic base synchronization and stale-run cancellation.
+- [ ] T203 Add bounded delegated repair for allowlisted low-risk CI failures.
+- [ ] T204 Bind merge approval to final head and base SHA.
+- [ ] T205 Add merge, branch-delete, deployment receipt, and production readback.
+- [ ] T206 Prove no force push and protected-branch bypass.
+
+## Phase 7 — Evidence Auto-Closeout
+
+- [ ] T220 Add authoritative evidence collector.
+- [ ] T221 Add schemas for manifest, completion, checklist, tasks, and delivery-state updates.
+- [ ] T222 Generate closeout changes with semantic mutations.
+- [ ] T223 Validate generated evidence before commit and in CI.
+- [ ] T224 Create closeout PR through governed repository automation.
+
+## Phase 8 — Goal-Filtered Operational Intelligence
+
+- [ ] T240 Add goal-to-operation correlation.
+- [ ] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
+- [ ] T242 Add summary-first bounded goal projection.
+- [ ] T243 Preserve full diagnostic detail through governed references.
+
+## Completion governance
+
+- [ ] T260 Record every implementation PR and merge SHA.
+- [ ] T261 Record migrations, checksums, authorization, and ledger evidence.
+- [ ] T262 Record delegation and fault-injection certification evidence.
+- [ ] T263 Record CI, staging, and production parity for every rollout phase.
+- [ ] T264 Complete post-merge audit and closeout PR.
