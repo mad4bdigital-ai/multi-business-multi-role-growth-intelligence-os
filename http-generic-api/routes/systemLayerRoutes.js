@@ -932,7 +932,8 @@ async function buildSystemToolsListResponse(auth, query = {}) {
   return {
     ok: true,
     protocol: "openapi-mcp-facade",
-    list_mode: "stable_cursor_catalog_v2",
+    list_mode: "bounded_paginated_chunkable",
+    catalog_mode: "stable_cursor_catalog_v2",
     tools: catalog.items,
     items: catalog.items,
     page: catalog.page,
