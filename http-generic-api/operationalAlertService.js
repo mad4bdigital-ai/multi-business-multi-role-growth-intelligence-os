@@ -582,6 +582,7 @@ function mapPersistedAlert(row) {
     summary: row.summary,
     reasonCode: row.reason_code,
     lifecycleStatus: row.lifecycle_status,
+    lifecycleUpdatedAt: row.resolved_at || row.updated_at,
     verificationState: row.verification_state,
     evidenceType: row.evidence_type,
     evidenceRef: row.evidence_ref,
