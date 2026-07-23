@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-unified-admin-tenant-context-kernel",
+  "delivery_mode": "single_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": []
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending"
+    },
+    "release_readiness": {
+      "status": "pending"
+    }
+  },
+  "notes": "This pull request delivers the specification and governance artifacts only. Runtime implementation, tests, migration evidence, production verification, and closeout evidence remain future governed work.",
+  "secrets_included": false
+}
