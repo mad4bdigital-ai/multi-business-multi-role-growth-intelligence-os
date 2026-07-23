@@ -672,8 +672,29 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields.
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confi.
                   properties: {}
+            examples:
+              repositoryWebhookDryRun:
+                summary: Resolve the governed repository and produce review-bound fingerprints without a provider write
+                value:
+                  name: github_repository_main_moved_webhook_provision
+                  tool_args:
+                    binding_key: growth_intelligence_platform.github.primary.production
+                    mode: dry_run
+              repositoryWebhookApply:
+                summary: Apply only after reviewing dry-run output and approving a single-use context-bound envelope
+                value:
+                  name: github_repository_main_moved_webhook_provision
+                  tool_args:
+                    binding_key: growth_intelligence_platform.github.primary.production
+                    mode: apply
+                    confirm: PROVISION_GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK
+                    capability_envelope_id: 00000000-0000-0000-0000-000000000000
+                    expected_commit_sha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    binding_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                    capability_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+                    reason: Apply the reviewed repository webhook plan after same-cycle authority and capability validation.
       responses:
         "200":
           description: System tool result
