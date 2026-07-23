@@ -1,36 +1,57 @@
 # Tasks: [FEATURE NAME]
 
-> Instantiate this template inside `specs/<feature>/tasks.md`. The template itself is not completion evidence.
-> Every feature must also create `completion.json` and at least one checklist under `checklists/`.
+**Spec**: `specs/[NNN-feature]/spec.md`  
+**Plan**: `specs/[NNN-feature]/plan.md`
 
-## Specification
+## Rules
 
-- [ ] T001 Define user scenarios and success criteria.
-- [ ] T002 Complete the resource coverage matrix.
-- [ ] T003 Identify Admin/Tenant scope and permission adapters.
+- Use stable IDs `T001`, `T002`, ...
+- Add `[P]` only when tasks are safe to execute in parallel.
+- Add requirement and operation-path references.
+- A mutation task must name approval, authority, readback, and rollback requirements.
+- Generated files must follow generator authority.
+- Do not mark a task complete from narrative; cite commit, test, migration, or runtime evidence.
 
-## Implementation
+## Phase 0 — Clarification and baseline
 
-- [ ] T010 Add additive schema and registry seeds.
-- [ ] T011 Add resource descriptor and safe-field policy.
-- [ ] T012 Add list/get/search routes.
-- [ ] T013 Add permissions/changes/revisions/readback routes.
-- [ ] T014 Add mutation lifecycle adapters where approved.
-- [ ] T015 Register Admin and Tenant tool exports.
-- [ ] T016 Update OpenAPI 3.1 contracts.
+- [ ] **T001** [requirement/path] Capture verified baseline and open questions.
 
-## Verification
+## Phase 1 — Contracts and state
 
-- [ ] T020 Add tests to the explicit test manifest.
-- [ ] T021 Run resource API coverage gate.
-- [ ] T022 Run tenant isolation and secret-redaction tests.
-- [ ] T023 Update canonicals and knowledge guide.
-- [ ] T024 Run CI and release readiness.
+- [ ] **T010** [P] [requirement/path] Draft contract.
+- [ ] **T011** [P] [requirement/path] Draft data/state model.
 
-## Completion governance
+## Phase 2 — Implementation
 
-- [ ] T030 Choose `single_pr` or `multi_pr` in `completion.json`.
-- [ ] T031 Resolve every task and checklist item as complete `[x]` or explicit not-applicable `[~]` with rationale.
-- [ ] T032 Record implementation PR, CI, merge, migration, deployment, and audit evidence required by the feature.
-- [ ] T033 Use `multi_pr` with a final closeout PR whenever migration, production verification, or post-merge audit is required.
-- [ ] T034 Run `node http-generic-api/scripts/spec-kit-completion-gate.mjs --changed` before the final merge.
+- [ ] **T020** [requirement/path] Implement bounded behavior.
+
+## Phase 3 — Tests and fault injection
+
+- [ ] **T030** [P] Add unit tests.
+- [ ] **T031** [P] Add integration and contract tests.
+- [ ] **T032** Add replay, timeout, unknown-outcome, and rollback tests.
+
+## Phase 4 — Documentation and generated artifacts
+
+- [ ] **T040** Update canonical sources and run generators.
+- [ ] **T041** Update runbooks, examples, and compatibility notes.
+
+## Phase 5 — Governed delivery
+
+- [ ] **T050** Open PR with risks, tests, API/database impact, rollout, and rollback.
+- [ ] **T051** Synchronize branch without force and pass required CI.
+- [ ] **T052** Obtain fresh merge authority bound to head/base SHA.
+
+## Phase 6 — Deployment and closeout
+
+- [ ] **T060** Verify auto-deploy and production/main parity.
+- [ ] **T061** Run health and user-path production smoke.
+- [ ] **T062** Validate completion evidence and classify remaining gaps.
+
+## Dependency graph
+
+Document blocking dependencies and safe parallel groups.
+
+## Completion rule
+
+All mandatory tasks, checklists, contracts, and authoritative readbacks must pass before `completion.json.status` may become `complete`.
