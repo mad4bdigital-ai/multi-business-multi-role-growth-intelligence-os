@@ -79,3 +79,22 @@ Raw execution context, steps, preview, resume policy, budget policy, checkpoint 
 2. Add delegation preview/create/inspect/revoke/expire contracts.
 3. Implement approval modes separately.
 4. Prove that renewal cannot widen authority or self-approve.
+
+## Phase 3 Slice A closeout evidence
+
+- Implementation PR: #3042.
+- Merge SHA: `d2dd51d7cb588e467620f8349cbb135102503a0a`.
+- Final CI head: `e3c927bee291a425ada8e939bf3485a1e0762f02`.
+- Final CI base: `d3cdf2e249d2c2fd62d52fbff0b83c3c4a6fbb6b`.
+- Required checks passed: Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests.
+- Runtime readback observed deployed SHA `b342eadd093464811157e9c0fcac1d82a8fa09c4`.
+- The deployed runtime was seven commits ahead of the Phase 3 merge and zero commits behind.
+- Runtime verification reference: `e2a51673-8bb4-4864-a1c2-1606d1fcc5e8`.
+
+A release reconciliation was prepared after an earlier readback showed runtime lag. Dry-run passed and a short-lived exact-SHA gate was opened. Before execution, `main` advanced, so the gate was hard-disabled and Release Operation `2cca7984-3d93-40eb-bcc3-78f6319e87ff` was cancelled with classification `superseded_before_execution`. No provider dispatch, live deployment, retry, or rollback occurred.
+
+A later readback proved that runtime already contained Phase 3 at a newer descendant. The only remaining difference from `main` was one generated work-map documentation commit affecting three Markdown files. No additional deployment was required.
+
+Phase 3 Slice A is `complete_on_main`. Delegation grant persistence, approval modes, delegated execution, renewal, revocation, and drift escalation remain outside this slice.
+
+The overall Spec 011 status remains `in_progress`.
