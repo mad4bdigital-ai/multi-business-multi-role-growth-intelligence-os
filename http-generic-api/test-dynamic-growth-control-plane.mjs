@@ -165,6 +165,9 @@ const fakeRepository = {
     return saved;
   },
   async getConfigurationDefinition(key) { return stored.definitions.get(key) || null; },
+  async getConfigurationVersion(configVersionId) {
+    return stored.versions.find((item) => item.configVersionId === configVersionId) || null;
+  },
   async createConfigurationVersion(record) {
     const saved = {
       ...record,
