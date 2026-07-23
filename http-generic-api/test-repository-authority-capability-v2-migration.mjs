@@ -23,8 +23,8 @@ assert(sql.includes("require_binding_sha256"));
 assert(sql.includes("require_capability_sha256"));
 assert(sql.includes("repository-capability-v2"));
 assert(sql.includes("deterministic_inheritance"));
-assert(sql.includes("platform','*',100"));
-assert(sql.includes("environment','production',700"));
+assert.match(sql, /SELECT\s+'platform'\s+AS\s+scope_type,\s*'\*'\s+AS\s+scope_ref,\s*100\s+AS\s+precedence/i);
+assert.match(sql, /UNION\s+ALL\s+SELECT\s+'environment',\s*'production',\s*700/i);
 assert(!sql.includes("value_ciphertext"));
 assert(!sql.includes("includeSecret"));
 
