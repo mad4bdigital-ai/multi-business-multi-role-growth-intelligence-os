@@ -20,8 +20,10 @@ assert.match(authorityRoutes, /"\/authority\/decisions\/resolve"/);
 assert.match(authorityRoutes, /"\/me\/authority\/projections\/connectors"/);
 assert.match(authorityRoutes, /"\/me\/authority\/decisions\/resolve"/);
 assert.match(authorityRoutes, /BACKEND_AUTH_MIDDLEWARE_UNAVAILABLE/);
-assert.match(authorityRoutes, /USER_AUTH_CONFIGURATION_UNAVAILABLE/);
+assert.match(authorityRoutes, /createUserJwtMiddleware/);
+assert.match(authorityRoutes, /TENANT_IDENTITY_REQUIRED/);
 assert.doesNotMatch(authorityRoutes, /dev-secret/);
+assert.doesNotMatch(authorityRoutes, /from ["']jsonwebtoken["']/);
 assert.doesNotMatch(authorityRoutes, /function pass\(/);
 
 console.log("effective authority composition tests passed");
