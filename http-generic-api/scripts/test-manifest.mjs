@@ -598,6 +598,7 @@ export const testCommands = [
   "node test-durable-execution-shadow-service.mjs",
   "node test-operation-registry-foundation.mjs",
   "node test-operation-registry-repository.mjs",
+  "node test-operation-binding-compiler.mjs",
   "node test-canonical-execution-contract-resolver.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
