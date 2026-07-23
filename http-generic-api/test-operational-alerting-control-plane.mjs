@@ -565,6 +565,21 @@ function testRepositoryContracts() {
   assert.match(mediumClosureMigration, /credential_payload_read', FALSE/);
   assert.match(mediumClosureMigration, /secrets_included', FALSE/);
   assert.doesNotMatch(mediumClosureMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
+
+  const hostingerOccurrenceRefreshMigration = read("./migrations/20260723_refresh_hostinger_ssh_deploy_policy_occurrence_resolution.sql");
+  assert.equal((hostingerOccurrenceRefreshMigration.match(/UPDATE operational_alerts/g) || []).length, 1);
+  assert.match(hostingerOccurrenceRefreshMigration, /c916daf6-32d9-46f1-ba95-2c718900f3f0/);
+  assert.match(hostingerOccurrenceRefreshMigration, /execution:060bda5fdc0941a2efa4c09f1c293e7d5bd0f2bfead4d8b1825208ff7026deeb/);
+  assert.match(hostingerOccurrenceRefreshMigration, /lifecycle_status = 'resolved'/);
+  assert.match(hostingerOccurrenceRefreshMigration, /resolved_at < '2026-07-22 23:30:20'/);
+  assert.match(hostingerOccurrenceRefreshMigration, /execution-log:\/\/33325/);
+  assert.match(hostingerOccurrenceRefreshMigration, /root_fix_merge_sha', '3507f4098ef56179fd35d732b8890983ec14924a'/);
+  assert.match(hostingerOccurrenceRefreshMigration, /future_newer_occurrence_reopens', TRUE/);
+  assert.match(hostingerOccurrenceRefreshMigration, /migration_provider_call_executed', FALSE/);
+  assert.match(hostingerOccurrenceRefreshMigration, /migration_external_write_executed', FALSE/);
+  assert.match(hostingerOccurrenceRefreshMigration, /credential_payload_read', FALSE/);
+  assert.match(hostingerOccurrenceRefreshMigration, /secrets_included', FALSE/);
+  assert.doesNotMatch(hostingerOccurrenceRefreshMigration, /\bDELETE\s+FROM\b|\bDROP\s+(TABLE|VIEW|DATABASE)\b|\bTRUNCATE\b|\bALTER\s+TABLE\b/i);
 }
 
 async function main() {
