@@ -890,16 +890,56 @@ async function toolsForPrincipalWithPlatformEndpoints(auth) {
   return [...baseTools, ...tenantTools, ...platformTools];
 }
 
+function systemToolCatalogMetadata(tools = []) {
+  return (Array.isArray(tools) ? tools : []).map((tool) => {
+    const descriptorEntry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(tool?.name);
+    return {
+      ...tool,
+      source_key: tool?.source_key
+        || descriptorEntry?.source_key
+        || tool?.x_platform_endpoint?.source
+        || tool?.source
+        || "local_system_layer",
+      capability_key: tool?.capability_key
+        || tool?.capabilityKey
+        || tool?.["x-capability-key"]
+        || null,
+    };
+  });
+}
+
+async function visibleSystemToolCatalog(auth) {
+  return systemToolCatalogMetadata(await toolsForPrincipalWithPlatformEndpoints(auth));
+}
+
+function normalizeSystemToolCatalogQuery(query = {}) {
+  const normalized = query && typeof query === "object" ? { ...query } : {};
+  const cursor = String(normalized.cursor ?? "").trim();
+  if (/^\d+$/.test(cursor)) {
+    normalized.offset = cursor;
+    delete normalized.cursor;
+  }
+  return normalized;
+}
+
 async function buildSystemToolsListResponse(auth, query = {}) {
-  const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
-  const { items, page } = paginateItems(allTools, query || {});
+  const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+  const catalog = listSystemToolCatalog(
+    await visibleSystemToolCatalog(auth),
+    normalizeSystemToolCatalogQuery(query),
+    { legacyCompleteDefault: true },
+  );
   return {
     ok: true,
     protocol: "openapi-mcp-facade",
-    list_mode: "bounded_paginated_chunkable",
-    tools: items,
-    page,
-    total_available_tools: page.total_count,
+    list_mode: "stable_cursor_catalog_v2",
+    tools: catalog.items,
+    items: catalog.items,
+    page: catalog.page,
+    total_available_tools: catalog.page.total_count,
+    catalog_version: catalog.catalog_version,
+    snapshot_id: catalog.snapshot_id,
+    compatibility: catalog.compatibility,
     continuation_contract: {
       response_chunked_when_large: true,
       required_tool: "response_chunk_read",
@@ -912,6 +952,48 @@ async function buildSystemToolsListResponse(auth, query = {}) {
     },
     secrets_included: false,
   };
+}
+
+async function getSystemToolCatalogDescriptor(auth, toolName) {
+  const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+  return getSystemToolDescriptorByName(await visibleSystemToolCatalog(auth), toolName);
+}
+
+async function resolveSystemToolCatalogIntent(auth, request = {}) {
+  const { resolveSystemCapabilityIntent } = await import("../systemToolCatalogV2.js");
+  return resolveSystemCapabilityIntent(await visibleSystemToolCatalog(auth), request);
+}
+
+async function readSystemToolCatalogObservability() {
+  const {
+    auditSystemToolDescriptorRuntimeParity,
+    getSystemToolCatalogObservability,
+  } = await import("../systemToolCatalogV2.js");
+  const descriptors = [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => ({
+    ...entry.tool,
+    name,
+    source_key: entry.source_key,
+  }));
+  const handlers = new Map(
+    [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => [name, entry.handler]),
+  );
+  return {
+    ...getSystemToolCatalogObservability(),
+    descriptor_parity: auditSystemToolDescriptorRuntimeParity(descriptors, handlers),
+  };
+}
+
+function sendSystemToolCatalogError(res, error, fallbackCode) {
+  return res.status(error?.status || 500).json({
+    ok: false,
+    error: {
+      code: error?.code || fallbackCode,
+      message: error?.message || "System tool catalog request failed.",
+      ...(error?.details !== undefined ? { details: error.details } : {}),
+      ...(res.locals?.request_id ? { requestId: res.locals.request_id } : {}),
+    },
+    secrets_included: false,
+  });
 }
 
 async function chunkSystemLayerResponse(body, source = {}) {
