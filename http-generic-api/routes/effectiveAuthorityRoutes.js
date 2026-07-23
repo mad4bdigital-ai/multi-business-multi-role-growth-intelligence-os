@@ -1,6 +1,6 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getEffectiveAuthorityRuntimeService } from "../effectiveAuthorityRuntime.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { createEffectiveAuthorityController } from "../src/api/effectiveAuthority/effectiveAuthorityController.js";
 
 function errorEnvelope(req, code, message) {
@@ -41,46 +41,25 @@ function fallbackAdminGuard(req, res, next) {
     );
 }
 
-function fallbackUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt" && req.auth?.user_id && req.auth?.tenant_id) return next();
+const centralizedUserJwt = createUserJwtMiddleware();
 
-  const jwtSecret = String(process.env.JWT_SECRET || "").trim();
-  if (!jwtSecret) {
-    return res
-      .status(503)
-      .json(
-        errorEnvelope(
-          req,
-          "USER_AUTH_CONFIGURATION_UNAVAILABLE",
-          "Tenant authentication is not configured for this authority surface."
-        )
-      );
-  }
-
-  try {
-    const authorization = String(req.headers.authorization || "");
-    if (!authorization.startsWith("Bearer ")) throw new Error("missing bearer token");
-    const payload = jwt.verify(authorization.slice(7), jwtSecret);
-    if (!payload?.user_id || !payload?.tenant_id) throw new Error("missing tenant identity");
-    req.auth = {
-      mode: "user_jwt",
-      user_id: payload.user_id,
-      tenant_id: payload.tenant_id,
-      principal_type: payload.principal_type || "tenant_member",
-      claims: payload,
-    };
+function requireTenantIdentity(req, res, next) {
+  if (req.auth?.mode === "user_jwt" && req.auth?.user_id && req.auth?.tenant_id) {
     return next();
-  } catch {
-    return res
-      .status(401)
-      .json(
-        errorEnvelope(
-          req,
-          "USER_JWT_REQUIRED",
-          "A signed tenant user session is required."
-        )
-      );
   }
+  return res
+    .status(403)
+    .json(
+      errorEnvelope(
+        req,
+        "TENANT_IDENTITY_REQUIRED",
+        "A tenant-scoped user identity is required for this authority surface."
+      )
+    );
+}
+
+function fallbackUserJwt(req, res, next) {
+  return centralizedUserJwt(req, res, () => requireTenantIdentity(req, res, next));
 }
 
 export function buildEffectiveAuthorityRoutes(deps = {}) {
