@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0.0",
+  "feature_key": "012-tenant-activation-lifecycle",
+  "implementation_slice": "pr-1-inventory-contracts-parity",
+  "observed_at": "2026-07-23",
+  "base_sha": "b5d1480ece3bf36bc4093a3d91bb884d57636698",
+  "scope": {
+    "repository_changes_only": true,
+    "runtime_mutation": false,
+    "database_migration": false,
+    "registry_activation": false,
+    "provider_write": false,
+    "credential_change": false,
+    "deployment": false
+  },
+  "contract_authority": {
+    "served_artifact": "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+    "server": "https://activation.mad4b.com",
+    "openapi_version": "3.1.0",
+    "security_scheme": "userBearerAuth",
+    "protected_resource": "https://activation.mad4b.com",
+    "route_files": [
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/tenantActivationOverlayRoutes.js",
+      "http-generic-api/routes/activationAwarenessRoutes.js",
+      "http-generic-api/routes/authRoutes.js"
+    ],
+    "registry_row_role": "inventory_only_not_runtime_authority",
+    "canonical_generation_status": "requires_T010_source_designation"
+  },
+  "current_scope_catalog": [
+    "https://auth.mad4b.com/scopes/tenant.links",
+    "https://auth.mad4b.com/scopes/tenant.status",
+    "https://auth.mad4b.com/scopes/tenant.activation",
+    "https://auth.mad4b.com/scopes/tenant.install",
+    "https://auth.mad4b.com/scopes/tenant.system-tools"
+  ],
+  "oauth_handoffs": [
+    {"method":"GET","path":"/auth/oauth/authorize","operation_id":"tenantGptOAuthAuthorize","gateway_file":"http-generic-api/routes/activationHostGatewayRoutes.js","upstream_route_file":"http-generic-api/routes/authRoutes.js","upstream_route_literal":"/oauth/authorize"},
+    {"method":"POST","path":"/auth/oauth/code","operation_id":"tenantGptOAuthCode","gateway_file":"http-generic-api/routes/activationHostGatewayRoutes.js","upstream_route_file":"http-generic-api/routes/authRoutes.js","upstream_route_literal":"/oauth/code"},
+    {"method":"POST","path":"/auth/oauth/token","operation_id":"tenantGptOAuthToken","gateway_file":"http-generic-api/routes/activationHostGatewayRoutes.js","upstream_route_file":"http-generic-api/routes/authRoutes.js","upstream_route_literal":"/oauth/token"}
+  ],
+  "public_operations": [
+    {"method":"GET","path":"/tenant/activation/session-context","operation_id":"activateSession","registry_operation_id":"getTenantActivationSessionContext","route_file":"http-generic-api/routes/tenantActivationOverlayRoutes.js","route_literal":"/tenant/activation/session-context","application_services":["buildActivationSessionContext","activationSessionLifecycleService","tenantGrowthDashboardService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"tenant_activation_prefix","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/activation/operational-attention","operation_id":"readTenantActivationOperationalAttention","registry_operation_id":"readTenantActivationOperationalAttention","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/activation/operational-attention","application_services":["operationalAlertService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"tenant_activation_prefix","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/activation/awareness","operation_id":"readTenantActivationAwareness","registry_operation_id":"readTenantActivationAwareness","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/activation/awareness","application_services":["activationAwarenessService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"tenant_activation_prefix","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/activation/dynamic-tabs/detail","operation_id":"readTenantActivationDynamicTabDetail","registry_operation_id":"readTenantActivationDynamicTabDetail","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/activation/dynamic-tabs/detail","application_services":["activationAwarenessService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"tenant_activation_prefix","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/resolution/problem-cards","operation_id":"readTenantResolutionProblemCards","registry_operation_id":"readTenantResolutionProblemCards","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/problem-cards","application_services":["tenantResolutionProjectionService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"resolution_problem_cards","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/resolution/cases","operation_id":"listTenantResolutionCases","registry_operation_id":"listTenantResolutionCases","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases","application_services":["tenantResolutionCaseLifecycleService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"resolution_cases_collection","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases","operation_id":"createTenantResolutionCase","registry_operation_id":"createTenantResolutionCase","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases","application_services":["tenantResolutionCaseService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership"],"gateway_group":"resolution_cases_collection","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"GET","path":"/tenant/resolution/cases/{caseId}","operation_id":"getTenantResolutionCase","registry_operation_id":"getTenantResolutionCase","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId","application_services":["tenantResolutionCaseLifecycleService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","tenant/workspace object scope"],"gateway_group":"resolution_case_item","consequential":false,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases/{caseId}/transitions","operation_id":"transitionTenantResolutionCase","registry_operation_id":"transitionTenantResolutionCase","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId/transitions","application_services":["tenantResolutionCaseLifecycleService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","tenant/workspace object scope"],"gateway_group":"resolution_case_actions","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases/{caseId}/diagnostics","operation_id":"runTenantResolutionDiagnosticAction","registry_operation_id":"runTenantResolutionDiagnosticAction","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId/diagnostics","application_services":["tenantResolutionDiagnosticService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","tenant/workspace object scope"],"gateway_group":"resolution_case_actions","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases/{caseId}/task-source-repair/preview","operation_id":"previewTenantTaskSourceRepair","registry_operation_id":"previewTenantTaskSourceRepair","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId/task-source-repair/preview","application_services":["tenantTaskSourceRepairPreviewService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","capability preflight"],"gateway_group":"resolution_task_source_repair","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases/{caseId}/task-source-repair/apply","operation_id":"applyTenantTaskSourceRepair","registry_operation_id":"applyTenantTaskSourceRepair","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId/task-source-repair/apply","application_services":["tenantTaskSourceRepairApplyService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","capability envelope","approval","readback"],"gateway_group":"resolution_task_source_repair","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"},
+    {"method":"POST","path":"/tenant/resolution/cases/{caseId}/task-source-repair/verify","operation_id":"verifyTenantTaskSourceRepair","registry_operation_id":"verifyTenantTaskSourceRepair","route_file":"http-generic-api/routes/activationAwarenessRoutes.js","route_literal":"/tenant/resolution/cases/:caseId/task-source-repair/verify","application_services":["tenantTaskSourceRepairVerificationService"],"auth_chain":["requireActivationTenantGptAccessToken","requireTenantUserJwt","active membership","readback"],"gateway_group":"resolution_task_source_repair","consequential":true,"external_provider_write":false,"registry_row_classification":"inventory_only_not_runtime_authority"}
+  ],
+  "runtime_discovered_not_declared_in_tenant_activation_schema": [
+    {"method":"GET","path":"/tenant/activation/guidance","operation_id":"getTenantActivationGuidance"},
+    {"method":"GET","path":"/tenant/activation/sessions","operation_id":"listTenantActivationSessions"},
+    {"method":"POST","path":"/tenant/activation/sessions/{id}/turns","operation_id":"writeTenantActivationSessionTurns"},
+    {"method":"GET","path":"/tenant/activation/runs/{runId}/archive","operation_id":"getTenantActivationRunArchive"},
+    {"method":"GET","path":"/tenant/resolution/skill-approvals","operation_id":"listTenantSkillApprovals"},
+    {"method":"POST","path":"/tenant/resolution/skill-approvals/{approvalKey}/decision","operation_id":"decideTenantSkillApproval"}
+  ],
+  "physical_mappings": {
+    "general_operation_identity":{"disposition":"reuse_with_additive_fields_or_projection","tables":["workflow_runs","step_runs","operation_run_ownership"],"gaps":["operation_fingerprint","idempotency_key_hash","protected_resource","oauth_client_id","purpose","activation_mode","optimistic_version"]},
+    "activation_operation_projection":{"disposition":"reuse_with_additive_projection","tables":["activation_runs","activation_snapshot_ledger"],"gaps":["current_stage","operation_fingerprint","protected_resource","client_id","activation_mode","optimistic_version"]},
+    "activation_stage_attempt":{"disposition":"reuse_pattern_then_add_dedicated_projection","tables":["step_runs"],"proposed_additive_table":"activation_stage_attempts","gaps":["stage_attempt_identity","source_type","retryable","unknown_outcome","unique_operation_stage_attempt"]},
+    "activation_evidence_item":{"disposition":"specialized_sources_exist_add_general_projection","tables":["activation_snapshot_ledger","operational_alerts","runtime_verification_evidence_chunks","release_operation_evidence"],"proposed_additive_table":"activation_evidence_items"},
+    "activation_delivery":{"disposition":"aggregate_exists_add_attempt_ledger","tables":["activation_runs"],"proposed_additive_table":"activation_deliveries"},
+    "activation_acknowledgement":{"disposition":"aggregate_exists_add_actor_ledger","tables":["activation_runs"],"proposed_additive_table":"activation_acknowledgements"},
+    "activation_reconciliation_attempt":{"disposition":"domain_specific_readback_exists_add_general_projection","tables":["tenant_resolution_readbacks","repository_mutation_runs_v6"],"proposed_additive_table":"activation_reconciliation_attempts"},
+    "deployment_observation":{"disposition":"reuse","tables":["runtime_verification_runs","runtime_verification_evidence_chunks","runtime_deployment_parity_status"]},
+    "activation_attention_item":{"disposition":"reuse","tables":["operational_alerts","operational_alert_lifecycle_events"]},
+    "oauth_authorization_code":{"disposition":"reuse_with_additive_metadata","tables":["tenant_gpt_oauth_authorization_codes"],"gaps":["scope_snapshot","protected_resource","request_correlation_ref"]},
+    "tenant_resolution_case_lifecycle":{"disposition":"reuse","tables":["tenant_resolution_cases","tenant_resolution_case_events","tenant_resolution_readbacks"]},
+    "dynamic_resolution_operation_policy":{"disposition":"reuse_catalog_add_policy_projection","tables":["platform_resource_operation_registry"],"proposed_additive_table":"tenant_resolution_operation_policies","gaps":["scopes","roles","capabilities","object_authority","risk","approval","idempotency","readback","effective_version"]}
+  },
+  "known_gaps": [
+    {"code":"canonical_source_not_designated","summary":"The served Tenant Activation artifact is known, but T010 must designate and document its canonical generation source before contract changes."},
+    {"code":"registry_rows_inventory_only","summary":"OpenAPI-synchronized endpoint rows are discovery metadata and are not callable runtime authority."},
+    {"code":"session_operation_id_alias","summary":"The public operationId is activateSession while the endpoint inventory row uses getTenantActivationSessionContext."},
+    {"code":"resolution_scope_policy_not_active","summary":"The active Tenant Activation schema still uses the broad five-scope catalog; ADR-004 Resolution scopes and dynamic per-operation policy are not implemented."},
+    {"code":"tenant_header_fallback_requires_hardening_review","summary":"activationAwarenessRoutes.js contains an x-tenant-id fallback when the verified payload lacks tenant_id; no behavior change is included in PR-1."},
+    {"code":"general_operation_ledger_incomplete_for_activation","summary":"workflow_runs/step_runs/operation_run_ownership provide reusable identity and execution patterns but lack the full Activation idempotency, fingerprint, resource, purpose, and version contract."}
+  ]
+}
