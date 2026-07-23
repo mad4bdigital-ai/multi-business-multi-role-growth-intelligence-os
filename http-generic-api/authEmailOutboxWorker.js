@@ -1,5 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { google } from "googleapis";
 import { getPool } from "./db.js";
+import {
+  claimAuthEmailOutboxDeliveryAttempt,
+  getAuthEmailOutboxAttemptSummary,
+  isAuthEmailOutboxAttemptClaimConflict,
+  recordAuthEmailOutboxAttemptFinalizeError,
+  requireAuthEmailOutboxAttemptLedger,
+  updateAuthEmailOutboxDeliveryAttempt,
+} from "./authEmailOutboxAttemptLedger.js";
 import { decryptUserAppCredentials, extractCredentialValue, markUserAppConnectionUsed } from "./userAppConnectionCredentials.js";
 
 const DEFAULT_LIMIT = 10;
