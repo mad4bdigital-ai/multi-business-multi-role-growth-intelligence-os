@@ -233,6 +233,32 @@ const draft = await service.createConfigurationVersion("growth.execution.policy"
   scope: { scopeType: "brand", tenantId: "tenant-a", workspaceId: "workspace-a", brandKey: "brand-a" },
   values: { approvalRequired: true, maxResources: 2 }, expectedRevision: 0
 }, { actorId: "admin", idempotencyKey: "config-version-0001" });
+const readyVersion = await service.validateConfigurationVersion(
+  "growth.execution.policy",
+  draft.configVersionId,
+  { expectedRevision: draft.versionRevision },
+  { actorId: "admin" }
+);
+assert.equal(readyVersion.lifecycle, "ready");
+assert.equal(readyVersion.versionRevision, 2);
+const lifecycleHold = await service.createConfigurationLifecycleApprovalHold(
+  "growth.execution.policy",
+  draft.configVersionId,
+  { operation: "activate", expiresInMinutes: 30 },
+  { actorId: "admin", requestId: "request-1", correlationId: "correlation-1" }
+);
+assert.equal(lifecycleHold.status, "open");
+assert.equal(lifecycleHold.operation, "activate");
+const activatedVersion = await service.activateConfigurationVersion(
+  "growth.execution.policy",
+  draft.configVersionId,
+  { approvalHoldId: lifecycleHold.holdId, expectedRevision: readyVersion.versionRevision },
+  { actorId: "admin", requestId: "request-2", correlationId: "correlation-2" }
+);
+assert.equal(activatedVersion.version.lifecycle, "active");
+assert.equal(activatedVersion.operation, "activate");
+assert.equal(activatedVersion.providerCalls, false);
+assert.equal(activatedVersion.externalWrites, false);
 const preview = await service.resolveConfiguration("growth.execution.policy", {
   context: { tenantId: "tenant-a", workspaceId: "workspace-a", brandKey: "brand-a" },
   includeDraftVersionIds: [draft.configVersionId]
