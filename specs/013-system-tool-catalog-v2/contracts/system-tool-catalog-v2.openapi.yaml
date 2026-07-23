@@ -1,0 +1,210 @@
+openapi: 3.1.0
+info:
+  title: System Tool Catalog V2 API
+  version: 0.1.0
+  description: Principal-scoped stable catalog browsing, direct lookup, intent resolution, and read-only observability.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+paths:
+  /system/tools:
+    get:
+      operationId: listSystemToolsV2
+      tags: [System Tool Catalog]
+      summary: List visible System Layer tools using a stable snapshot-bound cursor
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 4096 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 300 } }
+        - { name: tag, in: query, schema: { type: string, maxLength: 128 } }
+        - { name: source_key, in: query, schema: { type: string, maxLength: 191 } }
+        - { name: capability_key, in: query, schema: { type: string, maxLength: 191 } }
+      responses:
+        '200':
+          description: Principal-scoped catalog page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CatalogResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /system/tools/{toolName}:
+    get:
+      operationId: getSystemToolDescriptorV2
+      tags: [System Tool Catalog]
+      summary: Read one visible System Layer descriptor by stable name
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        '200':
+          description: Visible descriptor
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LookupResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /system/capabilities/resolve:
+    post:
+      operationId: resolveSystemCapabilityIntentV2
+      tags: [System Tool Catalog]
+      summary: Resolve intent, tool name, or capability key against visible descriptors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                intent: { type: string, maxLength: 4000 }
+                tool_name: { type: string, maxLength: 191 }
+                capability_key: { type: string, maxLength: 191 }
+                max_candidates: { type: integer, minimum: 1, maximum: 200, default: 10 }
+              anyOf:
+                - required: [intent]
+                - required: [tool_name]
+                - required: [capability_key]
+      responses:
+        '200':
+          description: Read-only resolution result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResolutionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /system/tools/catalog-observability:
+    get:
+      operationId: getSystemToolCatalogObservabilityV2
+      tags: [System Tool Catalog]
+      summary: Read no-secret Catalog V2 counters
+      security:
+        - bearerAuth: [admin]
+      responses:
+        '200':
+          description: Catalog counters
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [counters, observed_at, secrets_included]
+                properties:
+                  counters: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+                  observed_at: { type: string, format: date-time }
+                  secrets_included: { type: boolean, const: false }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ToolDescriptor:
+      type: object
+      additionalProperties: false
+      required: [name, description, source_key, tags, aliases, requires_admin, inputSchema]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        source_key: { type: string }
+        capability_key: { type: [string, 'null'] }
+        tags: { type: array, items: { type: string } }
+        aliases: { type: array, items: { type: string } }
+        requires_admin: { type: boolean }
+        inputSchema: { type: object, additionalProperties: true }
+    Page:
+      type: object
+      additionalProperties: false
+      required: [limit, returned_count, total_count, has_more, next_cursor]
+      properties:
+        limit: { type: integer }
+        returned_count: { type: integer }
+        total_count: { type: integer }
+        has_more: { type: boolean }
+        next_cursor: { type: [string, 'null'] }
+    CatalogResponse:
+      type: object
+      additionalProperties: false
+      required: [items, catalog_version, snapshot_id, page, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ToolDescriptor' } }
+        catalog_version: { type: string, pattern: '^[a-f0-9]{64}$' }
+        snapshot_id: { type: string, pattern: '^[a-f0-9]{64}$' }
+        page: { $ref: '#/components/schemas/Page' }
+        compatibility:
+          type: [object, 'null']
+          additionalProperties: false
+          properties:
+            mode: { type: string, const: legacy-complete-list }
+            deprecated: { type: boolean, const: true }
+            bounded_max_items: { type: integer }
+            replacement: { type: string }
+        secrets_included: { type: boolean, const: false }
+    LookupResponse:
+      type: object
+      additionalProperties: false
+      required: [tool, catalog_version, snapshot_id, secrets_included]
+      properties:
+        tool: { $ref: '#/components/schemas/ToolDescriptor' }
+        catalog_version: { type: string }
+        snapshot_id: { type: string }
+        secrets_included: { type: boolean, const: false }
+    ResolutionResponse:
+      type: object
+      additionalProperties: false
+      required: [status, candidates, execution_allowed, next_step, secrets_included]
+      properties:
+        status: { type: string, enum: [resolved, clarification_required, not_found] }
+        catalog_version: { type: string }
+        snapshot_id: { type: string }
+        candidates:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required: [tool, score, match_reasons, execution_allowed]
+            properties:
+              tool: { $ref: '#/components/schemas/ToolDescriptor' }
+              score: { type: integer }
+              match_reasons: { type: array, items: { type: string } }
+              execution_allowed: { type: boolean, const: false }
+        selected_tool: { oneOf: [{ $ref: '#/components/schemas/ToolDescriptor' }, { type: 'null' }] }
+        execution_allowed: { type: boolean, const: false }
+        next_step: { type: string }
+        secrets_included: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+            requestId: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request or cursor
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Principal is not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Tool is absent or not visible to this principal
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Catalog snapshot changed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "feature_key": "013-system-tool-catalog-v2",
+  "status": "in_progress",
+  "delivery_mode": "single_read_only_pr",
+  "evidence": {
+    "pure_service": "implemented_on_branch",
+    "large_catalog_tests": "implemented_on_branch",
+    "route_wiring": "pending",
+    "openapi": "implemented_on_branch_pending_validation",
+    "ci": "pending",
+    "production_verification": "not_authorized"
+  },
+  "secrets_included": false
+}
