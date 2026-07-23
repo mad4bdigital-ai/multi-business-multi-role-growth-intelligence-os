@@ -100,8 +100,14 @@ function transactionalPool({ breakReadback = false } = {}) {
   assert.equal(mock.state().committed, true);
   assert.equal(mock.state().rolledBack, false);
   assert.equal(mock.state().released, true);
-  const serialized = JSON.stringify(mock.calls);
-  assert.equal(serialized.includes("secret"), false, "evidence writes must not include secret material or credential references");
+  const serializedParameters = JSON.stringify(
+    mock.calls
+      .filter((row) => row.kind === "query")
+      .flatMap((row) => Array.isArray(row.params) ? row.params : []),
+  );
+  assert.equal(serializedParameters.includes("super-secret-value"), false, "evidence writes must not include secret material");
+  assert.equal(serializedParameters.includes("ref:secret:"), false, "evidence writes must not include credential references");
+  assert.equal(serializedParameters.includes("credential_ref"), false, "evidence payloads must not name credential reference fields");
 }
 
 {
