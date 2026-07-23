@@ -136,7 +136,12 @@ for (const mappingKey of [
   assert(Array.isArray(mapping.tables) && mapping.tables.length > 0, `missing source tables: ${mappingKey}`);
 }
 
-for (const code of ["canonical_source_not_designated", "resolution_scope_policy_not_active", "general_operation_ledger_incomplete_for_activation"]) {
+assert.equal(
+  inventory.known_gaps.some((gap) => gap.code === "canonical_source_not_designated"),
+  false,
+  "canonical source designation must remain resolved",
+);
+for (const code of ["resolution_scope_policy_not_active", "general_operation_ledger_incomplete_for_activation"]) {
   assert(inventory.known_gaps.some((gap) => gap.code === code), `missing known gap: ${code}`);
 }
 
