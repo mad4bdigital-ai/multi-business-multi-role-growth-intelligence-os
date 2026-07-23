@@ -109,6 +109,7 @@ import {
 import {
   getAuthEmailOutboxStatus,
   runAuthEmailOutboxWorker,
+  skipAuthEmailOutboxIneligible,
 } from "../authEmailOutboxWorker.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -296,6 +297,19 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json({ ...result, resource_authority: "auth_email_outbox", applies_delivery: false, secrets_included: false });
     } catch (err) {
       return sendError(res, err, "auth_email_outbox_dry_run_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/auth-email-outbox/skip-ineligible", ...adminGuards, async (req, res) => {
+    try {
+      const result = await skipAuthEmailOutboxIneligible({
+        purposes: req.body?.purposes || "support_ticket_admin_notification",
+        limit: req.body?.limit || 10,
+        actorId: req.auth?.user_id || "auth_email_outbox_skip_ineligible",
+      });
+      return res.status(200).json({ ...result, resource_authority: "auth_email_outbox", applies_delivery: false, external_send_performed: false, secrets_included: false });
+    } catch (err) {
+      return sendError(res, err, "auth_email_outbox_skip_ineligible_failed");
     }
   });
 
