@@ -5002,6 +5002,8 @@ paths:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryRollbacks'
   /admin/container-authority/canary-closeouts:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryCloseouts'
+  /admin/container-authority/override-governance-smokes:
+    $ref: './openapi/container-authority.yaml#/adminContainerAuthorityOverrideGovernanceSmokes'
   /admin/container-authority/canary-probes:
     $ref: './openapi/container-authority.yaml#/adminContainerAuthorityCanaryProbes'
   /admin/container-authority/preview-canary-probes:
