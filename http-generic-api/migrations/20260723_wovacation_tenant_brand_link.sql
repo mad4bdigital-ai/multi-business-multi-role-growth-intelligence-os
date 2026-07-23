@@ -44,7 +44,6 @@ WHERE EXISTS (
     SELECT 1
     FROM `workspace_resource_grants` wrg
     WHERE wrg.`tenant_id` = '792029d2-4f62-4994-8dca-00417e90438d'
-      AND wrg.`workspace_id` = '0ff599ae-77d5-11f1-9a4d-d342cf4a053c'
       AND wrg.`resource_type` = 'brand'
       AND wrg.`resource_ref` COLLATE utf8mb4_uca1400_ai_ci = 'wovacation_wp'
       AND wrg.`status` = 'active'
