@@ -139,6 +139,15 @@ export function createGrowthControlPlaneRepository({ resolvePool }) {
     return definitionRow(rows?.[0]);
   }
 
+  async function getConfigurationVersion(configVersionId, executor = null, forUpdate = false) {
+    const pool = executor || await resolvePool();
+    const [rows] = await sql(pool,
+      `SELECT * FROM growth_control_config_versions WHERE config_version_id=? LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
+      [configVersionId]
+    );
+    return versionRow(rows?.[0]);
+  }
+
   async function listConfigurationDefinitions({ limit = 25, offset = 0 } = {}) {
     const pool = await resolvePool();
     const fetchLimit = Math.max(1, Math.min(101, Number(limit)));
