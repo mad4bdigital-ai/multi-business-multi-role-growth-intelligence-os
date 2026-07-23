@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 51,
+  "total_items": 52,
   "class_counts": {
     "critical_review": 24,
-    "high_review": 25,
+    "high_review": 26,
     "medium_review": 2,
     "low_review": 0
   },
@@ -175,7 +175,7 @@
     },
     {
       "migration_file": "20260717_tenant_task_source_repair_apply_gate.sql",
-      "score": 1055,
+      "score": 1054,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -832,7 +832,7 @@
     },
     {
       "migration_file": "20260719_fix_growth_intelligence_report_read_tool_path.sql",
-      "score": 831,
+      "score": 830,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1046,7 +1046,7 @@
     },
     {
       "migration_file": "20260714_async_release_deploy_contract.sql",
-      "score": 786,
+      "score": 785,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2445,7 +2445,7 @@
     },
     {
       "migration_file": "20260722_resolve_remaining_critical_operational_attention.sql",
-      "score": 574,
+      "score": 573,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -3548,6 +3548,74 @@
       }
     },
     {
+      "migration_file": "20260723_resolve_hostinger_ssh_deploy_policy_occurrence.sql",
+      "score": 516,
+      "queue_class": "high_review",
+      "gap_severity": "medium",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 1,
+        "views": 0,
+        "policies": 0,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "runtime_policy_guard_and_execution_occurrence_readback"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260715_supervisor_behavioral_certification_capability_policy.sql",
       "score": 515,
       "queue_class": "high_review",
@@ -3682,7 +3750,7 @@
     },
     {
       "migration_file": "20260720_credential_intake_platform_secret_governance_hardening.sql",
-      "score": 410,
+      "score": 409,
       "queue_class": "medium_review",
       "gap_severity": "low",
       "documentation_complete": false,
