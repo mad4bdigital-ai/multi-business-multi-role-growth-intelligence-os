@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 55
-- Gate candidates: 53
+- Triaged items: 56
+- Gate candidates: 54
 - New-gap gate: fail
-- Blocking new items: 55
+- Blocking new items: 56
 
 ## Class counts
 
-- new_surface_immediate_review: 53
+- new_surface_immediate_review: 54
 - safety_marker_review: 2
 
 ## Immediate review candidates
@@ -24,8 +24,8 @@
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 914; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 884; next: add targeted patch-index, parity, and governance documentation
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, score 867; next: add targeted patch-index, parity, and governance documentation
-- `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 848; next: add targeted patch-index, parity, and governance documentation
-- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 836; next: add targeted patch-index, parity, and governance documentation
+- `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 847; next: add targeted patch-index, parity, and governance documentation
+- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 835; next: add targeted patch-index, parity, and governance documentation
 - `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 830; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 814; next: add targeted patch-index, parity, and governance documentation
 - `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, score 807; next: add targeted patch-index, parity, and governance documentation
@@ -38,7 +38,7 @@
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, score 726; next: add targeted patch-index, parity, and governance documentation
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 719; next: add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, score 717; next: add targeted patch-index, parity, and governance documentation
-- `20260720_github_file_patch_shadow_certification_issue.sql` — critical_review, score 712; next: add targeted patch-index, parity, and governance documentation
+- `20260720_github_file_patch_shadow_certification_issue.sql` — critical_review, score 711; next: add targeted patch-index, parity, and governance documentation
 - `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 709; next: add targeted patch-index, parity, and governance documentation
 - `20260721_ci_guard_operational_alert_ingestion_slo.sql` — high_review, score 696; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 676; next: add targeted patch-index, parity, and governance documentation
