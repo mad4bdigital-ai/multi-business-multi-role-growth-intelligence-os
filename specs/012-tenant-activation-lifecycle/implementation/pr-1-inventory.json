@@ -27,7 +27,18 @@
       "http-generic-api/routes/authRoutes.js"
     ],
     "registry_row_role": "inventory_only_not_runtime_authority",
-    "canonical_generation_status": "requires_T010_source_designation"
+    "canonical_source": "http-generic-api/openapi.yaml",
+    "surface_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
+    "surface_key": "tenant_activation",
+    "generator": "http-generic-api/scripts/split-openapi.mjs",
+    "orchestrator": "http-generic-api/scripts/generate-custom-gpt-schemas.mjs",
+    "generated_artifact": "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+    "canonical_checks": [
+      "node build-canonicals.mjs --check",
+      "node test-openapi-split-governance.mjs",
+      "node test-openapi-split-regeneration-parity.mjs"
+    ],
+    "canonical_generation_status": "designated_and_ci_verified"
   },
   "current_scope_catalog": [
     "https://auth.mad4b.com/scopes/tenant.links",
