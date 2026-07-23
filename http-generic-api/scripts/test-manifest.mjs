@@ -36,6 +36,7 @@ export const testCommands = [
   "node scripts/dynamic-container-rollout-benchmark.mjs",
   "node test-semantic-capability-effective-resolution.mjs",
   "node test-system-tool-catalog-v2.mjs",
+  "node test-system-layer-response-fallback.mjs",
   "node test-platform-execution-envelope-kernel.mjs",
   "node test-platform-scoped-approval-kernel.mjs",
   "node test-platform-execution-concurrency-kernel.mjs",
