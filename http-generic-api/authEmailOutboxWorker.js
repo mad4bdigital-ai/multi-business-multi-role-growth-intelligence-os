@@ -269,10 +269,36 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
       ORDER BY purpose, status`,
     normalizedPurposes
   );
+  let attemptLedgerAvailable = false;
+  let attemptCounts = [];
+  try {
+    const [rows] = await pool.query(
+      `SELECT a.status, COUNT(*) AS count,
+              MAX(a.started_at) AS latest_started_at,
+              MAX(a.sent_at) AS latest_sent_at
+         FROM auth_email_outbox_delivery_attempts a
+         JOIN auth_email_outbox e ON e.email_id = a.email_id
+        WHERE e.purpose IN (${placeholders})
+        GROUP BY a.status
+        ORDER BY a.status`,
+      normalizedPurposes
+    );
+    attemptLedgerAvailable = true;
+    attemptCounts = (rows || []).map((row) => ({
+      status: row.status,
+      count: Number(row.count || 0),
+      latest_started_at: row.latest_started_at || null,
+      latest_sent_at: row.latest_sent_at || null,
+    }));
+  } catch (error) {
+    if (!isMissingAttemptLedgerError(error)) throw error;
+  }
   return {
     ok: true,
     purposes: normalizedPurposes,
     delivery_feature_flag_enabled: process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true",
+    attempt_ledger_available: attemptLedgerAvailable,
+    attempt_counts: attemptCounts,
     counts: (counts || []).map((row) => ({
       purpose: row.purpose,
       status: row.status,
