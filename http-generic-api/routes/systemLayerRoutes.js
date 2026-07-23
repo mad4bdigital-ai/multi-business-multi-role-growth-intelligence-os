@@ -2345,13 +2345,50 @@ export function buildSystemLayerRoutes(deps) {
   const authenticated = [requireBackendApiKey];
 
   router.get("/system/tools", ...authenticated, async (req, res) => {
-    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    body.principal = {
-      mode: req.auth?.mode || null,
-      is_admin: isAdminPrincipal(req.auth),
-      tenant_id: principalTenantId(req.auth),
-    };
-    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+    try {
+      const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+      body.principal = {
+        mode: req.auth?.mode || null,
+        is_admin: isAdminPrincipal(req.auth),
+        tenant_id: principalTenantId(req.auth),
+      };
+      return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
+    }
+  });
+
+  router.get("/system/tools/catalog-observability", ...adminOnly, async (_req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await readSystemToolCatalogObservability()),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_observability_failed");
+    }
+  });
+
+  router.get("/system/tools/:toolName", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await getSystemToolCatalogDescriptor(req.auth, req.params.toolName)),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_lookup_failed");
+    }
+  });
+
+  router.post("/system/capabilities/resolve", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await resolveSystemToolCatalogIntent(req.auth, req.body || {})),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_capability_resolution_failed");
+    }
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
