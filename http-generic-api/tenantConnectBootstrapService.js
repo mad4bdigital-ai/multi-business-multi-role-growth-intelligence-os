@@ -6,20 +6,6 @@ function bootstrapFailure(status, code, message, details = null) {
   return error;
 }
 
-function safeMemberships(state = {}) {
-  return Array.isArray(state.memberships) ? state.memberships : [];
-}
-
-function activeWorkspaceOptions(memberships = []) {
-  return memberships
-    .filter((membership) => membership.tenant_status === undefined || membership.tenant_status === "active")
-    .map((membership) => ({
-      workspace_key: membership.tenant_id,
-      display_name: membership.tenant_display_name || membership.display_name || null,
-      role: membership.role || null,
-    }));
-}
-
 export async function orchestrateTenantConnectBootstrap({
   user_id,
   jwt_tenant_id = null,
@@ -27,79 +13,49 @@ export async function orchestrateTenantConnectBootstrap({
   mode = "managed",
 } = {}, {
   resolveState,
-  createWorkspace,
-  activateManaged,
+  applyManagedBootstrap,
   now = () => new Date(),
 } = {}) {
   if (!user_id) throw bootstrapFailure(401, "user_jwt_required", "Sign in required.");
   if (mode !== "managed") {
     throw bootstrapFailure(400, "bootstrap_managed_only", "connect_bootstrap currently supports Managed mode only.");
   }
-  if (typeof resolveState !== "function" || typeof createWorkspace !== "function" || typeof activateManaged !== "function") {
-    throw new TypeError("resolveState, createWorkspace, and activateManaged are required.");
+  if (typeof applyManagedBootstrap !== "function") {
+    throw new TypeError("applyManagedBootstrap is required.");
   }
 
-  const initial = await resolveState(user_id, jwt_tenant_id || null);
-  if (!initial?.user) throw bootstrapFailure(404, "user_not_found", "User not found.");
+  const bootstrapResult = await applyManagedBootstrap({
+    userId: user_id,
+    jwtTenantId: jwt_tenant_id || null,
+    displayName: workspace_name,
+    source: "connect_bootstrap",
+  });
+  const tenantId = bootstrapResult?.tenant_id || null;
+  if (!tenantId || bootstrapResult?.readback?.verified !== true) {
+    throw bootstrapFailure(503, "activation_validation_failed", "Managed activation could not be verified by transactional readback.");
+  }
 
-  const memberships = safeMemberships(initial);
-  const activeOptions = activeWorkspaceOptions(memberships);
-
-  if (jwt_tenant_id) {
-    const selected = memberships.find((membership) => membership.tenant_id === jwt_tenant_id);
-    if (!selected) {
-      throw bootstrapFailure(403, "tenant_membership_required", "The signed-in user does not have access to the selected workspace.");
+  // Rich onboarding readiness may involve optional tables and providers. It is
+  // intentionally post-commit enrichment: the core success signal comes only
+  // from the verified in-transaction membership and connection readback.
+  let finalState = null;
+  if (typeof resolveState === "function") {
+    try {
+      finalState = await resolveState(user_id, tenantId);
+    } catch {
+      finalState = null;
     }
-    if (selected.tenant_status !== undefined && selected.tenant_status !== "active") {
-      throw bootstrapFailure(403, "tenant_suspended", "The selected workspace is not active.");
-    }
-  } else if (activeOptions.length > 1) {
-    throw bootstrapFailure(409, "tenant_selection_required", "Choose a workspace before activation.", {
-      workspaces: activeOptions,
-    });
   }
-
-  if (!activeOptions.length && memberships.some((membership) => membership.tenant_status && membership.tenant_status !== "active")) {
-    throw bootstrapFailure(403, "tenant_suspended", "The existing workspace is not active.");
-  }
-
-  let tenantId = jwt_tenant_id || initial.resolvedTenantId || activeOptions[0]?.workspace_key || null;
-  let workspaceCreated = false;
-
-  if (!tenantId) {
-    const workspace = await createWorkspace({
-      userId: user_id,
-      displayName: workspace_name,
-      source: "connect_bootstrap",
-    });
-    tenantId = workspace?.tenant_id || null;
-    workspaceCreated = Boolean(workspace?.created);
-  }
-
-  if (!tenantId) {
-    throw bootstrapFailure(500, "tenant_provisioning_failed", "Workspace provisioning did not return a workspace identifier.");
-  }
-
-  const activationResult = await activateManaged({ userId: user_id, tenantId });
-  const finalState = await resolveState(user_id, tenantId);
-  const connection = finalState?.connection || activationResult?.connection || null;
-
-  if (!connection || connection.status !== "active" || connection.connection_mode !== "managed") {
-    throw bootstrapFailure(503, "activation_validation_failed", "Managed activation could not be verified by final readback.");
-  }
-
-  const finalMemberships = safeMemberships(finalState);
-  const finalMembership = finalMemberships.find((membership) => membership.tenant_id === tenantId)
-    || finalState?.membership
-    || null;
+  const connection = bootstrapResult.connection;
+  const finalMembership = bootstrapResult.membership || null;
 
   return {
     ok: true,
     bootstrap: {
       account: "existing",
-      tenant: workspaceCreated ? "created" : "existing",
-      workspace: workspaceCreated ? "created" : "existing",
-      connection: activationResult?.activated ? "activated" : "existing",
+      tenant: bootstrapResult.workspace_created ? "created" : "existing",
+      workspace: bootstrapResult.workspace_created ? "created" : "existing",
+      connection: bootstrapResult.activated ? "activated" : "existing",
     },
     principal: {
       workspace_key: tenantId,

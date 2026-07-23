@@ -2,13 +2,23 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "5bb4c1d3236f59e6b7b08828dcb83f191939f4553a314a27243ff2bb32a797f3",
+    "source_digest": "0aa4e2b735d1fca48fc96f6200c25a1471188300f3a45ac2f2e84427b03bd715",
     "fail_closed": true
   },
   "source_authority": [
     {
       "file": "dynamicContainerRolloutSafety.js",
       "sha256": "c1de94a9ad9e96460c8bd30c6870f3993afbc7222da7db868d640824e6a7c12c",
+      "present": true
+    },
+    {
+      "file": "frontend-operation-governance-tests.json",
+      "sha256": "a9e77e6e7cda969fcf7bb926aac5c41c943e331d5fff3cccbd96f72332c00869",
+      "present": true
+    },
+    {
+      "file": "routes/connectRoutes.js",
+      "sha256": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "present": true
     },
     {
@@ -23,12 +33,7 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "d3e5aa45da669db391c987e135773086d9752fe4232f0e1d8c7c95b7fc73df1f",
-      "present": true
-    },
-    {
-      "file": "scripts/test-manifest.mjs",
-      "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
+      "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
       "present": true
     },
     {
@@ -42,6 +47,16 @@
       "present": true
     },
     {
+      "file": "tenantConnectBootstrapService.js",
+      "sha256": "cb7bfbdb645e86c671585498e9d3f4b064f5b7c9d5a125a29aefcfc07a1aeef0",
+      "present": true
+    },
+    {
+      "file": "tenantConnectBootstrapTransaction.js",
+      "sha256": "fbaa4419da2c1e95c703bcee395c65ee30fdd22cd79bd57a53de6a4d4b6bf4c9",
+      "present": true
+    },
+    {
       "file": "test-dynamic-container-rollout-safety.mjs",
       "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
       "present": true
@@ -50,11 +65,16 @@
       "file": "test-resource-api-service.mjs",
       "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
       "present": true
+    },
+    {
+      "file": "test-tenant-connect-bootstrap-transaction.mjs",
+      "sha256": "12b38133e5032cc6a108a9d0799f11de83b20b4feab20d26d54f138411980f67",
+      "present": true
     }
   ],
   "coverage": {
-    "candidate_count": 5,
-    "generated_rule_count": 5,
+    "candidate_count": 6,
+    "generated_rule_count": 6,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -181,6 +201,48 @@
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
         "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-connect-bootstrap-governance",
+      "operation": "POST /connect/bootstrap",
+      "source_file": "routes/connectRoutes.js",
+      "classification": "state_change",
+      "owner": "tenant-activation",
+      "rationale": "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
+      "preflight": {
+        "mode": "inline_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "user_id": "auth.user_id",
+        "tenant_id": "auth.tenant_id|response.principal.workspace_key",
+        "mode": "request.body.mode|managed"
+      },
+      "evidence_refs": [
+        "routes/connectRoutes.js",
+        "tenantConnectBootstrapService.js",
+        "tenantConnectBootstrapTransaction.js",
+        "test-tenant-connect-bootstrap-transaction.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-connect-bootstrap-transaction-v1",
+        "source_digest": "73d246f3bd2c879e508e3fc88e7d5b349c0bb57481451ed3ccada84ef97dd1fd",
         "fail_closed": true
       }
     },

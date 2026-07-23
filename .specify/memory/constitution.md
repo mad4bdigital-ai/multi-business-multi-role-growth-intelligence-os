@@ -1,123 +1,177 @@
-# Growth Intelligence Platform Security and Resource API Constitution
+# Growth Intelligence Platform Spec Kit Constitution
 
-## Preamble
+**Version**: 1.0.0  
+**Ratified**: 2026-07-22  
+**Applies to**: Active specifications under `specs/`, their implementation plans, tasks, contracts, migrations, runtime changes, and completion evidence.
 
-This constitution governs capability resolution, authorization, credential handling, device execution, approval, dispatch, and resource-facing API coverage across every action, tool, tenant, admin, device, provider, database, route, and workflow surface.
+## Purpose
 
-## I. Canonical Capability Identity
+The platform adopts specification-driven development for governed brownfield delivery. Specifications are the source of product and operational intent. Runtime code, schemas, migrations, policies, tests, deployment evidence, and documentation must trace back to approved specification requirements.
 
-Every executable or previewable operation MUST resolve to exactly one immutable `canonical_capability_id` before any security decision.
+Spec Kit does not create execution authority. All repository, database, provider, deployment, permission, credential, billing, external-send, or destructive mutations remain subject to the platform's existing capability, approval, resource-authority, typed-confirmation, audit, and readback contracts.
 
-- Action, tool, intent, route, and UI keys are aliases, not security identities.
-- All aliases of one capability inherit one policy.
-- Surface policy may only make the effective policy stricter.
-- Missing, conflicting, unknown, or multiple selectors fail closed.
+## Principle I — Registry and SQL authority
 
-## II. Explicit Subject and Tenant Authority
+- SQL is the runtime authority; Sheets remain asynchronous mirror and recovery only.
+- Specifications may describe target behavior but must not be treated as live registry authority.
+- Runtime actions, endpoints, policies, workflows, capabilities, resources, and credentials must resolve from governed registry/bootstrap authority.
+- A specification must identify every authority source it depends on and every authority it does not create.
 
-Authorization MUST derive from authenticated principal context and registry authority. Every decision binds principal, tenant, workspace where applicable, target resource, canonical capability, operation, and policy version. Tenant callers MUST NOT access platform-admin-only surfaces even when they know a valid tool key.
+## Principle II — Specification before implementation
 
-## III. Separation of Security Concerns
+- Every non-trivial behavior change begins with an active feature specification.
+- The required sequence is `Specify → Clarify → Plan → Tasks → Implement → Verify → Closeout`.
+- Brownfield specifications must distinguish current behavior, verified production evidence, gaps, and proposed behavior.
+- Implementation may not silently widen scope beyond the approved specification and plan.
+- Production incidents and operational learnings must update the active specification or create a successor specification.
 
-The platform independently evaluates principal authorization, tenant membership, surface exposure, resource ownership, skill grant, credential requirement, credential resolution, credential usability, device trust, smoke/preflight, approval, local consent, and dispatch readiness.
+## Principle III — Complete operation paths
 
-`no_credentials_required` MUST NOT imply authorization or execution permission.
+Every specification must describe:
 
-## IV. Fail-Closed Execution
+1. actors and authenticated principals;
+2. entry points and preconditions;
+3. normal success path;
+4. alternate and degraded paths;
+5. authorization, resource, tenant, workspace, and Brand resolution;
+6. idempotency, replay, retry, timeout, and unknown-outcome handling;
+7. approval and typed-confirmation boundaries;
+8. state transitions and terminal states;
+9. audit, observability, readback, delivery, and acknowledgement;
+10. rollback, recovery, and post-incident reconciliation.
 
-Missing policy, ambiguity, unsupported surface binding, incomplete identity, stale device state, invalid credential state, or missing approval MUST deny execution.
+A path is incomplete when it ends at transport success without authoritative readback or when it reports success from narrative rather than evidence.
 
-- A denied or unevaluated required gate cannot produce `dispatch_ready`.
-- State-changing capabilities require an explicit mutation policy.
-- Preview and policy-explain modes perform no side effects.
-- Direct execution bypasses are forbidden.
+## Principle IV — Security, tenant isolation, and no secrets
 
-## V. Device Trust and Local Consent
+- Authentication and authorization are separate gates.
+- Tenant and user identity derive from signed principal context and active membership; caller overrides are forbidden.
+- Protected-resource, audience, issuer, purpose, scope, resource authority, and object-level authorization must be explicit.
+- Default access is deny.
+- Tokens, authorization codes, passwords, credential payloads, provider headers, raw secrets, and unbounded logs must never appear in specifications, tests, fixtures, GPT-visible responses, or completion evidence.
+- Security-sensitive specifications require replay, confused-deputy, cross-tenant, privilege-expansion, and wrong-resource scenarios.
 
-Device-scoped capability decisions validate in the same cycle: required device ID, existence, tenant ownership, caller authority, connector identity, lifecycle state, heartbeat freshness, capability support, and local consent or operating-system elevation where required. Registration alone MUST NOT be described as health or readiness.
+## Principle V — Contract-first public surfaces
 
-## VI. Credential Safety and Intake Isolation
+- Public HTTP contracts use OpenAPI 3.1.
+- Structured data contracts use JSON Schema 2020-12 unless an existing repository convention requires another version.
+- Every public operation defines operation ID, authentication, authorization, parameters, responses, stable errors, examples, rate/retry behavior where applicable, and no-secret guarantees.
+- Generated OpenAPI and canonical files must be updated through their source generators; generated roots are never edited directly.
+- Contract changes must identify compatibility, deprecation, migration, and consumer-readiness impact.
 
-Credentials resolve only after authorization and ownership gates pass.
+## Principle VI — Durable and replay-safe execution
 
-- Secrets never appear in API responses or logs.
-- Pending, revoked, expired, or wrong-scope credentials are unusable for execution.
-- Tenant intake uses a dedicated tenant-safe capability, not a raw admin tool.
-- Intake sessions are subject-bound, tenant-bound, purpose-bound, single-use, short-lived, replay-resistant, audited, and restricted to allowlisted redirects.
+- Unsafe retryable mutations require durable operation identity and idempotency scope.
+- Authorization codes, approvals, envelopes, and mutation receipts are one-time or lifecycle-governed.
+- Transport failure after dispatch is an unknown outcome until reconciled.
+- A mutation may not be replayed until same-cycle readback proves absence or deterministic idempotency.
+- Recovered success must cite evidence from the same operation fingerprint.
 
-## VII. Approval and Mutation Safety
+## Principle VII — Evidence and truthful lifecycle states
 
-Every state-changing capability declares one mutation mode: denied, preview-only, bounded automatic, explicit user approval, tenant-admin approval, or platform-admin approval. Approval tokens bind capability, subject, target, request, and expiry. High-risk mutation requires preflight, same-cycle readback, and rollback metadata when supported.
+Specifications must keep these states distinct where applicable:
 
-## VIII. Observable Decisions
+- validation state;
+- evidence state;
+- execution state;
+- delivery state;
+- consumer acknowledgement state;
+- rollback or compensation state.
 
-Every preview and execution produces a structured no-secret decision trace identifying request, principal, tenant, canonical capability, selector, surface, policy/registry versions, each gate result, final reason, execution occurrence, and readback status. `pass`, `deny`, `not_applicable`, and `not_evaluated` are distinct states.
+`prepared`, `executed`, `delivered`, `acknowledged`, and `verified` are not interchangeable. Completion requires declared readback from authoritative sources.
 
-## IX. Stable API Contracts
+## Principle VIII — Brownfield compatibility and minimal safe change
 
-Security APIs use OpenAPI 3.1, strict schemas, stable error envelopes, and backward-compatible evolution by default. Ambiguous or unsupported input is rejected, and public responses do not leak cross-tenant or internal administrative detail.
+- Existing public interfaces remain stable unless a breaking change is explicitly approved.
+- Specifications must identify current consumers, legacy compatibility windows, feature flags, and cutoff dates.
+- Changes should be additive and reversible first.
+- Shared authentication, session, routing, and registry code are high-risk hotspots and require focused changes, isolated tests, and explicit rollback plans.
+- New dependencies or parallel sources of truth require documented justification.
 
-## X. Layered Architecture
+## Principle IX — Testing and fault injection
 
-Implementation preserves:
+Every implementation plan must cover:
 
-```text
-interfaces/api -> application/orchestration -> domain/policy
-infrastructure adapters support application/domain through abstractions
-```
+- unit tests for deterministic policy and state logic;
+- integration tests across boundaries;
+- contract and OpenAPI parity tests;
+- invalid input and authorization tests;
+- cross-tenant and wrong-resource tests;
+- replay and idempotency tests;
+- timeout, transient transport, and unknown-outcome tests;
+- deployment parity and production smoke tests;
+- rollback or disable-path validation.
 
-Controllers do not implement complex authorization policy or call repositories directly. Provider calls remain behind governed adapters.
+Security and lifecycle behavior must be tested from observable contracts rather than only by source-string assertions.
 
-## XI. Testing and Release Gates
+## Principle X — Governed delivery and closeout
 
-Every behavior change includes deterministic allowed, denied, invalid-input, cross-tenant, selector-parity, replay, stale-state, and regression tests. P0 security changes require staging verification, security and contract review, rollback readiness, and release approval before production promotion.
+- Feature work occurs on a dedicated branch named after the specification.
+- Pull requests must pin head/base SHA, pass required CI, and include risks, tests, API/database impact, rollout, and rollback notes.
+- Protected branches are never force-pushed.
+- Merge approval is invalidated by head or base drift.
+- Production deploy follows the governed GitHub `main` to Hostinger auto-deploy path unless break-glass authority is separately approved.
+- Completion evidence must confirm merge, production parity, health, migrations if any, runtime smoke, unresolved gaps, and documentation alignment.
+- Historical specifications move to `docs/history/<topic>/`; active governed delivery remains under `specs/<feature>/`.
 
-## XII. Minimal, Reviewable Change
+## Required Spec Kit artifacts
 
-Changes are small, explicit, and reversible where practical. Containment is separate from refactoring. Dependencies require justification. Database, API, security, rollout, generated schemas, and canonicals remain synchronized.
+An active feature specification must include, as applicable:
 
-## XIII. Resource API Coverage and Feature Admission
+- `manifest.json`
+- `spec.md`
+- `research.md`
+- `concerns.md`
+- `operation-paths.md`
+- `plan.md`
+- `data-model.md`
+- `contracts/`
+- `quickstart.md`
+- `tasks.md`
+- `checklists/requirements.md`
+- `checklists/security.md` for sensitive surfaces
+- `checklists/operations.md` for runtime or deployment surfaces
+- `completion.json`
 
-No new user-visible table, view, route, tool export, or workflow surface may merge without a governed logical resource descriptor.
+Omitted artifacts require an explicit rationale in the manifest.
 
-- Runtime authority remains MySQL, while clients consume logical resources rather than raw tables.
-- Tenant, workspace, user, and brand scope are resolved server-side from signed authentication, membership, and resource grants.
-- Resource outputs use explicit field allowlists; secrets, credential payloads, raw authorization material, and unrestricted transcript content are forbidden.
-- Every resource declares list, get, search, permissions, changes, revisions, and readback behavior, or an explicit governed `not_applicable` state.
-- Mutation operations additionally require validation, authorization, audit, lifecycle semantics, and same-cycle readback.
-- DELETE maps to archive, revoke, disable, or expire unless a separately approved purge and retention policy exists.
-- Client input never controls SQL tables, columns, projections, or ordering.
-- Existing routes remain backward-compatible while resource routes provide consistent contracts.
-- CI fails closed for newly uncovered relations, routes, or tool exports. Exemptions must be explicit, justified, owned, and expiring.
+## Constitution gates
 
-### Resource API quality gates
+Before planning:
 
-A resource-facing change is mergeable only when:
+- current production behavior and authority sources are identified;
+- scope and non-goals are explicit;
+- unresolved ambiguity is recorded.
 
-- its resource descriptor and operation matrix are complete;
-- Admin and Tenant scope decisions are explicit;
-- routes and tool exports appear in OpenAPI 3.1 and the coverage manifest;
-- tests are registered in the explicit test manifest;
-- tenant isolation, invalid input, field redaction, and mutation readback are tested;
-- lifecycle, changes, and revision behavior are documented;
-- canonicals and the knowledge guide are updated when behavior changes;
-- CI, release readiness, security review, and governed PR merge checks pass.
+Before implementation:
 
-## XIV. Spec Kit Completion Governance
+- requirements are testable;
+- operation paths and concerns are complete;
+- contracts and data/state models are drafted;
+- migration, rollout, and rollback posture is known.
 
-Every new or changed Spec Kit MUST include `spec.md`, `plan.md`, `tasks.md`, `completion.json`, and at least one feature checklist under `checklists/`.
+Before merge:
 
-- `single_pr` delivery is allowed only when no migration, production verification, or post-merge audit is required.
-- Any post-merge obligation requires `multi_pr` delivery with one or more implementation PRs and a final closeout PR.
-- A feature marked `complete` contains no unresolved `[ ]` task or checklist item. Explicit `[~]` not-applicable items include an inline rationale.
-- Completion evidence is machine-readable and records applicable CI, release readiness, merge, migration ledger, production parity, and post-merge audit identifiers.
-- An audit may close with backlog only when that backlog has a tracked reference and owner.
-- CI applies changed-scope fail-closed enforcement. Unchanged legacy Spec Kits are grandfathered only until their next modification.
+- implementation traces to tasks and requirements;
+- tests and contract parity pass;
+- security and operational checklists pass;
+- current head/base freshness is confirmed.
 
-## Governance
+Before closeout:
 
-Exceptions require written rationale, named owner, bounded duration, compensating controls, explicit security approval, and a tracked removal task.
+- production parity and health are verified;
+- same-cycle runtime smoke passes;
+- completion evidence is valid and no-secret;
+- unresolved work is explicitly classified and assigned.
 
-**Version:** 1.2.0
-**Ratified:** 2026-06-19
-**Last amended:** 2026-06-24
+## Amendment policy
+
+- Constitutional changes require a dedicated reviewed PR.
+- A breaking governance change increments the major version.
+- A new mandatory principle or gate increments the minor version.
+- Clarifications and wording corrections increment the patch version.
+- Amendments must update templates and active specifications affected by the change.
+
+## Governance precedence
+
+Platform safety/runtime policy, top-level platform instructions, `AI_Agent_Knowledge_Guide.md`, and canonical source files retain higher authority. This constitution governs the specification lifecycle and cannot override runtime safety or authorization policy.
