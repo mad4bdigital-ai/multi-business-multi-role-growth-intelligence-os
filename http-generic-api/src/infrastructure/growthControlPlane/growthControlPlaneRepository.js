@@ -1,4 +1,10 @@
-import { GrowthControlPlaneError } from "../../domain/growthControlPlane/growthControlPlane.js";
+import {
+  GrowthControlPlaneError,
+  assertGrowthControlApprovalHold,
+  assertGrowthControlConfigurationTransition,
+  buildGrowthControlApprovalBinding
+} from "../../domain/growthControlPlane/growthControlPlane.js";
+import { enqueuePlatformOutboxEvent } from "../../../platformOutbox.js";
 
 function parseJson(value, fallback) {
   if (value == null || value === "") return fallback;
