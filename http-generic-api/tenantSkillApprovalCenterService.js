@@ -146,6 +146,10 @@ function groupGrantRows(rows = [], tenantId, now = new Date()) {
       skill_type: row.skill_type || null,
       skill_scope: row.skill_scope || null,
       requires_approval: Number(row.requires_approval || 0) === 1,
+      request_ids: [],
+      approval_hold_ids: [],
+      request_status: null,
+      approval_policy_key: null,
       active_grant_ids: [],
       revoked_grant_ids: [],
       expired_grant_ids: [],
@@ -160,6 +164,14 @@ function groupGrantRows(rows = [], tenantId, now = new Date()) {
       else if (grantStatus === "revoked") current.revoked_grant_ids.push(row.grant_id);
       else if (grantStatus === "expired") current.expired_grant_ids.push(row.grant_id);
     }
+    if (row.grant_request_id && !current.request_ids.includes(row.grant_request_id)) {
+      current.request_ids.push(row.grant_request_id);
+    }
+    if (row.approval_hold_id && !current.approval_hold_ids.includes(row.approval_hold_id)) {
+      current.approval_hold_ids.push(row.approval_hold_id);
+    }
+    if (row.request_status) current.request_status = row.request_status;
+    if (row.approval_policy_key) current.approval_policy_key = row.approval_policy_key;
     const grantedAt = isoValue(row.granted_at);
     if (grantedAt && (!current.first_granted_at || grantedAt < current.first_granted_at)) current.first_granted_at = grantedAt;
     if (grantedAt && (!current.last_granted_at || grantedAt > current.last_granted_at)) current.last_granted_at = grantedAt;
