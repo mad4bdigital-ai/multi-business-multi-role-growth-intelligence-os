@@ -105,7 +105,10 @@ UPDATE agent_skill_grants g
 JOIN agent_skill_grant_requests r ON r.request_id = g.grant_id
 JOIN agent_skills s ON s.skill_id = g.skill_id AND s.requires_approval = 1
    SET g.grant_request_id = r.request_id,
-       g.status = CASE WHEN r.request_status = 'approved' THEN 'active' ELSE 'revoked' END;
+       g.status = CASE WHEN r.request_status = 'approved' THEN 'active' ELSE 'revoked' END
+ WHERE g.grant_request_id IS NULL
+    OR g.grant_request_id <> r.request_id
+    OR g.status <> CASE WHEN r.request_status = 'approved' THEN 'active' ELSE 'revoked' END;
 
 CREATE OR REPLACE VIEW v_effective_agent_skill_grants AS
 SELECT g.id, g.grant_id, g.agent_id, g.skill_id, g.tenant_id, g.brand_key,
