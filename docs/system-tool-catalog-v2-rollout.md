@@ -18,3 +18,9 @@ Track list requests, direct lookups, lookup misses, legacy full-list requests, i
 ## Removal gate
 
 Remove legacy compatibility only through a later reviewed contract change after usage reaches zero, all clients have migrated, and CI/production verification pass.
+
+## Chunk-store dependency degradation
+
+Durable governed response chunks remain the normal behavior for oversized catalog responses. If the durable store is unavailable with the exact error `response_chunk_persistence_unavailable`, the System Layer can return a bounded inline response marked with `persistence_degraded=true` and `fallback_mode=bounded_inline_response`. The response is limited to 150000 serialized characters and remains secret-free.
+
+If that ceiling is exceeded, or the failure has any other code, the request fails closed. Monitor the structured warning, repair the chunk-store dependency, and confirm that later requests use durable chunk persistence before treating the incident as resolved.
