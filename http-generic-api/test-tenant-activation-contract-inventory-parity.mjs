@@ -9,6 +9,9 @@ const repoRoot = resolve(__dirname, "..");
 const inventory = JSON.parse(readFileSync(resolve(repoRoot, "specs/012-tenant-activation-lifecycle/implementation/pr-1-inventory.json"), "utf8"));
 const schema = YAML.parse(readFileSync(resolve(__dirname, "openapi/openapi.tenant-gpt.activation.yaml"), "utf8"));
 const gatewaySource = readFileSync(resolve(__dirname, "routes/activationHostGatewayRoutes.js"), "utf8");
+const surfaceRegistry = YAML.parse(readFileSync(resolve(repoRoot, "canonicals/openapi/custom-gpt-surfaces.yaml"), "utf8"));
+const splitGeneratorSource = readFileSync(resolve(__dirname, "scripts/split-openapi.mjs"), "utf8");
+const schemaOrchestratorSource = readFileSync(resolve(__dirname, "scripts/generate-custom-gpt-schemas.mjs"), "utf8");
 const methodNames = new Set(["get", "post", "put", "patch", "delete", "head", "options", "trace"]);
 
 function key(row) {
