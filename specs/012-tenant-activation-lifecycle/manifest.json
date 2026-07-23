@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "title": "Tenant GPT Activation Lifecycle",
+  "status": "in_specification_review",
+  "current_phase": "review",
+  "delivery_mode": "multi_pr",
+  "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
+  "created_at": "2026-07-22T00:00:00Z",
+  "spec_kit": {
+    "constitution_version": "1.0.0",
+    "lifecycle": [
+      "specify",
+      "clarify",
+      "plan",
+      "tasks",
+      "implement",
+      "verify",
+      "merge",
+      "deploy",
+      "closeout"
+    ]
+  },
+  "scope": {
+    "includes": [
+      "tenant_gpt_oauth_authorization",
+      "authorization_code_lifecycle",
+      "protected_resource_token_binding",
+      "activation_gateway_verification",
+      "tenant_session_context",
+      "jit_onboarding_and_membership_resolution",
+      "managed_activation_bootstrap",
+      "tenant_tool_discovery_and_dispatch",
+      "delivery_and_acknowledgement",
+      "retry_reconciliation_and_unknown_outcomes",
+      "observability_and_operational_attention",
+      "deployment_parity_rollout_and_rollback"
+    ],
+    "excludes": [
+      "provider_business_writes",
+      "unapproved_live_campaign_execution",
+      "credential_rotation",
+      "billing_mutations",
+      "workspace_admin_ui_changes"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      "spec.md",
+      "research.md",
+      "concerns.md",
+      "operation-paths.md",
+      "plan.md",
+      "data-model.md",
+      "contracts/tenant-activation-lifecycle.openapi.yaml",
+      "contracts/activation-operation.schema.json",
+      "quickstart.md",
+      "tasks.md",
+      "checklists/requirements.md",
+      "checklists/security.md",
+      "checklists/operations.md",
+      "completion.json"
+    ],
+    "present": true,
+    "omitted": []
+  },
+  "clarification": {
+    "blocking_questions": [],
+    "pre_contract_questions": [],
+    "pre_observability_questions": []
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 2984,
+      "status": "ready_for_review"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "status": "pending"
+    }
+  },
+  "authority": {
+    "runtime_authority": "mysql_primary_registry_and_governed_bootstrap",
+    "specification_is_runtime_authority": false,
+    "mutation_authority_created": false,
+    "secrets_included": false
+  }
+}

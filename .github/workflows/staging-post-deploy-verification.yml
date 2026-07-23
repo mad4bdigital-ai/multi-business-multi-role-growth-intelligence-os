@@ -1,0 +1,199 @@
+name: Staging Post-Deploy Verification
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Optional commit SHA expected on staging; defaults to the workflow commit
+        required: false
+        type: string
+      timeout_seconds:
+        description: Maximum time to wait for staging deployment convergence
+        required: false
+        default: "900"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-post-deploy-verification
+  cancel-in-progress: true
+
+jobs:
+  verify-staging:
+    name: Verify main on dev.mad4b.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      STAGING_BASE_URL: https://dev.mad4b.com
+      EXPECTED_BRANCH: main
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      EVENT_SHA: ${{ github.sha }}
+      INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
+      INPUT_TIMEOUT_SECONDS: ${{ inputs.timeout_seconds }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Resolve expected deployment
+        id: expected
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_commit="${INPUT_EXPECTED_SHA:-${EVENT_SHA}}"
+          timeout_seconds="${INPUT_TIMEOUT_SECONDS:-900}"
+          if [[ ! "${expected_commit}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Expected deployment commit must be a full 40-character SHA."
+            exit 1
+          fi
+          if [[ ! "${timeout_seconds}" =~ ^[0-9]+$ ]] || (( timeout_seconds < 60 || timeout_seconds > 1800 )); then
+            echo "::error::timeout_seconds must be between 60 and 1800."
+            exit 1
+          fi
+          if [[ -z "${BACKEND_API_KEY}" ]]; then
+            echo "::error::BACKEND_API_KEY repository secret is required for staging DB verification."
+            exit 1
+          fi
+          echo "commit=${expected_commit}" >> "${GITHUB_OUTPUT}"
+          echo "timeout_seconds=${timeout_seconds}" >> "${GITHUB_OUTPUT}"
+
+      - name: Wait for staging to deploy the expected main commit
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
+          TIMEOUT_SECONDS: ${{ steps.expected.outputs.timeout_seconds }}
+        run: |
+          set -euo pipefail
+          mkdir -p staging-verification-artifacts
+          deadline=$((SECONDS + TIMEOUT_SECONDS))
+          matched=false
+
+          while (( SECONDS < deadline )); do
+            tmp_file="$(mktemp)"
+            if curl --fail --silent --show-error \
+              --connect-timeout 15 \
+              --max-time 60 \
+              "${STAGING_BASE_URL}/deployment-info" \
+              --output "${tmp_file}"; then
+              mv "${tmp_file}" staging-verification-artifacts/deployment-info.json
+              observed_branch="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(p.branch||""));' staging-verification-artifacts/deployment-info.json)"
+              observed_commit="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(p.commit_sha||p.commit||""));' staging-verification-artifacts/deployment-info.json)"
+              echo "Observed staging branch=${observed_branch:-<missing>} commit=${observed_commit:-<missing>}"
+              if [[ "${observed_branch}" == "${EXPECTED_BRANCH}" && "${observed_commit}" == "${EXPECTED_COMMIT}" ]]; then
+                matched=true
+                break
+              fi
+            else
+              rm -f "${tmp_file}"
+              echo "Staging deployment-info is not available yet."
+            fi
+            sleep 20
+          done
+
+          if [[ "${matched}" != "true" ]]; then
+            echo "::error::Staging did not converge to ${EXPECTED_BRANCH}@${EXPECTED_COMMIT} within ${TIMEOUT_SECONDS} seconds."
+            if [[ -f staging-verification-artifacts/deployment-info.json ]]; then
+              cat staging-verification-artifacts/deployment-info.json
+            fi
+            exit 1
+          fi
+
+      - name: Run governed staging smoke suite
+        working-directory: http-generic-api
+        env:
+          EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
+        run: |
+          set -euo pipefail
+          max_attempts=5
+          retry_delay_seconds=20
+
+          for attempt in $(seq 1 "${max_attempts}"); do
+            echo "Staging smoke attempt ${attempt}/${max_attempts}"
+            set +e
+            node scripts/dev-autopilot-smoke.mjs \
+              --base-url="${STAGING_BASE_URL}" \
+              --expected-branch="${EXPECTED_BRANCH}" \
+              --expected-commit="${EXPECTED_COMMIT}" \
+              > ../staging-verification-artifacts/staging-smoke.json
+            smoke_status=$?
+            set -e
+
+            cat ../staging-verification-artifacts/staging-smoke.json
+            if (( smoke_status == 0 )); then
+              exit 0
+            fi
+
+            retryable="$(node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('../staging-verification-artifacts/staging-smoke.json', 'utf8'));
+          const failed = (payload.checks || []).filter((check) => !check.passed).map((check) => String(check.name || ''));
+          const retryablePrefixes = [
+            'connector-agent version is available',
+            'connector-agent manifest is available',
+            'manifest has hash for ',
+          ];
+          process.stdout.write(
+            failed.length > 0 && failed.every((name) => retryablePrefixes.some((prefix) => name.startsWith(prefix)))
+              ? 'true'
+              : 'false',
+          );
+          NODE
+            )"
+
+            if [[ "${retryable}" != "true" || "${attempt}" -ge "${max_attempts}" ]]; then
+              echo "::error::Staging smoke failed with non-retryable checks or exhausted retries."
+              exit "${smoke_status}"
+            fi
+
+            echo "Connector readiness is still converging; retrying in ${retry_delay_seconds} seconds."
+            sleep "${retry_delay_seconds}"
+          done
+
+      - name: Publish verification summary
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
+        run: |
+          {
+            echo "## Staging post-deploy verification"
+            echo
+            echo "- Environment: ${STAGING_BASE_URL}"
+            echo "- Expected branch: ${EXPECTED_BRANCH}"
+            echo "- Expected commit: ${EXPECTED_COMMIT:-unresolved}"
+            if [[ -f staging-verification-artifacts/staging-smoke.json ]]; then
+              node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('staging-verification-artifacts/staging-smoke.json', 'utf8'));
+          console.log(`- Smoke result: ${payload.ok ? 'passed' : 'failed'}`);
+          console.log(`- Checks: ${payload.passed || 0} passed, ${payload.failed || 0} failed`);
+          NODE
+            else
+              echo "- Smoke result: not completed"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-post-deploy-verification-${{ github.run_id }}
+          path: staging-verification-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
