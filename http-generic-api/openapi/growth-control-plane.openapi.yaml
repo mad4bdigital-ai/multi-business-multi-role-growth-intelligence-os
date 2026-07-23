@@ -481,6 +481,12 @@ components:
       in: path
       required: true
       schema: { $ref: '#/components/schemas/CanonicalKey' }
+    ConfigVersionIdPath:
+      name: configVersionId
+      in: path
+      required: true
+      description: Immutable Growth Control Plane configuration version identifier.
+      schema: { type: string, format: uuid }
     ActivityPackKeyPath:
       name: activityPackKey
       in: path
