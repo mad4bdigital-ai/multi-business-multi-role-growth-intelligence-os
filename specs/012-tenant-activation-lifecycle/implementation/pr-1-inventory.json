@@ -109,7 +109,6 @@
     "dynamic_resolution_operation_policy":{"disposition":"reuse_catalog_add_policy_projection","tables":["platform_resource_operation_registry"],"proposed_additive_table":"tenant_resolution_operation_policies","gaps":["scopes","roles","capabilities","object_authority","risk","approval","idempotency","readback","effective_version"]}
   },
   "known_gaps": [
-    {"code":"canonical_source_not_designated","summary":"The served Tenant Activation artifact is known, but T010 must designate and document its canonical generation source before contract changes."},
     {"code":"registry_rows_inventory_only","summary":"OpenAPI-synchronized endpoint rows are discovery metadata and are not callable runtime authority."},
     {"code":"session_operation_id_alias","summary":"The public operationId is activateSession while the endpoint inventory row uses getTenantActivationSessionContext."},
     {"code":"resolution_scope_policy_not_active","summary":"The active Tenant Activation schema still uses the broad five-scope catalog; ADR-004 Resolution scopes and dynamic per-operation policy are not implemented."},
