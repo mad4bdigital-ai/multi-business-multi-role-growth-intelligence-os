@@ -31,8 +31,13 @@
   "phase1_verified_runtime_sha": "2dd183e06bbbca9bdb34525820b6c268bdc6d121",
   "phase1_release_gate_id": "ba99eb81-d5e4-470d-87bd-474ef95a66d3",
   "phase1_closeout_branch": "gpt/spec-011-phase1-closeout-20260723",
+  "phase1_closeout_pull_request": 3011,
+  "phase1_closeout_merge_sha": "91b5af4d8150f5af5f977ae8c26409bcb03ccbb1",
   "phase1_closeout_source_main_sha": "3003583c8071833c453b0991264c1780bc51bd85",
   "phase1_source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
+  "phase2_branch": "gpt/spec-011-phase2-contract-resolver-20260723",
+  "phase2_pull_request": 3018,
+  "phase2_source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
   "deliverables": [
     "spec",
     "plan",
@@ -56,7 +61,11 @@
     "phase1_tenant_scope_tests",
     "phase1_merge_evidence",
     "phase1_production_reconciliation_evidence",
-    "phase1_release_gate_closeout"
+    "phase1_release_gate_closeout",
+    "phase2_canonical_execution_contract_resolver",
+    "phase2_exact_binding_tests",
+    "phase2_policy_projection",
+    "phase2_fail_closed_ci_guard"
   ],
   "constraints": [
     "no_provider_call",
@@ -69,6 +78,8 @@
     "reuse_first",
     "shadow_only",
     "runtime_authority_false",
+    "explicit_capability_key_only",
+    "no_public_route",
     "draft_openapi_non_authoritative"
   ]
 }
