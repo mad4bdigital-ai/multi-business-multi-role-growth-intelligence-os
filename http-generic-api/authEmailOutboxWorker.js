@@ -275,20 +275,11 @@ export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes
   const connection = await pool.getConnection();
   const skipped = [];
   try {
-    for (let index = 0; index < safeLimit; index += 1) {
-      await connection.beginTransaction();
-      const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: 1 });
-      const email = rows[0] || null;
-      if (!email) {
-        await connection.commit();
-        break;
-      }
+    const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: safeLimit });
+    for (const email of rows || []) {
       const metadata = parseJsonObject(email.metadata_json, {});
       const eligibility = evaluateAuthEmailOutboxSendEligibility(email);
-      if (eligibility.eligible) {
-        await connection.commit();
-        break;
-      }
+      if (eligibility.eligible) continue;
       const nextMetadata = {
         ...metadata,
         delivery_provider: null,
@@ -297,6 +288,7 @@ export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes
         skipped_by: actorId,
         secrets_included: false,
       };
+      await connection.beginTransaction();
       await connection.query(
         `UPDATE auth_email_outbox
             SET status = 'skipped', metadata_json = ?, last_error = ?, provider = COALESCE(provider, 'support_ticket_router')
@@ -330,7 +322,7 @@ export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes
       ok: true,
       mode: "skip_ineligible",
       purposes: normalizedPurposes,
-      attempted_count: skipped.length,
+      scanned_count: (rows || []).length,
       skipped_count: skipped.length,
       skipped,
       applies_delivery: false,
