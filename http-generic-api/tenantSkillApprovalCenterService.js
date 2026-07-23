@@ -184,11 +184,28 @@ function latestHoldsByApprovalKey(rows = []) {
   const map = new Map();
   for (const row of rows) {
     const context = parseJsonValue(row.execution_context_json, {});
+    const hold = { ...row, context };
     const approvalKey = safeString(context.approval_key, 128);
-    if (!approvalKey || map.has(approvalKey)) continue;
-    map.set(approvalKey, { ...row, context });
+    const requestId = safeString(context.request_id || row.request_id, 64);
+    if (approvalKey && !map.has(approvalKey)) map.set(approvalKey, hold);
+    if (requestId && !map.has(`request:${requestId}`)) map.set(`request:${requestId}`, hold);
   }
   return map;
+}
+
+function holdForGroup(group, holds) {
+  for (const requestId of group.request_ids || []) {
+    const hold = holds.get(`request:${requestId}`);
+    if (hold) return hold;
+  }
+  return holds.get(group.approval_key) || null;
+}
+
+function effectiveApprovalStatus(group, hold, now = new Date()) {
+  if (["pending", "approved", "rejected", "deferred", "expired"].includes(group.request_status)) {
+    return group.request_status;
+  }
+  return effectiveHoldStatus(hold, now);
 }
 
 function holdProjection(hold = null, now = new Date()) {
@@ -213,7 +230,7 @@ function holdProjection(hold = null, now = new Date()) {
 }
 
 function readbackFor(group, hold, now = new Date()) {
-  const effectiveStatus = effectiveHoldStatus(hold, now);
+  const effectiveStatus = effectiveApprovalStatus(group, hold, now);
   const activeGrantCount = group.active_grant_ids.length;
   let status = "not_run";
   let passed = false;
@@ -236,7 +253,7 @@ function readbackFor(group, hold, now = new Date()) {
     revoked_grant_count: group.revoked_grant_ids.length,
     expired_grant_count: group.expired_grant_ids.length,
     checked_at: now.toISOString(),
-    authority: "approval_holds_plus_agent_skill_grants",
+    authority: "agent_skill_grant_requests_plus_effective_grant_readback",
     secrets_included: false,
   };
 }
@@ -245,7 +262,7 @@ function approvalItem(group, hold, now = new Date()) {
   const holdView = holdProjection(hold, now);
   return {
     ...group,
-    status: holdView?.effective_status || "pending",
+    status: effectiveApprovalStatus(group, hold, now),
     hold: holdView,
     readback: readbackFor(group, hold, now),
     policy: {
