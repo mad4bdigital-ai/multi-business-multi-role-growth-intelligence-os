@@ -98,7 +98,7 @@ function normalizeInput(input = {}) {
     allowed_rollout_modes: stringList(root.allowed_rollout_modes, "input.allowed_rollout_modes", { defaultValue: DEFAULT_ROLLOUT_MODES }),
     require_certified: root.require_certified !== false,
     expected_runtime_surface: optionalString(root.expected_runtime_surface, "input.expected_runtime_surface", { pattern: KEY_PATTERN }),
-    expected_risk_class: optionalString(root.expected_risk_class, "input.expected_risk_class", { max: 16, pattern: KEY_PATTERN }),
+    expected_risk_class: optionalString(root.expected_risk_class, "input.expected_risk_class", { max: 16, pattern: /^R[0-9]+$/i })?.toUpperCase() || null,
     now: timestamp(root.now || new Date().toISOString(), "input.now")
   };
 }
