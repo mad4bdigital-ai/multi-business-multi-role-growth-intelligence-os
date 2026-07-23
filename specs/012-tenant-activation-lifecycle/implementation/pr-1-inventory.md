@@ -8,7 +8,7 @@ This is a read-only implementation baseline for Spec 012. It does not activate r
 
 The served Tenant Activation contract is `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml`: OpenAPI 3.1, server `https://activation.mad4b.com`, OAuth scheme `userBearerAuth`, protected resource `https://activation.mad4b.com`.
 
-The public schema currently declares 13 tenant operations. Three OAuth handoffs are admitted through `activationHostGatewayRoutes.js` and executed by `authRoutes.js`.
+The public schema currently declares 15 tenant operations. Three OAuth handoffs are admitted through `activationHostGatewayRoutes.js` and executed by `authRoutes.js`.
 
 Rows synchronized into `endpoints` are `inventory_only`, `pending_governance_review`, and not runtime-callable authority. Runtime behavior is owned by the gateway, route handlers, application services, SQL repositories, and authorization middleware listed in the JSON inventory.
 
