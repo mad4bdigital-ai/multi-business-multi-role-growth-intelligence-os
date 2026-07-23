@@ -46,7 +46,11 @@
   "phase2_source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
   "phase2_closeout_branch": "gpt/spec-011-phase2-closeout-20260723",
   "phase2_closeout_pull_request": 3025,
+  "phase2_closeout_merge_sha": "46704094e65374687e03435cfb15b5d53214a788",
   "phase2_closeout_source_main_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
+  "phase3_branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
+  "phase3_pull_request": 3042,
+  "phase3_source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
   "deliverables": [
     "spec",
     "plan",
@@ -76,7 +80,11 @@
     "phase2_policy_projection",
     "phase2_fail_closed_ci_guard",
     "phase2_merge_evidence",
-    "phase2_runtime_readback_evidence"
+    "phase2_runtime_readback_evidence",
+    "phase3_plan_bound_session_shadow",
+    "phase3_hash_binding_tests",
+    "phase3_approval_independence_tests",
+    "phase3_tenant_scope_tests"
   ],
   "constraints": [
     "no_provider_call",
@@ -91,6 +99,7 @@
     "runtime_authority_false",
     "explicit_capability_key_only",
     "no_public_route",
+    "no_delegation_activation",
     "draft_openapi_non_authoritative"
   ]
 }

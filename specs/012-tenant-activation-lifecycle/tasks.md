@@ -13,9 +13,9 @@
 
 ## Phase 0 — Clarification and baseline
 
-- [ ] **T001** `[FR-001..040][OP-001..018]` Inventory all current Tenant Activation and Resolution public operations, operation IDs, auth schemes, route handlers, middleware, and consumers.
-- [ ] **T002** `[FR-019][OP-006][OP-008]` Inventory SQL/bootstrap/provider validation authority and deprecated paths.
-- [ ] **T003** `[FR-026..032][OP-010..014]` Inventory existing operation, attempt, evidence, delivery, acknowledgement, and reconciliation tables/services.
+- [x] **T001** `[FR-001..040][OP-001..018]` Inventory all current Tenant Activation and Resolution public operations, operation IDs, auth schemes, route handlers, middleware, and consumers. Evidence: `implementation/pr-1-inventory.json` and `implementation/pr-1-inventory.md`.
+- [x] **T002** `[FR-019][OP-006][OP-008]` Inventory SQL/bootstrap/provider validation authority and deprecated paths. Evidence: backend-runtime/DB bootstrap authority, same-cycle provider validation chain, and deprecated no-Sheets alias in `implementation/pr-1-inventory.json`.
+- [x] **T003** `[FR-026..032][OP-010..014]` Inventory existing operation, attempt, evidence, delivery, acknowledgement, and reconciliation tables/services. Evidence: `physical_mappings` in `implementation/pr-1-inventory.json`.
 - [x] **T004** `[ADR-001]` Adopt the hybrid operation model: general operation ledger for shared identity/idempotency/audit plus an Activation-specific projection linked by `operation_id`. Decision recorded in `decisions/ADR-001-hybrid-activation-operation-ledger.md`. Physical table mapping remains T001-T003/T014.
 - [x] **T005** `[ADR-002][ADR-003][FR-006]` Approve phased legacy generic-token cutoff, targeted telemetry/communication, cleanup policy, and one unified Tenant GPT OAuth client with resource-bound external access tokens.
 - [x] **T006** `[ADR-004][FR-008..012][FR-022..025]` Keep Resolution under the Activation protected resource, adopt five stable coarse scopes, and resolve route/action authorization dynamically from a versioned governed SQL policy registry. Route inventory, policy-row mapping, parity tests, and canonical contract work remain implementation tasks.
@@ -30,7 +30,7 @@
 - [ ] **T011** `[P][FR-013..025][OP-005..010]` Finalize session/bootstrap/tool operation contracts.
 - [ ] **T012** `[P][FR-026..032][OP-011..014]` Finalize operation status, retry, delivery, acknowledgement, and reconciliation contracts.
 - [ ] **T013** `[P][FR-033..040][OP-016..018]` Finalize deployment/operational evidence contracts.
-- [ ] **T014** `[data-model]` Map logical entities to existing/new SQL tables and define indexes/constraints/retention.
+- [x] **T014** `[data-model]` Map logical entities to existing/new SQL tables and define indexes/constraints/retention. Evidence: `data-model.md` PR-1 mapping and `implementation/pr-1-inventory.json`; retention remains gated by T009.
 - [ ] **T015** `[state machine]` Approve operation/stage/delivery/ack state transitions and terminal semantics.
 - [ ] **T016** `[errors]` Freeze stable error taxonomy and reconnect-guidance mapping.
 - [ ] **T017** `[compatibility]` Define optional fields, compatibility window, and deprecation/cutoff.
@@ -101,7 +101,7 @@
 - [ ] **T073** `[P][FR-022..025][OP-009..010]` Add tool scope/readiness/forbidden key/sensitive-action tests.
 - [ ] **T074** `[P][FR-026..032][OP-011..014]` Add state/idempotency/unknown-outcome/reconciliation/delivery/ack tests.
 - [ ] **T075** `[P][ADR-006][FR-033..040][OP-016..018]` Add deployment freshness/rollback/recovery tests covering opaque versus Admin evidence, tenant denial of `admin_full`, header/body consistency, all five deployment states, historical request-time correlation, `unknown` on incomplete evidence, and no reconnect guidance for deployment mismatch.
-- [ ] **T076** `[contracts]` Add OpenAPI/JSON Schema/canonical-generated parity tests.
+- [x] **T076** `[contracts]` Add OpenAPI/JSON Schema/canonical-generated parity tests. Evidence: `http-generic-api/test-tenant-activation-contract-inventory-parity.mjs` is wired into CI and passed on PR #3036.
 - [ ] **T077** `[C-017][C-031]` Add secret/log-injection/oversized-input security tests.
 - [ ] **T078** `[fault injection]` Add dependency 401/403/429/5xx/timeout/database conflict/cache-stale scenarios.
 - [ ] **T079** `[production]` Add protected Tenant user JWT smoke and rollback smoke.
