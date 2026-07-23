@@ -532,6 +532,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             WHERE email_id = ? AND status = 'queued'`,
           [String(error?.code || error?.message || "gmail_delivery_failed").slice(0, 1000), email.email_id]
         );
+        await recordAuthEmailOutboxDeliveryAttempt(connection, {
+          email,
+          metadata,
+          status: "failed",
+          provider: "gmail_api",
+          error,
+        });
         await connection.commit();
         failed.push({ email_id: email.email_id, recipient_email: email.recipient_email, error_code: error?.code || "gmail_delivery_failed", secrets_included: false });
       }
