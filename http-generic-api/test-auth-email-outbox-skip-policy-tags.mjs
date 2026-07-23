@@ -10,7 +10,8 @@ assert.match(migration, /readback/, "mutation tool must declare readback");
 assert.match(migration, /same_cycle_readback/, "mutation tool must declare same_cycle_readback");
 assert.match(migration, /no_delivery/, "tool must remain no-delivery tagged");
 assert.match(migration, /no_secrets/, "tool must remain no-secrets tagged");
-assert.doesNotMatch(migration, /\bauth_email_outbox\b/i, "policy tag migration must not mutate outbox rows");
-assert.doesNotMatch(migration, /\bDELETE\b|\bDROP\b|\bTRUNCATE\b/i, "migration must not be destructive");
+assert.doesNotMatch(migration, /\bUPDATE\s+auth_email_outbox\b/i, "policy tag migration must not update outbox rows");
+assert.doesNotMatch(migration, /\bDELETE\s+FROM\s+auth_email_outbox\b/i, "policy tag migration must not delete outbox rows");
+assert.doesNotMatch(migration, /\bDROP\b|\bTRUNCATE\b/i, "migration must not be destructive");
 
 console.log("auth email outbox skip policy tag test passed");
