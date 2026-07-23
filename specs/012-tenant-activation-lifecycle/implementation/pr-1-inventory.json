@@ -23,6 +23,7 @@
       "http-generic-api/routes/activationHostGatewayRoutes.js",
       "http-generic-api/routes/tenantActivationOverlayRoutes.js",
       "http-generic-api/routes/activationAwarenessRoutes.js",
+      "http-generic-api/routes/gptSessionRoutes.js",
       "http-generic-api/routes/authRoutes.js"
     ],
     "registry_row_role": "inventory_only_not_runtime_authority",
