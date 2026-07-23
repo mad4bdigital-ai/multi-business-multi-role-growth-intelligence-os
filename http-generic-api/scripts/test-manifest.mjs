@@ -608,6 +608,7 @@ export const testCommands = [
   "node test-repository-main-moved-trigger-coordinator.mjs",
   "node test-github-repository-main-moved-webhook.mjs",
   "node test-github-repository-main-moved-webhook-provisioning.mjs",
+  "node test-github-repository-webhook-certification-service.mjs",
   "node test-policy-only-target-rule-migration.mjs",
   "node test-safe-additive-repair-policy-literal.mjs",
   "node test-execution-job-tick-admin.mjs",
