@@ -999,15 +999,40 @@ function sendSystemToolCatalogError(res, error, fallbackCode) {
 
 async function chunkSystemLayerResponse(body, source = {}) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
-  return await maybeChunkToolResponseBody(body, {
-    response_options: {
-      max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
-      cursor: Number(responseOptions.cursor || source?.cursor || 0),
-      chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
-      chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
-    },
-    source_tool_key: source?.source_tool_key || "system_layer_response",
-  });
+  const sourceToolKey = source?.source_tool_key || "system_layer_response";
+  try {
+    return await maybeChunkToolResponseBody(body, {
+      response_options: {
+        max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        cursor: Number(responseOptions.cursor || source?.cursor || 0),
+        chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+        chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+      },
+      source_tool_key: sourceToolKey,
+    });
+  } catch (error) {
+    const { buildBoundedInlineChunkFallback } = await import("../systemLayerResponseFallback.js");
+    const fallback = buildBoundedInlineChunkFallback(body, error, {
+      sourceToolKey,
+      maxChars: Number(
+        responseOptions.inline_fallback_max_chars
+        || source?.inline_fallback_max_chars
+        || 150000,
+      ),
+    });
+    console.warn(
+      "[systemLayerResponse] durable chunk persistence unavailable; returning bounded inline response",
+      JSON.stringify({
+        error_code: error?.code || null,
+        cause_code: error?.details?.cause_code || error?.cause?.code || null,
+        source_tool_key: sourceToolKey,
+        serialized_chars: fallback.continuation_contract?.serialized_chars || null,
+        bounded_inline_max_chars: fallback.continuation_contract?.bounded_inline_max_chars || null,
+        secrets_included: false,
+      }),
+    );
+    return fallback;
+  }
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
