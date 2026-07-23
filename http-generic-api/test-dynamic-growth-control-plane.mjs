@@ -181,6 +181,35 @@ const fakeRepository = {
     stored.versions.push(saved);
     return saved;
   },
+  async validateConfigurationVersion(record) {
+    const version = stored.versions.find((item) => item.configVersionId === record.configVersionId);
+    Object.assign(version, { lifecycle: "ready", versionRevision: version.versionRevision + 1 });
+    return { ...version };
+  },
+  async createConfigurationLifecycleApprovalHold(record) {
+    return {
+      holdId: record.holdId,
+      runId: record.runId,
+      status: "open",
+      operation: record.operation,
+      expiresAt: record.expiresAt,
+      secretsIncluded: false
+    };
+  },
+  async applyConfigurationLifecycle(record) {
+    const version = stored.versions.find((item) => item.configVersionId === record.configVersionId);
+    Object.assign(version, { lifecycle: "active", versionRevision: version.versionRevision + 1 });
+    return {
+      version: { ...version },
+      operation: record.operation,
+      approvalHoldId: record.approvalHoldId,
+      eventId: record.eventId,
+      previousActiveVersionIds: [],
+      providerCalls: false,
+      externalWrites: false,
+      secretsIncluded: false
+    };
+  },
   async listResolvableConfigurationVersions({ includeDraftVersionIds }) {
     return stored.versions.filter((item) => includeDraftVersionIds.includes(item.configVersionId));
   },
