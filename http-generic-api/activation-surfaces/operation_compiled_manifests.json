@@ -32,8 +32,7 @@
     "revoked_at",
     "readiness_status",
     "created_at",
-    "current_updated_at",
-    "secrets_included"
+    "current_updated_at"
   ],
   "include_for_admin": true,
   "include_for_tenant": false,
