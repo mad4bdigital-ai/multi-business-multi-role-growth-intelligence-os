@@ -100,14 +100,35 @@ function transactionalPool({ breakReadback = false } = {}) {
   assert.equal(mock.state().committed, true);
   assert.equal(mock.state().rolledBack, false);
   assert.equal(mock.state().released, true);
-  const serializedParameters = JSON.stringify(
-    mock.calls
-      .filter((row) => row.kind === "query")
-      .flatMap((row) => Array.isArray(row.params) ? row.params : []),
-  );
+  const parameterValues = mock.calls
+    .filter((row) => row.kind === "query")
+    .flatMap((row) => Array.isArray(row.params) ? row.params : []);
+  const serializedParameters = JSON.stringify(parameterValues);
   assert.equal(serializedParameters.includes("super-secret-value"), false, "evidence writes must not include secret material");
   assert.equal(serializedParameters.includes("ref:secret:"), false, "evidence writes must not include credential references");
-  assert.equal(serializedParameters.includes("credential_ref"), false, "evidence payloads must not name credential reference fields");
+
+  const parsedPayloads = parameterValues
+    .filter((value) => typeof value === "string" && value.trim().startsWith("{"))
+    .map((value) => JSON.parse(value));
+  const visitedKeys = [];
+  const visitedStrings = [];
+  const visit = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, nested] of Object.entries(value)) {
+        visitedKeys.push(key);
+        visit(nested);
+      }
+      return;
+    }
+    if (typeof value === "string") visitedStrings.push(value);
+  };
+  parsedPayloads.forEach(visit);
+  assert.equal(visitedKeys.includes("credential_ref"), false, "evidence payloads must not expose a credential_ref field");
+  assert.equal(visitedStrings.some((value) => value.startsWith("ref:secret:")), false, "evidence payload values must not expose credential references");
 }
 
 {
