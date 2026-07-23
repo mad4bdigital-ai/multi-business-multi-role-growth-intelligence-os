@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "title": "Tenant GPT Activation Lifecycle",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": "to_be_determined_after_inventory",
+    "production_verification": true,
+    "post_merge_audit": true,
+    "protected_user_path_smoke": true,
+    "rollback_verification": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 2984,
+      "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
+      "role": "specification",
+      "status": "ready_for_review"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "constitution": {
+      "status": "complete",
+      "version": "1.0.0"
+    },
+    "specification": {
+      "status": "complete",
+      "manifest": true,
+      "spec": true,
+      "research": true,
+      "concerns": true,
+      "operation_paths": true,
+      "plan": true,
+      "data_model": true,
+      "quickstart": true,
+      "tasks": true,
+      "contracts": true,
+      "checklists": true
+    },
+    "clarification": {
+      "status": "complete",
+      "open_questions": []
+    },
+    "implementation": {
+      "status": "not_started"
+    },
+    "ci": {
+      "status": "tracked_by_live_pr_gate",
+      "pull_request": 2984
+    },
+    "migration": {
+      "status": "pending_inventory"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    },
+    "rollback_verification": {
+      "status": "pending"
+    }
+  },
+  "unresolved_gaps": [],
+  "sensitive_values_included": false
+}
