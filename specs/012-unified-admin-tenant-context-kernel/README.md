@@ -4,7 +4,7 @@ Status: Specification draft
 
 ## Purpose
 
-Define one dynamic context-resolution and governed-execution kernel for administrators, tenant users, service principals, and future principal types. The kernel MUST use the same domain rules for every principal. Differences between principal types are limited to authorized visibility, candidate enumeration, approval policy, and execution authority.
+Define one dynamic context-resolution and governed-execution kernel for administrators, tenant users, service principals, delegated agents, and future registry-defined principal types. The kernel MUST use the same domain rules for every principal. Differences between principal types are limited to authorized visibility, candidate enumeration, approval policy, and execution authority.
 
 ## Core invariant
 
@@ -14,21 +14,13 @@ Static identifiers are allowed only in isolated test fixtures, migration example
 
 ## Canonical resolution pipeline
 
-Authenticated Principal
-→ Authorized Scope Enumeration
-→ Effective Subject Resolution
-→ Tenant Resolution
-→ Workspace Resolution
-→ Brand or Resource Resolution
-→ Exact Connection Resolution
-→ Authority Resolution
-→ Capability Resolution
-→ Execution Plan Compilation
-→ Approval
-→ Dispatch
-→ Readback and Reconciliation
+Authenticated Principal → Authorized Scope Enumeration → Effective Subject Resolution → Tenant Resolution → Workspace Resolution → Brand or Resource Resolution → Exact Connection Resolution → Authority Resolution → Capability Resolution → Execution Plan Compilation → Approval → Dispatch → Readback and Reconciliation
 
 No later stage may silently repair, infer, or replace a missing earlier stage.
+
+## Public API boundary
+
+The public v0.1.0 OpenAPI contract covers context resolution, context pinning, execution-context compilation, and context validation. Provider dispatch, provider readback, and unknown-outcome reconciliation remain internal governed application/runtime capabilities in this specification version. Exposing any of them publicly requires a later additive contract amendment with explicit authorization, idempotency, error, and readback semantics.
 
 ## Scope
 
@@ -60,17 +52,23 @@ This Spec Kit covers:
 
 ## Planned artifacts
 
+- `README.md`
 - `spec.md`
 - `architecture.md`
 - `end-to-end-flows.md`
 - `data-model.md`
-- `api/openapi.yaml`
+- `hardcoding-policy.md`
+- `error-catalog.md`
 - `threat-model.md`
 - `testing-strategy.md`
 - `rollout.md`
+- `api/openapi.yaml`
 - `traceability.md`
 - `tasks.md`
 - `acceptance-matrix.md`
+- `plan.md`
+- `completion.json`
+- `checklists/specification-readiness.md`
 - `manifest.json`
 
 ## Acceptance gates

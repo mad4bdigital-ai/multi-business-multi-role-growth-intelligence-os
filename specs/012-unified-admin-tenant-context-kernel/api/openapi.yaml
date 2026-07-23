@@ -2,7 +2,12 @@ openapi: 3.1.0
 info:
   title: Unified Context Kernel API
   version: 0.1.0
-  description: Dynamic context resolution and governed execution contracts shared by Admin, Tenant, service, and delegated principals.
+  description: >-
+    Dynamic context resolution and governed execution-planning contracts shared by Admin, Tenant,
+    service, and delegated principals. This public v0.1.0 contract covers context resolution,
+    pinning, execution-context compilation, and validation. Provider dispatch, readback, and
+    unknown-outcome reconciliation remain internal governed application/runtime capabilities
+    unless a later contract explicitly exposes them.
 servers:
   - url: https://auth.example.invalid
 security:
@@ -55,6 +60,8 @@ paths:
       operationId: createContextPin
       summary: Confirm and pin a resolved context
       tags: [Context]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -68,6 +75,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContextPin'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /context-pins/{pinId}:
@@ -82,6 +92,8 @@ paths:
           schema: { type: string, minLength: 1, maxLength: 191 }
       responses:
         '204': { description: Pin invalidated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /execution-contexts:
     post:
@@ -103,6 +115,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionContext'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /execution-contexts/{contextId}/validate:
@@ -130,6 +145,9 @@ paths:
                     items: { type: string }
                   contextRevision: { type: string }
                 additionalProperties: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
@@ -165,14 +183,18 @@ components:
             connectionRef: { type: string }
           additionalProperties: false
         pinRef: { type: string }
-        riskClass: { type: string, enum: [read, low, medium, high, critical] }
+        riskClass:
+          type: string
+          enum: [read, low, medium, high, critical]
       additionalProperties: false
     ContextResolution:
       type: object
       required: [resolutionId, status, reasonCodes, contextRevision]
       properties:
         resolutionId: { type: string }
-        status: { type: string, enum: [resolved, interpretation_required, blocked, stale] }
+        status:
+          type: string
+          enum: [resolved, interpretation_required, blocked, stale]
         reasonCodes:
           type: array
           items: { type: string }
@@ -217,7 +239,9 @@ components:
       required: [resolutionId, scope, contextRevision]
       properties:
         resolutionId: { type: string }
-        scope: { type: string, enum: [request, workflow, conversation] }
+        scope:
+          type: string
+          enum: [request, workflow, conversation]
         contextRevision: { type: string }
         expiresAt: { type: string, format: date-time }
       additionalProperties: false
@@ -228,7 +252,9 @@ components:
         pinId: { type: string }
         resolutionId: { type: string }
         scope: { type: string }
-        status: { type: string, enum: [active, invalidated, expired] }
+        status:
+          type: string
+          enum: [active, invalidated, expired]
         contextRevision: { type: string }
         expiresAt: { type: string, format: date-time }
       additionalProperties: false
@@ -248,7 +274,9 @@ components:
         contextId: { type: string }
         contextHash: { type: string, pattern: '^[0-9a-f]{64}$' }
         planHash: { type: string, pattern: '^[0-9a-f]{64}$' }
-        status: { type: string, enum: [planned, approval_required, ready, blocked, stale] }
+        status:
+          type: string
+          enum: [planned, approval_required, ready, blocked, stale]
         readiness:
           type: object
           required: [contextReady, operationReady, blockingGaps]
@@ -281,19 +309,37 @@ components:
   responses:
     BadRequest:
       description: Invalid request
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     Unauthorized:
       description: Authentication required
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     Forbidden:
       description: Authenticated but not authorized
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     NotFound:
       description: Resource not found
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     Conflict:
       description: Context, revision, or idempotency conflict
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     Unprocessable:
       description: Request is structurally valid but cannot be resolved or executed
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

@@ -13,12 +13,16 @@
   },
   "evidence": {
     "ci": {
+      "status": "passed",
+      "scope": "specification_pr"
+    },
+    "implementation_ci": {
       "status": "pending"
     },
     "release_readiness": {
       "status": "pending"
     }
   },
-  "notes": "This pull request delivers the specification and governance artifacts only. Runtime implementation, tests, migration evidence, production verification, and closeout evidence remain future governed work.",
+  "notes": "This pull request delivers the specification and governance artifacts only. Specification CI has passed. Runtime implementation, implementation tests, migration evidence, production verification, and closeout evidence remain future governed work.",
   "secrets_included": false
 }

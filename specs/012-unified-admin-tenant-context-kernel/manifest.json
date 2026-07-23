@@ -33,8 +33,26 @@
     "api/openapi.yaml",
     "traceability.md",
     "tasks.md",
-    "acceptance-matrix.md"
+    "acceptance-matrix.md",
+    "plan.md",
+    "completion.json",
+    "checklists/specification-readiness.md",
+    "manifest.json"
   ],
+  "public_api_boundary": {
+    "version": "0.1.0",
+    "exposed": [
+      "context_resolution",
+      "context_pinning",
+      "execution_context_compilation",
+      "execution_context_validation"
+    ],
+    "internal_governed_only": [
+      "provider_dispatch",
+      "provider_readback",
+      "unknown_outcome_reconciliation"
+    ]
+  },
   "production_mutation": false,
   "provider_write": false,
   "migration_apply": false,
