@@ -265,6 +265,41 @@ async function loadTarget(pool, targetId) {
   };
 }
 
+function metadataFlagIsFalse(value) {
+  return value === false || String(value ?? "").trim().toLowerCase() === "false";
+}
+
+export function evaluateHostingerSshDeployTargetPolicy(target = {}) {
+  const metadata = target?.metadata && typeof target.metadata === "object" ? target.metadata : {};
+  const deploymentStrategy = compact(metadata.deployment_strategy || "", 64).toLowerCase();
+  const sshPathStatus = compact(metadata.ssh_path_status || "", 64).toLowerCase();
+  const reasons = [];
+  if (metadataFlagIsFalse(metadata.deployment_allowed)) reasons.push("deployment_not_allowed");
+  if (metadataFlagIsFalse(metadata.ssh_normal_updates_allowed)) reasons.push("ssh_normal_updates_not_allowed");
+  if (sshPathStatus === "skipped_by_user") reasons.push("ssh_path_skipped_by_user");
+  if (deploymentStrategy === "github_main_auto_deploy") reasons.push("github_main_auto_deploy_is_normal_path");
+  return {
+    allowed: reasons.length === 0,
+    reasons,
+    deployment_strategy: deploymentStrategy || null,
+    ssh_path_status: sshPathStatus || null,
+    deployment_allowed: !metadataFlagIsFalse(metadata.deployment_allowed),
+    ssh_normal_updates_allowed: !metadataFlagIsFalse(metadata.ssh_normal_updates_allowed),
+    ssh_break_glass_only: metadata.ssh_break_glass_only === true,
+    secrets_included: false,
+  };
+}
+
+export function assertHostingerSshDeployTargetPolicy(target = {}) {
+  const policy = evaluateHostingerSshDeployTargetPolicy(target);
+  if (policy.allowed) return policy;
+  const err = new Error("Hostinger SSH deploy is blocked by target policy; use the configured normal deployment path.");
+  err.status = 409;
+  err.code = "hostinger_ssh_deploy_target_policy_blocked";
+  err.details = policy;
+  throw err;
+}
+
 function isPlatformManagedTarget(target = {}) {
   const systemKey = String(target.metadata?.system_key || "");
   return !target.user_id && (
