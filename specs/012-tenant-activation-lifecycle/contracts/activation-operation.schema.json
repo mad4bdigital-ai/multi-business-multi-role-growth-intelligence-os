@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/specs/012/activation-operation.schema.json",
+  "title": "Tenant Activation Operation",
+  "description": "Specification-only lifecycle schema. It is not runtime authority until registered through canonical implementation delivery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation_id",
+    "tenant_id",
+    "user_id",
+    "client_id",
+    "resource",
+    "mode",
+    "status",
+    "current_stage",
+    "retryable",
+    "created_at",
+    "updated_at",
+    "stages",
+    "delivery_state",
+    "acknowledgement_state",
+    "secrets_included"
+  ],
+  "properties": {
+    "operation_id": { "type": "string", "minLength": 8, "maxLength": 200 },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "user_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "session_id": { "type": ["string", "null"], "maxLength": 200 },
+    "client_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "resource": {
+      "type": "string",
+      "format": "uri",
+      "enum": ["https://activation.mad4b.com"]
+    },
+    "mode": { "type": "string", "enum": ["managed", "dedicated", "mixed"] },
+    "integration_modes": {
+      "type": "object",
+      "maxProperties": 50,
+      "additionalProperties": { "type": "string", "enum": ["managed", "dedicated"] }
+    },
+    "idempotency_key_hash": { "type": ["string", "null"], "maxLength": 128 },
+    "operation_fingerprint": { "type": ["string", "null"], "maxLength": 128 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "authenticating",
+        "authorized",
+        "resolving_session",
+        "bootstrapping",
+        "validating",
+        "preparing_tools",
+        "ready",
+        "active",
+        "executing",
+        "readback_pending",
+        "delivery_pending",
+        "acknowledgement_pending",
+        "retry_scheduled",
+        "unknown_outcome",
+        "reconciling",
+        "degraded",
+        "authorization_gated",
+        "validation_rate_limited",
+        "contract_degraded",
+        "failed",
+        "cancelled",
+        "rolled_back"
+      ]
+    },
+    "current_stage": { "$ref": "#/$defs/stageKey" },
+    "retryable": { "type": "boolean" },
+    "error_code": { "type": ["string", "null"], "maxLength": 120 },
+    "deployment_sha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 },
+    "stages": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/stageAttempt" }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/evidenceItem" }
+    },
+    "delivery_state": {
+      "type": "string",
+      "enum": ["not_prepared", "prepared", "sent", "failed", "expired"]
+    },
+    "acknowledgement_state": {
+      "type": "string",
+      "enum": ["not_requested", "pending", "acknowledged", "rejected", "expired"]
+    },
+    "reconciliation_state": {
+      "type": "string",
+      "enum": ["not_required", "pending", "executed", "not_executed", "conflicting", "still_unknown", "failed"]
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "details_omitted_silently"],
+      "properties": {
+        "complete": { "type": "boolean" },
+        "details_omitted_silently": { "type": "boolean", "const": false },
+        "missing_evidence_types": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 120 }
+        },
+        "degraded_sources": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 120 }
+        }
+      }
+    },
+    "secrets_included": { "type": "boolean", "const": false }
+  },
+  "$defs": {
+    "stageKey": {
+      "type": "string",
+      "enum": [
+        "oauth_authorize",
+        "identity_verify",
+        "oauth_code_issue",
+        "oauth_token_exchange",
+        "gateway_verify",
+        "membership_resolve",
+        "session_context",
+        "workspace_resolve",
+        "bootstrap_config",
+        "connection_resolve",
+        "provider_validate",
+        "tool_discovery",
+        "dispatch_prepare",
+        "dispatch_execute",
+        "readback",
+        "response_prepare",
+        "delivery",
+        "acknowledgement",
+        "reconciliation",
+        "deployment_verify"
+      ]
+    },
+    "stageAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_key", "attempt_number", "status", "retryable"],
+      "properties": {
+        "stage_attempt_id": { "type": ["string", "null"], "maxLength": 200 },
+        "stage_key": { "$ref": "#/$defs/stageKey" },
+        "attempt_number": { "type": "integer", "minimum": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "succeeded", "degraded", "failed", "unknown_outcome", "cancelled"]
+        },
+        "retryable": { "type": "boolean" },
+        "error_code": { "type": ["string", "null"], "maxLength": 120 },
+        "request_id": { "type": ["string", "null"], "maxLength": 200 },
+        "started_at": { "type": ["string", "null"], "format": "date-time" },
+        "ended_at": { "type": ["string", "null"], "format": "date-time" },
+        "latency_ms": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "evidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_type", "source_authority", "status", "observed_at", "sensitive_values_included"],
+      "properties": {
+        "evidence_id": { "type": ["string", "null"], "maxLength": 200 },
+        "stage_attempt_id": { "type": ["string", "null"], "maxLength": 200 },
+        "evidence_type": { "type": "string", "maxLength": 120 },
+        "source_authority": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["present", "missing", "invalid", "stale", "partial"] },
+        "summary": { "type": "object", "additionalProperties": true },
+        "source_reference": { "type": ["string", "null"], "maxLength": 500 },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "fresh_until": { "type": ["string", "null"], "format": "date-time" },
+        "sensitive_values_included": { "type": "boolean", "const": false }
+      }
+    }
+  }
+}

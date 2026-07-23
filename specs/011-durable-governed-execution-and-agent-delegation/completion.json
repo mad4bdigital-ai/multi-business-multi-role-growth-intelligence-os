@@ -21,59 +21,177 @@
       "number": 2954,
       "branch": "gpt/spec-011-phase0-contract-baseline-20260721",
       "role": "contract_baseline",
+      "status": "merged",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501"
+    },
+    "phase1_pr": {
+      "number": 2960,
+      "branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+      "role": "shadow_durable_kernel",
+      "status": "merged",
+      "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+    },
+    "phase1_closeout_pr": {
+      "number": 3011,
+      "branch": "gpt/spec-011-phase1-closeout-20260723",
+      "role": "phase1_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "91b5af4d8150f5af5f977ae8c26409bcb03ccbb1"
+    },
+    "phase2_pr": {
+      "number": 3018,
+      "branch": "gpt/spec-011-phase2-contract-resolver-20260723",
+      "role": "canonical_execution_contract_resolver",
+      "status": "merged",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+    },
+    "phase2_closeout_pr": {
+      "number": 3025,
+      "branch": "gpt/spec-011-phase2-closeout-20260723",
+      "role": "phase2_evidence_closeout",
       "status": "current_pr"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 2960,
+        "role": "phase1_shadow_durable_kernel",
+        "status": "merged",
+        "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+      },
+      {
+        "number": 3018,
+        "role": "phase2_canonical_execution_contract_resolver",
+        "status": "merged",
+        "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
-      "role": "completion",
-      "status": "pending"
+      "role": "spec_completion",
+      "status": "pending_remaining_phases"
     }
   },
   "evidence": {
     "specification": {
-      "status": "complete",
-      "durable_execution_kernel": true,
-      "canonical_execution_resolver": true,
-      "approval_delegation_modes": true,
-      "plan_bound_sessions": true,
-      "reconciliation_framework": true,
-      "migration_validation_lab": true,
-      "structured_ci": true,
-      "managed_pr_release": true,
-      "auto_closeout": true,
-      "goal_filtered_attention": true
+      "status": "complete"
     },
     "phase0": {
-      "status": "complete_on_branch",
-      "source_main_sha": "56a646bef5edf3422b2812f0ed06b8c2f42ed7d5",
-      "reuse_inventory": "phase0-inventory-and-reuse.md",
-      "compatibility_adapters": "compatibility-adapters.md",
-      "openapi_draft_governance": "openapi-draft-governance.md",
-      "schema_count": 5,
-      "stable_error_codes": "contracts/error-codes.md",
-      "ci_guard": "http-generic-api/test-spec-011-phase0-contract-baseline.mjs",
+      "status": "complete_on_main",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
+      "ci_status": "pass",
+      "production_parity": "verified",
       "runtime_implementation": false,
       "database_migration": false,
       "provider_write": false,
-      "deployment": false,
+      "secrets_included": false
+    },
+    "phase1_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
+      "pull_request": 2960,
+      "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded",
+      "service": "http-generic-api/durableExecutionShadowService.js",
+      "test": "http-generic-api/test-durable-execution-shadow-service.mjs",
+      "design": "phase1-shadow-kernel.md",
+      "runtime_authority": false,
+      "public_route": false,
+      "database_migration": false,
+      "provider_write": false,
+      "delegation_active": false,
+      "secrets_included": false
+    },
+    "phase2_resolver": {
+      "status": "complete_on_main",
+      "source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
+      "pull_request": 3018,
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "service": "http-generic-api/canonicalExecutionContractResolver.js",
+      "test": "http-generic-api/test-canonical-execution-contract-resolver.mjs",
+      "design": "phase2-canonical-execution-contract-resolver.md",
+      "reused_capability_shadow": "http-generic-api/dynamicCapabilityEnforcementShadow.js",
+      "exact_action_endpoint_resolution": true,
+      "policy_projection": true,
+      "contract_hash": true,
+      "intent_first_input": false,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "provider_write": false,
+      "delegation_active": false,
       "secrets_included": false
     },
     "implementation": {
-      "status": "phase0_contract_baseline_complete_on_branch"
+      "status": "phase2_contract_resolver_complete_on_main"
     },
     "ci": {
-      "status": "pending_phase0_pr"
+      "status": "pass",
+      "head_sha": "64fabb808273cac88cc911d4d366d31c84999a5f",
+      "base_sha": "76ecc7b873834dc0ca80318d4d907cd6155d6216",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase2_ci": {
+      "status": "pass",
+      "head_sha": "9166d4aa5b524ff4a7576d69aeaba0198bd020a6",
+      "base_sha": "f1b7b04aab88e8a85cc694b136c37d8e12de355f",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
     },
     "migration": {
-      "status": "not_required_for_phase0"
+      "status": "not_required_for_phase1_shadow"
+    },
+    "phase2_migration": {
+      "status": "not_required_for_phase2_shadow_resolver"
     },
     "production_verification": {
-      "status": "pending"
+      "status": "verified_at_newer_descendant",
+      "release_operation_id": "2e8b7ed8-98a5-44a7-86c5-e0c9167aeea5",
+      "runtime_verification_run_id": "240296fb-98e9-4bb8-b739-4a2e605304c7",
+      "operation_expected_commit_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded",
+      "verified_runtime_sha": "2dd183e06bbbca9bdb34525820b6c268bdc6d121",
+      "ancestry_status": "ahead",
+      "ahead_by": 17,
+      "behind_by": 0,
+      "unknown_outcome_reconciled": true,
+      "transport_error": "cloudflare_502_after_deploy_started",
+      "retry_performed": false,
+      "rollback_required": false,
+      "release_gate_id": "ba99eb81-d5e4-470d-87bd-474ef95a66d3",
+      "release_gate_status": "hard_disabled",
+      "global_main_parity_note": "Later unrelated commits may move main after this phase-scoped verification; Phase 1 completion is proven by descendant ancestry and the recorded runtime verification run.",
+      "secrets_included": false
+    },
+    "phase2_production_verification": {
+      "status": "verified_exact_merge_sha",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "deployed_commit_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "readback_run_id": "172e06e4-72f2-4095-a538-b28ff8b6d671",
+      "checked_at": "2026-07-23T05:10:13.191Z",
+      "db_connectivity": "pass",
+      "release_readiness_log": "pass",
+      "deployment_manifest": "pass",
+      "global_readiness": "warn",
+      "global_expected_commit_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
+      "global_warning_reason": "A later docs-agent-only commit advanced main after the Phase 2 runtime merge. The deployed runtime exactly matched the Phase 2 merge SHA.",
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
     },
     "post_merge_audit": {
-      "status": "pending"
+      "phase1_status": "complete",
+      "phase2_status": "complete_on_main",
+      "phase2_closeout_status": "current_pr",
+      "spec_status": "pending_remaining_phases"
     }
   },
   "sensitive_values_included": false
