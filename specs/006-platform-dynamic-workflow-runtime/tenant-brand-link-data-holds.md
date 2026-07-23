@@ -38,6 +38,8 @@ evidence: workspace_assets.brand_ref + active workspace_resource_grants brand gr
 
 This pending resolution remains evidence-bound and idempotent. It does not infer brand ownership from display names and does not write links for the other unresolved holds.
 
+The evidence predicates use `tenant_id` plus `brand_ref` / `resource_ref`. `workspace_assets` and `workspace_resource_grants` do not carry `workspace_id`; the workspace ID above is retained only as the projection hold context.
+
 ## Held data-quality items
 
 | Tenant ID | Workspace ID | Issue code | Severity | Required resolution |
