@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 function assert(name, condition, details = "") {
   if (!condition) {
@@ -46,6 +47,16 @@ const updateBranch503Migration = readFileSync(
   "migrations/20260720_github_update_pull_request_branch_503_response_contract.sql",
   "utf8"
 );
+const updateBranch503Preflight = assessMigrationSqlPreflight(
+  "20260720_github_update_pull_request_branch_503_response_contract.sql",
+  updateBranch503Migration
+);
+assert("Update-branch 503 migration passes governed SQL preflight",
+  updateBranch503Preflight.status === "pass" && updateBranch503Preflight.risk_count === 0,
+  JSON.stringify(updateBranch503Preflight, null, 2));
+assert("Update-branch 503 migration preflight remains secret-safe",
+  updateBranch503Preflight.secrets_included === false,
+  JSON.stringify(updateBranch503Preflight, null, 2));
 assert("Update-branch 503 migration targets only the canonical GitHub endpoint",
   updateBranch503Migration.includes("ACT-GH-REST-UPDATE-BRANCH-001") &&
   updateBranch503Migration.includes("github_update_pull_request_branch") &&
