@@ -51,7 +51,10 @@ const RULES = Object.freeze({
   },
 });
 
-const CUSTOMER_CONTEXT = /\b(?:tenant|user|workspace|brand|customer|resource|connection|provider(?:[_-]?account)?|principal|scope)(?:[_-]?(?:id|ref|key))?\b/i;
+const CUSTOMER_CONTEXT = /(?:\b(?:tenant|user|workspace|brand|customer|resource|connection|provider(?:[_-]?account)?|principal|scope)(?:s)?(?:[_-]?(?:id|ref|key))?\b|[a-z][A-Za-z0-9]*(?:Tenant|User|Workspace|Brand|Customer|Resource|Connection|ProviderAccount|Principal|Scope)[A-Za-z0-9]*)/i;
+const QUERY_CONTEXT = /\bSELECT\b[\s\S]*\b(?:tenants?|workspaces?|brands?|resources?|connections?|providers?|memberships?|authorit(?:y|ies)|scopes?)\b/i;
+const AUTHORITY_CONTEXT = /(?:\b(?:grant|authority|permission|policy|access)(?:[_-]?(?:mode|type|level|key|ref|id))?\b|(?:grant|authority|permission|policy|access)(?:Mode|Type|Level|Key|Ref|Id)\b)/i;
+const RESOLUTION_CONTEXT = /(?:\b(?:resolve|resolver|query|database|db|connection|tenant|workspace|brand|scope)(?:s)?\b|[a-z][A-Za-z0-9]*(?:Resolve|Resolver|Query|Database|Connection|Tenant|Workspace|Brand|Scope)[A-Za-z0-9]*)/i;
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
 const ZERO_UUID = /\b0{8}-0{4}-0{4}-0{4}-0{12}\b/i;
 const FIRST_CANDIDATE = /\b(?:rows|rowset|candidates|results|items|connections|memberships|tenants|workspaces|brands|resources|systems|providers)\s*\[\s*0\s*\]|\b(?:rows|rowset|candidates|results|items|connections|memberships|tenants|workspaces|brands|resources|systems|providers)\s*\.at\(\s*0\s*\)/i;
@@ -145,23 +148,27 @@ function scanFile(repositoryRoot, absolutePath) {
     }
 
     const first = line.match(FIRST_CANDIDATE);
-    if (first && CUSTOMER_CONTEXT.test(context)) {
+    if (first) {
       add(finding({ ruleId: "first_candidate_selection", relativePath, lineIndex: index, column: first.index + 1, evidence: line, lines, confidence: "high" }));
     }
 
-    if (/\bLIMIT\s+1\b/i.test(line) && /\bSELECT\b[\s\S]*\b(?:tenant|workspace|brand|resource|connection|provider|membership|authority|scope)\b/i.test(context)) {
+    if (/\bLIMIT\s+1\b/i.test(line) && QUERY_CONTEXT.test(context)) {
       add(finding({ ruleId: "unproven_single_candidate_query", relativePath, lineIndex: index, evidence: line, lines }));
     }
 
-    if (SILENT_FAILURE.test(line) && /\b(?:resolve|resolver|query|database|db|connection|tenant|workspace|brand|scope)\b/i.test(context)) {
+    if (SILENT_FAILURE.test(line) && RESOLUTION_CONTEXT.test(context)) {
       add(finding({ ruleId: "silent_resolution_failure", relativePath, lineIndex: index, evidence: line, lines, confidence: "high" }));
     }
 
-    if (/(?:\?\?|\|\||=)\s*["'`]permissive["'`]/i.test(context) && /\b(?:grant|authority|permission|mode|policy|access)\b/i.test(context)) {
+    if (/(?:\?\?|\|\||=)\s*["'`]permissive["'`]/i.test(line) && AUTHORITY_CONTEXT.test(context)) {
       add(finding({ ruleId: "permissive_authority_default", relativePath, lineIndex: index, evidence: line, lines, confidence: "high" }));
     }
 
-    if (/\bDEFAULT_(?:SCOPE|CONTEXT)\b/i.test(context) && /\b(?:tenant|user|workspace|brand|customer)(?:_id|Id|Ref)?\s*:/i.test(context) && /["'`][^"'`]+["'`]/.test(context)) {
+    if (
+      /\bDEFAULT_(?:SCOPE|CONTEXT)\b/i.test(line) &&
+      /\b(?:tenant|user|workspace|brand|customer)(?:_id|Id|Ref)?\s*:/i.test(context) &&
+      /["'`][^"'`]+["'`]/.test(context)
+    ) {
       add(finding({ ruleId: "implicit_scope_default", relativePath, lineIndex: index, evidence: line, lines }));
     }
   }
@@ -201,7 +208,9 @@ export function scanRepository({ repositoryRoot = DEFAULT_ROOT, configPath = DEF
   const root = path.resolve(repositoryRoot);
   const resolvedConfig = config ?? readConfig(configPath);
   const files = collectFiles(root, resolvedConfig);
-  const findings = files.flatMap((file) => scanFile(root, file)).sort((left, right) => left.path.localeCompare(right.path) || left.line - right.line || left.rule_id.localeCompare(right.rule_id));
+  const findings = files
+    .flatMap((file) => scanFile(root, file))
+    .sort((left, right) => left.path.localeCompare(right.path) || left.line - right.line || left.rule_id.localeCompare(right.rule_id));
   const active = findings.filter((item) => !item.suppressed);
   const byRule = {};
   const byZone = {};

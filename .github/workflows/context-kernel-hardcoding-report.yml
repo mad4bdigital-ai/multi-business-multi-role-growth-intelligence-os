@@ -34,6 +34,7 @@ jobs:
         run: node test-context-kernel-hardcoding-scan.mjs
 
       - name: Generate report-only baseline
+        if: always()
         run: >-
           node http-generic-api/scripts/context-kernel-hardcoding-scan.mjs
           --report-only
