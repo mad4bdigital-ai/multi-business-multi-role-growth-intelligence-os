@@ -953,7 +953,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
 assert("Local Manager privileged installer authorization uses a long-lived revocable device token without repeated sign-in",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
-      deviceLinkSource.includes("saved_device_token") &&
+      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS") &&
       deviceLinkSource.includes("privileged_authorization_fresh") &&
       deviceLinkSource.includes("reauth_action"));
     assert("Local Manager device controls advertise connector repair installer action",
