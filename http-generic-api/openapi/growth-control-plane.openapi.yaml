@@ -174,6 +174,140 @@ paths:
         '422': { $ref: '#/components/responses/GrowthControlUnprocessable' }
         '500': { $ref: '#/components/responses/GrowthControlInternalError' }
 
+  /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/validations:
+    post:
+      tags: [growth-control-plane]
+      operationId: validateGrowthControlConfigurationVersion
+      summary: Validate a draft configuration version
+      description: Revalidates the immutable draft against the active definition schema and moves it to ready without provider or external effects.
+      x-contract-completeness: canonical
+      parameters:
+        - $ref: '#/components/parameters/ConfigKeyPath'
+        - $ref: '#/components/parameters/ConfigVersionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LifecycleValidationRequest' }
+            examples:
+              validateDraft:
+                value: { expectedRevision: 1 }
+      responses:
+        '200':
+          description: Configuration version validated and marked ready.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationVersion' }
+        '400': { $ref: '#/components/responses/GrowthControlBadRequest' }
+        '401': { $ref: '#/components/responses/GrowthControlUnauthorized' }
+        '403': { $ref: '#/components/responses/GrowthControlForbidden' }
+        '404': { $ref: '#/components/responses/GrowthControlNotFound' }
+        '409': { $ref: '#/components/responses/GrowthControlConflict' }
+        '422': { $ref: '#/components/responses/GrowthControlUnprocessable' }
+        '500': { $ref: '#/components/responses/GrowthControlInternalError' }
+
+  /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/approval-holds:
+    post:
+      tags: [growth-control-plane]
+      operationId: createGrowthControlConfigurationLifecycleApprovalHold
+      summary: Create a plan-bound lifecycle approval hold
+      description: Creates an expiring typed hold bound to the exact operation, version, scope, checksum, and revision. It does not approve or execute the operation.
+      x-contract-completeness: canonical
+      parameters:
+        - $ref: '#/components/parameters/ConfigKeyPath'
+        - $ref: '#/components/parameters/ConfigVersionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LifecycleApprovalHoldRequest' }
+            examples:
+              activationHold:
+                value:
+                  operation: activate
+                  expiresInMinutes: 30
+      responses:
+        '201':
+          description: Open lifecycle approval hold created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleApprovalHold' }
+        '400': { $ref: '#/components/responses/GrowthControlBadRequest' }
+        '401': { $ref: '#/components/responses/GrowthControlUnauthorized' }
+        '403': { $ref: '#/components/responses/GrowthControlForbidden' }
+        '404': { $ref: '#/components/responses/GrowthControlNotFound' }
+        '409': { $ref: '#/components/responses/GrowthControlConflict' }
+        '422': { $ref: '#/components/responses/GrowthControlUnprocessable' }
+        '500': { $ref: '#/components/responses/GrowthControlInternalError' }
+
+  /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/activations:
+    post:
+      tags: [growth-control-plane]
+      operationId: activateGrowthControlConfigurationVersion
+      summary: Activate an approved ready configuration version
+      description: Atomically activates the ready version, deprecates the prior active version in the same scope, consumes the typed hold, and enqueues an internal invalidation event.
+      x-contract-completeness: canonical
+      parameters:
+        - $ref: '#/components/parameters/ConfigKeyPath'
+        - $ref: '#/components/parameters/ConfigVersionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LifecycleTransitionRequest' }
+            examples:
+              activate:
+                value:
+                  approvalHoldId: 44444444-4444-4444-8444-444444444444
+                  expectedRevision: 2
+      responses:
+        '200':
+          description: Configuration version activated with transactional outbox evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleTransitionResponse' }
+        '400': { $ref: '#/components/responses/GrowthControlBadRequest' }
+        '401': { $ref: '#/components/responses/GrowthControlUnauthorized' }
+        '403': { $ref: '#/components/responses/GrowthControlForbidden' }
+        '404': { $ref: '#/components/responses/GrowthControlNotFound' }
+        '409': { $ref: '#/components/responses/GrowthControlConflict' }
+        '422': { $ref: '#/components/responses/GrowthControlUnprocessable' }
+        '500': { $ref: '#/components/responses/GrowthControlInternalError' }
+
+  /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/rollbacks:
+    post:
+      tags: [growth-control-plane]
+      operationId: rollbackGrowthControlConfigurationVersion
+      summary: Restore an approved prior configuration version
+      description: Atomically restores a deprecated or rolled-back prior version, marks the displaced active version rolled back, consumes the typed hold, and enqueues an internal invalidation event.
+      x-contract-completeness: canonical
+      parameters:
+        - $ref: '#/components/parameters/ConfigKeyPath'
+        - $ref: '#/components/parameters/ConfigVersionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LifecycleTransitionRequest' }
+            examples:
+              rollback:
+                value:
+                  approvalHoldId: 55555555-5555-4555-8555-555555555555
+                  expectedRevision: 3
+      responses:
+        '200':
+          description: Prior configuration version restored with transactional outbox evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleTransitionResponse' }
+        '400': { $ref: '#/components/responses/GrowthControlBadRequest' }
+        '401': { $ref: '#/components/responses/GrowthControlUnauthorized' }
+        '403': { $ref: '#/components/responses/GrowthControlForbidden' }
+        '404': { $ref: '#/components/responses/GrowthControlNotFound' }
+        '409': { $ref: '#/components/responses/GrowthControlConflict' }
+        '422': { $ref: '#/components/responses/GrowthControlUnprocessable' }
+        '500': { $ref: '#/components/responses/GrowthControlInternalError' }
+
   /admin/control-plane/activity-packs:
     get:
       tags: [growth-control-plane]
