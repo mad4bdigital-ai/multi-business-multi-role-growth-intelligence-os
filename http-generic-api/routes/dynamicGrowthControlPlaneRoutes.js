@@ -99,6 +99,62 @@ export function buildDynamicGrowthControlPlaneRoutes({
     } catch (error) { return errorResponse(req, res, error); }
   });
 
+  // frontend-surface-operation: POST /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/validations
+  router.post("/admin/control-plane/configurations/:configKey/versions/:configVersionId/validations", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["expectedRevision"]));
+      const result = await controlPlane.validateConfigurationVersion(
+        req.params.configKey,
+        req.params.configVersionId,
+        req.body || {},
+        lifecycleRequestContext(req)
+      );
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: POST /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/approval-holds
+  router.post("/admin/control-plane/configurations/:configKey/versions/:configVersionId/approval-holds", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["operation", "expiresInMinutes"]));
+      const result = await controlPlane.createConfigurationLifecycleApprovalHold(
+        req.params.configKey,
+        req.params.configVersionId,
+        req.body || {},
+        lifecycleRequestContext(req)
+      );
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: POST /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/activations
+  router.post("/admin/control-plane/configurations/:configKey/versions/:configVersionId/activations", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["approvalHoldId", "expectedRevision"]));
+      const result = await controlPlane.activateConfigurationVersion(
+        req.params.configKey,
+        req.params.configVersionId,
+        req.body || {},
+        lifecycleRequestContext(req)
+      );
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: POST /admin/control-plane/configurations/{configKey}/versions/{configVersionId}/rollbacks
+  router.post("/admin/control-plane/configurations/:configKey/versions/:configVersionId/rollbacks", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["approvalHoldId", "expectedRevision"]));
+      const result = await controlPlane.rollbackConfigurationVersion(
+        req.params.configKey,
+        req.params.configVersionId,
+        req.body || {},
+        lifecycleRequestContext(req)
+      );
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
   // frontend-surface-operation: GET /admin/control-plane/activity-packs
   router.get("/admin/control-plane/activity-packs", ...requireAdmin, async (req, res) => {
     try {
