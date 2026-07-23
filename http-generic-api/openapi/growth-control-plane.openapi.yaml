@@ -739,6 +739,302 @@ components:
         externalWrites: { type: boolean, const: false }
         secretsIncluded: { type: boolean, const: false }
 
+    LifecycleValidationRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision]
+      properties:
+        expectedRevision: { type: integer, minimum: 0 }
+
+    LifecycleApprovalHoldRequest:
+      type: object
+      additionalProperties: false
+      required: [operation]
+      properties:
+        operation:
+          type: string
+          enum: [activate, rollback]
+        expiresInMinutes:
+          type: integer
+          minimum: 5
+          maximum: 1440
+          default: 30
+
+    LifecycleApprovalHold:
+      type: object
+      additionalProperties: true
+      required: [holdId, runId, status, requiredRole, expiresAt, secretsIncluded]
+      properties:
+        holdId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        status: { type: string, enum: [open, approved, denied, expired] }
+        requiredRole: { type: string, const: platform_admin }
+        executionContext:
+          type: object
+          additionalProperties: false
+          required: [approvalType, operation, configVersionId, configKey, scopeKey, checksumSha256, versionRevision, bindingSha256]
+          properties:
+            approvalType: { type: string, const: growth_control_configuration_lifecycle }
+            operation: { type: string, enum: [activate, rollback] }
+            configVersionId: { type: string, format: uuid }
+            configKey: { $ref: '#/components/schemas/CanonicalKey' }
+            scopeKey: { type: string }
+            checksumSha256: { type: string, pattern: '^[a-f0-9]{64}      type: object
+      additionalProperties: false
+      required: [activityPackKey, activityTypeKey, displayName]
+      properties:
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        displayName: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 5000 }
+
+    ActivityPackDefinition:
+      type: object
+      additionalProperties: true
+      required: [activityPackKey, activityTypeKey, displayName, status, revision, secretsIncluded]
+      properties:
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        displayName: { type: string }
+        description: { type: [string, 'null'] }
+        status: { type: string, enum: [draft, active, blocked, deprecated, archived] }
+        revision: { type: integer, minimum: 1 }
+        createdBy: { type: string }
+        createdAt: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        secretsIncluded: { type: boolean, const: false }
+
+    ActivityPackDefinitionListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, secretsIncluded]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityPackDefinition' }
+        page: { $ref: '#/components/schemas/Page' }
+        secretsIncluded: { type: boolean, const: false }
+
+    ActivityPackManifest:
+      type: object
+      additionalProperties: true
+      required: [entitySchemas, knowledgeProfile, kpiTaxonomy, capabilities, workflows, policies, providerCompatibility, tests]
+      properties:
+        entitySchemas: { type: object, additionalProperties: true }
+        knowledgeProfile: { type: object, additionalProperties: true }
+        kpiTaxonomy: { type: array, items: {} }
+        capabilities: { type: array, items: {} }
+        workflows: { type: array, items: {} }
+        policies: { type: array, items: {} }
+        providerCompatibility: { type: array, items: {} }
+        tests: { type: object, additionalProperties: true }
+
+    ActivityPackVersionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [manifest]
+      properties:
+        manifest: { $ref: '#/components/schemas/ActivityPackManifest' }
+
+    ActivityPackVersion:
+      type: object
+      additionalProperties: false
+      required: [activityPackVersionId, activityPackKey, versionNumber, manifest, checksumSha256, lifecycle, secretsIncluded]
+      properties:
+        activityPackVersionId: { type: string, format: uuid }
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        versionNumber: { type: integer, minimum: 1 }
+        manifest: { $ref: '#/components/schemas/ActivityPackManifest' }
+        checksumSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        lifecycle: { type: string, enum: [draft, validating, ready, active, blocked, deprecated, archived, rolled_back] }
+        secretsIncluded: { type: boolean, const: false }
+
+    BrandActivityBindingCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, workspaceId, brandKey, activityTypeKey, activityPackKey, activityPackVersion]
+      properties:
+        tenantId: { type: string, maxLength: 36 }
+        workspaceId: { type: string, maxLength: 36 }
+        brandKey: { type: string, maxLength: 255 }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityPackVersion: { type: integer, minimum: 1 }
+        markets: { type: array, uniqueItems: true, items: { type: string } }
+        locales: { type: array, uniqueItems: true, items: { type: string } }
+        channels: { type: array, uniqueItems: true, items: { type: string } }
+        objectives: { type: array, uniqueItems: true, items: { type: string } }
+        allowedCapabilities:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/CanonicalKey' }
+
+    BrandActivityBinding:
+      type: object
+      additionalProperties: true
+      required: [activityBindingId, tenantId, workspaceId, brandKey, activityTypeKey, activityPackKey, activityPackVersion, status, secretsIncluded]
+      properties:
+        activityBindingId: { type: string, format: uuid }
+        tenantId: { type: string }
+        workspaceId: { type: string }
+        brandKey: { type: string }
+        activityTypeKey: { type: string }
+        activityPackKey: { type: string }
+        activityPackVersion: { type: integer, minimum: 1 }
+        markets: { type: array, items: { type: string } }
+        locales: { type: array, items: { type: string } }
+        channels: { type: array, items: { type: string } }
+        objectives: { type: array, items: { type: string } }
+        allowedCapabilities: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft] }
+        secretsIncluded: { type: boolean, const: false }
+ }
+            versionRevision: { type: integer, minimum: 1 }
+            bindingSha256: { type: string, pattern: '^[a-f0-9]{64}      type: object
+      additionalProperties: false
+      required: [activityPackKey, activityTypeKey, displayName]
+      properties:
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        displayName: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 5000 }
+
+    ActivityPackDefinition:
+      type: object
+      additionalProperties: true
+      required: [activityPackKey, activityTypeKey, displayName, status, revision, secretsIncluded]
+      properties:
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        displayName: { type: string }
+        description: { type: [string, 'null'] }
+        status: { type: string, enum: [draft, active, blocked, deprecated, archived] }
+        revision: { type: integer, minimum: 1 }
+        createdBy: { type: string }
+        createdAt: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        secretsIncluded: { type: boolean, const: false }
+
+    ActivityPackDefinitionListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, secretsIncluded]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityPackDefinition' }
+        page: { $ref: '#/components/schemas/Page' }
+        secretsIncluded: { type: boolean, const: false }
+
+    ActivityPackManifest:
+      type: object
+      additionalProperties: true
+      required: [entitySchemas, knowledgeProfile, kpiTaxonomy, capabilities, workflows, policies, providerCompatibility, tests]
+      properties:
+        entitySchemas: { type: object, additionalProperties: true }
+        knowledgeProfile: { type: object, additionalProperties: true }
+        kpiTaxonomy: { type: array, items: {} }
+        capabilities: { type: array, items: {} }
+        workflows: { type: array, items: {} }
+        policies: { type: array, items: {} }
+        providerCompatibility: { type: array, items: {} }
+        tests: { type: object, additionalProperties: true }
+
+    ActivityPackVersionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [manifest]
+      properties:
+        manifest: { $ref: '#/components/schemas/ActivityPackManifest' }
+
+    ActivityPackVersion:
+      type: object
+      additionalProperties: false
+      required: [activityPackVersionId, activityPackKey, versionNumber, manifest, checksumSha256, lifecycle, secretsIncluded]
+      properties:
+        activityPackVersionId: { type: string, format: uuid }
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        versionNumber: { type: integer, minimum: 1 }
+        manifest: { $ref: '#/components/schemas/ActivityPackManifest' }
+        checksumSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        lifecycle: { type: string, enum: [draft, validating, ready, active, blocked, deprecated, archived, rolled_back] }
+        secretsIncluded: { type: boolean, const: false }
+
+    BrandActivityBindingCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, workspaceId, brandKey, activityTypeKey, activityPackKey, activityPackVersion]
+      properties:
+        tenantId: { type: string, maxLength: 36 }
+        workspaceId: { type: string, maxLength: 36 }
+        brandKey: { type: string, maxLength: 255 }
+        activityTypeKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityPackKey: { $ref: '#/components/schemas/CanonicalKey' }
+        activityPackVersion: { type: integer, minimum: 1 }
+        markets: { type: array, uniqueItems: true, items: { type: string } }
+        locales: { type: array, uniqueItems: true, items: { type: string } }
+        channels: { type: array, uniqueItems: true, items: { type: string } }
+        objectives: { type: array, uniqueItems: true, items: { type: string } }
+        allowedCapabilities:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/CanonicalKey' }
+
+    BrandActivityBinding:
+      type: object
+      additionalProperties: true
+      required: [activityBindingId, tenantId, workspaceId, brandKey, activityTypeKey, activityPackKey, activityPackVersion, status, secretsIncluded]
+      properties:
+        activityBindingId: { type: string, format: uuid }
+        tenantId: { type: string }
+        workspaceId: { type: string }
+        brandKey: { type: string }
+        activityTypeKey: { type: string }
+        activityPackKey: { type: string }
+        activityPackVersion: { type: integer, minimum: 1 }
+        markets: { type: array, items: { type: string } }
+        locales: { type: array, items: { type: string } }
+        channels: { type: array, items: { type: string } }
+        objectives: { type: array, items: { type: string } }
+        allowedCapabilities: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft] }
+        secretsIncluded: { type: boolean, const: false }
+ }
+        requestedBy: { type: string }
+        decisionBy: { type: [string, 'null'] }
+        expiresAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: [string, 'null'], format: date-time }
+        secretsIncluded: { type: boolean, const: false }
+
+    LifecycleTransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [approvalHoldId, expectedRevision]
+      properties:
+        approvalHoldId: { type: string, format: uuid }
+        expectedRevision: { type: integer, minimum: 0 }
+
+    LifecycleTransitionResponse:
+      type: object
+      additionalProperties: false
+      required: [version, operation, approvalHoldId, eventId, previousActiveVersionIds, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        version: { $ref: '#/components/schemas/ConfigurationVersion' }
+        operation: { type: string, enum: [activate, rollback] }
+        approvalHoldId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        previousActiveVersionIds:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+
     ActivityPackDefinitionCreateRequest:
       type: object
       additionalProperties: false
