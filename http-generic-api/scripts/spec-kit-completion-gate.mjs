@@ -72,7 +72,9 @@ function push(findings, type, feature, details = {}) {
 export function validateFeatureDirectory(feature, options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(POLICY_PATH);
-  const headRef = options.headRef || process.env.GITHUB_HEAD_REF || "";
+  const headRef = Object.prototype.hasOwnProperty.call(options, "headRef")
+    ? options.headRef
+    : process.env.GITHUB_HEAD_REF || "";
   const featureRoot = path.join(root, policy.spec_root, feature);
   const findings = [];
 
@@ -192,6 +194,7 @@ export function validateRepository(options = {}) {
   const allFeatures = listFeatureDirectories(root, policy.spec_root);
   const policySurfaceChanged = changedFiles.some((file) => file === ".specify/spec-kit-governance.json" || file.startsWith(".specify/templates/") || file.endsWith("spec-kit-completion-gate.mjs"));
   const changedFeatures = new Set(changedFiles.map((file) => featureKeyFromFile(file, policy.spec_root)).filter(Boolean));
+  const currentHeadRef = options.headRef || process.env.GITHUB_HEAD_REF || "";
   const targets = options.all
     ? allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, "completion.json")))
     : policySurfaceChanged
@@ -205,7 +208,11 @@ export function validateRepository(options = {}) {
       push(findings, "changed_spec_kit_missing_completion_manifest", feature, { file: path.relative(root, completionPath).replaceAll("\\", "/") });
       continue;
     }
-    findings.push(...validateFeatureDirectory(feature, { root, policy }));
+    findings.push(...validateFeatureDirectory(feature, {
+      root,
+      policy,
+      headRef: changedFeatures.has(feature) ? currentHeadRef : "",
+    }));
   }
   return { findings, changedFiles, targets, policy };
 }
