@@ -23,8 +23,15 @@
   "phase0_merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
   "phase1_branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
   "phase1_pull_request": 2960,
-  "phase1_ci_head_sha": "ab87d726c66be2518d6632687c89a25a6641d267",
-  "phase1_ci_base_sha": "5e4608bce056e373aa716ec66978994d40f5a1a9",
+  "phase1_merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded",
+  "phase1_final_ci_head_sha": "64fabb808273cac88cc911d4d366d31c84999a5f",
+  "phase1_final_ci_base_sha": "76ecc7b873834dc0ca80318d4d907cd6155d6216",
+  "phase1_release_operation_id": "2e8b7ed8-98a5-44a7-86c5-e0c9167aeea5",
+  "phase1_runtime_verification_run_id": "240296fb-98e9-4bb8-b739-4a2e605304c7",
+  "phase1_verified_runtime_sha": "2dd183e06bbbca9bdb34525820b6c268bdc6d121",
+  "phase1_release_gate_id": "ba99eb81-d5e4-470d-87bd-474ef95a66d3",
+  "phase1_closeout_branch": "gpt/spec-011-phase1-closeout-20260723",
+  "phase1_closeout_source_main_sha": "3003583c8071833c453b0991264c1780bc51bd85",
   "phase1_source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
   "deliverables": [
     "spec",
@@ -46,7 +53,10 @@
     "phase0_ci_guard",
     "phase1_shadow_projection",
     "phase1_state_machine_tests",
-    "phase1_tenant_scope_tests"
+    "phase1_tenant_scope_tests",
+    "phase1_merge_evidence",
+    "phase1_production_reconciliation_evidence",
+    "phase1_release_gate_closeout"
   ],
   "constraints": [
     "no_provider_call",
