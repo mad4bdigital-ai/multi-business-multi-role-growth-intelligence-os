@@ -12,6 +12,7 @@ import {
   readContainerOverride,
   requestContainerOverride
 } from "../dynamicContainerOverrideService.js";
+import { runDynamicContainerOverrideGovernanceSmoke } from "../dynamicContainerOverrideGovernanceSmoke.js";
 import {
   applyLegacyContainerProjection,
   buildLegacyContainerProjectionPlan
@@ -243,6 +244,26 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
       const result = await approveContainerOverride(req.params.overrideId,req.body,{ approverPrincipal:{ type:"service",id:actorId(req) } });
       return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
+  });
+
+  router.post("/admin/container-authority/override-governance-smokes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    try {
+      assertAllowedKeys(req.body,new Set(["mode","confirm","capabilityEnvelopeId"]));
+      const mode=String(req.body?.mode || "dry_run");
+      if(!new Set(["dry_run","apply"]).has(mode)) {
+        const error=new Error("mode must be dry_run or apply.");
+        error.status=400;
+        error.code="override_governance_smoke_mode_invalid";
+        throw error;
+      }
+      const result=await runDynamicContainerOverrideGovernanceSmoke({
+        mode,
+        confirm:req.body?.confirm || null,
+        capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null,
+        actor:actorId(req)
+      });
+      return res.status(mode === "apply" ? 201 : 200).json(result);
+    } catch(error) { return errorResponse(req,res,error); }
   });
 
   router.post("/admin/container-authority/projection-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
