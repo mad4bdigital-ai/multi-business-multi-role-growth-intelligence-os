@@ -42,6 +42,13 @@
       "number": 3018,
       "branch": "gpt/spec-011-phase2-contract-resolver-20260723",
       "role": "canonical_execution_contract_resolver",
+      "status": "merged",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+    },
+    "phase2_closeout_pr": {
+      "number": 3025,
+      "branch": "gpt/spec-011-phase2-closeout-20260723",
+      "role": "phase2_evidence_closeout",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -54,7 +61,8 @@
       {
         "number": 3018,
         "role": "phase2_canonical_execution_contract_resolver",
-        "status": "current_pr"
+        "status": "merged",
+        "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
       }
     ],
     "closeout_pr": {
@@ -94,9 +102,10 @@
       "secrets_included": false
     },
     "phase2_resolver": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
       "pull_request": 3018,
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
       "service": "http-generic-api/canonicalExecutionContractResolver.js",
       "test": "http-generic-api/test-canonical-execution-contract-resolver.mjs",
       "design": "phase2-canonical-execution-contract-resolver.md",
@@ -114,7 +123,7 @@
       "secrets_included": false
     },
     "implementation": {
-      "status": "phase2_contract_resolver_complete_on_branch"
+      "status": "phase2_contract_resolver_complete_on_main"
     },
     "ci": {
       "status": "pass",
@@ -128,7 +137,9 @@
       ]
     },
     "phase2_ci": {
-      "status": "pending_phase2_pr",
+      "status": "pass",
+      "head_sha": "9166d4aa5b524ff4a7576d69aeaba0198bd020a6",
+      "base_sha": "f1b7b04aab88e8a85cc694b136c37d8e12de355f",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -160,9 +171,26 @@
       "global_main_parity_note": "Later unrelated commits may move main after this phase-scoped verification; Phase 1 completion is proven by descendant ancestry and the recorded runtime verification run.",
       "secrets_included": false
     },
+    "phase2_production_verification": {
+      "status": "verified_exact_merge_sha",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "deployed_commit_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "readback_run_id": "172e06e4-72f2-4095-a538-b28ff8b6d671",
+      "checked_at": "2026-07-23T05:10:13.191Z",
+      "db_connectivity": "pass",
+      "release_readiness_log": "pass",
+      "deployment_manifest": "pass",
+      "global_readiness": "warn",
+      "global_expected_commit_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
+      "global_warning_reason": "A later docs-agent-only commit advanced main after the Phase 2 runtime merge. The deployed runtime exactly matched the Phase 2 merge SHA.",
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
     "post_merge_audit": {
       "phase1_status": "complete",
-      "phase2_status": "pending_phase2_merge",
+      "phase2_status": "complete_on_main",
+      "phase2_closeout_status": "current_pr",
       "spec_status": "pending_remaining_phases"
     }
   },
