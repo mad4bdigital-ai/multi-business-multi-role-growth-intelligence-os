@@ -597,6 +597,7 @@ export const testCommands = [
   "node test-spec-011-phase0-contract-baseline.mjs",
   "node test-durable-execution-shadow-service.mjs",
   "node test-operation-registry-foundation.mjs",
+  "node test-operation-registry-repository.mjs",
   "node test-canonical-execution-contract-resolver.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
