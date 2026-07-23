@@ -45,6 +45,7 @@
   "phase2_runtime_readback_checked_at": "2026-07-23T05:10:13.191Z",
   "phase2_source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
   "phase2_closeout_branch": "gpt/spec-011-phase2-closeout-20260723",
+  "phase2_closeout_pull_request": 3025,
   "phase2_closeout_source_main_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
   "deliverables": [
     "spec",

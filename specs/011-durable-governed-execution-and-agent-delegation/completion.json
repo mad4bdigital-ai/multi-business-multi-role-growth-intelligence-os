@@ -46,10 +46,10 @@
       "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
     },
     "phase2_closeout_pr": {
-      "number": null,
+      "number": 3025,
       "branch": "gpt/spec-011-phase2-closeout-20260723",
       "role": "phase2_evidence_closeout",
-      "status": "current_branch"
+      "status": "current_pr"
     },
     "implementation_prs": [
       {
@@ -190,7 +190,7 @@
     "post_merge_audit": {
       "phase1_status": "complete",
       "phase2_status": "complete_on_main",
-      "phase2_closeout_status": "current_branch",
+      "phase2_closeout_status": "current_pr",
       "spec_status": "pending_remaining_phases"
     }
   },
