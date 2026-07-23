@@ -1095,6 +1095,10 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
   const appKey = compact(input.app_key || input.appKey || "auth.mad4b.com", 191);
   const appPath = assertSafeRemotePath(input.app_path || input.appPath || (appKey === "auth.mad4b.com" ? DEFAULT_AUTH_APP_PATH : ""));
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
+  if (!dryRun && targetId) {
+    const targetPolicyTarget = await loadTarget(pool, targetId);
+    if (targetPolicyTarget) assertHostingerSshDeployTargetPolicy(targetPolicyTarget);
+  }
   const forceClean = bool(input.force_clean || input.forceClean);
   const restart = input.restart === undefined ? true : bool(input.restart);
   const approvalReason = compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000);
