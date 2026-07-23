@@ -30,7 +30,7 @@
 - [ ] **T011** `[P][FR-013..025][OP-005..010]` Finalize session/bootstrap/tool operation contracts.
 - [ ] **T012** `[P][FR-026..032][OP-011..014]` Finalize operation status, retry, delivery, acknowledgement, and reconciliation contracts.
 - [ ] **T013** `[P][FR-033..040][OP-016..018]` Finalize deployment/operational evidence contracts.
-- [ ] **T014** `[data-model]` Map logical entities to existing/new SQL tables and define indexes/constraints/retention.
+- [x] **T014** `[data-model]` Map logical entities to existing/new SQL tables and define indexes/constraints/retention. Evidence: `data-model.md` PR-1 mapping and `implementation/pr-1-inventory.json`; retention remains gated by T009.
 - [ ] **T015** `[state machine]` Approve operation/stage/delivery/ack state transitions and terminal semantics.
 - [ ] **T016** `[errors]` Freeze stable error taxonomy and reconnect-guidance mapping.
 - [ ] **T017** `[compatibility]` Define optional fields, compatibility window, and deprecation/cutoff.
