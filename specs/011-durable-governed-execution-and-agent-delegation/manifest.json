@@ -50,7 +50,21 @@
   "phase2_closeout_source_main_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
   "phase3_branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
   "phase3_pull_request": 3042,
+  "phase3_merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
+  "phase3_final_ci_head_sha": "e3c927bee291a425ada8e939bf3485a1e0762f02",
+  "phase3_final_ci_base_sha": "d3cdf2e249d2c2fd62d52fbff0b83c3c4a6fbb6b",
   "phase3_source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
+  "phase3_verified_runtime_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4",
+  "phase3_runtime_verification_run_id": "e2a51673-8bb4-4864-a1c2-1606d1fcc5e8",
+  "phase3_runtime_readback_checked_at": "2026-07-23T18:31:36.459Z",
+  "phase3_release_operation_id": "2cca7984-3d93-40eb-bcc3-78f6319e87ff",
+  "phase3_release_operation_status": "cancelled",
+  "phase3_release_operation_classification": "superseded_before_execution",
+  "phase3_release_gate_id": "05d4ef00-0a42-47bc-bb5e-6649c6b50df7",
+  "phase3_release_gate_status": "hard_disabled",
+  "phase3_closeout_branch": "gpt/spec-011-phase3-closeout-20260723",
+  "phase3_closeout_pull_request": 3055,
+  "phase3_closeout_source_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
   "deliverables": [
     "spec",
     "plan",
@@ -84,7 +98,10 @@
     "phase3_plan_bound_session_shadow",
     "phase3_hash_binding_tests",
     "phase3_approval_independence_tests",
-    "phase3_tenant_scope_tests"
+    "phase3_tenant_scope_tests",
+    "phase3_merge_evidence",
+    "phase3_runtime_descendant_evidence",
+    "phase3_release_supersession_evidence"
   ],
   "constraints": [
     "no_provider_call",
