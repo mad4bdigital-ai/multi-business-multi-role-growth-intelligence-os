@@ -1,6 +1,7 @@
 ﻿import { randomUUID } from "crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { buildActivationEffectiveAuthorityProjection } from "../activationEffectiveAuthorityProjection.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
@@ -655,6 +656,22 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   if (rowsOrEmpty(systems).length === 0 && !hasVisibleConnectedAppConnections) authGaps.push("no_visible_connected_systems");
   if (!isAdmin && rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
 
+  const effectiveAuthorityProjectionBuilder =
+    deps.buildEffectiveAuthorityProjection || buildActivationEffectiveAuthorityProjection;
+  const effectiveAuthority =
+    isAdmin || tenantId
+      ? await effectiveAuthorityProjectionBuilder({
+          query: queryFn,
+          scope: {
+            scopeId: null,
+            scopeKey: isAdmin && !tenantId ? "platform:root" : `tenant:${tenantId}`,
+            scopeType: isAdmin && !tenantId ? "platform" : "tenant",
+            tenantId: isAdmin && !tenantId ? null : tenantId,
+            version: null,
+          },
+          logger: deps.logger || console,
+        })
+      : null;
   return {
     source: "activation_dynamic_authorization_envelope",
     principal: {
@@ -723,6 +740,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
       registered_surfaces: registeredSurfaces.surfaces || [],
       activation_context: activationContext,
     },
+    ...(effectiveAuthority ? { effective_authority: effectiveAuthority } : {}),
     activation_policy: {
       use_authorized_access_for_context_selection: true,
       do_not_infer_access_from_global_counts: true,
