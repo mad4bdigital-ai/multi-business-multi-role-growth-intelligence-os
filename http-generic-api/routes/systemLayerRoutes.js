@@ -902,7 +902,19 @@ async function toolsForPrincipalWithPlatformEndpoints(auth) {
 
 async function buildSystemToolsListResponse(auth, query = {}) {
   const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
-  const { items, page } = paginateItems(allTools, query || {});
+  const requestedQuery = query && typeof query === "object" ? query : {};
+  const hasExplicitCatalogWindow = ["limit", "cursor", "offset", "q", "query", "tag"].some(
+    (key) => Object.prototype.hasOwnProperty.call(requestedQuery, key)
+      && String(requestedQuery[key] ?? "").trim() !== "",
+  );
+  const effectiveQuery = hasExplicitCatalogWindow
+    ? requestedQuery
+    : {
+        ...requestedQuery,
+        cursor: 0,
+        limit: Math.min(Math.max(allTools.length, 1), 200),
+      };
+  const { items, page } = paginateItems(allTools, effectiveQuery);
   return {
     ok: true,
     protocol: "openapi-mcp-facade",
