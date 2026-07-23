@@ -380,9 +380,223 @@ export function createGrowthControlPlaneRepository({ resolvePool }) {
     });
   }
 
+  async function validateConfigurationVersion(input) {
+    return withTransaction(async (connection) => {
+      const version = await getConfigurationVersion(input.configVersionId, connection, true);
+      if (!version || version.configKey !== input.configKey) {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_CONFIG_VERSION_NOT_FOUND",
+          "Configuration version was not found.",
+          404
+        );
+      }
+      if (Number(input.expectedRevision) !== version.versionRevision) {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_REVISION_CONFLICT",
+          "Configuration version revision changed.",
+          409,
+          [{ field: "expectedRevision", issue: "stale", expected: version.versionRevision }]
+        );
+      }
+      assertGrowthControlConfigurationTransition(version.lifecycle, "ready");
+      await sql(connection,
+        `UPDATE growth_control_config_versions
+            SET lifecycle='ready', version_revision=version_revision+1, updated_at=CURRENT_TIMESTAMP
+          WHERE config_version_id=?`,
+        [version.configVersionId]
+      );
+      return getConfigurationVersion(version.configVersionId, connection);
+    });
+  }
+
+  async function createConfigurationLifecycleApprovalHold(input) {
+    return withTransaction(async (connection) => {
+      const version = await getConfigurationVersion(input.configVersionId, connection, true);
+      if (!version || version.configKey !== input.configKey) {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_CONFIG_VERSION_NOT_FOUND",
+          "Configuration version was not found.",
+          404
+        );
+      }
+      if (version.lifecycle !== "ready") {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_LIFECYCLE_NOT_READY",
+          "Lifecycle approval can only be requested for a ready configuration version.",
+          409
+        );
+      }
+      const binding = buildGrowthControlApprovalBinding({ operation: input.operation, version });
+      await sql(connection,
+        `INSERT INTO approval_holds
+         (hold_id,run_id,tenant_id,workspace_id,workspace_key,hold_type,requested_by,user_id,
+          actor_id,actor_type,brand_key,request_id,correlation_id,execution_context_json,
+          required_role,status,expires_at,created_at)
+         VALUES (?,?,?,?,?,'supervisor_approval',?,?,?,?,?,?,?,?,?,'platform_admin','open',?,UTC_TIMESTAMP())`,
+        [
+          input.holdId,
+          input.runId,
+          version.tenantId || "00000000-0000-0000-0000-000000000000",
+          version.workspaceId || null,
+          version.workspaceId || null,
+          input.requestedBy,
+          input.requestedBy,
+          input.requestedBy,
+          "platform_admin",
+          version.brandKey || null,
+          input.requestId || null,
+          input.correlationId || null,
+          JSON.stringify(binding),
+          input.expiresAt
+        ]
+      );
+      const [rows] = await sql(connection, "SELECT * FROM approval_holds WHERE hold_id=? LIMIT 1", [input.holdId]);
+      return approvalHoldRow(rows?.[0]);
+    });
+  }
+
+  async function applyConfigurationLifecycle(input) {
+    return withTransaction(async (connection) => {
+      const target = await getConfigurationVersion(input.configVersionId, connection, true);
+      if (!target || target.configKey !== input.configKey) {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_CONFIG_VERSION_NOT_FOUND",
+          "Configuration version was not found.",
+          404
+        );
+      }
+      if (Number(input.expectedRevision) !== target.versionRevision) {
+        throw new GrowthControlPlaneError(
+          "GROWTH_CONTROL_REVISION_CONFLICT",
+          "Configuration version revision changed.",
+          409,
+          [{ field: "expectedRevision", issue: "stale", expected: target.versionRevision }]
+        );
+      }
+      assertGrowthControlConfigurationTransition(target.lifecycle, "active");
+      const binding = buildGrowthControlApprovalBinding({ operation: input.operation, version: target });
+      const [holdRows] = await sql(connection,
+        "SELECT * FROM approval_holds WHERE hold_id=? LIMIT 1 FOR UPDATE",
+        [input.approvalHoldId]
+      );
+      const hold = approvalHoldRow(holdRows?.[0]);
+      assertGrowthControlApprovalHold(hold, binding);
+
+      const [activeRows] = await sql(connection,
+        `SELECT * FROM growth_control_config_versions
+          WHERE config_key=? AND scope_key=? AND lifecycle='active' AND config_version_id<>?
+          ORDER BY version_number DESC, config_version_id
+          FOR UPDATE`,
+        [target.configKey, target.scopeKey, target.configVersionId]
+      );
+      const activeVersions = activeRows.map(versionRow);
+      if (input.operation === "rollback") {
+        if (!activeVersions.length) {
+          throw new GrowthControlPlaneError(
+            "GROWTH_CONTROL_ROLLBACK_SOURCE_NOT_FOUND",
+            "Rollback requires one currently active version in the same scope.",
+            409
+          );
+        }
+        const newestActiveVersion = Math.max(...activeVersions.map((version) => version.versionNumber));
+        if (target.versionNumber >= newestActiveVersion) {
+          throw new GrowthControlPlaneError(
+            "GROWTH_CONTROL_ROLLBACK_TARGET_INVALID",
+            "Rollback target must be older than the currently active version.",
+            409
+          );
+        }
+      }
+
+      const displacedLifecycle = input.operation === "rollback" ? "rolled_back" : "deprecated";
+      for (const activeVersion of activeVersions) {
+        assertGrowthControlConfigurationTransition(activeVersion.lifecycle, displacedLifecycle);
+        await sql(connection,
+          `UPDATE growth_control_config_versions
+              SET lifecycle=?, effective_to=UTC_TIMESTAMP(), version_revision=version_revision+1,
+                  updated_at=CURRENT_TIMESTAMP
+            WHERE config_version_id=?`,
+          [displacedLifecycle, activeVersion.configVersionId]
+        );
+      }
+
+      await sql(connection,
+        `UPDATE growth_control_config_versions
+            SET lifecycle='active', approved_by=?, effective_from=UTC_TIMESTAMP(), effective_to=NULL,
+                version_revision=version_revision+1, updated_at=CURRENT_TIMESTAMP
+          WHERE config_version_id=?`,
+        [input.approvedBy, target.configVersionId]
+      );
+      const updated = await getConfigurationVersion(target.configVersionId, connection);
+      const eventType = input.operation === "rollback"
+        ? "growth_control.configuration.rolled_back"
+        : "growth_control.configuration.activated";
+      const eventPayload = {
+        contract: "mad4b.growth-control.configuration.lifecycle.v1",
+        operation: input.operation,
+        configVersionId: updated.configVersionId,
+        configKey: updated.configKey,
+        scopeType: updated.scopeType,
+        scopeKey: updated.scopeKey,
+        versionNumber: updated.versionNumber,
+        versionRevision: updated.versionRevision,
+        lifecycle: updated.lifecycle,
+        previousActiveVersionIds: activeVersions.map((version) => version.configVersionId),
+        approvalHoldId: hold.holdId,
+        bindingSha256: binding.bindingSha256
+      };
+      await enqueuePlatformOutboxEvent({
+        connection,
+        eventId: input.eventId,
+        eventType,
+        schemaVersion: 1,
+        aggregateType: "growth_control_configuration",
+        aggregateId: updated.configVersionId,
+        tenantId: updated.tenantId || null,
+        workspaceId: updated.workspaceId || null,
+        sourceEnvironment: input.sourceEnvironment,
+        payload: eventPayload,
+        metadata: {
+          producer: "growth_control_plane",
+          actorId: input.approvedBy,
+          requestId: input.requestId || null,
+          correlationId: input.correlationId || null
+        },
+        secretsIncluded: false
+      });
+
+      const consumedContext = {
+        ...hold.executionContext,
+        consumedAt: new Date().toISOString(),
+        consumedEventId: input.eventId,
+        consumedOperation: input.operation
+      };
+      await sql(connection,
+        `UPDATE approval_holds
+            SET status='expired', expires_at=UTC_TIMESTAMP(), execution_context_json=?,
+                decision_note=LEFT(CONCAT(COALESCE(decision_note,''),' [consumed by growth control lifecycle]'),512)
+          WHERE hold_id=?`,
+        [JSON.stringify(consumedContext), hold.holdId]
+      );
+
+      return Object.freeze({
+        version: updated,
+        operation: input.operation,
+        approvalHoldId: hold.holdId,
+        eventId: input.eventId,
+        previousActiveVersionIds: activeVersions.map((version) => version.configVersionId),
+        providerCalls: false,
+        externalWrites: false,
+        secretsIncluded: false
+      });
+    });
+  }
+
   return Object.freeze({
-    listConfigurationDefinitions, getConfigurationDefinition, createConfigurationDefinition,
-    createConfigurationVersion, listResolvableConfigurationVersions, recordResolutionSnapshot,
+    listConfigurationDefinitions, getConfigurationDefinition, getConfigurationVersion,
+    createConfigurationDefinition, createConfigurationVersion, validateConfigurationVersion,
+    createConfigurationLifecycleApprovalHold, applyConfigurationLifecycle,
+    listResolvableConfigurationVersions, recordResolutionSnapshot,
     listActivityPacks, getActivityPackDefinition, createActivityPackDefinition,
     createActivityPackVersion, createBrandActivityBinding
   });
