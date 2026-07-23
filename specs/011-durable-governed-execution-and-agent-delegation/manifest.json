@@ -63,6 +63,7 @@
   "phase3_release_gate_id": "05d4ef00-0a42-47bc-bb5e-6649c6b50df7",
   "phase3_release_gate_status": "hard_disabled",
   "phase3_closeout_branch": "gpt/spec-011-phase3-closeout-20260723",
+  "phase3_closeout_pull_request": 3055,
   "phase3_closeout_source_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
   "deliverables": [
     "spec",
