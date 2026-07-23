@@ -657,8 +657,9 @@ export async function decideTenantSkillApproval({
     const grantRows = await loadGrantRows(connection, subject.tenant_id);
     const group = matchingGroupOrThrow(grantRows, subject.tenant_id, normalizedApprovalKey, nowValue);
     const holdRows = await loadApprovalHolds(connection, subject.tenant_id, { forUpdate: true });
-    const latestHold = latestHoldsByApprovalKey(holdRows).get(group.approval_key) || null;
-    const latestStatus = effectiveHoldStatus(latestHold, nowValue);
+    const holds = latestHoldsByApprovalKey(holdRows);
+    const latestHold = holdForGroup(group, holds);
+    const latestStatus = effectiveApprovalStatus(group, latestHold, nowValue);
     const sameDecision = (normalized.decision === "approve" && latestStatus === "approved")
       || (normalized.decision === "reject" && latestStatus === "rejected")
       || (normalized.decision === "defer" && latestStatus === "deferred");
@@ -682,13 +683,31 @@ export async function decideTenantSkillApproval({
         secrets_included: false,
       };
     }
+    if (["approved", "rejected", "expired"].includes(latestStatus)) {
+      throw httpError(409, "TENANT_SKILL_APPROVAL_ALREADY_DECIDED", "The grant request already has a terminal decision.", {
+        approval_key: normalizedApprovalKey,
+        request_status: latestStatus,
+      });
+    }
+    if (!group.request_ids?.length) {
+      throw httpError(409, "TENANT_SKILL_GRANT_REQUEST_REQUIRED", "The approval item is not linked to a canonical grant request.", {
+        approval_key: normalizedApprovalKey,
+      });
+    }
 
     let hold = latestHold;
-    if (!hold || ["approved", "rejected", "expired"].includes(latestStatus)) {
+    if (!hold) {
       hold = await createApprovalHold(connection, { subject, group, normalized, uuid, nowValue });
     }
-    const grantMutation = await applyGrantDecision(connection, { subject, group, normalized });
-    hold = await updateApprovalHold(connection, { hold, subject, normalized, nowValue });
+    const grantMutation = await applyTenantAgentSkillGrantRequestDecision({
+      connection,
+      requestIds: group.request_ids,
+      subject,
+      decision: normalized.decision,
+      decisionNote: normalized.decision_note,
+      grantTtlHours: normalized.grant_ttl_hours,
+      deferUntil: normalized.defer_until,
+    });
 
     const refreshedGrantRows = await loadGrantRows(connection, subject.tenant_id);
     const refreshedGroup = matchingGroupOrThrow(
@@ -697,7 +716,9 @@ export async function decideTenantSkillApproval({
       normalizedApprovalKey,
       nowValue
     );
-    const item = approvalItem(refreshedGroup, hold, nowValue);
+    const refreshedHoldRows = await loadApprovalHolds(connection, subject.tenant_id);
+    const refreshedHold = holdForGroup(refreshedGroup, latestHoldsByApprovalKey(refreshedHoldRows));
+    const item = approvalItem(refreshedGroup, refreshedHold || hold, nowValue);
     const expectedReadback = normalized.decision === "defer" ? "blocked" : "passed";
     if (item.readback.status !== expectedReadback) {
       throw httpError(409, "TENANT_SKILL_APPROVAL_READBACK_FAILED", "Skill approval decision could not be verified against the grant registry.", {
