@@ -387,9 +387,9 @@ export const GROWTH_CONTROL_CONFIGURATION_LIFECYCLE_TRANSITIONS = Object.freeze(
   ready: Object.freeze(["active", "blocked", "archived"]),
   active: Object.freeze(["rolled_back", "deprecated"]),
   blocked: Object.freeze(["draft", "archived"]),
-  deprecated: Object.freeze(["archived"]),
+  deprecated: Object.freeze(["active", "archived"]),
   archived: Object.freeze([]),
-  rolled_back: Object.freeze(["archived"])
+  rolled_back: Object.freeze(["active", "archived"])
 });
 
 export function assertGrowthControlConfigurationTransition(currentLifecycle, nextLifecycle) {
