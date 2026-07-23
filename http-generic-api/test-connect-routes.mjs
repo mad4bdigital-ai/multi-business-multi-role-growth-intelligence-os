@@ -954,7 +954,7 @@ assert("Local Manager privileged installer authorization uses a long-lived revoc
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
       deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS") &&
-      deviceLinkSource.includes("privileged_authorization_fresh") &&
+      deviceLinkSource.includes("requires_reauth_for_privileged_installers: false") &&
       deviceLinkSource.includes("reauth_action"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
