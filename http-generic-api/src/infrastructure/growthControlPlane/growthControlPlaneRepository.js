@@ -90,6 +90,26 @@ function packRow(row) {
   });
 }
 
+function approvalHoldRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    holdId: row.hold_id,
+    runId: row.run_id,
+    tenantId: row.tenant_id,
+    workspaceId: row.workspace_id,
+    brandKey: row.brand_key,
+    status: row.status,
+    requiredRole: row.required_role,
+    executionContext: parseJson(row.execution_context_json, {}),
+    requestedBy: row.requested_by,
+    decisionBy: row.decision_by,
+    expiresAt: row.expires_at,
+    decidedAt: row.decided_at,
+    createdAt: row.created_at,
+    secretsIncluded: false
+  });
+}
+
 export function createGrowthControlPlaneRepository({ resolvePool }) {
   if (typeof resolvePool !== "function") throw new TypeError("resolvePool is required.");
 
