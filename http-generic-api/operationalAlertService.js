@@ -613,8 +613,19 @@ function mergeCandidates(items = []) {
     const live = !current.persisted ? current : !item.persisted ? item : null;
     const latest = new Date(item.last_seen_at || 0) >= new Date(current.last_seen_at || 0) ? item : current;
     const earliest = new Date(item.first_seen_at || Date.now()) <= new Date(current.first_seen_at || Date.now()) ? item : current;
-    const lifecycleStatus = persisted && live && ["resolved", "ignored"].includes(persisted.lifecycle_status)
-      ? "open"
+    const persistedLifecycleClosed = persisted && ["resolved", "ignored"].includes(persisted.lifecycle_status);
+    const persistedLifecycleAt = persisted?.lifecycle_updated_at ? new Date(persisted.lifecycle_updated_at) : null;
+    const liveLastSeenAt = live?.last_seen_at ? new Date(live.last_seen_at) : null;
+    const hasNewerLiveOccurrence = Boolean(
+      persistedLifecycleClosed
+      && persistedLifecycleAt
+      && liveLastSeenAt
+      && !Number.isNaN(persistedLifecycleAt.getTime())
+      && !Number.isNaN(liveLastSeenAt.getTime())
+      && liveLastSeenAt > persistedLifecycleAt
+    );
+    const lifecycleStatus = persistedLifecycleClosed
+      ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
     merged.set(item.alert_key, {
       ...current,
