@@ -51,7 +51,7 @@ const RULES = Object.freeze({
   },
 });
 
-const CUSTOMER_CONTEXT = /(?:\b(?:tenant|user|workspace|brand|customer|resource|connection|provider(?:[_-]?account)?|principal|scope)(?:s)?(?:[_-]?(?:id|ref|key))?\b|[a-z][A-Za-z0-9]*(?:Tenant|User|Workspace|Brand|Customer|Resource|Connection|ProviderAccount|Principal|Scope)[A-Za-z0-9]*)/i;
+const CUSTOMER_CONTEXT = /(?:\b(?:tenant|user|workspace|brand|customer|resource|connection|provider(?:[_-]?account)?|principal|scope)(?:s)?(?:[_-]?(?:id|ref|key))?\b|(?:tenant|user|workspace|brand|customer|resource|connection|provideraccount|principal|scope)[A-Za-z0-9]+|[a-z][A-Za-z0-9]*(?:Tenant|User|Workspace|Brand|Customer|Resource|Connection|ProviderAccount|Principal|Scope)[A-Za-z0-9]*)/i;
 const QUERY_CONTEXT = /\bSELECT\b[\s\S]*\b(?:tenants?|workspaces?|brands?|resources?|connections?|providers?|memberships?|authorit(?:y|ies)|scopes?)\b/i;
 const AUTHORITY_CONTEXT = /(?:\b(?:grant|authority|permission|policy|access)(?:[_-]?(?:mode|type|level|key|ref|id))?\b|(?:grant|authority|permission|policy|access)(?:Mode|Type|Level|Key|Ref|Id)\b)/i;
 const RESOLUTION_CONTEXT = /(?:\b(?:resolve|resolver|query|database|db|connection|tenant|workspace|brand|scope)(?:s)?\b|[a-z][A-Za-z0-9]*(?:Resolve|Resolver|Query|Database|Connection|Tenant|Workspace|Brand|Scope)[A-Za-z0-9]*)/i;
