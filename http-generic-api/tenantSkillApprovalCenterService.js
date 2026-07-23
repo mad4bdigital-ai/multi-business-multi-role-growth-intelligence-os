@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { applyTenantAgentSkillGrantRequestDecision } from "./agentSkillGrantRequestService.js";
 
 const OWNER_ROLES = new Set(["owner", "tenant_owner", "workspace_owner", "admin"]);
 const DECISIONS = new Set(["approve", "reject", "defer"]);
