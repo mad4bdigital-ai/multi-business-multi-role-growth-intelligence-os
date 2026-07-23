@@ -293,17 +293,20 @@ function normalizeListFilters({ status = null, workspaceId = null, q = null } = 
 
 async function loadGrantRows(connection, tenantId) {
   const [rows] = await connection.query(
-    `SELECT g.grant_id, g.tenant_id, g.brand_key, g.agent_id,
+    `SELECT g.grant_id, g.grant_request_id, g.tenant_id, g.brand_key, g.agent_id,
             a.name AS agent_name, a.display_name AS agent_display_name,
             g.skill_id, s.skill_key, s.display_name AS skill_display_name,
             s.skill_type, s.scope AS skill_scope, s.requires_approval,
-            g.status AS grant_status, g.expires_at AS grant_expires_at, g.granted_at
+            g.status AS grant_status, g.expires_at AS grant_expires_at, g.granted_at,
+            r.request_status, r.approval_policy_key, r.approval_hold_id,
+            r.requested_at, r.decided_at AS request_decided_at
        FROM agent_skill_grants g
        JOIN agent_skills s ON s.skill_id = g.skill_id AND s.status = 'active'
+       LEFT JOIN agent_skill_grant_requests r ON r.request_id = g.grant_request_id
        LEFT JOIN agents a ON a.agent_id = g.agent_id
       WHERE s.requires_approval = 1
         AND (g.tenant_id = ? OR g.tenant_id IS NULL)
-      ORDER BY g.granted_at DESC, g.grant_id DESC
+      ORDER BY COALESCE(r.requested_at, g.granted_at) DESC, g.grant_id DESC
       LIMIT 2000`,
     [tenantId]
   );
@@ -318,7 +321,8 @@ async function loadApprovalHolds(connection, tenantId, { forUpdate = false } = {
             decision_note, expires_at, decided_at, created_at
        FROM approval_holds
       WHERE tenant_id = ?
-        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type')) = 'tenant_skill_grant'
+        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type'))
+            IN ('tenant_skill_grant', 'agent_skill_grant_request')
       ORDER BY created_at DESC, hold_id DESC
       LIMIT 2000${forUpdate ? " FOR UPDATE" : ""}`,
     [tenantId]
