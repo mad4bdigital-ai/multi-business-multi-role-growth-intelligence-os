@@ -158,6 +158,25 @@ components:
         dynamic_cache_ttl: { type: boolean }
         configurable_ttl_options: { type: array, items: { type: string } }
         extends_cache_on_read: { type: boolean }
+        persistence_degraded:
+          type: boolean
+          description: True only when durable chunk persistence is unavailable and a bounded inline fallback is returned.
+        fallback_mode:
+          type: string
+          enum: [bounded_inline_response]
+        fallback_reason:
+          type: string
+          enum: [response_chunk_persistence_unavailable]
+        bounded_inline_max_chars:
+          type: integer
+          minimum: 5000
+          maximum: 150000
+        serialized_chars:
+          type: integer
+          minimum: 0
+        source_tool_key:
+          type: string
+          maxLength: 191
         secrets_included: { type: boolean, const: false }
     CatalogResponse:
       type: object
