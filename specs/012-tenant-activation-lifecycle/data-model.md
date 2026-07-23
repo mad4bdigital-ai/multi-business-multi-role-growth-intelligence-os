@@ -525,6 +525,36 @@ Immutable rules:
 
 `DeploymentObservation` remains the authoritative internal evidence projection. Public/Tenant output is derived through the active exposure policy and release-ID adapter. Historical activation operations retain the observation applicable at request time and are not rewritten when a later deployment converges.
 
+## PR-1 physical mapping result
+
+Inventory evidence is recorded in `implementation/pr-1-inventory.json`. No migration is authorized by this mapping.
+
+| Logical entity | Existing authority/pattern | Disposition |
+|---|---|---|
+| General operation identity | `workflow_runs`, `step_runs`, `operation_run_ownership` | Reuse identity, tenancy, status, step, and timestamps; add an Activation projection for fingerprint, idempotency hash, protected resource, OAuth client, purpose, mode, and optimistic version. |
+| Activation operation projection | `activation_runs`, `activation_snapshot_ledger` | Reuse with additive fields/projection for current stage, fingerprint, resource/client/mode, and version. |
+| Stage attempt | `step_runs` | Reuse the attempt pattern; add `activation_stage_attempts` because current enums and constraints do not express retryability, unknown outcome, source authority, or unique operation/stage/attempt identity. |
+| Evidence item | Activation snapshots, `operational_alerts`, runtime-verification and release evidence | Preserve specialized authorities; add bounded `activation_evidence_items` references instead of copying unbounded source payloads. |
+| Delivery | Aggregate columns in `activation_runs` | Add `activation_deliveries` for channel, payload hash, attempts, and terminal delivery evidence. |
+| Acknowledgement | Aggregate columns in `activation_runs` | Add `activation_acknowledgements` for actor and delivery linkage. |
+| Reconciliation | `tenant_resolution_readbacks`, `repository_mutation_runs_v6` | Preserve domain-specific readback; add `activation_reconciliation_attempts` for general unknown-outcome resolution. |
+| Deployment observation | `runtime_verification_runs`, evidence chunks, parity status | Reuse. |
+| Attention item | `operational_alerts` and lifecycle events | Reuse. |
+| OAuth authorization code | `tenant_gpt_oauth_authorization_codes` | Reuse hash-only lifecycle; add or link scope/resource/request-correlation metadata. |
+| Resolution lifecycle | `tenant_resolution_cases`, events, readbacks | Reuse. |
+| Resolution operation policy | `platform_resource_operation_registry` | Reuse route catalog; add `tenant_resolution_operation_policies` for scopes, role/capability/object authority, risk, approval, idempotency, readback, and effective version. |
+
+### Constraints for later migration design
+
+- Additive schema only; no destructive rename or repurposing of domain-specific release/repository ledgers.
+- One stable shared operation identity must link the general run and Activation projection.
+- Stage attempts require uniqueness on `(operation_id, stage_key, attempt_number)`.
+- Delivery and acknowledgement remain independent from execution success.
+- Evidence stores bounded redacted summaries and governed references; raw secrets and unbounded dumps are prohibited.
+- Unknown mutation outcome must enter reconciliation before retry or success classification.
+- Tenant/user/workspace collation and indexes require explicit migration review before implementation.
+- Retention remains blocked on T009 security/legal approval.
+
 ## Migration questions
 
 - Can existing execution/operation tables express activation stages and delivery/ack states?
