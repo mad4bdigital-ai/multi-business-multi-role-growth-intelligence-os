@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import "./test-github-repository-webhook-certification-service.mjs";
 import {
   __test__,
   githubRepositoryMainMovedWebhookProvision,
