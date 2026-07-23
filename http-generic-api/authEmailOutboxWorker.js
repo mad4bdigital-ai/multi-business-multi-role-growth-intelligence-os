@@ -276,10 +276,16 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
       ORDER BY purpose, status`,
     normalizedPurposes
   );
+  const attemptSummary = await getAuthEmailOutboxAttemptSummary({
+    pool,
+    purposes: normalizedPurposes,
+  });
   return {
     ok: true,
     purposes: normalizedPurposes,
     delivery_feature_flag_enabled: process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true",
+    attempt_ledger_available: attemptSummary.attempt_ledger_available,
+    attempt_counts: attemptSummary.attempt_counts,
     counts: (counts || []).map((row) => ({
       purpose: row.purpose,
       status: row.status,
