@@ -16,7 +16,11 @@ const RESOURCE_TEST_FILE = "test-resource-api-service.mjs";
 const CANARY_ROUTE_FILE = "routes/dynamicContainerAuthorityRoutes.js";
 const CANARY_SERVICE_FILE = "dynamicContainerRolloutSafety.js";
 const CANARY_TEST_FILE = "test-dynamic-container-rollout-safety.mjs";
-const TEST_MANIFEST_FILE = "scripts/test-manifest.mjs";
+const BOOTSTRAP_ROUTE_FILE = "routes/connectRoutes.js";
+const BOOTSTRAP_SERVICE_FILE = "tenantConnectBootstrapService.js";
+const BOOTSTRAP_TRANSACTION_FILE = "tenantConnectBootstrapTransaction.js";
+const BOOTSTRAP_TEST_FILE = "test-tenant-connect-bootstrap-transaction.mjs";
+const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 
 const RESOURCE_RECIPES = [
   {
@@ -97,21 +101,28 @@ function unique(values = []) {
 }
 
 function registeredTestFiles(source = "") {
-  return unique([...canonicalText(source).matchAll(/\bnode\s+((?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs)\b/g)]
-    .map((match) => match[1]));
+  try {
+    const registry = JSON.parse(canonicalText(source));
+    if (registry?.schema_version !== "frontend-operation-governance-test-registry-v1" || !Array.isArray(registry.tests)) return [];
+    return unique(registry.tests
+      .map((entry) => String(entry?.file || "").trim())
+      .filter((file) => /^(?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs$/.test(file)));
+  } catch {
+    return [];
+  }
 }
 
 function registeredTestEvidence(apiRoot) {
-  const manifestSource = readText(apiRoot, TEST_MANIFEST_FILE);
+  const registrySource = readText(apiRoot, TEST_REGISTRY_FILE);
   const byOperation = new Map();
-  for (const testFile of registeredTestFiles(manifestSource)) {
+  for (const testFile of registeredTestFiles(registrySource)) {
     for (const operation of parseTestEvidenceClaims(readText(apiRoot, testFile))) {
       if (!byOperation.has(operation)) byOperation.set(operation, []);
       byOperation.get(operation).push(testFile);
     }
   }
   for (const [operation, files] of byOperation) byOperation.set(operation, unique(files));
-  return { byOperation, manifestSource };
+  return { byOperation, registrySource };
 }
 
 export function extractFunctionBlock(source = "", functionName = "") {
@@ -282,12 +293,62 @@ function evaluateCanaryRecipe(context) {
   };
 }
 
+function evaluateBootstrapRecipe(context) {
+  const recipe = {
+    recipe_id: "tenant-connect-bootstrap-transaction-v1",
+    rule_id: "generated-tenant-connect-bootstrap-governance",
+    operation: "POST /connect/bootstrap",
+    source_file: BOOTSTRAP_ROUTE_FILE,
+    owner: "tenant-activation",
+    rationale: "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
+    preflight_mode: "inline_capability_check",
+    approval_mode: "runtime_authorization",
+    parameter_bindings: {
+      user_id: "auth.user_id",
+      tenant_id: "auth.tenant_id|response.principal.workspace_key",
+      mode: "request.body.mode|managed",
+    },
+  };
+  const route = context.bootstrapRoutes.get(recipe.operation);
+  const routeSource = context.sourceByFile.get(BOOTSTRAP_ROUTE_FILE);
+  const atomicAdapterBlock = extractFunctionBlock(routeSource, "activateManagedConnectionForTenant");
+  const serviceBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_SERVICE_FILE), "orchestrateTenantConnectBootstrap");
+  const transactionBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_TRANSACTION_FILE), "executeTenantConnectBootstrapTransaction");
+  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
+  const connectionMutation = "INSERT INTO \\`tenant_backend_connections\\`";
+  const membershipReadback = "const [readbackMembershipRows]";
+  const verifiedReadback = "verifyReadback({ membership, connection, tenantId })";
+  const gates = [
+    evidenceGate("route_present", route, BOOTSTRAP_ROUTE_FILE),
+    evidenceGate("signed_user_guard", route?.route_guards?.includes("requireUserJwt"), "requireUserJwt"),
+    evidenceGate("route_atomic_binding", route?.declaration?.includes("orchestrateTenantConnectBootstrap") && route?.declaration?.includes("activateManagedConnectionForTenant") && atomicAdapterBlock.includes("executeTenantConnectBootstrapTransaction"), "orchestrateTenantConnectBootstrap/atomic transaction adapter"),
+    evidenceGate("managed_only_preflight", serviceBlock.includes('mode !== "managed"') && serviceBlock.includes("bootstrap_managed_only"), "managed-only service preflight"),
+    evidenceGate("service_atomic_dependency", serviceBlock.includes("await applyManagedBootstrap") && serviceBlock.includes("readback?.verified"), "applyManagedBootstrap/verified readback"),
+    evidenceGate("transaction_scope_present", transactionBlock.includes("getConnection") && transactionBlock.includes("beginTransaction"), "getConnection/beginTransaction"),
+    evidenceGate("principal_concurrency_lock", transactionBlock.includes("FROM `users`") && transactionBlock.includes("FOR UPDATE"), "signed user FOR UPDATE"),
+    evidenceGate("membership_preflight_in_transaction", transactionBlock.includes("activeWorkspaceOptions") && transactionBlock.includes("tenant_selection_required") && transactionBlock.includes("tenant_membership_required"), "membership selection gates"),
+    evidenceGate("workspace_mutation_present", transactionBlock.includes("INSERT INTO \\`tenants\\`") && transactionBlock.includes("INSERT INTO \\`memberships\\`"), "tenant/membership inserts"),
+    evidenceGate("managed_connection_mutation_present", transactionBlock.includes(connectionMutation), connectionMutation),
+    evidenceGate("integration_policy_uses_transaction", transactionBlock.includes("upsertIntegrationPolicies") && transactionBlock.includes("db: transaction"), "upsertIntegrationPolicies/db: transaction"),
+    evidenceGate("transactional_readback_follows_mutation", ordered(transactionBlock, connectionMutation, membershipReadback) && ordered(transactionBlock, membershipReadback, verifiedReadback), "membership/connection readback after mutation"),
+    evidenceGate("verification_precedes_commit", ordered(transactionBlock, verifiedReadback, "transaction.commit"), "verifyReadback/commit"),
+    evidenceGate("verified_rollback", transactionBlock.includes("transaction.rollback") && transactionBlock.includes("connect_bootstrap_transaction_rollback_failed") && transactionBlock.includes('state: "indeterminate"'), "rollback/fail-closed error"),
+    evidenceGate("connection_release", transactionBlock.includes("transaction.release"), "transaction.release"),
+    evidenceGate("registered_operation_test", claimedTests.includes(BOOTSTRAP_TEST_FILE), BOOTSTRAP_TEST_FILE),
+  ];
+  return {
+    recipe,
+    gates,
+    evidenceFiles: [BOOTSTRAP_ROUTE_FILE, BOOTSTRAP_SERVICE_FILE, BOOTSTRAP_TRANSACTION_FILE, BOOTSTRAP_TEST_FILE],
+  };
+}
+
 export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const generatorFile = "scripts/frontend-operation-governance-generator.mjs";
   const testEvidence = registeredTestEvidence(apiRoot);
   const evidenceFiles = unique([
     generatorFile,
-    TEST_MANIFEST_FILE,
+    TEST_REGISTRY_FILE,
     RESOURCE_ROUTE_FILE,
     RESOURCE_SERVICE_FILE,
     RESOURCE_REPOSITORY_FILE,
@@ -295,6 +356,10 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     CANARY_ROUTE_FILE,
     CANARY_SERVICE_FILE,
     CANARY_TEST_FILE,
+    BOOTSTRAP_ROUTE_FILE,
+    BOOTSTRAP_SERVICE_FILE,
+    BOOTSTRAP_TRANSACTION_FILE,
+    BOOTSTRAP_TEST_FILE,
   ]);
   const sourceByFile = new Map(evidenceFiles.map((file) => [file, readText(apiRoot, file)]));
   const context = {
@@ -302,10 +367,12 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     testEvidence,
     resourceRoutes: routeRegistry(sourceByFile.get(RESOURCE_ROUTE_FILE), RESOURCE_ROUTE_FILE),
     canaryRoutes: routeRegistry(sourceByFile.get(CANARY_ROUTE_FILE), CANARY_ROUTE_FILE),
+    bootstrapRoutes: routeRegistry(sourceByFile.get(BOOTSTRAP_ROUTE_FILE), BOOTSTRAP_ROUTE_FILE),
   };
   const evaluations = [
     ...RESOURCE_RECIPES.map((recipe) => evaluateResourceRecipe(recipe, context)),
     evaluateCanaryRecipe(context),
+    evaluateBootstrapRecipe(context),
   ];
   const operationRules = [];
   const rejectedCandidates = [];

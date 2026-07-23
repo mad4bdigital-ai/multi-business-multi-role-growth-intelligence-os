@@ -99,4 +99,57 @@ function fixture(completion = validCompletion(), tasks = "- [x] Done\n", checkli
   assert.deepEqual(validateFeatureDirectory("001-example", { root, policy, headRef: FIXTURE_HEAD_REF }), []);
 }
 
+{
+  const root = fixture();
+  const historicalCompletion = validCompletion({
+    feature_key: "002-history",
+    delivery: {
+      ...validCompletion().delivery,
+      closeout_pr: {
+        ...validCompletion().delivery.closeout_pr,
+        branch: "gpt/historical-closeout",
+      },
+    },
+  });
+  write(root, "specs/002-history/spec.md", "# Historical Spec\n");
+  write(root, "specs/002-history/plan.md", "# Historical Plan\n");
+  write(root, "specs/002-history/tasks.md", "- [x] Done\n");
+  write(root, "specs/002-history/checklists/requirements.md", "- [x] Reviewed\n");
+  write(root, "specs/002-history/completion.json", JSON.stringify(historicalCompletion));
+
+  const result = validateRepository({
+    root,
+    policy,
+    changedFiles: [".specify/templates/spec-template.md", "specs/001-example/spec.md"],
+    headRef: FIXTURE_HEAD_REF,
+  });
+  assert.deepEqual(result.targets, ["001-example", "002-history"]);
+  assert.equal(
+    result.findings.some((row) => row.type === "closeout_branch_mismatch" && row.feature === "002-history"),
+    false,
+  );
+}
+
+{
+  const mismatchedCompletion = validCompletion({
+    delivery: {
+      ...validCompletion().delivery,
+      closeout_pr: {
+        ...validCompletion().delivery.closeout_pr,
+        branch: "gpt/wrong-closeout-branch",
+      },
+    },
+  });
+  const root = fixture(mismatchedCompletion);
+  const result = validateRepository({
+    root,
+    policy,
+    changedFiles: ["specs/001-example/spec.md"],
+    headRef: FIXTURE_HEAD_REF,
+  });
+  assert(
+    result.findings.some((row) => row.type === "closeout_branch_mismatch" && row.feature === "001-example"),
+  );
+}
+
 console.log("spec kit completion governance tests passed");

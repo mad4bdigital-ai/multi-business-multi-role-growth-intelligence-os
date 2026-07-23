@@ -256,6 +256,7 @@ function candidate({
   summary = null,
   reasonCode,
   lifecycleStatus = "open",
+  lifecycleUpdatedAt = null,
   verificationState = "observed",
   evidenceType = null,
   evidenceRef = null,
@@ -299,6 +300,7 @@ function candidate({
     summary: summary ? String(summary).slice(0, 4000) : null,
     reason_code: reasonCode,
     lifecycle_status: ALLOWED_LIFECYCLE_STATES.has(lifecycleStatus) ? lifecycleStatus : "open",
+    lifecycle_updated_at: isoValue(lifecycleUpdatedAt),
     verification_state: VERIFICATION_WEIGHT[verificationState] ? verificationState : "observed",
     evidence_type: evidenceType || sourceType,
     evidence_ref: evidenceRef || sourceRef,
@@ -580,6 +582,7 @@ function mapPersistedAlert(row) {
     summary: row.summary,
     reasonCode: row.reason_code,
     lifecycleStatus: row.lifecycle_status,
+    lifecycleUpdatedAt: row.resolved_at || row.updated_at,
     verificationState: row.verification_state,
     evidenceType: row.evidence_type,
     evidenceRef: row.evidence_ref,
@@ -610,14 +613,26 @@ function mergeCandidates(items = []) {
     const live = !current.persisted ? current : !item.persisted ? item : null;
     const latest = new Date(item.last_seen_at || 0) >= new Date(current.last_seen_at || 0) ? item : current;
     const earliest = new Date(item.first_seen_at || Date.now()) <= new Date(current.first_seen_at || Date.now()) ? item : current;
-    const lifecycleStatus = persisted && live && ["resolved", "ignored"].includes(persisted.lifecycle_status)
-      ? "open"
+    const persistedLifecycleClosed = persisted && ["resolved", "ignored"].includes(persisted.lifecycle_status);
+    const persistedLifecycleAt = persisted?.lifecycle_updated_at ? new Date(persisted.lifecycle_updated_at) : null;
+    const liveLastSeenAt = live?.last_seen_at ? new Date(live.last_seen_at) : null;
+    const hasNewerLiveOccurrence = Boolean(
+      persistedLifecycleClosed
+      && persistedLifecycleAt
+      && liveLastSeenAt
+      && !Number.isNaN(persistedLifecycleAt.getTime())
+      && !Number.isNaN(liveLastSeenAt.getTime())
+      && liveLastSeenAt > persistedLifecycleAt
+    );
+    const lifecycleStatus = persistedLifecycleClosed
+      ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
     merged.set(item.alert_key, {
       ...current,
       ...latest,
       alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
       lifecycle_status: lifecycleStatus,
+      lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
       verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
         ? item.verification_state
         : current.verification_state,
@@ -743,7 +758,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
       `SELECT alert_id, alert_key, operation_fingerprint_sha256, resource_fingerprint_sha256,
               source_type, source_ref, source_record_id,
               tenant_id, user_id, workspace_id, container_key, category, severity,
-              title, summary, reason_code, lifecycle_status, verification_state,
+              title, summary, reason_code, lifecycle_status, resolved_at, updated_at, verification_state,
               evidence_type, evidence_ref, evidence_json, execution_log_id, trace_id,
               occurrence_count, first_seen_at, last_seen_at, recommended_action_key,
               requires_confirmation, manual_known_issue

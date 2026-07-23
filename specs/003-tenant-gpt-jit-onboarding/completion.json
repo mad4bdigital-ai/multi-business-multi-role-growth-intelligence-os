@@ -2,9 +2,9 @@
   "schema_version": 1,
   "feature_key": "003-tenant-gpt-jit-onboarding",
   "title": "Tenant GPT JIT Signup and In-Chat Activation",
-  "status": "in_progress",
+  "status": "complete",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-18T21:38:00Z",
+  "last_updated_at": "2026-07-22T02:30:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -14,44 +14,102 @@
     "implementation_prs": [
       {
         "number": 2779,
-        "branch": "gpt/003-tenant-gpt-jit-onboarding",
-        "role": "implementation",
-        "status": "current_pr",
-        "head_sha": "86419e28b513b82b5a2dc4e6eeec90f105af6009"
+        "role": "core_implementation",
+        "status": "merged",
+        "merge_sha": "214c26cc59d55429619b07e06f503d29fbdd4abe"
+      },
+      {
+        "number": 2849,
+        "role": "raw_response_parser",
+        "status": "merged",
+        "merge_sha": "06e1c854326eba2d35a6f602bd37332b11a703fa"
+      },
+      {
+        "number": 2874,
+        "role": "production_verification_capture",
+        "status": "merged",
+        "merge_sha": "03b3579ec82d78894b3941ef3d836dfd6f04598f"
+      },
+      {
+        "number": 2891,
+        "role": "cleanup_implementation",
+        "status": "merged",
+        "merge_sha": "cb7d28d679d689561ca455efd69e7b4415a1a4c4"
       }
     ],
     "closeout_pr": {
-      "number": "planned",
-      "branch": "planned-after-production-verification",
+      "number": "current",
+      "branch": "docs/tenant-gpt-jit-completion-evidence",
       "role": "completion",
-      "status": "planned"
+      "status": "current_pr"
     }
   },
   "evidence": {
     "ci": {
       "status": "pass",
-      "head_sha": "86419e28b513b82b5a2dc4e6eeec90f105af6009",
-      "required_checks": 4,
-      "successful_checks": 4
+      "head_sha": "c8d698c364293a404e3043aacf258bee199fe303",
+      "checks_passed": 4,
+      "checks_total": 4
     },
     "release_readiness": {
       "status": "pass",
-      "scope": "current_main_before_pr_merge",
-      "checked_commit_sha": "dbe66eab5a3d45f5fb31a99cf9a3d28779d7502a",
-      "run_id": "17602a73-f6e8-40bc-9026-bc736d317b11",
+      "run_id": "5d74623b-3f86-4500-b8cd-6ce247f96560",
+      "production_parity": "verified",
+      "checked_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
       "blocking_gaps": 0
     },
     "migration": {
-      "status": "pending_post_merge",
-      "reason": "Governed migration authorization requires merged PR evidence and a merge SHA. Dry-run cannot resolve branch-only migration files before merge."
+      "status": "applied",
+      "migration": "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
+      "checksum_sha256": "1d2807db7ca9966dabfb3e3e6421d5cdf93d98f5eebc115cddb2294d688e3c78",
+      "statement_count": 2,
+      "ledger_run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0
     },
     "production_verification": {
-      "status": "pending_post_merge",
-      "reason": "Production verification must target the deployed merge commit after production parity readback."
+      "status": "verified",
+      "run_id": "oauth-smoke-31436-31437",
+      "expected_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
+      "deployed_commit_sha": "d9e46098d1080371635adaa9e05f0fe90f729198",
+      "oauth": {
+        "first_exchange_execution_log_id": 31436,
+        "first_exchange_http_status": 200,
+        "replay_execution_log_id": 31437,
+        "replay_http_status": 400,
+        "replay_error": "invalid_grant",
+        "authorization_code_status": "consumed",
+        "authorization_code_created_at": "2026-07-20T18:44:20Z",
+        "authorization_code_consumed_at": "2026-07-20T18:44:20Z",
+        "validated_before_replay": [
+          "token_type_bearer",
+          "cache_control_no_store",
+          "issuer",
+          "audience",
+          "user_claim",
+          "tenant_claim"
+        ],
+        "remaining_activation_context_rows": 0
+      },
+      "raw_endpoint": {
+        "status": "pass",
+        "endpoint_key": "getFileContents",
+        "response_mode": "raw_text",
+        "response_schema_alignment_status": "not_applicable_raw_text"
+      }
     },
     "post_merge_audit": {
-      "status": "pending_post_merge",
-      "reason": "A closeout PR will record migration ledger, production smoke, and post-merge audit evidence."
+      "status": "completed",
+      "run_id": "ea0738d4-ea1a-4b5d-b11e-4af61d66e795",
+      "same_cycle_readback_verified": true,
+      "cleanup": {
+        "smoke_recipe_present": false,
+        "smoke_resource_uri_present": false,
+        "smoke_alias_present": false,
+        "active_smoke_bindings": 0,
+        "revoked_smoke_bindings": 4
+      },
+      "secrets_included": false
     }
   },
   "secrets_included": false
