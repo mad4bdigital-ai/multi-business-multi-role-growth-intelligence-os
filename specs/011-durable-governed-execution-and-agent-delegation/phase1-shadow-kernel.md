@@ -73,3 +73,22 @@ The SQL projection selects only identity, status, attempts, timestamps, and safe
 3. Read-only status and explain endpoints with canonical OpenAPI promotion.
 4. Resume and cancel operations after policy and transition tests.
 5. Low-risk internal mutation pilot after reconciliation support.
+
+## Phase 1 closeout evidence
+
+- Implementation PR: #2960.
+- Merge SHA: `3822329128f355ef3149c57eb5b3b9cf80298ded`.
+- Final CI head: `64fabb808273cac88cc911d4d366d31c84999a5f`.
+- Final CI base: `76ecc7b873834dc0ca80318d4d907cd6155d6216`.
+- Required checks passed: Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests.
+- Release operation: `2e8b7ed8-98a5-44a7-86c5-e0c9167aeea5`.
+- Runtime verification: `240296fb-98e9-4bb8-b739-4a2e605304c7`.
+- Verified runtime SHA: `2dd183e06bbbca9bdb34525820b6c268bdc6d121`.
+- GitHub ancestry: verified runtime was 17 commits ahead of the Phase 1 merge and zero commits behind.
+- Release gate: `ba99eb81-d5e4-470d-87bd-474ef95a66d3`, final status `hard_disabled`.
+
+The live deploy call returned Cloudflare 502 after execution started. The outcome was classified as unknown rather than failed. Retry was blocked, production readback was required, and no duplicate deploy was attempted. Runtime verification subsequently passed all readiness checks at a newer descendant containing the Phase 1 merge. Rollback was therefore not required.
+
+Phase 1 is `complete_on_main`. This conclusion is scoped to the Phase 1 merge ancestry and its runtime verification evidence. Later unrelated commits may move global `main` and create a new platform-wide parity warning without invalidating this phase closeout.
+
+The overall Spec 011 status remains `in_progress`; subsequent phases, delegation activation, durable mutation receipts, public routes, and live mutation pilots remain outside this closeout.
