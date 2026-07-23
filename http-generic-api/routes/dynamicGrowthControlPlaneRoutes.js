@@ -12,6 +12,16 @@ function actorId(req) {
   return req.auth?.user_id || req.auth?.principal_id || req.auth?.admin_id || "platform_admin";
 }
 
+function lifecycleRequestContext(req) {
+  const stableRequestId = requestId(req);
+  return Object.freeze({
+    actorId: actorId(req),
+    requestId: stableRequestId,
+    correlationId: String(req.headers["x-correlation-id"] || stableRequestId),
+    sourceEnvironment: process.env.APP_ENV || process.env.NODE_ENV || "development"
+  });
+}
+
 function assertAllowedKeys(body, allowed) {
   const unknown = Object.keys(body || {}).filter((key) => !allowed.has(key));
   if (unknown.length) {
