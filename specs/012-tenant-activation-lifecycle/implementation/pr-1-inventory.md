@@ -84,12 +84,11 @@ No table is created by PR-1.
 
 ## Known gaps
 
-1. T010 must designate the canonical generation source for the served artifact before contract edits.
-2. Registry endpoint rows are discovery metadata, not execution authority.
-3. ADR-004 Resolution scopes and dynamic operation policies are not active; the current schema uses the broad five-scope catalog.
-4. Session-context public and registry operation IDs differ.
-5. `activationAwarenessRoutes.js` contains an `x-tenant-id` fallback when a verified payload lacks `tenant_id`; later centralized-auth hardening must review it.
-6. Existing general workflow tables require additive Activation fields/projections to satisfy ADR-001.
+1. Registry endpoint rows are discovery metadata, not execution authority.
+2. ADR-004 Resolution scopes and dynamic operation policies are not active; the current schema uses the broad five-scope catalog.
+3. Session-context public and registry operation IDs differ.
+4. `activationAwarenessRoutes.js` contains an `x-tenant-id` fallback when a verified payload lacks `tenant_id`; later centralized-auth hardening must review it.
+5. Existing general workflow tables require additive Activation fields/projections to satisfy ADR-001.
 
 ## CI policy
 
