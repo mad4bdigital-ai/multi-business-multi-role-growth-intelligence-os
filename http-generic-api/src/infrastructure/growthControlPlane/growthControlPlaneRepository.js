@@ -419,11 +419,17 @@ export function createGrowthControlPlaneRepository({ resolvePool }) {
           404
         );
       }
-      if (version.lifecycle !== "ready") {
+      const lifecycleAllowed = input.operation === "activate"
+        ? version.lifecycle === "ready"
+        : new Set(["deprecated", "rolled_back"]).has(version.lifecycle);
+      if (!lifecycleAllowed) {
         throw new GrowthControlPlaneError(
-          "GROWTH_CONTROL_LIFECYCLE_NOT_READY",
-          "Lifecycle approval can only be requested for a ready configuration version.",
-          409
+          "GROWTH_CONTROL_LIFECYCLE_TARGET_INVALID",
+          input.operation === "activate"
+            ? "Activation approval requires a ready configuration version."
+            : "Rollback approval requires a deprecated or rolled back configuration version.",
+          409,
+          [{ field: "lifecycle", issue: "invalid_for_operation", operation: input.operation, current: version.lifecycle }]
         );
       }
       const binding = buildGrowthControlApprovalBinding({ operation: input.operation, version });
