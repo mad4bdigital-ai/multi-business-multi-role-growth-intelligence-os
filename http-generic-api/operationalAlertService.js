@@ -256,6 +256,7 @@ function candidate({
   summary = null,
   reasonCode,
   lifecycleStatus = "open",
+  lifecycleUpdatedAt = null,
   verificationState = "observed",
   evidenceType = null,
   evidenceRef = null,
