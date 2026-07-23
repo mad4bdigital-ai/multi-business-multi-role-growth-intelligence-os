@@ -22,7 +22,7 @@ assert.equal(telemetry.mode, "advisory");
 assert.equal(telemetry.tool_key, "auto_sync_commit");
 assert.equal(telemetry.should_block, false);
 assert.equal(telemetry.summary.path_count, 1);
-assert.deepEqual(telemetry.summary.policy_groups, ["generated_docs"]);
+assert.deepEqual(telemetry.summary.policy_groups, ["documentation"]);
 assert.equal(telemetry.secrets_included, false);
 
 const report = attachRepoMaintenanceCoordination({
