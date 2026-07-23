@@ -463,10 +463,18 @@ function matchingGroupOrThrow(grantRows, tenantId, approvalKey, nowValue) {
 }
 
 async function createApprovalHold(connection, { subject, group, normalized, uuid, nowValue }) {
+  if (!group.request_ids?.length) {
+    throw httpError(409, "TENANT_SKILL_GRANT_REQUEST_REQUIRED", "The approval item is not linked to a canonical grant request.", {
+      approval_key: group.approval_key,
+    });
+  }
   const holdId = uuid();
+  const primaryRequestId = group.request_ids[0];
   const context = sanitizeValue({
-    approval_type: "tenant_skill_grant",
+    approval_type: "agent_skill_grant_request",
     approval_key: group.approval_key,
+    request_id: primaryRequestId,
+    request_ids: group.request_ids,
     decision_state: "open",
     tenant_id: subject.tenant_id,
     workspace_id: normalized.workspace_id,
@@ -499,7 +507,7 @@ async function createApprovalHold(connection, { subject, group, normalized, uuid
       subject.user_id,
       subject.user_id,
       group.brand_key,
-      group.approval_key,
+      primaryRequestId,
       group.approval_key,
       JSON.stringify(context),
       subject.user_id,
@@ -507,11 +515,20 @@ async function createApprovalHold(connection, { subject, group, normalized, uuid
       expiresAt,
     ]
   );
+  const placeholders = group.request_ids.map(() => "?").join(",");
+  await connection.query(
+    `UPDATE agent_skill_grant_requests
+        SET approval_hold_id = ?
+      WHERE request_id IN (${placeholders})
+        AND tenant_id = ?`,
+    [holdId, ...group.request_ids, subject.tenant_id]
+  );
   return {
     hold_id: holdId,
     run_id: holdId,
     tenant_id: subject.tenant_id,
     workspace_id: normalized.workspace_id,
+    request_id: primaryRequestId,
     hold_type: "supervisor_approval",
     required_role: "tenant_owner",
     status: "open",
