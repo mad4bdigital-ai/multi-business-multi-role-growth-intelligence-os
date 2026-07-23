@@ -4,21 +4,21 @@
 
 ## Summary
 
-- Triaged items: 51
-- Gate candidates: 49
+- Triaged items: 52
+- Gate candidates: 50
 - New-gap gate: fail
-- Blocking new items: 51
+- Blocking new items: 52
 
 ## Class counts
 
-- new_surface_immediate_review: 49
+- new_surface_immediate_review: 50
 - safety_marker_review: 2
 
 ## Immediate review candidates
 
 - `20260723_auth_email_outbox_admin_tools.sql` — critical_review, score 1292; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1074; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, score 1055; next: add targeted patch-index, parity, and governance documentation
+- `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, score 1054; next: add targeted patch-index, parity, and governance documentation
 - `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, score 981; next: add targeted patch-index, parity, and governance documentation
 - `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 932; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 914; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
@@ -26,10 +26,10 @@
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, score 867; next: add targeted patch-index, parity, and governance documentation
 - `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 848; next: add targeted patch-index, parity, and governance documentation
 - `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 836; next: add targeted patch-index, parity, and governance documentation
-- `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 831; next: add targeted patch-index, parity, and governance documentation
+- `20260719_fix_growth_intelligence_report_read_tool_path.sql` — critical_review, score 830; next: add targeted patch-index, parity, and governance documentation
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 814; next: add targeted patch-index, parity, and governance documentation
 - `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, score 808; next: add targeted patch-index, parity, and governance documentation
-- `20260714_async_release_deploy_contract.sql` — critical_review, score 786; next: add targeted patch-index, parity, and governance documentation
+- `20260714_async_release_deploy_contract.sql` — critical_review, score 785; next: add targeted patch-index, parity, and governance documentation
 - `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 780; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 780; next: add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_capability_projection.sql` — critical_review, score 739; next: add targeted patch-index, parity, and governance documentation
