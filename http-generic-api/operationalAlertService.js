@@ -300,6 +300,7 @@ function candidate({
     summary: summary ? String(summary).slice(0, 4000) : null,
     reason_code: reasonCode,
     lifecycle_status: ALLOWED_LIFECYCLE_STATES.has(lifecycleStatus) ? lifecycleStatus : "open",
+    lifecycle_updated_at: isoValue(lifecycleUpdatedAt),
     verification_state: VERIFICATION_WEIGHT[verificationState] ? verificationState : "observed",
     evidence_type: evidenceType || sourceType,
     evidence_ref: evidenceRef || sourceRef,
