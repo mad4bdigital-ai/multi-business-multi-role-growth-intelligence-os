@@ -33,8 +33,8 @@ function plan(overrides = {}) {
     preview_json: '{"summary":"safe preview","token":"must-not-leak"}',
     request_id: "request-0001",
     correlation_id: "correlation-0001",
-    created_at: "2026-07-23T10:00:00.000Z",
-    updated_at: "2026-07-23T10:05:00.000Z",
+    created_at: "2099-07-23T10:00:00.000Z",
+    updated_at: "2099-07-23T10:05:00.000Z",
     ...overrides,
   };
 }
@@ -58,9 +58,9 @@ function connectedSession(overrides = {}) {
     last_evidence_report_id: "evidence-0001",
     round_count: 1,
     max_rounds: 5,
-    created_at: "2026-07-23T10:00:00.000Z",
-    updated_at: "2026-07-23T10:05:00.000Z",
-    last_activity_at: "2026-07-23T10:05:00.000Z",
+    created_at: "2099-07-23T10:00:00.000Z",
+    updated_at: "2099-07-23T10:05:00.000Z",
+    last_activity_at: "2099-07-23T10:05:00.000Z",
     ...overrides,
   };
 }
@@ -75,8 +75,8 @@ function delegation(overrides = {}) {
     brand_key: "brand-main",
     plan_id: PLAN_ID,
     status: "pending",
-    expires_at: "2026-07-23T12:00:00.000Z",
-    created_at: "2026-07-23T10:00:00.000Z",
+    expires_at: "2099-07-23T12:00:00.000Z",
+    created_at: "2099-07-23T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -98,9 +98,9 @@ function approval(overrides = {}) {
     required_role: "reviewer",
     status: "approved",
     decision_by: "reviewer-0001",
-    expires_at: "2026-07-23T12:00:00.000Z",
-    decided_at: "2026-07-23T10:10:00.000Z",
-    created_at: "2026-07-23T10:06:00.000Z",
+    expires_at: "2099-07-23T12:00:00.000Z",
+    decided_at: "2099-07-23T10:10:00.000Z",
+    created_at: "2099-07-23T10:06:00.000Z",
     ...overrides,
   };
 }
@@ -223,7 +223,7 @@ const agentSelfApproval = await readPlanBoundSessionShadow({
 assert.ok(agentSelfApproval.blockers.includes("AGENT_SELF_APPROVAL_DETECTED"));
 
 const expired = await readPlanBoundSessionShadow({
-  pool: new FakePool({ delegations: [delegation({ expires_at: "2026-07-23T09:00:00.000Z" })] }),
+  pool: new FakePool({ delegations: [delegation({ expires_at: "2000-01-01T00:00:00.000Z" })] }),
   auth: { mode: "admin" },
   planId: PLAN_ID,
   requireDelegation: true,
