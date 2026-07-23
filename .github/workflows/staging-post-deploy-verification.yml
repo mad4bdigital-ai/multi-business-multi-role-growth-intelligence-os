@@ -119,12 +119,51 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
         run: |
-          set -o pipefail
-          npm run smoke:dev-autopilot -- \
-            --base-url="${STAGING_BASE_URL}" \
-            --expected-branch="${EXPECTED_BRANCH}" \
-            --expected-commit="${EXPECTED_COMMIT}" \
-            | tee ../staging-verification-artifacts/staging-smoke.json
+          set -euo pipefail
+          max_attempts=5
+          retry_delay_seconds=20
+
+          for attempt in $(seq 1 "${max_attempts}"); do
+            echo "Staging smoke attempt ${attempt}/${max_attempts}"
+            set +e
+            node scripts/dev-autopilot-smoke.mjs \
+              --base-url="${STAGING_BASE_URL}" \
+              --expected-branch="${EXPECTED_BRANCH}" \
+              --expected-commit="${EXPECTED_COMMIT}" \
+              > ../staging-verification-artifacts/staging-smoke.json
+            smoke_status=$?
+            set -e
+
+            cat ../staging-verification-artifacts/staging-smoke.json
+            if (( smoke_status == 0 )); then
+              exit 0
+            fi
+
+            retryable="$(node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('../staging-verification-artifacts/staging-smoke.json', 'utf8'));
+          const failed = (payload.checks || []).filter((check) => !check.passed).map((check) => String(check.name || ''));
+          const retryablePrefixes = [
+            'connector-agent version is available',
+            'connector-agent manifest is available',
+            'manifest has hash for ',
+          ];
+          process.stdout.write(
+            failed.length > 0 && failed.every((name) => retryablePrefixes.some((prefix) => name.startsWith(prefix)))
+              ? 'true'
+              : 'false',
+          );
+          NODE
+            )"
+
+            if [[ "${retryable}" != "true" || "${attempt}" -ge "${max_attempts}" ]]; then
+              echo "::error::Staging smoke failed with non-retryable checks or exhausted retries."
+              exit "${smoke_status}"
+            fi
+
+            echo "Connector readiness is still converging; retrying in ${retry_delay_seconds} seconds."
+            sleep "${retry_delay_seconds}"
+          done
 
       - name: Publish verification summary
         if: always()
