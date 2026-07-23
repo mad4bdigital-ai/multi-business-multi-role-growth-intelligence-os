@@ -35,6 +35,25 @@
     "https://auth.mad4b.com/scopes/tenant.install",
     "https://auth.mad4b.com/scopes/tenant.system-tools"
   ],
+  "bootstrap_authority": {
+    "runtime_bootstrap_route": "/activation/bootstrap-config",
+    "route_file": "http-generic-api/routes/activationRoutes.js",
+    "resolver": "resolveActivationBootstrapConfig",
+    "authoritative_source": "backend_runtime/db_runtime",
+    "sheets_required": false,
+    "provider_validation_tool": "activation_provider_bootstrap_validate",
+    "provider_validation_chain": ["activation_drive_probe", "activation_bootstrap_config_read", "activation_github_validate"],
+    "provider_validation_behavior": "same_cycle_read_only_validation",
+    "deprecated_paths": [
+      {
+        "tool_key": "activation_sheets_bootstrap_read",
+        "status": "deprecated_compatibility_alias",
+        "replacement": "activation_bootstrap_config_read",
+        "sheets_call_allowed": false
+      }
+    ],
+    "registry_notes": "Health/status/count routes are diagnostics and do not replace bootstrap-config plus provider-bootstrap validation."
+  },
   "oauth_handoffs": [
     {"method":"GET","path":"/auth/oauth/authorize","operation_id":"tenantGptOAuthAuthorize","gateway_file":"http-generic-api/routes/activationHostGatewayRoutes.js","upstream_route_file":"http-generic-api/routes/authRoutes.js","upstream_route_literal":"/oauth/authorize"},
     {"method":"POST","path":"/auth/oauth/code","operation_id":"tenantGptOAuthCode","gateway_file":"http-generic-api/routes/activationHostGatewayRoutes.js","upstream_route_file":"http-generic-api/routes/authRoutes.js","upstream_route_literal":"/oauth/code"},
