@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 54
-- Gate candidates: 52
+- Triaged items: 55
+- Gate candidates: 53
 - New-gap gate: fail
-- Blocking new items: 54
+- Blocking new items: 55
 
 ## Class counts
 
-- new_surface_immediate_review: 52
+- new_surface_immediate_review: 53
 - safety_marker_review: 2
 
 ## Immediate review candidates
@@ -30,8 +30,8 @@
 - `20260715_capability_envelope_template_resolver.sql` — critical_review, score 814; next: add targeted patch-index, parity, and governance documentation
 - `20260720_dynamic_container_canary_closeout_tool.sql` — critical_review, score 807; next: add targeted patch-index, parity, and governance documentation
 - `20260714_async_release_deploy_contract.sql` — critical_review, score 785; next: add targeted patch-index, parity, and governance documentation
-- `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 780; next: add targeted patch-index, parity, and governance documentation
 - `20260716_self_healing_release_advisor.sql` — critical_review, score 780; next: add targeted patch-index, parity, and governance documentation
+- `20260716_repository_main_moved_trigger_coordinator.sql` — critical_review, score 779; next: add targeted patch-index, parity, and governance documentation
 - `20260717_virtual_tool_capability_projection.sql` — critical_review, score 738; next: add targeted patch-index, parity, and governance documentation
 - `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, score 734; next: add targeted patch-index, parity, and governance documentation
 - `20260718_growth_intelligence_report_read_tool.sql` — critical_review, score 729; next: add targeted patch-index, parity, and governance documentation
@@ -43,6 +43,6 @@
 - `20260721_ci_guard_operational_alert_ingestion_slo.sql` — high_review, score 696; next: add targeted patch-index, parity, and governance documentation
 - `1046_sprint69_dynamic_container_shadow_sampler_tool.sql` — high_review, score 676; next: add targeted patch-index, parity, and governance documentation
 - `20260722_close_verified_high_operational_attention.sql` — high_review, score 663; next: add targeted patch-index, parity, and governance documentation
+- `20260721_repository_authority_capability_bindings_v2.sql` — high_review, score 649; next: add targeted patch-index, parity, and governance documentation
 - `20260718_virtual_tool_single_file_mutation_classification.sql` — high_review, score 646; next: add targeted patch-index, parity, and governance documentation
 - `20260722_resolve_verified_medium_readiness_and_connector_attention.sql` — high_review, score 639; next: add targeted patch-index, parity, and governance documentation
-- `20260720_tenant_export_manifest_eligibility_hardening.sql` — high_review, score 614; next: add targeted patch-index, parity, and governance documentation
