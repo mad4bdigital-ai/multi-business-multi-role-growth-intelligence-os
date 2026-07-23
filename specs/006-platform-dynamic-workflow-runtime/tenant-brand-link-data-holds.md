@@ -25,6 +25,19 @@ sourceSnapshotSha256: e2af37fd3be265391ad51626fe70815457d7ea94ec4b301f6766f2d8dd
 
 Dynamic rollout readiness remains `ready_for_review` because the remaining holds are data-quality mappings and no high-risk projection issues are present.
 
+## Evidence-backed pending resolution
+
+One hold has direct canonical evidence and is covered by `http-generic-api/migrations/20260723_wovacation_tenant_brand_link.sql`:
+
+```text
+tenant_id: 792029d2-4f62-4994-8dca-00417e90438d
+workspace_id: 0ff599ae-77d5-11f1-9a4d-d342cf4a053c
+brand_target_key: wovacation_wp
+evidence: workspace_assets.brand_ref + active workspace_resource_grants brand grant + active brands.target_key
+```
+
+This pending resolution remains evidence-bound and idempotent. It does not infer brand ownership from display names and does not write links for the other unresolved holds.
+
 ## Held data-quality items
 
 | Tenant ID | Workspace ID | Issue code | Severity | Required resolution |
