@@ -32,16 +32,29 @@
       "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
     },
     "phase1_closeout_pr": {
-      "number": null,
+      "number": 3011,
       "branch": "gpt/spec-011-phase1-closeout-20260723",
       "role": "phase1_evidence_closeout",
-      "status": "current_branch"
+      "status": "merged",
+      "merge_sha": "91b5af4d8150f5af5f977ae8c26409bcb03ccbb1"
+    },
+    "phase2_pr": {
+      "number": 3018,
+      "branch": "gpt/spec-011-phase2-contract-resolver-20260723",
+      "role": "canonical_execution_contract_resolver",
+      "status": "current_pr"
     },
     "implementation_prs": [
       {
         "number": 2960,
         "role": "phase1_shadow_durable_kernel",
+        "status": "merged",
         "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+      },
+      {
+        "number": 3018,
+        "role": "phase2_canonical_execution_contract_resolver",
+        "status": "current_pr"
       }
     ],
     "closeout_pr": {
@@ -80,8 +93,28 @@
       "delegation_active": false,
       "secrets_included": false
     },
+    "phase2_resolver": {
+      "status": "complete_on_branch",
+      "source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
+      "pull_request": 3018,
+      "service": "http-generic-api/canonicalExecutionContractResolver.js",
+      "test": "http-generic-api/test-canonical-execution-contract-resolver.mjs",
+      "design": "phase2-canonical-execution-contract-resolver.md",
+      "reused_capability_shadow": "http-generic-api/dynamicCapabilityEnforcementShadow.js",
+      "exact_action_endpoint_resolution": true,
+      "policy_projection": true,
+      "contract_hash": true,
+      "intent_first_input": false,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "provider_write": false,
+      "delegation_active": false,
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase1_shadow_projection_complete_on_main"
+      "status": "phase2_contract_resolver_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -94,8 +127,20 @@
         "Unit & Integration Tests"
       ]
     },
+    "phase2_ci": {
+      "status": "pending_phase2_pr",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
     "migration": {
       "status": "not_required_for_phase1_shadow"
+    },
+    "phase2_migration": {
+      "status": "not_required_for_phase2_shadow_resolver"
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -117,6 +162,7 @@
     },
     "post_merge_audit": {
       "phase1_status": "complete",
+      "phase2_status": "pending_phase2_merge",
       "spec_status": "pending_remaining_phases"
     }
   },

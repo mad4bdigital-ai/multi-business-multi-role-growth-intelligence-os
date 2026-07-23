@@ -4,13 +4,13 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 50
-- Triaged items: 50
-- Gate candidates: 48
+- Queue items: 51
+- Triaged items: 51
+- Gate candidates: 49
 - New-gap gate: fail
-- Blocking new items: 50
-- Docs completion: 91.12%
-- SQL route OpenAPI coverage: 78.57%
+- Blocking new items: 51
+- Docs completion: 90.96%
+- SQL route OpenAPI coverage: 75.86%
 
 ## Top immediate items
 
@@ -19,6 +19,7 @@
 - `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
@@ -33,4 +34,3 @@
 - `20260717_runtime_contract_root_cause_reconciliation.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260718_growth_intelligence_report_read_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260715_dynamic_container_canary_probe_sampler_tool.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, add targeted patch-index, parity, and governance documentation
