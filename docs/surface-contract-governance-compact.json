@@ -1,13 +1,19 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 91.44,
+  "docs_completion_percent": 91.28,
   "docs_complete_count": 513,
-  "docs_gap_count": 48,
-  "queue_items": 48,
-  "blocking_new_item_count": 48,
+  "docs_gap_count": 49,
+  "queue_items": 49,
+  "blocking_new_item_count": 49,
   "gate_ok": false,
   "top_actionable": [
+    {
+      "migration_file": "20260723_auth_email_outbox_admin_tools.sql",
+      "queue_class": "critical_review",
+      "score": 1292,
+      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
+    },
     {
       "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
       "queue_class": "critical_review",
@@ -35,7 +41,7 @@
     {
       "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
       "queue_class": "critical_review",
-      "score": 868,
+      "score": 867,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -59,26 +65,20 @@
     {
       "migration_file": "20260715_capability_envelope_template_resolver.sql",
       "queue_class": "critical_review",
-      "score": 815,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260720_dynamic_container_canary_closeout_tool.sql",
-      "queue_class": "critical_review",
-      "score": 808,
+      "score": 814,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
-  "openapi_missing_sql_route_count": 2,
+  "openapi_missing_sql_route_count": 5,
   "openapi_exempt_sql_route_count": 664,
-  "total_sql_route_like_count": 688,
-  "safety_marker_gap_migrations": 8,
+  "total_sql_route_like_count": 691,
+  "safety_marker_gap_migrations": 9,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 48,
-    "warning_new_item_count": 48
+    "blocking_new_item_count": 49,
+    "warning_new_item_count": 49
   },
   "safety": {
     "executes_provider_calls": false,
