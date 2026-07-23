@@ -22,7 +22,6 @@
     "dispatch_binding_key",
     "endpoint_export_key",
     "resource_authority_recipe_key",
-    "credential_scope_key",
     "priority",
     "fallback_rank",
     "requires_approval",
