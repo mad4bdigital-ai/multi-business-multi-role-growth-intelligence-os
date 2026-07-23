@@ -632,6 +632,7 @@ function mergeCandidates(items = []) {
       ...latest,
       alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
       lifecycle_status: lifecycleStatus,
+      lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
       verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
         ? item.verification_state
         : current.verification_state,
