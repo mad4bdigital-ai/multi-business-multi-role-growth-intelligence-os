@@ -1,0 +1,735 @@
+openapi: 3.1.0
+info:
+  title: Tenant GPT Activation Lifecycle — Proposed Contract
+  version: 0.1.0-draft
+  summary: Proposed evidence-driven Tenant Activation lifecycle contract.
+  description: >-
+    Specification-only contract. This file is not registered runtime authority and does not
+    make any operation callable. Implementation must update canonical OpenAPI sources and
+    generated artifacts through governed delivery.
+  x-specification-only: true
+  x-feature-key: 012-tenant-activation-lifecycle
+servers:
+  - url: https://activation.mad4b.com
+    description: Tenant Activation protected resource
+tags:
+  - name: activation-lifecycle
+    description: Start, inspect, retry, deliver, and acknowledge Tenant Activation operations.
+  - name: activation-session
+    description: Resolve tenant-scoped activation session context.
+  - name: oauth-metadata
+    description: Public protected-resource metadata.
+security:
+  - userBearerAuth:
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+paths:
+  /.well-known/oauth-protected-resource:
+    get:
+      tags: [oauth-metadata]
+      operationId: readTenantActivationProtectedResourceMetadata
+      summary: Read Tenant Activation protected-resource metadata
+      security: []
+      responses:
+        '200':
+          description: Protected-resource metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtectedResourceMetadata'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /tenant/activation/session-context:
+    get:
+      tags: [activation-session]
+      operationId: readTenantActivationSessionContext
+      summary: Resolve or read tenant activation session context
+      parameters:
+        - name: session_policy
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SessionPolicy'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Session context resolved from verified tenant/user principal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContextResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /tenant/activation/operations:
+    post:
+      tags: [activation-lifecycle]
+      operationId: startTenantActivationOperation
+      summary: Start or idempotently resume a Tenant Activation operation
+      description: >-
+        Starts the evidence-driven activation lifecycle. Managed mode is the default. Tenant
+        and user identity are derived from the verified bearer token and cannot be overridden.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Required by implementation when the request may create or mutate durable state.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 200
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationStartRequest'
+            examples:
+              managed_default:
+                value:
+                  session_policy: reuse_or_create
+              mixed_integrations:
+                value:
+                  mode: mixed
+                  integration_modes:
+                    google_drive: managed
+                    github: dedicated
+                  session_policy: reuse_or_create
+      responses:
+        '200':
+          description: Existing idempotent operation returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationOperationResponse'
+        '202':
+          description: Operation accepted and is non-terminal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationOperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /tenant/activation/operations/{operationId}:
+    get:
+      tags: [activation-lifecycle]
+      operationId: readTenantActivationOperation
+      summary: Read bounded activation operation status and evidence
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+        - name: include
+          in: query
+          required: false
+          description: Optional bounded detail groups.
+          schema:
+            type: array
+            maxItems: 5
+            items:
+              type: string
+              enum: [stages, evidence, delivery, acknowledgement, attention]
+          style: form
+          explode: false
+      responses:
+        '200':
+          description: Current operation state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationOperationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /tenant/activation/operations/{operationId}/retries:
+    post:
+      tags: [activation-lifecycle]
+      operationId: retryTenantActivationOperation
+      summary: Request a governed retry or reconciliation of an activation operation
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 200
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                strategy:
+                  type: string
+                  enum: [auto, retry_safe_stage, reconcile_unknown_outcome]
+                  default: auto
+                reason:
+                  type: string
+                  maxLength: 300
+      responses:
+        '202':
+          description: Retry or reconciliation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationOperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /tenant/activation/operations/{operationId}/acknowledgements:
+    post:
+      tags: [activation-lifecycle]
+      operationId: acknowledgeTenantActivationOperation
+      summary: Record tenant consumer acknowledgement separately from execution
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [state]
+              properties:
+                state:
+                  type: string
+                  enum: [acknowledged, rejected]
+                delivery_id:
+                  type: [string, 'null']
+                  maxLength: 200
+                note:
+                  type: [string, 'null']
+                  maxLength: 300
+      responses:
+        '200':
+          description: Acknowledgement recorded or idempotently returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcknowledgementResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: oauth2
+      description: >-
+        Tenant GPT OAuth. Tokens are issued for the Activation protected resource and verified
+        for issuer, single audience, resource, purpose, tenant, user, scope, and expiry.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://activation.mad4b.com/auth/oauth/authorize
+          tokenUrl: https://activation.mad4b.com/auth/oauth/token
+          scopes:
+            https://auth.mad4b.com/scopes/tenant.links: Access tenant-scoped Growth Intelligence links.
+            https://auth.mad4b.com/scopes/tenant.status: Read tenant connection and activation status.
+            https://auth.mad4b.com/scopes/tenant.activation: Activate managed, dedicated, or mixed tenant mode.
+            https://auth.mad4b.com/scopes/tenant.install: Provision approved tenant connector installation.
+            https://auth.mad4b.com/scopes/tenant.system-tools: Use tenant-scoped governed system tools.
+            https://auth.mad4b.com/scopes/tenant.resolution.read: Read tenant Resolution problem cards, cases, approval status, and bounded evidence.
+            https://auth.mad4b.com/scopes/tenant.resolution.manage: Create and manage permitted tenant Resolution cases and state transitions.
+            https://auth.mad4b.com/scopes/tenant.resolution.diagnose: Run permitted diagnostics, previews, and verification operations.
+            https://auth.mad4b.com/scopes/tenant.resolution.repair: Request governed repair application subject to dynamic capability, approval, idempotency, and readback policy.
+            https://auth.mad4b.com/scopes/tenant.resolution.approve: Request governed Resolution approval decisions subject to object authority and lifecycle policy.
+  parameters:
+    OperationId:
+      name: operationId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+  responses:
+    BadRequest:
+      description: Invalid request or resource/profile mismatch.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Missing or invalid Tenant GPT authentication.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Authenticated principal lacks tenant or operation authority.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Operation not found within the verified tenant/user scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Lifecycle state, workspace, connection, idempotency, or replay conflict.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Dependency or validation rate limited.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ServiceUnavailable:
+      description: Temporary dependency, deployment, or evidence authority unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    SessionPolicy:
+      type: string
+      enum: [reuse_or_create, create_new, reuse_only, read_only]
+      default: reuse_or_create
+    ActivationMode:
+      type: string
+      enum: [managed, dedicated, mixed]
+      default: managed
+    ActivationStartRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        mode:
+          $ref: '#/components/schemas/ActivationMode'
+        integration_modes:
+          type: object
+          maxProperties: 50
+          additionalProperties:
+            type: string
+            enum: [managed, dedicated]
+        session_policy:
+          $ref: '#/components/schemas/SessionPolicy'
+        conversation_ref:
+          type: [string, 'null']
+          maxLength: 500
+        provider_arguments:
+          type: object
+          additionalProperties: true
+          description: Bounded provider-validation arguments; never credentials or secrets.
+    ActivationStatus:
+      type: string
+      enum:
+        - created
+        - authenticating
+        - authorized
+        - resolving_session
+        - bootstrapping
+        - validating
+        - preparing_tools
+        - ready
+        - active
+        - executing
+        - readback_pending
+        - delivery_pending
+        - acknowledgement_pending
+        - retry_scheduled
+        - unknown_outcome
+        - reconciling
+        - degraded
+        - authorization_gated
+        - validation_rate_limited
+        - contract_degraded
+        - failed
+        - cancelled
+        - rolled_back
+    StageStatus:
+      type: string
+      enum: [pending, running, succeeded, degraded, failed, unknown_outcome, cancelled]
+    ActivationStage:
+      type: object
+      additionalProperties: false
+      required: [stage_key, attempt_number, status, retryable]
+      properties:
+        stage_key:
+          type: string
+          enum:
+            - oauth_authorize
+            - identity_verify
+            - oauth_code_issue
+            - oauth_token_exchange
+            - gateway_verify
+            - membership_resolve
+            - session_context
+            - workspace_resolve
+            - bootstrap_config
+            - connection_resolve
+            - provider_validate
+            - tool_discovery
+            - dispatch_prepare
+            - dispatch_execute
+            - readback
+            - response_prepare
+            - delivery
+            - acknowledgement
+            - reconciliation
+            - deployment_verify
+        attempt_number:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/StageStatus'
+        retryable:
+          type: boolean
+        error_code:
+          type: [string, 'null']
+          maxLength: 120
+        started_at:
+          type: [string, 'null']
+          format: date-time
+        ended_at:
+          type: [string, 'null']
+          format: date-time
+        latency_ms:
+          type: [integer, 'null']
+          minimum: 0
+    EvidenceSummary:
+      type: object
+      additionalProperties: false
+      required: [evidence_type, source_authority, status, observed_at, sensitive_values_included]
+      properties:
+        evidence_id:
+          type: [string, 'null']
+        evidence_type:
+          type: string
+          maxLength: 120
+        source_authority:
+          type: string
+          maxLength: 200
+        status:
+          type: string
+          enum: [present, missing, invalid, stale, partial]
+        summary:
+          type: object
+          additionalProperties: true
+        observed_at:
+          type: string
+          format: date-time
+        fresh_until:
+          type: [string, 'null']
+          format: date-time
+        sensitive_values_included:
+          type: boolean
+          enum: [false]
+    ActivationOperationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - operation_id
+        - status
+        - current_stage
+        - retryable
+        - summary
+        - completeness
+        - secrets_included
+      properties:
+        ok:
+          type: boolean
+        operation_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ActivationStatus'
+        current_stage:
+          type: string
+        retryable:
+          type: boolean
+        mode:
+          $ref: '#/components/schemas/ActivationMode'
+        session_id:
+          type: [string, 'null']
+        summary:
+          type: object
+          additionalProperties: false
+          required: [message, next_action]
+          properties:
+            message:
+              type: string
+              maxLength: 1000
+            next_action:
+              type: [string, 'null']
+              maxLength: 500
+            reconnect_required:
+              type: boolean
+              default: false
+        stages:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ActivationStage'
+        evidence:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/EvidenceSummary'
+        delivery:
+          type: [object, 'null']
+          additionalProperties: true
+        acknowledgement:
+          type: [object, 'null']
+          additionalProperties: true
+        deployment:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/DeploymentSummary'
+        completeness:
+          type: object
+          additionalProperties: false
+          required: [complete, omitted_detail_count, details_omitted_silently]
+          properties:
+            complete:
+              type: boolean
+            omitted_detail_count:
+              type: integer
+              minimum: 0
+            details_omitted_silently:
+              type: boolean
+              enum: [false]
+            detail_ref:
+              type: [string, 'null']
+        requestId:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+        secrets_included:
+          type: boolean
+          enum: [false]
+    SessionContextResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, subject, session, workspace, connections, tools, completeness, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        subject:
+          type: object
+          additionalProperties: false
+          properties:
+            tenant_id:
+              type: string
+            user_id:
+              type: string
+            membership_status:
+              type: string
+        session:
+          type: object
+          additionalProperties: true
+        workspace:
+          type: object
+          additionalProperties: true
+        connections:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: true
+        tools:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: true
+        completeness:
+          type: object
+          additionalProperties: true
+        requestId:
+          type: [string, 'null']
+        secrets_included:
+          type: boolean
+          enum: [false]
+    AcknowledgementResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operation_id, acknowledgement, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        operation_id:
+          type: string
+        acknowledgement:
+          type: object
+          additionalProperties: false
+          required: [state, created_at]
+          properties:
+            acknowledgement_id:
+              type: [string, 'null']
+            state:
+              type: string
+              enum: [acknowledged, rejected]
+            delivery_id:
+              type: [string, 'null']
+            created_at:
+              type: string
+              format: date-time
+        secrets_included:
+          type: boolean
+          enum: [false]
+    ProtectedResourceMetadata:
+      type: object
+      additionalProperties: false
+      required: [resource, authorization_servers, scopes_supported, bearer_methods_supported]
+      properties:
+        resource:
+          type: string
+          format: uri
+        authorization_servers:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uri
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        bearer_methods_supported:
+          type: array
+          items:
+            type: string
+            enum: [header]
+        resource_documentation:
+          type: [string, 'null']
+          format: uri
+    DeploymentSummary:
+      type: object
+      additionalProperties: false
+      required: [status, runtime_version, observed_at, exposure_level]
+      properties:
+        status:
+          type: string
+          enum: [current, deploying, stale, diverged, unknown]
+        runtime_version:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Opaque public release identifier; not a Git SHA or authorization value.
+        expected_version:
+          type: [string, 'null']
+          maxLength: 120
+        observed_at:
+          type: string
+          format: date-time
+        fresh_until:
+          type: [string, 'null']
+          format: date-time
+        exposure_level:
+          type: string
+          enum: [none, opaque, diagnostic]
+        complete:
+          type: boolean
+        reconnect_required:
+          type: boolean
+          enum: [false]
+        next_action:
+          type: [string, 'null']
+          maxLength: 500
+        details_omitted_silently:
+          type: boolean
+          enum: [false]
+      description: >-
+        Tenant/public deployment evidence. Full Git SHA, branch, repository, host path,
+        credential, and infrastructure details are excluded and available only through
+        separately authorized Admin contracts.
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              pattern: '^[A-Z0-9_]+$'
+            message:
+              type: string
+              maxLength: 1000
+            details:
+              type: [object, 'null']
+              additionalProperties: true
+            requestId:
+              type: [string, 'null']
+        secrets_included:
+          type: boolean
+          enum: [false]

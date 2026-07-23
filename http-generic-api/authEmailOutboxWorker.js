@@ -269,6 +269,74 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
   };
 }
 
+export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT, actorId = "auth_email_outbox_skip_ineligible" } = {}) {
+  const normalizedPurposes = normalizePurposeList(purposes);
+  const safeLimit = integer(limit);
+  const connection = await pool.getConnection();
+  const skipped = [];
+  try {
+    const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: safeLimit });
+    for (const email of rows || []) {
+      const metadata = parseJsonObject(email.metadata_json, {});
+      const eligibility = evaluateAuthEmailOutboxSendEligibility(email);
+      if (eligibility.eligible) continue;
+      const nextMetadata = {
+        ...metadata,
+        delivery_provider: null,
+        external_send_performed: false,
+        skip_reason: eligibility.reason,
+        skipped_by: actorId,
+        secrets_included: false,
+      };
+      await connection.beginTransaction();
+      await connection.query(
+        `UPDATE auth_email_outbox
+            SET status = 'skipped', metadata_json = ?, last_error = ?, provider = COALESCE(provider, 'support_ticket_router')
+          WHERE email_id = ? AND status = 'queued'`,
+        [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
+      );
+      if (metadata.ticket_id && metadata.tenant_id) {
+        await connection.query(
+          `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+           VALUES (UUID(), ?, ?, 'ticket_admin_notification_skipped', NULL, NULL, ?, 'system', 'internal_support', ?, ?)`,
+          [
+            metadata.ticket_id,
+            metadata.tenant_id,
+            actorId,
+            eligibility.reason,
+            JSON.stringify({
+              email_id: email.email_id,
+              recipient_email: email.recipient_email,
+              recipient_route_reason: metadata.recipient_route_reason || null,
+              skip_reason: eligibility.reason,
+              external_send_performed: false,
+              secrets_included: false,
+            }),
+          ]
+        );
+      }
+      await connection.commit();
+      skipped.push({ email_id: email.email_id, recipient_email: email.recipient_email, skip_reason: eligibility.reason, secrets_included: false });
+    }
+    return {
+      ok: true,
+      mode: "skip_ineligible",
+      purposes: normalizedPurposes,
+      scanned_count: (rows || []).length,
+      skipped_count: skipped.length,
+      skipped,
+      applies_delivery: false,
+      external_send_performed: false,
+      secrets_included: false,
+    };
+  } catch (error) {
+    try { await connection.rollback(); } catch {}
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT, dryRun = true, confirm = "", senderConnectionId = "" } = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
