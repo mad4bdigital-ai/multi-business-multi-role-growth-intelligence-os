@@ -380,3 +380,85 @@ export function normalizeBrandActivityBinding(input = {}) {
   assertNoSecretFields(binding);
   return Object.freeze(binding);
 }
+
+export const GROWTH_CONTROL_CONFIGURATION_LIFECYCLE_TRANSITIONS = Object.freeze({
+  draft: Object.freeze(["ready", "blocked", "archived"]),
+  validating: Object.freeze(["ready", "blocked"]),
+  ready: Object.freeze(["active", "blocked", "archived"]),
+  active: Object.freeze(["rolled_back", "deprecated"]),
+  blocked: Object.freeze(["draft", "archived"]),
+  deprecated: Object.freeze(["archived"]),
+  archived: Object.freeze([]),
+  rolled_back: Object.freeze(["archived"])
+});
+
+export function assertGrowthControlConfigurationTransition(currentLifecycle, nextLifecycle) {
+  const current = clean(currentLifecycle);
+  const next = clean(nextLifecycle);
+  const allowed = GROWTH_CONTROL_CONFIGURATION_LIFECYCLE_TRANSITIONS[current];
+  if (!allowed || !allowed.includes(next)) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_LIFECYCLE_TRANSITION_INVALID",
+      `Configuration lifecycle cannot transition from ${current || "unknown"} to ${next || "unknown"}.`,
+      409,
+      [{ field: "lifecycle", issue: "transition_not_allowed", current, next }]
+    );
+  }
+  return Object.freeze({ current, next });
+}
+
+export function buildGrowthControlApprovalBinding({ operation, version } = {}) {
+  const normalizedOperation = clean(operation);
+  if (!new Set(["activate", "rollback"]).has(normalizedOperation)) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_APPROVAL_OPERATION_INVALID",
+      "Approval operation must be activate or rollback.",
+      422,
+      [{ field: "operation", issue: "unsupported" }]
+    );
+  }
+  if (!version?.configVersionId || !version?.configKey || !version?.scopeKey || !version?.checksumSha256) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_APPROVAL_BINDING_INVALID",
+      "Configuration version identity is incomplete for approval binding.",
+      422
+    );
+  }
+  const binding = {
+    approvalType: "growth_control_configuration_lifecycle",
+    operation: normalizedOperation,
+    configVersionId: String(version.configVersionId),
+    configKey: String(version.configKey),
+    scopeKey: String(version.scopeKey),
+    checksumSha256: String(version.checksumSha256),
+    versionRevision: Number(version.versionRevision || 0)
+  };
+  assertNoSecretFields(binding);
+  return Object.freeze({ ...binding, bindingSha256: stableSha256(binding) });
+}
+
+export function assertGrowthControlApprovalHold(hold, expectedBinding, now = new Date()) {
+  if (!hold || hold.status !== "approved") {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_APPROVAL_REQUIRED",
+      "An approved plan-bound lifecycle hold is required.",
+      403
+    );
+  }
+  if (hold.expiresAt && new Date(hold.expiresAt).getTime() <= now.getTime()) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_APPROVAL_EXPIRED",
+      "The lifecycle approval hold has expired.",
+      403
+    );
+  }
+  const context = hold.executionContext || {};
+  if (context.bindingSha256 !== expectedBinding.bindingSha256) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_APPROVAL_BINDING_MISMATCH",
+      "The lifecycle approval hold is bound to a different operation or version.",
+      403
+    );
+  }
+  return true;
+}
