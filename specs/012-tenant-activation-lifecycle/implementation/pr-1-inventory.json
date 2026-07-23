@@ -79,8 +79,6 @@
   ],
   "runtime_discovered_not_declared_in_tenant_activation_schema": [
     {"method":"GET","path":"/tenant/activation/guidance","operation_id":"getTenantActivationGuidance"},
-    {"method":"GET","path":"/tenant/activation/sessions","operation_id":"listTenantActivationSessions"},
-    {"method":"POST","path":"/tenant/activation/sessions/{id}/turns","operation_id":"writeTenantActivationSessionTurns"},
     {"method":"GET","path":"/tenant/activation/runs/{runId}/archive","operation_id":"getTenantActivationRunArchive"},
     {"method":"GET","path":"/tenant/resolution/skill-approvals","operation_id":"listTenantSkillApprovals"},
     {"method":"POST","path":"/tenant/resolution/skill-approvals/{approvalKey}/decision","operation_id":"decideTenantSkillApproval"}
