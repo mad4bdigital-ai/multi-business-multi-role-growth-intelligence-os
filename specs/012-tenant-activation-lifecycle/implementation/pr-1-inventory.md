@@ -12,6 +12,14 @@ The public schema currently declares 13 tenant operations. Three OAuth handoffs 
 
 Rows synchronized into `endpoints` are `inventory_only`, `pending_governance_review`, and not runtime-callable authority. Runtime behavior is owned by the gateway, route handlers, application services, SQL repositories, and authorization middleware listed in the JSON inventory.
 
+## Bootstrap and provider-validation authority
+
+`GET /activation/bootstrap-config` in `activationRoutes.js` resolves `resolveActivationBootstrapConfig()` and is the authoritative backend-runtime/DB bootstrap read. `sheets_required` is false.
+
+The governed Admin system tool `activation_provider_bootstrap_validate` performs same-cycle Drive, DB bootstrap-config, and GitHub validation. Targeted recovery surfaces are `activation_drive_probe`, `activation_bootstrap_config_read`, and `activation_github_validate`.
+
+`activation_sheets_bootstrap_read` is a deprecated compatibility alias for the DB bootstrap read. It must not call Google Sheets. Health/status/count endpoints are diagnostics and do not replace the bootstrap-config plus provider-validation evidence pair.
+
 ## Route ownership
 
 | Surface | Route authority | Service authority |
