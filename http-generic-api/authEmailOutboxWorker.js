@@ -161,10 +161,22 @@ export function compactEmailOutboxRow(row = {}) {
   };
 }
 
-async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT } = {}) {
+async function fetchQueuedEmails(connection, {
+  purposes = DEFAULT_PURPOSES,
+  limit = DEFAULT_LIMIT,
+  excludeActiveClaims = false,
+} = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
+  const activeClaimFilter = excludeActiveClaims
+    ? `AND NOT EXISTS (
+         SELECT 1
+           FROM auth_email_outbox_delivery_attempts a
+          WHERE a.email_id = e.email_id
+            AND a.status = 'started'
+       )`
+    : "";
   const [rows] = await connection.query(
     `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
             t.ticket_id AS resolved_ticket_id,
@@ -176,6 +188,7 @@ async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limi
          ON t.ticket_id = JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json, '$.ticket_id'))
       WHERE e.status = 'queued'
         AND e.purpose IN (${placeholders})
+        ${activeClaimFilter}
       ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
     normalizedPurposes
