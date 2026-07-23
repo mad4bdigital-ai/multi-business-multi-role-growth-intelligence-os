@@ -72,3 +72,19 @@ The service selects only bounded registry fields. It does not select action API 
 2. Add route-level Admin and Tenant isolation.
 3. Add canonical status and explain endpoints.
 4. Promote OpenAPI only after route, handler, registry, and error-contract parity.
+
+## Phase 2 Slice A closeout evidence
+
+- Implementation PR: #3018.
+- Merge SHA: `0c663e7cb46843362115560814f13a3eab83e362`.
+- Final CI head: `9166d4aa5b524ff4a7576d69aeaba0198bd020a6`.
+- Final CI base: `f1b7b04aab88e8a85cc694b136c37d8e12de355f`.
+- Required checks passed: Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests.
+- Runtime readback observed deployed SHA `0c663e7cb46843362115560814f13a3eab83e362`, exactly matching the Phase 2 merge.
+- Readback reference: `172e06e4-72f2-4095-a538-b28ff8b6d671` at `2026-07-23T05:10:13.191Z`.
+
+The global readiness summary was `warn` because a later docs-agent-only commit, `a68fd1067a8fee23adb80f780095b6bbd08e2b41`, advanced `main` after the runtime merge. No deployment was performed for this documentation closeout. The phase-scoped production conclusion is based on exact equality between the deployed runtime SHA and the Phase 2 merge SHA.
+
+Phase 2 Slice A is `complete_on_main`. Intent-first resolution, public Admin and Tenant routes, OpenAPI promotion, and live dispatch remain outside this slice.
+
+The overall Spec 011 status remains `in_progress`.
