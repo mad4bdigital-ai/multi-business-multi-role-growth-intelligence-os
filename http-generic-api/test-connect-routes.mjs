@@ -952,7 +952,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
     assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
 assert("Local Manager privileged installer authorization uses a long-lived revocable device token without repeated sign-in",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
-      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
+      deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
       deviceLinkSource.includes("saved_device_token") &&
       deviceLinkSource.includes("privileged_authorization_fresh") &&
       deviceLinkSource.includes("reauth_action"));
