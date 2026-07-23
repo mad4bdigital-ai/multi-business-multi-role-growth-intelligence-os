@@ -508,7 +508,8 @@ section("Admin system layer connector facade");
 {
   const first = await get("/system/tools?limit=1");
   ok("Catalog V2 explicit list returns 200", first.status === 200, `got ${first.status}`);
-  ok("Catalog V2 exposes stable list mode", first.body.list_mode === "stable_cursor_catalog_v2", JSON.stringify(first.body));
+  ok("Catalog V2 preserves bounded chunkable list mode", first.body.list_mode === "bounded_paginated_chunkable", JSON.stringify(first.body));
+  ok("Catalog V2 exposes stable catalog mode", first.body.catalog_mode === "stable_cursor_catalog_v2", JSON.stringify(first.body));
   ok("Catalog V2 preserves tools alias", Array.isArray(first.body.tools) && first.body.tools.length === 1, JSON.stringify(first.body));
   ok("Catalog V2 exposes items", Array.isArray(first.body.items) && first.body.items.length === 1, JSON.stringify(first.body));
   ok("Catalog V2 exposes catalog version", /^[a-f0-9]{64}$/.test(first.body.catalog_version || ""), first.body.catalog_version);
