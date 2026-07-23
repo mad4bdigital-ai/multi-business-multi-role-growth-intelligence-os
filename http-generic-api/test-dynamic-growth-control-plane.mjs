@@ -283,9 +283,15 @@ for (const table of [
 ]) assert(migration.includes(table));
 assert(migration.includes("governed_migration_authorization_registry"));
 assert(migration.includes("provider_writes',false"));
+assert(migration.includes("growth_control.configuration.activated"));
+assert(migration.includes("growth_control.configuration.rolled_back"));
 
 const routes = readFileSync("routes/dynamicGrowthControlPlaneRoutes.js", "utf8");
 assert(routes.includes("/admin/control-plane/configurations"));
+assert(routes.includes("/admin/control-plane/configurations/:configKey/versions/:configVersionId/validations"));
+assert(routes.includes("/admin/control-plane/configurations/:configKey/versions/:configVersionId/approval-holds"));
+assert(routes.includes("/admin/control-plane/configurations/:configKey/versions/:configVersionId/activations"));
+assert(routes.includes("/admin/control-plane/configurations/:configKey/versions/:configVersionId/rollbacks"));
 assert(routes.includes("/admin/control-plane/activity-packs"));
 assert(routes.includes("/admin/control-plane/brand-activity-bindings"));
 assert(routes.includes("requireAdminPrincipal"));
