@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 55
-- Docs completion: 513/568 (90.32%)
-- Queue items: 55
+- Blocking new items: 56
+- Docs completion: 513/569 (90.16%)
+- Queue items: 56
 - OpenAPI missing SQL routes: 7
 - OpenAPI-exempt SQL route-like literals: 664/693
 - Safety marker gap migrations: 11
@@ -19,5 +19,5 @@
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 914; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260715_dynamic_container_canary_runtime_observability.sql` — critical_review, score 884; add targeted patch-index, parity, and governance documentation
 - `20260718_github_list_issue_comments_endpoint.sql` — critical_review, score 867; add targeted patch-index, parity, and governance documentation
-- `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 848; add targeted patch-index, parity, and governance documentation
-- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 836; add targeted patch-index, parity, and governance documentation
+- `20260718_tenant_connect_bootstrap_tool.sql` — critical_review, score 847; add targeted patch-index, parity, and governance documentation
+- `20260714_tenant_connection_shadow_contract_bootstrap.sql` — critical_review, score 835; add targeted patch-index, parity, and governance documentation
