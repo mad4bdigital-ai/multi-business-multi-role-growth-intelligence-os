@@ -60,6 +60,32 @@ function normalizeListPage(input = {}) {
   return Object.freeze({ limit, offset: decodeCursor(input.cursor) });
 }
 
+function requiredText(value, field, maxLength = 191) {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized.length > maxLength) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_VALIDATION_ERROR",
+      `${field} is required and must be at most ${maxLength} characters.`,
+      400,
+      [{ field, issue: "required_or_too_long" }]
+    );
+  }
+  return normalized;
+}
+
+function nonNegativeRevision(value) {
+  const revision = Number(value);
+  if (!Number.isInteger(revision) || revision < 0) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_REVISION_INVALID",
+      "expectedRevision must be a non-negative integer.",
+      422,
+      [{ field: "expectedRevision", issue: "invalid" }]
+    );
+  }
+  return revision;
+}
+
 export function createGrowthControlPlaneService({ repository, uuid = randomUUID }) {
   if (!repository) throw new TypeError("Growth Control Plane repository is required.");
 
