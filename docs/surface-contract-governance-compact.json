@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 90.8,
+  "docs_completion_percent": 90.48,
   "docs_complete_count": 513,
-  "docs_gap_count": 52,
-  "queue_items": 52,
-  "blocking_new_item_count": 52,
+  "docs_gap_count": 54,
+  "queue_items": 54,
+  "blocking_new_item_count": 54,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -47,7 +47,7 @@
     {
       "migration_file": "20260715_dynamic_container_canary_runtime_observability.sql",
       "queue_class": "critical_review",
-      "score": 885,
+      "score": 884,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 52,
-    "warning_new_item_count": 52
+    "blocking_new_item_count": 54,
+    "warning_new_item_count": 54
   },
   "safety": {
     "executes_provider_calls": false,
