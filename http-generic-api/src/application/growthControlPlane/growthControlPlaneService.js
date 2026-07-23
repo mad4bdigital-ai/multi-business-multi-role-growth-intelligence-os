@@ -230,8 +230,100 @@ export function createGrowthControlPlaneService({ repository, uuid = randomUUID 
     });
   }
 
+  async function validateConfigurationVersion(configKeyValue, configVersionIdValue, input = {}, context = {}) {
+    const configKey = requireCanonicalKey(configKeyValue, "configKey");
+    const configVersionId = requiredText(configVersionIdValue, "configVersionId", 36);
+    const definition = await repository.getConfigurationDefinition(configKey);
+    const version = await repository.getConfigurationVersion(configVersionId);
+    if (!definition || !version || version.configKey !== configKey) {
+      throw new GrowthControlPlaneError(
+        "GROWTH_CONTROL_CONFIG_VERSION_NOT_FOUND",
+        "Configuration version was not found.",
+        404
+      );
+    }
+    assertNoSecretFields(version.values);
+    const issues = validateValueAgainstSchema(version.values, definition.schema);
+    if (issues.length) {
+      throw new GrowthControlPlaneError(
+        "GROWTH_CONTROL_VALUES_SCHEMA_INVALID",
+        "Configuration values do not match the active definition schema.",
+        422,
+        issues
+      );
+    }
+    return repository.validateConfigurationVersion({
+      configKey,
+      configVersionId,
+      expectedRevision: nonNegativeRevision(input.expectedRevision),
+      validatedBy: actorId(context.actorId)
+    });
+  }
+
+  async function createConfigurationLifecycleApprovalHold(configKeyValue, configVersionIdValue, input = {}, context = {}) {
+    const configKey = requireCanonicalKey(configKeyValue, "configKey");
+    const configVersionId = requiredText(configVersionIdValue, "configVersionId", 36);
+    const operation = String(input.operation || "").trim();
+    if (!new Set(["activate", "rollback"]).has(operation)) {
+      throw new GrowthControlPlaneError(
+        "GROWTH_CONTROL_APPROVAL_OPERATION_INVALID",
+        "operation must be activate or rollback.",
+        422,
+        [{ field: "operation", issue: "unsupported" }]
+      );
+    }
+    const expiresInMinutes = input.expiresInMinutes == null ? 30 : Number(input.expiresInMinutes);
+    if (!Number.isInteger(expiresInMinutes) || expiresInMinutes < 5 || expiresInMinutes > 1440) {
+      throw new GrowthControlPlaneError(
+        "GROWTH_CONTROL_APPROVAL_EXPIRY_INVALID",
+        "expiresInMinutes must be an integer from 5 to 1440.",
+        422,
+        [{ field: "expiresInMinutes", issue: "out_of_range" }]
+      );
+    }
+    return repository.createConfigurationLifecycleApprovalHold({
+      holdId: uuid(),
+      runId: uuid(),
+      configKey,
+      configVersionId,
+      operation,
+      requestedBy: actorId(context.actorId),
+      requestId: context.requestId || null,
+      correlationId: context.correlationId || null,
+      expiresAt: new Date(Date.now() + expiresInMinutes * 60_000)
+    });
+  }
+
+  async function applyConfigurationLifecycle(operation, configKeyValue, configVersionIdValue, input = {}, context = {}) {
+    const configKey = requireCanonicalKey(configKeyValue, "configKey");
+    const configVersionId = requiredText(configVersionIdValue, "configVersionId", 36);
+    const approvalHoldId = requiredText(input.approvalHoldId, "approvalHoldId", 36);
+    return repository.applyConfigurationLifecycle({
+      operation,
+      configKey,
+      configVersionId,
+      approvalHoldId,
+      expectedRevision: nonNegativeRevision(input.expectedRevision),
+      approvedBy: actorId(context.actorId),
+      eventId: uuid(),
+      requestId: context.requestId || null,
+      correlationId: context.correlationId || null,
+      sourceEnvironment: context.sourceEnvironment || "development"
+    });
+  }
+
+  async function activateConfigurationVersion(configKeyValue, configVersionIdValue, input = {}, context = {}) {
+    return applyConfigurationLifecycle("activate", configKeyValue, configVersionIdValue, input, context);
+  }
+
+  async function rollbackConfigurationVersion(configKeyValue, configVersionIdValue, input = {}, context = {}) {
+    return applyConfigurationLifecycle("rollback", configKeyValue, configVersionIdValue, input, context);
+  }
+
   return Object.freeze({
     listConfigurationDefinitions, createConfigurationDefinition, createConfigurationVersion,
+    validateConfigurationVersion, createConfigurationLifecycleApprovalHold,
+    activateConfigurationVersion, rollbackConfigurationVersion,
     resolveConfiguration, listActivityPacks, createActivityPackDefinition,
     createActivityPackVersion, createBrandActivityBinding
   });
