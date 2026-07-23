@@ -86,8 +86,8 @@ try {
   assert.equal((await adminFailure.json()).error.code, "BACKEND_AUTH_MIDDLEWARE_UNAVAILABLE");
 
   const tenantFailure = await fetch(`${failClosedBaseUrl}/me/authority/projections/connectors`);
-  assert.equal(tenantFailure.status, 503);
-  assert.equal((await tenantFailure.json()).error.code, "USER_AUTH_CONFIGURATION_UNAVAILABLE");
+  assert.equal(tenantFailure.status, 401);
+  assert.equal((await tenantFailure.json()).error.code, "user_jwt_required");
 } finally {
   await new Promise((resolve) => failClosedServer.close(resolve));
   if (previousJwtSecret === undefined) delete process.env.JWT_SECRET;
