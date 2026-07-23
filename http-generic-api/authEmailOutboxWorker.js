@@ -441,6 +441,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             WHERE email_id = ? AND status = 'queued'`,
           [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
         );
+        await recordAuthEmailOutboxDeliveryAttempt(connection, {
+          email,
+          metadata,
+          status: "skipped",
+          provider: "support_ticket_router",
+          skipReason: eligibility.reason,
+        });
         if (metadata.ticket_id && metadata.tenant_id) {
           await connection.query(
             `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
