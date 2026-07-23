@@ -241,6 +241,21 @@ assert.deepEqual(
   }
 );
 assert.deepEqual(
+  validateShellAliasInvocation("auth_email_outbox_worker", ["--action=status"]),
+  { mutation_requested: false, extra_args: ["--action=status"] }
+);
+assert.deepEqual(
+  validateShellAliasInvocation("auth_email_outbox_worker", [
+    "--action=dry-run",
+    "--purposes=support_ticket_admin_notification",
+    "--limit=10",
+  ]),
+  {
+    mutation_requested: false,
+    extra_args: ["--action=dry-run", "--purposes=support_ticket_admin_notification", "--limit=10"],
+  }
+);
+assert.deepEqual(
   validateShellAliasInvocation("capability_resolution_envelope_create", []),
   { mutation_requested: true, extra_args: [] }
 );
@@ -254,6 +269,16 @@ for (const blockedArgs of [
   ["--action=status", "--unknown=value"],
 ]) {
   assert.throws(() => validateShellAliasInvocation("platform_outbox_worker", blockedArgs));
+}
+for (const blockedArgs of [
+  ["--action=run-once"],
+  ["--action=status", "--apply"],
+  ["--action=status", "--confirm=SEND_AUTH_EMAIL_OUTBOX"],
+  ["--action=status", "--sender-connection-id=abc"],
+  ["--action=status", "--consumer=prod_shadow_v1"],
+  ["--action=status", "--purposes=bad purpose"],
+]) {
+  assert.throws(() => validateShellAliasInvocation("auth_email_outbox_worker", blockedArgs));
 }
 
 assert.deepEqual(sanitizeResult({
