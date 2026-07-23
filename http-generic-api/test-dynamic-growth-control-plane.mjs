@@ -84,6 +84,55 @@ const manifest = validateActivityPackManifest({
 });
 assert.match(manifest.checksumSha256, /^[a-f0-9]{64}$/);
 
+assert.deepEqual(
+  assertGrowthControlConfigurationTransition("draft", "ready"),
+  { current: "draft", next: "ready" }
+);
+assert.deepEqual(
+  assertGrowthControlConfigurationTransition("ready", "active"),
+  { current: "ready", next: "active" }
+);
+assert.deepEqual(
+  assertGrowthControlConfigurationTransition("active", "rolled_back"),
+  { current: "active", next: "rolled_back" }
+);
+assert.throws(
+  () => assertGrowthControlConfigurationTransition("draft", "active"),
+  (error) => error.code === "GROWTH_CONTROL_LIFECYCLE_TRANSITION_INVALID"
+);
+const lifecycleBinding = buildGrowthControlApprovalBinding({
+  operation: "activate",
+  version: {
+    configVersionId: "33333333-3333-4333-8333-333333333333",
+    configKey: "growth.execution.policy",
+    scopeKey: "tenant:tenant-a:workspace:workspace-a:brand:brand-a",
+    checksumSha256: "a".repeat(64),
+    versionRevision: 2
+  }
+});
+assert.match(lifecycleBinding.bindingSha256, /^[a-f0-9]{64}$/);
+assert.equal(
+  assertGrowthControlApprovalHold(
+    { status: "approved", executionContext: lifecycleBinding },
+    lifecycleBinding
+  ),
+  true
+);
+assert.throws(
+  () => assertGrowthControlApprovalHold(
+    { status: "approved", executionContext: { bindingSha256: "b".repeat(64) } },
+    lifecycleBinding
+  ),
+  (error) => error.code === "GROWTH_CONTROL_APPROVAL_BINDING_MISMATCH"
+);
+assert.throws(
+  () => assertGrowthControlApprovalHold(
+    { status: "pending", executionContext: lifecycleBinding },
+    lifecycleBinding
+  ),
+  (error) => error.code === "GROWTH_CONTROL_APPROVAL_REQUIRED"
+);
+
 const encodedCursor = _testingGrowthControlPlaneService.encodeCursor(25);
 assert.equal(_testingGrowthControlPlaneService.decodeCursor(encodedCursor), 25);
 assert.deepEqual(
