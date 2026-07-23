@@ -8,6 +8,7 @@ import {
   resolveDiffRange,
   runGit,
 } from "./docs-impact-classifier.mjs";
+import { attachRepositoryMutationCoordination, evaluateRepositoryMutationCoordination } from "../repositoryMutationCoordinationTelemetry.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
