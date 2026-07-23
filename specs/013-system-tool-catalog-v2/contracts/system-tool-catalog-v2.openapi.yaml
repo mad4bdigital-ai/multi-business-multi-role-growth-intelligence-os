@@ -162,11 +162,12 @@ components:
     CatalogResponse:
       type: object
       additionalProperties: false
-      required: [ok, protocol, list_mode, tools, items, page, total_available_tools, catalog_version, snapshot_id, compatibility, continuation_contract, secrets_included]
+      required: [ok, protocol, list_mode, catalog_mode, tools, items, page, total_available_tools, catalog_version, snapshot_id, compatibility, continuation_contract, secrets_included]
       properties:
         ok: { type: boolean, const: true }
         protocol: { type: string, const: openapi-mcp-facade }
-        list_mode: { type: string, const: stable_cursor_catalog_v2 }
+        list_mode: { type: string, const: bounded_paginated_chunkable }
+        catalog_mode: { type: string, const: stable_cursor_catalog_v2 }
         tools: { type: array, items: { $ref: '#/components/schemas/ToolDescriptor' }, description: Backward-compatible alias of items. }
         items: { type: array, items: { $ref: '#/components/schemas/ToolDescriptor' } }
         page: { $ref: '#/components/schemas/Page' }
