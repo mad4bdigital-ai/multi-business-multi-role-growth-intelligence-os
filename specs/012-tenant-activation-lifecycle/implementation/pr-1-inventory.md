@@ -8,6 +8,18 @@ This is a read-only implementation baseline for Spec 012. It does not activate r
 
 The served Tenant Activation contract is `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml`: OpenAPI 3.1, server `https://activation.mad4b.com`, OAuth scheme `userBearerAuth`, protected resource `https://activation.mad4b.com`.
 
+Its canonical generation chain is:
+
+```text
+http-generic-api/openapi.yaml
+→ canonicals/openapi/custom-gpt-surfaces.yaml#surfaces.tenant_activation
+→ http-generic-api/scripts/split-openapi.mjs
+→ http-generic-api/scripts/generate-custom-gpt-schemas.mjs
+→ http-generic-api/openapi/openapi.tenant-gpt.activation.yaml
+```
+
+The generated artifact is never an input source. CI verifies canonical structure with `node build-canonicals.mjs --check` and verifies split/governance regeneration parity with `test-openapi-split-governance.mjs` and `test-openapi-split-regeneration-parity.mjs`.
+
 The public schema currently declares 15 tenant operations. Three OAuth handoffs are admitted through `activationHostGatewayRoutes.js` and executed by `authRoutes.js`.
 
 Rows synchronized into `endpoints` are `inventory_only`, `pending_governance_review`, and not runtime-callable authority. Runtime behavior is owned by the gateway, route handlers, application services, SQL repositories, and authorization middleware listed in the JSON inventory.
