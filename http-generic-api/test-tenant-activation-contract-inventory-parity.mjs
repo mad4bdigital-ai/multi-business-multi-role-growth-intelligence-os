@@ -42,6 +42,19 @@ assert.equal(inventory.contract_authority.registry_row_role, "inventory_only_not
 assert.equal(inventory.scope.runtime_mutation, false);
 assert.equal(inventory.scope.database_migration, false);
 assert.equal(inventory.scope.provider_write, false);
+
+const activationRoutesSource = readFileSync(resolve(__dirname, "routes/activationRoutes.js"), "utf8");
+const systemLayerRoutesSource = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
+assert.equal(inventory.bootstrap_authority.authoritative_source, "backend_runtime/db_runtime");
+assert.equal(inventory.bootstrap_authority.sheets_required, false);
+assert.equal(inventory.bootstrap_authority.provider_validation_tool, "activation_provider_bootstrap_validate");
+assert(activationRoutesSource.includes('router.get("/activation/bootstrap-config"'));
+assert(activationRoutesSource.includes("resolveActivationBootstrapConfig"));
+assert(systemLayerRoutesSource.includes("activation_provider_bootstrap_validate"));
+assert(systemLayerRoutesSource.includes("Google Sheets is deprecated and not called"));
+assert(systemLayerRoutesSource.includes("activation_sheets_bootstrap_read"));
+assert(systemLayerRoutesSource.includes("Google Sheets is no longer a valid bootstrap source and is not called"));
+
 assert.deepEqual(declared.map(key).sort(), inventoried.map(key).sort(), "OpenAPI and inventory operations must match exactly");
 
 const seen = new Set();
