@@ -10,6 +10,44 @@ import {
 const SHA = "a".repeat(40);
 const RUN_ID = "hostinger_ssh_deploy_123e4567-e89b-42d3-a456-426614174000";
 
+const blockedPolicy = evaluateHostingerSshDeployTargetPolicy({
+  metadata: {
+    deployment_allowed: false,
+    ssh_normal_updates_allowed: false,
+    ssh_path_status: "skipped_by_user",
+    deployment_strategy: "github_main_auto_deploy",
+    ssh_break_glass_only: true,
+  },
+});
+assert.equal(blockedPolicy.allowed, false);
+assert.deepEqual(blockedPolicy.reasons, [
+  "deployment_not_allowed",
+  "ssh_normal_updates_not_allowed",
+  "ssh_path_skipped_by_user",
+  "github_main_auto_deploy_is_normal_path",
+]);
+assert.throws(
+  () => assertHostingerSshDeployTargetPolicy({ metadata: {
+    deployment_allowed: false,
+    ssh_normal_updates_allowed: false,
+    ssh_path_status: "skipped_by_user",
+    deployment_strategy: "github_main_auto_deploy",
+  } }),
+  (error) => error.code === "hostinger_ssh_deploy_target_policy_blocked"
+    && error.status === 409
+    && error.details.secrets_included === false,
+);
+const allowedPolicy = evaluateHostingerSshDeployTargetPolicy({
+  metadata: {
+    deployment_allowed: true,
+    ssh_normal_updates_allowed: true,
+    ssh_path_status: "active",
+    deployment_strategy: "ssh_deploy_release",
+  },
+});
+assert.equal(allowedPolicy.allowed, true);
+assert.deepEqual(allowedPolicy.reasons, []);
+
 const script = buildRemoteDeployScript({
   appPath: "/home/test/domains/auth.mad4b.com/nodejs",
   branch: "main",
