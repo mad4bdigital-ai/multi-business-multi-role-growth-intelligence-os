@@ -1,6 +1,8 @@
 export const testCommands = [
   "node test-activation-effective-authority-projection.mjs",
   "node test-activation-effective-authority-projection-integration.mjs",
+  "node test-activation-effective-authority-projection.mjs",
+  "node test-activation-effective-authority-projection-integration.mjs",
   "node test-effective-authority-evidence-domain.mjs",
   "node test-effective-authority-evidence-repository.mjs",
   "node test-effective-authority-evidence-service.mjs",
