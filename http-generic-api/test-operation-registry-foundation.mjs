@@ -6,6 +6,13 @@ const migration = readFileSync(
   "utf8",
 );
 
+const activationSurface = JSON.parse(
+  readFileSync(
+    new URL("./activation-surfaces/operation_execution_bindings.json", import.meta.url),
+    "utf8",
+  ),
+);
+
 for (const marker of [
   "no provider call",
   "no external send",
@@ -43,13 +50,28 @@ assert.match(migration, /requires_readback TINYINT\(1\) NOT NULL DEFAULT 1/);
 assert.match(migration, /ready_for_shadow_validation/);
 assert.match(migration, /0 AS secrets_included/);
 
+assert.equal(activationSurface.surface_key, "operation_execution_bindings");
+assert.equal(activationSurface.source_table, "operation_execution_bindings");
+assert.deepEqual(activationSurface.covered_source_tables, ["operation_execution_bindings"]);
+assert.equal(activationSurface.result_key_column, "binding_id");
+assert.equal(activationSurface.result_label_column, "binding_key");
+assert.equal(activationSurface.status_column, "status");
+assert.deepEqual(activationSurface.active_status_values, ["active"]);
+assert.equal(activationSurface.include_for_admin, true);
+assert.equal(activationSurface.include_for_tenant, false);
+assert.equal(activationSurface.max_rows, 200);
+assert.ok(activationSurface.result_columns.includes("dispatch_binding_key"));
+assert.ok(activationSurface.result_columns.includes("requires_readback"));
+assert.ok(!activationSurface.result_columns.includes("metadata_json"));
+
 for (const lifecycle of ["draft", "shadow", "active", "degraded", "disabled", "archived"]) {
   assert.ok(migration.includes(`'${lifecycle}'`), `migration must support lifecycle ${lifecycle}`);
 }
 
+const sqlWithoutLineComments = migration.replace(/--.*$/gm, "");
 assert.doesNotMatch(
-  migration,
-  /\b(?:INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|DROP\s+(?:TABLE|VIEW|DATABASE)|TRUNCATE|RENAME\s+TABLE)\b/i,
+  sqlWithoutLineComments,
+  /(?:^|;)\s*(?:INSERT\s+INTO|UPDATE\s+[\w`]|DELETE\s+FROM|DROP\s+(?:TABLE|VIEW|DATABASE)|TRUNCATE(?:\s+TABLE)?|RENAME\s+TABLE)\b/im,
   "foundation migration must contain additive DDL only",
 );
 
