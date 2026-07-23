@@ -184,7 +184,7 @@ async function resolveExecutionAgentSkillGrant(pool, contextDimensions = {}) {
             g.tenant_id AS grant_tenant_id,
             g.brand_key AS grant_brand_key
        FROM agents a
-       JOIN agent_skill_grants g
+       JOIN v_effective_agent_skill_grants g
          ON g.agent_id = a.agent_id
         AND g.status = 'active'
         AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP)
