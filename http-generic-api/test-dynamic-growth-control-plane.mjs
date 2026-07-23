@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   GrowthControlPlaneError,
+  assertGrowthControlApprovalHold,
+  assertGrowthControlConfigurationTransition,
   assertNoSecretFields,
+  buildGrowthControlApprovalBinding,
   buildGrowthControlScopeHierarchy,
   mergeConfigurationCandidates,
   normalizeGrowthControlScope,
