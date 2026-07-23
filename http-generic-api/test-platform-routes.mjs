@@ -486,6 +486,16 @@ section("Admin system layer connector facade");
   ok("Google Auth Platform config exposes tab enum", Array.isArray(googleAuthTool?.inputSchema?.properties?.tab?.enum));
 }
 {
+  const r = await get("/system/tools?limit=1");
+  ok("explicit system tools limit returns 200", r.status === 200, `got ${r.status}`);
+  ok(
+    "explicit system tools limit remains paginated",
+    Array.isArray(r.body.tools) && r.body.tools.length === 1,
+    `tool count: ${r.body.tools?.length}`,
+  );
+  ok("explicit system tools page reports more results", r.body.page?.has_more === true, JSON.stringify(r.body.page));
+}
+{
   const r = await post("/admin/system/tools/call", {});
   ok("system tool call validates name", r.status === 400, `got ${r.status}`);
   ok("system tool call missing name code", r.body.error?.code === "missing_tool_name", `got ${r.body.error?.code}`);
