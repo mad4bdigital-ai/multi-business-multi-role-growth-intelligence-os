@@ -153,6 +153,20 @@ CREATE TABLE IF NOT EXISTS `growth_control_brand_activity_bindings` (
   CONSTRAINT `chk_growth_brand_activity_binding_no_secrets` CHECK (`secrets_included` = 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT INTO `platform_outbox_event_types`
+  (`event_type`,`aggregate_type`,`current_schema_version`,`description`,`active`)
+VALUES
+  ('growth_control.configuration.activated','growth_control_configuration',1,
+   'A Growth Control Plane configuration version became active and dependent caches or projections must invalidate.',1),
+  ('growth_control.configuration.rolled_back','growth_control_configuration',1,
+   'A Growth Control Plane configuration version was restored through an approved rollback and dependent caches or projections must invalidate.',1)
+ON DUPLICATE KEY UPDATE
+  `aggregate_type`=VALUES(`aggregate_type`),
+  `current_schema_version`=VALUES(`current_schema_version`),
+  `description`=VALUES(`description`),
+  `active`=VALUES(`active`),
+  `updated_at`=CURRENT_TIMESTAMP;
+
 INSERT INTO `governed_migration_authorization_registry`
   (`migration_file`,`authorization_status`,`authorization_source`,`policy_key`,`risk_tier`,
    `requires_preflight`,`requires_confirmation`,`allow_record_only`,`allow_apply`,`notes`,`metadata_json`)
