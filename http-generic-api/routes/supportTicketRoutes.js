@@ -300,6 +300,19 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/auth-email-outbox/skip-ineligible", ...adminGuards, async (req, res) => {
+    try {
+      const result = await skipAuthEmailOutboxIneligible({
+        purposes: req.body?.purposes || "support_ticket_admin_notification",
+        limit: req.body?.limit || 10,
+        actorId: req.auth?.user_id || "auth_email_outbox_skip_ineligible",
+      });
+      return res.status(200).json({ ...result, resource_authority: "auth_email_outbox", applies_delivery: false, external_send_performed: false, secrets_included: false });
+    } catch (err) {
+      return sendError(res, err, "auth_email_outbox_skip_ineligible_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/auth-email-outbox/apply", ...adminGuards, async (req, res) => {
     try {
       const result = await runAuthEmailOutboxWorker({
