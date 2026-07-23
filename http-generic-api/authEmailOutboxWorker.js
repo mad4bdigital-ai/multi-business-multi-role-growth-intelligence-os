@@ -61,6 +61,21 @@ export function buildAuthEmailOutboxWorkerReadiness({ env = process.env, apply =
   };
 }
 
+export function buildAuthEmailOutboxAttemptIdempotencyKey(emailId = "", attemptNumber = 1) {
+  const normalizedEmailId = String(emailId || "").trim();
+  const normalizedAttemptNumber = Math.max(1, Number.parseInt(attemptNumber, 10) || 1);
+  if (!normalizedEmailId) {
+    const error = new Error("Email id is required for a delivery attempt idempotency key.");
+    error.code = "auth_email_outbox_attempt_email_id_required";
+    throw error;
+  }
+  return `${normalizedEmailId}:gmail_api:${normalizedAttemptNumber}`;
+}
+
+function isMissingAttemptLedgerError(error) {
+  return ["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(error?.code);
+}
+
 export function buildMimeMessage({ from = "", to = "", subject = "", bodyText = "", bodyHtml = null } = {}) {
   const safeFrom = normalizeEmail(from);
   const safeTo = normalizeEmail(to);
