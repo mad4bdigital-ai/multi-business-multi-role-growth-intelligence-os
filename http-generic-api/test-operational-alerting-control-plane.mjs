@@ -276,12 +276,26 @@ function testDedupeAndLifecyclePrecedence() {
     reasonCode: "execution_failed",
     severity: "critical",
     lifecycleStatus: "resolved",
+    lifecycleUpdatedAt: "2026-06-14T13:00:00.000Z",
     verificationState: "verified",
     persisted: true,
     lastSeenAt: "2026-06-14T11:00:00.000Z",
   });
-  const reopened = _testingOperationalAlerts.mergeCandidates([live, resolvedPersisted]);
-  assert.equal(reopened[0].lifecycle_status, "open", "live evidence must reopen a resolved automatic alert");
+  const preserved = _testingOperationalAlerts.mergeCandidates([live, resolvedPersisted]);
+  assert.equal(preserved[0].lifecycle_status, "resolved", "evidence older than the lifecycle resolution must not reopen the alert");
+
+  const newerLive = _testingOperationalAlerts.candidate({
+    alertKey: "alert.test",
+    sourceType: "execution_log",
+    title: "Failure",
+    reasonCode: "execution_failed",
+    severity: "critical",
+    lifecycleStatus: "open",
+    verificationState: "verified",
+    lastSeenAt: "2026-06-14T14:00:00.000Z",
+  });
+  const reopened = _testingOperationalAlerts.mergeCandidates([newerLive, resolvedPersisted]);
+  assert.equal(reopened[0].lifecycle_status, "open", "an occurrence newer than the lifecycle resolution must reopen the alert");
 }
 
 function testSummaryAndRouteInputs() {
