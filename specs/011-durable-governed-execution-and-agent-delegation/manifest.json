@@ -37,7 +37,15 @@
   "phase1_source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
   "phase2_branch": "gpt/spec-011-phase2-contract-resolver-20260723",
   "phase2_pull_request": 3018,
+  "phase2_merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+  "phase2_final_ci_head_sha": "9166d4aa5b524ff4a7576d69aeaba0198bd020a6",
+  "phase2_final_ci_base_sha": "f1b7b04aab88e8a85cc694b136c37d8e12de355f",
+  "phase2_verified_runtime_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+  "phase2_runtime_readback_run_id": "172e06e4-72f2-4095-a538-b28ff8b6d671",
+  "phase2_runtime_readback_checked_at": "2026-07-23T05:10:13.191Z",
   "phase2_source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
+  "phase2_closeout_branch": "gpt/spec-011-phase2-closeout-20260723",
+  "phase2_closeout_source_main_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
   "deliverables": [
     "spec",
     "plan",
@@ -65,7 +73,9 @@
     "phase2_canonical_execution_contract_resolver",
     "phase2_exact_binding_tests",
     "phase2_policy_projection",
-    "phase2_fail_closed_ci_guard"
+    "phase2_fail_closed_ci_guard",
+    "phase2_merge_evidence",
+    "phase2_runtime_readback_evidence"
   ],
   "constraints": [
     "no_provider_call",
