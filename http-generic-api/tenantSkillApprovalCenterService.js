@@ -369,7 +369,7 @@ export async function listTenantSkillApprovals({
     const holdRows = await loadApprovalHolds(connection, subject.tenant_id);
     const holds = latestHoldsByApprovalKey(holdRows);
     let items = groupGrantRows(grantRows, subject.tenant_id, nowValue)
-      .map((group) => approvalItem(group, holds.get(group.approval_key), nowValue));
+      .map((group) => approvalItem(group, holdForGroup(group, holds), nowValue));
 
     if (filters.workspace_id) {
       items = items.filter((item) => !item.hold?.workspace_id || item.hold.workspace_id === filters.workspace_id);
