@@ -3,18 +3,19 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 50,
+  "total_triaged_items": 51,
   "class_counts": {
-    "new_surface_immediate_review": 48,
+    "new_surface_immediate_review": 49,
     "safety_marker_review": 2
   },
-  "gate_candidate_count": 48,
+  "gate_candidate_count": 49,
   "gate_candidate_files": [
     "20260723_auth_email_outbox_admin_tools.sql",
     "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
     "20260717_tenant_task_source_repair_apply_gate.sql",
     "20260715_platform_capability_shadow_certification_issue.sql",
     "20260723_auth_email_outbox_skip_ineligible_tool.sql",
+    "20260723_auth_email_outbox_skip_ineligible_policy_tags.sql",
     "20260715_dynamic_container_canary_runtime_observability.sql",
     "20260718_github_list_issue_comments_endpoint.sql",
     "20260718_tenant_connect_bootstrap_tool.sql",
@@ -276,6 +277,52 @@
         "docs-agent/human-review",
         "api-contract-review",
         "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260723_auth_email_outbox_skip_ineligible_policy_tags.sql",
+      "score": 914,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [
+        "/admin/support/tickets/auth-email-outbox/skip-ineligible"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "review_openapi_contract",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "api-contract-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
@@ -792,7 +839,7 @@
     },
     {
       "migration_file": "20260718_growth_intelligence_report_read_tool.sql",
-      "score": 730,
+      "score": 729,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -834,7 +881,7 @@
     },
     {
       "migration_file": "20260715_dynamic_container_canary_probe_sampler_tool.sql",
-      "score": 727,
+      "score": 726,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -993,7 +1040,7 @@
     },
     {
       "migration_file": "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
-      "score": 710,
+      "score": 709,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1402,7 +1449,7 @@
     },
     {
       "migration_file": "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
-      "score": 566,
+      "score": 565,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1575,7 +1622,7 @@
     },
     {
       "migration_file": "20260720_tenant_tool_input_schema_strictness.sql",
-      "score": 551,
+      "score": 550,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1870,7 +1917,7 @@
     },
     {
       "migration_file": "20260712_github_rerun_workflow_response_schema_alignment.sql",
-      "score": 531,
+      "score": 530,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
