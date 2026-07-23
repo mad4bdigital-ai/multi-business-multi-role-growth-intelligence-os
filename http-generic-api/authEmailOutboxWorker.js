@@ -243,6 +243,43 @@ async function sendViaGmail({ sender, email }) {
   };
 }
 
+async function recordAuthEmailOutboxDeliveryAttempt(connection, { email, metadata = {}, status = "started", provider = null, gmailResult = {}, error = null, skipReason = null } = {}) {
+  if (!email?.email_id) return;
+  await connection.query(
+    `INSERT INTO auth_email_outbox_delivery_attempts (
+       attempt_id, email_id, purpose, recipient_email, ticket_id, tenant_id, event_type,
+       attempt_status, provider, provider_message_id, provider_thread_id,
+       sender_connection_id, sender_account_label, error_code, error_message,
+       metadata_json, external_send_performed, secrets_included, completed_at
+     ) VALUES (
+       UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP
+     )`,
+    [
+      email.email_id,
+      email.purpose,
+      email.recipient_email,
+      metadata.ticket_id || null,
+      metadata.tenant_id || null,
+      metadata.event_type || null,
+      status,
+      provider,
+      gmailResult.provider_message_id || null,
+      gmailResult.provider_thread_id || null,
+      gmailResult.sender_connection_id || metadata.sender_connection_id || null,
+      gmailResult.sender_account_label || null,
+      error?.code || skipReason || null,
+      String(error?.message || skipReason || "").slice(0, 2000) || null,
+      JSON.stringify({
+        recipient_route_reason: metadata.recipient_route_reason || null,
+        skip_reason: skipReason || null,
+        external_send_performed: status === "sent",
+        secrets_included: false,
+      }),
+      status === "sent" ? 1 : 0,
+    ]
+  );
+}
+
 export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DEFAULT_PURPOSES } = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
@@ -295,6 +332,13 @@ export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes
           WHERE email_id = ? AND status = 'queued'`,
         [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
       );
+      await recordAuthEmailOutboxDeliveryAttempt(connection, {
+        email,
+        metadata,
+        status: "skipped",
+        provider: "support_ticket_router",
+        skipReason: eligibility.reason,
+      });
       if (metadata.ticket_id && metadata.tenant_id) {
         await connection.query(
           `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
@@ -397,6 +441,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             WHERE email_id = ? AND status = 'queued'`,
           [JSON.stringify(nextMetadata), eligibility.reason, email.email_id]
         );
+        await recordAuthEmailOutboxDeliveryAttempt(connection, {
+          email,
+          metadata,
+          status: "skipped",
+          provider: "support_ticket_router",
+          skipReason: eligibility.reason,
+        });
         if (metadata.ticket_id && metadata.tenant_id) {
           await connection.query(
             `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
@@ -445,6 +496,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             WHERE email_id = ? AND status = 'queued'`,
           [gmailResult.provider_message_id, JSON.stringify(nextMetadata), email.email_id]
         );
+        await recordAuthEmailOutboxDeliveryAttempt(connection, {
+          email,
+          metadata,
+          status: "sent",
+          provider: "gmail_api",
+          gmailResult,
+        });
         if (metadata.ticket_id && metadata.tenant_id) {
           await connection.query(
             `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
@@ -474,6 +532,13 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             WHERE email_id = ? AND status = 'queued'`,
           [String(error?.code || error?.message || "gmail_delivery_failed").slice(0, 1000), email.email_id]
         );
+        await recordAuthEmailOutboxDeliveryAttempt(connection, {
+          email,
+          metadata,
+          status: "failed",
+          provider: "gmail_api",
+          error,
+        });
         await connection.commit();
         failed.push({ email_id: email.email_id, recipient_email: email.recipient_email, error_code: error?.code || "gmail_delivery_failed", secrets_included: false });
       }
