@@ -140,9 +140,17 @@ function makeFallbackContract(staticContract, version) {
 }
 
 function dependencies(options = {}) {
-  const sqlLoader = options.sql_loader || createOperationRuntimeContractLoader(options.loader_options || {});
+  let sqlLoader = options.sql_loader || null;
+  const loadSql = typeof options.load_sql === "function"
+    ? options.load_sql
+    : (input) => {
+        if (!sqlLoader) {
+          sqlLoader = createOperationRuntimeContractLoader(options.loader_options || {});
+        }
+        return sqlLoader.load(input);
+      };
   return {
-    loadSql: typeof options.load_sql === "function" ? options.load_sql : (input) => sqlLoader.load(input),
+    loadSql,
     getStaticContract: options.get_static_contract || getOperationContract,
     evaluateKillSwitch: options.evaluate_kill_switch || evaluateCapabilityKillSwitch,
     env: options.env || process.env
