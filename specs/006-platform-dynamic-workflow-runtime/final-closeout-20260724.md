@@ -2,9 +2,9 @@
 
 ## Scope
 
-This closeout consolidates the final Dynamic Container authority, tenancy, projection, data-quality, migration, CI, production-parity, and rollout-readiness evidence for Spec 006.
+This closeout consolidates the final Dynamic Container authority, tenancy, projection, migration, production-parity, rollout-readiness, and bounded canary evidence for Spec 006.
 
-The closeout does not enable global enforcement, provider calls, credential payload reads, external writes, production activation, or secrets.
+The closeout does not enable global enforcement, mutation enforcement, provider calls, credential payload reads, external writes, production activation, or secrets.
 
 ## Delivered increments
 
@@ -16,28 +16,27 @@ The closeout does not enable global enforcement, provider calls, credential payl
 | `#1949` | Shadow evidence | merged; migration applied |
 | `#1955` | Shadow readiness | merged; migration applied |
 | `#2930` | Shadow closeout evidence | merged |
-| `#2963` | Tenant-brand link projection fallback | merged |
-| `#2997` | Tenant-brand-link FK migration correction | merged |
-| `#3008` | Remaining data-hold documentation | merged |
+| `#2963` | Tenant-brand projection fallback | merged |
+| `#2997` | Tenant-brand migration FK correction | merged |
+| `#3008` | Data-hold documentation | merged |
 | `#3037` | Evidence-backed WOVacation tenant-brand link | merged |
 | `#3047` | WOVacation evidence-predicate correction | merged |
 | `#3061` | Repair-created default-workspace classification | merged; migration applied |
 
-## Final migration evidence
+## Migration evidence
 
 | Migration | Result | Ledger run |
 | --- | --- | --- |
-| `20260721_tenant_brand_links_projection_gap.sql` | applied; table and fallback row created | `9c3efe4d-3e11-4413-b46c-463be48d14d0` |
+| `20260721_tenant_brand_links_projection_gap.sql` | applied | `9c3efe4d-3e11-4413-b46c-463be48d14d0` |
 | `20260723_wovacation_tenant_brand_link.sql` | applied; one evidence-backed active link | `3cebd87d-5da4-457a-9f1a-3261eb5eb2cc` |
-| `20260723_default_workspace_classification_repair.sql` | applied; three repair-created rows changed from `brand` to `project` | `afeac58e-73c1-47ee-a34c-e583403755a3` |
+| `20260723_default_workspace_classification_repair.sql` | applied; three rows changed from `brand` to `project` | `afeac58e-73c1-47ee-a34c-e583403755a3` |
 
-All three changes were checksum-authorized, dry-run before apply, bounded, idempotent, and followed by same-cycle readback.
+Each migration was checksum-authorized, dry-run before apply, bounded, idempotent, and followed by same-cycle readback.
 
-## Final monitoring snapshot before canary
+## Final projection readback
 
 ```text
-captured_at: 2026-07-24
-projectionRunId: 8c88492e-6f6f-4448-93d1-6e4d6fef6efe
+projectionRunId: 16e2e0fc-e982-47e9-a10b-3193cf6c9661
 sourceSnapshotSha256: cc7d8d3090559e542064bacf24e000500fd4f55ae5dfd88eee659a57befb7410
 projectedContainerCount: 89
 projectedRelationshipCount: 72
@@ -51,9 +50,9 @@ externalWrites: false
 secretsIncluded: false
 ```
 
-The only projection issue is an explicit allowlisted sandbox fixture with status `ignored` and severity `info`.
+The only issue is an explicit allowlisted sandbox fixture with status `ignored` and severity `info`.
 
-## Shadow rollout readiness
+## Rollout readiness after closeout
 
 ```text
 policy_key: dynamic_container_authority_v1
@@ -65,8 +64,6 @@ critical_mismatch_count: 0
 maximum_mismatch_percent: 0.0000
 p95_latency_ms: 15.972
 p99_latency_ms: 19.583
-p95_budget_ms: 150
-p99_budget_ms: 400
 audit_coverage_percent: 100.0000
 relationship_issue_count: 0
 high_risk_projection_issue_count: 0
@@ -74,23 +71,30 @@ enforcement_requested: 0
 secrets_included: 0
 ```
 
-## Production parity gate
+## Read-only canary evidence
 
-At closeout-branch creation, `main` was `bd404977fe12ef12c8449e143705e40a475690ce`. CI for that commit passed. Production parity remained a blocking prerequisite for canary promotion and must be `verified` with zero blocking gaps before the pilot applies.
+The governed target `container_authority_rollout_readiness_v1` was promoted from `shadow` to `read_only_canary` only after same-cycle release readiness, production parity, projection, and rollout-readiness checks passed.
+
+```text
+precondition commit: 14e705b84df294f5b1d96334dcf90f303708f2d2
+production parity: verified
+blocking gaps: 0
+promotion envelope: 33ea55e5-d145-4e91-981d-6c62c6d03fc4
+probe run: a45bbfbd-d24f-4519-9968-10ce9eec3a73
+completed probes: 100
+successes: 100
+failures: 0
+average latency: 11.355 ms
+maximum latency: 15.698 ms
+monitoring p95: 15.075 ms
+audit coverage: 100%
+monitoring code: ready_for_review
+```
+
+The canary met every acceptance condition. Governed closeout returned the target to `shadow`. The closeout request returned an HTTP `503`, but immediate authoritative readback showed `rollout_mode=shadow`, `monitoring_code=not_in_canary`, and `enforcement_requested=0`; the mutation was therefore not repeated.
 
 ## Closeout classification
 
-Spec 006 implementation and shadow validation are complete. A bounded read-only canary pilot is permitted only through the governed canary tools in `enforcement-canary-pilot-20260724.md`. Global rollout mode and mutation enforcement remain unchanged.
+Spec 006 implementation, data remediation, shadow validation, production-parity gating, bounded read-only canary, and canary closeout are complete. The final documentation PR remains subject to fresh CI and post-merge production-parity verification.
 
-## Final acceptance conditions
-
-- Projection held issues: `0`.
-- Projection high-risk issues: `0`.
-- Shadow mismatches: `0/100`.
-- Audit coverage: `100%`.
-- Latency within policy budgets.
-- Release readiness and production parity verified before canary apply.
-- Canary uses exactly one registered read-only target.
-- Rollback and closeout return the canary to shadow.
-- Global enforcement remains disabled.
-- No provider calls, credential payload reads, external writes, or secrets.
+Global enforcement remains disabled. Any future enforcement requires a separate plan, separate typed approval, separate capability envelope, and separate rollout review.
