@@ -127,6 +127,7 @@ import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoute
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
+import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
