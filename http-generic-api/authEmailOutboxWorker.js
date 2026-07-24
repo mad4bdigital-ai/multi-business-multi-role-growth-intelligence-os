@@ -1,5 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { google } from "googleapis";
 import { getPool } from "./db.js";
+import {
+  claimAuthEmailOutboxDeliveryAttempt,
+  getAuthEmailOutboxAttemptSummary,
+  isAuthEmailOutboxAttemptClaimConflict,
+  recordAuthEmailOutboxAttemptFinalizeError,
+  requireAuthEmailOutboxAttemptLedger,
+  updateAuthEmailOutboxDeliveryAttempt,
+} from "./authEmailOutboxAttemptLedger.js";
 import { decryptUserAppCredentials, extractCredentialValue, markUserAppConnectionUsed } from "./userAppConnectionCredentials.js";
 
 const DEFAULT_LIMIT = 10;
@@ -152,10 +161,22 @@ export function compactEmailOutboxRow(row = {}) {
   };
 }
 
-async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT } = {}) {
+async function fetchQueuedEmails(connection, {
+  purposes = DEFAULT_PURPOSES,
+  limit = DEFAULT_LIMIT,
+  excludeActiveClaims = false,
+} = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
+  const activeClaimFilter = excludeActiveClaims
+    ? `AND NOT EXISTS (
+         SELECT 1
+           FROM auth_email_outbox_delivery_attempts a
+          WHERE a.email_id = e.email_id
+            AND a.status = 'started'
+       )`
+    : "";
   const [rows] = await connection.query(
     `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
             t.ticket_id AS resolved_ticket_id,
@@ -167,6 +188,7 @@ async function fetchQueuedEmails(connection, { purposes = DEFAULT_PURPOSES, limi
          ON t.ticket_id = JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json, '$.ticket_id'))
       WHERE e.status = 'queued'
         AND e.purpose IN (${placeholders})
+        ${activeClaimFilter}
       ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
     normalizedPurposes
@@ -254,10 +276,16 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
       ORDER BY purpose, status`,
     normalizedPurposes
   );
+  const attemptSummary = await getAuthEmailOutboxAttemptSummary({
+    pool,
+    purposes: normalizedPurposes,
+  });
   return {
     ok: true,
     purposes: normalizedPurposes,
     delivery_feature_flag_enabled: process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true",
+    attempt_ledger_available: attemptSummary.attempt_ledger_available,
+    attempt_counts: attemptSummary.attempt_counts,
     counts: (counts || []).map((row) => ({
       purpose: row.purpose,
       status: row.status,
@@ -348,6 +376,9 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
     error.readiness = readiness;
     throw error;
   }
+  if (apply) {
+    await requireAuthEmailOutboxAttemptLedger({ pool });
+  }
 
   const connection = await pool.getConnection();
   try {
@@ -374,7 +405,11 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
     const skipped = [];
     for (let index = 0; index < safeLimit; index += 1) {
       await connection.beginTransaction();
-      const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: 1 });
+      const rows = await fetchQueuedEmails(connection, {
+        purposes: normalizedPurposes,
+        limit: 1,
+        excludeActiveClaims: true,
+      });
       const email = rows[0] || null;
       if (!email) {
         await connection.commit();
@@ -420,6 +455,28 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
         skipped.push({ email_id: email.email_id, recipient_email: email.recipient_email, skip_reason: eligibility.reason, secrets_included: false });
         continue;
       }
+
+      await connection.commit();
+      let deliveryAttempt = null;
+      let gmailResult = null;
+      let providerSendCompleted = false;
+      try {
+        deliveryAttempt = await claimAuthEmailOutboxDeliveryAttempt({ pool, email });
+      } catch (error) {
+        if (isAuthEmailOutboxAttemptClaimConflict(error)) {
+          failed.push({
+            email_id: email.email_id,
+            recipient_email: email.recipient_email,
+            error_code: error.code,
+            delivery_state: "claim_conflict",
+            external_send_performed: false,
+            secrets_included: false,
+          });
+          continue;
+        }
+        throw error;
+      }
+
       try {
         const sender = await resolveGmailSenderConnection(connection, {
           senderConnectionId: senderConnectionId || metadata.sender_connection_id || "",
@@ -430,33 +487,50 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
           error.code = "gmail_sender_connection_not_found";
           throw error;
         }
-        const gmailResult = await sendViaGmail({ sender, email });
+        gmailResult = await sendViaGmail({ sender, email });
+        providerSendCompleted = true;
+
+        await connection.beginTransaction();
         const nextMetadata = {
           ...metadata,
           delivery_provider: "gmail_api",
+          delivery_attempt_id: deliveryAttempt.attempt_id,
+          delivery_attempt_number: deliveryAttempt.attempt_number,
           sender_connection_id: gmailResult.sender_connection_id,
           sender_account_label: gmailResult.sender_account_label,
           external_send_performed: true,
           secrets_included: false,
         };
-        await connection.query(
+        const [outboxUpdate] = await connection.query(
           `UPDATE auth_email_outbox
               SET status = 'sent', provider = 'gmail_api', provider_message_id = ?, metadata_json = ?, last_error = NULL, sent_at = CURRENT_TIMESTAMP
             WHERE email_id = ? AND status = 'queued'`,
           [gmailResult.provider_message_id, JSON.stringify(nextMetadata), email.email_id]
         );
+        if (Number(outboxUpdate?.affectedRows || 0) !== 1) {
+          const error = new Error("Outbox row is no longer queued during delivery finalization.");
+          error.code = "auth_email_outbox_delivery_state_conflict";
+          throw error;
+        }
+
+        let lifecycleEventId = null;
         if (metadata.ticket_id && metadata.tenant_id) {
+          lifecycleEventId = randomUUID();
           await connection.query(
             `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
-             VALUES (UUID(), ?, ?, 'ticket_admin_notification_sent', NULL, NULL, 'auth_email_outbox_worker', 'system', 'internal_support', ?, ?)`,
+             VALUES (?, ?, ?, 'ticket_admin_notification_sent', NULL, NULL, 'auth_email_outbox_worker', 'system', 'internal_support', ?, ?)`,
             [
+              lifecycleEventId,
               metadata.ticket_id,
               metadata.tenant_id,
               email.subject,
               JSON.stringify({
                 email_id: email.email_id,
+                attempt_id: deliveryAttempt.attempt_id,
+                attempt_number: deliveryAttempt.attempt_number,
                 provider: "gmail_api",
                 provider_message_id: gmailResult.provider_message_id,
+                provider_thread_id: gmailResult.provider_thread_id,
                 recipient_email: email.recipient_email,
                 recipient_route_reason: metadata.recipient_route_reason || null,
                 external_send_performed: true,
@@ -465,17 +539,131 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
             ]
           );
         }
+        await updateAuthEmailOutboxDeliveryAttempt(connection, {
+          attemptId: deliveryAttempt.attempt_id,
+          status: "sent",
+          senderConnectionId: gmailResult.sender_connection_id,
+          providerMessageId: gmailResult.provider_message_id,
+          providerThreadId: gmailResult.provider_thread_id,
+          lifecycleEventId,
+        });
         await connection.commit();
-        delivered.push({ email_id: email.email_id, recipient_email: email.recipient_email, provider_message_id: gmailResult.provider_message_id, secrets_included: false });
+        delivered.push({
+          email_id: email.email_id,
+          attempt_id: deliveryAttempt.attempt_id,
+          attempt_number: deliveryAttempt.attempt_number,
+          lifecycle_event_id: lifecycleEventId,
+          recipient_email: email.recipient_email,
+          provider_message_id: gmailResult.provider_message_id,
+          provider_thread_id: gmailResult.provider_thread_id,
+          external_send_performed: true,
+          secrets_included: false,
+        });
       } catch (error) {
-        await connection.query(
-          `UPDATE auth_email_outbox
-              SET status = 'failed', last_error = ?, provider = COALESCE(provider, 'gmail_api')
-            WHERE email_id = ? AND status = 'queued'`,
-          [String(error?.code || error?.message || "gmail_delivery_failed").slice(0, 1000), email.email_id]
-        );
-        await connection.commit();
-        failed.push({ email_id: email.email_id, recipient_email: email.recipient_email, error_code: error?.code || "gmail_delivery_failed", secrets_included: false });
+        try { await connection.rollback(); } catch {}
+        const errorCode = String(error?.code || "gmail_delivery_failed").slice(0, 191);
+        const errorMessage = String(error?.message || errorCode).slice(0, 4000);
+
+        if (providerSendCompleted) {
+          try {
+            await recordAuthEmailOutboxAttemptFinalizeError({
+              pool,
+              attemptId: deliveryAttempt.attempt_id,
+              errorCode: "auth_email_outbox_delivery_finalize_failed",
+              errorMessage: `${errorCode}: ${errorMessage}`,
+            });
+          } catch {}
+          failed.push({
+            email_id: email.email_id,
+            attempt_id: deliveryAttempt.attempt_id,
+            attempt_number: deliveryAttempt.attempt_number,
+            recipient_email: email.recipient_email,
+            provider_message_id: gmailResult?.provider_message_id || null,
+            provider_thread_id: gmailResult?.provider_thread_id || null,
+            error_code: "auth_email_outbox_delivery_finalize_failed",
+            underlying_error_code: errorCode,
+            delivery_state: "finalize_pending",
+            external_send_performed: true,
+            secrets_included: false,
+          });
+          continue;
+        }
+
+        let failureLifecycleEventId = null;
+        try {
+          await connection.beginTransaction();
+          await connection.query(
+            `UPDATE auth_email_outbox
+                SET status = 'failed', last_error = ?, provider = COALESCE(provider, 'gmail_api')
+              WHERE email_id = ? AND status = 'queued'`,
+            [errorCode, email.email_id]
+          );
+          if (metadata.ticket_id && metadata.tenant_id) {
+            failureLifecycleEventId = randomUUID();
+            await connection.query(
+              `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+               VALUES (?, ?, ?, 'ticket_admin_notification_delivery_failed', NULL, NULL, 'auth_email_outbox_worker', 'system', 'internal_support', ?, ?)`,
+              [
+                failureLifecycleEventId,
+                metadata.ticket_id,
+                metadata.tenant_id,
+                errorCode,
+                JSON.stringify({
+                  email_id: email.email_id,
+                  attempt_id: deliveryAttempt.attempt_id,
+                  attempt_number: deliveryAttempt.attempt_number,
+                  provider: "gmail_api",
+                  recipient_email: email.recipient_email,
+                  recipient_route_reason: metadata.recipient_route_reason || null,
+                  error_code: errorCode,
+                  provider_response_received: false,
+                  external_send_performed: null,
+                  secrets_included: false,
+                }),
+              ]
+            );
+          }
+          await updateAuthEmailOutboxDeliveryAttempt(connection, {
+            attemptId: deliveryAttempt.attempt_id,
+            status: "failed",
+            errorCode,
+            errorMessage,
+            lifecycleEventId: failureLifecycleEventId,
+          });
+          await connection.commit();
+          failed.push({
+            email_id: email.email_id,
+            attempt_id: deliveryAttempt.attempt_id,
+            attempt_number: deliveryAttempt.attempt_number,
+            lifecycle_event_id: failureLifecycleEventId,
+            recipient_email: email.recipient_email,
+            error_code: errorCode,
+            delivery_state: "failed",
+            external_send_performed: null,
+            secrets_included: false,
+          });
+        } catch (finalizeError) {
+          try { await connection.rollback(); } catch {}
+          try {
+            await recordAuthEmailOutboxAttemptFinalizeError({
+              pool,
+              attemptId: deliveryAttempt.attempt_id,
+              errorCode: "auth_email_outbox_failure_finalize_failed",
+              errorMessage: `${finalizeError?.code || "finalize_failed"}: ${finalizeError?.message || "Failure finalization failed."}`,
+            });
+          } catch {}
+          failed.push({
+            email_id: email.email_id,
+            attempt_id: deliveryAttempt.attempt_id,
+            attempt_number: deliveryAttempt.attempt_number,
+            recipient_email: email.recipient_email,
+            error_code: "auth_email_outbox_failure_finalize_failed",
+            underlying_error_code: errorCode,
+            delivery_state: "finalize_pending",
+            external_send_performed: null,
+            secrets_included: false,
+          });
+        }
       }
     }
 
@@ -490,7 +678,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
       delivered,
       failed,
       skipped,
-      external_send_performed: delivered.length > 0,
+      external_send_performed: delivered.length > 0 || failed.some((item) => item.external_send_performed === true),
       secrets_included: false,
     };
   } finally {
