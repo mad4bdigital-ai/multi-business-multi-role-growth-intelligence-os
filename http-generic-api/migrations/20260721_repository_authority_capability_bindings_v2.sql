@@ -465,8 +465,9 @@ ON DUPLICATE KEY UPDATE
   repository_binding_id=VALUES(repository_binding_id), business_activity_type_key=VALUES(business_activity_type_key),
   adapter_key=VALUES(adapter_key), policy_key=VALUES(policy_key), readback_contract_key=VALUES(readback_contract_key),
   credential_ref=VALUES(credential_ref), effect_class=VALUES(effect_class), configuration_json=VALUES(configuration_json),
-  lifecycle_status='active', metadata_json=VALUES(metadata_json), capability_version=capability_version+1,
-  lock_version=lock_version+1, updated_at=NOW();
+  lifecycle_status='active', metadata_json=VALUES(metadata_json),
+  capability_version=repository_capability_bindings.capability_version+1,
+  lock_version=repository_capability_bindings.lock_version+1, updated_at=NOW();
 
 INSERT INTO repository_capability_policy_layers
   (layer_id, capability_binding_id, scope_type, scope_ref, precedence, configuration_json,
