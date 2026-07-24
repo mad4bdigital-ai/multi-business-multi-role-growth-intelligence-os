@@ -20,7 +20,38 @@
     "require_secret_field_allowlist": true,
     "allow_expiring_exemptions": true,
     "require_surface_policy_decision": true,
-    "internal_surfaces_require_explicit_not_applicable": true
+    "internal_surfaces_require_explicit_not_applicable": true,
+    "require_callable_handler_or_explicit_admin_preview": true
+  },
+  "callability_gate": {
+    "required": true,
+    "contracts": [
+      {
+        "family_key": "tenant_connection_self_repair",
+        "contract_source_file": "tenantConnectionSelfRepairService.js",
+        "contract_source_marker": "TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS",
+        "contract_key_pattern": "tool_key:\\s*\"([^\"]+)\"",
+        "expected_contract_count": 9,
+        "admin_registry_file": "routes/gptToolsRoutes.js",
+        "admin_preview_tool": "tenant_connection_operation_preview",
+        "descriptor_marker": "name: \"tenant_connection_operation_preview\"",
+        "handler_marker": "toolKey === \"tenant_connection_operation_preview\"",
+        "handler_call_marker": "buildTenantConnectionOperationPreview(args)",
+        "implementation_file": "tenantConnectionOperationPreview.js",
+        "implementation_export_marker": "export async function buildTenantConnectionOperationPreview",
+        "required_safety_markers": [
+          "provider_call_performed: false",
+          "provider_write_performed: false",
+          "credential_payload_read: false",
+          "external_write_performed: false",
+          "tenant_authority_changed: false",
+          "secrets_included: false"
+        ],
+        "tenant_contracts_may_remain_disabled": true,
+        "admin_preview_required_while_disabled": true,
+        "runtime_execution_allowed": false
+      }
+    ]
   },
   "resources": [
     {
@@ -251,6 +282,7 @@
     "platform_resource_restore",
     "platform_resource_purge",
     "platform_resource_coverage_audit",
+    "tenant_connection_operation_preview",
     "platform_operation_get",
     "tenant_resource_catalog",
     "tenant_resource_list",
