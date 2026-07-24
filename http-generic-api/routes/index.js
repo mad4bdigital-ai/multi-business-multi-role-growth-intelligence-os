@@ -87,6 +87,7 @@ import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
 import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 import { buildPlatformPrivateCapabilityVaultRoutes } from "./platformPrivateCapabilityVaultRoutes.js";
 import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";
+import { buildAuthEmailTargetedDeliveryRoutes } from "./authEmailTargetedDeliveryRoutes.js";
 import { buildSessionInsightPromotionReviewRoutes } from "./sessionInsightPromotionReviewRoutes.js";
 import { buildSessionInsightPromotionDryRunExecutorRoutes } from "./sessionInsightPromotionDryRunExecutorRoutes.js";
 import { buildSessionInsightPromotionApplyRequestRoutes } from "./sessionInsightPromotionApplyRequestRoutes.js";
@@ -213,6 +214,7 @@ export function registerRoutes(app, deps) {
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAuthEmailTargetedDeliveryRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
