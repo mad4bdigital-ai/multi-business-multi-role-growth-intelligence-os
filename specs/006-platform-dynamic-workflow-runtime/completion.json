@@ -4,16 +4,17 @@
   "title": "Platform Dynamic Workflow Runtime",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-24T05:10:00Z",
+  "last_updated_at": "2026-07-24T13:46:00Z",
   "current_increment": {
-    "phase": "dynamic_container_closeout_complete_task_reconciliation_pending",
-    "pull_request": 3080,
-    "branch": "gpt/006-final-closeout-enforcement-pilot",
-    "implementation_merged": true,
-    "migrations_executed": true,
+    "phase": "task_reconciliation_baseline_complete_batch_1_planned",
+    "branch": "gpt/006-task-reconciliation-audit",
+    "dynamic_container_implementation_merged": true,
+    "dynamic_container_migrations_executed": true,
     "projection_validation_passed": true,
     "read_only_canary_completed": true,
     "canary_closed_to_shadow": true,
+    "task_reconciliation_baseline_completed": true,
+    "next_batch": "epic_a_hardening_and_operations",
     "global_enforcement_enabled": false
   },
   "requirements": {
@@ -34,17 +35,17 @@
       {"number": 3008, "role": "data_hold_documentation", "status": "merged", "merge_sha": "3003583c8071833c453b0991264c1780bc51bd85"},
       {"number": 3037, "role": "wovacation_brand_link", "status": "merged", "merge_sha": "a9330bf69540336c66f15457d7a675fe21b005e5"},
       {"number": 3047, "role": "wovacation_predicate_fix", "status": "merged", "merge_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4"},
-      {"number": 3061, "role": "default_workspace_classification_repair", "status": "merged", "merge_sha": "f351e2d6bd5329271953a63604f89d1dcc2e8e4b"}
+      {"number": 3061, "role": "default_workspace_classification_repair", "status": "merged", "merge_sha": "f351e2d6bd5329271953a63604f89d1dcc2e8e4b"},
+      {"number": 3080, "role": "dynamic_container_closeout_and_read_only_canary", "status": "merged", "merge_sha": "2a20e8c986cb361416d9cea073a75a56f92f3886"}
     ],
-    "closeout_pr": {
-      "number": 3080,
-      "branch": "gpt/006-final-closeout-enforcement-pilot",
-      "role": "final_closeout_and_read_only_canary_evidence",
-      "status": "ready_to_merge"
+    "task_reconciliation": {
+      "branch": "gpt/006-task-reconciliation-audit",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "status": "baseline_complete_pending_pr"
     }
   },
   "evidence": {
-    "ci": {"status": "pending_fresh_pr_checks", "checks_total": 4},
+    "dynamic_container_ci": {"status": "pass", "checks_passed": 4, "checks_total": 4},
     "migrations": {
       "status": "applied",
       "ledger_run_ids": [
@@ -56,8 +57,6 @@
     },
     "projection": {
       "status": "pass",
-      "projection_run_id": "16e2e0fc-e982-47e9-a10b-3193cf6c9661",
-      "source_snapshot_sha256": "cc7d8d3090559e542064bacf24e000500fd4f55ae5dfd88eee659a57befb7410",
       "projected_container_count": 89,
       "projected_relationship_count": 72,
       "projected_role_assignment_count": 38,
@@ -92,12 +91,15 @@
       "final_rollout_mode": "shadow",
       "global_enforcement_enabled": false
     },
-    "production_verification": {
-      "status_at_canary_promotion": "verified",
-      "expected_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
-      "deployed_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
-      "blocking_gap_count": 0,
-      "post_merge_verification": "pending_final_closeout_pr_merge"
+    "task_reconciliation": {
+      "status": "baseline_complete",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "total_task_count": 70,
+      "implemented_count": 7,
+      "partial_count": 25,
+      "no_direct_evidence_count": 38,
+      "checkboxes_changed": 0,
+      "next_batch": "epic_a_hardening_and_operations"
     },
     "safety": {
       "provider_calls_made": false,
