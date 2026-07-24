@@ -492,6 +492,8 @@ export const testCommands = [
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
+  "node test-operation-orchestrator-route-registration.mjs",
+  "node test-operation-orchestrator-openapi-contract.mjs",
   "node test-governed-tool-response-chunk-store.mjs",
   "node test-governed-response-chunk-schema-reconciliation.mjs",
   "node test-governed-response-chunk-durable-recovery-smoke.mjs",
