@@ -1,8 +1,4 @@
-# Spec 006 Read-Only Canary Pilot Plan — 2026-07-24
-
-## Objective
-
-Run one bounded Dynamic Container canary through the governed promotion, probe, monitoring, and closeout lifecycle. The pilot validates runtime authority resolution under a read-only canary wrapper without changing global rollout mode or mutation enforcement.
+# Spec 006 Read-Only Canary Pilot — 2026-07-24
 
 ## Plan binding
 
@@ -14,64 +10,94 @@ requested_by: platform_admin
 approval_source: explicit user instruction to execute the full sequence
 ```
 
-No approval or capability envelope from another action may be reused.
+No approval or capability envelope from another action was reused.
 
 ## Preconditions
 
-All must pass in the same execution sequence:
+All preconditions passed in the promotion cycle:
 
-1. `release_readiness.overall = pass`.
-2. Production parity is `verified` with `blocking_gap_count = 0`.
-3. `dynamic_container_rollout_readiness.readiness_code = ready_for_review`.
-4. Comparison samples are at least `100`.
-5. Mismatch and critical mismatch counts are `0`.
-6. Audit coverage is `100%`.
-7. p95 is no more than `150 ms`; p99 is no more than `400 ms`.
-8. Projection held and high-risk issue counts are `0`.
-9. Rollback and closeout tools are callable.
+```text
+release_readiness: pass
+production_parity: verified
+blocking_gap_count: 0
+expected_commit_sha: 14e705b84df294f5b1d96334dcf90f303708f2d2
+deployed_commit_sha: 14e705b84df294f5b1d96334dcf90f303708f2d2
+rollout_readiness: ready_for_review
+comparison_sample_count: 100
+mismatch_count: 0
+critical_mismatch_count: 0
+audit_coverage_percent: 100
+p95_latency_ms: 15.972
+p99_latency_ms: 19.583
+projection_held_issue_count: 0
+projection_high_risk_issue_count: 0
+```
 
-## Execution sequence
+## Promotion
 
-1. Run `dynamic_container_canary_promotion` in `dry_run` mode.
-2. Create a new plan-bound capability envelope for canary promotion.
-3. Approve and apply-authorize that envelope.
-4. Apply promotion for exactly `container_authority_rollout_readiness_v1` using the dry-run confirmation.
-5. Generate `100` probes with `dynamic_container_canary_probe_sampler`.
-6. Read `dynamic_container_canary_monitoring`.
-7. If every success condition passes, dry-run and apply `dynamic_container_canary_closeout`.
-8. Closeout preserves accepted evidence and returns the canary to shadow.
-9. If any condition fails, dry-run and apply `dynamic_container_canary_rollback` instead.
-10. Re-read projection, rollout readiness, release readiness, and production parity.
+```text
+dry_run: pass
+confirmation: PROMOTE_DYNAMIC_CONTAINER_CANARY_CONTAINER_AUTHORITY_ROLLOUT_READINESS_V1
+capability_envelope_id: 33ea55e5-d145-4e91-981d-6c62c6d03fc4
+applied_mode: read_only_canary
+status: active
+global_enforcement_changed: false
+providerCalls: false
+credentialPayloadReads: false
+externalWrites: false
+secretsIncluded: false
+```
 
-## Success conditions
+## Probe and monitoring evidence
 
-- Probe count: `100`.
-- Failure count: `0`.
-- Audit coverage: `100%`.
-- p95 and p99 remain within rollout policy budgets.
-- Monitoring readiness allows closeout.
-- Global rollout mode remains `shadow`.
-- Global enforcement remains disabled.
-- No provider call, credential payload read, external write, or secret.
+```text
+probe_run_id: a45bbfbd-d24f-4519-9968-10ce9eec3a73
+requestedSampleCount: 100
+completedSampleCount: 100
+successCount: 100
+failureCount: 0
+averageLatencyMs: 11.355
+maximumLatencyMs: 15.698
+auditCoveragePercent: 100
+monitoringObservationCount: 100
+monitoringSuccessCount: 100
+monitoringFailureCount: 0
+monitoringP95LatencyMs: 15.075
+monitoringAuditCoveragePercent: 100.0000
+monitoringCode: ready_for_review
+enforcementRequested: 0
+```
 
-## Automatic stop and rollback conditions
+Every success condition passed, so rollback was not required.
 
-Rollback is required for any of:
+## Accepted closeout
 
-- Any canary failure.
-- Any critical mismatch.
-- Audit coverage below `100%`.
-- p95 above `150 ms` or p99 above `400 ms`.
-- Production parity becomes degraded.
-- High-risk projection issue count becomes nonzero.
-- Readback contract or capability-envelope consumption fails.
+```text
+dry_run: pass
+confirmation: ACCEPT_DYNAMIC_CONTAINER_CANARY_CONTAINER_AUTHORITY_ROLLOUT_READINESS_V1_CLOSEOUT
+closeout_envelope_id: 4a961cc2-3928-41d7-9e7c-595e8bfc191a
+closeout_apply_authorized: true
+targetMode: shadow
+closeoutStatus: accepted
+```
 
-## Promotion boundary
+The apply request returned HTTP `503` after dispatch. Immediate readback proved the closeout completed:
 
-The canary is read-only. It does not authorize global enforcement, mutation enforcement, provider activity, or tenant authority expansion. Any future global enforcement requires a separate plan, separate typed approval, separate capability envelope, and separate rollout review.
+```text
+canary_key: container_authority_rollout_readiness_v1
+rollout_mode: shadow
+status: active
+observation_count: 0
+failure_count: 0
+monitoring_code: not_in_canary
+enforcement_requested: 0
+secrets_included: 0
+```
 
-## Execution results
+The closeout mutation was not retried because the authoritative state already reflected success.
 
-Status at plan creation: `planned_pending_production_parity`.
+## Final boundary
 
-The final PR must replace this section with promotion, probe, monitoring, closeout or rollback evidence before merge.
+The pilot was read-only and bounded to one target. Global rollout mode remains `shadow`; global and mutation enforcement remain disabled. No provider call, credential payload read, external write, spend change, tenant authority expansion, or secret occurred.
+
+Any future global enforcement requires a new plan, new typed approval, new capability envelope, and separate rollout review.
