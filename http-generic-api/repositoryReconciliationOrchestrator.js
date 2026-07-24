@@ -167,7 +167,20 @@ export async function runRepositoryReconciliationOrchestrator(args = {}, deps = 
     throw fail("repository_reconciliation_branch_drift", "The work branch SHA changed.");
   }
   const plan = buildRepositoryReconciliationPlan({ input, recipe, reconciliation, operationId: input.operationId });
-  if (input.mode === "dry_run") return { ok:true, mode:"dry_run", apply_allowed:recipe.status==="active", reconciliation, plan, secrets_included:false };
+  if (input.mode === "dry_run") return {
+    ok: true,
+    mode: "dry_run",
+    apply_allowed: false,
+    apply_readiness: {
+      recipe_active: recipe.status === "active",
+      admin_apply_surface_exposed: false,
+      executor_implemented: false,
+      blockers: ["repository_reconciliation_admin_apply_surface_not_exposed"],
+    },
+    reconciliation,
+    plan,
+    secrets_included: false,
+  };
   if (recipe.status !== "active") throw fail("repository_reconciliation_recipe_not_active", "The recipe is not active for mutation.");
   if (!input.capabilityEnvelopeId || !input.approvalHoldId || !deps.authorizePlan || !deps.executeStep) {
     throw fail("repository_reconciliation_authority_required", "Plan authority and a governed step executor are required.", 403);
