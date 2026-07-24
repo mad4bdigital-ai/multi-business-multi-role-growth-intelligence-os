@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { attachRepoMaintenanceCoordination } from "./repo-maintenance-coordination.mjs";
 
 const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
@@ -77,13 +78,20 @@ function main() {
   }
 
   const after = gitDiffNameOnly();
-  const report = {
+  const report = attachRepoMaintenanceCoordination({
     ok: true,
     mode: write ? "write" : "check",
     steps,
     changed_files: after,
     changed_count: after.length,
-  };
+  }, {
+    changed_files: after,
+    branch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || "",
+    repository_current_state: {
+      base_sha: process.env.GITHUB_BASE_SHA || "",
+      branch_sha: process.env.GITHUB_SHA || "",
+    },
+  });
   if (reportFile) {
     fs.mkdirSync(path.dirname(path.resolve(REPO_ROOT, reportFile)), { recursive: true });
     fs.writeFileSync(path.resolve(REPO_ROOT, reportFile), `${JSON.stringify(report, null, 2)}\n`);
