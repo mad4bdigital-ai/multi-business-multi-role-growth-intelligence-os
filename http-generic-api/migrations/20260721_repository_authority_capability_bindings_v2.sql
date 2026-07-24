@@ -346,30 +346,54 @@ ON DUPLICATE KEY UPDATE
   source_key = VALUES(source_key), secrets_included = 0, updated_at = NOW();
 
 INSERT INTO capability_apply_authorization_policy_registry
-  (policy_key, display_name, app_key, capability_key, operation_intent, selected_source_tier,
-   selected_runtime_surface, allow_without_credential_binding, allow_local_device_execution,
-   allow_provider_credential_replacement, allow_provider_installation, allow_external_write,
-   allow_live_execution, active, policy_metadata_json, created_by, updated_by)
+  (policy_key, app_key, capability_key, operation_intent, runtime_surface, status,
+   allow_external_write, allow_credential_binding, allow_no_credential_binding,
+   requires_ready_for_dispatch, requires_dispatch_allowed, requires_zero_blocking_gaps,
+   requires_audit_evidence, requires_readback, requires_typed_confirmation,
+   requires_same_cycle_dry_run, allowed_source_tiers_json, policy_json, notes,
+   created_at, updated_at)
 VALUES
   ('github_repository_main_moved_webhook_dynamic_binding_apply_v2',
-   'GitHub repository-main-moved webhook repository capability binding apply v2',
    'github', 'github_repository_main_moved_webhook_provision',
-   'github_repository_main_moved_webhook_provision', 'platform_managed_fallback', 'system_layer',
-   1, 0, 0, 0, 1, 1, 1,
-   JSON_OBJECT('authority_source','repository_authority_bindings','capability_source','repository_capability_bindings',
-     'require_resource_uri_match',TRUE,'require_binding_sha256',TRUE,'require_capability_sha256',TRUE,
-     'require_same_cycle_dry_run',TRUE,'require_typed_confirmation',TRUE,'require_atomic_claim',TRUE,
-     'require_signed_ping_status',200,'require_hook_readback',TRUE,'secrets_included',FALSE),
-   'migration:20260721_repository_authority_capability_bindings_v2',
-   'migration:20260721_repository_authority_capability_bindings_v2')
+   'github_repository_main_moved_webhook_provision', 'system_layer', 'active',
+   1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+   JSON_ARRAY('platform_managed_fallback'),
+   JSON_OBJECT(
+     'authority_source','repository_authority_bindings',
+     'capability_source','repository_capability_bindings',
+     'external_write_allowed',TRUE,
+     'provider_call_allowed',TRUE,
+     'provider_call_surface','github_app.repository_hooks.create_or_update_and_ping',
+     'readback_surface','github_app.repository_hooks.get_and_deliveries',
+     'require_resource_uri_match',TRUE,
+     'require_binding_sha256',TRUE,
+     'require_capability_sha256',TRUE,
+     'require_same_cycle_dry_run',TRUE,
+     'require_typed_confirmation',TRUE,
+     'require_atomic_claim',TRUE,
+     'require_signed_ping_status',200,
+     'require_hook_readback',TRUE,
+     'credential_payload_return_allowed',FALSE,
+     'server_side_reference_resolution_allowed',TRUE,
+     'inline_sensitive_input_allowed',FALSE,
+     'secrets_included',FALSE),
+   'Repository capability V2 apply policy for the governed GitHub repository-main-moved webhook. Secret references resolve server-side and provider readback is mandatory.',
+   NOW(), NOW())
 ON DUPLICATE KEY UPDATE
-  display_name = VALUES(display_name), selected_source_tier = VALUES(selected_source_tier),
-  selected_runtime_surface = VALUES(selected_runtime_surface), allow_without_credential_binding = VALUES(allow_without_credential_binding),
-  allow_local_device_execution = VALUES(allow_local_device_execution),
-  allow_provider_credential_replacement = VALUES(allow_provider_credential_replacement),
-  allow_provider_installation = VALUES(allow_provider_installation), allow_external_write = VALUES(allow_external_write),
-  allow_live_execution = VALUES(allow_live_execution), active = VALUES(active),
-  policy_metadata_json = VALUES(policy_metadata_json), updated_by = VALUES(updated_by), updated_at = NOW();
+  app_key = VALUES(app_key), capability_key = VALUES(capability_key),
+  operation_intent = VALUES(operation_intent), runtime_surface = VALUES(runtime_surface),
+  status = VALUES(status), allow_external_write = VALUES(allow_external_write),
+  allow_credential_binding = VALUES(allow_credential_binding),
+  allow_no_credential_binding = VALUES(allow_no_credential_binding),
+  requires_ready_for_dispatch = VALUES(requires_ready_for_dispatch),
+  requires_dispatch_allowed = VALUES(requires_dispatch_allowed),
+  requires_zero_blocking_gaps = VALUES(requires_zero_blocking_gaps),
+  requires_audit_evidence = VALUES(requires_audit_evidence),
+  requires_readback = VALUES(requires_readback),
+  requires_typed_confirmation = VALUES(requires_typed_confirmation),
+  requires_same_cycle_dry_run = VALUES(requires_same_cycle_dry_run),
+  allowed_source_tiers_json = VALUES(allowed_source_tiers_json),
+  policy_json = VALUES(policy_json), notes = VALUES(notes), updated_at = NOW();
 
 INSERT INTO workspace_app_links
   (link_id, workspace_id, workspace_key, tenant_id, connection_id, app_key, linked_by, status, permission_mode, created_at)
