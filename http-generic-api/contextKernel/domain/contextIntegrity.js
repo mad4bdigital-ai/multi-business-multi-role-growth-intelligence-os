@@ -1,7 +1,24 @@
 import crypto from "node:crypto";
 import { deepFreeze } from "./model.js";
 
-const SENSITIVE_KEY = /(?:credential|secret|token|password|private[_-]?key|authorization|cookie)/i;
+const SENSITIVE_EXACT_KEYS = new Set([
+  "authorization",
+  "authorizationheader",
+  "cookie",
+  "setcookie",
+  "credential",
+  "credentials",
+  "credentialpayload",
+  "secret",
+  "secrets",
+  "token",
+  "tokens",
+  "accesstoken",
+  "refreshtoken",
+  "password",
+  "privatekey",
+  "apikey",
+]);
 
 export const ContextDimensions = deepFreeze([
   "principal",
@@ -33,12 +50,30 @@ const INVALIDATION_GRAPH = deepFreeze({
   execution: [],
 });
 
+function normalizeKey(key) {
+  return String(key).replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function isSensitiveKey(key) {
+  const normalized = normalizeKey(key);
+  if (normalized.endsWith("ref") || normalized.endsWith("id")) return false;
+  return (
+    SENSITIVE_EXACT_KEYS.has(normalized) ||
+    normalized.includes("credential") ||
+    normalized.includes("secret") ||
+    normalized.includes("token") ||
+    normalized.includes("password") ||
+    normalized.includes("privatekey") ||
+    normalized.includes("apikey")
+  );
+}
+
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== "object") return value;
   const result = {};
   for (const key of Object.keys(value).sort()) {
-    if (SENSITIVE_KEY.test(key)) continue;
+    if (isSensitiveKey(key)) continue;
     const child = value[key];
     if (child !== undefined) result[key] = sanitize(child);
   }

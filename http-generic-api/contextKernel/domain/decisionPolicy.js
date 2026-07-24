@@ -16,12 +16,13 @@ export const DecisionReason = deepFreeze({
   NO_AUTHORIZED_CANDIDATES: "no_authorized_candidates",
   REFERENCE_NOT_AUTHORIZED: "reference_not_authorized",
   EFFECTIVE_SUBJECT_REQUIRED: "effective_subject_required",
-  HIGH_RISK_FALLBACK_FORBIDDEN: "high_risk_fallback_forbidden",
+  FALLBACK_SELECTION_FORBIDDEN: "fallback_selection_forbidden",
   PIN_NOT_VERIFIED: "pin_not_verified",
-  PIN_EXPIRED: "pin_expired",
+  PIN_EXPIRED: "context_pin_expired",
+  PIN_REVISION_CONFLICT: "context_revision_conflict",
 });
 
-const HIGH_RISK = new Set(["high", "critical"]);
+const FALLBACK_ALLOWED_RISKS = new Set(["read", "low"]);
 
 function compareNullable(left, right) {
   return String(left ?? "").localeCompare(String(right ?? ""));
@@ -85,11 +86,18 @@ function selectExactReference(candidates, stableRef) {
   return matches.length === 1 ? matches[0] : null;
 }
 
-function pinState(pin, now) {
+function pinState(pin, now, currentContextRevision) {
   if (!pin) return { usable: false, reasonCode: null };
   if (!pin.verified) return { usable: false, reasonCode: DecisionReason.PIN_NOT_VERIFIED };
   if (pin.expiresAt && Date.parse(pin.expiresAt) <= now.getTime()) {
     return { usable: false, reasonCode: DecisionReason.PIN_EXPIRED };
+  }
+  if (
+    typeof currentContextRevision !== "string" ||
+    currentContextRevision.trim() === "" ||
+    pin.contextRevision !== currentContextRevision
+  ) {
+    return { usable: false, reasonCode: DecisionReason.PIN_REVISION_CONFLICT };
   }
   return { usable: true, reasonCode: null };
 }
@@ -103,6 +111,7 @@ export function resolveContextDecision({
   riskClass = "read",
   explicitRef = null,
   verifiedPin = null,
+  currentContextRevision = null,
   exactBindingRef = null,
   fallbackRef = null,
   allowLowRiskFallback = false,
@@ -123,7 +132,7 @@ export function resolveContextDecision({
   }
 
   if (verifiedPin) {
-    const state = pinState(verifiedPin, now);
+    const state = pinState(verifiedPin, now, currentContextRevision);
     if (!state.usable) return blocked(state.reasonCode, authorizedCandidates);
     const selected = selectExactReference(authorizedCandidates, verifiedPin.stableRef);
     return selected
@@ -139,8 +148,8 @@ export function resolveContextDecision({
   }
 
   if (fallbackRef) {
-    if (HIGH_RISK.has(input.riskClass) || !allowLowRiskFallback) {
-      return blocked(DecisionReason.HIGH_RISK_FALLBACK_FORBIDDEN, authorizedCandidates);
+    if (!allowLowRiskFallback || !FALLBACK_ALLOWED_RISKS.has(input.riskClass)) {
+      return blocked(DecisionReason.FALLBACK_SELECTION_FORBIDDEN, authorizedCandidates);
     }
     const selected = selectExactReference(authorizedCandidates, fallbackRef);
     return selected

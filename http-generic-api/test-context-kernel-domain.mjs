@@ -114,10 +114,23 @@ const pinned = resolveContextDecision({
   candidates,
   operationIntent: "wordpress_site.read",
   verifiedPin,
+  currentContextRevision: "revision-a",
   now: new Date("2029-01-01T00:00:00.000Z"),
 });
 assert.equal(pinned.status, DecisionStatus.RESOLVED);
 assert.equal(pinned.reasonCodes[0], DecisionReason.VERIFIED_PIN);
+
+const stalePin = resolveContextDecision({
+  principal,
+  effectiveSubject: subject,
+  candidates,
+  operationIntent: "wordpress_site.read",
+  verifiedPin,
+  currentContextRevision: "revision-b",
+  now: new Date("2029-01-01T00:00:00.000Z"),
+});
+assert.equal(stalePin.status, DecisionStatus.BLOCKED);
+assert.equal(stalePin.reasonCodes[0], DecisionReason.PIN_REVISION_CONFLICT);
 
 const expiredPin = resolveContextDecision({
   principal,
@@ -125,6 +138,7 @@ const expiredPin = resolveContextDecision({
   candidates,
   operationIntent: "wordpress_site.read",
   verifiedPin,
+  currentContextRevision: "revision-a",
   now: new Date("2031-01-01T00:00:00.000Z"),
 });
 assert.equal(expiredPin.status, DecisionStatus.BLOCKED);
@@ -141,7 +155,33 @@ const highRiskFallback = resolveContextDecision({
   allowLowRiskFallback: true,
 });
 assert.equal(highRiskFallback.status, DecisionStatus.BLOCKED);
-assert.equal(highRiskFallback.reasonCodes[0], DecisionReason.HIGH_RISK_FALLBACK_FORBIDDEN);
+assert.equal(highRiskFallback.reasonCodes[0], DecisionReason.FALLBACK_SELECTION_FORBIDDEN);
+
+const mediumRiskFallback = resolveContextDecision({
+  principal,
+  effectiveSubject: subject,
+  candidates,
+  operationIntent: "wordpress_site.update",
+  operationKind: "mutation",
+  riskClass: "medium",
+  fallbackRef: "connection-a",
+  allowLowRiskFallback: true,
+});
+assert.equal(mediumRiskFallback.status, DecisionStatus.BLOCKED);
+assert.equal(mediumRiskFallback.reasonCodes[0], DecisionReason.FALLBACK_SELECTION_FORBIDDEN);
+
+const lowRiskFallback = resolveContextDecision({
+  principal,
+  effectiveSubject: subject,
+  candidates,
+  operationIntent: "wordpress_site.preview",
+  operationKind: "read",
+  riskClass: "low",
+  fallbackRef: "connection-a",
+  allowLowRiskFallback: true,
+});
+assert.equal(lowRiskFallback.status, DecisionStatus.RESOLVED);
+assert.equal(lowRiskFallback.reasonCodes[0], DecisionReason.LOW_RISK_FALLBACK);
 
 const missingEffectiveSubject = resolveContextDecision({
   principal,
@@ -174,18 +214,28 @@ const contextA = {
   tenantRef: "tenant-a",
   workspaceRef: "workspace-a",
   connectionRef: "connection-a",
+  authorizationRef: "authority-a",
   credentials: { accessToken: "not-part-of-the-hash" },
+  authorization: "Bearer token-a",
 };
 const contextB = {
   connectionRef: "connection-a",
   workspaceRef: "workspace-a",
   tenantRef: "tenant-a",
   principalRef: "principal-admin",
+  authorizationRef: "authority-a",
   credentials: { accessToken: "different-secret" },
+  authorization: "Bearer token-b",
 };
 assert.equal(createContextHash(contextA), createContextHash(contextB));
 assert.match(createContextHash(contextA), /^[0-9a-f]{64}$/);
 assert.equal(createContextRevision(contextA, "previous"), createContextRevision(contextB, "previous"));
+
+const contextWithDifferentAuthority = {
+  ...contextB,
+  authorizationRef: "authority-b",
+};
+assert.notEqual(createContextHash(contextA), createContextHash(contextWithDifferentAuthority));
 
 const revision = createContextRevision(contextA);
 assert.deepEqual(
