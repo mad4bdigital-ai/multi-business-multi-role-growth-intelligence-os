@@ -235,7 +235,7 @@ function expectedAdaptiveDecision(mode) {
 
 function dependencies(overrides = {}) {
   return {
-    verifyRuntime: overrides.verifyRuntime || verifyCurrentOperationRuntime,
+    verifyRuntime: overrides.verifyRuntime || verifyOperationRuntimeReadiness,
     buildCapabilityShadow: overrides.buildCapabilityShadow || buildDynamicCapabilityEnforcementShadow,
     evaluateKillSwitch: overrides.evaluateKillSwitch || evaluateCapabilityKillSwitch,
     shadowDeps: overrides.shadowDeps || {}
