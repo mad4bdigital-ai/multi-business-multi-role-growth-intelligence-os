@@ -1,4 +1,4 @@
-import { verifyCurrentOperationRuntime } from "./operationRuntimeVerifier.js";
+import { verifyOperationRuntimeReadiness } from "./operationRuntimeVerifier.js";
 import { buildDynamicCapabilityEnforcementShadow } from "./dynamicCapabilityEnforcementShadow.js";
 import { evaluateCapabilityKillSwitch } from "./capabilityKillSwitchPolicy.js";
 
