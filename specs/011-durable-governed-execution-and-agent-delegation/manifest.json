@@ -64,7 +64,11 @@
   "phase3_release_gate_status": "hard_disabled",
   "phase3_closeout_branch": "gpt/spec-011-phase3-closeout-20260723",
   "phase3_closeout_pull_request": 3055,
+  "phase3_closeout_merge_sha": "64b862e1de0c0398b0d87e1d7c93d1ceff866103",
   "phase3_closeout_source_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
+  "phase3_delegation_grant_shadow_branch": "gpt/spec-011-phase3-delegation-grant-shadow-20260723",
+  "phase3_delegation_grant_shadow_pull_request": 3067,
+  "phase3_delegation_grant_shadow_source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
   "deliverables": [
     "spec",
     "plan",
@@ -101,7 +105,12 @@
     "phase3_tenant_scope_tests",
     "phase3_merge_evidence",
     "phase3_runtime_descendant_evidence",
-    "phase3_release_supersession_evidence"
+    "phase3_release_supersession_evidence",
+    "phase3_delegation_grant_shadow",
+    "phase3_delegation_preview_contract",
+    "phase3_delegation_lifecycle_preview",
+    "phase3_legacy_delegation_policy_gap_projection",
+    "phase3_delegation_shadow_tests"
   ],
   "constraints": [
     "no_provider_call",
