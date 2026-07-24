@@ -214,12 +214,20 @@ export async function collectOpenApiEndpointInventory({
         if (!operation || typeof operation !== "object") continue;
         const methodName = String(method).toUpperCase();
         const routeKey = `${methodName} ${routePath}`;
-        if (seenRoutes.has(routeKey)) {
+        const operationId = normalizeOperationId(operation.operationId);
+        const existingOperationId = seenRoutes.get(routeKey);
+        if (existingOperationId) {
+          if (existingOperationId !== operationId) {
+            throw syncError(409, "openapi_inventory_duplicate_route", "OpenAPI method/path pairs must resolve to one operationId.", {
+              route: routeKey,
+              first_operation_id: existingOperationId,
+              duplicate_operation_id: operationId,
+            });
+          }
           suppressedRouteDuplicateCount += 1;
           continue;
         }
 
-        const operationId = normalizeOperationId(operation.operationId);
         if (seenOperationIds.has(operationId)) {
           throw syncError(409, "openapi_inventory_duplicate_operation_id", "OpenAPI operationId must be globally unique.", {
             operation_id: operationId,
