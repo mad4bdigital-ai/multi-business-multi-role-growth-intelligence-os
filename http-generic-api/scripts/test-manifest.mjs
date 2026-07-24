@@ -1,4 +1,7 @@
 export const testCommands = [
+  "node test-effective-authority-reconciliation-repository.mjs",
+  "node test-effective-authority-reconciler.mjs",
+  "node test-effective-authority-reconciliation-scheduler.mjs",
   "node test-activation-effective-authority-envelope.mjs",
   "node test-activation-effective-authority-projection.mjs",
   "node test-activation-effective-authority-projection-integration.mjs",
