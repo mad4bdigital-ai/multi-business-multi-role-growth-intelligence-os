@@ -63,6 +63,13 @@
       "number": 3055,
       "branch": "gpt/spec-011-phase3-closeout-20260723",
       "role": "phase3_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "64b862e1de0c0398b0d87e1d7c93d1ceff866103"
+    },
+    "phase3_delegation_grant_shadow_pr": {
+      "number": 3067,
+      "branch": "gpt/spec-011-phase3-delegation-grant-shadow-20260723",
+      "role": "delegation_grant_shadow",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -83,6 +90,11 @@
         "role": "phase3_plan_bound_session_shadow",
         "status": "merged",
         "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+      },
+      {
+        "number": 3067,
+        "role": "phase3_delegation_grant_shadow",
+        "status": "current_pr"
       }
     ],
     "closeout_pr": {
@@ -165,8 +177,39 @@
       "provider_write": false,
       "secrets_included": false
     },
+    "phase3_delegation_grant_shadow": {
+      "status": "complete_on_branch",
+      "source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
+      "pull_request": 3067,
+      "service": "http-generic-api/delegationGrantShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-shadow.mjs",
+      "design": "phase3-delegation-grant-shadow.md",
+      "reused_plan_bound_session_shadow": "http-generic-api/planBoundSessionShadow.js",
+      "reused_manual_opt_in": "http-generic-api/agentDelegationOptIn.js",
+      "preview_contract": true,
+      "legacy_inspection_contract": true,
+      "revoke_preview": true,
+      "expire_preview": true,
+      "legacy_dispatch_eligible": false,
+      "tenant_scope": true,
+      "self_delegation_blocked": true,
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_binding": true,
+      "bounded_ttl_and_limits": true,
+      "readback_required": true,
+      "stop_on_drift_required": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_plan_bound_session_shadow_complete_on_main"
+      "status": "phase3_delegation_grant_shadow_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -201,6 +244,15 @@
         "Unit & Integration Tests"
       ]
     },
+    "phase3_delegation_grant_shadow_ci": {
+      "status": "pending_pr_3067",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
     "migration": {
       "status": "not_required_for_phase1_shadow"
     },
@@ -209,6 +261,9 @@
     },
     "phase3_migration": {
       "status": "not_required_for_phase3_shadow_session"
+    },
+    "phase3_delegation_grant_shadow_migration": {
+      "status": "not_required_for_shadow_contract"
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -286,7 +341,8 @@
       "phase2_status": "complete_on_main",
       "phase2_closeout_status": "merged",
       "phase3_status": "complete_on_main",
-      "phase3_closeout_status": "current_pr",
+      "phase3_closeout_status": "merged",
+      "phase3_delegation_grant_shadow_status": "pending_merge",
       "spec_status": "pending_remaining_phases"
     }
   },
