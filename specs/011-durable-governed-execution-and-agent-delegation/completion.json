@@ -218,7 +218,7 @@
       "secrets_included": false
     },
     "implementation": {
-      "status": "phase3_delegation_grant_shadow_complete_on_branch"
+      "status": "phase3_delegation_grant_shadow_complete_on_main"
     },
     "ci": {
       "status": "pass",
@@ -254,7 +254,9 @@
       ]
     },
     "phase3_delegation_grant_shadow_ci": {
-      "status": "pending_pr_3067",
+      "status": "pass",
+      "head_sha": "2ad2d916cb43f8410c7f5ae80a6fb4bcffec69fa",
+      "base_sha": "bd404977fe12ef12c8449e143705e40a475690ce",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -273,6 +275,42 @@
     },
     "phase3_delegation_grant_shadow_migration": {
       "status": "not_required_for_shadow_contract"
+    },
+    "phase3_delegation_grant_shadow_production_verification": {
+      "status": "verified_at_runtime_descendant_and_current_main_parity",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "deployed_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "current_main_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "runtime_verification_run_id": "5d5a1318-0ecd-4b38-8283-461ef627e642",
+      "checked_at": "2026-07-24T02:58:15.641Z",
+      "merge_to_runtime_status": "ahead",
+      "merge_to_runtime_ahead_by": 2,
+      "merge_to_runtime_behind_by": 0,
+      "runtime_to_main_status": "identical",
+      "runtime_to_main_ahead_by": 0,
+      "runtime_to_main_behind_by": 0,
+      "release_readiness": "pass",
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "degraded_contract_pre_execution_module_missing",
+      "release_operation_id": "8aada61f-4007-46e1-804f-60c4b0b3afe9",
+      "gate_id": "879fab13-058a-46f9-a746-7b252241de84",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "observed_error_code": "ERR_MODULE_NOT_FOUND",
+      "missing_module": "http-generic-api/knowledgeSurfaceResolver.js",
+      "transient_module_race_reconciled": true,
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "4bbc4963ef81a5f9cf847dcab9bd53742aebc1c505678f001c0fc625b66c4416",
+      "secrets_included": false
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -351,7 +389,8 @@
       "phase2_closeout_status": "merged",
       "phase3_status": "complete_on_main",
       "phase3_closeout_status": "merged",
-      "phase3_delegation_grant_shadow_status": "pending_merge",
+      "phase3_delegation_grant_shadow_status": "complete_on_main",
+      "phase3_delegation_grant_shadow_closeout_status": "current_branch",
       "spec_status": "pending_remaining_phases"
     }
   },
