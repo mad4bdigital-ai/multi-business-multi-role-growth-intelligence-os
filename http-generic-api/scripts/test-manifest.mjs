@@ -603,6 +603,7 @@ export const testCommands = [
   "node test-operation-runtime-verifier.mjs",
   "node test-operation-authority-preflight.mjs",
   "node test-operation-runtime-contract-loader.mjs",
+  "node test-operation-runtime-contract-resolver.mjs",
   "node test-canonical-execution-contract-resolver.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
