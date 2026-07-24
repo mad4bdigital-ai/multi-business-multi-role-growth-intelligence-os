@@ -81,6 +81,7 @@
   "phase3_delegation_grant_shadow_release_gate_id": "879fab13-058a-46f9-a746-7b252241de84",
   "phase3_delegation_grant_shadow_release_gate_status": "hard_disabled",
   "phase3_delegation_grant_shadow_closeout_branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
+  "phase3_delegation_grant_shadow_closeout_pull_request": 3092,
   "deliverables": [
     "spec",
     "plan",
