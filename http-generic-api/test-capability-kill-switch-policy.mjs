@@ -4,6 +4,7 @@ import {
   CAPABILITY_KILL_SWITCHES,
   parseCapabilityKillSwitchValue,
   isCapabilityMutationAction,
+  isCapabilityKillSwitchGatedAction,
   evaluateCapabilityKillSwitch,
   capabilityKillSwitchError,
   assertCapabilityKillSwitchOpen,
@@ -43,6 +44,26 @@ for (const [surface, envVar, blockedActions, allowedActions] of cases) {
   }
 }
 
+const fallbackSurface = "operation_contract_code_fallback";
+const fallbackEnvVar = "CAPABILITY_KILL_SWITCH_OPERATION_CONTRACT_CODE_FALLBACK";
+assert.equal(CAPABILITY_KILL_SWITCHES[fallbackSurface].env_var, fallbackEnvVar);
+assert.equal(isCapabilityMutationAction(fallbackSurface, "use"), false, "code fallback must remain read-only");
+assert.equal(isCapabilityKillSwitchGatedAction(fallbackSurface, "use"), true, "code fallback must remain switch-gated");
+const fallbackOpen = evaluateCapabilityKillSwitch({ surface: fallbackSurface, action: "use", env: {} });
+assert.equal(fallbackOpen.blocked, false);
+assert.equal(fallbackOpen.mutation, false);
+assert.equal(fallbackOpen.gated_action, true);
+const fallbackBlocked = evaluateCapabilityKillSwitch({
+  surface: fallbackSurface,
+  action: "use",
+  env: { [fallbackEnvVar]: "true" },
+});
+assert.equal(fallbackBlocked.blocked, true);
+assert.equal(fallbackBlocked.mutation, false);
+assert.equal(fallbackBlocked.gated_action, true);
+assert.equal(fallbackBlocked.switch_key, fallbackSurface);
+assert.equal(fallbackBlocked.env_var, fallbackEnvVar);
+
 const isolated = evaluateCapabilityKillSwitch({
   surface: "n8n_mutation",
   action: "run_workflow",
@@ -75,9 +96,11 @@ assert.doesNotThrow(() => assertCapabilityKillSwitchOpen({ surface: "local_shell
 const snapshot = capabilityKillSwitchSnapshot({
   CAPABILITY_KILL_SWITCH_LOCAL_SHELL: "true",
   CAPABILITY_KILL_SWITCH_RAW_CREDENTIAL_INTAKE: "false",
+  CAPABILITY_KILL_SWITCH_OPERATION_CONTRACT_CODE_FALLBACK: "true",
 });
 assert.equal(snapshot.local_shell.enabled, true);
 assert.equal(snapshot.raw_credential_intake_creation.enabled, false);
+assert.equal(snapshot.operation_contract_code_fallback.enabled, true);
 assert.equal(snapshot.local_shell.secrets_included, false);
 
 const proxySource = await readFile(new URL("./routes/connectorProxyRoutes.js", import.meta.url), "utf8");

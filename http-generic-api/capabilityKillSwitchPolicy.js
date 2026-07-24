@@ -8,6 +8,10 @@ const MUTATING_ACTIONS = Object.freeze({
   raw_credential_intake_creation: new Set(["create"]),
 });
 
+const NON_MUTATING_GATED_ACTIONS = Object.freeze({
+  operation_contract_code_fallback: new Set(["use"]),
+});
+
 export const CAPABILITY_KILL_SWITCHES = Object.freeze({
   local_shell: Object.freeze({
     env_var: "CAPABILITY_KILL_SWITCH_LOCAL_SHELL",
@@ -29,6 +33,10 @@ export const CAPABILITY_KILL_SWITCHES = Object.freeze({
     env_var: "CAPABILITY_KILL_SWITCH_RAW_CREDENTIAL_INTAKE",
     description: "Blocks raw admin credential-intake session creation without disabling tenant-safe intake flows.",
   }),
+  operation_contract_code_fallback: Object.freeze({
+    env_var: "CAPABILITY_KILL_SWITCH_OPERATION_CONTRACT_CODE_FALLBACK",
+    description: "Blocks temporary static operation-contract fallback while preserving SQL-primary contract loading.",
+  }),
 });
 
 export function parseCapabilityKillSwitchValue(value) {
@@ -41,17 +49,27 @@ export function isCapabilityMutationAction(surface, action) {
   return MUTATING_ACTIONS[normalizedSurface]?.has(normalizedAction) || false;
 }
 
+export function isCapabilityKillSwitchGatedAction(surface, action) {
+  const normalizedSurface = String(surface || "").trim().toLowerCase();
+  const normalizedAction = String(action || "").trim().toLowerCase();
+  return isCapabilityMutationAction(normalizedSurface, normalizedAction)
+    || NON_MUTATING_GATED_ACTIONS[normalizedSurface]?.has(normalizedAction)
+    || false;
+}
+
 export function evaluateCapabilityKillSwitch({ surface, action, env = process.env } = {}) {
   const normalizedSurface = String(surface || "").trim().toLowerCase();
   const normalizedAction = String(action || "").trim().toLowerCase();
   const definition = CAPABILITY_KILL_SWITCHES[normalizedSurface] || null;
   const mutation = isCapabilityMutationAction(normalizedSurface, normalizedAction);
+  const gatedAction = isCapabilityKillSwitchGatedAction(normalizedSurface, normalizedAction);
   const enabled = definition ? parseCapabilityKillSwitchValue(env?.[definition.env_var]) : false;
   return {
-    blocked: Boolean(definition && mutation && enabled),
+    blocked: Boolean(definition && gatedAction && enabled),
     surface: normalizedSurface || null,
     action: normalizedAction || null,
     mutation,
+    gated_action: gatedAction,
     switch_enabled: enabled,
     switch_key: definition ? normalizedSurface : null,
     env_var: definition?.env_var || null,
