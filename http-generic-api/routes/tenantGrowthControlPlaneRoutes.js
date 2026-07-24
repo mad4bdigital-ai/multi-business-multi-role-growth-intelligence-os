@@ -63,7 +63,7 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   });
 
   // frontend-surface-operation: GET /tenant/control-plane/activity-bindings
-  router.get("/tenant/control-plane/activity-bindings", requireJwt, requireTenantProjectionPrincipal, async (req, res) => {
+  router.get("/tenant/control-plane/activity-bindings", requireTenantProjectionPrincipal, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listActivityBindings(req.auth, req.query);
