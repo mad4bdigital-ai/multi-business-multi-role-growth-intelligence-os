@@ -130,4 +130,6 @@ assert.deepEqual(
   "open ticket notifications should remain eligible",
 );
 
+await import("./test-auth-email-outbox-attempt-ledger.mjs");
+
 console.log("auth email outbox worker tests passed");
