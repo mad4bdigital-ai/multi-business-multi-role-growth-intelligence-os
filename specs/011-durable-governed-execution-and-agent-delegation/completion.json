@@ -74,10 +74,10 @@
       "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
     },
     "phase3_delegation_grant_shadow_closeout_pr": {
-      "number": null,
+      "number": 3092,
       "branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
       "role": "delegation_grant_shadow_evidence_closeout",
-      "status": "current_branch"
+      "status": "current_pr"
     },
     "implementation_prs": [
       {
