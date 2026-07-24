@@ -29,6 +29,7 @@ const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRout
 const REPOSITORY_TENANT_INTELLIGENCE_V2_PATH = path.join(__dirname, "repositoryTenantIntelligenceV2.js");
 const REPOSITORY_GOVERNANCE_V6_PATH = path.join(__dirname, "repositoryGovernanceV6.js");
 const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
+const RESOURCE_API_COVERAGE_MANIFEST_PATH = path.join(__dirname, "resource-api-coverage.manifest.json");
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
 
@@ -1855,6 +1856,120 @@ async function checkLegacyTables() {
   return results;
 }
 
+async function checkResourceApiCallabilityReadiness() {
+  const findings = [];
+  try {
+    const manifest = JSON.parse(await fs.readFile(RESOURCE_API_COVERAGE_MANIFEST_PATH, "utf8"));
+    const gate = manifest.callability_gate || {};
+    const contracts = Array.isArray(gate.contracts) ? gate.contracts : [];
+    if (gate.required !== true) findings.push({ type: "callability_gate_not_enabled" });
+    if (!contracts.length) findings.push({ type: "callability_contracts_missing" });
+
+    for (const contract of contracts) {
+      const familyKey = String(contract.family_key || "").trim() || null;
+      if (!familyKey) {
+        findings.push({ type: "callability_family_key_missing" });
+        continue;
+      }
+      const readSource = async (relativePath, role) => {
+        if (!relativePath) {
+          findings.push({ type: "callability_contract_file_not_declared", family_key: familyKey, role });
+          return "";
+        }
+        try {
+          return await fs.readFile(path.join(__dirname, relativePath), "utf8");
+        } catch {
+          findings.push({ type: "callability_contract_file_missing", family_key: familyKey, role, file: relativePath });
+          return "";
+        }
+      };
+      const [contractSource, registrySource, implementationSource] = await Promise.all([
+        readSource(contract.contract_source_file, "contract_source"),
+        readSource(contract.admin_registry_file, "admin_registry"),
+        readSource(contract.implementation_file, "implementation"),
+      ]);
+
+      if (contract.contract_source_marker && !contractSource.includes(contract.contract_source_marker)) {
+        findings.push({ type: "callability_contract_source_marker_missing", family_key: familyKey, marker: contract.contract_source_marker });
+      }
+      if (contract.contract_key_pattern) {
+        try {
+          const expression = new RegExp(contract.contract_key_pattern, "g");
+          const keys = [];
+          let match;
+          while ((match = expression.exec(contractSource)) !== null) {
+            keys.push(String(match[1] || match[0] || "").trim());
+            if (match[0] === "") expression.lastIndex += 1;
+          }
+          const uniqueKeys = new Set(keys.filter(Boolean));
+          if (Number.isInteger(contract.expected_contract_count) && keys.length !== contract.expected_contract_count) {
+            findings.push({ type: "callability_contract_count_mismatch", family_key: familyKey, expected: contract.expected_contract_count, actual: keys.length });
+          }
+          if (uniqueKeys.size !== keys.length) {
+            findings.push({ type: "callability_contract_keys_not_unique", family_key: familyKey, contract_count: keys.length, unique_count: uniqueKeys.size });
+          }
+        } catch (error) {
+          findings.push({ type: "callability_contract_pattern_invalid", family_key: familyKey, message: error?.message || String(error) });
+        }
+      } else {
+        findings.push({ type: "callability_contract_key_pattern_missing", family_key: familyKey });
+      }
+
+      for (const [role, marker] of [
+        ["descriptor", contract.descriptor_marker],
+        ["handler", contract.handler_marker],
+        ["handler_call", contract.handler_call_marker],
+      ]) {
+        if (!marker || !registrySource.includes(marker)) {
+          findings.push({ type: "callability_registry_marker_missing", family_key: familyKey, role, marker: marker || null });
+        }
+      }
+      if (!contract.implementation_export_marker || !implementationSource.includes(contract.implementation_export_marker)) {
+        findings.push({ type: "callability_implementation_export_missing", family_key: familyKey, marker: contract.implementation_export_marker || null });
+      }
+      for (const marker of contract.required_safety_markers || []) {
+        if (!implementationSource.includes(marker)) {
+          findings.push({ type: "callability_safety_marker_missing", family_key: familyKey, marker });
+        }
+      }
+      if (contract.admin_preview_required_while_disabled === true && !contract.admin_preview_tool) {
+        findings.push({ type: "callability_admin_preview_not_declared", family_key: familyKey });
+      }
+      if (contract.runtime_execution_allowed !== false) {
+        findings.push({ type: "callability_preview_runtime_execution_not_explicitly_blocked", family_key: familyKey });
+      }
+    }
+
+    return {
+      status: findings.length ? "fail" : "pass",
+      detail: findings.length
+        ? `Resource API callability readiness found ${findings.length} blocking contract gap(s).`
+        : `Resource API callability readiness passed for ${contracts.length} declared contract family or families.`,
+      contract_count: contracts.length,
+      finding_count: findings.length,
+      findings: findings.slice(0, 100),
+      executes_tools: false,
+      provider_calls: false,
+      credential_payload_reads: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  } catch (error) {
+    return {
+      status: "fail",
+      detail: `Resource API callability readiness check failed: ${error?.message || String(error)}`,
+      contract_count: 0,
+      finding_count: 1,
+      findings: [{ type: "callability_readiness_exception", message: error?.message || String(error) }],
+      executes_tools: false,
+      provider_calls: false,
+      credential_payload_reads: false,
+      mutations_executed: false,
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkSystemLayerDescriptorCallability() {
   try {
     const { runSystemLayerDescriptorCallabilityAudit } = await import("./routes/systemLayerRoutes.js");
@@ -2239,6 +2354,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     admin_tool_registry_smoke: null,
     migration_drift: null,
     runtime_policy_seed_readiness: null,
+    resource_api_callability_readiness: null,
     system_layer_descriptor_callability: null,
     repository_intelligence_v2_readiness: null,
     repository_governance_v6_readiness: null,
@@ -2318,6 +2434,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
 
+  report.resource_api_callability_readiness = await checkResourceApiCallabilityReadiness();
+  if (report.resource_api_callability_readiness.status === "fail") report.overall = "fail";
+
   report.system_layer_descriptor_callability = await checkSystemLayerDescriptorCallability();
   if (report.system_layer_descriptor_callability.status === "fail") report.overall = "fail";
 
@@ -2358,6 +2477,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     report.admin_tool_registry_smoke,
     report.migration_drift,
     report.runtime_policy_seed_readiness,
+    report.resource_api_callability_readiness,
     report.repository_intelligence_v2_readiness,
     report.repository_governance_v6_readiness,
     report.gpt_session_archive_monitoring,
