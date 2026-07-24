@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { getPool } from "./db.js";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -9,6 +10,8 @@ const RECONCILER_PATH = path.join(__dirname, "scripts", "governed-migration-reco
 
 export const GOVERNED_MIGRATION_RECONCILIATION_CONFIRMATION =
   "APPLY_GOVERNED_MIGRATION_RECONCILIATION";
+export const GOVERNED_MIGRATION_RECONCILIATION_LOCK =
+  "governed_migration_reconciliation.v1";
 
 function parseStructuredOutput(value = "") {
   const lines = String(value || "").trim().split(/\r?\n/).filter(Boolean).reverse();
@@ -60,6 +63,26 @@ function boundedReconciliation(output) {
   };
 }
 
+function runtimeFailure(error) {
+  const output = parseStructuredOutput(error?.stdout) || parseStructuredOutput(error?.stderr);
+  return {
+    ok: false,
+    exit_code: Number.isInteger(error?.code) ? error.code : null,
+    error: {
+      code: output?.error?.code || "governed_migration_reconciliation_runtime_failed",
+      message: String(
+        output?.error?.message
+        || output?.error
+        || error?.message
+        || "Reconciliation failed.",
+      ).slice(0, 1000),
+    },
+    output: boundedReconciliation(output),
+    raw_payload_stored: false,
+    secrets_included: false,
+  };
+}
+
 export async function runGovernedMigrationReconciliationRuntime(options = {}, dependencies = {}) {
   const apply = options.apply === true;
   const limit = Math.max(1, Math.min(Number(options.limit || 2000), 2000));
@@ -71,7 +94,29 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
   if (migration) args.push(`--migration=${path.basename(migration)}`);
 
   const execute = dependencies.execFileAsync || execFileAsync;
+  let connection = null;
+  let lockAcquired = false;
+
   try {
+    const pool = dependencies.pool || getPool();
+    connection = await pool.getConnection();
+    const [lockRows] = await connection.query(
+      "SELECT GET_LOCK(?, 0) AS acquired",
+      [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
+    );
+    lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
+
+    if (!lockAcquired) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "governed_migration_reconciliation_lock_busy",
+        lock_key: GOVERNED_MIGRATION_RECONCILIATION_LOCK,
+        mode: apply ? "apply" : "dry_run",
+        secrets_included: false,
+      };
+    }
+
     const result = await execute(process.execPath, [RECONCILER_PATH, ...args], {
       cwd: __dirname,
       env: process.env,
@@ -86,20 +131,18 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
       ok: bounded.ok,
       exit_code: 0,
       output: bounded,
+      lock_key: GOVERNED_MIGRATION_RECONCILIATION_LOCK,
       secrets_included: false,
     };
   } catch (error) {
-    const output = parseStructuredOutput(error?.stdout) || parseStructuredOutput(error?.stderr);
-    return {
-      ok: false,
-      exit_code: Number.isInteger(error?.code) ? error.code : null,
-      error: {
-        code: output?.error?.code || "governed_migration_reconciliation_runtime_failed",
-        message: String(output?.error?.message || output?.error || error?.message || "Reconciliation failed.").slice(0, 1000),
-      },
-      output: boundedReconciliation(output),
-      raw_payload_stored: false,
-      secrets_included: false,
-    };
+    return runtimeFailure(error);
+  } finally {
+    if (connection && lockAcquired) {
+      await connection.query(
+        "SELECT RELEASE_LOCK(?) AS released",
+        [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
+      ).catch(() => {});
+    }
+    if (connection && typeof connection.release === "function") connection.release();
   }
 }
