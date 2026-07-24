@@ -487,7 +487,9 @@ JOIN (
 ) layers
 WHERE capability.capability_binding_key='growth_intelligence_platform.github.repository_main_moved_webhook.production'
 ON DUPLICATE KEY UPDATE precedence=VALUES(precedence), configuration_json=VALUES(configuration_json),
-  lifecycle_status='active', layer_version=layer_version+1, lock_version=lock_version+1,
+  lifecycle_status='active',
+  layer_version=repository_capability_policy_layers.layer_version+1,
+  lock_version=repository_capability_policy_layers.lock_version+1,
   metadata_json=VALUES(metadata_json), updated_at=NOW();
 
 INSERT INTO workspace_resource_grants
