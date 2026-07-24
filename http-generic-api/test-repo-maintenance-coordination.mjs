@@ -34,8 +34,8 @@ const report = attachRepoMaintenanceCoordination({
   changed_files: ["docs/surface-contract-discovery-status.md"],
 });
 
-assert.equal(report.repository_coordination.tool_key, "auto_sync_commit");
+assert.equal(report.repository_coordination.action, "allow_with_path_claim");
 assert.equal(report.repository_coordination.should_block, false);
-assert.equal(report.repository_coordination.mode, "advisory");
+assert.deepEqual(report.repository_coordination.policy_groups, ["documentation"]);
 
 console.log("repo maintenance coordination telemetry ok");
