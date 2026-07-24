@@ -254,6 +254,88 @@ components:
         alert_level: { type: string, enum: [none, warning, critical] }
         secrets_included: { type: boolean, enum: [false] }
 
+    ActivationEffectiveAuthorityProjection:
+      type: object
+      additionalProperties: false
+      required:
+        - source
+        - status
+        - availability
+        - decision
+        - authority_granted
+        - enforcement_mode
+        - legacy_runtime_authoritative
+        - execution_authority_changed
+        - subject_scope
+        - registered_count
+        - authorized_count
+        - projected_count
+        - executable_candidate_count
+        - drift_detected
+        - drift_issue_codes
+        - projection_eligibility
+        - evaluated_at
+        - provider_calls
+        - credential_payload_reads
+        - external_writes
+        - secrets_included
+      properties:
+        source: { type: string, enum: [ueacp_activation_projection] }
+        status: { type: string, enum: [active, degraded] }
+        availability: { type: string, enum: [available, unavailable] }
+        decision: { type: string, enum: [shadow_ready, degraded] }
+        authority_granted: { type: boolean, enum: [false] }
+        enforcement_mode: { type: string, enum: [shadow_only] }
+        legacy_runtime_authoritative: { type: boolean, enum: [true] }
+        execution_authority_changed: { type: boolean, enum: [false] }
+        subject_scope:
+          type: object
+          additionalProperties: false
+          required: [scopeId, scopeKey, scopeType, tenantId, version]
+          properties:
+            scopeId: { type: [string, "null"] }
+            scopeKey: { type: string }
+            scopeType: { type: string, enum: [platform, tenant] }
+            tenantId: { type: [string, "null"] }
+            version: { type: [integer, "null"], minimum: 1 }
+        registered_count: { type: [integer, "null"], minimum: 0 }
+        authorized_count: { type: [integer, "null"], minimum: 0 }
+        projected_count: { type: [integer, "null"], minimum: 0 }
+        executable_candidate_count: { type: [integer, "null"], minimum: 0 }
+        drift_detected: { type: boolean }
+        drift_issue_codes:
+          type: array
+          items: { type: string }
+        error_code: { type: string }
+        projection_eligibility:
+          type: object
+          additionalProperties: false
+          required: [activation, connector_inventory, execution]
+          properties:
+            activation: { type: boolean, enum: [true] }
+            connector_inventory: { type: boolean }
+            execution: { type: boolean, enum: [false] }
+        evaluated_at: { type: string, format: date-time }
+        provider_calls: { type: boolean, enum: [false] }
+        credential_payload_reads: { type: boolean, enum: [false] }
+        external_writes: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationAuthorizedAccess:
+      type: object
+      additionalProperties: true
+      required: [source, secrets_included]
+      properties:
+        source:
+          type: string
+          enum: [activation_dynamic_authorization_envelope]
+        effective_authority:
+          $ref: "#/components/schemas/ActivationEffectiveAuthorityProjection"
+          description: >
+            Optional non-authoritative UEACP shadow projection. Omitted when a tenant-scoped
+            subject cannot be resolved. Legacy Activation remains the execution authority.
+        secrets_included: { type: boolean, enum: [false] }
+
     ActivationHardRunSummaryResponse:
       type: object
       additionalProperties: true
@@ -8943,6 +9025,8 @@ paths:
                   last_session:
                     type: object
                     additionalProperties: true
+                  authorized_access:
+                    $ref: "#/components/schemas/ActivationAuthorizedAccess"
                   pagination:
                     type: object
                     additionalProperties: false
