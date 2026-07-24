@@ -137,6 +137,23 @@ The semantic capability descriptor source must expose an admin-only, read-only `
 
 See `docs/semantic-capability-effective-resolution.md` and the semantic capability canonical pages in `system_bootstrap`, `direct_instructions_registry_patch`, `module_loader`, and `prompt_router`.
 
+### Unified Effective Authority Control Plane runtime
+
+UEACP provides one shadow-only authority projection for Platform Admin and Tenant subjects. The current implementation covers read-only connector inventory, an optional Activation projection, bounded decision and drift evidence, and a disabled-by-default reconciliation scheduler. It does not replace the legacy runtime decision or authorize provider execution.
+
+Required invariants:
+
+- `authority_granted=false`
+- `enforcement_mode=shadow_only`
+- `legacy_runtime_authoritative=true`
+- `execution_authority_changed=false`
+- `provider_calls=false`
+- `credential_payload_reads=false`
+- `external_writes=false`
+- `secrets_included=false`
+
+`connector.inventory.read` is the initial capability and must be resolved from the registry. Live parity is blocked until its migration and the shadow-ledger migration are applied through the governed migration path with same-cycle readback. Zero manifests before capability registration are not parity evidence. `UEACP_RECONCILIATION_ENABLED`, `UEACP_RECONCILIATION_PERSIST`, and `UEACP_SHADOW_EVIDENCE_MODE` remain disabled unless explicitly configured after schema verification. Prompts, direct instructions, loaders, projections, and reconcilers may not promote UEACP from shadow evidence to `canary`, `active`, provider execution, shared PEP enforcement, or legacy cutover.
+
 ### Capability Enablement Broker runtime
 
 The descriptor source `capability_enablement_broker_v1` is the long-term governance entry point for role-aware capability enablement. It exposes `capability_enablement_resolve`, `capability_enablement_proposal_preview`, `capability_enablement_decision_report`, `capability_enablement_tenant_projection`, and `capability_enablement_readiness_smoke` through the system-layer descriptor registry.

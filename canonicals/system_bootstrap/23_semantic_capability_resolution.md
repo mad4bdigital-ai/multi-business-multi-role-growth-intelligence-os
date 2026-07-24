@@ -73,6 +73,14 @@ Tool exports are derived projections. An export is eligible only when the comple
 
 Shadow comparisons may write no-secret decision evidence to `tenant_capability_shadow_decisions`. They must not store credentials, tokens, authorization headers, provider request bodies, or provider responses. Runtime responses must state `secrets_included=false`.
 
+### Unified Effective Authority shadow contract
+
+Semantic capability resolution may emit an Effective Authority Manifest and connector projection only as non-authoritative shadow evidence in this stage. `connector.inventory.read` is the initial read-only capability and must be registry-resolved; it must never be invented or treated as live before its migration and same-cycle readback complete.
+
+The manifest and projection must preserve `authority_granted=false`, `enforcement_mode=shadow_only`, `legacy_runtime_authoritative=true`, `execution_authority_changed=false`, `provider_calls=false`, `credential_payload_reads=false`, `external_writes=false`, and `secrets_included=false`.
+
+The ordering invariant is `Executable Candidate ⊆ Projected ⊆ Authorized ⊆ Registered`. A zero-manifest preview before capability registration is blocked evidence, not alignment. Reconciliation is disabled by default and preview-only by default; persistence requires the shadow-ledger schema plus an explicitly enabled evidence mode. Resolution, projection, evidence, or reconciliation must not load a provider executor or imply PEP enforcement.
+
 ### Readiness contract
 
 The system-layer descriptor source must declare `tenant_effective_capability_readiness_smoke`. The smoke is admin-only and read-only. It must verify the four migration-owned tables, four migration-owned views, initial semantic capability seeds, at least one provider binding, at least one shadow binding, endpoint aliases, descriptor wiring, and explicit no-provider/no-mutation/no-secret guarantees.

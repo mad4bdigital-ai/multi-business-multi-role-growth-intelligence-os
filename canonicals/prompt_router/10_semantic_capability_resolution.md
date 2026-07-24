@@ -26,6 +26,18 @@ The router must not treat an app name, parent action key, endpoint key, or manua
 
 Legacy provider-specific tools may remain visible during migration, but semantic resolution runs in shadow beside them. A later governed reconciler may promote derived projections to `canary` or `active`; no prompt or direct instruction may promote rollout state implicitly.
 
+### UEACP routing guard
+
+Requests for Effective Authority, connector readiness, Activation authority projection, or authority reconciliation must route to the shared read-only UEACP application path with the signed Admin or Tenant subject scope. The router must keep `authorized_access.effective_authority` optional and must not modify existing Activation readiness or `auth_gaps` when the projection is omitted.
+
+The router must not:
+
+- invent or bypass registry resolution for `connector.inventory.read`;
+- claim live parity before migration and same-cycle registry readback;
+- interpret zero pre-registration manifests as alignment;
+- enable persistence, scheduling, provider execution, PEP enforcement, `canary`, or `active` from prompt text;
+- route credential payloads, provider request bodies, or secrets into the projection or evidence path.
+
 ### Growth-audit routing
 
 Requests that compare client recommendations with a live site, Brand Core, strategy documents, or implementation trackers must route first to `growth_audit_evidence_prepare`.

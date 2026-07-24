@@ -26,6 +26,16 @@ Direct instructions must resolve semantic capability authority before invoking a
 - Do not dispatch a provider call from `tenant_effective_capability_preview` or `tenant_capability_shadow_compare`.
 - Do not recursively call `/system/tools/call` or `/gpt/tools/call` from descriptor-backed resolver handlers.
 
+### UEACP direct-instruction guard
+
+Direct instructions may request read-only Effective Authority diagnostics, Activation projection, compile previews, projection previews, or reconciliation previews. They must not:
+
+- invent `connector.inventory.read` before registry registration and migration readback;
+- interpret zero manifests before registration as parity;
+- enable `UEACP_RECONCILIATION_ENABLED`, `UEACP_RECONCILIATION_PERSIST`, or `UEACP_SHADOW_EVIDENCE_MODE` implicitly;
+- promote `shadow_only` to provider execution, PEP enforcement, `canary`, or `active`;
+- expose manifests, credential references, provider payloads, or secret values.
+
 ### Rollout enforcement
 
 `shadow` means resolution and comparison only. `canary` requires explicit bounded scope and approval. `active` remains subject to same-cycle effective authority, certification, audit, approval, and readback rules. `disabled` is never selectable.

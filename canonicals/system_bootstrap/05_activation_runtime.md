@@ -352,6 +352,23 @@ Dashboard preference and recommendation-feedback writes must derive tenant and u
 Tenant activation lifecycle must update preparation and delivery state for the current activation run. A successful Session Context response must not leave the run indefinitely in `running/pending` solely because the Tenant GPT product projection was used.
 
 
+### Unified Effective Authority shadow projection contract
+
+Activation may expose `authorized_access.effective_authority` as an optional, backward-compatible projection for Platform Admin and tenant-scoped subjects. Omission of the projection must not break existing clients or alter existing Activation readiness, `auth_gaps`, or session-context classification.
+
+The Unified Effective Authority Control Plane is diagnostic and shadow-only in this stage. Every projection and reconciliation result must preserve:
+
+- `authority_granted=false`
+- `enforcement_mode=shadow_only`
+- `legacy_runtime_authoritative=true`
+- `execution_authority_changed=false`
+- `provider_calls=false`
+- `credential_payload_reads=false`
+- `external_writes=false`
+- `secrets_included=false`
+
+`connector.inventory.read` is the initial read-only capability. Live parity must not be claimed until its governed migration is applied and same-cycle registry readback succeeds. A zero-manifest compile or projection preview before registration is `blocked`, not proof of alignment. Reconciliation scheduling is disabled by default, runs in preview by default, prevents overlap, and may persist only when the shadow-ledger migrations are applied and `UEACP_SHADOW_EVIDENCE_MODE` is explicitly enabled. No Activation route, reconciler, prompt, or direct instruction may promote this shadow state to provider execution, PEP enforcement, `canary`, or `active`.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
