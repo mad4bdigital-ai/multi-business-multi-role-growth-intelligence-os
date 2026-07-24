@@ -46,8 +46,7 @@ function errorResponse(req, res, error) {
   });
 }
 
-export function buildTenantGrowthControlPlaneRoutes({ pool, requireJwt }) {
-  if (typeof requireJwt !== "function") throw new Error("requireJwt middleware is required");
+export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   const router = Router();
   const repository = createTenantGrowthControlProjectionRepository({ pool });
   const service = createTenantGrowthControlProjectionService({ repository });
