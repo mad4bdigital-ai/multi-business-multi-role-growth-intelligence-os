@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
-import { canonicalizeOperationValue, stableOperationHash } from "./operationRegistryContracts.js";
+import { canonicalizeOperationValue, operationRevisionHash, stableOperationHash } from "./operationRegistryContracts.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
@@ -105,7 +105,9 @@ function normalizeRevisionItem(item, index) {
   validateSafeSnapshot(snapshot, `input.revisions[${index}].snapshot`);
   const canonicalSnapshot = canonicalizeOperationValue(snapshot);
   const revisionHash = requiredHash(root.revision_hash, `input.revisions[${index}].revision_hash`);
-  const observedHash = stableOperationHash(canonicalSnapshot);
+  const observedHash = revisionType === "contract"
+    ? operationRevisionHash(canonicalSnapshot)
+    : stableOperationHash(canonicalSnapshot);
   if (observedHash !== revisionHash) {
     fail("operation_run_revision_hash_mismatch", "A revision snapshot does not match its declared hash.", 409, {
       revision_type: revisionType,
