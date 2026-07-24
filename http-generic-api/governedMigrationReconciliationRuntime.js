@@ -69,7 +69,7 @@ function runtimeFailure(error) {
     ok: false,
     exit_code: Number.isInteger(error?.code) ? error.code : null,
     error: {
-      code: output?.error?.code || "governed_migration_reconciliation_runtime_failed",
+      code: output?.error?.code || error?.code || "governed_migration_reconciliation_runtime_failed",
       message: String(
         output?.error?.message
         || output?.error
@@ -81,6 +81,12 @@ function runtimeFailure(error) {
     raw_payload_stored: false,
     secrets_included: false,
   };
+}
+
+function operationalError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 export async function runGovernedMigrationReconciliationRuntime(options = {}, dependencies = {}) {
@@ -96,6 +102,7 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
   const execute = dependencies.execFileAsync || execFileAsync;
   let connection = null;
   let lockAcquired = false;
+  let response = null;
 
   try {
     const pool = dependencies.pool || getPool();
@@ -104,10 +111,10 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
       "SELECT GET_LOCK(?, 0) AS acquired",
       [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
     );
-    lockAcquired = Number(lockRows?.[0]?.acquired || 0) === 1;
+    const lockResult = lockRows?.[0]?.acquired;
 
-    if (!lockAcquired) {
-      return {
+    if (Number(lockResult) === 0) {
+      response = {
         ok: true,
         skipped: true,
         reason: "governed_migration_reconciliation_lock_busy",
@@ -115,34 +122,86 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
         mode: apply ? "apply" : "dry_run",
         secrets_included: false,
       };
+    } else if (Number(lockResult) !== 1) {
+      throw operationalError(
+        "governed_migration_reconciliation_lock_failed",
+        "The migration reconciliation advisory lock could not be evaluated.",
+      );
+    } else {
+      lockAcquired = true;
+      const result = await execute(process.execPath, [RECONCILER_PATH, ...args], {
+        cwd: __dirname,
+        env: process.env,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: timeoutMs,
+        maxBuffer: 32 * 1024 * 1024,
+      });
+      const output = parseStructuredOutput(result?.stdout) || parseStructuredOutput(result?.stderr);
+      const bounded = boundedReconciliation(output);
+      response = {
+        ok: bounded.ok,
+        exit_code: 0,
+        output: bounded,
+        lock_key: GOVERNED_MIGRATION_RECONCILIATION_LOCK,
+        secrets_included: false,
+      };
+    }
+  } catch (error) {
+    response = runtimeFailure(error);
+  } finally {
+    let releaseError = null;
+    if (connection && lockAcquired) {
+      try {
+        const [releaseRows] = await connection.query(
+          "SELECT RELEASE_LOCK(?) AS released",
+          [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
+        );
+        if (Number(releaseRows?.[0]?.released) !== 1) {
+          throw operationalError(
+            "governed_migration_reconciliation_lock_release_failed",
+            "The migration reconciliation advisory lock was not released cleanly.",
+          );
+        }
+      } catch (error) {
+        releaseError = error?.code
+          ? error
+          : operationalError(
+            "governed_migration_reconciliation_lock_release_failed",
+            error?.message || "The migration reconciliation advisory lock release failed.",
+          );
+        if (typeof connection.destroy === "function") {
+          connection.destroy();
+        } else if (typeof connection.end === "function") {
+          await connection.end().catch(() => {});
+        }
+        connection = null;
+      }
     }
 
-    const result = await execute(process.execPath, [RECONCILER_PATH, ...args], {
-      cwd: __dirname,
-      env: process.env,
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: timeoutMs,
-      maxBuffer: 32 * 1024 * 1024,
-    });
-    const output = parseStructuredOutput(result?.stdout) || parseStructuredOutput(result?.stderr);
-    const bounded = boundedReconciliation(output);
-    return {
-      ok: bounded.ok,
-      exit_code: 0,
-      output: bounded,
-      lock_key: GOVERNED_MIGRATION_RECONCILIATION_LOCK,
-      secrets_included: false,
-    };
-  } catch (error) {
-    return runtimeFailure(error);
-  } finally {
-    if (connection && lockAcquired) {
-      await connection.query(
-        "SELECT RELEASE_LOCK(?) AS released",
-        [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
-      ).catch(() => {});
-    }
     if (connection && typeof connection.release === "function") connection.release();
+
+    if (releaseError) {
+      if (response?.ok === true) {
+        response = runtimeFailure(releaseError);
+      } else {
+        response = {
+          ...(response || runtimeFailure(releaseError)),
+          lock_cleanup: {
+            ok: false,
+            code: releaseError.code,
+            message: String(releaseError.message || "Lock cleanup failed.").slice(0, 1000),
+          },
+          secrets_included: false,
+        };
+      }
+    }
   }
+
+  return response || runtimeFailure(
+    operationalError(
+      "governed_migration_reconciliation_runtime_failed",
+      "The migration reconciliation runtime produced no result.",
+    ),
+  );
 }

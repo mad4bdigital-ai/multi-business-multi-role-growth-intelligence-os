@@ -4,19 +4,31 @@ import {
   runGovernedMigrationReconciliationRuntime,
 } from "./governedMigrationReconciliationRuntime.js";
 
-function createHarness({ acquired = 1, executorError = null } = {}) {
+function createHarness({
+  acquired = 1,
+  releaseResult = 1,
+  releaseError = null,
+  executorError = null,
+} = {}) {
   const queries = [];
   let released = false;
+  let destroyed = false;
   let executeCount = 0;
   const connection = {
     async query(sql, params) {
       queries.push({ sql, params });
       if (sql.includes("GET_LOCK")) return [[{ acquired }]];
-      if (sql.includes("RELEASE_LOCK")) return [[{ released: 1 }]];
+      if (sql.includes("RELEASE_LOCK")) {
+        if (releaseError) throw releaseError;
+        return [[{ released: releaseResult }]];
+      }
       throw new Error(`Unexpected query: ${sql}`);
     },
     release() {
       released = true;
+    },
+    destroy() {
+      destroyed = true;
     },
   };
   const pool = {
@@ -44,6 +56,7 @@ function createHarness({ acquired = 1, executorError = null } = {}) {
     execFileAsync,
     queries,
     get released() { return released; },
+    get destroyed() { return destroyed; },
     get executeCount() { return executeCount; },
   };
 }
@@ -59,7 +72,22 @@ assert.equal(busyResult.reason, "governed_migration_reconciliation_lock_busy");
 assert.equal(busyResult.lock_key, GOVERNED_MIGRATION_RECONCILIATION_LOCK);
 assert.equal(busy.executeCount, 0);
 assert.equal(busy.released, true);
+assert.equal(busy.destroyed, false);
 assert.equal(busy.queries.some(({ sql }) => sql.includes("RELEASE_LOCK")), false);
+
+const indeterminate = createHarness({ acquired: null });
+const indeterminateResult = await runGovernedMigrationReconciliationRuntime(
+  { apply: false },
+  { pool: indeterminate.pool, execFileAsync: indeterminate.execFileAsync },
+);
+assert.equal(indeterminateResult.ok, false);
+assert.equal(
+  indeterminateResult.error.code,
+  "governed_migration_reconciliation_lock_failed",
+);
+assert.equal(indeterminate.executeCount, 0);
+assert.equal(indeterminate.released, true);
+assert.equal(indeterminate.destroyed, false);
 
 const success = createHarness({ acquired: 1 });
 const successResult = await runGovernedMigrationReconciliationRuntime(
@@ -69,6 +97,7 @@ const successResult = await runGovernedMigrationReconciliationRuntime(
 assert.equal(successResult.ok, true);
 assert.equal(success.executeCount, 1);
 assert.equal(success.released, true);
+assert.equal(success.destroyed, false);
 assert.equal(success.queries.some(({ sql }) => sql.includes("GET_LOCK")), true);
 assert.equal(success.queries.some(({ sql }) => sql.includes("RELEASE_LOCK")), true);
 assert.deepEqual(
@@ -84,6 +113,37 @@ const failureResult = await runGovernedMigrationReconciliationRuntime(
 assert.equal(failureResult.ok, false);
 assert.equal(failureResult.error.code, "governed_migration_reconciliation_runtime_failed");
 assert.equal(failure.released, true);
+assert.equal(failure.destroyed, false);
 assert.equal(failure.queries.some(({ sql }) => sql.includes("RELEASE_LOCK")), true);
+
+const releaseFailure = createHarness({
+  acquired: 1,
+  releaseError: new Error("release query failed"),
+});
+const releaseFailureResult = await runGovernedMigrationReconciliationRuntime(
+  { apply: false },
+  { pool: releaseFailure.pool, execFileAsync: releaseFailure.execFileAsync },
+);
+assert.equal(releaseFailureResult.ok, false);
+assert.equal(
+  releaseFailureResult.error.code,
+  "governed_migration_reconciliation_lock_release_failed",
+);
+assert.equal(releaseFailure.executeCount, 1);
+assert.equal(releaseFailure.destroyed, true);
+assert.equal(releaseFailure.released, false);
+
+const releaseRejected = createHarness({ acquired: 1, releaseResult: 0 });
+const releaseRejectedResult = await runGovernedMigrationReconciliationRuntime(
+  { apply: false },
+  { pool: releaseRejected.pool, execFileAsync: releaseRejected.execFileAsync },
+);
+assert.equal(releaseRejectedResult.ok, false);
+assert.equal(
+  releaseRejectedResult.error.code,
+  "governed_migration_reconciliation_lock_release_failed",
+);
+assert.equal(releaseRejected.destroyed, true);
+assert.equal(releaseRejected.released, false);
 
 console.log("governed migration reconciliation runtime lock tests passed");
