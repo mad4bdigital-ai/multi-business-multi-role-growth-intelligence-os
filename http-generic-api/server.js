@@ -2,6 +2,7 @@ import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
 import { reconcileRuntimeParityOnStartup } from "./runtimeParityStartupReconciler.js";
 import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
+import { startEffectiveAuthorityReconciliationScheduler } from "./effectiveAuthorityReconciliationRuntime.js";
 import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
@@ -3265,6 +3266,24 @@ app.listen(port, () => {
       });
   }, parityDelayMs);
   parityReconcileTimer.unref?.();
+
+  try {
+    const ueacpScheduler = startEffectiveAuthorityReconciliationScheduler();
+    console.log(JSON.stringify({
+      event: "ueacp_reconciliation_scheduler_start",
+      status: ueacpScheduler.status,
+      enabled: ueacpScheduler.enabled,
+      persist: ueacpScheduler.persist,
+      interval_seconds: ueacpScheduler.interval_seconds,
+      secrets_included: false,
+    }));
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "ueacp_reconciliation_scheduler_start_failed",
+      code: error?.code || "ueacp_reconciliation_scheduler_start_failed",
+      secrets_included: false,
+    }));
+  }
   startDynamicAuditScheduler()
     .then((result) => {
       console.log(JSON.stringify({
