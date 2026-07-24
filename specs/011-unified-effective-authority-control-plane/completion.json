@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-20T18:22:00Z",
+  "last_updated_at": "2026-07-24T04:46:55Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -14,8 +14,9 @@
   },
   "delivery": {
     "specification_branch": "gpt/011-unified-effective-authority-control-plane-20260720",
-    "base_sha": "552bc74f7149db7ab80f80174585761fca87fd7b",
-    "implementation_prs": [],
+    "base_sha": "9296f28d8a48b1ee4c9fc17c6fe5b346ead983c4",
+    "latest_head_sha": "2a095927d522818d9bdac40abc094a326388b2ef",
+    "implementation_prs": [2888],
     "closeout_pr": null
   },
   "evidence": {
@@ -33,15 +34,122 @@
       "tradeoffs": "documented",
       "task_plan": "documented"
     },
-    "ci": {"status": "not_run"},
-    "release_readiness": {"status": "not_started"},
-    "production_verification": {"status": "not_started"},
-    "post_merge_audit": {"status": "not_started"},
+    "implementation": {
+      "status": "in_progress",
+      "principal_and_subject_scope": "implemented_for_platform_admin_and_tenant_membership_paths",
+      "effective_authority_manifest": "implemented_shadow_only",
+      "connector_projection": "implemented_read_only",
+      "activation_projection": "implemented_optional_backward_compatible",
+      "decision_and_drift_evidence": "implemented_feature_flag_disabled_by_default",
+      "reconciliation": "implemented_preview_scheduler_disabled_by_default",
+      "shared_pep_enforcement": "not_started",
+      "delegation_and_resource_graph": "partial_or_not_started",
+      "legacy_cutover": "not_authorized"
+    },
+    "ci": {
+      "status": "pass",
+      "head_sha": "2a095927d522818d9bdac40abc094a326388b2ef",
+      "required_check_count": 4,
+      "successful_check_count": 4,
+      "checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "openapi": {
+      "status": "implemented_and_tested",
+      "version": "3.1.0",
+      "authorized_access_optional": true,
+      "effective_authority_optional": true,
+      "backward_compatibility_tested": true
+    },
+    "migrations": {
+      "status": "contract_tested_not_executed",
+      "files": [
+        "http-generic-api/migrations/20260721_ueacp_connector_inventory_read.sql",
+        "http-generic-api/migrations/20260721_ueacp_shadow_decision_ledger.sql"
+      ],
+      "execution_authorized": false,
+      "schema_readback_completed": false
+    },
+    "shadow_parity": {
+      "status": "blocked_live_registry_capability_missing",
+      "capability_key": "connector.inventory.read",
+      "live_compile_preview_manifest_count": 0,
+      "live_projection_preview_manifest_count": 0,
+      "claim_live_parity": false
+    },
+    "release_readiness": {
+      "status": "platform_baseline_pass_feature_release_pending",
+      "platform_main_baseline": "pass",
+      "feature_blockers": [
+        "governed migration execution and schema readback",
+        "live capability registration and shadow parity",
+        "security review",
+        "shared PEP shadow or canary certification",
+        "production verification",
+        "post-merge audit"
+      ]
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    },
+    "task_evidence": {
+      "completed": [
+        "T004",
+        "T005",
+        "T006",
+        "T015",
+        "T017",
+        "T018",
+        "T020",
+        "T030",
+        "T031",
+        "T035",
+        "T041",
+        "T044",
+        "T046"
+      ],
+      "partial": [
+        "T001",
+        "T002",
+        "T003",
+        "T010",
+        "T011",
+        "T013",
+        "T014",
+        "T019",
+        "T021",
+        "T024",
+        "T025",
+        "T026",
+        "T032",
+        "T033",
+        "T034",
+        "T036",
+        "T040",
+        "T052",
+        "T053",
+        "T054",
+        "T072",
+        "T073"
+      ],
+      "closure_policy": "tasks.md checkboxes remain closure criteria and are not bulk-closed by this evidence update"
+    },
     "safety_readback": {
-      "runtime_behavior_changed": false,
+      "branch_runtime_behavior_changed": true,
+      "production_runtime_behavior_changed": false,
+      "legacy_runtime_authoritative": true,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
+      "credential_payload_read_allowed": false,
       "migration_execution_authorized": false,
+      "scheduler_enabled_by_default": false,
       "enforcement_cutover_allowed": false,
       "legacy_removal_allowed": false
     }
