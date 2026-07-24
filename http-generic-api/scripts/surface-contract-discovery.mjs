@@ -175,7 +175,9 @@ function classifyRoute(route, source = "") {
       route,
       route_class: "tenant_tool_registry_route",
       openapi_required: false,
-      reason: "Route literal belongs to a tenant tool registry row and is governed through tenant tool dispatch rather than inferred as a standalone Express route.",
+      callability_evidence_required: true,
+      registry_presence_sufficient: false,
+      reason: "Route literal belongs to a Tenant tool registry row, so per-route OpenAPI inference is not required. Registry presence alone is not callability evidence: the tool family must provide an executable handler or an explicit Admin preview fallback through the governed callability contract.",
     };
   }
   if (/INSERT\s+INTO\s+endpoints/i.test(source)
@@ -297,6 +299,9 @@ function countMigrationsBySurface(entries) {
 }
 
 function classifyGap(entry) {
+  const callabilityReviewCount = (entry.surfaces.route_classifications || [])
+    .filter((item) => item.callability_evidence_required === true).length;
+  if (callabilityReviewCount) return "high";
   if (entry.documentation_complete) return "none";
   if (entry.surfaces.routes.length || entry.surfaces.plugins.length) return "high";
   if (entry.surfaces.tools.length || entry.surfaces.policies.length) return "medium";
@@ -309,6 +314,9 @@ function routeCoverageFor(entry, openapiPathSet) {
   const classifications = entry.surfaces.route_classifications || routes.map((route) => ({ route, route_class: "http_route", openapi_required: true, reason: "legacy classification fallback" }));
   const required = classifications.filter((item) => item.openapi_required).map((item) => item.route);
   const exempted = classifications.filter((item) => !item.openapi_required);
+  const callabilityReview = classifications
+    .filter((item) => item.callability_evidence_required === true)
+    .map((item) => item.route);
   const documented = required.filter((route) => openapiPathSet.has(normalizePathForCoverage(route)) || openapiPathSet.has(route));
   const missing = required.filter((route) => !documented.includes(route));
   const routeClassCounts = Object.fromEntries(ROUTE_CLASSES.map((routeClass) => [routeClass, classifications.filter((item) => item.route_class === routeClass).length]));
@@ -317,6 +325,8 @@ function routeCoverageFor(entry, openapiPathSet) {
     total_route_count: routes.length,
     openapi_required_route_count: required.length,
     exempted_route_count: exempted.length,
+    callability_review_count: callabilityReview.length,
+    callability_review_routes: callabilityReview,
     route_class_counts: routeClassCounts,
     documented_count: documented.length,
     missing_count: missing.length,
@@ -409,6 +419,14 @@ function remediationFor(entry) {
   if (routeCoverage.missing_count) {
     actions.push({ action_key: "review_openapi_contract", owner_hint: "api-contract-review", targets: routeCoverage.missing_routes, reason: "SQL-declared route-like surfaces are not covered by an OpenAPI path." });
   }
+  if (routeCoverage.callability_review_count) {
+    actions.push({
+      action_key: "verify_callable_handler_or_admin_preview",
+      owner_hint: "runtime-registry-review",
+      targets: routeCoverage.callability_review_routes,
+      reason: "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion.",
+    });
+  }
   if (entry.surfaces.tools.length) {
     actions.push({ action_key: "verify_tool_registry_binding", owner_hint: "runtime-registry-review", targets: entry.surfaces.tools.slice(0, 25), reason: "Tool-like surfaces need registry binding/readback evidence before promotion." });
   }
@@ -425,7 +443,12 @@ function remediationFor(entry) {
 }
 
 function scoreGap(entry, index, total) {
-  if (!entry.coverage.requires_docs_review && !entry.coverage.route_coverage.missing_count && safetyGapsFor(entry).length === 0) return 0;
+  if (
+    !entry.coverage.requires_docs_review
+    && !entry.coverage.route_coverage.missing_count
+    && !entry.coverage.route_coverage.callability_review_count
+    && safetyGapsFor(entry).length === 0
+  ) return 0;
   const severity = entry.coverage.gap_severity;
   const recencyRank = total ? index / total : 0;
   let score = 0;
@@ -434,6 +457,7 @@ function scoreGap(entry, index, total) {
   if (severity === "low") score += 150;
   score += entry.missing_docs.length * 20;
   score += entry.coverage.route_coverage.missing_count * 80;
+  score += entry.coverage.route_coverage.callability_review_count * 160;
   score += entry.surfaces.plugins.length * 120;
   score += entry.coverage.route_coverage.openapi_required_route_count * 100;
   score += entry.surfaces.tools.length * 18;

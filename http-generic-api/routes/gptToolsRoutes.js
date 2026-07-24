@@ -54,6 +54,7 @@ import {
   transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
+import { runRepositoryReconciliationOrchestrator } from "../repositoryReconciliationOrchestrator.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
@@ -65,6 +66,7 @@ import { buildDynamicCapabilityGovernancePreview } from "../dynamicCapabilityGov
 import { buildDynamicCapabilityProjectionPreview } from "../dynamicCapabilityProjectionPreview.js";
 import { buildDynamicCapabilityEnforcementShadow } from "../dynamicCapabilityEnforcementShadow.js";
 import { buildDynamicCapabilityCertificationReadbackPreview } from "../dynamicCapabilityCertificationReadback.js";
+import { buildTenantConnectionOperationPreview } from "../tenantConnectionOperationPreview.js";
 import {
   CAPABILITY_GOVERNANCE_PERSIST_CONFIRM,
   persistDynamicCapabilityGovernanceCompilation,
@@ -654,6 +656,29 @@ const VIRTUAL_ADMIN_TOOLS = [
         contract_key: { type: "string", maxLength: 191 },
         environment: { type: "string", maxLength: 64, default: "production" },
         evidence_limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "tenant_connection_operation_preview",
+    displayName: "Preview Tenant Connection Operation Callability",
+    description: "Resolve one registered Tenant connection self-repair operation against safe connection metadata, the Tenant tool contract, canonical adapter certification, and readback authority. Admin shadow preview only: no provider call, credential payload read, mutation, Tenant authority change, export, or secret return.",
+    method: "VIRTUAL",
+    path: "internal://tenant-connection-operation-preview",
+    tags: ["admin", "tenant_connection", "callability", "shadow", "read_only", "no_execution", "no_provider_call", "no_credential_payload", "no_mutation", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["tenant_id", "connection_id", "tool_key"],
+      properties: {
+        tenant_id: { type: "string", minLength: 1, maxLength: 64 },
+        user_id: { type: "string", minLength: 1, maxLength: 64 },
+        connection_id: { type: "string", minLength: 1, maxLength: 191 },
+        tool_key: { type: "string", minLength: 1, maxLength: 191 },
+        adapter_key: { type: "string", minLength: 1, maxLength: 128 },
+        app_key: { type: "string", minLength: 1, maxLength: 128 },
+        capability_key: { type: "string", minLength: 1, maxLength: 191 },
+        environment: { type: "string", minLength: 1, maxLength: 64, default: "production" },
       },
       additionalProperties: false,
     },
@@ -1422,6 +1447,36 @@ const VIRTUAL_ADMIN_TOOLS = [
       properties: {
         parent_action_key: { type: "string" },
         limit: { type: "integer", minimum: 1, maximum: 500, default: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "repository_reconciliation_orchestrator",
+    displayName: "Repository Reconciliation Orchestrator",
+    description: "Build a governed repository reconciliation plan from the active recipe, exact base and branch SHAs, and live read-only branch evidence. This Admin surface is dry-run only: it does not execute recipe steps, create provider writes, update refs, merge, delete branches, or consume credentials beyond the governed GitHub read transport.",
+    method: "VIRTUAL",
+    path: "internal://repository-reconciliation-orchestrator",
+    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "read_only", "provider_read_only", "no_provider_write", "no_mutation", "no_force_push", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      required: ["owner", "repo", "branch", "pull_number", "expected_base_sha", "expected_branch_sha"],
+      properties: {
+        owner: { type: "string", minLength: 1, maxLength: 191 },
+        repo: { type: "string", minLength: 1, maxLength: 191 },
+        branch: { type: "string", minLength: 1, maxLength: 255 },
+        default_branch: { type: "string", minLength: 1, maxLength: 255, default: "main" },
+        pull_number: { type: "integer", minimum: 1 },
+        expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+        mode: { type: "string", enum: ["dry_run"], default: "dry_run" },
+        recipe_key: { type: "string", maxLength: 191, default: "repo.pr.reconcile_and_finalize" },
+        operation_id: { type: "string", maxLength: 64 },
+        plan_id: { type: "string", maxLength: 64 },
+        tenant_id: { type: "string", maxLength: 64 },
+        workspace_id: { type: "string", maxLength: 64 },
+        user_id: { type: "string", maxLength: 64 },
+        actor_id: { type: "string", maxLength: 128 },
       },
       additionalProperties: false,
     },
@@ -2464,6 +2519,9 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "platform_capability_certification_readback_preview") {
     return { status: 200, body: { ok: true, name: toolKey, result: await buildDynamicCapabilityCertificationReadbackPreview(args) } };
   }
+  if (callerType === "admin" && toolKey === "tenant_connection_operation_preview") {
+    return { status: 200, body: { ok: true, name: toolKey, result: await buildTenantConnectionOperationPreview(args) } };
+  }
   if (callerType === "admin" && toolKey === "platform_capability_governance_compile_persist") {
     const result = await persistDynamicCapabilityGovernanceCompilation({
       ...(args || {}),
@@ -3070,6 +3128,38 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "platform_tool_binding_integrity_audit_failed", message: err?.message || "Platform tool binding integrity audit failed.", details: err?.details } },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "repository_reconciliation_orchestrator") {
+    try {
+      if (String(args?.mode || "dry_run") !== "dry_run") {
+        const error = new Error("The Admin repository reconciliation orchestrator surface is dry-run only.");
+        error.status = 403;
+        error.code = "repository_reconciliation_admin_surface_dry_run_only";
+        throw error;
+      }
+      const result = await runRepositoryReconciliationOrchestrator(
+        { ...args, mode: "dry_run" },
+        {
+          reconcileBranch: (input) => runAdminBranchReconcile(
+            { ...input, mode: "dry_run" },
+            { auth: req?.auth }
+          ),
+        }
+      );
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "repository_reconciliation_orchestrator_failed",
+            message: err?.message || "Repository reconciliation orchestrator dry-run failed.",
+            details: err?.details || null,
+          },
+        },
       };
     }
   }
