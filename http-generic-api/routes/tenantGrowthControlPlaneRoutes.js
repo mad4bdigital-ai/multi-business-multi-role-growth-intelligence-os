@@ -52,7 +52,7 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   const service = createTenantGrowthControlProjectionService({ repository });
 
   // frontend-surface-operation: GET /tenant/control-plane/configuration-versions
-  router.get("/tenant/control-plane/configuration-versions", requireJwt, requireTenantProjectionPrincipal, async (req, res) => {
+  router.get("/tenant/control-plane/configuration-versions", requireTenantProjectionPrincipal, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listConfigurationVersions(req.auth, req.query);
