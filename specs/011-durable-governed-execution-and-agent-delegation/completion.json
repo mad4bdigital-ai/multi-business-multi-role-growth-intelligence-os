@@ -101,7 +101,8 @@
       {
         "number": 3067,
         "role": "phase3_delegation_grant_shadow",
-        "status": "current_pr"
+        "status": "merged",
+        "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
       }
     ],
     "closeout_pr": {
@@ -185,9 +186,10 @@
       "secrets_included": false
     },
     "phase3_delegation_grant_shadow": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
       "pull_request": 3067,
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
       "service": "http-generic-api/delegationGrantShadowService.js",
       "test": "http-generic-api/test-delegation-grant-shadow.mjs",
       "design": "phase3-delegation-grant-shadow.md",
