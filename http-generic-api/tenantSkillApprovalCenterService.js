@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { applyTenantAgentSkillGrantRequestDecision } from "./agentSkillGrantRequestService.js";
 
 const OWNER_ROLES = new Set(["owner", "tenant_owner", "workspace_owner", "admin"]);
 const DECISIONS = new Set(["approve", "reject", "defer"]);
@@ -145,6 +146,10 @@ function groupGrantRows(rows = [], tenantId, now = new Date()) {
       skill_type: row.skill_type || null,
       skill_scope: row.skill_scope || null,
       requires_approval: Number(row.requires_approval || 0) === 1,
+      request_ids: [],
+      approval_hold_ids: [],
+      request_status: null,
+      approval_policy_key: null,
       active_grant_ids: [],
       revoked_grant_ids: [],
       expired_grant_ids: [],
@@ -159,6 +164,14 @@ function groupGrantRows(rows = [], tenantId, now = new Date()) {
       else if (grantStatus === "revoked") current.revoked_grant_ids.push(row.grant_id);
       else if (grantStatus === "expired") current.expired_grant_ids.push(row.grant_id);
     }
+    if (row.grant_request_id && !current.request_ids.includes(row.grant_request_id)) {
+      current.request_ids.push(row.grant_request_id);
+    }
+    if (row.approval_hold_id && !current.approval_hold_ids.includes(row.approval_hold_id)) {
+      current.approval_hold_ids.push(row.approval_hold_id);
+    }
+    if (row.request_status) current.request_status = row.request_status;
+    if (row.approval_policy_key) current.approval_policy_key = row.approval_policy_key;
     const grantedAt = isoValue(row.granted_at);
     if (grantedAt && (!current.first_granted_at || grantedAt < current.first_granted_at)) current.first_granted_at = grantedAt;
     if (grantedAt && (!current.last_granted_at || grantedAt > current.last_granted_at)) current.last_granted_at = grantedAt;
@@ -171,11 +184,28 @@ function latestHoldsByApprovalKey(rows = []) {
   const map = new Map();
   for (const row of rows) {
     const context = parseJsonValue(row.execution_context_json, {});
+    const hold = { ...row, context };
     const approvalKey = safeString(context.approval_key, 128);
-    if (!approvalKey || map.has(approvalKey)) continue;
-    map.set(approvalKey, { ...row, context });
+    const requestId = safeString(context.request_id || row.request_id, 64);
+    if (approvalKey && !map.has(approvalKey)) map.set(approvalKey, hold);
+    if (requestId && !map.has(`request:${requestId}`)) map.set(`request:${requestId}`, hold);
   }
   return map;
+}
+
+function holdForGroup(group, holds) {
+  for (const requestId of group.request_ids || []) {
+    const hold = holds.get(`request:${requestId}`);
+    if (hold) return hold;
+  }
+  return holds.get(group.approval_key) || null;
+}
+
+function effectiveApprovalStatus(group, hold, now = new Date()) {
+  if (["pending", "approved", "rejected", "deferred", "expired"].includes(group.request_status)) {
+    return group.request_status;
+  }
+  return effectiveHoldStatus(hold, now);
 }
 
 function holdProjection(hold = null, now = new Date()) {
@@ -200,7 +230,7 @@ function holdProjection(hold = null, now = new Date()) {
 }
 
 function readbackFor(group, hold, now = new Date()) {
-  const effectiveStatus = effectiveHoldStatus(hold, now);
+  const effectiveStatus = effectiveApprovalStatus(group, hold, now);
   const activeGrantCount = group.active_grant_ids.length;
   let status = "not_run";
   let passed = false;
@@ -223,7 +253,7 @@ function readbackFor(group, hold, now = new Date()) {
     revoked_grant_count: group.revoked_grant_ids.length,
     expired_grant_count: group.expired_grant_ids.length,
     checked_at: now.toISOString(),
-    authority: "approval_holds_plus_agent_skill_grants",
+    authority: "agent_skill_grant_requests_plus_effective_grant_readback",
     secrets_included: false,
   };
 }
@@ -232,7 +262,7 @@ function approvalItem(group, hold, now = new Date()) {
   const holdView = holdProjection(hold, now);
   return {
     ...group,
-    status: holdView?.effective_status || "pending",
+    status: effectiveApprovalStatus(group, hold, now),
     hold: holdView,
     readback: readbackFor(group, hold, now),
     policy: {
@@ -263,17 +293,20 @@ function normalizeListFilters({ status = null, workspaceId = null, q = null } = 
 
 async function loadGrantRows(connection, tenantId) {
   const [rows] = await connection.query(
-    `SELECT g.grant_id, g.tenant_id, g.brand_key, g.agent_id,
+    `SELECT g.grant_id, g.grant_request_id, g.tenant_id, g.brand_key, g.agent_id,
             a.name AS agent_name, a.display_name AS agent_display_name,
             g.skill_id, s.skill_key, s.display_name AS skill_display_name,
             s.skill_type, s.scope AS skill_scope, s.requires_approval,
-            g.status AS grant_status, g.expires_at AS grant_expires_at, g.granted_at
+            g.status AS grant_status, g.expires_at AS grant_expires_at, g.granted_at,
+            r.request_status, r.approval_policy_key, r.approval_hold_id,
+            r.requested_at, r.decided_at AS request_decided_at
        FROM agent_skill_grants g
        JOIN agent_skills s ON s.skill_id = g.skill_id AND s.status = 'active'
+       LEFT JOIN agent_skill_grant_requests r ON r.request_id = g.grant_request_id
        LEFT JOIN agents a ON a.agent_id = g.agent_id
       WHERE s.requires_approval = 1
         AND (g.tenant_id = ? OR g.tenant_id IS NULL)
-      ORDER BY g.granted_at DESC, g.grant_id DESC
+      ORDER BY COALESCE(r.requested_at, g.granted_at) DESC, g.grant_id DESC
       LIMIT 2000`,
     [tenantId]
   );
@@ -288,7 +321,8 @@ async function loadApprovalHolds(connection, tenantId, { forUpdate = false } = {
             decision_note, expires_at, decided_at, created_at
        FROM approval_holds
       WHERE tenant_id = ?
-        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type')) = 'tenant_skill_grant'
+        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type'))
+            IN ('tenant_skill_grant', 'agent_skill_grant_request')
       ORDER BY created_at DESC, hold_id DESC
       LIMIT 2000${forUpdate ? " FOR UPDATE" : ""}`,
     [tenantId]
@@ -335,7 +369,7 @@ export async function listTenantSkillApprovals({
     const holdRows = await loadApprovalHolds(connection, subject.tenant_id);
     const holds = latestHoldsByApprovalKey(holdRows);
     let items = groupGrantRows(grantRows, subject.tenant_id, nowValue)
-      .map((group) => approvalItem(group, holds.get(group.approval_key), nowValue));
+      .map((group) => approvalItem(group, holdForGroup(group, holds), nowValue));
 
     if (filters.workspace_id) {
       items = items.filter((item) => !item.hold?.workspace_id || item.hold.workspace_id === filters.workspace_id);
@@ -429,10 +463,18 @@ function matchingGroupOrThrow(grantRows, tenantId, approvalKey, nowValue) {
 }
 
 async function createApprovalHold(connection, { subject, group, normalized, uuid, nowValue }) {
+  if (!group.request_ids?.length) {
+    throw httpError(409, "TENANT_SKILL_GRANT_REQUEST_REQUIRED", "The approval item is not linked to a canonical grant request.", {
+      approval_key: group.approval_key,
+    });
+  }
   const holdId = uuid();
+  const primaryRequestId = group.request_ids[0];
   const context = sanitizeValue({
-    approval_type: "tenant_skill_grant",
+    approval_type: "agent_skill_grant_request",
     approval_key: group.approval_key,
+    request_id: primaryRequestId,
+    request_ids: group.request_ids,
     decision_state: "open",
     tenant_id: subject.tenant_id,
     workspace_id: normalized.workspace_id,
@@ -465,7 +507,7 @@ async function createApprovalHold(connection, { subject, group, normalized, uuid
       subject.user_id,
       subject.user_id,
       group.brand_key,
-      group.approval_key,
+      primaryRequestId,
       group.approval_key,
       JSON.stringify(context),
       subject.user_id,
@@ -473,11 +515,20 @@ async function createApprovalHold(connection, { subject, group, normalized, uuid
       expiresAt,
     ]
   );
+  const placeholders = group.request_ids.map(() => "?").join(",");
+  await connection.query(
+    `UPDATE agent_skill_grant_requests
+        SET approval_hold_id = ?
+      WHERE request_id IN (${placeholders})
+        AND tenant_id = ?`,
+    [holdId, ...group.request_ids, subject.tenant_id]
+  );
   return {
     hold_id: holdId,
     run_id: holdId,
     tenant_id: subject.tenant_id,
     workspace_id: normalized.workspace_id,
+    request_id: primaryRequestId,
     hold_type: "supervisor_approval",
     required_role: "tenant_owner",
     status: "open",
@@ -486,98 +537,6 @@ async function createApprovalHold(connection, { subject, group, normalized, uuid
     expires_at: expiresAt,
     decided_at: null,
     created_at: nowValue,
-    execution_context_json: JSON.stringify(context),
-    context,
-  };
-}
-
-async function applyGrantDecision(connection, { subject, group, normalized }) {
-  if (normalized.decision === "reject") {
-    const [result] = await connection.query(
-      `UPDATE agent_skill_grants
-          SET status = 'revoked'
-        WHERE tenant_id = ?
-          AND agent_id = ?
-          AND skill_id = ?
-          AND COALESCE(brand_key, '') = COALESCE(?, '')
-          AND status = 'active'`,
-      [subject.tenant_id, group.agent_id, group.skill_id, group.brand_key]
-    );
-    return { affected_grants: Number(result?.affectedRows || 0), target_status: "revoked" };
-  }
-  if (normalized.decision === "approve") {
-    const expiresAtSql = normalized.grant_ttl_hours ? "DATE_ADD(NOW(), INTERVAL ? HOUR)" : "NULL";
-    const params = [subject.user_id];
-    if (normalized.grant_ttl_hours) params.push(normalized.grant_ttl_hours);
-    params.push(subject.tenant_id, group.agent_id, group.skill_id, group.brand_key);
-    const [result] = await connection.query(
-      `UPDATE agent_skill_grants
-          SET status = 'active',
-              granted_by = ?,
-              granted_at = NOW(),
-              expires_at = ${expiresAtSql}
-        WHERE tenant_id = ?
-          AND agent_id = ?
-          AND skill_id = ?
-          AND COALESCE(brand_key, '') = COALESCE(?, '')`,
-      params
-    );
-    return { affected_grants: Number(result?.affectedRows || 0), target_status: "active" };
-  }
-  return { affected_grants: 0, target_status: "unchanged" };
-}
-
-async function updateApprovalHold(connection, { hold, subject, normalized, nowValue }) {
-  const context = sanitizeValue({
-    ...parseJsonValue(hold.execution_context_json, {}),
-    decision_state: normalized.decision === "defer"
-      ? "deferred"
-      : normalized.decision === "approve"
-        ? "approved"
-        : "rejected",
-    decision_by: subject.user_id,
-    decision_note: normalized.decision_note,
-    deferred_until: normalized.defer_until?.toISOString() || null,
-    idempotency_key: normalized.idempotency_key,
-    decision_recorded_at: nowValue.toISOString(),
-    provider_call_allowed: false,
-    external_write_allowed: false,
-    execution_dispatched: false,
-    secrets_included: false,
-  });
-  const status = normalized.decision === "approve"
-    ? "approved"
-    : normalized.decision === "reject"
-      ? "rejected"
-      : "open";
-  const expiresAt = normalized.decision === "defer" ? normalized.defer_until : hold.expires_at;
-  await connection.query(
-    `UPDATE approval_holds
-        SET status = ?,
-            decision_by = ?,
-            decision_note = ?,
-            decided_at = NOW(),
-            expires_at = ?,
-            execution_context_json = ?
-      WHERE hold_id = ?
-        AND tenant_id = ?`,
-    [
-      status,
-      subject.user_id,
-      normalized.decision_note,
-      expiresAt,
-      JSON.stringify(context),
-      hold.hold_id,
-      subject.tenant_id,
-    ]
-  );
-  return {
-    ...hold,
-    status,
-    decision_by: subject.user_id,
-    decision_note: normalized.decision_note,
-    decided_at: nowValue,
-    expires_at: expiresAt,
     execution_context_json: JSON.stringify(context),
     context,
   };
@@ -606,8 +565,9 @@ export async function decideTenantSkillApproval({
     const grantRows = await loadGrantRows(connection, subject.tenant_id);
     const group = matchingGroupOrThrow(grantRows, subject.tenant_id, normalizedApprovalKey, nowValue);
     const holdRows = await loadApprovalHolds(connection, subject.tenant_id, { forUpdate: true });
-    const latestHold = latestHoldsByApprovalKey(holdRows).get(group.approval_key) || null;
-    const latestStatus = effectiveHoldStatus(latestHold, nowValue);
+    const holds = latestHoldsByApprovalKey(holdRows);
+    const latestHold = holdForGroup(group, holds);
+    const latestStatus = effectiveApprovalStatus(group, latestHold, nowValue);
     const sameDecision = (normalized.decision === "approve" && latestStatus === "approved")
       || (normalized.decision === "reject" && latestStatus === "rejected")
       || (normalized.decision === "defer" && latestStatus === "deferred");
@@ -631,13 +591,31 @@ export async function decideTenantSkillApproval({
         secrets_included: false,
       };
     }
+    if (["approved", "rejected", "expired"].includes(latestStatus)) {
+      throw httpError(409, "TENANT_SKILL_APPROVAL_ALREADY_DECIDED", "The grant request already has a terminal decision.", {
+        approval_key: normalizedApprovalKey,
+        request_status: latestStatus,
+      });
+    }
+    if (!group.request_ids?.length) {
+      throw httpError(409, "TENANT_SKILL_GRANT_REQUEST_REQUIRED", "The approval item is not linked to a canonical grant request.", {
+        approval_key: normalizedApprovalKey,
+      });
+    }
 
     let hold = latestHold;
-    if (!hold || ["approved", "rejected", "expired"].includes(latestStatus)) {
+    if (!hold) {
       hold = await createApprovalHold(connection, { subject, group, normalized, uuid, nowValue });
     }
-    const grantMutation = await applyGrantDecision(connection, { subject, group, normalized });
-    hold = await updateApprovalHold(connection, { hold, subject, normalized, nowValue });
+    const grantMutation = await applyTenantAgentSkillGrantRequestDecision({
+      connection,
+      requestIds: group.request_ids,
+      subject,
+      decision: normalized.decision,
+      decisionNote: normalized.decision_note,
+      grantTtlHours: normalized.grant_ttl_hours,
+      deferUntil: normalized.defer_until,
+    });
 
     const refreshedGrantRows = await loadGrantRows(connection, subject.tenant_id);
     const refreshedGroup = matchingGroupOrThrow(
@@ -646,7 +624,9 @@ export async function decideTenantSkillApproval({
       normalizedApprovalKey,
       nowValue
     );
-    const item = approvalItem(refreshedGroup, hold, nowValue);
+    const refreshedHoldRows = await loadApprovalHolds(connection, subject.tenant_id);
+    const refreshedHold = holdForGroup(refreshedGroup, latestHoldsByApprovalKey(refreshedHoldRows));
+    const item = approvalItem(refreshedGroup, refreshedHold || hold, nowValue);
     const expectedReadback = normalized.decision === "defer" ? "blocked" : "passed";
     if (item.readback.status !== expectedReadback) {
       throw httpError(409, "TENANT_SKILL_APPROVAL_READBACK_FAILED", "Skill approval decision could not be verified against the grant registry.", {

@@ -90,7 +90,7 @@ async function validateAgentSkillGrant(plan, connectorType) {
 
   try {
     const [skillRows] = await getPool().query(
-      `SELECT sg.grant_id FROM \`agent_skill_grants\` sg
+      `SELECT sg.grant_id FROM \`v_effective_agent_skill_grants\` sg
        JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
        WHERE sg.agent_id = ? AND sk.skill_key = ?
          AND sg.status = 'active' AND sk.status = 'active'

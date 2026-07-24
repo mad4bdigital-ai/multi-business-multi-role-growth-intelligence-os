@@ -266,7 +266,7 @@ export function registerRoutes(app, deps) {
   app.use(buildConnectedSystemsRoutes(deps));
   app.use(buildPlannerRoutes(deps));
   app.use(buildAgentRegistryRoutes(deps));
-  app.use(buildAgentSkillRoutes(deps));
+  app.use(buildAgentSkillRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAppIntegrationRoutes(deps));
   app.use(buildCredentialRoutes(deps));
   app.use(buildDevAgentRoutes(deps));
