@@ -212,81 +212,93 @@ FROM (
 
 CREATE OR REPLACE VIEW v_repository_capability_binding_readiness AS
 SELECT
-  capability.*,
-  authority.binding_key,
-  authority.tenant_id,
-  authority.workspace_id,
-  authority.brand_target_key,
-  authority.app_key,
-  authority.provider_key,
-  authority.repository_external_id,
-  authority.repository_node_id,
-  authority.canonical_owner,
-  authority.canonical_name,
-  authority.default_branch,
-  authority.environment,
-  authority.system_binding_mode,
-  authority.readiness_status AS repository_readiness_status,
-  authority.issue_code AS repository_issue_code,
-  CASE WHEN capability.business_activity_type_key IS NULL THEN 1 ELSE
-    (SELECT COUNT(*) FROM business_activity_types activity
-      WHERE activity.business_activity_type_key COLLATE utf8mb4_unicode_ci = capability.business_activity_type_key COLLATE utf8mb4_unicode_ci
-        AND LOWER(COALESCE(activity.status, 'active')) = 'active') END AS business_activity_rows,
-  (SELECT COUNT(*) FROM platform_resource_adapters adapter
-    WHERE adapter.adapter_key COLLATE utf8mb4_unicode_ci = capability.adapter_key COLLATE utf8mb4_unicode_ci
-      AND adapter.status = 'active') AS adapter_rows,
-  CASE WHEN capability.readback_contract_key IS NULL THEN 1 ELSE
-    (SELECT COUNT(*) FROM platform_capability_readback_contracts contract
-      WHERE contract.contract_key COLLATE utf8mb4_unicode_ci = capability.readback_contract_key COLLATE utf8mb4_unicode_ci
-        AND contract.capability_key COLLATE utf8mb4_unicode_ci = capability.capability_key COLLATE utf8mb4_unicode_ci
-        AND contract.is_current = 1
-        AND contract.status IN ('certified','shadow')) END AS readback_contract_rows,
-  CASE WHEN capability.policy_key IS NULL THEN 1 ELSE
-    (SELECT COUNT(*) FROM capability_apply_authorization_policy_registry policy
-      WHERE policy.policy_key COLLATE utf8mb4_unicode_ci = capability.policy_key COLLATE utf8mb4_unicode_ci
-        AND policy.app_key COLLATE utf8mb4_unicode_ci = authority.app_key COLLATE utf8mb4_unicode_ci
-        AND policy.capability_key COLLATE utf8mb4_unicode_ci = capability.capability_key COLLATE utf8mb4_unicode_ci
-        AND policy.operation_intent COLLATE utf8mb4_unicode_ci = capability.operation_intent COLLATE utf8mb4_unicode_ci
-        AND policy.active = 1) END AS apply_policy_rows,
-  CASE WHEN capability.credential_ref IS NULL THEN 1 ELSE
-    (SELECT COUNT(*) FROM secret_references secret_ref
-      WHERE secret_ref.secret_key COLLATE utf8mb4_unicode_ci = REPLACE(capability.credential_ref, 'ref:secret:', '') COLLATE utf8mb4_unicode_ci
-        AND secret_ref.status = 'active'
-        AND secret_ref.store_type = 'db_encrypted'
-        AND secret_ref.validation_status IN ('stored','validated')
-        AND secret_ref.rotation_status IN ('provisioned_pending_validation','validated')) END AS credential_reference_rows,
-  (SELECT COUNT(*) FROM repository_capability_policy_layers layer
-    WHERE layer.capability_binding_id COLLATE utf8mb4_unicode_ci = capability.capability_binding_id COLLATE utf8mb4_unicode_ci
-      AND layer.lifecycle_status = 'active'
-      AND JSON_VALID(layer.configuration_json) = 1) AS active_policy_layer_rows,
+  resolved.*,
   CASE
-    WHEN capability.lifecycle_status <> 'active' THEN 'repository_capability_inactive'
-    WHEN authority.readiness_status <> 'ready' THEN COALESCE(authority.issue_code, 'repository_authority_not_ready')
-    WHEN capability.configuration_json IS NOT NULL AND JSON_VALID(capability.configuration_json) = 0 THEN 'repository_capability_configuration_invalid'
-    WHEN business_activity_rows <> 1 THEN 'repository_capability_business_activity_unresolved'
-    WHEN adapter_rows <> 1 THEN 'repository_capability_adapter_unresolved'
-    WHEN readback_contract_rows <> 1 THEN 'repository_capability_readback_unresolved'
-    WHEN apply_policy_rows <> 1 THEN 'repository_capability_policy_unresolved'
-    WHEN credential_reference_rows <> 1 THEN 'repository_capability_credential_unresolved'
-    WHEN active_policy_layer_rows < 1 THEN 'repository_capability_inheritance_layers_missing'
+    WHEN resolved.lifecycle_status <> 'active' THEN 'repository_capability_inactive'
+    WHEN resolved.repository_readiness_status <> 'ready' THEN COALESCE(resolved.repository_issue_code, 'repository_authority_not_ready')
+    WHEN resolved.configuration_json IS NOT NULL AND JSON_VALID(resolved.configuration_json) = 0 THEN 'repository_capability_configuration_invalid'
+    WHEN resolved.business_activity_rows <> 1 THEN 'repository_capability_business_activity_unresolved'
+    WHEN resolved.adapter_rows <> 1 THEN 'repository_capability_adapter_unresolved'
+    WHEN resolved.readback_contract_rows <> 1 THEN 'repository_capability_readback_unresolved'
+    WHEN resolved.apply_policy_rows <> 1 THEN 'repository_capability_policy_unresolved'
+    WHEN resolved.credential_reference_rows <> 1 THEN 'repository_capability_credential_unresolved'
+    WHEN resolved.active_policy_layer_rows < 1 THEN 'repository_capability_inheritance_layers_missing'
     ELSE NULL
   END AS issue_code,
   CASE
-    WHEN capability.lifecycle_status = 'active'
-      AND authority.readiness_status = 'ready'
-      AND (capability.configuration_json IS NULL OR JSON_VALID(capability.configuration_json) = 1)
-      AND business_activity_rows = 1
-      AND adapter_rows = 1
-      AND readback_contract_rows = 1
-      AND apply_policy_rows = 1
-      AND credential_reference_rows = 1
-      AND active_policy_layer_rows >= 1
+    WHEN resolved.lifecycle_status = 'active'
+      AND resolved.repository_readiness_status = 'ready'
+      AND (resolved.configuration_json IS NULL OR JSON_VALID(resolved.configuration_json) = 1)
+      AND resolved.business_activity_rows = 1
+      AND resolved.adapter_rows = 1
+      AND resolved.readback_contract_rows = 1
+      AND resolved.apply_policy_rows = 1
+      AND resolved.credential_reference_rows = 1
+      AND resolved.active_policy_layer_rows >= 1
     THEN 'ready'
     ELSE 'blocked'
   END AS readiness_status
-FROM repository_capability_bindings capability
-JOIN v_repository_authority_binding_readiness authority
-  ON authority.binding_id COLLATE utf8mb4_unicode_ci = capability.repository_binding_id COLLATE utf8mb4_unicode_ci;
+FROM (
+  SELECT
+    capability.*,
+    authority.binding_key,
+    authority.tenant_id,
+    authority.workspace_id,
+    authority.brand_target_key,
+    authority.app_key,
+    authority.provider_key,
+    authority.repository_external_id,
+    authority.repository_node_id,
+    authority.canonical_owner,
+    authority.canonical_name,
+    authority.default_branch,
+    authority.environment,
+    authority.system_binding_mode,
+    authority.readiness_status AS repository_readiness_status,
+    authority.issue_code AS repository_issue_code,
+    CASE WHEN capability.business_activity_type_key IS NULL THEN 1 ELSE
+      (SELECT COUNT(*) FROM business_activity_types activity
+        WHERE activity.business_activity_type_key COLLATE utf8mb4_unicode_ci = capability.business_activity_type_key COLLATE utf8mb4_unicode_ci
+          AND LOWER(COALESCE(activity.status, 'active')) = 'active') END AS business_activity_rows,
+    (SELECT COUNT(*) FROM platform_resource_adapters adapter
+      WHERE adapter.adapter_key COLLATE utf8mb4_unicode_ci = capability.adapter_key COLLATE utf8mb4_unicode_ci
+        AND adapter.status = 'active') AS adapter_rows,
+    CASE WHEN capability.readback_contract_key IS NULL THEN 1 ELSE
+      (SELECT COUNT(*) FROM platform_capability_readback_contracts contract
+        WHERE contract.contract_key COLLATE utf8mb4_unicode_ci = capability.readback_contract_key COLLATE utf8mb4_unicode_ci
+          AND contract.capability_key COLLATE utf8mb4_unicode_ci = capability.capability_key COLLATE utf8mb4_unicode_ci
+          AND contract.is_current = 1
+          AND contract.status IN ('certified','shadow')) END AS readback_contract_rows,
+    CASE WHEN capability.policy_key IS NULL THEN 1 ELSE
+      (SELECT COUNT(*) FROM capability_apply_authorization_policy_registry policy
+        WHERE policy.policy_key COLLATE utf8mb4_unicode_ci = capability.policy_key COLLATE utf8mb4_unicode_ci
+          AND policy.app_key COLLATE utf8mb4_unicode_ci = authority.app_key COLLATE utf8mb4_unicode_ci
+          AND policy.capability_key COLLATE utf8mb4_unicode_ci = capability.capability_key COLLATE utf8mb4_unicode_ci
+          AND policy.operation_intent COLLATE utf8mb4_unicode_ci = capability.operation_intent COLLATE utf8mb4_unicode_ci
+          AND policy.runtime_surface = 'system_layer'
+          AND policy.status = 'active') END AS apply_policy_rows,
+    CASE WHEN capability.credential_ref IS NULL THEN 1 ELSE
+      (SELECT COUNT(*) FROM secret_references secret_ref
+        WHERE secret_ref.secret_key COLLATE utf8mb4_unicode_ci = REPLACE(capability.credential_ref, 'ref:secret:', '') COLLATE utf8mb4_unicode_ci
+          AND secret_ref.tenant_id = '00000000-0000-0000-0000-000000000000'
+          AND secret_ref.owner_type = 'platform'
+          AND secret_ref.provider_family = 'github'
+          AND secret_ref.connector_family = 'github_webhook'
+          AND secret_ref.credential_type = 'webhook_secret'
+          AND secret_ref.action_key = 'repository_main_moved_webhook_ingest'
+          AND secret_ref.consent_status = 'not_required'
+          AND secret_ref.status = 'active'
+          AND secret_ref.store_type = 'db_encrypted'
+          AND secret_ref.validation_status IN ('stored','validated')
+          AND secret_ref.rotation_status IN ('provisioned_pending_validation','validated')) END AS credential_reference_rows,
+    (SELECT COUNT(*) FROM repository_capability_policy_layers layer
+      WHERE layer.capability_binding_id COLLATE utf8mb4_unicode_ci = capability.capability_binding_id COLLATE utf8mb4_unicode_ci
+        AND layer.lifecycle_status = 'active'
+        AND JSON_VALID(layer.configuration_json) = 1) AS active_policy_layer_rows
+  FROM repository_capability_bindings capability
+  JOIN v_repository_authority_binding_readiness authority
+    ON authority.binding_id COLLATE utf8mb4_unicode_ci = capability.repository_binding_id COLLATE utf8mb4_unicode_ci
+) resolved;
 
 INSERT INTO platform_resource_adapters
   (adapter_key, resource_type, provider_key, adapter_kind, installed_tool_key, identity_resolver_key,
