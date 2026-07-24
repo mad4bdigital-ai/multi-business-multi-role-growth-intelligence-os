@@ -107,18 +107,24 @@ assert.equal(Object.hasOwn(projectedBinding, "executionContext"), false);
 const fakeRepository = {
   authorized: true,
   async resolveTenantWorkspaceScope(input) {
+    const authorizedScope = this.authorized
+      && input.tenantId === TENANT_ID
+      && input.userId === USER_ID
+      && input.workspaceId === WORKSPACE_ID
+      && input.brandKey === BRAND_KEY;
+    if (!authorizedScope) return null;
     assert.deepEqual(input, {
       tenantId: TENANT_ID,
       userId: USER_ID,
       workspaceId: WORKSPACE_ID,
       brandKey: BRAND_KEY
     });
-    return this.authorized ? {
+    return {
       tenantId: TENANT_ID,
       workspaceId: WORKSPACE_ID,
       brandKey: BRAND_KEY,
       bootstrapStatus: "ready"
-    } : null;
+    };
   },
   async listConfigurationVersions(input) {
     assert.equal(input.tenantId, TENANT_ID);
