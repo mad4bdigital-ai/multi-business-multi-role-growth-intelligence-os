@@ -337,6 +337,7 @@ export const testCommands = [
   "node scripts/resource-api-coverage-audit.mjs --changed",
   "node test-openapi-autofill-missing-routes.mjs",
   "node test-repo-maintenance-sync.mjs",
+  "node test-repo-maintenance-coordination.mjs",
   "node test-surface-contract-discovery.mjs",
   "node test-surface-contract-auto-remediation.mjs",
   "node test-surface-contract-governance-loop.mjs",
