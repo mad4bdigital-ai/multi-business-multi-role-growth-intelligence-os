@@ -659,7 +659,8 @@ export const testCommands = [
   "node test-growth-intelligence-admin-decisions.mjs",
   "node test-growth-intelligence-action-collation.mjs",
   "node test-approval-hold-identity-collation-alignment.mjs",
-  "node test-approval-hold-identity-release-readiness.mjs"
+  "node test-approval-hold-identity-release-readiness.mjs",
+  "node test-tenant-growth-control-plane-projection.mjs"
 ];
 
 // PR-1811 merge-scope marker: capability-security hardening tests remain governed by this manifest.
