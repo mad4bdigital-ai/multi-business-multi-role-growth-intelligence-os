@@ -615,43 +615,10 @@ async function writeReceipt(pool, {
 
 
 export async function collectChunkedToolResponse(initial, { dispatch, maxChunks = 25 } = {}) {
-  const normalized = normalizeDispatchResult(initial);
-  let body = normalized.body;
-  const pieces = [];
-  if (typeof body?.chunk === "string") pieces.push(body.chunk);
-  let continuation = chunkContinuation(body);
-  let chunkCount = pieces.length ? 1 : 0;
-  while (continuation && chunkCount < boundedInt(maxChunks, 25, 1, 100)) {
-    if (typeof dispatch !== "function") {
-      throw automationError(500, "repository_automation_chunk_dispatch_missing", "Chunked response requires a response_chunk_read dispatcher.");
-    }
-    const next = normalizeDispatchResult(await dispatch("response_chunk_read", continuation));
-    if (!next.ok) {
-      throw automationError(next.status, "repository_automation_chunk_read_failed", "Unable to consume the complete governed response chunk chain.", safeSummary(next.body));
-    }
-    body = next.body;
-    if (typeof body?.chunk === "string") pieces.push(body.chunk);
-    chunkCount += 1;
-    continuation = chunkContinuation(body);
-  }
-  if (continuation) {
-    throw automationError(409, "repository_automation_chunk_limit_exceeded", "Chunk continuation exceeded the bounded collector limit.", { chunk_count: chunkCount });
-  }
-  let reconstructed = null;
-  if (pieces.length) reconstructed = parseJson(pieces.join(""), null);
-  return {
-    ok: normalized.ok,
-    status: normalized.status,
-    body: reconstructed || normalized.body,
-    chunk_collection: {
-      response_chunked: pieces.length > 0,
-      chunk_count: chunkCount,
-      continuation_complete: continuation === null,
-      response_sha256: pieces.length ? sha256(pieces.join("")) : null,
-      secrets_included: false,
-    },
-    secrets_included: false,
-  };
+  return collectGovernedToolResponseChunks(initial, {
+    dispatch,
+    max_chunks: maxChunks,
+  });
 }
 
 async function dispatchAndCollect(dispatch, toolKey, args, options = {}) {
