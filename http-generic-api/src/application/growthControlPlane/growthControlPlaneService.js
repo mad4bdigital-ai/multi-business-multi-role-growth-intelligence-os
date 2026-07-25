@@ -86,7 +86,11 @@ function nonNegativeRevision(value) {
   return revision;
 }
 
-export function createGrowthControlPlaneService({ repository, uuid = randomUUID }) {
+export function createGrowthControlPlaneService({
+  repository,
+  shadowParityObserver = null,
+  uuid = randomUUID
+}) {
   if (!repository) throw new TypeError("Growth Control Plane repository is required.");
 
   async function listConfigurationDefinitions(input = {}) {
