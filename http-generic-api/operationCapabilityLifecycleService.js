@@ -180,17 +180,27 @@ export async function prepareOperationCapabilityLifecycle({
   resolveEnvelope = resolveCapabilityExecutionEnvelope,
   transitionEnvelope = transitionCapabilityEnvelopeLifecycle,
   createEnvelope = createCapabilityResolutionEnvelopeLedger,
+  authorityContext = null,
 } = {}) {
-  if (!operationRequiresCapability(operationKey)) {
+  if (!operationRequiresCapability(operationKey, authorityContext)) {
     return {
       required: false,
       status: "not_required",
       operation_key: operationKey || null,
       input,
+      authority_context: authorityProjection(authorityContext),
       secrets_included: false,
     };
   }
 
+  const profile = renewalProfile(operationKey, input, authorityContext);
+  const envelopeConstraints = authorityContext
+    ? {
+        acceptedAppKeys: profile.app_key ? [profile.app_key] : [],
+        acceptedCapabilityKeys: profile.capability_key ? [profile.capability_key] : [],
+        acceptedIntents: profile.operation_intent ? [profile.operation_intent] : [],
+      }
+    : {};
   const existingEnvelopeId = extractCapabilityEnvelopeId(input);
   if (existingEnvelopeId) {
     const resolved = await resolveEnvelope({
