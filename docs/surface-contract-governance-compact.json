@@ -1,13 +1,19 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 90.96,
+  "docs_completion_percent": 90,
   "docs_complete_count": 513,
-  "docs_gap_count": 51,
-  "queue_items": 51,
-  "blocking_new_item_count": 51,
+  "docs_gap_count": 57,
+  "queue_items": 79,
+  "blocking_new_item_count": 60,
   "gate_ok": false,
   "top_actionable": [
+    {
+      "migration_file": "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+      "queue_class": "critical_review",
+      "score": 1425,
+      "next_step": "confirm registry binding/readback evidence before promotion"
+    },
     {
       "migration_file": "20260723_auth_email_outbox_admin_tools.sql",
       "queue_class": "critical_review",
@@ -23,7 +29,7 @@
     {
       "migration_file": "20260717_tenant_task_source_repair_apply_gate.sql",
       "queue_class": "critical_review",
-      "score": 1055,
+      "score": 1054,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -47,7 +53,7 @@
     {
       "migration_file": "20260715_dynamic_container_canary_runtime_observability.sql",
       "queue_class": "critical_review",
-      "score": 885,
+      "score": 884,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -57,16 +63,10 @@
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
+      "migration_file": "1030_sprint69_generic_platform_resource_context.sql",
       "queue_class": "critical_review",
-      "score": 848,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
-      "queue_class": "critical_review",
-      "score": 836,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
+      "score": 866,
+      "next_step": "confirm registry binding/readback evidence before promotion"
     }
   ],
   "openapi_missing_sql_route_count": 7,
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 51,
-    "warning_new_item_count": 51
+    "blocking_new_item_count": 60,
+    "warning_new_item_count": 60
   },
   "safety": {
     "executes_provider_calls": false,
