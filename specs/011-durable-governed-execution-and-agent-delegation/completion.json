@@ -334,6 +334,27 @@
       "backfill_performed": false,
       "same_cycle_readback_required_before_apply": true
     },
+    "phase3_delegation_persistence_production_verification": {
+      "status": "verified_scope_only_no_runtime_deploy_required",
+      "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b",
+      "final_ci_head_sha": "22f100d6aece8600fa953bed7f05fd1f975890f5",
+      "final_ci_base_sha": "2587f804045e5045a87a5df3009ea2bac8aa45d8",
+      "verification_basis": "isolated_merge_diff",
+      "migration_applied": false,
+      "database_write": false,
+      "backfill_performed": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "provider_dispatch_performed": false,
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "release_operation_required": false,
+      "rollback_required": false,
+      "global_release_readiness": "warn_unrelated_main_runtime_gap",
+      "global_readiness_note": "The wider main-to-runtime gap contains unrelated operational changes. Slice C itself adds an unapplied migration contract, deterministic test, CI registration, and evidence only.",
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "phase3_delegation_grant_shadow_production_verification": {
       "status": "verified_at_runtime_descendant_and_current_main_parity",
       "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
