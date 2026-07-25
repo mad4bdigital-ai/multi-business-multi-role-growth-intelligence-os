@@ -185,6 +185,8 @@ export async function collectOpenApiEndpointInventory({
   const seenOperationIds = new Map();
   const seenRoutes = new Map();
   let suppressedRouteDuplicateCount = 0;
+  let suppressedRouteConflictCount = 0;
+  const suppressedRouteConflicts = [];
 
   const appendDocumentOperations = async (entry, { required = false } = {}) => {
     const hasInventorySurface = Boolean(
