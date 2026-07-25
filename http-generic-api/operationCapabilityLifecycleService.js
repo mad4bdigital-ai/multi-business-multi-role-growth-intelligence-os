@@ -92,7 +92,16 @@ function repositoryResourceUri(input = {}) {
   return owner && repo ? `github://${owner}/${repo}` : "";
 }
 
-function renewalProfile(operationKey, input = {}) {
+function renewalProfile(operationKey, input = {}, authorityContext = null) {
+  if (authorityContext?.profile) {
+    return {
+      app_key: compact(authorityContext.profile.app_key, 128),
+      capability_key: compact(authorityContext.profile.capability_key, 191),
+      operation_intent: compact(authorityContext.profile.operation_intent, 128),
+      runtime_surface: compact(authorityContext.profile.runtime_surface, 191),
+      requested_source_tier: compact(authorityContext.profile.requested_source_tier || "managed", 96),
+    };
+  }
   if (REPOSITORY_MUTATION_OPERATIONS.has(operationKey)) {
     return {
       app_key: "platform_orchestration",
