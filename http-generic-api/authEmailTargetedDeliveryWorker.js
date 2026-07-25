@@ -514,7 +514,7 @@ export async function applyTargetAuthEmailDelivery({
         ...metadata,
         delivery_attempt_id: attempt.attempt_id,
         delivery_provider: "gmail_api",
-        delivery_state: outboxStatus,
+        delivery_state: deliveryState,
         manual_reconciliation_required: outcomeUnknown,
         external_send_performed: externalSendPerformed,
         secrets_included: false,
