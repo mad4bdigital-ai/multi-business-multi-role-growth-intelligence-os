@@ -245,6 +245,17 @@ try {
   assert.equal(lockedPool.committed, false);
   assert.equal(lockedPool.rolledBack, true);
   assert.equal(lockedPool.released, true);
+  const failedRunInsert = lockedPool.calls.find(
+    (call) => call.sql.includes("INSERT INTO openapi_endpoint_inventory_sync_runs"),
+  );
+  assert(failedRunInsert);
+  const failedRunSummary = JSON.parse(failedRunInsert.params[12]);
+  assert.equal(failedRunSummary.plan.insert_count, 2);
+  assert.equal(failedRunSummary.inventory_evidence.source_document_count, 2);
+  assert.equal(failedRunSummary.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(failedRunSummary.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(failedRunSummary.inventory_evidence.suppressed_route_conflicts, []);
+  assert.equal(failedRunInsert.params[13], "openapi_inventory_sync_locked");
 
   const duplicatePath = path.join(tempRoot, "duplicate.yaml");
   await writeFile(duplicatePath, yaml(makeRoot({
