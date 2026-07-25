@@ -1,3 +1,5 @@
+import { getPool } from "../../../db.js";
+
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
   if (value == null || value === "") return [];
