@@ -80,7 +80,13 @@ assert.equal(reconcileCalls, 1);
 assert.equal(executeStepCalls, 0);
 assert.equal(result.ok, true);
 assert.equal(result.mode, "dry_run");
-assert.equal(result.apply_allowed, true);
+assert.equal(result.apply_allowed, false);
+assert.deepEqual(result.apply_readiness, {
+  recipe_active: true,
+  admin_apply_surface_exposed: false,
+  executor_implemented: false,
+  blockers: ["repository_reconciliation_admin_apply_surface_not_exposed"],
+});
 assert.equal(result.plan.plan.recipe_key, "repo.pr.reconcile_and_finalize");
 assert.equal(result.plan.plan.resource.expected_base_sha, baseSha);
 assert.equal(result.plan.plan.resource.expected_branch_sha, branchSha);
