@@ -2,7 +2,9 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { createGrowthControlPlaneRepository } from "../src/infrastructure/growthControlPlane/growthControlPlaneRepository.js";
+import { createGrowthControlShadowParityRepository } from "../src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js";
 import { createGrowthControlPlaneService } from "../src/application/growthControlPlane/growthControlPlaneService.js";
+import { createGrowthControlShadowParityService } from "../src/application/growthControlPlane/growthControlShadowParityService.js";
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
