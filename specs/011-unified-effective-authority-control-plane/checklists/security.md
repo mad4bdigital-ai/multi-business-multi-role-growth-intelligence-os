@@ -23,5 +23,5 @@
 - [ ] Cross-tenant negative tests pass.
 - [ ] Break-glass policy receives separate approval.
 - [ ] Decision-ledger retention and access are approved.
-- [ ] Secret-like schema rejection is tested.
+- [x] Secret-like schema rejection is tested.
 - [ ] Policy publication and rollback are governed.
