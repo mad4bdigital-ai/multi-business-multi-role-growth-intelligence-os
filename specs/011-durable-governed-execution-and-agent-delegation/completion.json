@@ -238,9 +238,10 @@
       "secrets_included": false
     },
     "phase3_delegation_persistence_contract": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
       "pull_request": 3110,
+      "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b",
       "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
       "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
       "design": "phase3-delegation-persistence-contract.md",
