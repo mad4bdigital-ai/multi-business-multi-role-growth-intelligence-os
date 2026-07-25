@@ -204,7 +204,7 @@ assert.match(routeSource, /auth-email-outbox\/targeted-apply/);
 assert.match(routeSource, /auth-email-outbox\/attempts/);
 assert.match(indexSource, /buildAuthEmailTargetedDeliveryRoutes/);
 assert.match(migrationSource, /CREATE TABLE IF NOT EXISTS `auth_email_delivery_attempts`/);
-assert.match(migrationSource, /ENUM\('queued','processing','sent','failed','skipped','delivery_unknown'\)/);
+assert.doesNotMatch(migrationSource, /ALTER TABLE/);
 assert.match(migrationSource, /auth_email_outbox_targeted_apply/);
 
 console.log("auth email targeted delivery worker tests passed");
