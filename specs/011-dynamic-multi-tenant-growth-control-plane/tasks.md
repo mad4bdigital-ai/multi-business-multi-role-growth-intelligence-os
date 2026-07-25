@@ -26,8 +26,8 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 - [ ] T202 Implement strict schema validation and bounded merge operators.
 - [ ] T203 Implement deterministic effective resolver, lineage and revision vector.
 - [ ] T204 Implement publish/rollback transaction and invalidation events.
-- [ ] T205 Add read-only Admin/Tenant APIs and OpenAPI operations.
-- [ ] T206 Add shadow parity comparison against existing behavior.
+- [x] T205 Add read-only Admin/Tenant APIs and OpenAPI operations.
+- [x] T206 Add shadow parity comparison against existing behavior.
 
 ## Phase D — Activity Packs and brand bindings
 
