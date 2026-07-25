@@ -17,6 +17,7 @@ const DEFAULT_PURPOSES = ["support_ticket_admin_notification"];
 const GMAIL_APP_KEYS = ["gmail_user_oauth", "gmail", "gmail_api", "google_cloud"];
 const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const CONFIRM_SEND = "SEND_AUTH_EMAIL_OUTBOX";
+const RUNTIME_DELIVERY_GATE_KEY = "auth_email_outbox_delivery_gate_v1";
 
 function parseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
@@ -56,14 +57,80 @@ export function normalizePurposeList(value = DEFAULT_PURPOSES) {
   return [...new Set(items)].filter((purpose) => /^[a-z0-9_:-]{3,80}$/i.test(purpose));
 }
 
-export function buildAuthEmailOutboxWorkerReadiness({ env = process.env, apply = false, confirm = "" } = {}) {
+export async function resolveAuthEmailOutboxRuntimeDeliveryGate({
+  pool = getPool(),
+  purposes = DEFAULT_PURPOSES,
+  limit = DEFAULT_LIMIT,
+  now = new Date(),
+} = {}) {
+  const normalizedPurposes = normalizePurposeList(purposes);
+  const safeLimit = integer(limit);
+  const [rows] = await pool.query(
+    `SELECT config_json, status
+       FROM platform_runtime_config
+      WHERE config_key = ?
+      LIMIT 1`,
+    [RUNTIME_DELIVERY_GATE_KEY]
+  );
+  const row = rows?.[0] || null;
+  const config = parseJsonObject(row?.config_json, {});
+  const allowedPurposes = [...new Set(splitList(config.purposes || config.purpose || []))]
+    .filter((purpose) => /^[a-z0-9_:-]{3,80}$/i.test(purpose));
+  const allowedEmailIds = [...new Set(
+    (Array.isArray(config.allowed_email_ids) ? config.allowed_email_ids : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => /^[A-Za-z0-9._:-]{3,191}$/.test(value))
+  )];
+  const maxMessages = integer(config.max_messages, 0, 0, MAX_LIMIT);
+  const expiresAt = String(config.expires_at || "").trim();
+  const expiresAtMs = Date.parse(expiresAt);
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now || ""));
   const reasons = [];
-  const deliveryEnabled = env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
-  if (apply && !deliveryEnabled) reasons.push("auth_email_outbox_delivery_feature_flag_disabled");
+  if (!row) reasons.push("auth_email_outbox_runtime_gate_missing");
+  if (row && row.status !== "active") reasons.push("auth_email_outbox_runtime_gate_inactive");
+  if (config.enabled !== true) reasons.push("auth_email_outbox_runtime_gate_disabled");
+  if (!Number.isFinite(expiresAtMs) || !Number.isFinite(nowMs) || expiresAtMs <= nowMs) {
+    reasons.push("auth_email_outbox_runtime_gate_expired");
+  }
+  if (!normalizedPurposes.every((purpose) => allowedPurposes.includes(purpose))) {
+    reasons.push("auth_email_outbox_runtime_gate_purpose_mismatch");
+  }
+  if (safeLimit > maxMessages) reasons.push("auth_email_outbox_runtime_gate_limit_exceeded");
+  if (!allowedEmailIds.length || allowedEmailIds.length < safeLimit) {
+    reasons.push("auth_email_outbox_runtime_gate_email_scope_invalid");
+  }
+  if (config.expected_confirm !== CONFIRM_SEND) {
+    reasons.push("auth_email_outbox_runtime_gate_confirmation_mismatch");
+  }
+  return {
+    enabled: reasons.length === 0,
+    source: "platform_runtime_config",
+    config_key: RUNTIME_DELIVERY_GATE_KEY,
+    allowed_email_ids: allowedEmailIds,
+    allowed_email_count: allowedEmailIds.length,
+    max_messages: maxMessages,
+    expires_at: expiresAt || null,
+    reasons,
+    secrets_included: false,
+  };
+}
+
+export function buildAuthEmailOutboxWorkerReadiness({
+  env = process.env,
+  apply = false,
+  confirm = "",
+  runtimeGateEnabled = false,
+} = {}) {
+  const reasons = [];
+  const envDeliveryEnabled = env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
+  const effectiveDeliveryEnabled = envDeliveryEnabled || Boolean(runtimeGateEnabled);
+  if (apply && !effectiveDeliveryEnabled) reasons.push("auth_email_outbox_delivery_feature_flag_disabled");
   if (apply && confirm !== CONFIRM_SEND) reasons.push("auth_email_outbox_send_confirmation_required");
   return {
     ready: reasons.length === 0,
-    delivery_feature_flag_enabled: deliveryEnabled,
+    delivery_feature_flag_enabled: envDeliveryEnabled,
+    runtime_delivery_gate_enabled: Boolean(runtimeGateEnabled),
+    delivery_enabled: effectiveDeliveryEnabled,
     confirmation_required: CONFIRM_SEND,
     reasons,
     secrets_included: false,
@@ -165,10 +232,14 @@ async function fetchQueuedEmails(connection, {
   purposes = DEFAULT_PURPOSES,
   limit = DEFAULT_LIMIT,
   excludeActiveClaims = false,
+  allowedEmailIds = [],
 } = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
+  const normalizedAllowedEmailIds = [...new Set(
+    (allowedEmailIds || []).map((value) => String(value || "").trim()).filter(Boolean)
+  )];
   const activeClaimFilter = excludeActiveClaims
     ? `AND NOT EXISTS (
          SELECT 1
@@ -176,6 +247,9 @@ async function fetchQueuedEmails(connection, {
           WHERE a.email_id = e.email_id
             AND a.status = 'started'
        )`
+    : "";
+  const emailScopeFilter = normalizedAllowedEmailIds.length
+    ? `AND e.email_id IN (${normalizedAllowedEmailIds.map(() => "?").join(",")})`
     : "";
   const [rows] = await connection.query(
     `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
@@ -189,9 +263,10 @@ async function fetchQueuedEmails(connection, {
       WHERE e.status = 'queued'
         AND e.purpose IN (${placeholders})
         ${activeClaimFilter}
+        ${emailScopeFilter}
       ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
-    normalizedPurposes
+    [...normalizedPurposes, ...normalizedAllowedEmailIds]
   );
   return rows || [];
 }
@@ -280,10 +355,26 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
     pool,
     purposes: normalizedPurposes,
   });
+  const runtimeGate = await resolveAuthEmailOutboxRuntimeDeliveryGate({
+    pool,
+    purposes: normalizedPurposes,
+    limit: 1,
+  });
+  const envDeliveryEnabled = process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
   return {
     ok: true,
     purposes: normalizedPurposes,
-    delivery_feature_flag_enabled: process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true",
+    delivery_feature_flag_enabled: envDeliveryEnabled,
+    runtime_delivery_gate_enabled: runtimeGate.enabled,
+    delivery_enabled: envDeliveryEnabled || runtimeGate.enabled,
+    runtime_delivery_gate: {
+      enabled: runtimeGate.enabled,
+      allowed_email_count: runtimeGate.allowed_email_count,
+      max_messages: runtimeGate.max_messages,
+      expires_at: runtimeGate.expires_at,
+      reasons: runtimeGate.reasons,
+      secrets_included: false,
+    },
     attempt_ledger_available: attemptSummary.attempt_ledger_available,
     attempt_counts: attemptSummary.attempt_counts,
     counts: (counts || []).map((row) => ({
@@ -369,7 +460,22 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const apply = !dryRun;
-  const readiness = buildAuthEmailOutboxWorkerReadiness({ apply, confirm });
+  const envDeliveryEnabled = process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
+  const runtimeGate = apply && !envDeliveryEnabled
+    ? await resolveAuthEmailOutboxRuntimeDeliveryGate({
+        pool,
+        purposes: normalizedPurposes,
+        limit: safeLimit,
+      })
+    : { enabled: false, allowed_email_ids: [], reasons: [], secrets_included: false };
+  const readiness = buildAuthEmailOutboxWorkerReadiness({
+    apply,
+    confirm,
+    runtimeGateEnabled: runtimeGate.enabled,
+  });
+  if (apply && !readiness.ready && runtimeGate.reasons?.length) {
+    readiness.runtime_gate_reasons = runtimeGate.reasons;
+  }
   if (apply && !readiness.ready) {
     const error = new Error(`Auth email outbox delivery is not ready: ${readiness.reasons.join(", ")}`);
     error.code = "auth_email_outbox_delivery_not_ready";
@@ -409,6 +515,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
         purposes: normalizedPurposes,
         limit: 1,
         excludeActiveClaims: true,
+        allowedEmailIds: runtimeGate.enabled ? runtimeGate.allowed_email_ids : [],
       });
       const email = rows[0] || null;
       if (!email) {
@@ -679,6 +786,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
       failed,
       skipped,
       external_send_performed: delivered.length > 0 || failed.some((item) => item.external_send_performed === true),
+      runtime_delivery_gate_used: runtimeGate.enabled,
       secrets_included: false,
     };
   } finally {
