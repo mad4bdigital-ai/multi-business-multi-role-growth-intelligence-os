@@ -82,6 +82,9 @@
   "phase3_delegation_grant_shadow_release_gate_status": "hard_disabled",
   "phase3_delegation_grant_shadow_closeout_branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
   "phase3_delegation_grant_shadow_closeout_pull_request": 3092,
+  "phase3_delegation_persistence_branch": "gpt/spec-011-phase3-delegation-persistence-20260725",
+  "phase3_delegation_persistence_pull_request": 3110,
+  "phase3_delegation_persistence_source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
   "deliverables": [
     "spec",
     "plan",
@@ -123,7 +126,10 @@
     "phase3_delegation_preview_contract",
     "phase3_delegation_lifecycle_preview",
     "phase3_legacy_delegation_policy_gap_projection",
-    "phase3_delegation_shadow_tests"
+    "phase3_delegation_shadow_tests",
+    "phase3_delegation_persistence_contract",
+    "phase3_delegation_persistence_contract_test",
+    "phase3_effective_grants_fail_closed_view_contract"
   ],
   "constraints": [
     "no_provider_call",

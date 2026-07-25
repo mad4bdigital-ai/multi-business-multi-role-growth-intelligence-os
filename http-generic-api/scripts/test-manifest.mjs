@@ -613,6 +613,7 @@ export const testCommands = [
   "node test-canonical-execution-contract-resolver.mjs",
   "node test-plan-bound-session-shadow.mjs",
   "node test-delegation-grant-shadow.mjs",
+  "node test-agent-delegation-persistence-contract.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
   "node test-release-operation-ledger-mutation-policy.mjs",
