@@ -253,6 +253,6 @@ components:
     BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
     Unauthorized: { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
     Forbidden: { description: Authenticated principal is not allowed, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    NotFound: { description: Agent, skill, or request not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Conflict: { description: Approval lifecycle, scope, idempotency, or readback conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: "Agent, skill, or request not found", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: "Approval lifecycle, scope, idempotency, or readback conflict", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
     InternalError: { description: Unexpected server failure, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
