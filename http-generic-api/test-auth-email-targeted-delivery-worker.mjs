@@ -56,7 +56,11 @@ function createHarness(email) {
       log.push({ sql, params });
       if (sql.includes("FROM auth_email_outbox e")) return [[email]];
       if (sql.includes("MAX(retry_count)")) return [[{ retry_count: 0 }]];
-      if (sql.includes("UPDATE auth_email_outbox") && sql.includes("status = 'processing'")) {
+      if (
+        sql.includes("UPDATE auth_email_outbox") &&
+        sql.includes("status = 'failed'") &&
+        sql.includes("status = 'queued'")
+      ) {
         return [{ affectedRows: 1 }];
       }
       return [{ affectedRows: 1 }];
