@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { evaluatePlatformTopologyEvidence } from "./src/domain/authorityScope/platformTopologyVerification.js";
 import { createPlatformTopologyVerificationService } from "./src/application/authorityScope/platformTopologyVerificationService.js";
 import { createAuthorityScopeService } from "./src/application/authorityScope/authorityScopeService.js";
+import { _testingDynamicContainerAuthorityRoutes } from "./routes/dynamicContainerAuthorityRoutes.js";
 
 const completeEvidence = {
   platformScope:{ scope_id:"scope-1",scope_key:"platform:root",scope_type:"platform",tenant_id:null,status:"active",version:1 },
@@ -25,12 +26,17 @@ assert.equal(verified.status,"verified");
 assert.equal(verified.readinessCode,"ready_for_review");
 assert.equal(verified.summary.gapCount,0);
 assert.equal(verified.authorityGranted,false);
+assert.equal(verified.providerCalls,false);
+assert.equal(verified.credentialPayloadReads,false);
+assert.equal(verified.externalWrites,false);
 assert.equal(verified.secretsIncluded,false);
 
 const missing = evaluatePlatformTopologyEvidence({ ...completeEvidence,adminWorkspaces:[],workspaceContainers:[],relationships:[] });
 assert.equal(missing.status,"gaps_detected");
+assert.equal(missing.readinessCode,"topology_remediation_required");
 assert(missing.gaps.some((item) => item.code === "platform_admin_workspace_marker_missing"));
 assert(missing.gaps.some((item) => item.code === "platform_admin_workspace_container_missing"));
+assert(!JSON.stringify(missing).includes("config_json"));
 
 const auditEvents = [];
 const topologyService = createPlatformTopologyVerificationService({
@@ -40,8 +46,12 @@ const topologyService = createPlatformTopologyVerificationService({
 });
 const topologyResult = await topologyService.verify({ actorId:"platform_admin",requestId:"req-topology" });
 assert.equal(topologyResult.verifiedAt,"2026-07-24T00:00:00.000Z");
+assert.equal(topologyResult.verificationMode,"read_only");
 assert.equal(auditEvents.length,1);
 assert.equal(auditEvents[0].action,"platform_topology_verification_read");
+assert.deepEqual(auditEvents[0].gapCodes,[]);
+assert.equal(topologyResult.credentialPayloadReads,false);
+assert.equal(topologyResult.secretsIncluded,false);
 
 const tenantScope = { scopeId:"tenant-scope",scopeKey:"tenant:tenant-a",scopeType:"tenant",tenantId:"tenant-a",status:"active",version:1 };
 const authorityAudits = [];
@@ -56,8 +66,10 @@ const authorityDecision = await authorityService.resolve({
   requestId:"req-authority",
 });
 assert.equal(authorityDecision.authorityGranted,false);
+assert.equal(authorityDecision.enforcementMode,"shadow_only");
 assert.equal(authorityAudits.length,1);
 assert.equal(authorityAudits[0].action,"platform_admin_tenant_authority_scope_resolved");
+assert.equal(authorityAudits[0].requestId,"req-authority");
 
 const failingAuditService = createAuthorityScopeService({
   repository:{ findByKey:async () => tenantScope,findByTenantId:async () => tenantScope },
@@ -69,15 +81,35 @@ await assert.rejects(
   (error) => error.code === "AUTHORITY_SCOPE_AUDIT_FAILED" && error.status === 503
 );
 
+_testingDynamicContainerAuthorityRoutes.resetTopologyReadRateForTests();
+for (let index=0; index<60; index+=1) {
+  _testingDynamicContainerAuthorityRoutes.enforceTopologyReadRate({ auth:{ user_id:"platform_admin" } });
+}
+assert.throws(
+  () => _testingDynamicContainerAuthorityRoutes.enforceTopologyReadRate({ auth:{ user_id:"platform_admin" } }),
+  (error) => error.code === "platform_topology_verification_rate_limited" && error.status === 429 && error.details[0].retryAfterSeconds >= 1
+);
+_testingDynamicContainerAuthorityRoutes.resetTopologyReadRateForTests();
+
+const routeSource = readFileSync("routes/dynamicContainerAuthorityRoutes.js","utf8");
+const openapiSource = readFileSync("openapi/container-authority.yaml","utf8");
 const migration = readFileSync("migrations/20260724_dynamic_container_topology_verification_tool.sql","utf8");
 const domainSource = readFileSync("src/domain/authorityScope/platformTopologyVerification.js","utf8");
 const applicationSource = readFileSync("src/application/authorityScope/platformTopologyVerificationService.js","utf8");
 const infrastructureSource = readFileSync("src/infrastructure/authorityScope/platformTopologyVerificationRepository.js","utf8");
+
+assert(routeSource.includes('/admin/container-authority/topology-verification'));
+assert(routeSource.includes('platform_topology_verification_rate_limited'));
+assert(openapiSource.includes("getAdminContainerAuthorityTopologyVerification"));
+assert(openapiSource.includes("PlatformTopologyVerificationResponse"));
+assert(openapiSource.includes("'429': { $ref: '#/responses/RateLimited' }"));
 assert(migration.includes("dynamic_container_topology_verification"));
+assert(migration.includes("'GET'"));
 assert(migration.includes("no_provider_call"));
 assert(!/\b(?:SELECT|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)\b/i.test(domainSource));
 assert(!/\b(?:SELECT|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM)\b/i.test(applicationSource));
 assert(/SELECT[\s\S]+authority_scope_registry/i.test(infrastructureSource));
-assert(!JSON.stringify(topologyResult).match(/secret|credential/i));
+assert(!JSON.stringify(topologyResult).includes("access_token"));
+assert(!JSON.stringify(topologyResult).includes("refresh_token"));
 
-console.log("platform topology verification foundation tests passed");
+console.log("platform topology verification tests passed");
