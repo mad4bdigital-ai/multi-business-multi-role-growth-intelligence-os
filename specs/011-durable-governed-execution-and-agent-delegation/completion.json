@@ -77,6 +77,13 @@
       "number": 3092,
       "branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
       "role": "delegation_grant_shadow_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "97098a1c4284063be4a684b1618c36b9e88e4257"
+    },
+    "phase3_delegation_persistence_pr": {
+      "number": 3110,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-20260725",
+      "role": "delegation_persistence_contract",
       "status": "current_pr"
     },
     "implementation_prs": [
