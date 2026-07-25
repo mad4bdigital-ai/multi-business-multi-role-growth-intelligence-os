@@ -131,8 +131,9 @@ export function buildCapabilityRenewalRequest({
   operationKey = "",
   requestedBy = "",
   ttlMinutes = 60,
+  authorityContext = null,
 } = {}) {
-  const profile = renewalProfile(operationKey, input);
+  const profile = renewalProfile(operationKey, input, authorityContext);
   const passthrough = [];
   pushArg(passthrough, "--tenant-id", auth.tenant_id);
   pushArg(passthrough, "--user-id", auth.user_id || auth.admin_id);
