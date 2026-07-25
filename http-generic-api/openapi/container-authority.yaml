@@ -488,6 +488,42 @@ schemas:
       enforcementApplied: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
+  PlatformTopologyVerificationResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, verificationMode, verifiedAt, status, readinessCode, contract, summary, evidence, gaps, authorityGranted, providerCalls, credentialPayloadReads, externalWrites, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      verificationMode: { type: string, const: read_only }
+      verifiedAt: { type: string, format: date-time }
+      status: { type: string, enum: [verified, gaps_detected] }
+      readinessCode: { type: string, enum: [ready_for_review, topology_remediation_required] }
+      contract:
+        type: object
+        additionalProperties: false
+        required: [authorityScopeKey, adminWorkspaceKey, platformBrandTargetKey]
+        properties:
+          authorityScopeKey: { type: string, const: 'platform:root' }
+          adminWorkspaceKey: { type: string, const: platform_admin_workspace }
+          platformBrandTargetKey: { type: string, const: growth_intelligence_platform }
+      summary: { type: object, additionalProperties: true }
+      evidence: { type: object, additionalProperties: true }
+      gaps:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [code, message, evidence]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            evidence: { type: object, additionalProperties: true }
+      authorityGranted: { type: boolean, const: false }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
   ListResponse:
     type: object
     additionalProperties: false
