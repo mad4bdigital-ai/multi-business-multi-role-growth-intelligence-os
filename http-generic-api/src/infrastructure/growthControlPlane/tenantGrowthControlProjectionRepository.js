@@ -75,7 +75,8 @@ export function createTenantGrowthControlProjectionRepository({
   }
 
   async function resolveTenantWorkspaceScope({ tenantId, userId, workspaceId, brandKey }) {
-    const [rows] = await pool.query(
+    const db = await executor();
+    const [rows] = await db.query(
       `SELECT m.tenant_id,
               m.role AS tenant_role,
               wr.workspace_id,
