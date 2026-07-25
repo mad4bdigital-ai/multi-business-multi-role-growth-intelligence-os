@@ -157,7 +157,8 @@
         "T040",
         "T041",
         "T044",
-        "T046"
+        "T046",
+        "T072"
       ],
       "partial": [
         "T001",
@@ -177,7 +178,6 @@
         "T052",
         "T053",
         "T054",
-        "T072",
         "T073"
       ],
       "closure_policy": "tasks.md checkboxes remain closure criteria and are not bulk-closed by this evidence update"
