@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import "./test-repository-authority-capability-v2-migration.mjs";
+import "./test-repository-authority-capability-readiness-repair.mjs";
 import "./test-repository-authority-context-resolver.mjs";
 
 import {
