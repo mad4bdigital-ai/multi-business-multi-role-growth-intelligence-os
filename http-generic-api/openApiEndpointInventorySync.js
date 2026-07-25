@@ -323,6 +323,8 @@ export async function collectOpenApiEndpointInventory({
     operation_count: operations.length,
     source_document_count: sourceDocuments.length,
     suppressed_route_duplicate_count: suppressedRouteDuplicateCount,
+    suppressed_route_conflict_count: suppressedRouteConflictCount,
+    suppressed_route_conflicts: suppressedRouteConflicts,
     source_sha256: sha256(stableJson(sourceDocuments)),
     source_fingerprint: sourceFingerprint,
     operations,
