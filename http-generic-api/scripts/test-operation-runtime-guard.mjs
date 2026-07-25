@@ -170,6 +170,24 @@ for (const [statusCode, expectedCode] of [
   assert.equal(run.res.headers["x-request-id"], "req_generated-request-id");
   assert.ok(Number(run.res.headers["x-operation-response-bytes"]) > 0);
 }
+{
+  const run = harness({ headers: {}, body: {} });
+  assert.equal(run.timeoutHandler, null);
+  run.res.send("unregistered route response");
+  assert.equal(run.res.statusCode, 200);
+  assert.equal(run.res.payload, "unregistered route response");
+  assert.equal(run.res.headers["x-operation-response-bytes"], undefined);
+}
+{
+  const run = harness({ headers: {}, body: {} });
+  assert.equal(run.timeoutHandler, null);
+  run.res.status(503).send("<html>generic upstream failure</html>");
+  assert.equal(run.res.statusCode, 503);
+  assert.equal(run.res.payload.error.code, "OPERATION_DEPENDENCY_UNAVAILABLE");
+  assert.equal(run.res.payload.error.retryable, true);
+  assert.equal(run.res.payload.error.details.operation_key, null);
+  assert.equal(JSON.stringify(run.res.payload).includes("generic upstream failure"), false);
+}
 
 {
   const run = errorHandlerHarness(
