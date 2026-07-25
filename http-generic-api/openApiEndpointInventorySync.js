@@ -299,12 +299,17 @@ export async function collectOpenApiEndpointInventory({
   }
 
   operations.sort((a, b) => a.endpoint_key.localeCompare(b.endpoint_key));
-  const sourceFingerprint = sha256(stableJson(operations.map((item) => ({
-    endpoint_key: item.endpoint_key,
-    method: item.method,
-    path: item.endpoint_path_or_function,
-    operation_sha256: item.operation_sha256,
-  }))));
+  suppressedRouteConflicts.sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+  const sourceFingerprint = sha256(stableJson({
+    operations: operations.map((item) => ({
+      endpoint_key: item.endpoint_key,
+      method: item.method,
+      path: item.endpoint_path_or_function,
+      operation_sha256: item.operation_sha256,
+    })),
+    suppressed_route_duplicate_count: suppressedRouteDuplicateCount,
+    suppressed_route_conflicts: suppressedRouteConflicts,
+  }));
   const sourceDocuments = [...cache.values()]
     .map((entry) => ({
       file: path.relative(rootDirectory, entry.absolutePath).replace(/\\/g, "/") || path.basename(entry.absolutePath),
