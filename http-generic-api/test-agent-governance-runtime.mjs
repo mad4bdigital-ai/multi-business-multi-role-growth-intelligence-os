@@ -512,7 +512,9 @@ const readiness = buildAgentGovernanceReadiness({
   schema_objects: [
     "agent_response_profile_registry", "research_source_policy_registry", "research_source_execution_log",
     "agent_handoff_state_registry", "agent_handoff_state_access_log", "external_prompt_artifact_registry",
-    "v_skill_runtime_coverage", "memory_scope_type_registry", "memory_scope_links", "governed_research_plan_registry",
+    "capability_retrieval_events", "capability_retrieval_candidates", "capability_invocations",
+    "v_skill_runtime_coverage", "v_logic_runtime_coverage", "v_engine_runtime_coverage",
+    "memory_scope_type_registry", "memory_scope_links", "governed_research_plan_registry",
   ],
   active_policy_count: 1,
   active_profile_count: 1,
