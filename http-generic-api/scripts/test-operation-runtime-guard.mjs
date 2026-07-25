@@ -89,6 +89,7 @@ assert.equal(
   }).max_elapsed_ms,
   20000,
 );
+assert.equal(_testingOperationRuntimeGuard.resolveBudget({ body: {} }).enforce_budget, false);
 
 {
   const run = harness({
