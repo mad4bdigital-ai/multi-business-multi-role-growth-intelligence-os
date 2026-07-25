@@ -200,4 +200,23 @@ assert(repositorySource.includes("growth_control_shadow_parity_evidence"));
 assert.equal(repositorySource.includes("providerApplyAllowed: true"), false);
 assert.equal(repositorySource.includes("externalWriteAllowed: true"), false);
 
+const controlPlaneServiceSource = readFileSync("src/application/growthControlPlane/growthControlPlaneService.js", "utf8");
+assert(controlPlaneServiceSource.includes("shadowParityObserver = null"));
+assert(controlPlaneServiceSource.includes("await shadowParityObserver.observeSafely"));
+assert(controlPlaneServiceSource.includes("growthValue: result"));
+assert.equal(controlPlaneServiceSource.includes("shadowParity:"), false);
+assert(
+  controlPlaneServiceSource.indexOf("await shadowParityObserver.observeSafely")
+    < controlPlaneServiceSource.indexOf("return Object.freeze({ ...snapshot, scopeHierarchy")
+);
+
+const routeSource = readFileSync("routes/dynamicGrowthControlPlaneRoutes.js", "utf8");
+assert(routeSource.includes("GROWTH_CONTROL_SHADOW_PARITY_ENABLED"));
+assert(routeSource.includes("=== \"true\""));
+assert(routeSource.includes("service || !shadowParityEnabled"));
+assert(routeSource.includes("createGrowthControlShadowParityRepository"));
+assert(routeSource.includes("createGrowthControlShadowParityService"));
+assert(routeSource.includes("createGrowthControlPlaneService({ repository, shadowParityObserver })"));
+assert.equal(routeSource.includes("shadowParityEnabled = true"), false);
+
 console.log("growth control shadow parity tests passed");
