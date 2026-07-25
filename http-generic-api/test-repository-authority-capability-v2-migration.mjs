@@ -41,6 +41,12 @@ assert(!sql.includes("selected_runtime_surface"));
 assert(!sql.includes("allow_without_credential_binding"));
 assert(!sql.includes("allow_live_execution"));
 assert(!sql.includes("policy_metadata_json"));
+assert(sql.includes("capability_version=repository_capability_bindings.capability_version+1"));
+assert(sql.includes("lock_version=repository_capability_bindings.lock_version+1"));
+assert(sql.includes("layer_version=repository_capability_policy_layers.layer_version+1"));
+assert(sql.includes("lock_version=repository_capability_policy_layers.lock_version+1"));
+assert(!sql.includes("capability_version=capability_version+1,\n  lock_version=lock_version+1"));
+assert(!sql.includes("layer_version=layer_version+1, lock_version=lock_version+1"));
 assert(!sql.includes("value_ciphertext"));
 assert(!sql.includes("includeSecret"));
 
