@@ -229,6 +229,12 @@ export function createOperationRuntimeGuard({
     };
 
     const settleAndSend = (payload, sender) => {
+      if (!enforceBudget) {
+        settled = true;
+        cleanup();
+        return invokeOriginal(sender, payload);
+      }
+
       let serialized;
       try {
         serialized = serializeForBudget(payload);
