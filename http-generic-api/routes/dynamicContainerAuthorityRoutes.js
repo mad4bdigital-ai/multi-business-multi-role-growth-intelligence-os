@@ -2,6 +2,9 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { writeAuditLog } from "../auditLogger.js";
+import { createPlatformTopologyVerificationService } from "../src/application/authorityScope/platformTopologyVerificationService.js";
+import { createPlatformTopologyVerificationRepository } from "../src/infrastructure/authorityScope/platformTopologyVerificationRepository.js";
 import {
   createContainerRelationship,
   createContainerResourceBinding,
