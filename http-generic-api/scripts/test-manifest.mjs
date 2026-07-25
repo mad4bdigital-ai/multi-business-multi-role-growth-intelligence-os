@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-effective-authority-cross-tenant-matrix.mjs",
   "node test-activation-effective-authority-openapi.mjs",
   "node test-effective-authority-reconciliation-startup.mjs",
   "node test-effective-authority-reconciliation-repository.mjs",

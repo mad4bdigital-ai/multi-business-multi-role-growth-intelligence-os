@@ -46,10 +46,8 @@ export function createEffectiveAuthorityService({
       );
     }
 
-    const [resolution, capabilityRow] = await Promise.all([
-      authorityScopeService.resolve({ auth, tenantId }),
-      repository.findCapabilityByKey(capabilityKey),
-    ]);
+    const resolution = await authorityScopeService.resolve({ auth, tenantId });
+    const capabilityRow = await repository.findCapabilityByKey(capabilityKey);
     const capability = normalizeSemanticCapability(capabilityRow);
     const resourceKey =
       resolution.scope.scopeType === "platform"
