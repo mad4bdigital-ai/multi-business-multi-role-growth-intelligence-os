@@ -295,7 +295,9 @@
       ]
     },
     "phase3_delegation_persistence_ci": {
-      "status": "pending_pr_3110",
+      "status": "pass",
+      "head_sha": "261b9575eb208fd54c938f3d6b3e73a81d6921a8",
+      "base_sha": "3a3f0194960ca8ec8617dc75514b4430fcab2840",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
