@@ -564,6 +564,7 @@ export async function getOperationRunLifecycleStatus(input, dependencyOverrides 
     const context = await readRunContext(connection, normalized.run_id, false);
     assertOwnership(context, normalized);
     const state = await readState(connection, normalized.run_id, false);
+    assertStateAuthority(state, context);
     if (!state) fail("operation_run_lifecycle_not_initialized", "No durable lifecycle state exists for the run.", 404);
     const steps = await readSteps(connection, normalized.run_id);
     const [rows] = await connection.query(
