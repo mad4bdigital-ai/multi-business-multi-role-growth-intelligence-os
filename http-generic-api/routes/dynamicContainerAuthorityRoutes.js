@@ -443,6 +443,37 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     finally { if(connection) connection.release(); }
   });
 
+  router.get("/admin/container-authority/topology-verification",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      enforceTopologyReadRate(req);
+      connection = await getPool().getConnection();
+      const repository = createPlatformTopologyVerificationRepository({ executor:connection });
+      const service = createPlatformTopologyVerificationService({
+        repository,
+        auditWriter:(event) => writeAuditLog({
+          actor_id:event.actorId,
+          actor_type:"service",
+          request_id:event.requestId,
+          action:event.action,
+          resource_type:"authority_scope",
+          resource_id:"platform:root",
+          service_mode:"platform_admin",
+          outcome:event.readinessCode,
+          metadata:{
+            gap_codes:event.gapCodes,
+            gap_count:event.gapCount,
+            authority_granted:false,
+            secrets_included:false
+          }
+        })
+      });
+      const result = await service.verify({ actorId:actorId(req),requestId:requestId(req) });
+      return res.json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
   router.get("/container-authority/canary-monitoring",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       const [rows] = await getPool().query("SELECT * FROM v_container_canary_monitoring_summary ORDER BY canary_key");
