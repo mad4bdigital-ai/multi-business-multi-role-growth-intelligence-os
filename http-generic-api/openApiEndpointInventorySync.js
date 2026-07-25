@@ -640,6 +640,13 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
   const inventory = await collectOpenApiEndpointInventory({ openApiPath: deps.openApiPath || DEFAULT_OPENAPI_PATH });
   const existingRows = await loadExistingRows(pool);
   const plan = buildOpenApiEndpointInventoryPlan({ inventory, existingRows });
+  const inventoryEvidence = {
+    source_document_count: inventory.source_document_count,
+    suppressed_route_duplicate_count: inventory.suppressed_route_duplicate_count,
+    suppressed_route_conflict_count: inventory.suppressed_route_conflict_count,
+    suppressed_route_conflicts: inventory.suppressed_route_conflicts,
+    secrets_included: false,
+  };
   const responseBase = {
     ok: true,
     mode,
@@ -655,6 +662,7 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       callable_rows_created: 0,
       tool_exports_created: 0,
     },
+    inventory_evidence: inventoryEvidence,
     applies_inventory_metadata_only: mode === "apply",
     provider_calls: false,
     external_writes: false,
