@@ -152,6 +152,11 @@ try {
   assert.equal(dryRun.plan.insert_count, 2);
   assert.equal(dryRun.plan.callable_rows_created, 0);
   assert.equal(dryRun.plan.tool_exports_created, 0);
+  assert.equal(dryRun.inventory_evidence.source_document_count, 2);
+  assert.equal(dryRun.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(dryRun.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(dryRun.inventory_evidence.suppressed_route_conflicts, []);
+  assert.equal(dryRun.inventory_evidence.secrets_included, false);
   assert.equal(dryRun.required_confirmation, OPENAPI_ENDPOINT_INVENTORY_CONSTANTS.APPLY_CONFIRMATION);
   assert.equal(dryRunPool.calls.some((call) => /INSERT|UPDATE/i.test(call.sql)), false);
 
@@ -213,6 +218,16 @@ try {
   assert(applyPool.calls.some((call) => call.sql.includes("RELEASE_LOCK")));
   assert.equal(applyPool.calls.some((call) => /platform_endpoint_tool_exports/i.test(call.sql)), false);
   assert.equal(applyPool.calls.some((call) => /admin_platform_endpoint_tools/i.test(call.sql)), false);
+  const completedRunInsert = applyPool.calls.find(
+    (call) => call.sql.includes("INSERT INTO openapi_endpoint_inventory_sync_runs"),
+  );
+  assert(completedRunInsert);
+  const completedRunSummary = JSON.parse(completedRunInsert.params[12]);
+  assert.equal(completedRunSummary.plan.insert_count, 2);
+  assert.equal(completedRunSummary.inventory_evidence.source_document_count, 2);
+  assert.equal(completedRunSummary.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(completedRunSummary.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(completedRunSummary.inventory_evidence.suppressed_route_conflicts, []);
 
   const lockedPool = createFakePool({ expectedReadbackCount: 2, lockAcquired: 0 });
   await expectCode(
@@ -230,6 +245,17 @@ try {
   assert.equal(lockedPool.committed, false);
   assert.equal(lockedPool.rolledBack, true);
   assert.equal(lockedPool.released, true);
+  const failedRunInsert = lockedPool.calls.find(
+    (call) => call.sql.includes("INSERT INTO openapi_endpoint_inventory_sync_runs"),
+  );
+  assert(failedRunInsert);
+  const failedRunSummary = JSON.parse(failedRunInsert.params[12]);
+  assert.equal(failedRunSummary.plan.insert_count, 2);
+  assert.equal(failedRunSummary.inventory_evidence.source_document_count, 2);
+  assert.equal(failedRunSummary.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(failedRunSummary.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(failedRunSummary.inventory_evidence.suppressed_route_conflicts, []);
+  assert.equal(failedRunInsert.params[13], "openapi_inventory_sync_locked");
 
   const duplicatePath = path.join(tempRoot, "duplicate.yaml");
   await writeFile(duplicatePath, yaml(makeRoot({
