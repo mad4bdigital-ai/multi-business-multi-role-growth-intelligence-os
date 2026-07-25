@@ -20,7 +20,7 @@
 ## Implementation gates
 
 - [ ] Threat model reviewed by security owner.
-- [ ] Cross-tenant negative tests pass.
+- [x] Cross-tenant negative tests pass.
 - [ ] Break-glass policy receives separate approval.
 - [ ] Decision-ledger retention and access are approved.
 - [x] Secret-like schema rejection is tested.

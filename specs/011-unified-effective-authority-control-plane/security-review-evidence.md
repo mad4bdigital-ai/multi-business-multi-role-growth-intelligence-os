@@ -4,8 +4,8 @@
 
 - Feature: `011-unified-effective-authority-control-plane`
 - Pull request: `#2888`
-- Reviewed head: `e2846f6c17cbbf9904181d22f577b13daa9d1434`
-- Reviewed base: `09f34140a51ce1092c7572ef89bceb94ec19e614`
+- Reviewed head: `a5ea354fb98df3662f08d3e36a2e21b604e34021`
+- Reviewed base: `e73aa51a1c62a737df7fb16df39a75ee2dec762d`
 - Required CI checks: `4/4 pass`
 - Review result: `in_progress_with_open_gates`
 - Security-owner approval: not recorded
@@ -31,19 +31,27 @@ Evidence surfaces:
 
 ### Tenant and platform scope isolation
 
+- Tenant request fields cannot override the signed Tenant identity in `/me/authority/...` controllers.
+- A Tenant request that supplies `tenantId` in query or body is rejected as `AUTHORITY_UNSUPPORTED_FIELD` before the application service is called.
+- The Subject Scope resolver rejects Tenant A requesting Tenant B with `CROSS_TENANT_AUTHORITY_SCOPE_DENIED` and status `403`.
+- Effective Authority now resolves Subject Scope before capability lookup, so a rejected cross-tenant request performs no capability lookup, connector query, projection summary, or evidence write.
+- Tenant connector SQL predicates are parameterized and bind only the resolved Tenant ID.
+- Activation projection derives Tenant scope from the signed subject and does not propagate an untrusted Tenant override.
 - The platform placeholder tenant UUID normalizes to no Tenant filter and does not become proof of Admin authority.
-- Tenant predicates are parameterized and bind the signed Tenant ID.
-- Activation scope regression coverage verifies platform-global Admin behavior and confirms no credential reference appears in the projected response.
-- The current tests cover scope normalization, SQL predicate construction, zero-tenant handling, and Activation projection behavior.
 
 Evidence surfaces:
 
-- `http-generic-api/effectiveAuthorityScope.js`
+- `http-generic-api/src/application/authorityScope/authorityScopeService.js`
+- `http-generic-api/src/application/effectiveAuthority/effectiveAuthorityService.js`
+- `http-generic-api/src/api/effectiveAuthority/effectiveAuthorityController.js`
+- `http-generic-api/src/infrastructure/effectiveAuthority/effectiveAuthorityRepository.js`
+- `http-generic-api/test-authority-scope-foundation.mjs`
+- `http-generic-api/test-effective-authority-cross-tenant-matrix.mjs`
 - `http-generic-api/test-effective-authority-scope.mjs`
 - `http-generic-api/test-ueacp-activation-scope-regression.mjs`
 - `http-generic-api/test-activation-effective-authority-envelope.mjs`
 
-The implementation gate **Cross-tenant negative tests pass** remains open because the current suite does not yet provide the complete Tenant A attempting Tenant B access matrix across route, application, repository, Activation, and ledger readback boundaries.
+Result: the checklist gate **Cross-tenant negative tests pass** is supported and marked complete.
 
 ### Secret and sensitive-data handling
 
@@ -121,17 +129,16 @@ The reviewed implementation does not expose an execution-authority grant, provid
 ### Open security gates
 
 1. **Security-owner threat-model approval** — the threat model exists, but approval by the designated security owner is not recorded.
-2. **Complete cross-tenant negative matrix** — explicit Tenant A to Tenant B denial tests are still required across route, service, repository, Activation, and ledger surfaces.
-3. **Break-glass governance** — separate approval, expiry, operation binding, and audit evidence remain outside this implemented slice.
-4. **Ledger retention and access policy** — retention duration, access roles, deletion policy, and audit review ownership are not approved.
-5. **Policy publication and rollback** — governed publication, revision rollback, and invalidation evidence remain incomplete.
-6. **Live migration and query-plan verification** — migrations are not applied, so indexes, constraints, schema readback, and representative `EXPLAIN` evidence remain open.
-7. **Shared PEP shadow certification** — dispatch-time parity and mutable-authority revalidation are not certified; enforcement cutover remains prohibited.
-8. **Live capability parity** — `connector.inventory.read` is not registered in the live registry, so compile and projection previews return zero manifests and cannot establish alignment.
+2. **Break-glass governance** — separate approval, expiry, operation binding, and audit evidence remain outside this implemented slice.
+3. **Ledger retention and access policy** — retention duration, access roles, deletion policy, and audit review ownership are not approved.
+4. **Policy publication and rollback** — governed publication, revision rollback, and invalidation evidence remain incomplete.
+5. **Live migration and query-plan verification** — migrations are not applied, so indexes, constraints, schema readback, and representative `EXPLAIN` evidence remain open.
+6. **Shared PEP shadow certification** — dispatch-time parity and mutable-authority revalidation are not certified; enforcement cutover remains prohibited.
+7. **Live capability parity** — `connector.inventory.read` is not registered in the live registry, so compile and projection previews return zero manifests and cannot establish alignment.
 
 ## Merge-readiness conclusion
 
-Security review status remains `in_progress`. The implemented shadow-only slice may continue through code review, but the PR is not security-approved for merge or release while the security-owner review, full cross-tenant negative matrix, break-glass governance, ledger retention/access approval, policy publication/rollback, migration readback, live parity, and PEP certification gates remain open.
+Security review status remains `in_progress`. The implemented shadow-only slice may continue through code review, but the PR is not security-approved for merge or release while the security-owner review, break-glass governance, ledger retention/access approval, policy publication/rollback, migration readback, live parity, and PEP certification gates remain open.
 
 ## Safety readback
 
