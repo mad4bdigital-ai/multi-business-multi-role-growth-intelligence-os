@@ -269,6 +269,7 @@ export async function prepareOperationCapabilityLifecycle({
     input,
     operationKey,
     ttlMinutes: input.capability_ttl_minutes || input.capabilityTtlMinutes || 60,
+    authorityContext,
   });
   const renewed = await createEnvelope(renewalRequest);
   const renewalProjection = {
