@@ -331,6 +331,51 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const nestedOperationRoutes = parseRoutesFromFile(`
+function requireSecurityMiddleware(_name, middleware) { return middleware; }
+function requireTenantOperationPrincipal(req, res, next) { return next(); }
+function mountOperationRoutes(router, middleware = []) {
+  router.get("/operations/contracts", ...middleware, handler);
+  router.post("/operations/execute", ...middleware, handler);
+}
+export function buildOperationRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
+  const router = Router();
+  const backendGuard = requireSecurityMiddleware("requireBackendApiKey", requireBackendApiKey);
+  const adminGuard = requireSecurityMiddleware("requireAdminPrincipal", requireAdminPrincipal);
+  const admin = Router();
+  mountOperationRoutes(admin, [backendGuard, adminGuard]);
+  router.use("/admin", admin);
+  const tenant = Router();
+  mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
+  router.use("/tenant", tenant);
+  return router;
+}
+`, "routes/operationOrchestratorRoutes.js");
+assert.deepEqual(
+  nestedOperationRoutes.map((operation) => operation.signature).sort(),
+  [
+    "GET /admin/operations/contracts",
+    "GET /tenant/operations/contracts",
+    "POST /admin/operations/execute",
+    "POST /tenant/operations/execute",
+  ].sort(),
+  "helper-mounted routers must preserve their admin and tenant prefixes",
+);
+assert.deepEqual(
+  nestedOperationRoutes.find((operation) => operation.signature === "GET /admin/operations/contracts").inherited_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "admin helper mounts must preserve authenticator and authorizer middleware",
+);
+assert.deepEqual(
+  nestedOperationRoutes.find((operation) => operation.signature === "GET /tenant/operations/contracts").inherited_guards,
+  ["requireTenantOperationPrincipal"],
+  "tenant helper mounts must preserve the tenant operation principal middleware",
+);
+assert.equal(
+  nestedOperationRoutes.some((operation) => operation.path.startsWith("/operations/")),
+  false,
+  "helper routes must not be emitted at a phantom root mount",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
