@@ -609,7 +609,7 @@ const openapiDocument = YAML.parse(openapi);
 const agentOpenApiOperations = Object.entries(openapiDocument.paths)
   .filter(([routePath]) => routePath.startsWith("/platform/agent-governance/"))
   .flatMap(([, pathItem]) => ["get", "post", "put", "patch", "delete"].map((method) => pathItem[method]).filter(Boolean));
-assert.equal(agentOpenApiOperations.length, 13);
+assert.equal(agentOpenApiOperations.length, 15);
 for (const operation of agentOpenApiOperations) {
   assert(operation.tags.includes("platform-agent-governance"));
   assert.deepEqual(operation.security, [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]);
