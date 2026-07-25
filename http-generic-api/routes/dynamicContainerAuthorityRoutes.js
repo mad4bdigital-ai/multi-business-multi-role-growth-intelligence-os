@@ -33,6 +33,7 @@ import { executeObservedReadOnlyCanary } from "../dynamicContainerCanaryRuntime.
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const previewRate = new Map();
+const topologyReadRate = new Map();
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
