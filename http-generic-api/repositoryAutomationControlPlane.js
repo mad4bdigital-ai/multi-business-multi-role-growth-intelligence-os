@@ -613,17 +613,6 @@ async function writeReceipt(pool, {
   );
 }
 
-function chunkContinuation(body = {}) {
-  if (!body || typeof body !== "object") return null;
-  if (body.continuation?.next_call?.name === "response_chunk_read") return body.continuation.next_call.tool_args || null;
-  const hasMore = body.continuation_required === true || body.page?.has_more === true || body.page?.next_cursor !== null && body.page?.next_cursor !== undefined;
-  if (!hasMore || !body.chunk_id) return null;
-  return {
-    chunk_id: body.chunk_id,
-    cursor: body.page?.next_cursor ?? 0,
-    max_chars: body.page?.max_chars || 45000,
-  };
-}
 
 export async function collectChunkedToolResponse(initial, { dispatch, maxChunks = 25 } = {}) {
   const normalized = normalizeDispatchResult(initial);
