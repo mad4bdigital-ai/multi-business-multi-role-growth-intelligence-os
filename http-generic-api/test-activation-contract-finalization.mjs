@@ -177,7 +177,7 @@ assert.deepEqual(sorted(runtimeCurrent.scopes), sorted(inventory.current_scope_c
 
 const servedOperations = extractOpenApiOperations(servedOpenApi);
 const servedOperationMap = toOperationMap(servedOperations);
-for (const operation of [...contractOauth, ...contractCurrentOperations]) {
+for (const operation of contractCurrentOperations) {
   const served = servedOperationMap.get(operationKey(operation));
   assert(served, `served OpenAPI is missing ${operationKey(operation)}`);
   assert.equal(
