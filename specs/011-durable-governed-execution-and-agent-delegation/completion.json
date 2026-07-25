@@ -257,7 +257,7 @@
       "secrets_included": false
     },
     "implementation": {
-      "status": "phase3_delegation_persistence_contract_complete_on_branch"
+      "status": "phase3_delegation_persistence_contract_complete_on_main"
     },
     "ci": {
       "status": "pass",
