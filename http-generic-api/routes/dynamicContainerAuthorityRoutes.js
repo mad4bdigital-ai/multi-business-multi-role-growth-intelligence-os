@@ -2,6 +2,9 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { writeAuditLog } from "../auditLogger.js";
+import { createPlatformTopologyVerificationService } from "../src/application/authorityScope/platformTopologyVerificationService.js";
+import { createPlatformTopologyVerificationRepository } from "../src/infrastructure/authorityScope/platformTopologyVerificationRepository.js";
 import {
   createContainerRelationship,
   createContainerResourceBinding,
@@ -12,7 +15,6 @@ import {
   readContainerOverride,
   requestContainerOverride
 } from "../dynamicContainerOverrideService.js";
-import { runDynamicContainerOverrideGovernanceSmoke } from "../dynamicContainerOverrideGovernanceSmoke.js";
 import {
   applyLegacyContainerProjection,
   buildLegacyContainerProjectionPlan
@@ -31,6 +33,7 @@ import { executeObservedReadOnlyCanary } from "../dynamicContainerCanaryRuntime.
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const previewRate = new Map();
+const topologyReadRate = new Map();
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
@@ -96,6 +99,24 @@ function enforcePreviewRate(req) {
     const error = new Error("Container resolution rate limit exceeded.");
     error.status = 429;
     error.code = "container_resolution_rate_limited";
+    error.details = [{ retryAfterSeconds:Math.max(1,Math.ceil((current.resetAt-now)/1000)) }];
+    throw error;
+  }
+}
+
+function enforceTopologyReadRate(req) {
+  const principalKey = `topology:${actorId(req)}`;
+  const now = Date.now();
+  const current = topologyReadRate.get(principalKey);
+  if (!current || current.resetAt <= now) {
+    topologyReadRate.set(principalKey,{ count:1,resetAt:now+60000 });
+    return;
+  }
+  current.count += 1;
+  if (current.count > 60) {
+    const error = new Error("Platform topology verification rate limit exceeded.");
+    error.status = 429;
+    error.code = "platform_topology_verification_rate_limited";
     error.details = [{ retryAfterSeconds:Math.max(1,Math.ceil((current.resetAt-now)/1000)) }];
     throw error;
   }
@@ -244,26 +265,6 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
       const result = await approveContainerOverride(req.params.overrideId,req.body,{ approverPrincipal:{ type:"service",id:actorId(req) } });
       return res.status(201).json(result);
     } catch (error) { return errorResponse(req,res,error); }
-  });
-
-  router.post("/admin/container-authority/override-governance-smokes",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
-    try {
-      assertAllowedKeys(req.body,new Set(["mode","confirm","capabilityEnvelopeId"]));
-      const mode=String(req.body?.mode || "dry_run");
-      if(!new Set(["dry_run","apply"]).has(mode)) {
-        const error=new Error("mode must be dry_run or apply.");
-        error.status=400;
-        error.code="override_governance_smoke_mode_invalid";
-        throw error;
-      }
-      const result=await runDynamicContainerOverrideGovernanceSmoke({
-        mode,
-        confirm:req.body?.confirm || null,
-        capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null,
-        actor:actorId(req)
-      });
-      return res.status(mode === "apply" ? 201 : 200).json(result);
-    } catch(error) { return errorResponse(req,res,error); }
   });
 
   router.post("/admin/container-authority/projection-preview",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
@@ -442,6 +443,37 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
     finally { if(connection) connection.release(); }
   });
 
+  router.get("/admin/container-authority/topology-verification",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
+    let connection = null;
+    try {
+      enforceTopologyReadRate(req);
+      connection = await getPool().getConnection();
+      const repository = createPlatformTopologyVerificationRepository({ executor:connection });
+      const service = createPlatformTopologyVerificationService({
+        repository,
+        auditWriter:(event) => writeAuditLog({
+          actor_id:event.actorId,
+          actor_type:"service",
+          request_id:event.requestId,
+          action:event.action,
+          resource_type:"authority_scope",
+          resource_id:"platform:root",
+          service_mode:"platform_admin",
+          outcome:event.readinessCode,
+          metadata:{
+            gap_codes:event.gapCodes,
+            gap_count:event.gapCount,
+            authority_granted:false,
+            secrets_included:false
+          }
+        })
+      });
+      const result = await service.verify({ actorId:actorId(req),requestId:requestId(req) });
+      return res.json(result);
+    } catch (error) { return errorResponse(req,res,error); }
+    finally { if(connection) connection.release(); }
+  });
+
   router.get("/container-authority/canary-monitoring",...requireAdmin(deps,requireAdminPrincipal),async (req,res) => {
     try {
       const [rows] = await getPool().query("SELECT * FROM v_container_canary_monitoring_summary ORDER BY canary_key");
@@ -452,4 +484,11 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   return router;
 }
 
-export const _testingDynamicContainerAuthorityRoutes = { verifyUserJwt,assertAllowedKeys,enforcePreviewRate,errorResponse };
+export const _testingDynamicContainerAuthorityRoutes = {
+  verifyUserJwt,
+  assertAllowedKeys,
+  enforcePreviewRate,
+  enforceTopologyReadRate,
+  resetTopologyReadRateForTests:() => topologyReadRate.clear(),
+  errorResponse
+};

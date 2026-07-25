@@ -175,49 +175,6 @@ schemas:
       decision: { type: string, enum: [approved, rejected] }
       decisionNote: { type: string, minLength: 10, maxLength: 512 }
 
-  OverrideGovernanceSmokeRequest:
-    type: object
-    additionalProperties: false
-    required: [mode]
-    properties:
-      mode: { type: string, enum: [dry_run, apply], default: dry_run }
-      confirm: { type: string, maxLength: 255 }
-      capabilityEnvelopeId: { type: string, format: uuid }
-    allOf:
-      - if:
-          properties: { mode: { const: apply } }
-        then:
-          required: [confirm, capabilityEnvelopeId]
-
-  OverrideGovernanceSmokeResponse:
-    type: object
-    additionalProperties: false
-    required: [ok, mode, plan, sameCycleReadbackVerified, targetExecuted, providerCalls, credentialPayloadReads, externalWrites, rolloutChanged, enforcementApplied, secretsIncluded]
-    properties:
-      ok: { type: boolean, const: true }
-      mode: { type: string, enum: [dry_run, apply] }
-      plan:
-        type: object
-        additionalProperties: true
-        required: [confirmation, tests, closureThreadKey, fixtureStrategy]
-        properties:
-          confirmation: { type: string, const: RUN_DYNAMIC_CONTAINER_OVERRIDE_GOVERNANCE_SMOKE }
-          tests: { type: array, items: { type: string } }
-          closureThreadKey: { type: string, const: dynamic_container_override_governance }
-          fixtureStrategy: { type: string, const: transactional_disposable_rows }
-      results: { type: [object, 'null'], additionalProperties: true }
-      cleanup: { type: [object, 'null'], additionalProperties: true }
-      closureThread: { type: [object, 'null'], additionalProperties: true }
-      capabilityEnvelope: { type: [object, 'null'], additionalProperties: true }
-      sameCycleReadbackVerified: { type: boolean }
-      targetExecuted: { type: boolean, const: false }
-      providerCalls: { type: boolean, const: false }
-      credentialPayloadReads: { type: boolean, const: false }
-      externalWrites: { type: boolean, const: false }
-      rolloutChanged: { type: boolean, const: false }
-      enforcementApplied: { type: boolean, const: false }
-      secretsIncluded: { type: boolean, const: false }
-
   ProjectionRequest:
     type: object
     additionalProperties: false
@@ -529,6 +486,42 @@ schemas:
       credentialPayloadReads: { type: boolean, const: false }
       externalWrites: { type: boolean, const: false }
       enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
+  PlatformTopologyVerificationResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, verificationMode, verifiedAt, status, readinessCode, contract, summary, evidence, gaps, authorityGranted, providerCalls, credentialPayloadReads, externalWrites, secretsIncluded]
+    properties:
+      ok: { type: boolean, const: true }
+      verificationMode: { type: string, const: read_only }
+      verifiedAt: { type: string, format: date-time }
+      status: { type: string, enum: [verified, gaps_detected] }
+      readinessCode: { type: string, enum: [ready_for_review, topology_remediation_required] }
+      contract:
+        type: object
+        additionalProperties: false
+        required: [authorityScopeKey, adminWorkspaceKey, platformBrandTargetKey]
+        properties:
+          authorityScopeKey: { type: string, const: 'platform:root' }
+          adminWorkspaceKey: { type: string, const: platform_admin_workspace }
+          platformBrandTargetKey: { type: string, const: growth_intelligence_platform }
+      summary: { type: object, additionalProperties: true }
+      evidence: { type: object, additionalProperties: true }
+      gaps:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [code, message, evidence]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            evidence: { type: object, additionalProperties: true }
+      authorityGranted: { type: boolean, const: false }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
       secretsIncluded: { type: boolean, const: false }
 
   ListResponse:
@@ -1058,32 +1051,6 @@ adminContainerAuthorityCanaryPromotions:
       '422': { $ref: '#/responses/Unprocessable' }
       '500': { $ref: '#/responses/InternalError' }
 
-adminContainerAuthorityOverrideGovernanceSmokes:
-  post:
-    tags: [container-authority, admin-control]
-    operationId: createAdminContainerAuthorityOverrideGovernanceSmoke
-    summary: Dry-run or execute the transactional Dynamic Container override governance smoke
-    description: Verifies the destructive no-self-approval policy, distinct dual approvals, stale authority epoch rejection, one-time consumption, fixture cleanup, closure evidence readback, and transactional capability-envelope consumption. Apply uses disposable internal SQL fixtures only and never executes an override target, changes rollout, enables enforcement, calls providers, reads credential payloads, or writes externally.
-    x-registry-exposure: admin_tool
-    x-registry-tool-key: dynamic_container_override_governance_smoke
-    x-openai-isConsequential: true
-    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema: { $ref: '#/schemas/OverrideGovernanceSmokeRequest' }
-          example: { mode: dry_run }
-    responses:
-      '200': { description: Transactional smoke dry-run plan, content: { application/json: { schema: { $ref: '#/schemas/OverrideGovernanceSmokeResponse' } } } }
-      '201': { description: Transactional smoke completed, fixtures cleaned, and closure evidence recorded, content: { application/json: { schema: { $ref: '#/schemas/OverrideGovernanceSmokeResponse' } } } }
-      '400': { $ref: '#/responses/BadRequest' }
-      '401': { $ref: '#/responses/Unauthorized' }
-      '403': { $ref: '#/responses/Forbidden' }
-      '409': { $ref: '#/responses/Conflict' }
-      '422': { $ref: '#/responses/Unprocessable' }
-      '500': { $ref: '#/responses/InternalError' }
-
 adminContainerAuthorityCanaryCloseouts:
   post:
     tags: [container-authority, admin-control]
@@ -1143,6 +1110,27 @@ adminContainerAuthorityCanaryRollbacks:
       '409': { $ref: '#/responses/Conflict' }
       '422': { $ref: '#/responses/Unprocessable' }
       '500': { $ref: '#/responses/InternalError' }
+
+containerAuthorityTopologyVerification:
+  get:
+    tags: [container-authority, admin-control]
+    operationId: getAdminContainerAuthorityTopologyVerification
+    summary: Verify canonical platform topology without mutation
+    description: Reads the global platform authority scope, explicit Platform Admin Workspace marker, canonical platform brand, containers, relationships, and platform-owner assignments. Returns typed gaps only. The action is admin-only, audited, limited to 60 requests per minute per actor, and never grants authority, calls providers, reads credential payloads, or performs external writes.
+    security:
+      - adminBearerAuth: []
+      - backendApiKeyAuth: []
+    responses:
+      '200':
+        description: Current canonical platform topology evidence and typed gaps.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/PlatformTopologyVerificationResponse' }
+      '401': { $ref: '#/responses/Unauthorized' }
+      '403': { $ref: '#/responses/Forbidden' }
+      '429': { $ref: '#/responses/RateLimited' }
+      '500': { $ref: '#/responses/InternalError' }
+      '503': { $ref: '#/responses/ServiceUnavailable' }
 
 containerAuthorityCanaryMonitoring:
   get:
