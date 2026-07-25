@@ -218,6 +218,16 @@ try {
   assert(applyPool.calls.some((call) => call.sql.includes("RELEASE_LOCK")));
   assert.equal(applyPool.calls.some((call) => /platform_endpoint_tool_exports/i.test(call.sql)), false);
   assert.equal(applyPool.calls.some((call) => /admin_platform_endpoint_tools/i.test(call.sql)), false);
+  const completedRunInsert = applyPool.calls.find(
+    (call) => call.sql.includes("INSERT INTO openapi_endpoint_inventory_sync_runs"),
+  );
+  assert(completedRunInsert);
+  const completedRunSummary = JSON.parse(completedRunInsert.params[12]);
+  assert.equal(completedRunSummary.plan.insert_count, 2);
+  assert.equal(completedRunSummary.inventory_evidence.source_document_count, 2);
+  assert.equal(completedRunSummary.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(completedRunSummary.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(completedRunSummary.inventory_evidence.suppressed_route_conflicts, []);
 
   const lockedPool = createFakePool({ expectedReadbackCount: 2, lockAcquired: 0 });
   await expectCode(
