@@ -154,6 +154,8 @@ export async function diagnoseCi(input = {}, deps = {}) {
       head_sha: gate?.head_sha || null,
       base_sha: gate?.base_sha || null,
     },
+    provider_interaction: "github_pr_ci_gate",
+    provider_write_performed: false,
     secrets_included: false,
   };
 }

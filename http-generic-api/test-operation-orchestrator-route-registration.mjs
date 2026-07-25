@@ -10,11 +10,16 @@
 // frontend-read-action-proof: POST /admin/operations/status
 // frontend-surface-operation: POST /tenant/operations/status
 // frontend-read-action-proof: POST /tenant/operations/status
+// frontend-surface-operation: POST /admin/operations/ci-diagnose
+// frontend-external-effect-proof: POST /admin/operations/ci-diagnose
+// frontend-surface-operation: POST /tenant/operations/ci-diagnose
+// frontend-external-effect-proof: POST /tenant/operations/ci-diagnose
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildOperationContext } from "./operationContextService.js";
 import {
+  diagnoseCi,
   getOperationStatus,
   previewOperation,
 } from "./operationOrchestrator.js";
@@ -201,5 +206,47 @@ assert.equal(tenantStatus.operation_key, "operation.status.get");
 assert.equal(tenantStatus.run.status, "completed");
 assert.equal(tenantStatus.secrets_included, false);
 assert.equal(tenantStatusPool.queries.length, 4);
+
+const ciDispatchCalls = [];
+const diagnoseDeps = (auth, pool) => ({
+  auth,
+  pool,
+  async dispatch(toolKey, input) {
+    ciDispatchCalls.push({ toolKey, input, principal: auth.is_admin ? "admin" : "tenant" });
+    return {
+      result: {
+        gate_status: "pass",
+        head_sha: "head-test",
+        base_sha: "base-test",
+        required_checks: input.required_checks,
+        checks: [],
+      },
+    };
+  },
+});
+const ciInput = {
+  operation_key: "repo.ci.diagnose",
+  owner: "mad4bdigital-ai",
+  repo: "test-repo",
+  pull_number: 2948,
+};
+const adminDiagnosis = await diagnoseCi(
+  ciInput,
+  diagnoseDeps(adminAuth, buildReadOnlyPool()),
+);
+assert.equal(adminDiagnosis.ok, true);
+assert.equal(adminDiagnosis.provider_interaction, "github_pr_ci_gate");
+assert.equal(adminDiagnosis.provider_write_performed, false);
+assert.equal(adminDiagnosis.secrets_included, false);
+
+const tenantDiagnosis = await diagnoseCi(
+  ciInput,
+  diagnoseDeps(tenantAuth, buildReadOnlyPool()),
+);
+assert.equal(tenantDiagnosis.context.principal.principal_class, "tenant");
+assert.equal(tenantDiagnosis.provider_interaction, "github_pr_ci_gate");
+assert.equal(tenantDiagnosis.provider_write_performed, false);
+assert.equal(ciDispatchCalls.length, 2);
+assert(ciDispatchCalls.every((call) => call.toolKey === "github_pr_ci_gate"));
 
 console.log("operation orchestrator route registration tests passed");

@@ -46,6 +46,33 @@ const READ_ACTION_EFFECT_PATTERNS = [
   },
 ];
 
+const EXTERNAL_EFFECT_TARGET_WRITE_PATTERNS = [
+  {
+    code: "sql_mutation_present",
+    pattern: /\b(?:INSERT\s+INTO|UPDATE\s+(?:`|[A-Za-z_])|DELETE\s+FROM|REPLACE\s+INTO|ALTER\s+TABLE|CREATE\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE)\b/i,
+  },
+  {
+    code: "transaction_mutation_present",
+    pattern: /\.(?:beginTransaction|commit|rollback)\s*\(/,
+  },
+  {
+    code: "target_mutation_function_call_present",
+    pattern: /\b(?:write|record|create|update|upsert|delete|insert|apply|send|merge|comment|upload|deploy|publish|commit|push)(?:[A-Z][A-Za-z0-9_]*)\s*\(/,
+  },
+  {
+    code: "target_mutation_method_call_present",
+    pattern: /\.(?:insert|update|delete|upsert|write|send|merge|comment|upload|deploy|publish|commit|dispatch|execute|create)\s*\(/i,
+  },
+  {
+    code: "target_mutation_http_method_present",
+    pattern: /\bmethod\s*:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i,
+  },
+  {
+    code: "process_or_mail_call_present",
+    pattern: /\b(?:spawn|exec|sendMail)\s*\(/,
+  },
+];
+
 const RESOURCE_RECIPES = [
   {
     recipe_id: "tenant-resource-create-transaction-v1",
@@ -224,8 +251,13 @@ function parseEvidenceRegistry(source = "") {
   } catch (error) {
     throw new Error(`Operation-governance evidence registry is invalid JSON: ${error.message}`);
   }
-  if (registry?.schema_version !== "frontend-operation-governance-test-registry-v2" || !Array.isArray(registry.tests) || !Array.isArray(registry.read_action_batches)) {
-    throw new Error("Operation-governance evidence registry must use frontend-operation-governance-test-registry-v2 with tests and read_action_batches arrays.");
+  if (
+    registry?.schema_version !== "frontend-operation-governance-test-registry-v2"
+    || !Array.isArray(registry.tests)
+    || !Array.isArray(registry.read_action_batches)
+    || !Array.isArray(registry.external_effect_batches)
+  ) {
+    throw new Error("Operation-governance evidence registry must use frontend-operation-governance-test-registry-v2 with tests, read_action_batches, and external_effect_batches arrays.");
   }
   return registry;
 }
@@ -244,6 +276,11 @@ function manifestTestFiles(source = "") {
 
 function parseReadActionProofClaims(source = "") {
   return unique([...canonicalText(source).matchAll(/^\s*\/\/\s*frontend-read-action-proof:\s*((?:POST|PUT|PATCH|DELETE)\s+\/\S+)\s*$/gm)]
+    .map((match) => match[1].trim()));
+}
+
+function parseExternalEffectProofClaims(source = "") {
+  return unique([...canonicalText(source).matchAll(/^\s*\/\/\s*frontend-external-effect-proof:\s*((?:POST|PUT|PATCH|DELETE)\s+\/\S+)\s*$/gm)]
     .map((match) => match[1].trim()));
 }
 
@@ -273,6 +310,7 @@ function readActionRecipes(registry = {}) {
     for (const operation of batch.operations) {
       const recipeId = requiredString(operation?.recipe_id, `${batchId}.operations[].recipe_id`);
       const signature = requiredString(operation?.operation, `${recipeId}.operation`);
+      const operationSourceFile = requiredString(operation?.source_file || sourceFile, `${recipeId}.source_file`);
       const implementationFile = requiredString(operation?.implementation_file || defaultImplementationFile, `${recipeId}.implementation_file`);
       const testFile = requiredString(operation?.test_file || defaultTestFile, `${recipeId}.test_file`);
       const proofFunctions = requiredStringArray(operation?.proof_functions, `${recipeId}.proof_functions`);
@@ -280,6 +318,7 @@ function readActionRecipes(registry = {}) {
       const proofMarkers = requiredStringArray(operation?.proof_markers, `${recipeId}.proof_markers`);
       const rationale = requiredString(operation?.rationale, `${recipeId}.rationale`);
       if (!/^(?:POST|PUT|PATCH|DELETE) \/\S+$/.test(signature)) throw new Error(`${recipeId}.operation must be one canonical non-GET operation signature.`);
+      if (!/^routes\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(operationSourceFile)) throw new Error(`${recipeId}.source_file must be a safe routes/*.js path.`);
       if (!/^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(implementationFile)) throw new Error(`${recipeId}.implementation_file must be a safe relative JavaScript file.`);
       if (!/^(?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs$/.test(testFile)) throw new Error(`${recipeId}.test_file must be a safe relative test-*.mjs file.`);
       if (proofFunctions.some((name) => !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name))) throw new Error(`${recipeId}.proof_functions must contain JavaScript function identifiers.`);
@@ -287,7 +326,7 @@ function readActionRecipes(registry = {}) {
         recipe_id: recipeId,
         rule_id: `generated-${recipeId}`,
         operation: signature,
-        source_file: sourceFile,
+        source_file: operationSourceFile,
         implementation_file: implementationFile,
         test_file: testFile,
         proof_functions: proofFunctions,
@@ -306,9 +345,85 @@ function readActionRecipes(registry = {}) {
   return recipes;
 }
 
+function externalEffectRecipes(registry = {}) {
+  const recipes = [];
+  for (const batch of registry.external_effect_batches || []) {
+    const batchId = requiredString(batch?.batch_id, "external_effect_batches[].batch_id");
+    const owner = requiredString(batch?.owner, `${batchId}.owner`);
+    const sourceFile = requiredString(batch?.source_file, `${batchId}.source_file`);
+    const defaultImplementationFile = String(batch?.implementation_file || "").trim();
+    const defaultTestFile = String(batch?.test_file || "").trim();
+    if (!/^routes\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(sourceFile)) throw new Error(`${batchId}.source_file must be a safe routes/*.js path.`);
+    if (!Array.isArray(batch?.operations) || !batch.operations.length) throw new Error(`${batchId}.operations must be a non-empty array.`);
+    for (const operation of batch.operations) {
+      const recipeId = requiredString(operation?.recipe_id, `${batchId}.operations[].recipe_id`);
+      const signature = requiredString(operation?.operation, `${recipeId}.operation`);
+      const implementationFile = requiredString(operation?.implementation_file || defaultImplementationFile, `${recipeId}.implementation_file`);
+      const testFile = requiredString(operation?.test_file || defaultTestFile, `${recipeId}.test_file`);
+      const proofFunctions = requiredStringArray(operation?.proof_functions, `${recipeId}.proof_functions`);
+      const routeMarkers = requiredStringArray(operation?.route_markers, `${recipeId}.route_markers`);
+      const proofMarkers = requiredStringArray(operation?.proof_markers, `${recipeId}.proof_markers`);
+      const interactionMarkers = requiredStringArray(operation?.interaction_markers, `${recipeId}.interaction_markers`);
+      const targetWriteDenialMarkers = requiredStringArray(operation?.target_write_denial_markers, `${recipeId}.target_write_denial_markers`);
+      const rationale = requiredString(operation?.rationale, `${recipeId}.rationale`);
+      const preflightMode = requiredString(operation?.preflight_mode, `${recipeId}.preflight_mode`);
+      const approvalMode = requiredString(operation?.approval_mode, `${recipeId}.approval_mode`);
+      const readbackMode = requiredString(operation?.readback_mode, `${recipeId}.readback_mode`);
+      const rollbackRationale = requiredString(operation?.rollback_rationale, `${recipeId}.rollback_rationale`);
+      const parameterBindings = operation?.parameter_bindings;
+      const allowedEffectCalls = Array.isArray(operation?.allowed_effect_calls)
+        ? operation.allowed_effect_calls.map((entry) => requiredString(entry, `${recipeId}.allowed_effect_calls`))
+        : [];
+      const allowedHttpMethods = Array.isArray(operation?.allowed_http_methods)
+        ? operation.allowed_http_methods.map((entry) => requiredString(entry, `${recipeId}.allowed_http_methods`).toUpperCase())
+        : [];
+      if (!/^(?:POST|PUT|PATCH|DELETE) \/\S+$/.test(signature)) throw new Error(`${recipeId}.operation must be one canonical non-GET operation signature.`);
+      if (!/^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(implementationFile)) throw new Error(`${recipeId}.implementation_file must be a safe relative JavaScript file.`);
+      if (!/^(?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs$/.test(testFile)) throw new Error(`${recipeId}.test_file must be a safe relative test-*.mjs file.`);
+      if (proofFunctions.some((name) => !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name))) throw new Error(`${recipeId}.proof_functions must contain JavaScript function identifiers.`);
+      if (allowedEffectCalls.some((name) => !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name))) throw new Error(`${recipeId}.allowed_effect_calls must contain JavaScript call identifiers.`);
+      if (allowedHttpMethods.some((method) => !["GET", "POST"].includes(method))) throw new Error(`${recipeId}.allowed_http_methods may contain GET or POST only.`);
+      if (!parameterBindings || typeof parameterBindings !== "object" || Array.isArray(parameterBindings) || !Object.keys(parameterBindings).length) {
+        throw new Error(`${recipeId}.parameter_bindings must be a non-empty object.`);
+      }
+      recipes.push({
+        recipe_id: recipeId,
+        rule_id: `generated-${recipeId}`,
+        operation: signature,
+        source_file: sourceFile,
+        implementation_file: implementationFile,
+        test_file: testFile,
+        proof_functions: proofFunctions,
+        route_markers: routeMarkers,
+        proof_markers: proofMarkers,
+        interaction_markers: interactionMarkers,
+        target_write_denial_markers: targetWriteDenialMarkers,
+        allowed_effect_calls: allowedEffectCalls,
+        allowed_http_methods: allowedHttpMethods,
+        owner,
+        rationale,
+        classification: "external_effect",
+        preflight_mode: preflightMode,
+        approval_mode: approvalMode,
+        readback: { mode: readbackMode, same_cycle: true },
+        rollback: { mode: "not_required", rationale: rollbackRationale },
+        parameter_bindings: Object.fromEntries(
+          Object.entries(parameterBindings).map(([key, value]) => [key, requiredString(value, `${recipeId}.parameter_bindings.${key}`)])
+        ),
+      });
+    }
+  }
+  const recipeIds = recipes.map((recipe) => recipe.recipe_id);
+  const operations = recipes.map((recipe) => recipe.operation);
+  if (new Set(recipeIds).size !== recipeIds.length) throw new Error("External-effect recipe_id values must be unique.");
+  if (new Set(operations).size !== operations.length) throw new Error("External-effect operation signatures must be unique.");
+  return recipes;
+}
+
 function registeredTestEvidence(apiRoot, registry) {
   const byOperation = new Map();
   const readActionProofs = new Map();
+  const externalEffectProofs = new Map();
   const testFiles = registeredTestFiles(registry);
   for (const testFile of testFiles) {
     const testSource = readText(apiRoot, testFile);
@@ -320,12 +435,18 @@ function registeredTestEvidence(apiRoot, registry) {
       if (!readActionProofs.has(operation)) readActionProofs.set(operation, []);
       readActionProofs.get(operation).push(testFile);
     }
+    for (const operation of parseExternalEffectProofClaims(testSource)) {
+      if (!externalEffectProofs.has(operation)) externalEffectProofs.set(operation, []);
+      externalEffectProofs.get(operation).push(testFile);
+    }
   }
   for (const [operation, files] of byOperation) byOperation.set(operation, unique(files));
   for (const [operation, files] of readActionProofs) readActionProofs.set(operation, unique(files));
+  for (const [operation, files] of externalEffectProofs) externalEffectProofs.set(operation, unique(files));
   return {
     byOperation,
     readActionProofs,
+    externalEffectProofs,
     registeredFiles: new Set(testFiles),
     manifestFiles: new Set(manifestTestFiles(readText(apiRoot, TEST_MANIFEST_FILE))),
   };
@@ -420,8 +541,8 @@ function generatedRule(recipe, evidenceFiles, sourceByFile) {
     ...base,
     preflight: { mode: recipe.preflight_mode },
     approval: { mode: recipe.approval_mode },
-    readback: { mode: "transactional_readback", same_cycle: true, before_commit: true },
-    rollback: { mode: "transaction", on: ["mutation_failure", "readback_failure"] },
+    readback: recipe.readback || { mode: "transactional_readback", same_cycle: true, before_commit: true },
+    rollback: recipe.rollback || { mode: "transaction", on: ["mutation_failure", "readback_failure"] },
     parameter_bindings: recipe.parameter_bindings,
   };
 }
@@ -464,6 +585,62 @@ function evaluateReadActionRecipe(recipe, context) {
     evidenceGate("test_manifest_registered", context.testEvidence.manifestFiles.has(recipe.test_file), recipe.test_file),
     evidenceGate("registered_operation_test", claimedTests.includes(recipe.test_file), recipe.test_file),
     evidenceGate("explicit_read_action_test_proof", proofTests.includes(recipe.test_file), recipe.test_file),
+  ];
+  return {
+    recipe,
+    gates,
+    evidenceFiles: unique([recipe.source_file, recipe.implementation_file, recipe.test_file]),
+  };
+}
+
+function externalEffectTargetWriteFindings(blocks = [], recipe = {}) {
+  const body = blocks.map(proofBody).join("\n");
+  const allowedCalls = new Set(recipe.allowed_effect_calls || []);
+  const allowedHttpMethods = new Set(recipe.allowed_http_methods || []);
+  return EXTERNAL_EFFECT_TARGET_WRITE_PATTERNS
+    .filter(({ code, pattern }) => {
+      const matches = [...body.matchAll(new RegExp(pattern.source, `${pattern.flags.replace("g", "")}g`))];
+      if (code === "target_mutation_http_method_present") {
+        return matches.some((match) => {
+          const method = match[0].match(/["'](POST|PUT|PATCH|DELETE)["']/i)?.[1]?.toUpperCase();
+          return method && !allowedHttpMethods.has(method);
+        });
+      }
+      if (["target_mutation_function_call_present", "target_mutation_method_call_present"].includes(code)) {
+        return matches.some((match) => {
+          const functionName = match[0]
+            .replace(/^\./, "")
+            .replace(/\s*\($/, "")
+            .trim();
+          return !allowedCalls.has(functionName);
+        });
+      }
+      return matches.length > 0;
+    })
+    .map(({ code }) => code);
+}
+
+function evaluateExternalEffectRecipe(recipe, context) {
+  const route = context.routesByFile.get(recipe.source_file)?.get(recipe.operation);
+  const implementationSource = context.sourceByFile.get(recipe.implementation_file) || "";
+  const proofBlocks = recipe.proof_functions.map((functionName) => extractFunctionBlock(implementationSource, functionName));
+  const combinedProof = proofBlocks.join("\n");
+  const targetWriteFindings = externalEffectTargetWriteFindings(proofBlocks, recipe);
+  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
+  const proofTests = context.testEvidence.externalEffectProofs.get(recipe.operation) || [];
+  const gates = [
+    evidenceGate("route_present", route, recipe.source_file),
+    evidenceGate("route_binding_present", route && recipe.route_markers.every((marker) => route.declaration.includes(marker)), recipe.route_markers.join(", ")),
+    evidenceGate("implementation_file_present", implementationSource, recipe.implementation_file),
+    evidenceGate("proof_functions_present", proofBlocks.every(Boolean), recipe.proof_functions.join(", ")),
+    evidenceGate("proof_markers_present", combinedProof && recipe.proof_markers.every((marker) => combinedProof.includes(marker)), recipe.proof_markers.join(", ")),
+    evidenceGate("provider_interaction_explicit", combinedProof && recipe.interaction_markers.every((marker) => combinedProof.includes(marker)), recipe.interaction_markers.join(", ")),
+    evidenceGate("target_write_denial_explicit", combinedProof && recipe.target_write_denial_markers.every((marker) => combinedProof.includes(marker)), recipe.target_write_denial_markers.join(", ")),
+    evidenceGate("target_write_absent", targetWriteFindings.length === 0, targetWriteFindings.length ? targetWriteFindings.join(", ") : "static target-write scan passed"),
+    evidenceGate("registry_test_registered", context.testEvidence.registeredFiles.has(recipe.test_file), recipe.test_file),
+    evidenceGate("test_manifest_registered", context.testEvidence.manifestFiles.has(recipe.test_file), recipe.test_file),
+    evidenceGate("registered_operation_test", claimedTests.includes(recipe.test_file), recipe.test_file),
+    evidenceGate("explicit_external_effect_test_proof", proofTests.includes(recipe.test_file), recipe.test_file),
   ];
   return {
     recipe,
@@ -606,6 +783,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const registrySource = readText(apiRoot, TEST_REGISTRY_FILE);
   const registry = parseEvidenceRegistry(registrySource);
   const readActionRecipeList = readActionRecipes(registry);
+  const externalEffectRecipeList = externalEffectRecipes(registry);
   const testEvidence = registeredTestEvidence(apiRoot, registry);
   const evidenceFiles = unique([
     generatorFile,
@@ -624,22 +802,27 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     BOOTSTRAP_TEST_FILE,
     ...registeredTestFiles(registry),
     ...readActionRecipeList.flatMap((recipe) => [recipe.source_file, recipe.implementation_file, recipe.test_file]),
+    ...externalEffectRecipeList.flatMap((recipe) => [recipe.source_file, recipe.implementation_file, recipe.test_file]),
   ]);
   const sourceByFile = new Map(evidenceFiles.map((file) => [file, readText(apiRoot, file)]));
-  const readActionSourceFiles = unique(readActionRecipeList.map((recipe) => recipe.source_file));
+  const generatedSourceFiles = unique([
+    ...readActionRecipeList.map((recipe) => recipe.source_file),
+    ...externalEffectRecipeList.map((recipe) => recipe.source_file),
+  ]);
   const context = {
     sourceByFile,
     testEvidence,
     resourceRoutes: routeRegistry(sourceByFile.get(RESOURCE_ROUTE_FILE), RESOURCE_ROUTE_FILE),
     canaryRoutes: routeRegistry(sourceByFile.get(CANARY_ROUTE_FILE), CANARY_ROUTE_FILE),
     bootstrapRoutes: routeRegistry(sourceByFile.get(BOOTSTRAP_ROUTE_FILE), BOOTSTRAP_ROUTE_FILE),
-    routesByFile: new Map(readActionSourceFiles.map((file) => [file, routeRegistry(sourceByFile.get(file), file)])),
+    routesByFile: new Map(generatedSourceFiles.map((file) => [file, routeRegistry(sourceByFile.get(file), file)])),
   };
   const evaluations = [
     ...RESOURCE_RECIPES.map((recipe) => evaluateResourceRecipe(recipe, context)),
     evaluateCanaryRecipe(context),
     evaluateBootstrapRecipe(context),
     ...readActionRecipeList.map((recipe) => evaluateReadActionRecipe(recipe, context)),
+    ...externalEffectRecipeList.map((recipe) => evaluateExternalEffectRecipe(recipe, context)),
   ];
   const operationRules = [];
   const rejectedCandidates = [];

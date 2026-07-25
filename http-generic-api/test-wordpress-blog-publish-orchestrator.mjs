@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 
 // frontend-surface-operation: POST /wordpress/publish-authority/diagnose
 // frontend-read-action-proof: POST /wordpress/publish-authority/diagnose
+// frontend-surface-operation: POST /wordpress/auth-context/diagnose
+// frontend-external-effect-proof: POST /wordpress/auth-context/diagnose
 import {
   dispatchWordpressBlogPublish,
+  diagnoseWordpressAuthContext,
   diagnoseWordpressPublishAuthority,
   isWordpressBlogPublishWorkflow,
   __test__,
@@ -268,6 +271,62 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
   assert.equal(result.executes_publish, false);
   assert.equal(result.applies_wordpress_post, false);
   assert.equal(result.secrets_included, false);
+}
+
+{
+  const calls = [];
+  const pool = makePool({
+    brands: [brand],
+    connections: [{
+      connection_id: "conn-wp",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      app_key: "wordpress_rest",
+      auth_type: "basic_auth",
+      encrypted_credentials: JSON.stringify({ username: "gpt", application_password: "wp-app-password" }),
+      account_label: "gpt",
+      status: "active",
+    }],
+  });
+  const result = await diagnoseWordpressAuthContext(
+    {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      brand_key: "Almallah Group",
+      target_key: "almallah_wp",
+      connection_id: "conn-wp",
+    },
+    {
+      pool,
+      decryptCredentials: JSON.parse,
+      env: {},
+      async fetch(url, options = {}) {
+        calls.push({ url, options });
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              id: 42,
+              slug: "gpt",
+              name: "GPT Publisher",
+              roles: ["editor"],
+              capabilities: { edit_posts: true, publish_posts: true },
+            });
+          },
+        };
+      },
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.request_method, "GET");
+  assert.equal(result.provider_write_performed, false);
+  assert.equal(result.secrets_included, false);
+  assert.equal(result.can_publish_posts, true);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/wp-json\/wp\/v2\/users\/me\?context=edit$/);
+  assert.equal(calls[0].options.method, "GET");
+  assert.equal(calls[0].options.body, undefined);
 }
 
 {

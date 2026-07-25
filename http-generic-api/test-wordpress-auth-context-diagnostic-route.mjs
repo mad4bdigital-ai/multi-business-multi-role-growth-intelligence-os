@@ -10,6 +10,9 @@ assert(routesSource.includes("tenant_id, user_id") && !routesSource.includes("te
 assert(orchestratorSource.includes("export async function diagnoseWordpressAuthContext"), "orchestrator must export diagnostic helper");
 assert(orchestratorSource.includes("/users/me?context=edit"), "diagnostic helper must inspect authenticated WordPress REST context");
 assert(orchestratorSource.includes("can_edit_posts") && orchestratorSource.includes("can_publish_posts"), "diagnostic helper must return safe capability booleans");
+assert(orchestratorSource.includes('request_method: "GET"'), "diagnostic helper must declare the provider request method");
+assert(orchestratorSource.includes("provider_write_performed: false"), "diagnostic helper must deny provider writes explicitly");
+assert(orchestratorSource.includes("secrets_included: false"), "diagnostic helper must exclude secrets from every response");
 const diagnosticBody = orchestratorSource.slice(orchestratorSource.indexOf("export async function diagnoseWordpressAuthContext"));
 assert(!diagnosticBody.includes("secret,"), "diagnostic helper must not include raw secret field in returned diagnostic objects");
 assert(!diagnosticBody.includes("secret:"), "diagnostic helper must not return a raw secret property");

@@ -428,10 +428,24 @@ export async function diagnoseWordpressPublishAuthority(plan = {}, deps = {}) {
 
 export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
   const brand = deps.brand || await loadBrand(plan, deps);
-  if (!brand) return { ok: false, status: "blocked", error: { code: "brand_target_not_resolved" } };
+  if (!brand) {
+    return {
+      ok: false,
+      status: "blocked",
+      error: { code: "brand_target_not_resolved" },
+      provider_write_performed: false,
+      secrets_included: false,
+    };
+  }
   const credential = await resolveWpCredential({ plan, brand }, deps);
   if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
-    return { ok: false, status: "credential_unresolved", credential_status: credential.status || "missing" };
+    return {
+      ok: false,
+      status: "credential_unresolved",
+      credential_status: credential.status || "missing",
+      provider_write_performed: false,
+      secrets_included: false,
+    };
   }
   const fetchImpl = deps.fetch || globalThis.fetch;
   const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
@@ -453,6 +467,9 @@ export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
       upstream_message: data?.message || "",
       wp_base: wpBase,
       username_present: Boolean(username),
+      request_method: "GET",
+      provider_write_performed: false,
+      secrets_included: false,
     };
   }
   const caps = data?.capabilities && typeof data.capabilities === "object" ? data.capabilities : {};
@@ -467,6 +484,9 @@ export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
     can_edit_posts: Boolean(caps.edit_posts),
     can_publish_posts: Boolean(caps.publish_posts),
     can_create_posts: Boolean(caps.create_posts || caps.edit_posts),
+    request_method: "GET",
+    provider_write_performed: false,
+    secrets_included: false,
   };
 }
 

@@ -22,8 +22,8 @@ for (const toolKey of [
 }
 
 assert.match(routes, /getAuthEmailOutboxStatus/, "status route must call the service status function");
-assert.match(routes, /runAuthEmailOutboxWorker/, "dry-run and apply routes must use the outbox worker service");
-assert.match(routes, /dryRun:\s*true/, "dry-run route must never send");
+assert.match(routes, /previewAuthEmailOutbox/, "dry-run route must use the SELECT-only preview service");
+assert.match(routes, /runAuthEmailOutboxWorker/, "apply route must use the gated outbox worker service");
 assert.match(routes, /dryRun:\s*false/, "apply route must be explicit and service-gated");
 assert.match(routes, /confirm:\s*req\.body\?\.confirm/, "apply route must forward typed confirmation");
 assert.match(routes, /resource_authority:\s*"auth_email_outbox"/, "routes must return explicit resource authority evidence");

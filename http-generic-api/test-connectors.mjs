@@ -2,6 +2,8 @@
  * Connector contract tests for github.js and hostinger.js
  * Run: node test-connectors.mjs
  */
+// frontend-surface-operation: POST /github/preview-file-updates
+// frontend-external-effect-proof: POST /github/preview-file-updates
 
 import { hostingerSshRuntimeRead, matchesHostingerSshTarget } from "./hostinger.js";
 
@@ -145,6 +147,14 @@ section("github.js — githubPreviewFileUpdates (dry-run + policy)");
   assert("preview allows README.md", denied_result.files_preview?.some(p => p.path === "README.md"), JSON.stringify(denied_result));
   assert("preview would_commit false when denials exist", denied_result.would_commit === false, JSON.stringify(denied_result));
   assert("preview summary.denied count is 1", denied_result.summary?.denied === 1, JSON.stringify(denied_result));
+  assert("preview provider interaction is GET-only", denied_result.request_method === "GET", JSON.stringify(denied_result));
+  assert("preview performs no provider write", denied_result.provider_write_performed === false, JSON.stringify(denied_result));
+  assert("preview excludes secrets", denied_result.secrets_included === false, JSON.stringify(denied_result));
+  assert(
+    "preview uses GET for every GitHub content read",
+    fetchCalls.every((call) => !call.init?.method || call.init.method === "GET"),
+    JSON.stringify(fetchCalls)
+  );
 }
 
 section("github.js — githubGetPRStatus (validation guards)");

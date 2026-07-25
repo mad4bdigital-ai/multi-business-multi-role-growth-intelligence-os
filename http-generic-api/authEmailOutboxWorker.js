@@ -456,10 +456,47 @@ export async function skipAuthEmailOutboxIneligible({ pool = getPool(), purposes
   }
 }
 
-export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT, dryRun = true, confirm = "", senderConnectionId = "" } = {}) {
+export async function previewAuthEmailOutbox({
+  pool = getPool(),
+  purposes = DEFAULT_PURPOSES,
+  limit = DEFAULT_LIMIT,
+} = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
+  const readiness = buildAuthEmailOutboxWorkerReadiness({ apply: false });
+  const connection = await pool.getConnection();
+  try {
+    const rows = await fetchQueuedEmails(connection, {
+      purposes: normalizedPurposes,
+      limit: safeLimit,
+    });
+    const eligibleRows = rows.filter((row) => evaluateAuthEmailOutboxSendEligibility(row).eligible);
+    const skippedRows = rows.filter((row) => !evaluateAuthEmailOutboxSendEligibility(row).eligible);
+    return {
+      ok: true,
+      mode: "dry_run",
+      purposes: normalizedPurposes,
+      eligible_count: eligibleRows.length,
+      skipped_candidate_count: skippedRows.length,
+      emails: eligibleRows.map(compactEmailOutboxRow),
+      skipped_candidates: skippedRows.map(compactEmailOutboxRow),
+      readiness,
+      applies_delivery: false,
+      external_send_performed: false,
+      secrets_included: false,
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DEFAULT_PURPOSES, limit = DEFAULT_LIMIT, dryRun = true, confirm = "", senderConnectionId = "" } = {}) {
   const apply = !dryRun;
+  if (!apply) {
+    return previewAuthEmailOutbox({ pool, purposes, limit });
+  }
+  const normalizedPurposes = normalizePurposeList(purposes);
+  const safeLimit = integer(limit);
   const envDeliveryEnabled = process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
   const runtimeGate = apply && !envDeliveryEnabled
     ? await resolveAuthEmailOutboxRuntimeDeliveryGate({
@@ -488,24 +525,6 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
 
   const connection = await pool.getConnection();
   try {
-    if (!apply) {
-      const rows = await fetchQueuedEmails(connection, { purposes: normalizedPurposes, limit: safeLimit });
-      const eligibleRows = rows.filter((row) => evaluateAuthEmailOutboxSendEligibility(row).eligible);
-      const skippedRows = rows.filter((row) => !evaluateAuthEmailOutboxSendEligibility(row).eligible);
-      return {
-        ok: true,
-        mode: "dry_run",
-        purposes: normalizedPurposes,
-        eligible_count: eligibleRows.length,
-        skipped_candidate_count: skippedRows.length,
-        emails: eligibleRows.map(compactEmailOutboxRow),
-        skipped_candidates: skippedRows.map(compactEmailOutboxRow),
-        readiness,
-        applies_delivery: false,
-        secrets_included: false,
-      };
-    }
-
     const delivered = [];
     const failed = [];
     const skipped = [];

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/support/tickets/auth-email-outbox/targeted-dry-run
+// frontend-read-action-proof: POST /admin/support/tickets/auth-email-outbox/targeted-dry-run
 import { readFileSync } from "node:fs";
 import {
   applyTargetAuthEmailDelivery,
@@ -88,6 +90,7 @@ const preview = await previewTargetAuthEmailDelivery({
 });
 assert.equal(preview.send_eligible, true);
 assert.equal(preview.external_send_performed, false);
+assert.equal(preview.provider_write_performed, false);
 assert.deepEqual(
   previewHarness.log.find(
     (entry) => typeof entry === "object" && entry.sql.includes("FROM auth_email_outbox e"),

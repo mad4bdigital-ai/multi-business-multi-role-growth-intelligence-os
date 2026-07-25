@@ -108,6 +108,7 @@ import {
 } from "../supportTicketExternalCredentialOrchestrationService.js";
 import {
   getAuthEmailOutboxStatus,
+  previewAuthEmailOutbox,
   runAuthEmailOutboxWorker,
   skipAuthEmailOutboxIneligible,
 } from "../authEmailOutboxWorker.js";
@@ -289,10 +290,9 @@ export function buildSupportTicketRoutes(deps = {}) {
 
   router.post("/admin/support/tickets/auth-email-outbox/dry-run", ...adminGuards, async (req, res) => {
     try {
-      const result = await runAuthEmailOutboxWorker({
+      const result = await previewAuthEmailOutbox({
         purposes: req.body?.purposes || req.query?.purposes || "support_ticket_admin_notification",
         limit: req.body?.limit || req.query?.limit || 10,
-        dryRun: true,
       });
       return res.status(200).json({ ...result, resource_authority: "auth_email_outbox", applies_delivery: false, secrets_included: false });
     } catch (err) {

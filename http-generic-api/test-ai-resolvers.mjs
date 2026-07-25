@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /ai/implementation-plan
+// frontend-external-effect-proof: POST /ai/implementation-plan
+// frontend-surface-operation: POST /ai/task-manifest
+// frontend-external-effect-proof: POST /ai/task-manifest
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
 import { resolveAiIntentMaturation } from "./services/intentMaturationResolver.js";
@@ -89,6 +93,10 @@ const planResult = await generateImplementationPlan({
 
 assert.match(planResult.planMarkdown, /Implementation Plan/);
 assert.equal(planResult.usage.total_tokens, 150);
+assert.equal(planResult.provider_interaction, "model_inference");
+assert.equal(planResult.provider_write_performed, false);
+assert.equal(planResult.tools_executed, false);
+assert.equal(planResult.secrets_included, false);
 
 const taskResult = await generateTaskManifest({
   implementationPlan: planResult.planMarkdown,
@@ -99,6 +107,17 @@ const taskResult = await generateTaskManifest({
 
 assert.match(taskResult.taskMarkdown, /Create notificationQueue/);
 assert.equal(taskResult.usage.total_tokens, 80);
+assert.equal(taskResult.provider_interaction, "model_inference");
+assert.equal(taskResult.provider_write_performed, false);
+assert.equal(taskResult.tools_executed, false);
+assert.equal(taskResult.secrets_included, false);
+assert.equal(fetchImpl.calls.length, 2);
+assert(fetchImpl.calls.every((call) => call.url === "https://api.openai.com/v1/chat/completions"));
+assert(fetchImpl.calls.every((call) => call.options.method === "POST"));
+assert(fetchImpl.calls.every((call) => {
+  const payload = JSON.parse(call.options.body);
+  return payload.tools === undefined && payload.tool_choice === undefined;
+}));
 
 await assert.rejects(
   () => generateImplementationPlan({ userPrompt: "", apiKey: "mock-key-123", fetchImpl }),

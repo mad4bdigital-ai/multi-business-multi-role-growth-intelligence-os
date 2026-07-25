@@ -2,13 +2,23 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "042fc7a2c8fd37c693e5f0b9b2f5222c010274725226c349b4ff415d1e37ab63",
+    "source_digest": "07cfc2e59bccf33fee2c396d15eb0726b29dd1bbedcc41b3af18c0c5aa5d300e",
     "fail_closed": true
   },
   "source_authority": [
     {
       "file": "agentGovernanceRuntime.js",
       "sha256": "fcafab9d627faf0f9c2a58c8413c2446878728a17dc13ada6d1ee94155addd77",
+      "present": true
+    },
+    {
+      "file": "authEmailOutboxWorker.js",
+      "sha256": "3c10368bcdb904fdf0f9569907211604739e53729e9120bd00e4e0a2302bd0e7",
+      "present": true
+    },
+    {
+      "file": "authEmailTargetedDeliveryWorker.js",
+      "sha256": "2a6fb36ea8bfdc906203071e7d19e8970c28a6a77c78bc55de90756dfaa9cc7a",
       "present": true
     },
     {
@@ -38,7 +48,12 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "b26cc3b1c1b34e1a71c0c12c1f1661e96118902808fc3b378ce24a5b64ef6f02",
+      "sha256": "4c519aa13644a263aa62dd528f9a634d916ab0d9b1fc14382e091ffe5f111c76",
+      "present": true
+    },
+    {
+      "file": "github.js",
+      "sha256": "e43ee273dec18528581402014568744cf6a0ffcdf26862815e721a040efddaaf",
       "present": true
     },
     {
@@ -53,7 +68,7 @@
     },
     {
       "file": "operationOrchestrator.js",
-      "sha256": "58ca2ab6bb49d1b7fb45620e5cb246928f4c551ec0ec4fd4403374fe50cd6807",
+      "sha256": "61158cf3d2a7c8113ee58cb7b2a6ec13d4eec1054816907233b73244531729d3",
       "present": true
     },
     {
@@ -82,6 +97,16 @@
       "present": true
     },
     {
+      "file": "routes/aiResolverRoutes.js",
+      "sha256": "c1ab5a7340343cb494338209b3eb97f1d30958d4a7c33c8f98c7eb55acee2f89",
+      "present": true
+    },
+    {
+      "file": "routes/authEmailTargetedDeliveryRoutes.js",
+      "sha256": "8cdb63a122622959196659166968515c7b360a2f032252904e50ec275cb59450",
+      "present": true
+    },
+    {
       "file": "routes/browserRuntimeRoutes.js",
       "sha256": "96f209c4eff37d24754f7064b15e41ccf86e0f80cb8923dbaae3755f6daf1203",
       "present": true
@@ -99,6 +124,11 @@
     {
       "file": "routes/dynamicContainerAuthorityRoutes.js",
       "sha256": "4301ec6b0c26eb8242f47b9a5f960acfbb60dd0c352d34411dca0d15a71a88f2",
+      "present": true
+    },
+    {
+      "file": "routes/githubRoutes.js",
+      "sha256": "b91263371aa47236a614713098175d155c5a946e36a755bb4a553ce996563647",
       "present": true
     },
     {
@@ -148,22 +178,32 @@
     },
     {
       "file": "routes/supportTicketRoutes.js",
-      "sha256": "29dc2bb803eac94eb39564d5234a5884908bd33a5151bd3c614501f31bfcd0e4",
+      "sha256": "369383aff7c327e71712ff37bf0e052743bf389f2ea0c39517e6fb26949c72f2",
       "present": true
     },
     {
       "file": "routes/tenantInfrastructureRoutes.js",
-      "sha256": "9b3eb33af00f8d5fbd40533a309ce5998ebc271c22af72449512b47614f8c325",
+      "sha256": "812d63ed27a1b1f781ac77812c6bfc72ca56492e37a41e12238fe4a12c483fbb",
       "present": true
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "0517abf165f8cab6e7fdfd725e9540af79058d806ab67a552f4c599cecb37d66",
+      "sha256": "37890b007b3adb20c8beec323619c3e3d7104a21d70f5f2d6696e6f7cd81e85e",
       "present": true
     },
     {
       "file": "scripts/test-manifest.mjs",
       "sha256": "f09aadff59a30032c737b9232538ebcb703f20105d1d3722eb24d71c44e5c8e7",
+      "present": true
+    },
+    {
+      "file": "services/planningResolver.js",
+      "sha256": "051f382051c7cb56bb13f55c01ec73c1f50fc34a954f4ebd1b730d9f43a1efa0",
+      "present": true
+    },
+    {
+      "file": "services/taskResolver.js",
+      "sha256": "f221a4f9b58822f4fb8b78cb41fef69ef1fcebf1f2ed7d199912cf0ee3b5f9e4",
       "present": true
     },
     {
@@ -242,6 +282,21 @@
       "present": true
     },
     {
+      "file": "test-ai-resolvers.mjs",
+      "sha256": "6fba57c393de35cd8d5777285346b2e35ce2ea39b183057a3aae2d8d70afd552",
+      "present": true
+    },
+    {
+      "file": "test-auth-email-outbox-worker.mjs",
+      "sha256": "345394c351a68ac0f1731ced7ae85ff188e0d6ccb484c3e8c2ea6cc2230e0bc1",
+      "present": true
+    },
+    {
+      "file": "test-auth-email-targeted-delivery-worker.mjs",
+      "sha256": "853c6d73f3b0959af4105655e46499f31404b4c9ca5f57391bea57946aa6a61c",
+      "present": true
+    },
+    {
       "file": "test-browser-runtime-governance.mjs",
       "sha256": "6d3bc9177e0917ee1f72ce8928477811d0ce05345e76a1f8441e90c354ae7e39",
       "present": true
@@ -249,6 +304,11 @@
     {
       "file": "test-capability-envelope-template-resolver.mjs",
       "sha256": "de42e533cca3f6cb3ec8efd85b57af775334128f930971a5f8f85fb06f50a54a",
+      "present": true
+    },
+    {
+      "file": "test-connectors.mjs",
+      "sha256": "5b0e657371a2cf85edb84442a0d952bd61e0b83f1273bfc621907b4805c91055",
       "present": true
     },
     {
@@ -293,12 +353,12 @@
     },
     {
       "file": "test-operation-orchestrator-route-registration.mjs",
-      "sha256": "5752a772d47caaf8dbec9fcd217958f79608ffa1f557362fafc42ea04521adf8",
+      "sha256": "56a1d33dd99464090c6a3441c619ba491e83a17056909d2a8424395062a5b7ac",
       "present": true
     },
     {
       "file": "test-platform-engine-orchestration.mjs",
-      "sha256": "eaf755f614d1d7d55ee9b22888a11832df6e3684f59b0a5857254007f7b3b0a3",
+      "sha256": "a17b63ad7640ef5fbb59c0c5cdee6c711c17bc2a61441b6a77d70a6ed5bad986",
       "present": true
     },
     {
@@ -329,6 +389,11 @@
     {
       "file": "test-tenant-connect-bootstrap-transaction.mjs",
       "sha256": "12b38133e5032cc6a108a9d0799f11de83b20b4feab20d26d54f138411980f67",
+      "present": true
+    },
+    {
+      "file": "test-tenant-database-query-readonly.mjs",
+      "sha256": "31379487bef62eb23e298f3a6fbd814e9e43c5197fd59a9a9ad2599bed8d3f5d",
       "present": true
     },
     {
@@ -393,18 +458,18 @@
     },
     {
       "file": "test-wordpress-blog-publish-orchestrator.mjs",
-      "sha256": "1750f2b1ed971f9eb939a04da4df2b536a9deb457e2bcd5736de504141fcb2cc",
+      "sha256": "03a208f741e6f61e905b8cf133693efd480f47372fcbc5c5f0db3e1ebebf6b41",
       "present": true
     },
     {
       "file": "wordpressBlogPublishOrchestrator.js",
-      "sha256": "1626b1c01466fb32b6d3ebf51139f38d3d549096ca2d0d7e0f1f9dd93d1d2048",
+      "sha256": "605df0bc8e2867ea5c27e1af53d538ad6cb0f0c0d6498290c0889430c3ae849a",
       "present": true
     }
   ],
   "coverage": {
-    "candidate_count": 59,
-    "generated_rule_count": 59,
+    "candidate_count": 69,
+    "generated_rule_count": 69,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -670,6 +735,44 @@
       }
     },
     {
+      "rule_id": "generated-admin-operation-ci-diagnose-external-effect-v1",
+      "operation": "POST /admin/operations/ci-diagnose",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "external_effect",
+      "owner": "operation-orchestration",
+      "rationale": "Runs the fixed GitHub CI-gate read through the governed dispatcher after Admin operation-contract validation and returns a bounded check summary with provider writes explicitly denied.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-operation-ci-diagnose-external-effect-v1",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "operation_contract_and_resource_authority"
+      },
+      "approval": {
+        "mode": "runtime_operation_authorization"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The fixed GitHub CI-gate tool performs a provider read and returns check summaries only; it cannot mutate the pull request, branch, checks, or repository, so there is no target change to roll back."
+      },
+      "parameter_bindings": {
+        "owner": "request.body.owner",
+        "repo": "request.body.repo",
+        "pull_number": "request.body.pull_number",
+        "head_sha": "response.raw_gate_summary.head_sha"
+      }
+    },
+    {
       "rule_id": "generated-admin-operation-context-read-action-v1",
       "operation": "POST /admin/operations/context",
       "source_file": "routes/operationOrchestratorRoutes.js",
@@ -683,7 +786,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-operation-context-read-action-v1",
-        "source_digest": "70ea3ced3c7442d8517fa9e4bf544575921907ccadf75c541e50078d2f8d1768",
+        "source_digest": "a3dd075973d980f0e67dd88f47cc749f27997696f69a027d939f7329e0e9d183",
         "fail_closed": true
       }
     },
@@ -701,7 +804,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-operation-preview-read-action-v1",
-        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
         "fail_closed": true
       }
     },
@@ -719,7 +822,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-operation-status-read-action-v1",
-        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
         "fail_closed": true
       }
     },
@@ -946,7 +1049,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
-        "source_digest": "a0ef20fd0298d9967c7d48b9bde6ca8a1728ac24f836100aef19729364d9b61b",
+        "source_digest": "f0516465a8f79546b4fc655aecf5355b198ffc66f71bc5ecbc94ef2e992bd15e",
         "fail_closed": true
       }
     },
@@ -964,7 +1067,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-orchestration-plan-read-action-v1",
-        "source_digest": "348acb5ab20382ced881af795a59b2b345302a8e918eca57d87938eaab680f1a",
+        "source_digest": "e956901880e0b2ee8d31db9c71bf06abdcc1a5e0461eeb2b2dbf7589491bfd31",
         "fail_closed": true
       }
     },
@@ -982,7 +1085,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-delivery-readiness-read-action-v1",
-        "source_digest": "b0f96b6f6318909ae4db33243bb3a9db52c93c8e624d43ca6e4659bf685e8412",
+        "source_digest": "750465973ad4bede4ced16f102b4d4b7a298440002f650ed78807b4ed41feaff",
         "fail_closed": true
       }
     },
@@ -1000,7 +1103,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-secret-intake-plan-read-action-v1",
-        "source_digest": "314c07d8398cd6db8c376c76ac7223e16f2991adb65ba03f2407b792b6304ce2",
+        "source_digest": "45148d2248a205b47a0355c7ef4f30871233266e2363c0ae48f05e2acc9da7ab",
         "fail_closed": true
       }
     },
@@ -1018,7 +1121,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-send-execution-plan-read-action-v1",
-        "source_digest": "3f1dc6b91f3201e2f952a4efa30c2f870d718db90b74f78117714c51bf542f09",
+        "source_digest": "8515a5faa0d9b53a3c8782dc399875af3c0cfc5d7cad94c9814ef96a23fa23ca",
         "fail_closed": true
       }
     },
@@ -1036,7 +1139,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-gate-plan-read-action-v1",
-        "source_digest": "a71cb7007123d4d84902e04b49ef58f2de4fce4456f667f6212d2979f7bb5f65",
+        "source_digest": "4038bb8d093a254809fec358b63b06697fe114df4dbf306f9b3d91bd8e92180b",
         "fail_closed": true
       }
     },
@@ -1054,7 +1157,43 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-notification-preview-read-action-v1",
-        "source_digest": "ed3073b0bc93029c017456022de38c0bc047910f73c3491c329e6d5cfd3dafd4",
+        "source_digest": "844dbe0f73d5a28c00fe39cc69f0f7edc14d4697719db3a904162e55a7de24e5",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-auth-email-outbox-dry-run-read-action-v1",
+      "operation": "POST /admin/support/tickets/auth-email-outbox/dry-run",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads bounded queued-email candidates, evaluates eligibility in memory, and explicitly performs no delivery, status update, claim, or provider send.",
+      "evidence_refs": [
+        "authEmailOutboxWorker.js",
+        "routes/supportTicketRoutes.js",
+        "test-auth-email-outbox-worker.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "auth-email-outbox-dry-run-read-action-v1",
+        "source_digest": "b55444a3d3b4d2fbbecda9f05a8edff679e6201bff1f9f6b9fc8c0e6bb82c297",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-auth-email-outbox-targeted-dry-run-read-action-v1",
+      "operation": "POST /admin/support/tickets/auth-email-outbox/targeted-dry-run",
+      "source_file": "routes/authEmailTargetedDeliveryRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads one exact outbox item and computes delivery eligibility without claiming it, changing status, creating an attempt, or calling Gmail.",
+      "evidence_refs": [
+        "authEmailTargetedDeliveryWorker.js",
+        "routes/authEmailTargetedDeliveryRoutes.js",
+        "test-auth-email-targeted-delivery-worker.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "auth-email-outbox-targeted-dry-run-read-action-v1",
+        "source_digest": "8fae74aa7f1a34f6af8a9c684dc7e551d5fe4a77510ae3a436177e58e12a7b09",
         "fail_closed": true
       }
     },
@@ -1072,7 +1211,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-enablement-candidates-read-action-v1",
-        "source_digest": "1932a61916053f03bb80dfb24952e533e661724d0c263f971083ce9ead462ab5",
+        "source_digest": "da351acf8c1b68440b300bcea352d894d22158f92c7fad4555a69d6a37dccb90",
         "fail_closed": true
       }
     },
@@ -1090,7 +1229,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-future-pr-scope-plan-read-action-v1",
-        "source_digest": "2f7637dcb384841d15324f54839a9b514aeb9ce9af9f743f906c7941491a6bf2",
+        "source_digest": "85d53d5fd8695cc75fa5bc407d899b9074ccb2697d1701feb75014a60af53b77",
         "fail_closed": true
       }
     },
@@ -1108,8 +1247,82 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-readiness-plan-read-action-v1",
-        "source_digest": "301d7469220be04197778a2d1fb868dcfd95731868a70b6baaa2f1e05d2bf9a2",
+        "source_digest": "d4dc3639f6e9384360c1ae27f7e4ae7e58dc732b15a695b3f2a621a17a604e01",
         "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ai-implementation-plan-external-effect-v1",
+      "operation": "POST /ai/implementation-plan",
+      "source_file": "routes/aiResolverRoutes.js",
+      "classification": "external_effect",
+      "owner": "ai-runtime",
+      "rationale": "Calls the fixed OpenAI inference endpoint after prompt and intent validation, exposes no tools, and returns the generated plan while explicitly denying provider or target writes.",
+      "evidence_refs": [
+        "routes/aiResolverRoutes.js",
+        "services/planningResolver.js",
+        "test-ai-resolvers.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ai-implementation-plan-external-effect-v1",
+        "source_digest": "7f81ffa52fdb83060b65907499ac6bf6a6ca9b996504fec2d939ea6a532a2f06",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "required_prompt_and_intent_validation"
+      },
+      "approval": {
+        "mode": "backend_authenticated_request"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The outbound POST requests model inference only and exposes no tools or target-write capability; no repository, database, or provider resource is mutated."
+      },
+      "parameter_bindings": {
+        "model": "request.body.model|gpt-4o",
+        "prompt": "request.body.userPrompt",
+        "plan": "response.planMarkdown"
+      }
+    },
+    {
+      "rule_id": "generated-ai-task-manifest-external-effect-v1",
+      "operation": "POST /ai/task-manifest",
+      "source_file": "routes/aiResolverRoutes.js",
+      "classification": "external_effect",
+      "owner": "ai-runtime",
+      "rationale": "Calls the fixed OpenAI inference endpoint after plan and intent validation, exposes no tools, and returns the generated task manifest while explicitly denying provider or target writes.",
+      "evidence_refs": [
+        "routes/aiResolverRoutes.js",
+        "services/taskResolver.js",
+        "test-ai-resolvers.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ai-task-manifest-external-effect-v1",
+        "source_digest": "334f075b57a5834844d3aea034d6eb8b67860a18e5195425a8a887222f0a5c74",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "required_plan_and_intent_validation"
+      },
+      "approval": {
+        "mode": "backend_authenticated_request"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The outbound POST requests model inference only and exposes no tools or target-write capability; no repository, database, or provider resource is mutated."
+      },
+      "parameter_bindings": {
+        "model": "request.body.model|gpt-4o",
+        "implementation_plan": "request.body.implementationPlan",
+        "task_manifest": "response.taskMarkdown"
       }
     },
     {
@@ -1191,6 +1404,45 @@
       }
     },
     {
+      "rule_id": "generated-github-file-update-preview-external-effect-v1",
+      "operation": "POST /github/preview-file-updates",
+      "source_file": "routes/githubRoutes.js",
+      "classification": "external_effect",
+      "owner": "repository-governance",
+      "rationale": "Applies the repository path denylist, reads existing file metadata through GitHub GET requests, and returns a dry-run delta without creating a commit or updating a branch.",
+      "evidence_refs": [
+        "github.js",
+        "routes/githubRoutes.js",
+        "test-connectors.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "github-file-update-preview-external-effect-v1",
+        "source_digest": "acd09bfb1a5a715c945d16e5142d81ba2853ab3b94703107c53250390d72424e",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "path_denylist_and_request_validation"
+      },
+      "approval": {
+        "mode": "backend_authenticated_request"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The GitHub interaction reads current file metadata with GET only and never creates a commit, updates a branch, or changes repository content."
+      },
+      "parameter_bindings": {
+        "owner": "request.body.owner",
+        "repo": "request.body.repo",
+        "branch": "request.body.branch|main",
+        "paths": "request.body.files[].path",
+        "current_shas": "response.files_preview[].current_sha"
+      }
+    },
+    {
       "rule_id": "generated-governed-addition-review-read-action-v1",
       "operation": "POST /governed-addition/review",
       "source_file": "routes/governanceRoutes.js",
@@ -1239,7 +1491,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-generic-infrastructure-preflight-read-action-v1",
-        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "source_digest": "eca6c3126afa282ae5f89a9623d806e5fa83f6316eecbcbe31267d40cd4cbc47",
         "fail_closed": true
       }
     },
@@ -1256,8 +1508,45 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-database-preflight-read-action-v1",
-        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "source_digest": "eca6c3126afa282ae5f89a9623d806e5fa83f6316eecbcbe31267d40cd4cbc47",
         "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-database-query-readonly-external-effect-v1",
+      "operation": "POST /me/infrastructure/database/connections/{connection_id}/query-readonly",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "classification": "external_effect",
+      "owner": "tenant-infrastructure",
+      "rationale": "Uses an exact tenant-owned connection, forces a read-only remote session, validates a single bounded SELECT, and returns sanitized rows while explicitly denying provider writes.",
+      "evidence_refs": [
+        "routes/tenantInfrastructureRoutes.js",
+        "test-tenant-database-query-readonly.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-database-query-readonly-external-effect-v1",
+        "source_digest": "1db97024fc43d31da184ae604a664e3c0cc6424ad1dcf097ff27526ffc5695dc",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "tenant_connection_readiness_and_select_only_sql_validation"
+      },
+      "approval": {
+        "mode": "tenant_runtime_authorization"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The remote session is forced read-only, accepts one validated SELECT with an outer row limit, and rejects DDL, DML, administrative statements, multiple statements, and secret-like fields; it has no target mutation to reverse."
+      },
+      "parameter_bindings": {
+        "connection_id": "path.connection_id",
+        "sql": "request.body.sql",
+        "limit": "request.body.limit|25",
+        "rows": "response.result.rows"
       }
     },
     {
@@ -1273,7 +1562,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-ssh-cli-dry-run-read-action-v1",
-        "source_digest": "0ef58c72b2fbb0bbe29cffc60f051a90306ab8fdabb8d3c06f9442f6315c77d3",
+        "source_digest": "030614655cf112b296ef345fadfa9b91e60a7858fd2455f6ec1b3326cd277e37",
         "fail_closed": true
       }
     },
@@ -1290,7 +1579,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-ssh-preflight-read-action-v1",
-        "source_digest": "70280cf637ba1da7c34e21cdf6416150dbf603e8f1a5bd099d2122e0974d2a12",
+        "source_digest": "eca6c3126afa282ae5f89a9623d806e5fa83f6316eecbcbe31267d40cd4cbc47",
         "fail_closed": true
       }
     },
@@ -1500,7 +1789,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "platform-engine-capability-check-read-action-v1",
-        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "source_digest": "8cc6c9d4636b9fa5f525594df0bf7837c7244d8ca8fb48010cf05e955c2eab8e",
         "fail_closed": true
       }
     },
@@ -1572,7 +1861,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "database-lifecycle-decision-brief-read-action-v1",
-        "source_digest": "9b7d63be067b24bd7194f846456c7e57086c7f35831d321e3723843c0f2e8651",
+        "source_digest": "3ba745c571f35fb80c6d88c76ea2557f45ee5b7fba91701e6e8ed980f061834c",
         "fail_closed": true
       }
     },
@@ -1590,7 +1879,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "database-lifecycle-register-plan-read-action-v1",
-        "source_digest": "9b7d63be067b24bd7194f846456c7e57086c7f35831d321e3723843c0f2e8651",
+        "source_digest": "3ba745c571f35fb80c6d88c76ea2557f45ee5b7fba91701e6e8ed980f061834c",
         "fail_closed": true
       }
     },
@@ -1608,7 +1897,25 @@
       ],
       "generated_evidence": {
         "recipe_id": "platform-engine-decision-brief-read-action-v1",
-        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "source_digest": "8cc6c9d4636b9fa5f525594df0bf7837c7244d8ca8fb48010cf05e955c2eab8e",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-platform-engine-execution-envelope-read-action-v1",
+      "operation": "POST /platform/engines/execution-envelope",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Reads engine policy, outcome, and optional validator evidence to build an apply-readiness envelope in memory; it explicitly executes nothing and performs no repository mutation.",
+      "evidence_refs": [
+        "platformEngineRegistry.js",
+        "routes/platformEngineRoutes.js",
+        "test-platform-engine-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "platform-engine-execution-envelope-read-action-v1",
+        "source_digest": "8cc6c9d4636b9fa5f525594df0bf7837c7244d8ca8fb48010cf05e955c2eab8e",
         "fail_closed": true
       }
     },
@@ -1626,8 +1933,46 @@
       ],
       "generated_evidence": {
         "recipe_id": "platform-engine-resolve-intent-read-action-v1",
-        "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "source_digest": "8cc6c9d4636b9fa5f525594df0bf7837c7244d8ca8fb48010cf05e955c2eab8e",
         "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-operation-ci-diagnose-external-effect-v1",
+      "operation": "POST /tenant/operations/ci-diagnose",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "external_effect",
+      "owner": "operation-orchestration",
+      "rationale": "Verifies Tenant membership and repository authority before dispatching the fixed GitHub CI-gate read, then returns a bounded check summary with provider writes explicitly denied.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-operation-ci-diagnose-external-effect-v1",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "tenant_membership_operation_contract_and_resource_authority"
+      },
+      "approval": {
+        "mode": "tenant_runtime_operation_authorization"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The fixed GitHub CI-gate tool performs a provider read and returns check summaries only; it cannot mutate the pull request, branch, checks, or repository, so there is no target change to roll back."
+      },
+      "parameter_bindings": {
+        "owner": "request.body.owner",
+        "repo": "request.body.repo",
+        "pull_number": "request.body.pull_number",
+        "head_sha": "response.raw_gate_summary.head_sha"
       }
     },
     {
@@ -1644,7 +1989,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-operation-context-read-action-v1",
-        "source_digest": "70ea3ced3c7442d8517fa9e4bf544575921907ccadf75c541e50078d2f8d1768",
+        "source_digest": "a3dd075973d980f0e67dd88f47cc749f27997696f69a027d939f7329e0e9d183",
         "fail_closed": true
       }
     },
@@ -1662,7 +2007,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-operation-preview-read-action-v1",
-        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
         "fail_closed": true
       }
     },
@@ -1680,8 +2025,46 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-operation-status-read-action-v1",
-        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
         "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-wordpress-auth-context-external-effect-v1",
+      "operation": "POST /wordpress/auth-context/diagnose",
+      "source_file": "routes/outputSinkRoutes.js",
+      "classification": "external_effect",
+      "owner": "wordpress-runtime",
+      "rationale": "Resolves the scoped WordPress target and credential, sends one authenticated GET to users/me, and returns safe capability booleans without writing WordPress content.",
+      "evidence_refs": [
+        "routes/outputSinkRoutes.js",
+        "test-wordpress-blog-publish-orchestrator.mjs",
+        "wordpressBlogPublishOrchestrator.js"
+      ],
+      "generated_evidence": {
+        "recipe_id": "wordpress-auth-context-external-effect-v1",
+        "source_digest": "5e4263effd4a005d8086d3530bb2639eeb8c822cbc2937872598ce92be27e644",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "target_and_scoped_credential_resolution"
+      },
+      "approval": {
+        "mode": "backend_authenticated_request"
+      },
+      "readback": {
+        "mode": "inline_provider_response",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "not_required",
+        "rationale": "The WordPress interaction is a GET of the authenticated user context and cannot create, update, publish, or delete WordPress content."
+      },
+      "parameter_bindings": {
+        "tenant_id": "request.body.tenant_id",
+        "user_id": "request.body.user_id",
+        "target_key": "request.body.target_key|request.body.brand_key",
+        "wordpress_user_id": "response.user_id"
       }
     },
     {
@@ -1698,7 +2081,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "wordpress-publish-authority-diagnostic-read-action-v1",
-        "source_digest": "7b806d06b436ee60516f5945691a1158acaaf0a7cfbb92f5e2549d727caca0e1",
+        "source_digest": "5e4263effd4a005d8086d3530bb2639eeb8c822cbc2937872598ce92be27e644",
         "fail_closed": true
       }
     }

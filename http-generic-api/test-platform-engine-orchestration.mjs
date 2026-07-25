@@ -9,9 +9,12 @@ import assert from "node:assert/strict";
 // frontend-read-action-proof: POST /platform/engines/database-table-lifecycle/register-plan
 // frontend-surface-operation: POST /platform/engines/capability-check
 // frontend-read-action-proof: POST /platform/engines/capability-check
+// frontend-surface-operation: POST /platform/engines/execution-envelope
+// frontend-read-action-proof: POST /platform/engines/execution-envelope
 import {
   buildPlatformEngineDecisionBrief,
   checkPlatformEngineCapability,
+  createPlatformEngineExecutionEnvelope,
   resolvePlatformEngineTaskIntent,
   writePlatformEngineRun,
 } from "./platformEngineRegistry.js";
@@ -442,6 +445,19 @@ assert.equal(decisionBrief.envelope.will_execute, false);
 assert.equal(decisionBrief.envelope.no_repo_mutation, true);
 assert.equal(decisionBrief.envelope.model_executes_tools, false);
 assert.equal(decisionBrief.envelope.tool_execution_runtime_separate, true);
+
+const executionEnvelope = await createPlatformEngineExecutionEnvelope({
+  engine_key: "repo_conflict_resolution_engine",
+  task_class: "conflict_plan",
+  resource: { path: "http-generic-api/package.json" },
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
+}, { pool: makeEngineBriefPool() });
+assert.equal(executionEnvelope.will_execute, false);
+assert.equal(executionEnvelope.no_repo_mutation, true);
+assert.equal(executionEnvelope.no_execution, true);
+assert.equal(executionEnvelope.model_executes_tools, false);
 
 const resolvedIntent = resolvePlatformEngineTaskIntent({
   objective: "resolve package conflict",

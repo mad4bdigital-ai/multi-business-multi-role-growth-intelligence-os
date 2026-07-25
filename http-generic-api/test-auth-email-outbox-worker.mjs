@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /admin/support/tickets/auth-email-outbox/dry-run
+// frontend-read-action-proof: POST /admin/support/tickets/auth-email-outbox/dry-run
 
 import {
   buildAuthEmailOutboxWorkerReadiness,
@@ -7,6 +9,7 @@ import {
   encodeGmailRawMessage,
   evaluateAuthEmailOutboxSendEligibility,
   normalizePurposeList,
+  previewAuthEmailOutbox,
   resolveAuthEmailOutboxRuntimeDeliveryGate,
 } from "./authEmailOutboxWorker.js";
 
@@ -215,6 +218,46 @@ assert.deepEqual(
   { eligible: true, reason: null },
   "open ticket notifications should remain eligible",
 );
+
+const previewQueries = [];
+let previewReleased = false;
+const preview = await previewAuthEmailOutbox({
+  pool: {
+    async getConnection() {
+      return {
+        async query(sql, params) {
+          previewQueries.push({ sql, params });
+          assert.match(String(sql).trim(), /^SELECT\b/i, "outbox dry-run must execute SELECT statements only");
+          return [[{
+            email_id: "email_preview_1",
+            purpose: "support_ticket_admin_notification",
+            recipient_email: "admin@example.com",
+            subject: "Preview only",
+            status: "queued",
+            provider: "support_ticket_router",
+            metadata_json: JSON.stringify({ ticket_id: "ticket_preview_1", tenant_id: "tenant_preview_1" }),
+            resolved_ticket_id: "ticket_preview_1",
+            ticket_status: "open",
+            ticket_lifecycle_state: "triage_pending",
+            ticket_customer_status: "under_review",
+          }]];
+        },
+        release() {
+          previewReleased = true;
+        },
+      };
+    },
+  },
+  purposes: "support_ticket_admin_notification",
+  limit: 10,
+});
+assert.equal(preview.mode, "dry_run");
+assert.equal(preview.eligible_count, 1);
+assert.equal(preview.applies_delivery, false);
+assert.equal(preview.external_send_performed, false);
+assert.equal(preview.secrets_included, false);
+assert.equal(previewQueries.length, 1);
+assert.equal(previewReleased, true);
 
 await import("./test-auth-email-outbox-attempt-ledger.mjs");
 

@@ -60,6 +60,10 @@ ${systemContext}`;
 
   return {
     planMarkdown,
-    usage: data.usage || null
+    usage: data.usage || null,
+    provider_interaction: "model_inference",
+    provider_write_performed: false,
+    tools_executed: false,
+    secrets_included: false
   };
 }

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+// frontend-surface-operation: POST /me/infrastructure/database/connections/{connection_id}/query-readonly
+// frontend-external-effect-proof: POST /me/infrastructure/database/connections/{connection_id}/query-readonly
 import { readFileSync } from "node:fs";
 
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
@@ -18,6 +20,8 @@ assert(routes.includes('readonly_query_secret_like_column_blocked'), "query guar
 assert(routes.includes('multipleStatements: false'), "query connection must disable multiple statements");
 assert(routes.includes('SET SESSION TRANSACTION READ ONLY'), "query connection should request read-only transaction mode");
 assert(routes.includes('SET SESSION MAX_EXECUTION_TIME=5000'), "query connection should request bounded execution time");
+assert(routes.includes('transaction_read_only: true'), "query response must report read-only transaction mode");
+assert(routes.includes('provider_write_performed: false'), "query response must deny provider writes explicitly");
 assert(routes.includes('LIMIT ?'), "query execution must add a bound outer limit");
 assert(routes.includes('clampInt(options.limit, 25, 1, 100)'), "query limit must be clamped to 100 rows max");
 assert(routes.includes('secrets_included: false'), "query route must never return secrets");

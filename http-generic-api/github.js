@@ -884,6 +884,8 @@ export async function githubPreviewFileUpdates({ input = {} }) {
     owner,
     repo,
     branch,
+    request_method: "GET",
+    provider_write_performed: false,
     would_commit: denied.length === 0,
     files_preview: previews,
     files_denied: denied,
@@ -892,7 +894,8 @@ export async function githubPreviewFileUpdates({ input = {} }) {
       would_create: previews.filter(p => p.action === "create").length,
       would_update: previews.filter(p => p.action === "update").length,
       denied: denied.length
-    }
+    },
+    secrets_included: false
   };
 }
 

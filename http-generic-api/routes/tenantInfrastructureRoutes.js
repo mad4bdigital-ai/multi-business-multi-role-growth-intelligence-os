@@ -719,6 +719,8 @@ async function executeReadonlyDatabaseQuery(row, options = {}) {
       row_count: rows.length,
       columns: (fields || []).map((field) => ({ name: field.name, column_type: field.columnType })),
       rows: rows.map(sanitizeReadonlyRow),
+      transaction_read_only: true,
+      provider_write_performed: false,
       secrets_included: false,
     };
   } finally {
@@ -917,6 +919,7 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
         source: "tenant_database_query_readonly",
         connection: safeConnection(row),
         result,
+        provider_write_performed: false,
         secrets_included: false,
       });
     } catch (err) {

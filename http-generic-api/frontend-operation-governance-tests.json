@@ -28,11 +28,16 @@
     { "file": "test-dynamic-container-authority-runtime.mjs", "evidence_scope": "dynamic-container-projection-preview" },
     { "file": "test-repo-conflict-intelligence-tenant-readiness.mjs", "evidence_scope": "repo-conflict-tenant-readiness" },
     { "file": "test-browser-runtime-governance.mjs", "evidence_scope": "browser-runtime-health-policy" },
-    { "file": "test-wordpress-blog-publish-orchestrator.mjs", "evidence_scope": "wordpress-publish-authority-diagnostic" },
+    { "file": "test-wordpress-blog-publish-orchestrator.mjs", "evidence_scope": "wordpress-provider-read-diagnostics" },
     { "file": "test-gmail-user-oauth-consent-flow.mjs", "evidence_scope": "gmail-authorization-url" },
     { "file": "test-mcp-runtime-initialize.mjs", "evidence_scope": "mcp-initialize" },
     { "file": "test-ticket-external-credential-orchestration.mjs", "evidence_scope": "ticket-external-credential-orchestration-plan" },
-    { "file": "test-operation-orchestrator-route-registration.mjs", "evidence_scope": "operation-orchestrator-read-actions" }
+    { "file": "test-operation-orchestrator-route-registration.mjs", "evidence_scope": "operation-orchestrator-read-and-provider-actions" },
+    { "file": "test-auth-email-outbox-worker.mjs", "evidence_scope": "auth-email-outbox-dry-run-read-action" },
+    { "file": "test-auth-email-targeted-delivery-worker.mjs", "evidence_scope": "auth-email-targeted-dry-run-read-action" },
+    { "file": "test-connectors.mjs", "evidence_scope": "github-provider-read-preview" },
+    { "file": "test-ai-resolvers.mjs", "evidence_scope": "ai-provider-inference-actions" },
+    { "file": "test-tenant-database-query-readonly.mjs", "evidence_scope": "tenant-database-provider-read-action" }
   ],
   "read_action_batches": [
     {
@@ -118,6 +123,15 @@
           "route_markers": ["checkPlatformEngineCapability"],
           "proof_markers": ["loadEngineDecisionContext", "evaluatePlatformEngineCapability"],
           "rationale": "Loads engine policy context and evaluates capability readiness without writing a run or validator result."
+        },
+        {
+          "recipe_id": "platform-engine-execution-envelope-read-action-v1",
+          "operation": "POST /platform/engines/execution-envelope",
+          "implementation_file": "platformEngineRegistry.js",
+          "proof_functions": ["createPlatformEngineExecutionEnvelope", "planPlatformEngineTask", "loadEngineDecisionContext", "listPlatformEngineRuns", "loadValidatorResultsForEnvelope"],
+          "route_markers": ["createPlatformEngineExecutionEnvelope"],
+          "proof_markers": ["buildPlatformEngineExecutionEnvelope", "SELECT * FROM platform_engine_registry", "SELECT * FROM platform_engine_execution_runs", "validator_results_required"],
+          "rationale": "Reads engine policy, outcome, and optional validator evidence to build an apply-readiness envelope in memory; it explicitly executes nothing and performs no repository mutation."
         }
       ]
     },
@@ -608,6 +622,226 @@
           "route_markers": ["assertOperationRunAccess", "getOperationStatus"],
           "proof_markers": ["readRepositoryAutomationRun", "operation.status.get", "secrets_included: false"],
           "rationale": "Checks Tenant-scoped run ownership and reads the operation run, steps, and receipts without advancing or mutating the run."
+        }
+      ]
+    },
+    {
+      "batch_id": "auth-email-outbox-previews-v1",
+      "owner": "support-delivery-governance",
+      "source_file": "routes/supportTicketRoutes.js",
+      "implementation_file": "authEmailOutboxWorker.js",
+      "test_file": "test-auth-email-outbox-worker.mjs",
+      "operations": [
+        {
+          "recipe_id": "auth-email-outbox-dry-run-read-action-v1",
+          "operation": "POST /admin/support/tickets/auth-email-outbox/dry-run",
+          "proof_functions": ["previewAuthEmailOutbox", "fetchQueuedEmails", "evaluateAuthEmailOutboxSendEligibility", "compactEmailOutboxRow"],
+          "route_markers": ["previewAuthEmailOutbox"],
+          "proof_markers": ["FROM auth_email_outbox e", "mode: \"dry_run\"", "applies_delivery: false", "external_send_performed: false"],
+          "rationale": "Reads bounded queued-email candidates, evaluates eligibility in memory, and explicitly performs no delivery, status update, claim, or provider send."
+        },
+        {
+          "recipe_id": "auth-email-outbox-targeted-dry-run-read-action-v1",
+          "operation": "POST /admin/support/tickets/auth-email-outbox/targeted-dry-run",
+          "source_file": "routes/authEmailTargetedDeliveryRoutes.js",
+          "implementation_file": "authEmailTargetedDeliveryWorker.js",
+          "test_file": "test-auth-email-targeted-delivery-worker.mjs",
+          "proof_functions": ["previewTargetAuthEmailDelivery", "fetchTargetEmail"],
+          "route_markers": ["previewTargetAuthEmailDelivery"],
+          "proof_markers": ["FROM auth_email_outbox e", "mode: \"targeted_dry_run\"", "applies_delivery: false", "external_send_performed: false", "provider_write_performed: false"],
+          "rationale": "Reads one exact outbox item and computes delivery eligibility without claiming it, changing status, creating an attempt, or calling Gmail."
+        }
+      ]
+    }
+  ],
+  "external_effect_batches": [
+    {
+      "batch_id": "operation-orchestrator-provider-reads-v1",
+      "owner": "operation-orchestration",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "implementation_file": "operationOrchestrator.js",
+      "test_file": "test-operation-orchestrator-route-registration.mjs",
+      "operations": [
+        {
+          "recipe_id": "admin-operation-ci-diagnose-external-effect-v1",
+          "operation": "POST /admin/operations/ci-diagnose",
+          "proof_functions": ["diagnoseCi"],
+          "route_markers": ["diagnoseCi"],
+          "proof_markers": ["github_pr_ci_gate", "summarizeChecks", "provider_interaction: \"github_pr_ci_gate\"", "provider_write_performed: false", "secrets_included: false"],
+          "interaction_markers": ["deps.dispatch(\"github_pr_ci_gate\""],
+          "target_write_denial_markers": ["provider_write_performed: false"],
+          "allowed_effect_calls": ["dispatch"],
+          "preflight_mode": "operation_contract_and_resource_authority",
+          "approval_mode": "runtime_operation_authorization",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The fixed GitHub CI-gate tool performs a provider read and returns check summaries only; it cannot mutate the pull request, branch, checks, or repository, so there is no target change to roll back.",
+          "parameter_bindings": {
+            "owner": "request.body.owner",
+            "repo": "request.body.repo",
+            "pull_number": "request.body.pull_number",
+            "head_sha": "response.raw_gate_summary.head_sha"
+          },
+          "rationale": "Runs the fixed GitHub CI-gate read through the governed dispatcher after Admin operation-contract validation and returns a bounded check summary with provider writes explicitly denied."
+        },
+        {
+          "recipe_id": "tenant-operation-ci-diagnose-external-effect-v1",
+          "operation": "POST /tenant/operations/ci-diagnose",
+          "proof_functions": ["diagnoseCi"],
+          "route_markers": ["diagnoseCi"],
+          "proof_markers": ["github_pr_ci_gate", "summarizeChecks", "provider_interaction: \"github_pr_ci_gate\"", "provider_write_performed: false", "secrets_included: false"],
+          "interaction_markers": ["deps.dispatch(\"github_pr_ci_gate\""],
+          "target_write_denial_markers": ["provider_write_performed: false"],
+          "allowed_effect_calls": ["dispatch"],
+          "preflight_mode": "tenant_membership_operation_contract_and_resource_authority",
+          "approval_mode": "tenant_runtime_operation_authorization",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The fixed GitHub CI-gate tool performs a provider read and returns check summaries only; it cannot mutate the pull request, branch, checks, or repository, so there is no target change to roll back.",
+          "parameter_bindings": {
+            "owner": "request.body.owner",
+            "repo": "request.body.repo",
+            "pull_number": "request.body.pull_number",
+            "head_sha": "response.raw_gate_summary.head_sha"
+          },
+          "rationale": "Verifies Tenant membership and repository authority before dispatching the fixed GitHub CI-gate read, then returns a bounded check summary with provider writes explicitly denied."
+        }
+      ]
+    },
+    {
+      "batch_id": "ai-provider-inference-v1",
+      "owner": "ai-runtime",
+      "source_file": "routes/aiResolverRoutes.js",
+      "test_file": "test-ai-resolvers.mjs",
+      "operations": [
+        {
+          "recipe_id": "ai-implementation-plan-external-effect-v1",
+          "operation": "POST /ai/implementation-plan",
+          "implementation_file": "services/planningResolver.js",
+          "proof_functions": ["generateImplementationPlan"],
+          "route_markers": ["generateImplementationPlan", "resolveAiIntentMaturation"],
+          "proof_markers": ["https://api.openai.com/v1/chat/completions", "method: \"POST\"", "provider_interaction: \"model_inference\"", "provider_write_performed: false", "tools_executed: false"],
+          "interaction_markers": ["fetchImpl(\"https://api.openai.com/v1/chat/completions\""],
+          "target_write_denial_markers": ["provider_write_performed: false", "tools_executed: false"],
+          "allowed_http_methods": ["POST"],
+          "preflight_mode": "required_prompt_and_intent_validation",
+          "approval_mode": "backend_authenticated_request",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The outbound POST requests model inference only and exposes no tools or target-write capability; no repository, database, or provider resource is mutated.",
+          "parameter_bindings": {
+            "model": "request.body.model|gpt-4o",
+            "prompt": "request.body.userPrompt",
+            "plan": "response.planMarkdown"
+          },
+          "rationale": "Calls the fixed OpenAI inference endpoint after prompt and intent validation, exposes no tools, and returns the generated plan while explicitly denying provider or target writes."
+        },
+        {
+          "recipe_id": "ai-task-manifest-external-effect-v1",
+          "operation": "POST /ai/task-manifest",
+          "implementation_file": "services/taskResolver.js",
+          "proof_functions": ["generateTaskManifest"],
+          "route_markers": ["generateTaskManifest", "resolveAiIntentMaturation"],
+          "proof_markers": ["https://api.openai.com/v1/chat/completions", "method: \"POST\"", "provider_interaction: \"model_inference\"", "provider_write_performed: false", "tools_executed: false"],
+          "interaction_markers": ["fetchImpl(\"https://api.openai.com/v1/chat/completions\""],
+          "target_write_denial_markers": ["provider_write_performed: false", "tools_executed: false"],
+          "allowed_http_methods": ["POST"],
+          "preflight_mode": "required_plan_and_intent_validation",
+          "approval_mode": "backend_authenticated_request",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The outbound POST requests model inference only and exposes no tools or target-write capability; no repository, database, or provider resource is mutated.",
+          "parameter_bindings": {
+            "model": "request.body.model|gpt-4o",
+            "implementation_plan": "request.body.implementationPlan",
+            "task_manifest": "response.taskMarkdown"
+          },
+          "rationale": "Calls the fixed OpenAI inference endpoint after plan and intent validation, exposes no tools, and returns the generated task manifest while explicitly denying provider or target writes."
+        }
+      ]
+    },
+    {
+      "batch_id": "wordpress-auth-context-provider-read-v1",
+      "owner": "wordpress-runtime",
+      "source_file": "routes/outputSinkRoutes.js",
+      "implementation_file": "wordpressBlogPublishOrchestrator.js",
+      "test_file": "test-wordpress-blog-publish-orchestrator.mjs",
+      "operations": [
+        {
+          "recipe_id": "wordpress-auth-context-external-effect-v1",
+          "operation": "POST /wordpress/auth-context/diagnose",
+          "proof_functions": ["diagnoseWordpressAuthContext", "loadBrand", "resolveWpCredential"],
+          "route_markers": ["diagnoseWordpressAuthContext"],
+          "proof_markers": ["FROM \\`brands\\`", "/users/me?context=edit", "method: \"GET\"", "provider_write_performed: false", "secrets_included: false"],
+          "interaction_markers": ["fetchImpl(`${wpBase}/users/me?context=edit`"],
+          "target_write_denial_markers": ["method: \"GET\"", "provider_write_performed: false"],
+          "preflight_mode": "target_and_scoped_credential_resolution",
+          "approval_mode": "backend_authenticated_request",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The WordPress interaction is a GET of the authenticated user context and cannot create, update, publish, or delete WordPress content.",
+          "parameter_bindings": {
+            "tenant_id": "request.body.tenant_id",
+            "user_id": "request.body.user_id",
+            "target_key": "request.body.target_key|request.body.brand_key",
+            "wordpress_user_id": "response.user_id"
+          },
+          "rationale": "Resolves the scoped WordPress target and credential, sends one authenticated GET to users/me, and returns safe capability booleans without writing WordPress content."
+        }
+      ]
+    },
+    {
+      "batch_id": "github-file-preview-provider-read-v1",
+      "owner": "repository-governance",
+      "source_file": "routes/githubRoutes.js",
+      "implementation_file": "github.js",
+      "test_file": "test-connectors.mjs",
+      "operations": [
+        {
+          "recipe_id": "github-file-update-preview-external-effect-v1",
+          "operation": "POST /github/preview-file-updates",
+          "proof_functions": ["githubPreviewFileUpdates", "fetchGitHubContentFile"],
+          "route_markers": ["githubPreviewFileUpdates"],
+          "proof_markers": ["fetchGitHubContentFile", "method: \"GET\"", "dry_run: true", "provider_write_performed: false", "files_denied"],
+          "interaction_markers": ["proxyGitHubJson", "method: \"GET\""],
+          "target_write_denial_markers": ["dry_run: true", "provider_write_performed: false"],
+          "preflight_mode": "path_denylist_and_request_validation",
+          "approval_mode": "backend_authenticated_request",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The GitHub interaction reads current file metadata with GET only and never creates a commit, updates a branch, or changes repository content.",
+          "parameter_bindings": {
+            "owner": "request.body.owner",
+            "repo": "request.body.repo",
+            "branch": "request.body.branch|main",
+            "paths": "request.body.files[].path",
+            "current_shas": "response.files_preview[].current_sha"
+          },
+          "rationale": "Applies the repository path denylist, reads existing file metadata through GitHub GET requests, and returns a dry-run delta without creating a commit or updating a branch."
+        }
+      ]
+    },
+    {
+      "batch_id": "tenant-database-provider-read-v1",
+      "owner": "tenant-infrastructure",
+      "source_file": "routes/tenantInfrastructureRoutes.js",
+      "implementation_file": "routes/tenantInfrastructureRoutes.js",
+      "test_file": "test-tenant-database-query-readonly.mjs",
+      "operations": [
+        {
+          "recipe_id": "tenant-database-query-readonly-external-effect-v1",
+          "operation": "POST /me/infrastructure/database/connections/{connection_id}/query-readonly",
+          "proof_functions": ["executeReadonlyDatabaseQuery", "validateReadonlySql", "assertSafeReadonlyFields", "loadTenantConnection", "readinessFor"],
+          "route_markers": ["loadTenantConnection", "readinessFor", "executeReadonlyDatabaseQuery"],
+          "proof_markers": ["Only SELECT statements are allowed", "multipleStatements: false", "SET SESSION TRANSACTION READ ONLY", "LIMIT ?", "transaction_read_only: true", "provider_write_performed: false"],
+          "interaction_markers": ["mysql.createConnection", "connection.execute"],
+          "target_write_denial_markers": ["SET SESSION TRANSACTION READ ONLY", "multipleStatements: false", "provider_write_performed: false"],
+          "allowed_effect_calls": ["createConnection", "execute"],
+          "preflight_mode": "tenant_connection_readiness_and_select_only_sql_validation",
+          "approval_mode": "tenant_runtime_authorization",
+          "readback_mode": "inline_provider_response",
+          "rollback_rationale": "The remote session is forced read-only, accepts one validated SELECT with an outer row limit, and rejects DDL, DML, administrative statements, multiple statements, and secret-like fields; it has no target mutation to reverse.",
+          "parameter_bindings": {
+            "connection_id": "path.connection_id",
+            "sql": "request.body.sql",
+            "limit": "request.body.limit|25",
+            "rows": "response.result.rows"
+          },
+          "rationale": "Uses an exact tenant-owned connection, forces a read-only remote session, validates a single bounded SELECT, and returns sanitized rows while explicitly denying provider writes."
         }
       ]
     }

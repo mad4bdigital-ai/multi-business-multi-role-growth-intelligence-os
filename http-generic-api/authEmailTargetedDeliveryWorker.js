@@ -297,6 +297,7 @@ export async function previewTargetAuthEmailDelivery({ pool = getPool(), emailId
       readiness: buildAuthEmailOutboxWorkerReadiness({ apply: false }),
       applies_delivery: false,
       external_send_performed: false,
+      provider_write_performed: false,
       secrets_included: false,
     };
   } finally {

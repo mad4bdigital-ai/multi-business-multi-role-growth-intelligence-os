@@ -25,7 +25,14 @@ const evidenceRegistry = JSON.parse(fs.readFileSync("frontend-operation-governan
 const EXPECTED_READ_ACTION_OPERATIONS = evidenceRegistry.read_action_batches
   .flatMap((batch) => batch.operations.map((operation) => operation.operation))
   .sort();
-const EXPECTED_OPERATIONS = [...EXPECTED_MUTATION_OPERATIONS, ...EXPECTED_READ_ACTION_OPERATIONS].sort();
+const EXPECTED_EXTERNAL_EFFECT_OPERATIONS = evidenceRegistry.external_effect_batches
+  .flatMap((batch) => batch.operations.map((operation) => operation.operation))
+  .sort();
+const EXPECTED_OPERATIONS = [
+  ...EXPECTED_MUTATION_OPERATIONS,
+  ...EXPECTED_READ_ACTION_OPERATIONS,
+  ...EXPECTED_EXTERNAL_EFFECT_OPERATIONS,
+].sort();
 
 const EVIDENCE_FILES = [
   "scripts/frontend-operation-governance-generator.mjs",
@@ -47,7 +54,13 @@ const EVIDENCE_FILES = [
     batch.source_file,
     batch.implementation_file,
     batch.test_file,
-    ...batch.operations.flatMap((operation) => [operation.implementation_file, operation.test_file]),
+    ...batch.operations.flatMap((operation) => [operation.source_file, operation.implementation_file, operation.test_file]),
+  ]),
+  ...evidenceRegistry.external_effect_batches.flatMap((batch) => [
+    batch.source_file,
+    batch.implementation_file,
+    batch.test_file,
+    ...batch.operations.flatMap((operation) => [operation.source_file, operation.implementation_file, operation.test_file]),
   ]),
 ].filter(Boolean).filter((file, index, files) => files.indexOf(file) === index);
 
@@ -87,12 +100,17 @@ assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPE
 assert(plan.source_authority.every((entry) => entry.present), "every generated decision must be checksum-bound to present evidence");
 const mutationRules = plan.operation_rules.filter((rule) => rule.classification === "state_change");
 const readActionRules = plan.operation_rules.filter((rule) => rule.classification === "read_action");
+const externalEffectRules = plan.operation_rules.filter((rule) => rule.classification === "external_effect");
 assert.deepEqual(mutationRules.map((rule) => rule.operation).sort(), EXPECTED_MUTATION_OPERATIONS);
 assert.deepEqual(readActionRules.map((rule) => rule.operation).sort(), EXPECTED_READ_ACTION_OPERATIONS);
+assert.deepEqual(externalEffectRules.map((rule) => rule.operation).sort(), EXPECTED_EXTERNAL_EFFECT_OPERATIONS);
 assert(mutationRules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
 assert(mutationRules.every((rule) => rule.rollback.mode === "transaction"));
 assert(readActionRules.every((rule) => !Object.hasOwn(rule, "preflight") && !Object.hasOwn(rule, "approval")));
 assert(readActionRules.every((rule) => !Object.hasOwn(rule, "readback") && !Object.hasOwn(rule, "rollback") && !Object.hasOwn(rule, "parameter_bindings")));
+assert(externalEffectRules.every((rule) => rule.readback.mode === "inline_provider_response" && rule.readback.same_cycle === true));
+assert(externalEffectRules.every((rule) => rule.rollback.mode === "not_required" && rule.rollback.rationale));
+assert(externalEffectRules.every((rule) => rule.preflight.mode && rule.approval.mode && Object.keys(rule.parameter_bindings).length));
 assert(plan.operation_rules.every((rule) => /^[a-f0-9]{64}$/.test(rule.generated_evidence.source_digest)));
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
@@ -267,5 +285,49 @@ assert(
   rejection(readActionManifestPlan, "POST /platform/agent-governance/response-profile/resolve")
     .missing_evidence.includes("test_manifest_registered")
 );
+
+const noExternalEffectProofFixture = createFixture();
+replaceEvidence(
+  noExternalEffectProofFixture,
+  "test-ai-resolvers.mjs",
+  "// frontend-external-effect-proof: POST /ai/implementation-plan",
+  "// explicit external-effect proof removed for fail-closed regression"
+);
+const noExternalEffectProofPlan = buildOperationGovernance({ apiRoot: noExternalEffectProofFixture });
+assert(
+  rejection(noExternalEffectProofPlan, "POST /ai/implementation-plan")
+    .missing_evidence.includes("explicit_external_effect_test_proof")
+);
+
+const externalTargetWriteFixture = createFixture();
+replaceEvidence(
+  externalTargetWriteFixture,
+  "services/planningResolver.js",
+  "const payload = {",
+  "writeProviderTarget();\n  const payload = {"
+);
+const externalTargetWritePlan = buildOperationGovernance({ apiRoot: externalTargetWriteFixture });
+assert(
+  rejection(externalTargetWritePlan, "POST /ai/implementation-plan")
+    .missing_evidence.includes("target_write_absent")
+);
+
+const externalWriteDenialFixture = createFixture();
+replaceEvidence(
+  externalWriteDenialFixture,
+  "operationOrchestrator.js",
+  "provider_write_performed: false,",
+  "provider_write_status_removed: true,"
+);
+const externalWriteDenialPlan = buildOperationGovernance({ apiRoot: externalWriteDenialFixture });
+for (const operation of [
+  "POST /admin/operations/ci-diagnose",
+  "POST /tenant/operations/ci-diagnose",
+]) {
+  assert(
+    rejection(externalWriteDenialPlan, operation)
+      .missing_evidence.includes("target_write_denial_explicit")
+  );
+}
 
 console.log("generated frontend operation governance evidence tests passed");
