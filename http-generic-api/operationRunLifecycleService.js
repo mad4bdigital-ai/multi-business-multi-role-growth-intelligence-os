@@ -420,6 +420,7 @@ export async function applyOperationRunLifecycleCommand(input, dependencyOverrid
     const context = await readRunContext(connection, normalized.run_id, true);
     assertOwnership(context, normalized, { verifyRevisions: true });
     let state = await readState(connection, normalized.run_id, true);
+    assertStateAuthority(state, context);
     const existingEvent = state ? await readEventByKey(connection, normalized.run_id, normalized.event_key) : null;
     if (existingEvent) {
       if (existingEvent.payload_sha256 !== normalized.payload_sha256) {
