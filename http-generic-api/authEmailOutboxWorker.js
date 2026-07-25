@@ -17,6 +17,7 @@ const DEFAULT_PURPOSES = ["support_ticket_admin_notification"];
 const GMAIL_APP_KEYS = ["gmail_user_oauth", "gmail", "gmail_api", "google_cloud"];
 const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const CONFIRM_SEND = "SEND_AUTH_EMAIL_OUTBOX";
+const RUNTIME_DELIVERY_GATE_KEY = "auth_email_outbox_delivery_gate_v1";
 
 function parseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
