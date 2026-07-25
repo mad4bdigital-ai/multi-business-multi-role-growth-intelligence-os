@@ -355,10 +355,26 @@ export async function getAuthEmailOutboxStatus({ pool = getPool(), purposes = DE
     pool,
     purposes: normalizedPurposes,
   });
+  const runtimeGate = await resolveAuthEmailOutboxRuntimeDeliveryGate({
+    pool,
+    purposes: normalizedPurposes,
+    limit: 1,
+  });
+  const envDeliveryEnabled = process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
   return {
     ok: true,
     purposes: normalizedPurposes,
-    delivery_feature_flag_enabled: process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true",
+    delivery_feature_flag_enabled: envDeliveryEnabled,
+    runtime_delivery_gate_enabled: runtimeGate.enabled,
+    delivery_enabled: envDeliveryEnabled || runtimeGate.enabled,
+    runtime_delivery_gate: {
+      enabled: runtimeGate.enabled,
+      allowed_email_count: runtimeGate.allowed_email_count,
+      max_messages: runtimeGate.max_messages,
+      expires_at: runtimeGate.expires_at,
+      reasons: runtimeGate.reasons,
+      secrets_included: false,
+    },
     attempt_ledger_available: attemptSummary.attempt_ledger_available,
     attempt_counts: attemptSummary.attempt_counts,
     counts: (counts || []).map((row) => ({
