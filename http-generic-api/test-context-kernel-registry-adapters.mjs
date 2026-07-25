@@ -220,6 +220,7 @@ assertTenantPredicate(connectionMock.calls[0], "tenant-a");
 assert.ok(connectionMock.calls[0].params.includes("workspace-a"));
 assert.ok(connectionMock.calls[0].params.includes("connection-a"));
 for (const call of connectionMock.calls) {
+  assertTenantPredicate(call, "tenant-a");
   assert.doesNotMatch(call.sql, /encrypted_credentials/i);
 }
 
