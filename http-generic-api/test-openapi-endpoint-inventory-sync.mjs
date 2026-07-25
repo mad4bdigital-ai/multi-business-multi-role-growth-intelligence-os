@@ -152,6 +152,11 @@ try {
   assert.equal(dryRun.plan.insert_count, 2);
   assert.equal(dryRun.plan.callable_rows_created, 0);
   assert.equal(dryRun.plan.tool_exports_created, 0);
+  assert.equal(dryRun.inventory_evidence.source_document_count, 2);
+  assert.equal(dryRun.inventory_evidence.suppressed_route_duplicate_count, 0);
+  assert.equal(dryRun.inventory_evidence.suppressed_route_conflict_count, 0);
+  assert.deepEqual(dryRun.inventory_evidence.suppressed_route_conflicts, []);
+  assert.equal(dryRun.inventory_evidence.secrets_included, false);
   assert.equal(dryRun.required_confirmation, OPENAPI_ENDPOINT_INVENTORY_CONSTANTS.APPLY_CONFIRMATION);
   assert.equal(dryRunPool.calls.some((call) => /INSERT|UPDATE/i.test(call.sql)), false);
 
