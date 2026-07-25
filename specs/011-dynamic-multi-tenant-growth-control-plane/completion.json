@@ -37,7 +37,7 @@
     "architecture_review": "pending_pr_review"
   },
   "implementation": {
-    "started": false,
+    "started": true,
     "migrations_applied": false,
     "runtime_deployed": false,
     "tenant_projection_changed": false,
