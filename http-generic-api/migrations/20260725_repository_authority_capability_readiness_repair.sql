@@ -66,7 +66,11 @@ SET rab.system_id = cs.system_id,
     rab.lock_version = rab.lock_version + 1,
     rab.updated_at = CURRENT_TIMESTAMP
 WHERE rab.binding_key = 'growth_intelligence_platform.github.primary.production'
-  AND rab.lifecycle_status = 'active';
+  AND rab.lifecycle_status = 'active'
+  AND (
+    rab.system_id <> cs.system_id
+    OR rab.system_binding_mode <> 'shared_platform_adapter'
+  );
 
 UPDATE capability_apply_authorization_policy_registry
 SET policy_key = 'github_repository_main_moved_webhook_dynamic_binding_apply_v2',
