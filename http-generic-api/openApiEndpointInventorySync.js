@@ -762,7 +762,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
         unchanged_count: 0,
         deprecated_count: 0,
         readback_count: 0,
-        summary: responseBase.plan,
+        summary: {
+          plan: responseBase.plan,
+          inventory_evidence: inventoryEvidence,
+        },
         error_code: error?.code || "openapi_inventory_apply_failed",
         error_message: String(error?.message || error).slice(0, 1000),
         started_at: startedAt,
