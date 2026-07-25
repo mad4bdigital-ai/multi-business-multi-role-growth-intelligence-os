@@ -460,7 +460,22 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const apply = !dryRun;
-  const readiness = buildAuthEmailOutboxWorkerReadiness({ apply, confirm });
+  const envDeliveryEnabled = process.env.AUTH_EMAIL_OUTBOX_DELIVERY_ENABLED === "true";
+  const runtimeGate = apply && !envDeliveryEnabled
+    ? await resolveAuthEmailOutboxRuntimeDeliveryGate({
+        pool,
+        purposes: normalizedPurposes,
+        limit: safeLimit,
+      })
+    : { enabled: false, allowed_email_ids: [], reasons: [], secrets_included: false };
+  const readiness = buildAuthEmailOutboxWorkerReadiness({
+    apply,
+    confirm,
+    runtimeGateEnabled: runtimeGate.enabled,
+  });
+  if (apply && !readiness.ready && runtimeGate.reasons?.length) {
+    readiness.runtime_gate_reasons = runtimeGate.reasons;
+  }
   if (apply && !readiness.ready) {
     const error = new Error(`Auth email outbox delivery is not ready: ${readiness.reasons.join(", ")}`);
     error.code = "auth_email_outbox_delivery_not_ready";
