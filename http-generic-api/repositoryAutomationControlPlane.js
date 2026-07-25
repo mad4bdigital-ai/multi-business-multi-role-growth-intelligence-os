@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { collectGovernedToolResponseChunks } from "./operationChunkDetailCollector.js";
 import {
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
