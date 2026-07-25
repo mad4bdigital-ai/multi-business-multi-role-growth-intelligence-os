@@ -56,11 +56,18 @@ export function buildDynamicGrowthControlPlaneRoutes({
   requireBackendApiKey,
   requireAdminPrincipal,
   service = null,
-  resolvePool = () => getPool()
+  resolvePool = () => getPool(),
+  shadowParityEnabled = process.env.GROWTH_CONTROL_SHADOW_PARITY_ENABLED === "true"
 }) {
   const router = Router();
   const repository = service ? null : createGrowthControlPlaneRepository({ resolvePool });
-  const controlPlane = service || createGrowthControlPlaneService({ repository });
+  const shadowParityRepository = service || !shadowParityEnabled
+    ? null
+    : createGrowthControlShadowParityRepository({ resolvePool });
+  const shadowParityObserver = shadowParityRepository
+    ? createGrowthControlShadowParityService({ repository: shadowParityRepository })
+    : null;
+  const controlPlane = service || createGrowthControlPlaneService({ repository, shadowParityObserver });
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal];
 
   // frontend-surface-operation: GET /admin/control-plane/configurations
