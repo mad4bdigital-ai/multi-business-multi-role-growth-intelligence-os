@@ -31,9 +31,9 @@
 - [ ] **T012** `[P][FR-026..032][OP-011..014]` Finalize operation status, retry, delivery, acknowledgement, and reconciliation contracts.
 - [ ] **T013** `[P][FR-033..040][OP-016..018]` Finalize deployment/operational evidence contracts.
 - [x] **T014** `[data-model]` Map logical entities to existing/new SQL tables and define indexes/constraints/retention. Evidence: `data-model.md` PR-1 mapping and `implementation/pr-1-inventory.json`; retention remains gated by T009.
-- [ ] **T015** `[state machine]` Approve operation/stage/delivery/ack state transitions and terminal semantics.
-- [ ] **T016** `[errors]` Freeze stable error taxonomy and reconnect-guidance mapping.
-- [ ] **T017** `[compatibility]` Define optional fields, compatibility window, and deprecation/cutoff.
+- [x] **T015** `[state machine]` Approve operation/stage/delivery/ack state transitions and terminal semantics. Evidence: `implementation/pr-2a-lifecycle-contracts.json`, `implementation/pr-2a-lifecycle-contracts.md`, and green `test-activation-lifecycle-contract-foundation.mjs` on PR #3085.
+- [x] **T016** `[errors]` Freeze stable error taxonomy and reconnect-guidance mapping. Evidence: machine-readable error/reconnect matrix in `implementation/pr-2a-lifecycle-contracts.json`, parity against `spec.md`, and green CI on PR #3085.
+- [x] **T017** `[compatibility]` Define optional fields, compatibility window, and deprecation/cutoff. Evidence: ADR-002 parity, hard cutoff/extension/cleanup rules, and green CI on PR #3085.
 - [ ] **T018** `[ADR-005]` Finalize generic questionnaire/session/answer/compilation/proposal/preview/approval/activation/readback/rollback API and JSON Schema contracts.
 - [ ] **T019** `[ADR-005]` Finalize domain safety-bound registry, deterministic compiler contract, risk-to-approval matrix, version provenance, cache-invalidation policy, and platform domain-adoption gate.
 
