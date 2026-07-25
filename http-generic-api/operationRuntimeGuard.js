@@ -187,6 +187,7 @@ export function createOperationRuntimeGuard({
 } = {}) {
   return function operationRuntimeGuard(req, res, next) {
     const budget = resolveBudget(req);
+    const enforceBudget = budget.enforce_budget === true;
     const startedAt = Date.now();
     const requestId = requestIdOf(req, createRequestId);
     const originalJson = res.json.bind(res);
