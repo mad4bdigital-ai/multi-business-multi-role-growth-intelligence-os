@@ -39,8 +39,11 @@ function ledgerOutcome(plan, events) {
     plan?.runtimeStatus,
     ...events.flatMap((event) => [event.eventType, event.toStatus]),
   ].map(normalizedMarker).filter(Boolean);
-  if (markers.some((marker) => APPLIED_MARKERS.has(marker))) return "confirmed_applied";
-  if (markers.some((marker) => NOT_APPLIED_MARKERS.has(marker))) return "confirmed_not_applied";
+  const hasAppliedMarker = markers.some((marker) => APPLIED_MARKERS.has(marker));
+  const hasNotAppliedMarker = markers.some((marker) => NOT_APPLIED_MARKERS.has(marker));
+  if (hasAppliedMarker && hasNotAppliedMarker) return "conflict";
+  if (hasAppliedMarker) return "confirmed_applied";
+  if (hasNotAppliedMarker) return "confirmed_not_applied";
   return null;
 }
 

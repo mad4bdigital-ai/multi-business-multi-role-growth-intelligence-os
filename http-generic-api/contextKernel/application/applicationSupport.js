@@ -19,12 +19,24 @@ const SENSITIVE_EXACT_KEYS = new Set([
   "apikey",
 ]);
 
+const SAFE_SECURITY_FLAG_KEYS = new Set([
+  "automaticretryperformed",
+  "automaticwriteperformed",
+  "credentialpayloadread",
+  "credentialpayloadreads",
+  "providercallmade",
+  "readbackperformed",
+  "retryallowed",
+  "secretsincluded",
+]);
+
 function normalizedKey(value) {
   return String(value).replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
 function isSensitiveKey(key) {
   const normalized = normalizedKey(key);
+  if (SAFE_SECURITY_FLAG_KEYS.has(normalized)) return false;
   if (normalized.endsWith("ref") || normalized.endsWith("id")) return false;
   return (
     SENSITIVE_EXACT_KEYS.has(normalized) ||
@@ -120,4 +132,5 @@ export function clockIso(clock) {
 export const _testingApplicationSupport = Object.freeze({
   isSensitiveKey,
   normalizedKey,
+  SAFE_SECURITY_FLAG_KEYS,
 });

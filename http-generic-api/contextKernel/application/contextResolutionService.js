@@ -171,14 +171,28 @@ export function createContextResolutionService({
     });
     const candidates = resources.map(mapResourceCandidate);
 
-    const connectionRef = input.connectionRef || null;
+    const pin = input.pinRef
+      ? await contextPinRepository.findContextPin({
+          tenantRef,
+          pinRef: input.pinRef,
+          principalType,
+          principalRef,
+        })
+      : null;
+    if (input.pinRef && !pin) {
+      return blockedResolution("context_pin_not_found", {
+        candidates,
+        authority,
+      });
+    }
+
+    const explicitConnectionRef = input.connectionRef || null;
+    const requestedWorkspaceRef = input.workspaceRef || effectiveSubject?.workspaceRef || null;
+    const connectionRef = explicitConnectionRef || (pin && requestedWorkspaceRef ? pin.stableRef : null);
     if (connectionRef) {
       const connection = await exactConnectionRepository.findExactConnection({
         tenantRef,
-        workspaceRef: requireApplicationString(
-          input.workspaceRef || effectiveSubject?.workspaceRef,
-          "workspaceRef",
-        ),
+        workspaceRef: requireApplicationString(requestedWorkspaceRef, "workspaceRef"),
         connectionRef,
         appKey: input.appKey || null,
         actionKey: input.actionKey || null,
@@ -213,22 +227,6 @@ export function createContextResolutionService({
       });
     }
 
-    const pin = input.pinRef
-      ? await contextPinRepository.findContextPin({
-          tenantRef,
-          pinRef: input.pinRef,
-          principalType,
-          principalRef,
-        })
-      : null;
-    if (input.pinRef && !pin) {
-      return blockedResolution("context_pin_not_found", {
-        candidates: authorizedCandidates,
-        authority,
-        capability: safeCapability,
-      });
-    }
-
     let currentContextRevision = input.currentContextRevision || null;
     if (pin && !currentContextRevision) {
       const pinnedCandidates = authorizedCandidates.filter((candidate) => candidate.stableRef === pin.stableRef);
@@ -253,7 +251,7 @@ export function createContextResolutionService({
       explicitRef: input.explicitRef || null,
       verifiedPin: pin,
       currentContextRevision,
-      exactBindingRef: input.exactBindingRef || connectionRef,
+      exactBindingRef: input.exactBindingRef || explicitConnectionRef,
       fallbackRef: input.fallbackRef || null,
       allowLowRiskFallback: input.allowLowRiskFallback === true,
       now: input.now instanceof Date ? input.now : new Date(),
