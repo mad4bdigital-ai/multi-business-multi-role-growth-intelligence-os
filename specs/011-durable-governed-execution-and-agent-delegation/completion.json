@@ -121,7 +121,8 @@
       {
         "number": 3110,
         "role": "phase3_delegation_persistence_contract",
-        "status": "current_pr"
+        "status": "merged",
+        "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
       }
     ],
     "closeout_pr": {
