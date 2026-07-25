@@ -300,18 +300,20 @@ export function createOperationRuntimeGuard({
       return settleAndSend(payload, sender);
     };
 
-    const timer = setTimer(() => {
-      sendGuardError(
-        503,
-        "OPERATION_TIMEOUT",
-        "The operation exceeded its execution budget.",
-        {
-          operation_key: budget.operation_key,
-          max_elapsed_ms: budget.max_elapsed_ms,
-        },
-        true,
-      );
-    }, budget.max_elapsed_ms);
+    const timer = enforceBudget
+      ? setTimer(() => {
+        sendGuardError(
+          503,
+          "OPERATION_TIMEOUT",
+          "The operation exceeded its execution budget.",
+          {
+            operation_key: budget.operation_key,
+            max_elapsed_ms: budget.max_elapsed_ms,
+          },
+          true,
+        );
+      }, budget.max_elapsed_ms)
+      : null;
 
     res.on?.("finish", cleanup);
     res.on?.("close", cleanup);
