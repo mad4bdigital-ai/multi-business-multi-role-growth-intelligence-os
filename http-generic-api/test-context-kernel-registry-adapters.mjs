@@ -153,7 +153,10 @@ const resources = await resourceRepository.listAuthorizedResources({
   limit: 10,
 });
 assert.equal(resources.length, 2);
-assert.equal(resources[1].resourceReference.branch, "feature/example");
+const platformAuthorityResource = resources.find(
+  (resource) => resource.sourceType === "platform_resource_authority",
+);
+assert.equal(platformAuthorityResource.resourceReference.branch, "feature/example");
 assert.ok(Object.isFrozen(resources));
 for (const call of resourceMock.calls) assertTenantPredicate(call, "tenant-a");
 
