@@ -521,9 +521,15 @@ export async function applyTargetAuthEmailDelivery({
       };
       await connection.query(
         `UPDATE auth_email_outbox
-            SET status = ?, provider = 'gmail_api', metadata_json = ?, last_error = ?
-          WHERE email_id = ? AND status = 'processing'`,
-        [outboxStatus, JSON.stringify(failureMetadata), errorCode.slice(0, 1000), email.email_id],
+            SET status = 'failed', provider = 'gmail_api', metadata_json = ?, last_error = ?
+          WHERE email_id = ? AND status = 'failed'
+            AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.delivery_attempt_id')) = ?`,
+        [
+          JSON.stringify(failureMetadata),
+          errorCode.slice(0, 1000),
+          email.email_id,
+          attempt.attempt_id,
+        ],
       );
       const lifecycleEventId = await recordLifecycleEvent(connection, {
         email,
