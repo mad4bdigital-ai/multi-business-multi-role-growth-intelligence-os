@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-25T14:26:00Z",
+  "last_updated_at": "2026-07-25T17:05:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -14,8 +14,8 @@
   },
   "delivery": {
     "specification_branch": "gpt/011-unified-effective-authority-control-plane-20260720",
-    "base_sha": "05e939a8f328adc0dff77c9d1b4d3cf8941211d0",
-    "latest_head_sha": "1f345bbedaec875a4d269a244bca40faf11603b6",
+    "base_sha": "3a3f0194960ca8ec8617dc75514b4430fcab2840",
+    "latest_head_sha": "5aa5f2d5eb7959a3426ad183ce95da3d52c1b525",
     "implementation_prs": [2888],
     "closeout_pr": null
   },
@@ -49,7 +49,7 @@
     },
     "ci": {
       "status": "pass",
-      "head_sha": "1f345bbedaec875a4d269a244bca40faf11603b6",
+      "head_sha": "5aa5f2d5eb7959a3426ad183ce95da3d52c1b525",
       "required_check_count": 4,
       "successful_check_count": 4,
       "checks": [
@@ -149,9 +149,11 @@
         "T017",
         "T018",
         "T020",
+        "T025",
         "T030",
         "T031",
         "T035",
+        "T040",
         "T041",
         "T044",
         "T046"
@@ -167,13 +169,11 @@
         "T019",
         "T021",
         "T024",
-        "T025",
         "T026",
         "T032",
         "T033",
         "T034",
         "T036",
-        "T040",
         "T052",
         "T053",
         "T054",
