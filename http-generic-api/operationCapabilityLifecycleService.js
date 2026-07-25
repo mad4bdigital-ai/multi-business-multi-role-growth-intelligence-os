@@ -214,8 +214,10 @@ export async function prepareOperationCapabilityLifecycle({
       requireNoApprovalRequired: true,
       requireNoBlockingGaps: true,
       requireNoSecrets: true,
+      ...envelopeConstraints,
     });
     if (resolved.ok) {
+      if (authorityContext) assertResolvedEnvelopeAuthority(resolved, profile);
       return {
         required: true,
         status: "ready",
@@ -223,6 +225,7 @@ export async function prepareOperationCapabilityLifecycle({
         operation_key: operationKey,
         envelope_id: resolved.envelope_id,
         input,
+        authority_context: authorityProjection(authorityContext),
         secrets_included: false,
       };
     }
