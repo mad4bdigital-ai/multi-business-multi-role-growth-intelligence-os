@@ -104,6 +104,24 @@ function enforcePreviewRate(req) {
   }
 }
 
+function enforceTopologyReadRate(req) {
+  const principalKey = `topology:${actorId(req)}`;
+  const now = Date.now();
+  const current = topologyReadRate.get(principalKey);
+  if (!current || current.resetAt <= now) {
+    topologyReadRate.set(principalKey,{ count:1,resetAt:now+60000 });
+    return;
+  }
+  current.count += 1;
+  if (current.count > 60) {
+    const error = new Error("Platform topology verification rate limit exceeded.");
+    error.status = 429;
+    error.code = "platform_topology_verification_rate_limited";
+    error.details = [{ retryAfterSeconds:Math.max(1,Math.ceil((current.resetAt-now)/1000)) }];
+    throw error;
+  }
+}
+
 function actorId(req) {
   return req.auth?.user_id || req.auth?.principal_id || "platform_admin";
 }
