@@ -126,7 +126,10 @@
     "phase3_delegation_preview_contract",
     "phase3_delegation_lifecycle_preview",
     "phase3_legacy_delegation_policy_gap_projection",
-    "phase3_delegation_shadow_tests"
+    "phase3_delegation_shadow_tests",
+    "phase3_delegation_persistence_contract",
+    "phase3_delegation_persistence_contract_test",
+    "phase3_effective_grants_fail_closed_view_contract"
   ],
   "constraints": [
     "no_provider_call",
