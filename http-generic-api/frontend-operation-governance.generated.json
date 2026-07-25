@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "f5a6b36387c16ed9d80acea0832371a1462213d5de6cd780e0c89034a78c28ea",
+    "source_digest": "042fc7a2c8fd37c693e5f0b9b2f5222c010274725226c349b4ff415d1e37ab63",
     "fail_closed": true
   },
   "source_authority": [
@@ -38,12 +38,22 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "2649aed4f86d32f4444ee3deefab9a5d78852edd9fa7641151571b37a04806a1",
+      "sha256": "b26cc3b1c1b34e1a71c0c12c1f1661e96118902808fc3b378ce24a5b64ef6f02",
       "present": true
     },
     {
       "file": "mcpRuntime.js",
       "sha256": "e0b66b1b52f71a72e1769593bbd7092ff7d6264ccf76f75f92acae2e54efe370",
+      "present": true
+    },
+    {
+      "file": "operationContextService.js",
+      "sha256": "b4f3f5a3693dca8a3b7624f353f95c9b8e890871aea17b489f43f5d2ed1f4c16",
+      "present": true
+    },
+    {
+      "file": "operationOrchestrator.js",
+      "sha256": "58ca2ab6bb49d1b7fb45620e5cb246928f4c551ec0ec4fd4403374fe50cd6807",
       "present": true
     },
     {
@@ -104,6 +114,11 @@
     {
       "file": "routes/memberGoogleOAuthRoutes.js",
       "sha256": "86b8b87fc364f75f1af01780baa30c449631c21c5719fe521234871ba5dc93ab",
+      "present": true
+    },
+    {
+      "file": "routes/operationOrchestratorRoutes.js",
+      "sha256": "26386b17e6fef8b45fc7045b1ddc24cf5ee27a90100fdf786b24251e1c1f1cb2",
       "present": true
     },
     {
@@ -277,6 +292,11 @@
       "present": true
     },
     {
+      "file": "test-operation-orchestrator-route-registration.mjs",
+      "sha256": "5752a772d47caaf8dbec9fcd217958f79608ffa1f557362fafc42ea04521adf8",
+      "present": true
+    },
+    {
       "file": "test-platform-engine-orchestration.mjs",
       "sha256": "eaf755f614d1d7d55ee9b22888a11832df6e3684f59b0a5857254007f7b3b0a3",
       "present": true
@@ -383,8 +403,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 53,
-    "generated_rule_count": 53,
+    "candidate_count": 59,
+    "generated_rule_count": 59,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -646,6 +666,60 @@
       "generated_evidence": {
         "recipe_id": "gmail-authorization-url-read-action-v1",
         "source_digest": "b9fa7b191ea68ba563209de893aa5c371a279d5493d8a41bd8353681023ac1cf",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-operation-context-read-action-v1",
+      "operation": "POST /admin/operations/context",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Builds an Admin operation context from the authenticated principal and bounded authority reads without creating a run, capability envelope, worker, or artifact.",
+      "evidence_refs": [
+        "operationContextService.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-operation-context-read-action-v1",
+        "source_digest": "70ea3ced3c7442d8517fa9e4bf544575921907ccadf75c541e50078d2f8d1768",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-operation-preview-read-action-v1",
+      "operation": "POST /admin/operations/preview",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Builds an Admin repository automation preview in memory and explicitly reports that no mutation was executed.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-operation-preview-read-action-v1",
+        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-admin-operation-status-read-action-v1",
+      "operation": "POST /admin/operations/status",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Checks Admin run access and reads the operation run, steps, and receipts without advancing or mutating the run.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-operation-status-read-action-v1",
+        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
         "fail_closed": true
       }
     },
@@ -1553,6 +1627,60 @@
       "generated_evidence": {
         "recipe_id": "platform-engine-resolve-intent-read-action-v1",
         "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-operation-context-read-action-v1",
+      "operation": "POST /tenant/operations/context",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Verifies active Tenant membership and bounded resource authority, then returns a sanitized operation context without creating or mutating execution state.",
+      "evidence_refs": [
+        "operationContextService.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-operation-context-read-action-v1",
+        "source_digest": "70ea3ced3c7442d8517fa9e4bf544575921907ccadf75c541e50078d2f8d1768",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-operation-preview-read-action-v1",
+      "operation": "POST /tenant/operations/preview",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Combines Tenant-scoped read authority with an in-memory repository automation preview and performs no mutation or provider dispatch.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-operation-preview-read-action-v1",
+        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-operation-status-read-action-v1",
+      "operation": "POST /tenant/operations/status",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "classification": "read_action",
+      "owner": "operation-orchestration",
+      "rationale": "Checks Tenant-scoped run ownership and reads the operation run, steps, and receipts without advancing or mutating the run.",
+      "evidence_refs": [
+        "operationOrchestrator.js",
+        "routes/operationOrchestratorRoutes.js",
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-operation-status-read-action-v1",
+        "source_digest": "ef46063334dcf04ec7992f1ad9938175124af2c7d5f6a587998356c632aadcee",
         "fail_closed": true
       }
     },

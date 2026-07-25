@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e32f9c2de878bde016d18082d2615c10cb67a33aca05c268b214a826f96c3a68",
+    "source_digest": "735e1012c82268ae93c55b8d39c8de0b9f43fe59684954fc9812cd319468b80b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "80dc14640a9aab549695b1e4a657bb70bfa1bd468a76b6e03e0ff69db5080d54",
+        "sha256": "38096e7972085ae9a336fb80ef2b317179700885d3fbf6cc50b8350d5c31b38a",
         "present": true
       },
       {
@@ -990,6 +990,11 @@
         "present": true
       },
       {
+        "file": "test-operation-orchestrator-route-registration.mjs",
+        "sha256": "5752a772d47caaf8dbec9fcd217958f79608ffa1f557362fafc42ea04521adf8",
+        "present": true
+      },
+      {
         "file": "test-orchestration-readback-surface.mjs",
         "sha256": "a2d402998c5dc5a03b252f80a007fcf22346ecafe290408257d3387da6f60c3a",
         "present": true
@@ -1253,15 +1258,15 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
-    "unresolved_operation_class_count": 500,
+    "unresolved_operation_class_count": 494,
     "classified_mutation_count": 12,
     "governed_mutation_operation_count": 12,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 150,
     "test_owned_family_count": 7,
     "untested_family_count": 158,
-    "test_owned_operation_count": 101,
-    "untested_operation_count": 893,
+    "test_owned_operation_count": 107,
+    "untested_operation_count": 887,
     "ready_task_count": 3,
     "blocked_task_count": 162,
     "coverage_complete": false
@@ -25555,17 +25560,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-operation-context-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Builds an Admin operation context from the authenticated principal and bounded authority reads without creating a run, capability envelope, worker, or artifact.",
+            "evidence_refs": [
+              "operationContextService.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25625,17 +25638,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-operation-preview-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Builds an Admin repository automation preview in memory and explicitly reports that no mutation was executed.",
+            "evidence_refs": [
+              "operationOrchestrator.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25765,17 +25786,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-admin-operation-status-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Checks Admin run access and reads the operation run, steps, and receipts without advancing or mutating the run.",
+            "evidence_refs": [
+              "operationOrchestrator.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -25995,13 +26024,12 @@
         "POST /admin/operations/preview",
         "POST /admin/operations/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
       "untested_operations": [
         "GET /admin/operations/contracts",
-        "POST /admin/operations/context",
-        "POST /admin/operations/preview",
         "POST /admin/operations/execute",
-        "POST /admin/operations/status",
         "GET /admin/operations/workers/{worker_id}",
         "GET /admin/operations/artifacts",
         "POST /admin/operations/ci-diagnose"
@@ -26021,7 +26049,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/operationOrchestratorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-operation-orchestrator-route-registration.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -26030,25 +26059,7 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /admin/operations/context",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /admin/operations/execute",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/status",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -26186,17 +26197,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-operation-context-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Verifies active Tenant membership and bounded resource authority, then returns a sanitized operation context without creating or mutating execution state.",
+            "evidence_refs": [
+              "operationContextService.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -26248,17 +26267,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-operation-preview-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Combines Tenant-scoped read authority with an in-memory repository automation preview and performs no mutation or provider dispatch.",
+            "evidence_refs": [
+              "operationOrchestrator.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -26372,17 +26399,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-operation-orchestrator-route-registration.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-tenant-operation-status-read-action-v1",
+            "owner": "operation-orchestration",
+            "rationale": "Checks Tenant-scoped run ownership and reads the operation run, steps, and receipts without advancing or mutating the run.",
+            "evidence_refs": [
+              "operationOrchestrator.js",
+              "routes/operationOrchestratorRoutes.js",
+              "test-operation-orchestrator-route-registration.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -26578,13 +26613,12 @@
         "POST /tenant/operations/preview",
         "POST /tenant/operations/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-operation-orchestrator-route-registration.mjs"
+      ],
       "untested_operations": [
         "GET /tenant/operations/contracts",
-        "POST /tenant/operations/context",
-        "POST /tenant/operations/preview",
         "POST /tenant/operations/execute",
-        "POST /tenant/operations/status",
         "GET /tenant/operations/workers/{worker_id}",
         "GET /tenant/operations/artifacts",
         "POST /tenant/operations/ci-diagnose"
@@ -26604,7 +26638,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/operationOrchestratorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-operation-orchestrator-route-registration.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -26613,25 +26648,7 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /tenant/operations/context",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /tenant/operations/preview",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /tenant/operations/execute",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /tenant/operations/status",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -83379,7 +83396,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/operationOrchestratorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-operation-orchestrator-route-registration.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -83391,7 +83409,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-operation-orchestrator-route-registration.mjs"
       ]
     },
     {
@@ -86259,7 +86278,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/operationOrchestratorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-operation-orchestrator-route-registration.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -86271,7 +86291,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-operation-orchestrator-route-registration.mjs"
       ]
     },
     {

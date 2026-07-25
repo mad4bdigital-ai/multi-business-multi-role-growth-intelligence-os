@@ -31,7 +31,8 @@
     { "file": "test-wordpress-blog-publish-orchestrator.mjs", "evidence_scope": "wordpress-publish-authority-diagnostic" },
     { "file": "test-gmail-user-oauth-consent-flow.mjs", "evidence_scope": "gmail-authorization-url" },
     { "file": "test-mcp-runtime-initialize.mjs", "evidence_scope": "mcp-initialize" },
-    { "file": "test-ticket-external-credential-orchestration.mjs", "evidence_scope": "ticket-external-credential-orchestration-plan" }
+    { "file": "test-ticket-external-credential-orchestration.mjs", "evidence_scope": "ticket-external-credential-orchestration-plan" },
+    { "file": "test-operation-orchestrator-route-registration.mjs", "evidence_scope": "operation-orchestrator-read-actions" }
   ],
   "read_action_batches": [
     {
@@ -545,6 +546,68 @@
           "route_markers": ["planSupportTicketExternalCredentialOrchestration"],
           "proof_markers": ["SELECT ticket_id", "FROM approval_holds", "planSupportTicketExternalCredentialActivation", "external_send_performed: false"],
           "rationale": "Reads the ticket and hold, composes the existing activation dry-run plan, and neither approves the hold nor activates, binds, or sends externally."
+        }
+      ]
+    },
+    {
+      "batch_id": "operation-orchestrator-read-models-v1",
+      "owner": "operation-orchestration",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "test_file": "test-operation-orchestrator-route-registration.mjs",
+      "operations": [
+        {
+          "recipe_id": "admin-operation-context-read-action-v1",
+          "operation": "POST /admin/operations/context",
+          "implementation_file": "operationContextService.js",
+          "proof_functions": ["buildOperationContext", "verifyTenantMembership", "resolveTenantResourceAuthority"],
+          "route_markers": ["buildOperationContext"],
+          "proof_markers": ["SELECT m.tenant_id", "FROM platform_resource_authority_bindings", "secrets_included: false"],
+          "rationale": "Builds an Admin operation context from the authenticated principal and bounded authority reads without creating a run, capability envelope, worker, or artifact."
+        },
+        {
+          "recipe_id": "tenant-operation-context-read-action-v1",
+          "operation": "POST /tenant/operations/context",
+          "implementation_file": "operationContextService.js",
+          "proof_functions": ["buildOperationContext", "verifyTenantMembership", "resolveTenantResourceAuthority"],
+          "route_markers": ["buildOperationContext"],
+          "proof_markers": ["SELECT m.tenant_id", "FROM platform_resource_authority_bindings", "secrets_included: false"],
+          "rationale": "Verifies active Tenant membership and bounded resource authority, then returns a sanitized operation context without creating or mutating execution state."
+        },
+        {
+          "recipe_id": "admin-operation-preview-read-action-v1",
+          "operation": "POST /admin/operations/preview",
+          "implementation_file": "operationOrchestrator.js",
+          "proof_functions": ["previewOperation"],
+          "route_markers": ["previewOperation"],
+          "proof_markers": ["buildRepositoryAutomationPlan", "mutations_executed: false", "secrets_included: false"],
+          "rationale": "Builds an Admin repository automation preview in memory and explicitly reports that no mutation was executed."
+        },
+        {
+          "recipe_id": "tenant-operation-preview-read-action-v1",
+          "operation": "POST /tenant/operations/preview",
+          "implementation_file": "operationOrchestrator.js",
+          "proof_functions": ["previewOperation"],
+          "route_markers": ["previewOperation"],
+          "proof_markers": ["buildRepositoryAutomationPlan", "mutations_executed: false", "secrets_included: false"],
+          "rationale": "Combines Tenant-scoped read authority with an in-memory repository automation preview and performs no mutation or provider dispatch."
+        },
+        {
+          "recipe_id": "admin-operation-status-read-action-v1",
+          "operation": "POST /admin/operations/status",
+          "implementation_file": "operationOrchestrator.js",
+          "proof_functions": ["getOperationStatus"],
+          "route_markers": ["assertOperationRunAccess", "getOperationStatus"],
+          "proof_markers": ["readRepositoryAutomationRun", "operation.status.get", "secrets_included: false"],
+          "rationale": "Checks Admin run access and reads the operation run, steps, and receipts without advancing or mutating the run."
+        },
+        {
+          "recipe_id": "tenant-operation-status-read-action-v1",
+          "operation": "POST /tenant/operations/status",
+          "implementation_file": "operationOrchestrator.js",
+          "proof_functions": ["getOperationStatus"],
+          "route_markers": ["assertOperationRunAccess", "getOperationStatus"],
+          "proof_markers": ["readRepositoryAutomationRun", "operation.status.get", "secrets_included: false"],
+          "rationale": "Checks Tenant-scoped run ownership and reads the operation run, steps, and receipts without advancing or mutating the run."
         }
       ]
     }
