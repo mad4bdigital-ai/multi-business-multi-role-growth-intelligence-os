@@ -219,14 +219,19 @@ export async function collectOpenApiEndpointInventory({
         const operationId = normalizeOperationId(operation.operationId);
         const existingOperationId = seenRoutes.get(routeKey);
         if (existingOperationId) {
-          if (existingOperationId !== operationId) {
-            throw syncError(409, "openapi_inventory_duplicate_route", "OpenAPI method/path pairs must resolve to one operationId.", {
+          if (existingOperationId === operationId) {
+            suppressedRouteDuplicateCount += 1;
+          } else {
+            suppressedRouteConflictCount += 1;
+            suppressedRouteConflicts.push({
               route: routeKey,
-              first_operation_id: existingOperationId,
-              duplicate_operation_id: operationId,
+              authoritative_operation_id: existingOperationId,
+              suppressed_operation_id: operationId,
+              source_file:
+                path.relative(rootDirectory, entry.absolutePath).replace(/\\/g, "/")
+                || path.basename(entry.absolutePath),
             });
           }
-          suppressedRouteDuplicateCount += 1;
           continue;
         }
 
