@@ -124,7 +124,7 @@ function normalizeCommandInput(input = {}) {
     workspace_id: root.workspace_id ? requiredUuid(root.workspace_id, "input.workspace_id") : null,
     user_id: requiredUuid(root.user_id, "input.user_id"),
     command,
-    command_id: requiredString(root.command_id, "input.command_id", { pattern: KEY_PATTERN }).toLowerCase(),
+    command_id: requiredString(root.command_id, "input.command_id", { max: 150, pattern: KEY_PATTERN }).toLowerCase(),
     expected_state_revision: boundedInteger(root.expected_state_revision, "input.expected_state_revision", 0, Number.MAX_SAFE_INTEGER),
     revision_bundle_hash: requiredHash(root.revision_bundle_hash, "input.revision_bundle_hash"),
     resource_fingerprint: requiredHash(root.resource_fingerprint, "input.resource_fingerprint"),
