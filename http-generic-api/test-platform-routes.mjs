@@ -506,6 +506,58 @@ section("Admin system layer connector facade");
   ok("shared system tools exposes Drive folder inspect to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_drive_folder_inspect"));
 }
 {
+  const first = await get("/system/tools?limit=1");
+  ok("Catalog V2 explicit list returns 200", first.status === 200, `got ${first.status}`);
+  ok("Catalog V2 preserves bounded chunkable list mode", first.body.list_mode === "bounded_paginated_chunkable", JSON.stringify(first.body));
+  ok("Catalog V2 exposes stable catalog mode", first.body.catalog_mode === "stable_cursor_catalog_v2", JSON.stringify(first.body));
+  ok("Catalog V2 preserves tools alias", Array.isArray(first.body.tools) && first.body.tools.length === 1, JSON.stringify(first.body));
+  ok("Catalog V2 exposes items", Array.isArray(first.body.items) && first.body.items.length === 1, JSON.stringify(first.body));
+  ok("Catalog V2 exposes catalog version", /^[a-f0-9]{64}$/.test(first.body.catalog_version || ""), first.body.catalog_version);
+  ok("Catalog V2 exposes snapshot id", /^[a-f0-9]{64}$/.test(first.body.snapshot_id || ""), first.body.snapshot_id);
+  ok("Catalog V2 explicit page has more", first.body.page?.has_more === true, JSON.stringify(first.body.page));
+  ok("Catalog V2 returns encoded next cursor", typeof first.body.page?.next_cursor === "string" && first.body.page.next_cursor.length > 1, JSON.stringify(first.body.page));
+
+  const firstName = first.body.items?.[0]?.name;
+  const second = await get(`/system/tools?limit=1&cursor=${encodeURIComponent(first.body.page.next_cursor)}`);
+  ok("Catalog V2 second page returns 200", second.status === 200, `got ${second.status}`);
+  ok("Catalog V2 cursor page advances", second.body.items?.[0]?.name && second.body.items[0].name !== firstName, JSON.stringify(second.body));
+  ok("Catalog V2 cursor preserves snapshot", second.body.snapshot_id === first.body.snapshot_id, `${second.body.snapshot_id} != ${first.body.snapshot_id}`);
+
+  const numeric = await get("/system/tools?limit=1&cursor=1");
+  ok("Catalog V2 accepts transitional numeric cursor", numeric.status === 200, `got ${numeric.status}`);
+  ok("Catalog V2 numeric cursor advances", numeric.body.items?.[0]?.name === second.body.items?.[0]?.name, JSON.stringify(numeric.body));
+}
+{
+  const r = await get("/system/tools/runtime_endpoint_preview");
+  ok("Catalog V2 direct lookup returns 200", r.status === 200, `got ${r.status}`);
+  ok("Catalog V2 direct lookup returns requested descriptor", r.body.tool?.name === "runtime_endpoint_preview", JSON.stringify(r.body));
+  ok("Catalog V2 direct lookup exposes version", /^[a-f0-9]{64}$/.test(r.body.catalog_version || ""), r.body.catalog_version);
+}
+{
+  const r = await get("/system/tools/not_a_visible_system_tool");
+  ok("Catalog V2 hidden or absent lookup returns 404", r.status === 404, `got ${r.status}`);
+  ok("Catalog V2 lookup error is stable", r.body.error?.code === "SYSTEM_TOOL_NOT_FOUND", JSON.stringify(r.body));
+}
+{
+  const r = await post("/system/capabilities/resolve", { tool_name: "runtime_endpoint_preview" });
+  ok("Catalog V2 intent resolution returns 200", r.status === 200, `got ${r.status}`);
+  ok("Catalog V2 exact tool resolves", r.body.status === "resolved" && r.body.selected_tool?.name === "runtime_endpoint_preview", JSON.stringify(r.body));
+  ok("Catalog V2 resolution never grants execution", r.body.execution_allowed === false, JSON.stringify(r.body));
+  ok("Catalog V2 resolution requires capability preview next", r.body.next_step === "capability_preview", JSON.stringify(r.body));
+}
+{
+  const r = await post("/system/capabilities/resolve", {});
+  ok("Catalog V2 empty intent is rejected", r.status === 400, `got ${r.status}`);
+  ok("Catalog V2 empty intent has stable code", r.body.error?.code === "SYSTEM_CAPABILITY_INTENT_REQUIRED", JSON.stringify(r.body));
+}
+{
+  const r = await get("/system/tools/catalog-observability");
+  ok("Catalog V2 observability returns 200 for admin", r.status === 200, `got ${r.status}`);
+  ok("Catalog V2 observability exposes counters", r.body.counters && typeof r.body.counters === "object", JSON.stringify(r.body));
+  ok("Catalog V2 observability exposes descriptor parity", r.body.descriptor_parity && typeof r.body.descriptor_parity === "object", JSON.stringify(r.body));
+  ok("Catalog V2 observability excludes secrets", r.body.secrets_included === false, JSON.stringify(r.body));
+}
+{
   const r = await post("/system/tools/call", {});
   ok("shared system tool call validates name", r.status === 400, `got ${r.status}`);
   ok("shared system tool call missing name code", r.body.error?.code === "missing_tool_name", `got ${r.body.error?.code}`);
