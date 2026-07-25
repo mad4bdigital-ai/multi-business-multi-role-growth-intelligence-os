@@ -640,6 +640,13 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
   const inventory = await collectOpenApiEndpointInventory({ openApiPath: deps.openApiPath || DEFAULT_OPENAPI_PATH });
   const existingRows = await loadExistingRows(pool);
   const plan = buildOpenApiEndpointInventoryPlan({ inventory, existingRows });
+  const inventoryEvidence = {
+    source_document_count: inventory.source_document_count,
+    suppressed_route_duplicate_count: inventory.suppressed_route_duplicate_count,
+    suppressed_route_conflict_count: inventory.suppressed_route_conflict_count,
+    suppressed_route_conflicts: inventory.suppressed_route_conflicts,
+    secrets_included: false,
+  };
   const responseBase = {
     ok: true,
     mode,
@@ -655,6 +662,7 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       callable_rows_created: 0,
       tool_exports_created: 0,
     },
+    inventory_evidence: inventoryEvidence,
     applies_inventory_metadata_only: mode === "apply",
     provider_calls: false,
     external_writes: false,
@@ -713,7 +721,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       unchanged_count: plan.unchanged_count,
       deprecated_count: plan.deprecate_count,
       readback_count: readbackCount,
-      summary: responseBase.plan,
+      summary: {
+        plan: responseBase.plan,
+        inventory_evidence: inventoryEvidence,
+      },
       started_at: startedAt,
       completed_at: new Date(),
     });
@@ -751,7 +762,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
         unchanged_count: 0,
         deprecated_count: 0,
         readback_count: 0,
-        summary: responseBase.plan,
+        summary: {
+          plan: responseBase.plan,
+          inventory_evidence: inventoryEvidence,
+        },
         error_code: error?.code || "openapi_inventory_apply_failed",
         error_message: String(error?.message || error).slice(0, 1000),
         started_at: startedAt,
