@@ -290,6 +290,30 @@ export async function prepareOperationCapabilityLifecycle({
     && renewed?.approval_required !== true
     && Number(renewed?.blocking_gap_count || 0) === 0
   ) {
+    if (authorityContext) {
+      const verifiedRenewal = await resolveEnvelope({
+        pool,
+        envelopeId: renewed.envelope_id,
+        source: { ...input, capability_envelope_id: renewed.envelope_id },
+        expectedTenantId: compact(auth.tenant_id, 64),
+        expectedUserId: compact(auth.user_id || auth.admin_id, 64),
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: true,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+        ...envelopeConstraints,
+      });
+      if (!verifiedRenewal.ok) {
+        throw lifecycleError(
+          409,
+          "OPERATION_CAPABILITY_RENEWAL_BINDING_REJECTED",
+          "The renewed capability envelope does not match the pinned operation authority.",
+          publicFailure(verifiedRenewal),
+        );
+      }
+      assertResolvedEnvelopeAuthority(verifiedRenewal, profile);
+    }
     return {
       required: true,
       status: "renewed_ready",
@@ -299,6 +323,7 @@ export async function prepareOperationCapabilityLifecycle({
       envelope_id: renewed.envelope_id,
       input: { ...input, capability_envelope_id: renewed.envelope_id },
       renewal: renewalProjection,
+      authority_context: authorityProjection(authorityContext),
       secrets_included: false,
     };
   }
