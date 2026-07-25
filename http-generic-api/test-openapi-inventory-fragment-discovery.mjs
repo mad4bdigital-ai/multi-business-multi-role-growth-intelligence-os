@@ -81,9 +81,25 @@ try {
       "/shared": { get: operation("differentSharedOperation") },
     },
   }), "utf8");
-  await expectCode(
-    () => collectOpenApiEndpointInventory({ openApiPath: rootPath }),
-    "openapi_inventory_duplicate_route",
+  const routeConflictInventory = await collectOpenApiEndpointInventory({
+    openApiPath: rootPath,
+  });
+  assert.equal(routeConflictInventory.operation_count, 2);
+  assert.equal(routeConflictInventory.suppressed_route_duplicate_count, 0);
+  assert.equal(routeConflictInventory.suppressed_route_conflict_count, 1);
+  assert.deepEqual(routeConflictInventory.suppressed_route_conflicts, [
+    {
+      route: "GET /shared",
+      authoritative_operation_id: "sharedOperation",
+      suppressed_operation_id: "differentSharedOperation",
+      source_file: "openapi/fragment.yaml",
+    },
+  ]);
+  assert.equal(
+    routeConflictInventory.operations.some(
+      (item) => item.endpoint_key === "differentSharedOperation",
+    ),
+    false,
   );
 
   await writeFile(fragmentPath, yaml({
