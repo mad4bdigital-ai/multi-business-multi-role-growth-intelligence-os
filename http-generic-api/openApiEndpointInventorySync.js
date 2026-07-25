@@ -721,7 +721,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       unchanged_count: plan.unchanged_count,
       deprecated_count: plan.deprecate_count,
       readback_count: readbackCount,
-      summary: responseBase.plan,
+      summary: {
+        plan: responseBase.plan,
+        inventory_evidence: inventoryEvidence,
+      },
       started_at: startedAt,
       completed_at: new Date(),
     });
