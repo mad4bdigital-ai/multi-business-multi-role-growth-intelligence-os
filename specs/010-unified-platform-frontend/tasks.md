@@ -34,7 +34,7 @@
       - [x] T018d.4e Replace adapter-execution-gate and backlog-target-write entries with canonical read-model contracts, and align lifecycle status enums with all migration-permitted values.
       - [x] T018d.4f Replace the remaining-scope-completion entry with a canonical read-model contract and migration-aligned lifecycle enums.
       - [x] T018d.4g Add canonical signed-user contracts for the tenant Activation session list and bounded turn-batch archive write.
-    - [ ] T018d.5 Classify 484 remaining non-GET candidates with exact evidence and controls where consequential.
+    - [ ] T018d.5 Classify 500 remaining non-GET candidates with exact evidence and controls where consequential.
       - [x] T018d.5a Classify the three SELECT-only session-insight adapter read models and register explicit test ownership.
       - [x] T018d.5b Classify the three SELECT-only promotion review and capability planning read models and register explicit test ownership.
       - [x] T018d.5c Classify the three SELECT-only capability-envelope lifecycle read models and register explicit test ownership.

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "cbcc0b883ffdbddc8670d2dd6cb52e3061a6e45d62ea680fc30ca3881f4e0bd8",
+    "source_digest": "f5a6b36387c16ed9d80acea0832371a1462213d5de6cd780e0c89034a78c28ea",
     "fail_closed": true
   },
   "source_authority": [
@@ -18,7 +18,7 @@
     },
     {
       "file": "capabilityEnvelopeTemplateResolver.js",
-      "sha256": "7ef8cd1e4539ce82afa0e810c58d62bff8c968e4b63d76ce69590730757d3cfb",
+      "sha256": "2a5866bb3478b18298772466c2e1ac1dfa6a1147d413704035d47c3091d003a4",
       "present": true
     },
     {
@@ -28,7 +28,7 @@
     },
     {
       "file": "dynamicContainerProjectionService.js",
-      "sha256": "1f07a9486ca52189b4f27f966e64d08d6dde8e522862e8ba0a1992c0e001751c",
+      "sha256": "81ee242b01306e1f721d2c6e9bf9299ff78605a5b2fa6ff611337a0409bf772b",
       "present": true
     },
     {
@@ -88,7 +88,7 @@
     },
     {
       "file": "routes/dynamicContainerAuthorityRoutes.js",
-      "sha256": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
+      "sha256": "4301ec6b0c26eb8242f47b9a5f960acfbb60dd0c352d34411dca0d15a71a88f2",
       "present": true
     },
     {
@@ -133,7 +133,7 @@
     },
     {
       "file": "routes/supportTicketRoutes.js",
-      "sha256": "c88d1ffc000f5c58e3fdd6cdb6067a5e726eb12c56913fa342356350e25d20f3",
+      "sha256": "29dc2bb803eac94eb39564d5234a5884908bd33a5151bd3c614501f31bfcd0e4",
       "present": true
     },
     {
@@ -148,7 +148,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "15f85059e603f28566f7b32b07edf6014b055ed04d09f4a5d0424f34337f7360",
+      "sha256": "f09aadff59a30032c737b9232538ebcb703f20105d1d3722eb24d71c44e5c8e7",
       "present": true
     },
     {
@@ -233,7 +233,7 @@
     },
     {
       "file": "test-capability-envelope-template-resolver.mjs",
-      "sha256": "e17f6d82099bf77827979dd25190a6437b3e318c78ec29bbf6e367ff6f88f36c",
+      "sha256": "de42e533cca3f6cb3ec8efd85b57af775334128f930971a5f8f85fb06f50a54a",
       "present": true
     },
     {
@@ -253,7 +253,7 @@
     },
     {
       "file": "test-dynamic-container-authority-runtime.mjs",
-      "sha256": "d8ef4eeb964d80269a14ece5c2d5607b5c838b2903070c9750e492f22f5ed06a",
+      "sha256": "fc63cff96b1448eb46fee0f98c45b39ad87b9690e5f7c49add92f4ba9c9c0a18",
       "present": true
     },
     {
@@ -568,7 +568,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "capability-envelope-template-resolve-read-action-v1",
-        "source_digest": "d99db429f16f1187649b58052cffe96b51b1b2fdcc5788a25269db0bc06c9ed2",
+        "source_digest": "74d9fbb57f57564f2cb8d6ffe09a5343f312daf5c91352622079fdda534118bc",
         "fail_closed": true
       }
     },
@@ -586,7 +586,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "source_digest": "2b8269f9c0e0fc6227f4494d40bd0bf9143d222d03371a57a070e3dda4e61927",
         "fail_closed": true
       },
       "preflight": {
@@ -628,7 +628,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-projection-preview-read-action-v1",
-        "source_digest": "49e556d2f0d0fc57aa83c660ef584d78a1bc4e2a061ad33a70e072b7d33c9c54",
+        "source_digest": "187100102edecb9b458ce4a7e7c2d6be1f4c5931406f8c329df1afca284c584e",
         "fail_closed": true
       }
     },
@@ -872,7 +872,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
-        "source_digest": "dca30411eb4ab2e80eeb247fab9660b8cde1ea5a184c00ba9f66dc85c3fb91fc",
+        "source_digest": "a0ef20fd0298d9967c7d48b9bde6ca8a1728ac24f836100aef19729364d9b61b",
         "fail_closed": true
       }
     },
@@ -890,7 +890,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-orchestration-plan-read-action-v1",
-        "source_digest": "5aec20563af8e078f4852c60160fef4b7d1aa7534d441c8008977a73623ba46e",
+        "source_digest": "348acb5ab20382ced881af795a59b2b345302a8e918eca57d87938eaab680f1a",
         "fail_closed": true
       }
     },
@@ -908,7 +908,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-delivery-readiness-read-action-v1",
-        "source_digest": "c9572814a33f4a16bd9949c3f3b2198ffb943669c8c7680d0ed3d4e9109d0472",
+        "source_digest": "b0f96b6f6318909ae4db33243bb3a9db52c93c8e624d43ca6e4659bf685e8412",
         "fail_closed": true
       }
     },
@@ -926,7 +926,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-secret-intake-plan-read-action-v1",
-        "source_digest": "50ec2e9bdec66d1ae011ba3d56505e068f7a4538b0e0727eca4b03f4ff851c5d",
+        "source_digest": "314c07d8398cd6db8c376c76ac7223e16f2991adb65ba03f2407b792b6304ce2",
         "fail_closed": true
       }
     },
@@ -944,7 +944,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-send-execution-plan-read-action-v1",
-        "source_digest": "b0dc4fe32932b5cdd5be92ae11a9db90f2d87080091fd47aaf18d4ac6eb052ee",
+        "source_digest": "3f1dc6b91f3201e2f952a4efa30c2f870d718db90b74f78117714c51bf542f09",
         "fail_closed": true
       }
     },
@@ -962,7 +962,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-gate-plan-read-action-v1",
-        "source_digest": "4d325fbb87e22b30d75df6178f2be965857e562f864ef576868f2b3d6cde1cac",
+        "source_digest": "a71cb7007123d4d84902e04b49ef58f2de4fce4456f667f6212d2979f7bb5f65",
         "fail_closed": true
       }
     },
@@ -980,7 +980,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-notification-preview-read-action-v1",
-        "source_digest": "9d491cee2e40aea61bcd85be93c595eef078eb76123a11ee2a153503fa71ddae",
+        "source_digest": "ed3073b0bc93029c017456022de38c0bc047910f73c3491c329e6d5cfd3dafd4",
         "fail_closed": true
       }
     },
@@ -998,7 +998,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-enablement-candidates-read-action-v1",
-        "source_digest": "4cdaabe15dc29c35a0a3cb91452ffe2a2b5f8bd283dcfda61ca746dfa5af5c39",
+        "source_digest": "1932a61916053f03bb80dfb24952e533e661724d0c263f971083ce9ead462ab5",
         "fail_closed": true
       }
     },
@@ -1016,7 +1016,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-future-pr-scope-plan-read-action-v1",
-        "source_digest": "65b8668037bac28485edce3bce153deb37c7c198e02d55edf3ec6ba07f53f6b5",
+        "source_digest": "2f7637dcb384841d15324f54839a9b514aeb9ce9af9f743f906c7941491a6bf2",
         "fail_closed": true
       }
     },
@@ -1034,7 +1034,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-readiness-plan-read-action-v1",
-        "source_digest": "0f6a338257ddc6d44a5fd4601d3d6d827bf6ac92eca5d6842e7b1008f50c6d2f",
+        "source_digest": "301d7469220be04197778a2d1fb868dcfd95731868a70b6baaa2f1e05d2bf9a2",
         "fail_closed": true
       }
     },

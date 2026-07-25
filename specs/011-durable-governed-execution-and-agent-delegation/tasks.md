@@ -12,12 +12,12 @@
 
 ## Phase 0 — Baseline and contract design
 
-- [ ] T010 Inventory reusable operation, plan, approval, envelope, idempotency, receipt, reconciliation, and audit tables.
-- [ ] T011 Produce a gap analysis and table-reuse decision record.
-- [ ] T012 Finalize operation, delegation, policy, receipt, and evidence JSON Schemas.
-- [ ] T013 Finalize OpenAPI 3.1 contracts and error codes.
-- [ ] T014 Define compatibility adapters for existing governed tools.
-- [ ] T015 Add registry and runtime contract drift tests before runtime implementation.
+- [x] T010 Inventory reusable operation, plan, approval, envelope, idempotency, receipt, reconciliation, and audit tables.
+- [x] T011 Produce a gap analysis and table-reuse decision record.
+- [x] T012 Finalize operation, delegation, policy, receipt, and evidence JSON Schemas.
+- [x] T013 Finalize OpenAPI 3.1 draft governance and stable error codes.
+- [x] T014 Define compatibility adapters for existing governed tools.
+- [x] T015 Add registry and runtime contract drift tests before runtime implementation.
 
 ## Phase 1 — Durable Execution Kernel
 
@@ -31,15 +31,15 @@
 
 ## Phase 2 — Canonical Execution Resolver
 
-- [ ] T120 Add execution-contract registry and exact resolution rules.
-- [ ] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
-- [ ] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
+- [x] T120 Add execution-contract registry and exact resolution rules.
+- [x] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
+- [x] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
 - [ ] T123 Convert selected operations to intent-first input.
 - [ ] T124 Add Admin and Tenant isolation and no-secret resolver tests.
 
 ## Phase 3 — Plan-Bound Sessions and Delegation
 
-- [ ] T140 Add execution session with plan hash, resource snapshot, risk ceiling, limits, and expiry.
+- [x] T140 Add execution session shadow with plan hash, resource snapshot, risk ceiling, limits, and expiry.
 - [ ] T141 Add delegation grant preview, create, inspect, revoke, and expire.
 - [ ] T142 Implement `user_approval_only`.
 - [ ] T143 Implement `agent_recommend_only`.

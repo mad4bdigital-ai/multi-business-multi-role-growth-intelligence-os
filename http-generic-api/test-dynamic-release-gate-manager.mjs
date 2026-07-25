@@ -108,6 +108,24 @@ for (const toolKey of ["release_gate_open", "release_gate_close", "release_gate_
 assert.match(migration, /dynamic_release_gate_manager_policy_v1/);
 assert.doesNotMatch(migration, /DROP TABLE|TRUNCATE TABLE|DELETE FROM/i);
 
+const featureFlagResolutionMigration = fs.readFileSync(
+  path.join(__dirname, "migrations", "20260723_resolve_process_local_feature_flag_scope.sql"),
+  "utf8",
+);
+assert.equal((featureFlagResolutionMigration.match(/UPDATE operational_alerts/g) || []).length, 1);
+assert.match(featureFlagResolutionMigration, /150a504b-6b16-11f1-8ecd-456940024c79/);
+assert.match(featureFlagResolutionMigration, /known\.process_local_feature_flag_scope/);
+assert.match(featureFlagResolutionMigration, /platform_runtime_config/);
+assert.match(featureFlagResolutionMigration, /remote_runtime_hostinger_ssh_executor_enabled/);
+assert.match(featureFlagResolutionMigration, /releaseGateManagerService\.js/);
+assert.match(featureFlagResolutionMigration, /same_cycle_readback_required', TRUE/);
+assert.match(featureFlagResolutionMigration, /process_local_environment_mutation_required', FALSE/);
+assert.match(featureFlagResolutionMigration, /migration_provider_call_executed', FALSE/);
+assert.match(featureFlagResolutionMigration, /migration_external_write_executed', FALSE/);
+assert.match(featureFlagResolutionMigration, /credential_payload_read', FALSE/);
+assert.match(featureFlagResolutionMigration, /secrets_included', FALSE/);
+assert.doesNotMatch(featureFlagResolutionMigration, /DROP TABLE|TRUNCATE TABLE|DELETE FROM|ALTER TABLE/i);
+
 const openapi = fs.readFileSync(path.join(__dirname, "openapi", "release-gates.yaml"), "utf8");
 assert.match(openapi, /openapi: 3\.1\.0/);
 assert.match(openapi, /operationId: openReleaseGate/);

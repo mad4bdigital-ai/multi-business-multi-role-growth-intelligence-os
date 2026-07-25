@@ -285,7 +285,7 @@ assert.throws(() => _testingDynamicContainerOverrideService.requireExactValue("*
 function emptyProjectionSources() {
   return {
     tenants:[],workspaces:[],brands:[],brandPaths:[],activities:[],workflows:[],memberships:[],roleAssignments:[],
-    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[],existingContainers:[]
+    workspaceGrants:[],workspaceAppLinks:[],actionGrants:[],skillGrants:[],workspaceAssets:[],tenantBrandLinks:[],existingContainers:[]
   };
 }
 const projectionSources={
@@ -385,6 +385,41 @@ const namespaceMismatch=await buildLegacyContainerProjectionPlan({
   sourceRows:{ ...projectionSources,workspaces:[{ ...projectionSources.workspaces[0],linked_brand_key:"Brand One" }] }
 });
 assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_key_namespace_mismatch" && row.status === "held"));
+
+const tenantBrandLinkFallbackProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{ ...projectionSources.workspaces[0],workspace_id:"workspace-brand-fallback",workspace_type:"brand",linked_brand_key:null }],
+    tenantBrandLinks:[{ tenant_id:TENANT,brand_target_key:"brand-key-1",status:"active" }]
+  }
+});
+assert.equal(tenantBrandLinkFallbackProjection.summary.highRiskIssueCount,0);
+assert(!tenantBrandLinkFallbackProjection.issues.some(row => row.issue_code === "workspace_brand_link_missing"));
+assert(tenantBrandLinkFallbackProjection.relationships.some(row =>
+  JSON.parse(row.metadata_json).projection_source === "tenant_brand_links.brand_target_key"
+));
+
+const nonBrandWorkspaceWithoutBrandProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{ ...projectionSources.workspaces[0],workspace_id:"workspace-project-no-brand",workspace_type:"project",linked_brand_key:null }]
+  }
+});
+assert.equal(nonBrandWorkspaceWithoutBrandProjection.summary.highRiskIssueCount,0);
+assert(!nonBrandWorkspaceWithoutBrandProjection.issues.some(row => row.issue_code === "workspace_brand_link_missing"));
+
+const ambiguousTenantBrandLinkProjection=await buildLegacyContainerProjectionPlan({
+  sourceRows:{
+    ...projectionSources,
+    workspaces:[{ ...projectionSources.workspaces[0],workspace_id:"workspace-brand-ambiguous",workspace_type:"brand",linked_brand_key:null }],
+    tenantBrandLinks:[
+      { tenant_id:TENANT,brand_target_key:"brand-key-1",status:"active" },
+      { tenant_id:TENANT,brand_target_key:"brand-key-2",status:"active" }
+    ]
+  }
+});
+assert.equal(ambiguousTenantBrandLinkProjection.summary.highRiskIssueCount,1);
+assert(ambiguousTenantBrandLinkProjection.issues.some(row => row.issue_code === "tenant_brand_link_ambiguous" && row.severity === "high" && row.status === "held"));
 
 const governedSandboxFixtureProjection=await buildLegacyContainerProjectionPlan({
   sourceRows:{
@@ -499,11 +534,11 @@ const sequentialSourceExecutor={
   }
 };
 const sequentialSources=await _testingDynamicContainerProjectionService.loadProjectionSources(sequentialSourceExecutor);
-assert.equal(sequentialSourceExecutor.calls.length,14);
+assert.equal(sequentialSourceExecutor.calls.length,15);
 assert.equal(sequentialSourceExecutor.maxActive,1);
 assert.deepEqual(Object.keys(sequentialSources),[
   "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
-  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","existingContainers"
+  "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","tenantBrandLinks","existingContainers"
 ]);
 
 const failingSourceExecutor={

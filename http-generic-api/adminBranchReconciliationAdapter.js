@@ -7,6 +7,7 @@ import {
   planContinuationResume,
   sanitizeContinuationPayload,
 } from "./sharedReconciliationEngine.js";
+import { assertRepositoryOperationLeaseHolder } from "./repositoryOperationLeaseService.js";
 
 export const ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION = "admin-branch-reconciliation-v1";
 
@@ -356,6 +357,77 @@ function requireMergeCommitSha(value, field) {
   return sha;
 }
 
+function reconciliationLeaseValue(value, field, pattern) {
+  const normalized = String(value || "").trim();
+  if (!normalized || (pattern && !pattern.test(normalized))) {
+    const err = new Error(`${field} is required from an active repository reconciliation orchestrator lease.`);
+    err.status = 403;
+    err.code = "repository_reconciliation_lease_required";
+    err.details = { field, secrets_included: false };
+    throw err;
+  }
+  return normalized;
+}
+
+export async function assertRepositoryReconciliationMergeLease(args = {}, deps = {}) {
+  const recipeKey = String(args.recipe_key || "").trim();
+  const operationId = reconciliationLeaseValue(
+    args.repository_reconciliation_operation_id || args.operation_id,
+    "repository_reconciliation_operation_id",
+    /^[A-Za-z0-9._:-]{8,128}$/
+  );
+  const holderRunId = reconciliationLeaseValue(
+    args.repository_holder_run_id || args.holder_run_id,
+    "repository_holder_run_id",
+    /^[A-Za-z0-9._:-]{8,128}$/
+  );
+  const leaseId = reconciliationLeaseValue(
+    args.repository_lease_id || args.lease_id,
+    "repository_lease_id",
+    /^[A-Za-z0-9._:-]{8,128}$/
+  );
+  const resourceFingerprint = reconciliationLeaseValue(
+    args.repository_resource_fingerprint || args.resource_fingerprint,
+    "repository_resource_fingerprint",
+    /^[0-9a-f]{64}$/i
+  ).toLowerCase();
+
+  if (recipeKey !== "repo.pr.reconcile_and_finalize") {
+    const err = new Error("Multi-parent reconciliation merge commits require recipe_key=repo.pr.reconcile_and_finalize.");
+    err.status = 403;
+    err.code = "repository_reconciliation_recipe_required";
+    err.details = { recipe_key: recipeKey || null, secrets_included: false };
+    throw err;
+  }
+  if (operationId !== holderRunId) {
+    const err = new Error("The reconciliation operation id must match the repository lease holder run id.");
+    err.status = 403;
+    err.code = "repository_reconciliation_operation_holder_mismatch";
+    err.details = { operation_id: operationId, holder_run_id: holderRunId, secrets_included: false };
+    throw err;
+  }
+
+  const assertLease = deps.assertLeaseHolder || assertRepositoryOperationLeaseHolder;
+  const verified = await assertLease({
+    lease_id: leaseId,
+    holder_run_id: holderRunId,
+    resource_fingerprint: resourceFingerprint,
+  }, { pool: deps.pool });
+
+  return {
+    ok: true,
+    recipe_key: recipeKey,
+    operation_id: operationId,
+    lease_id: leaseId,
+    holder_run_id: holderRunId,
+    resource_fingerprint: resourceFingerprint,
+    lease_status: verified?.lease_status || verified?.status || "active",
+    provider_calls: false,
+    external_writes: false,
+    secrets_included: false,
+  };
+}
+
 function sortedUnique(values = []) {
   return Array.from(new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))).sort();
 }
@@ -404,6 +476,7 @@ export function validateGithubMergeResolutionEvidence({
 }
 
 export async function runGithubBranchMergeCommitCreate(args = {}, deps = {}) {
+  const repositoryLease = await assertRepositoryReconciliationMergeLease(args, deps);
   const expectedBaseSha = requireMergeCommitSha(args.expected_base_sha || args.base_ref_sha, "expected_base_sha");
   const expectedBranchSha = requireMergeCommitSha(args.expected_branch_sha || args.branch_ref_sha, "expected_branch_sha");
   const resolutionCommitSha = requireMergeCommitSha(args.resolution_commit_sha, "resolution_commit_sha");

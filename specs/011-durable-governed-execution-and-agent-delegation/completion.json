@@ -14,44 +14,436 @@
       "number": 2934,
       "branch": "gpt/spec-011-durable-governed-execution-20260721",
       "role": "specification",
+      "status": "merged",
+      "merge_sha": "3846b295e1d657a6555ca6f601112958e0c215f0"
+    },
+    "phase0_pr": {
+      "number": 2954,
+      "branch": "gpt/spec-011-phase0-contract-baseline-20260721",
+      "role": "contract_baseline",
+      "status": "merged",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501"
+    },
+    "phase1_pr": {
+      "number": 2960,
+      "branch": "gpt/spec-011-phase1-shadow-kernel-20260722",
+      "role": "shadow_durable_kernel",
+      "status": "merged",
+      "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+    },
+    "phase1_closeout_pr": {
+      "number": 3011,
+      "branch": "gpt/spec-011-phase1-closeout-20260723",
+      "role": "phase1_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "91b5af4d8150f5af5f977ae8c26409bcb03ccbb1"
+    },
+    "phase2_pr": {
+      "number": 3018,
+      "branch": "gpt/spec-011-phase2-contract-resolver-20260723",
+      "role": "canonical_execution_contract_resolver",
+      "status": "merged",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+    },
+    "phase2_closeout_pr": {
+      "number": 3025,
+      "branch": "gpt/spec-011-phase2-closeout-20260723",
+      "role": "phase2_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "46704094e65374687e03435cfb15b5d53214a788"
+    },
+    "phase3_pr": {
+      "number": 3042,
+      "branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
+      "role": "plan_bound_session_shadow",
+      "status": "merged",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+    },
+    "phase3_closeout_pr": {
+      "number": 3055,
+      "branch": "gpt/spec-011-phase3-closeout-20260723",
+      "role": "phase3_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "64b862e1de0c0398b0d87e1d7c93d1ceff866103"
+    },
+    "phase3_delegation_grant_shadow_pr": {
+      "number": 3067,
+      "branch": "gpt/spec-011-phase3-delegation-grant-shadow-20260723",
+      "role": "delegation_grant_shadow",
+      "status": "merged",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+    },
+    "phase3_delegation_grant_shadow_closeout_pr": {
+      "number": 3092,
+      "branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
+      "role": "delegation_grant_shadow_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "97098a1c4284063be4a684b1618c36b9e88e4257"
+    },
+    "phase3_delegation_persistence_pr": {
+      "number": 3110,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-20260725",
+      "role": "delegation_persistence_contract",
       "status": "current_pr"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 2960,
+        "role": "phase1_shadow_durable_kernel",
+        "status": "merged",
+        "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+      },
+      {
+        "number": 3018,
+        "role": "phase2_canonical_execution_contract_resolver",
+        "status": "merged",
+        "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+      },
+      {
+        "number": 3042,
+        "role": "phase3_plan_bound_session_shadow",
+        "status": "merged",
+        "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+      },
+      {
+        "number": 3067,
+        "role": "phase3_delegation_grant_shadow",
+        "status": "merged",
+        "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+      },
+      {
+        "number": 3110,
+        "role": "phase3_delegation_persistence_contract",
+        "status": "current_pr"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
-      "role": "completion",
-      "status": "pending"
+      "role": "spec_completion",
+      "status": "pending_remaining_phases"
     }
   },
   "evidence": {
     "specification": {
-      "status": "complete",
-      "durable_execution_kernel": true,
-      "canonical_execution_resolver": true,
-      "approval_delegation_modes": true,
-      "plan_bound_sessions": true,
-      "reconciliation_framework": true,
-      "migration_validation_lab": true,
-      "structured_ci": true,
-      "managed_pr_release": true,
-      "auto_closeout": true,
-      "goal_filtered_attention": true
+      "status": "complete"
+    },
+    "phase0": {
+      "status": "complete_on_main",
+      "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501",
+      "ci_status": "pass",
+      "production_parity": "verified",
+      "runtime_implementation": false,
+      "database_migration": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
+    "phase1_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "9512fe788ba632d3032842ce65fad32531882a33",
+      "pull_request": 2960,
+      "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded",
+      "service": "http-generic-api/durableExecutionShadowService.js",
+      "test": "http-generic-api/test-durable-execution-shadow-service.mjs",
+      "design": "phase1-shadow-kernel.md",
+      "runtime_authority": false,
+      "public_route": false,
+      "database_migration": false,
+      "provider_write": false,
+      "delegation_active": false,
+      "secrets_included": false
+    },
+    "phase2_resolver": {
+      "status": "complete_on_main",
+      "source_main_sha": "fda2eb2d89d440b19ba9fde40116c4d111d58954",
+      "pull_request": 3018,
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "service": "http-generic-api/canonicalExecutionContractResolver.js",
+      "test": "http-generic-api/test-canonical-execution-contract-resolver.mjs",
+      "design": "phase2-canonical-execution-contract-resolver.md",
+      "reused_capability_shadow": "http-generic-api/dynamicCapabilityEnforcementShadow.js",
+      "exact_action_endpoint_resolution": true,
+      "policy_projection": true,
+      "contract_hash": true,
+      "intent_first_input": false,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "provider_write": false,
+      "delegation_active": false,
+      "secrets_included": false
+    },
+    "phase3_session_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
+      "pull_request": 3042,
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
+      "service": "http-generic-api/planBoundSessionShadow.js",
+      "test": "http-generic-api/test-plan-bound-session-shadow.mjs",
+      "design": "phase3-plan-bound-session-shadow.md",
+      "reused_durable_operation_shadow": "http-generic-api/durableExecutionShadowService.js",
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_projection": true,
+      "session_limits_and_expiry": true,
+      "self_approval_detection": true,
+      "tenant_scope": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
+      "pull_request": 3067,
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "service": "http-generic-api/delegationGrantShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-shadow.mjs",
+      "design": "phase3-delegation-grant-shadow.md",
+      "reused_plan_bound_session_shadow": "http-generic-api/planBoundSessionShadow.js",
+      "reused_manual_opt_in": "http-generic-api/agentDelegationOptIn.js",
+      "preview_contract": true,
+      "legacy_inspection_contract": true,
+      "revoke_preview": true,
+      "expire_preview": true,
+      "legacy_dispatch_eligible": false,
+      "tenant_scope": true,
+      "self_delegation_blocked": true,
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_binding": true,
+      "bounded_ttl_and_limits": true,
+      "readback_required": true,
+      "stop_on_drift_required": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_persistence_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
+      "pull_request": 3110,
+      "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
+      "design": "phase3-delegation-persistence-contract.md",
+      "effective_view": "effective_agent_delegation_grants_v",
+      "additive_only": true,
+      "migration_applied": false,
+      "legacy_rows_dispatch_eligible": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "database_write": false,
+      "provider_write": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
     },
     "implementation": {
-      "status": "not_started"
+      "status": "phase3_delegation_persistence_contract_complete_on_branch"
     },
     "ci": {
-      "status": "pending_specification_pr"
+      "status": "pass",
+      "head_sha": "64fabb808273cac88cc911d4d366d31c84999a5f",
+      "base_sha": "76ecc7b873834dc0ca80318d4d907cd6155d6216",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase2_ci": {
+      "status": "pass",
+      "head_sha": "9166d4aa5b524ff4a7576d69aeaba0198bd020a6",
+      "base_sha": "f1b7b04aab88e8a85cc694b136c37d8e12de355f",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_ci": {
+      "status": "pass",
+      "head_sha": "e3c927bee291a425ada8e939bf3485a1e0762f02",
+      "base_sha": "d3cdf2e249d2c2fd62d52fbff0b83c3c4a6fbb6b",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_grant_shadow_ci": {
+      "status": "pass",
+      "head_sha": "2ad2d916cb43f8410c7f5ae80a6fb4bcffec69fa",
+      "base_sha": "bd404977fe12ef12c8449e143705e40a475690ce",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_persistence_ci": {
+      "status": "pass",
+      "head_sha": "261b9575eb208fd54c938f3d6b3e73a81d6921a8",
+      "base_sha": "3a3f0194960ca8ec8617dc75514b4430fcab2840",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
     },
     "migration": {
-      "status": "pending_gap_analysis_and_design"
+      "status": "not_required_for_phase1_shadow"
+    },
+    "phase2_migration": {
+      "status": "not_required_for_phase2_shadow_resolver"
+    },
+    "phase3_migration": {
+      "status": "not_required_for_phase3_shadow_session"
+    },
+    "phase3_delegation_grant_shadow_migration": {
+      "status": "not_required_for_shadow_contract"
+    },
+    "phase3_delegation_persistence_migration": {
+      "status": "contract_only_unapplied",
+      "file": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "migration_applied": false,
+      "database_write": false,
+      "backfill_performed": false,
+      "same_cycle_readback_required_before_apply": true
+    },
+    "phase3_delegation_grant_shadow_production_verification": {
+      "status": "verified_at_runtime_descendant_and_current_main_parity",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "deployed_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "current_main_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "runtime_verification_run_id": "5d5a1318-0ecd-4b38-8283-461ef627e642",
+      "checked_at": "2026-07-24T02:58:15.641Z",
+      "merge_to_runtime_status": "ahead",
+      "merge_to_runtime_ahead_by": 2,
+      "merge_to_runtime_behind_by": 0,
+      "runtime_to_main_status": "identical",
+      "runtime_to_main_ahead_by": 0,
+      "runtime_to_main_behind_by": 0,
+      "release_readiness": "pass",
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "degraded_contract_pre_execution_module_missing",
+      "release_operation_id": "8aada61f-4007-46e1-804f-60c4b0b3afe9",
+      "gate_id": "879fab13-058a-46f9-a746-7b252241de84",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "observed_error_code": "ERR_MODULE_NOT_FOUND",
+      "missing_module": "http-generic-api/knowledgeSurfaceResolver.js",
+      "transient_module_race_reconciled": true,
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "4bbc4963ef81a5f9cf847dcab9bd53742aebc1c505678f001c0fc625b66c4416",
+      "secrets_included": false
     },
     "production_verification": {
-      "status": "pending"
+      "status": "verified_at_newer_descendant",
+      "release_operation_id": "2e8b7ed8-98a5-44a7-86c5-e0c9167aeea5",
+      "runtime_verification_run_id": "240296fb-98e9-4bb8-b739-4a2e605304c7",
+      "operation_expected_commit_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded",
+      "verified_runtime_sha": "2dd183e06bbbca9bdb34525820b6c268bdc6d121",
+      "ancestry_status": "ahead",
+      "ahead_by": 17,
+      "behind_by": 0,
+      "unknown_outcome_reconciled": true,
+      "transport_error": "cloudflare_502_after_deploy_started",
+      "retry_performed": false,
+      "rollback_required": false,
+      "release_gate_id": "ba99eb81-d5e4-470d-87bd-474ef95a66d3",
+      "release_gate_status": "hard_disabled",
+      "global_main_parity_note": "Later unrelated commits may move main after this phase-scoped verification; Phase 1 completion is proven by descendant ancestry and the recorded runtime verification run.",
+      "secrets_included": false
+    },
+    "phase2_production_verification": {
+      "status": "verified_exact_merge_sha",
+      "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "deployed_commit_sha": "0c663e7cb46843362115560814f13a3eab83e362",
+      "readback_run_id": "172e06e4-72f2-4095-a538-b28ff8b6d671",
+      "checked_at": "2026-07-23T05:10:13.191Z",
+      "db_connectivity": "pass",
+      "release_readiness_log": "pass",
+      "deployment_manifest": "pass",
+      "global_readiness": "warn",
+      "global_expected_commit_sha": "a68fd1067a8fee23adb80f780095b6bbd08e2b41",
+      "global_warning_reason": "A later docs-agent-only commit advanced main after the Phase 2 runtime merge. The deployed runtime exactly matched the Phase 2 merge SHA.",
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_production_verification": {
+      "status": "verified_at_runtime_descendant",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
+      "deployed_commit_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4",
+      "runtime_verification_run_id": "e2a51673-8bb4-4864-a1c2-1606d1fcc5e8",
+      "checked_at": "2026-07-23T18:31:36.459Z",
+      "phase3_to_runtime_status": "ahead",
+      "phase3_to_runtime_ahead_by": 7,
+      "phase3_to_runtime_behind_by": 0,
+      "current_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
+      "runtime_to_main_status": "ahead",
+      "runtime_to_main_ahead_by": 1,
+      "runtime_to_main_behind_by": 0,
+      "main_only_files": [
+        "docs/work-maps/README.md",
+        "docs/work-maps/data-model-domain-map.md",
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "superseded_before_execution",
+      "release_operation_id": "2cca7984-3d93-40eb-bcc3-78f6319e87ff",
+      "gate_id": "05d4ef00-0a42-47bc-bb5e-6649c6b50df7",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "02c13f7409d7cf84333dc80f034d2f8c45f89de5",
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "094633d4f0a6e81c1ef2239efa081c34c84d48dba82842c6652498a100735b03",
+      "secrets_included": false
     },
     "post_merge_audit": {
-      "status": "pending"
+      "phase1_status": "complete",
+      "phase2_status": "complete_on_main",
+      "phase2_closeout_status": "merged",
+      "phase3_status": "complete_on_main",
+      "phase3_closeout_status": "merged",
+      "phase3_delegation_grant_shadow_status": "complete_on_main",
+      "phase3_delegation_grant_shadow_closeout_status": "merged",
+      "phase3_delegation_persistence_status": "pending_merge",
+      "phase3_delegation_persistence_migration_status": "contract_only_unapplied",
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "spec_status": "pending_remaining_phases"
     }
   },
   "sensitive_values_included": false

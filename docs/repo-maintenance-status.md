@@ -56,6 +56,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci.yml`
+- `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
@@ -66,6 +67,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
 - `.github/workflows/pr-risk-labeler.yml`
+- `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/verify-runtime.yml`

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/spec-011/evidence-bundle.schema.json",
+  "title": "Spec 011 Operation Evidence Bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation_id", "mutation_receipts", "readbacks", "policy_decisions", "evidence_refs", "final_state", "next_action", "complete", "secrets_included"],
+  "properties": {
+    "schema_version": { "const": "spec011-evidence-bundle-v1" },
+    "operation_id": { "type": "string", "format": "uuid" },
+    "mutation_receipts": { "type": "array", "items": { "type": "string", "format": "uuid" }, "uniqueItems": true },
+    "readbacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["readback_type", "contract_key", "status", "fingerprint", "freshness"],
+        "properties": {
+          "readback_type": { "type": "string", "maxLength": 128 },
+          "contract_key": { "type": "string", "maxLength": 191 },
+          "status": { "type": "string", "enum": ["verified", "failed", "incomplete", "stale"] },
+          "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "freshness": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "policy_decisions": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "uniqueItems": true },
+    "evidence_refs": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "uniqueItems": true },
+    "final_state": { "type": "string", "enum": ["completed", "failed_recoverable", "failed_terminal", "cancelled", "compensation_required"] },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reason_code"],
+      "properties": {
+        "action": { "type": "string", "maxLength": 191 },
+        "reason_code": { "type": "string", "maxLength": 191 },
+        "required_input": { "type": ["string", "null"], "maxLength": 500 }
+      }
+    },
+    "complete": { "type": "boolean" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "secrets_included": { "const": false }
+  }
+}

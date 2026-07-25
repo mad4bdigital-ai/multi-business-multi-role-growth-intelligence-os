@@ -141,7 +141,7 @@ The Tenant GPT JIT onboarding path was delivered through governed, multi-PR roll
 - `20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql`: `2dd0fe09-7631-470c-b95b-14840af465d8`; temporary and superseded by the closeout cleanup migration.
 - `20260719_reactivate_github_raw_contents_endpoint.sql`: `9d046096-74ee-4c4d-a9cc-9138c001c317`.
 - `20260720_github_raw_contents_text_response_contract.sql`: `305a3b05-26d7-419b-9945-e9130dabc459`.
-- `20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql`: apply after the closeout PR is merged and deployed; record the resulting ledger in the completion artifact.
+- `20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql`: `ea0738d4-ea1a-4b5d-b11e-4af61d66e795`; applied with checksum `1d2807db7ca9966dabfb3e3e6421d5cdf93d98f5eebc115cddb2294d688e3c78`, two guarded statements, zero preflight risks, and same-cycle readback.
 
 ### Production OAuth verification
 
