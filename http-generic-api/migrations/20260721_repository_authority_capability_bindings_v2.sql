@@ -427,7 +427,7 @@ ON DUPLICATE KEY UPDATE
   repository_node_id=VALUES(repository_node_id), canonical_owner=VALUES(canonical_owner),
   canonical_name=VALUES(canonical_name), default_branch=VALUES(default_branch), environment=VALUES(environment),
   system_binding_mode=VALUES(system_binding_mode), lifecycle_status=VALUES(lifecycle_status), is_primary=VALUES(is_primary),
-  metadata_json=VALUES(metadata_json), authority_version=authority_version+1, lock_version=lock_version+1, updated_at=NOW();
+  metadata_json=VALUES(metadata_json), authority_version=repository_authority_bindings.authority_version+1, lock_version=repository_authority_bindings.lock_version+1, updated_at=NOW();
 
 INSERT INTO repository_authority_aliases
   (alias_id, binding_id, alias_type, alias_value, normalized_alias, lifecycle_status, metadata_json)
