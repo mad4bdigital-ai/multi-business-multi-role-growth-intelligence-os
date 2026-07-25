@@ -185,6 +185,14 @@ export function createGrowthControlPlaneService({
     const snapshot = await repository.recordResolutionSnapshot({
       resolutionId: uuid(), configKey, context: resolutionContext, result, createdBy: actorId(context.actorId)
     });
+    if (shadowParityObserver && typeof shadowParityObserver.observeSafely === "function") {
+      await shadowParityObserver.observeSafely({
+        configKey,
+        resolutionId: snapshot.resolutionId,
+        context: resolutionContext,
+        growthValue: result
+      });
+    }
     return Object.freeze({ ...snapshot, scopeHierarchy, providerCalls: false, externalWrites: false, secretsIncluded: false });
   }
 
