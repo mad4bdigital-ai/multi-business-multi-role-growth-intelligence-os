@@ -399,7 +399,7 @@ export async function applyTargetAuthEmailDelivery({
     };
     const [reservation] = await connection.query(
       `UPDATE auth_email_outbox
-          SET status = 'processing', provider = 'gmail_api', metadata_json = ?, last_error = NULL
+          SET status = 'failed', provider = 'gmail_api', metadata_json = ?, last_error = NULL
         WHERE email_id = ? AND status = 'queued'`,
       [JSON.stringify(reservationMetadata), email.email_id],
     );
