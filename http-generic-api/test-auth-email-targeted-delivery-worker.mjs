@@ -170,7 +170,10 @@ try {
       (entry) =>
         typeof entry === "object" &&
         entry.sql.includes("UPDATE auth_email_outbox") &&
-        entry.params?.[0] === "delivery_unknown",
+        entry.sql.includes("SET status = 'failed'") &&
+        entry.sql.includes("$.delivery_attempt_id") &&
+        typeof entry.params?.[0] === "string" &&
+        entry.params[0].includes('"delivery_state":"delivery_unknown"'),
     ),
   );
 } finally {
