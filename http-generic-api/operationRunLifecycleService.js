@@ -222,6 +222,19 @@ function assertOwnership(context, input, { verifyRevisions = false } = {}) {
   }
 }
 
+function assertStateAuthority(state, context) {
+  if (!state) return;
+  if (
+    state.revision_bundle_hash !== context.revision_bundle_hash
+    || state.resource_fingerprint !== context.resource_fingerprint
+  ) {
+    fail("operation_run_lifecycle_state_authority_mismatch", "The stored lifecycle authority no longer matches the pinned run authority.", 409, {
+      state_revision_bundle_hash: state.revision_bundle_hash,
+      current_revision_bundle_hash: context.revision_bundle_hash,
+    });
+  }
+}
+
 async function readState(connection, runId, lock = false) {
   const [rows] = await connection.query(
     `SELECT lifecycle_id,run_id,state_revision,lifecycle_status,approval_status,resume_from_step_key,
