@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-24T04:46:55Z",
+  "last_updated_at": "2026-07-25T14:26:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -14,8 +14,8 @@
   },
   "delivery": {
     "specification_branch": "gpt/011-unified-effective-authority-control-plane-20260720",
-    "base_sha": "9296f28d8a48b1ee4c9fc17c6fe5b346ead983c4",
-    "latest_head_sha": "2a095927d522818d9bdac40abc094a326388b2ef",
+    "base_sha": "05e939a8f328adc0dff77c9d1b4d3cf8941211d0",
+    "latest_head_sha": "1f345bbedaec875a4d269a244bca40faf11603b6",
     "implementation_prs": [2888],
     "closeout_pr": null
   },
@@ -27,7 +27,7 @@
       "formal_decision_model": "documented",
       "data_model": "documented",
       "use_cases": "documented",
-      "threat_model": "documented",
+      "threat_model": "documented_security_owner_approval_open",
       "api_contract_draft": "documented",
       "migration_plan": "documented",
       "test_strategy": "documented",
@@ -37,6 +37,7 @@
     "implementation": {
       "status": "in_progress",
       "principal_and_subject_scope": "implemented_for_platform_admin_and_tenant_membership_paths",
+      "cross_tenant_fail_closed_matrix": "implemented_and_tested",
       "effective_authority_manifest": "implemented_shadow_only",
       "connector_projection": "implemented_read_only",
       "activation_projection": "implemented_optional_backward_compatible",
@@ -48,7 +49,7 @@
     },
     "ci": {
       "status": "pass",
-      "head_sha": "2a095927d522818d9bdac40abc094a326388b2ef",
+      "head_sha": "1f345bbedaec875a4d269a244bca40faf11603b6",
       "required_check_count": 4,
       "successful_check_count": 4,
       "checks": [
@@ -65,14 +66,50 @@
       "effective_authority_optional": true,
       "backward_compatibility_tested": true
     },
+    "security_review": {
+      "status": "in_progress_with_open_human_and_release_gates",
+      "critical_or_high_defects_found_in_shadow_slice": false,
+      "cross_tenant_negative_matrix": "pass",
+      "secret_like_schema_rejection": "pass",
+      "centralized_authentication": "verified",
+      "tenant_sql_binding": "verified_parameterized",
+      "security_owner_approval": "not_recorded",
+      "break_glass_governance": "open",
+      "ledger_retention_and_access_approval": "open",
+      "policy_publication_and_rollback": "open",
+      "shared_pep_shadow_certification": "open"
+    },
     "migrations": {
       "status": "contract_tested_not_executed",
       "files": [
         "http-generic-api/migrations/20260721_ueacp_connector_inventory_read.sql",
-        "http-generic-api/migrations/20260721_ueacp_shadow_decision_ledger.sql"
+        "http-generic-api/migrations/20260721_ueacp_shadow_decision_ledger.sql",
+        "http-generic-api/migrations/20260725_ueacp_performance_retention_indexes.sql"
       ],
+      "performance_retention_index_checksum": "f58dd46bedd780796fdeeaf044812fc545fbed53933314eda4d87e53afd2234d",
+      "performance_retention_index_statement_count": 3,
       "execution_authorized": false,
       "schema_readback_completed": false
+    },
+    "query_performance": {
+      "status": "live_read_only_review_complete_post_migration_review_open",
+      "connected_systems_estimated_rows": 31,
+      "installations_estimated_rows": 3,
+      "n_plus_one_detected": false,
+      "pre_migration_explain_completed": true,
+      "tenant_cursor_index_prepared": true,
+      "installation_join_index_prepared": true,
+      "retention_expiration_index_prepared": true,
+      "post_migration_explain_completed": false
+    },
+    "retention_and_access": {
+      "status": "technical_boundary_documented_policy_approval_open",
+      "purge_job_created": false,
+      "evidence_deleted": false,
+      "final_retention_duration_approved": false,
+      "retention_owner_approved": false,
+      "legal_hold_process_approved": false,
+      "raw_ledger_access_matrix_approved": false
     },
     "shadow_parity": {
       "status": "blocked_live_registry_capability_missing",
@@ -85,10 +122,14 @@
       "status": "platform_baseline_pass_feature_release_pending",
       "platform_main_baseline": "pass",
       "feature_blockers": [
-        "governed migration execution and schema readback",
+        "security-owner threat-model approval",
+        "break-glass governance",
+        "ledger retention and access approval",
+        "policy publication and rollback governance",
+        "governed migration execution and same-cycle schema readback",
+        "post-migration query-plan acceptance",
         "live capability registration and shadow parity",
-        "security review",
-        "shared PEP shadow or canary certification",
+        "shared PEP shadow certification",
         "production verification",
         "post-merge audit"
       ]
@@ -149,7 +190,9 @@
       "external_write_allowed": false,
       "credential_payload_read_allowed": false,
       "migration_execution_authorized": false,
+      "purge_execution_authorized": false,
       "scheduler_enabled_by_default": false,
+      "evidence_persistence_enabled_by_default": false,
       "enforcement_cutover_allowed": false,
       "legacy_removal_allowed": false
     }
