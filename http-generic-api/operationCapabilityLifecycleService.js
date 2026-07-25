@@ -25,12 +25,63 @@ function lifecycleError(status, code, message, details = null) {
   return error;
 }
 
-function operationRequiresCapability(operationKey) {
+function authorityProjection(authorityContext = null) {
+  if (!authorityContext) return null;
+  return {
+    context_version: authorityContext.context_version || null,
+    operation_key: authorityContext.operation_key || null,
+    operation_version: authorityContext.operation_version || null,
+    run_id: authorityContext.run_id || null,
+    contract_revision_hash: authorityContext.contract_revision_hash || null,
+    manifest_hash: authorityContext.manifest_hash || null,
+    binding_sha256: authorityContext.binding_sha256 || null,
+    capability_sha256: authorityContext.capability_sha256 || null,
+    secrets_included: false,
+  };
+}
+
+function operationRequiresCapability(operationKey, authorityContext = null) {
+  if (authorityContext) {
+    if (authorityContext.operation_key !== operationKey) {
+      throw lifecycleError(
+        409,
+        "OPERATION_CAPABILITY_AUTHORITY_CONTEXT_MISMATCH",
+        "Capability authority context does not match the requested operation.",
+      );
+    }
+    return authorityContext.requires_capability === true;
+  }
   try {
     return getOperationContract(operationKey).execution_class === "mutation";
   } catch {
     return false;
   }
+}
+
+function assertResolvedEnvelopeAuthority(resolved = {}, profile = {}) {
+  const observed = {
+    app_key: compact(resolved.app_key, 128),
+    capability_key: compact(resolved.capability_key, 191),
+    operation_intent: compact(resolved.operation_intent, 128).toLowerCase(),
+    runtime_surface: compact(resolved.selected_runtime_surface, 191).toLowerCase(),
+  };
+  const expected = {
+    app_key: compact(profile.app_key, 128),
+    capability_key: compact(profile.capability_key, 191),
+    operation_intent: compact(profile.operation_intent, 128).toLowerCase(),
+    runtime_surface: compact(profile.runtime_surface, 191).toLowerCase(),
+  };
+  for (const field of Object.keys(expected)) {
+    if (!expected[field] || observed[field] !== expected[field]) {
+      throw lifecycleError(
+        403,
+        "OPERATION_CAPABILITY_ENVELOPE_AUTHORITY_MISMATCH",
+        "The capability envelope does not match the pinned operation authority.",
+        { field, expected: expected[field] || null, observed: observed[field] || null, secrets_included: false },
+      );
+    }
+  }
+  return true;
 }
 
 function repositoryResourceUri(input = {}) {
