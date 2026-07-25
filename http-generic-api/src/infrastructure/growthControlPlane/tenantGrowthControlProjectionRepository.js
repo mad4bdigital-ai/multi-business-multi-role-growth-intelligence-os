@@ -153,7 +153,8 @@ export function createTenantGrowthControlProjectionRepository({
   }
 
   async function listActivityBindings({ tenantId, workspaceId, brandKey, limit, offset }) {
-    const [rows] = await pool.query(
+    const db = await executor();
+    const [rows] = await db.query(
       `SELECT activity_binding_id,
               tenant_id,
               workspace_id,
