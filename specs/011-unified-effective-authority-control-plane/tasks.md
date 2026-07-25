@@ -75,7 +75,7 @@
 
 - [ ] T070 Approve parity thresholds.
 - [ ] T071 Migrate registered projection consumers.
-- [ ] T072 Update canonicals and generated OpenAPI artifacts.
+- [x] T072 Update canonicals and generated OpenAPI artifacts.
 - [ ] T073 Run CI, release readiness, production verification, and audit.
 - [ ] T074 Deprecate measured legacy paths.
 - [ ] T075 Remove local authorization SQL only after approved cutover.
