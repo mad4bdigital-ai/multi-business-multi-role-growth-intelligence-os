@@ -229,8 +229,26 @@
       "provider_write": false,
       "secrets_included": false
     },
+    "phase3_delegation_persistence_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
+      "pull_request": 3110,
+      "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
+      "design": "phase3-delegation-persistence-contract.md",
+      "effective_view": "effective_agent_delegation_grants_v",
+      "additive_only": true,
+      "migration_applied": false,
+      "legacy_rows_dispatch_eligible": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "database_write": false,
+      "provider_write": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_grant_shadow_complete_on_main"
+      "status": "phase3_delegation_persistence_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
