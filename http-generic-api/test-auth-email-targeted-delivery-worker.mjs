@@ -130,7 +130,21 @@ try {
     (entry) => typeof entry === "object" && entry.sql.includes("INSERT INTO auth_email_delivery_attempts"),
   );
   const providerIndex = successHarness.log.indexOf("provider_send");
+  const reservationIndex = successHarness.log.findIndex(
+    (entry) =>
+      typeof entry === "object" &&
+      entry.sql.includes("SET status = 'failed'") &&
+      entry.sql.includes("status = 'queued'"),
+  );
   assert.ok(attemptInsertIndex >= 0 && attemptInsertIndex < providerIndex);
+  assert.ok(reservationIndex >= 0 && reservationIndex < providerIndex);
+  const sentUpdate = successHarness.log.find(
+    (entry) =>
+      typeof entry === "object" &&
+      entry.sql.includes("SET status = 'sent'") &&
+      entry.sql.includes("$.delivery_attempt_id"),
+  );
+  assert.equal(sentUpdate.params.at(-1), success.attempt_id);
 
   const unknownEmailId = "66666666-6666-4666-8666-666666666666";
   const unknownHarness = createHarness(queuedEmail(unknownEmailId));
