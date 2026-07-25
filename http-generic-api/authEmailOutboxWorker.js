@@ -232,10 +232,14 @@ async function fetchQueuedEmails(connection, {
   purposes = DEFAULT_PURPOSES,
   limit = DEFAULT_LIMIT,
   excludeActiveClaims = false,
+  allowedEmailIds = [],
 } = {}) {
   const normalizedPurposes = normalizePurposeList(purposes);
   const safeLimit = integer(limit);
   const placeholders = normalizedPurposes.map(() => "?").join(",");
+  const normalizedAllowedEmailIds = [...new Set(
+    (allowedEmailIds || []).map((value) => String(value || "").trim()).filter(Boolean)
+  )];
   const activeClaimFilter = excludeActiveClaims
     ? `AND NOT EXISTS (
          SELECT 1
@@ -243,6 +247,9 @@ async function fetchQueuedEmails(connection, {
           WHERE a.email_id = e.email_id
             AND a.status = 'started'
        )`
+    : "";
+  const emailScopeFilter = normalizedAllowedEmailIds.length
+    ? `AND e.email_id IN (${normalizedAllowedEmailIds.map(() => "?").join(",")})`
     : "";
   const [rows] = await connection.query(
     `SELECT e.email_id, e.purpose, e.recipient_email, e.subject, e.body_text, e.body_html, e.status, e.provider, e.metadata_json, e.created_at,
@@ -256,9 +263,10 @@ async function fetchQueuedEmails(connection, {
       WHERE e.status = 'queued'
         AND e.purpose IN (${placeholders})
         ${activeClaimFilter}
+        ${emailScopeFilter}
       ORDER BY e.created_at ASC
       LIMIT ${safeLimit}`,
-    normalizedPurposes
+    [...normalizedPurposes, ...normalizedAllowedEmailIds]
   );
   return rows || [];
 }
