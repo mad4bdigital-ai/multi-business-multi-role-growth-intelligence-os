@@ -321,8 +321,11 @@ function recoveryClassification(state, context, steps) {
   if (["completed", "cancelled"].includes(state.lifecycle_status) || ["completed", "cancelled"].includes(String(context.run_status || "").toLowerCase())) {
     return "terminal_no_recovery";
   }
-  if (WAITING_STATUSES.has(state.lifecycle_status)) return "waiting_external_signal";
-  if (String(context.run_status || "").toLowerCase() === "failed") return "terminal_failure_review_required";
+  if (EXTERNAL_SIGNAL_STATUSES.has(state.lifecycle_status)) return "waiting_external_signal";
+  if (state.lifecycle_status === "failed" || String(context.run_status || "").toLowerCase() === "failed") {
+    return "terminal_failure_review_required";
+  }
+  if (state.lifecycle_status === "interrupted" && firstIncompleteStep(steps)) return "interrupted_resumable";
   if (firstIncompleteStep(steps)) return "interrupted_resumable";
   return "no_incomplete_step";
 }
