@@ -6,15 +6,23 @@ Repository foundation only. This PR does not authorize migration apply, runtime 
 
 ## Scope
 
-This slice prepares additive persistence and repository foundations for Spec 012 tasks T020-T023, T026, and T074 without marking them complete. Final behavior remains dependent on T010-T017, especially the state machine, transition matrix, error taxonomy, and provider-stage contracts.
+This slice adds persistence and repository foundations for Spec 012 tasks T020-T023, T026, and T074 without marking those implementation tasks complete.
+
+The lifecycle state, error, reconnect, and compatibility contracts from T015-T017 are now merged into `main` through PR #3085 and are represented by:
+
+- `implementation/pr-2a-lifecycle-contracts.md`
+- `implementation/pr-2a-lifecycle-contracts.json`
+- `test-activation-lifecycle-contract-foundation.mjs`
+
+This PR consumes those contracts as design authority only. It does not wire their state machine, retries, reconciliation, delivery, acknowledgement, or error mapping into runtime services.
 
 ## Stable identity
 
-`activation_runs.run_id` remains the shared Activation operation identity. The planned `activation_operation_projections.operation_id` will use the same value and reference `activation_runs.run_id`; PR-2 will not create a competing run identity.
+`activation_runs.run_id` remains the shared Activation operation identity. `activation_operation_projections.operation_id` uses the same value and references `activation_runs.run_id`; PR-2 does not create a competing run identity.
 
-`workflow_run_id` remains an optional reference. No workflow FK will be added until collation and lifecycle authority are validated through the existing operation ownership model.
+`workflow_run_id` remains an optional indexed reference. No workflow FK is added because workflow collation and lifecycle ownership remain governed through the existing operation ownership model.
 
-## Planned additive tables
+## Additive tables
 
 - `activation_operation_projections`
 - `activation_stage_attempts`
@@ -23,17 +31,17 @@ This slice prepares additive persistence and repository foundations for Spec 012
 - `activation_acknowledgements`
 - `activation_reconciliation_attempts`
 
-The migration must use additive `CREATE TABLE IF NOT EXISTS` statements only. No existing table may be altered, truncated, deleted, or dropped by this PR.
+The migration uses additive `CREATE TABLE IF NOT EXISTS` statements only. It does not alter, truncate, delete, or drop existing data or tables.
 
 ## Repository boundary
 
-The planned repository will remain disconnected from runtime routes and Activation services in this PR. It will provide deterministic fingerprints, hash-only idempotency persistence, tenant/user scoped reads, optimistic version checks, append-only ledgers, and bounded evidence sanitization.
+`activationOperationProjectionRepository.js` remains disconnected from runtime routes and Activation services in this PR. It provides deterministic fingerprints, hash-only idempotency persistence, tenant/user-scoped reads, optimistic version checks, append-only ledgers, and bounded evidence sanitization.
 
-State values remain constrained identifiers rather than final SQL enums until T015 and T016 are complete.
+State values remain constrained identifiers rather than SQL enums. Their semantic authority comes from the merged lifecycle contract; runtime transition enforcement is deferred to a later governed integration PR.
 
 ## Migration governance
 
-The migration will not be added to the legacy bootstrap allowlist and will not receive a live authorization registry row in this PR. Any future dry-run or apply requires a separate migration-specific capability envelope, governed preflight, typed confirmation, and explicit production approval.
+The migration is not added to the legacy bootstrap allowlist and does not receive a live authorization registry row in this PR. Any future dry-run or apply requires a separate migration-specific capability envelope, governed preflight, typed confirmation, and explicit production approval.
 
 ## Rollback
 
@@ -43,10 +51,15 @@ After a future approved apply but before runtime wiring, the preferred rollback 
 
 After runtime wiring, a separate destructive rollback approval would be required to stop writes, validate legacy read authority, remove bindings, and only then consider reverse-FK table removal. No destructive rollback SQL is included here.
 
+## Validation
+
+`test-activation-operation-projection-foundation.mjs` is deterministic and offline. It verifies additive DDL, uniqueness and FK constraints, hash-only idempotency, evidence sanitization and size bounds, tenant/user scoping, optimistic concurrency, and 409 conflict behavior using fake pools only.
+
+CI runs both lifecycle-contract parity and persistence-foundation tests so the merged T015-T017 authority and this PR remain compatible.
+
 ## Deferred work
 
-- Final states and transition enforcement: T015.
-- Final error/result taxonomy: T016.
-- Provider stage retry/timeout mapping: T017.
-- Runtime dual-write/readback integration: later implementation PR.
-- Migration registration and apply: separate explicit approval after CI, review, and release readiness.
+- Runtime enforcement of the merged lifecycle transition and error contracts.
+- Runtime dual-write/readback integration.
+- Canonical OpenAPI adoption and consumer rollout where required.
+- Migration registration and apply under separate explicit approval after review and release readiness.
