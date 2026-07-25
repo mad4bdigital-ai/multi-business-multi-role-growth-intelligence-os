@@ -5,9 +5,9 @@
 - [ ] T001 Inventory every Admin and Tenant authorization path.
 - [ ] T002 Map authority-owning tables and views from live SQL census.
 - [ ] T003 Define compatibility meanings for `active`, `connected`, and `ready`.
-- [ ] T004 Add typed Actor, Subject Scope, Capability, Resource, Decision, Gap, and Version Vector contracts.
-- [ ] T005 Encode non-configurable safety invariants in domain code.
-- [ ] T006 Add stable reason-code catalog and redaction rules.
+- [x] T004 Add typed Actor, Subject Scope, Capability, Resource, Decision, Gap, and Version Vector contracts.
+- [x] T005 Encode non-configurable safety invariants in domain code.
+- [x] T006 Add stable reason-code catalog and redaction rules.
 
 ## P1 — Shadow decision plane
 
@@ -16,41 +16,41 @@
 - [ ] T012 Implement bounded Resource Graph resolver.
 - [ ] T013 Integrate semantic capability before provider selection.
 - [ ] T014 Implement policy/grant evaluator.
-- [ ] T015 Implement deterministic connection selection and ambiguity blocking.
+- [x] T015 Implement deterministic connection selection and ambiguity blocking.
 - [ ] T016 Implement endpoint and certification resolution.
-- [ ] T017 Emit no-secret Effective Authority Manifest.
-- [ ] T018 Persist bounded decision evidence.
+- [x] T017 Emit no-secret Effective Authority Manifest.
+- [x] T018 Persist bounded decision evidence.
 - [ ] T019 Run shadow-only parity with no execution effect.
 
 ## P1 — Data and migration
 
-- [ ] T020 Design additive migrations against live table census.
+- [x] T020 Design additive migrations against live table census.
 - [ ] T021 Add revisions/version support where absent.
 - [ ] T022 Add resource relation/restriction storage only for uncovered semantics.
 - [ ] T023 Add delegation contexts.
 - [ ] T024 Add decision, projection, invalidation, and drift ledgers.
-- [ ] T025 Add indexes and query plans.
+- [x] T025 Add indexes and query plans.
 - [ ] T026 Document rollback and backfill.
 
 ## P1 — Projections
 
-- [ ] T030 Implement connector readiness dimensions.
-- [ ] T031 Implement Admin authority diagnostics.
+- [x] T030 Implement connector readiness dimensions.
+- [x] T031 Implement Admin authority diagnostics.
 - [ ] T032 Compile Dynamic Tabs from authority projection.
 - [ ] T033 Compile Dashboard from authority projection.
 - [ ] T034 Compile Tool Catalog visibility and action eligibility.
-- [ ] T035 Preserve backward-compatible legacy fields.
+- [x] T035 Preserve backward-compatible legacy fields.
 - [ ] T036 Compare exact IDs and reasons across projections.
 
 ## P1 — Security and tests
 
-- [ ] T040 Add cross-tenant negative test matrix.
-- [ ] T041 Add Admin visibility versus mutation tests.
+- [x] T040 Add cross-tenant negative test matrix.
+- [x] T041 Add Admin visibility versus mutation tests.
 - [ ] T042 Add support delegation and impersonation tests.
 - [ ] T043 Add graph inheritance/restriction property tests.
-- [ ] T044 Add connection ambiguity tests.
+- [x] T044 Add connection ambiguity tests.
 - [ ] T045 Add approval replay and manifest binding tests.
-- [ ] T046 Add no-secret serialization tests.
+- [x] T046 Add no-secret serialization tests.
 - [ ] T047 Add stale and revocation revalidation tests.
 
 ## P2 — Invalidation and reconciliation
