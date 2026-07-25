@@ -265,7 +265,7 @@ await assert.rejects(
   const state = { lifecycle_status: "interrupted", state_revision: 4 };
   const context = { run_status: "running", revision_bundle_hash: revisionBundleHash, resource_fingerprint: resourceFingerprint };
   const steps = [{ step_key: "apply", step_order: 20, status: "pending" }];
-  assert.equal(_testingOperationRunLifecycle.recoveryClassification(state, context, steps), "waiting_external_signal");
+  assert.equal(_testingOperationRunLifecycle.recoveryClassification(state, context, steps), "interrupted_resumable");
 }
 
 console.log("operation durable lifecycle contract tests passed");
