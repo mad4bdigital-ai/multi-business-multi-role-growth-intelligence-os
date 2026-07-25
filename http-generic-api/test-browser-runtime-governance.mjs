@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+
+// frontend-surface-operation: POST /browser-runtime/health
+// frontend-read-action-proof: POST /browser-runtime/health
+// frontend-surface-operation: POST /browser-runtime/policy-check
+// frontend-read-action-proof: POST /browser-runtime/policy-check
 import {
   SEEDED_BROWSER_RUNTIMES,
   assertNoSecretLike,
   checkBrowserRuntimePolicy,
+  checkBrowserRuntimePolicyFromDb,
+  healthBrowserRuntime,
   normalizeBrowserRuntime,
   normalizeBrowserRuntimeBinding,
   parseBrowserUrl,
@@ -124,6 +131,48 @@ const binding = normalizeBrowserRuntimeBinding({
 {
   const index = readFileSync("routes/index.js", "utf8");
   assert(index.includes("buildBrowserRuntimeRoutes"), "browser runtime routes must be registered");
+}
+
+{
+  const queries = [];
+  const pool = {
+    async query(sql) {
+      queries.push(sql);
+      if (sql.includes("browser_runtime_bindings")) {
+        return [[{
+          binding_key: binding.binding_key,
+          runtime_key: binding.runtime_key,
+          use_case: binding.use_case,
+          allowed_brands_json: JSON.stringify(binding.allowed_brands),
+          allowed_actions_json: JSON.stringify(binding.allowed_actions),
+          domain_allowlist_json: JSON.stringify(binding.domain_allowlist),
+          policy_json: JSON.stringify(binding.policy),
+          status: "active",
+        }]];
+      }
+      if (sql.includes("browser_runtime_registry")) {
+        return [[{
+          ...nativeEssam,
+          runtime_key: "browser4_essam_v1",
+          status: "active",
+          capabilities_json: JSON.stringify(nativeEssam.capabilities),
+          degraded_capabilities_json: JSON.stringify(nativeEssam.degraded_capabilities),
+          metadata_json: JSON.stringify(nativeEssam.metadata || {}),
+        }]];
+      }
+      throw new Error(`unexpected browser runtime query: ${sql}`);
+    },
+  };
+  const health = await healthBrowserRuntime({ pool, runtime_key: "browser4_essam_v1" });
+  assert.equal(health.ok, true);
+  assert.equal(health.executable, true);
+  const policy = await checkBrowserRuntimePolicyFromDb({
+    pool,
+    binding_key: binding.binding_key,
+    input: { url: "https://n8n.mad4b.com/", action: "inspect_site" },
+  });
+  assert.equal(policy.ok, true);
+  assert(queries.every((sql) => /^SELECT /i.test(sql)), "health and policy-check proof must execute SELECT statements only");
 }
 
 {

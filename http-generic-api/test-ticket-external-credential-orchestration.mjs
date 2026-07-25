@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// frontend-surface-operation: POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan
+// frontend-read-action-proof: POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan
+
 const service = readFileSync("supportTicketExternalCredentialOrchestrationService.js", "utf8");
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
 const migration = readFileSync("migrations/261_sprint68_ticket_external_credential_orchestration.sql", "utf8");

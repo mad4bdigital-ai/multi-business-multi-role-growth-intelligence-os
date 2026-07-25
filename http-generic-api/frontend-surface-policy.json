@@ -740,6 +740,15 @@
       "rollback": { "mode": "not_required", "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns." },
       "parameter_bindings": { "session_id": "path.id", "turns": "request.body.turns", "turn_ids": "response.turns[].turn_id" },
       "evidence_refs": ["routes/gptSessionRoutes.js", "test-tenant-activation-session-alias.mjs", "test-session-archive-capability-family-policy.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "admin-resource-purge-disabled",
+      "operation": "POST /admin/resources/{resourceKey}/{resourceId}/purge",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "disabled",
+      "owner": "resource-platform",
+      "rationale": "Hard purge is intentionally fail-closed with HTTP 409; governed archive and retention policies are the only supported lifecycle paths.",
+      "evidence_refs": ["routes/resourceApiRoutes.js", "src/api/resourceApi/resourceApiController.js", "test-resource-api-service.mjs"]
     }
   ],
   "secrets_included": false

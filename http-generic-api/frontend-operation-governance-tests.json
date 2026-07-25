@@ -19,7 +19,19 @@
     { "file": "test-ticket-external-send-provider-gate.mjs", "evidence_scope": "ticket-provider-gate-plan" },
     { "file": "test-ticket-external-send-execution-adapter.mjs", "evidence_scope": "ticket-external-send-execution-plan" },
     { "file": "test-ticket-external-delivery-approval-policy.mjs", "evidence_scope": "ticket-external-delivery-readiness" },
-    { "file": "test-ticket-notification-delivery-adapters.mjs", "evidence_scope": "ticket-notification-preview" }
+    { "file": "test-ticket-notification-delivery-adapters.mjs", "evidence_scope": "ticket-notification-preview" },
+    { "file": "test-database-lifecycle-report-schedule-readiness.mjs", "evidence_scope": "database-lifecycle-report-schedule-readiness" },
+    { "file": "test-database-lifecycle-scheduler-binding-readiness.mjs", "evidence_scope": "database-lifecycle-scheduler-binding-readiness" },
+    { "file": "test-database-lifecycle-scheduler-approval-metadata.mjs", "evidence_scope": "database-lifecycle-scheduler-approval-readback" },
+    { "file": "test-capability-envelope-template-resolver.mjs", "evidence_scope": "capability-envelope-template-resolution" },
+    { "file": "test-governed-addition-review.mjs", "evidence_scope": "governed-addition-review" },
+    { "file": "test-dynamic-container-authority-runtime.mjs", "evidence_scope": "dynamic-container-projection-preview" },
+    { "file": "test-repo-conflict-intelligence-tenant-readiness.mjs", "evidence_scope": "repo-conflict-tenant-readiness" },
+    { "file": "test-browser-runtime-governance.mjs", "evidence_scope": "browser-runtime-health-policy" },
+    { "file": "test-wordpress-blog-publish-orchestrator.mjs", "evidence_scope": "wordpress-publish-authority-diagnostic" },
+    { "file": "test-gmail-user-oauth-consent-flow.mjs", "evidence_scope": "gmail-authorization-url" },
+    { "file": "test-mcp-runtime-initialize.mjs", "evidence_scope": "mcp-initialize" },
+    { "file": "test-ticket-external-credential-orchestration.mjs", "evidence_scope": "ticket-external-credential-orchestration-plan" }
   ],
   "read_action_batches": [
     {
@@ -337,6 +349,202 @@
           "route_markers": ["previewSupportTicketNotificationDelivery"],
           "proof_markers": ["fetchTicket", "buildPreview", "compactTicket"],
           "rationale": "Reads ticket context and builds a notification preview without dispatching an adapter or recording delivery."
+        }
+      ]
+    },
+    {
+      "batch_id": "database-lifecycle-readiness-readbacks-v1",
+      "owner": "platform-engines",
+      "source_file": "routes/platformEngineRoutes.js",
+      "implementation_file": "databaseTableLifecycle.js",
+      "operations": [
+        {
+          "recipe_id": "database-lifecycle-report-schedule-readiness-read-action-v1",
+          "operation": "POST /platform/engines/database-lifecycle/report-snapshot-schedule-readiness",
+          "test_file": "test-database-lifecycle-report-schedule-readiness.mjs",
+          "proof_functions": ["assessDatabaseLifecycleReportSnapshotScheduleReadiness", "listDatabaseLifecycleReportSnapshotSchedules", "buildDatabaseLifecycleReportSnapshotScheduleReadiness"],
+          "route_markers": ["assessDatabaseLifecycleReportSnapshotScheduleReadiness"],
+          "proof_markers": ["FROM database_lifecycle_report_snapshot_schedules", "will_execute: false", "readiness_type"],
+          "rationale": "Reads bounded snapshot-schedule rows and computes readiness in memory while explicitly disabling execution, deletion, archival, and compaction."
+        },
+        {
+          "recipe_id": "database-lifecycle-scheduler-binding-readiness-read-action-v1",
+          "operation": "POST /platform/engines/database-lifecycle/scheduler-binding-readiness",
+          "test_file": "test-database-lifecycle-scheduler-binding-readiness.mjs",
+          "proof_functions": ["assessDatabaseLifecycleSchedulerBindingReadiness", "listDatabaseLifecycleSchedulerBindings", "buildDatabaseLifecycleSchedulerBindingReadiness"],
+          "route_markers": ["assessDatabaseLifecycleSchedulerBindingReadiness"],
+          "proof_markers": ["FROM database_lifecycle_report_snapshot_scheduler_bindings", "will_execute: false", "readiness_type"],
+          "rationale": "Reads bounded scheduler-binding metadata and computes a non-executing readiness report without changing a schedule, binding, or approval event."
+        },
+        {
+          "recipe_id": "database-lifecycle-scheduler-approval-readback-read-action-v1",
+          "operation": "POST /platform/engines/database-lifecycle/scheduler-approval-readback",
+          "test_file": "test-database-lifecycle-scheduler-approval-metadata.mjs",
+          "proof_functions": ["verifyDatabaseLifecycleSchedulerApprovalReadback", "loadSchedulerApprovalTarget", "loadSchedulerApprovalEvent", "buildDatabaseLifecycleSchedulerApprovalReadback"],
+          "route_markers": ["verifyDatabaseLifecycleSchedulerApprovalReadback"],
+          "proof_markers": ["SELECT * FROM ${table}", "SELECT * FROM database_lifecycle_scheduler_approval_events", "will_execute: false", "verified"],
+          "rationale": "Loads the target and approval event through SELECT queries and verifies their exact non-executing metadata without writing a new event."
+        }
+      ]
+    },
+    {
+      "batch_id": "platform-governance-previews-v1",
+      "owner": "platform-governance",
+      "source_file": "routes/capabilityEnvelopeTemplateRoutes.js",
+      "implementation_file": "capabilityEnvelopeTemplateResolver.js",
+      "operations": [
+        {
+          "recipe_id": "capability-envelope-template-resolve-read-action-v1",
+          "operation": "POST /admin/capability-envelope-templates/{templateKey}/resolve",
+          "test_file": "test-capability-envelope-template-resolver.mjs",
+          "proof_functions": ["resolveCapabilityEnvelopeTemplate", "loadTemplate", "normalizeCapabilityEnvelopeTemplateContext", "buildDryRunInput", "computeCapabilityEnvelopeTemplateResolutionHash"],
+          "route_markers": ["resolveCapabilityEnvelopeTemplate"],
+          "proof_markers": ["FROM capability_envelope_templates", "mode: \"preview\"", "create_allowed", "resolution_hash"],
+          "rationale": "Reads one active template, executes the established non-writing capability dry-run, and returns a hash-bound preview without creating an envelope."
+        }
+      ]
+    },
+    {
+      "batch_id": "governed-addition-review-v1",
+      "owner": "governance-runtime",
+      "source_file": "routes/governanceRoutes.js",
+      "implementation_file": "routeWorkflowGovernance.js",
+      "test_file": "test-governed-addition-review.mjs",
+      "operations": [
+        {
+          "recipe_id": "governed-addition-review-read-action-v1",
+          "operation": "POST /governed-addition/review",
+          "proof_functions": ["buildGovernedAdditionReviewResult", "normalizeGovernedAdditionOutcome", "normalizeGovernedAdditionState"],
+          "route_markers": ["buildGovernedAdditionReviewResult"],
+          "proof_markers": ["validation_required: true", "route_overlap_detected", "reconciliation_required"],
+          "rationale": "Normalizes supplied governance evidence and builds a validation review entirely in memory without activating or persisting the addition."
+        }
+      ]
+    },
+    {
+      "batch_id": "dynamic-container-projection-preview-v1",
+      "owner": "platform-governance",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "implementation_file": "dynamicContainerProjectionService.js",
+      "test_file": "test-dynamic-container-authority-runtime.mjs",
+      "operations": [
+        {
+          "recipe_id": "dynamic-container-projection-preview-read-action-v1",
+          "operation": "POST /admin/container-authority/projection-preview",
+          "proof_functions": ["buildLegacyContainerProjectionPlan", "loadProjectionSources"],
+          "route_markers": ["buildLegacyContainerProjectionPlan", "willApply:false", "externalWrites:false"],
+          "proof_markers": ["SELECT tenant_id,tenant_type", "sourceSnapshotSha256", "projectionRunId", "createdBy"],
+          "rationale": "Reads the legacy authority sources and builds a projection plan in memory while the route explicitly reports no apply or external write."
+        }
+      ]
+    },
+    {
+      "batch_id": "repo-conflict-tenant-readiness-v1",
+      "owner": "repository-governance",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "implementation_file": "repoConflictIntelligenceService.js",
+      "test_file": "test-repo-conflict-intelligence-tenant-readiness.mjs",
+      "operations": [
+        {
+          "recipe_id": "repo-conflict-tenant-readiness-read-action-v1",
+          "operation": "POST /admin/repo-conflict-intelligence/tenant-readiness-smoke",
+          "proof_functions": ["assessTenantConflictReadiness", "buildTenantConflictReadinessReport"],
+          "route_markers": ["assessTenantConflictReadiness"],
+          "proof_markers": ["FROM tenant_platform_endpoint_tools", "execution_allowed: false", "provider_write: false", "secrets_included: false"],
+          "rationale": "Reads the three tenant endpoint registrations and builds a sanitized readiness report with execution and provider writes disabled."
+        }
+      ]
+    },
+    {
+      "batch_id": "browser-runtime-read-models-v1",
+      "owner": "browser-runtime",
+      "source_file": "routes/browserRuntimeRoutes.js",
+      "implementation_file": "browserRuntimeGovernance.js",
+      "test_file": "test-browser-runtime-governance.mjs",
+      "operations": [
+        {
+          "recipe_id": "browser-runtime-health-read-action-v1",
+          "operation": "POST /browser-runtime/health",
+          "proof_functions": ["healthBrowserRuntime", "getBrowserRuntime", "loadBrowserRuntimeBinding"],
+          "route_markers": ["healthBrowserRuntime"],
+          "proof_markers": ["SELECT * FROM `browser_runtime_registry`", "SELECT * FROM `browser_runtime_bindings`", "health_status", "secrets_included: false"],
+          "rationale": "Reads the selected runtime and optional binding, then returns registry health and capability metadata without creating a run or event."
+        },
+        {
+          "recipe_id": "browser-runtime-policy-check-read-action-v1",
+          "operation": "POST /browser-runtime/policy-check",
+          "proof_functions": ["checkBrowserRuntimePolicyFromDb", "checkBrowserRuntimePolicy", "getBrowserRuntime", "loadBrowserRuntimeBinding"],
+          "route_markers": ["checkBrowserRuntimePolicyFromDb"],
+          "proof_markers": ["SELECT * FROM `browser_runtime_registry`", "SELECT * FROM `browser_runtime_bindings`", "policy_result", "secrets_included: false"],
+          "rationale": "Loads runtime policy context through SELECT queries and evaluates the requested action in memory without starting browser execution."
+        }
+      ]
+    },
+    {
+      "batch_id": "wordpress-publish-authority-diagnostic-v1",
+      "owner": "wordpress-runtime",
+      "source_file": "routes/outputSinkRoutes.js",
+      "implementation_file": "wordpressBlogPublishOrchestrator.js",
+      "test_file": "test-wordpress-blog-publish-orchestrator.mjs",
+      "operations": [
+        {
+          "recipe_id": "wordpress-publish-authority-diagnostic-read-action-v1",
+          "operation": "POST /wordpress/publish-authority/diagnose",
+          "proof_functions": ["diagnoseWordpressPublishAuthority", "loadBrand", "resolveCmsSiteGrant", "buildPostPayload"],
+          "route_markers": ["diagnoseWordpressPublishAuthority", "No WordPress request is sent"],
+          "proof_markers": ["FROM \\`brands\\`", "FROM \\`cms_site_access_grants\\`", "executes_publish: false", "applies_wordpress_post: false"],
+          "rationale": "Reads brand and CMS grant authority, validates the proposed payload in memory, and explicitly performs no WordPress request or publish."
+        }
+      ]
+    },
+    {
+      "batch_id": "gmail-authorization-url-v1",
+      "owner": "identity-integrations",
+      "source_file": "routes/memberGoogleOAuthRoutes.js",
+      "implementation_file": "routes/memberGoogleOAuthRoutes.js",
+      "test_file": "test-gmail-user-oauth-consent-flow.mjs",
+      "operations": [
+        {
+          "recipe_id": "gmail-authorization-url-read-action-v1",
+          "operation": "POST /admin/oauth/google/gmail-send/authorization-url",
+          "proof_functions": ["resolveUser", "buildGmailAuthorizationUrl", "requestedGmailScopes"],
+          "route_markers": ["buildGmailAuthorizationUrl", "requireBackendApiKey", "requireAdminPrincipal"],
+          "proof_markers": ["SELECT user_id, email FROM users", "signStatePayload", "prompt", "state_expires_in_seconds: 900"],
+          "rationale": "Reads the target member and returns a short-lived signed consent URL without contacting Google or storing OAuth credentials."
+        }
+      ]
+    },
+    {
+      "batch_id": "mcp-protocol-initialize-v1",
+      "owner": "mcp-runtime",
+      "source_file": "routes/mcpRoutes.js",
+      "implementation_file": "mcpRuntime.js",
+      "test_file": "test-mcp-runtime-initialize.mjs",
+      "operations": [
+        {
+          "recipe_id": "mcp-initialize-read-action-v1",
+          "operation": "POST /mcp/initialize",
+          "proof_functions": ["mcpInitialize"],
+          "route_markers": ["requireMcpToken", "requireMcpAcceptHeader", "mcpInitialize"],
+          "proof_markers": ["protocolVersion", "listChanged", "serverInfo"],
+          "rationale": "Returns the fixed MCP protocol and capability handshake without dispatching a tool, querying state, or recording a session."
+        }
+      ]
+    },
+    {
+      "batch_id": "support-ticket-orchestration-plan-v1",
+      "owner": "support-delivery-governance",
+      "source_file": "routes/supportTicketRoutes.js",
+      "implementation_file": "supportTicketExternalCredentialOrchestrationService.js",
+      "test_file": "test-ticket-external-credential-orchestration.mjs",
+      "operations": [
+        {
+          "recipe_id": "ticket-external-credential-orchestration-plan-read-action-v1",
+          "operation": "POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan",
+          "proof_functions": ["planSupportTicketExternalCredentialOrchestration", "fetchTicket", "fetchHold", "buildOrchestrationPlan"],
+          "route_markers": ["planSupportTicketExternalCredentialOrchestration"],
+          "proof_markers": ["SELECT ticket_id", "FROM approval_holds", "planSupportTicketExternalCredentialActivation", "external_send_performed: false"],
+          "rationale": "Reads the ticket and hold, composes the existing activation dry-run plan, and neither approves the hold nor activates, binds, or sends externally."
         }
       ]
     }

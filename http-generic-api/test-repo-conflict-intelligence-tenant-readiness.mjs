@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { buildTenantConflictReadinessReport } from "./repoConflictIntelligenceService.js";
+import {
+  assessTenantConflictReadiness,
+  buildTenantConflictReadinessReport,
+} from "./repoConflictIntelligenceService.js";
+
+// frontend-surface-operation: POST /admin/repo-conflict-intelligence/tenant-readiness-smoke
+// frontend-read-action-proof: POST /admin/repo-conflict-intelligence/tenant-readiness-smoke
 
 const registryRows = [
   {
@@ -52,5 +58,22 @@ const degraded = buildTenantConflictReadinessReport({ registry_rows: registryRow
 assert.equal(degraded.status, "degraded");
 assert.equal(degraded.registry_readiness, "degraded");
 assert.equal(degraded.checks.registry_complete, false);
+
+let readinessQuery = null;
+const assessed = await assessTenantConflictReadiness({}, {
+  pool: {
+    async query(sql, params) {
+      readinessQuery = { sql, params };
+      return [registryRows];
+    },
+  },
+});
+assert.equal(assessed.status, "authorization_gated");
+assert.match(readinessQuery.sql, /^SELECT tool_key/);
+assert.deepEqual(readinessQuery.params, [
+  "tenant_repo_conflict_intelligence_analyze",
+  "tenant_repo_conflict_intelligence_plan",
+  "tenant_repo_conflict_intelligence_resolve_dry_run",
+]);
 
 console.log("repo conflict intelligence tenant readiness tests passed");

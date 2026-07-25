@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "3d1bf4c71514db29340e304db8564b522356f55aa78c72ef74a127e6cef8841c",
+    "source_digest": "cbcc0b883ffdbddc8670d2dd6cb52e3061a6e45d62ea680fc30ca3881f4e0bd8",
     "fail_closed": true
   },
   "source_authority": [
@@ -12,8 +12,23 @@
       "present": true
     },
     {
+      "file": "browserRuntimeGovernance.js",
+      "sha256": "616fabdd59a5d15d802291569b16f3982f887eb6bf9070de37070defeb903b89",
+      "present": true
+    },
+    {
+      "file": "capabilityEnvelopeTemplateResolver.js",
+      "sha256": "7ef8cd1e4539ce82afa0e810c58d62bff8c968e4b63d76ce69590730757d3cfb",
+      "present": true
+    },
+    {
       "file": "databaseTableLifecycle.js",
       "sha256": "c571c7db65f004a6a114628c7aa969eb9b7ec7fd95853e3fef249b37b7f2ad19",
+      "present": true
+    },
+    {
+      "file": "dynamicContainerProjectionService.js",
+      "sha256": "1f07a9486ca52189b4f27f966e64d08d6dde8e522862e8ba0a1992c0e001751c",
       "present": true
     },
     {
@@ -23,7 +38,12 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "48f0f5d9c43b81afb01a3ce2542380786611946865667fe0a58d1cab0c69c56e",
+      "sha256": "2649aed4f86d32f4444ee3deefab9a5d78852edd9fa7641151571b37a04806a1",
+      "present": true
+    },
+    {
+      "file": "mcpRuntime.js",
+      "sha256": "e0b66b1b52f71a72e1769593bbd7092ff7d6264ccf76f75f92acae2e54efe370",
       "present": true
     },
     {
@@ -33,7 +53,7 @@
     },
     {
       "file": "repoConflictIntelligenceService.js",
-      "sha256": "c7cdb138b21cc707f1fea6e00c132708648de292900f0d982ecbe610bc068a70",
+      "sha256": "3825cf45002484ddc1b332a56765113a717ff77561abc4f0821d18de867cd17c",
       "present": true
     },
     {
@@ -42,8 +62,23 @@
       "present": true
     },
     {
+      "file": "routeWorkflowGovernance.js",
+      "sha256": "1c94eeb1b194df4dfae29780b8d4c6ae3f1bf3e9f87fd0260ec707b44c283427",
+      "present": true
+    },
+    {
       "file": "routes/agentGovernanceRoutes.js",
       "sha256": "974a1b4d5f8412a033c948180818ef36f79d9245181475a4049bb7207670d813",
+      "present": true
+    },
+    {
+      "file": "routes/browserRuntimeRoutes.js",
+      "sha256": "96f209c4eff37d24754f7064b15e41ccf86e0f80cb8923dbaae3755f6daf1203",
+      "present": true
+    },
+    {
+      "file": "routes/capabilityEnvelopeTemplateRoutes.js",
+      "sha256": "6825c631779b3f65c136d0701ec3e1b53501462b915a37caba8b24ba8389e82e",
       "present": true
     },
     {
@@ -57,13 +92,33 @@
       "present": true
     },
     {
+      "file": "routes/governanceRoutes.js",
+      "sha256": "a089f38f71681449c5203068770536496732610e881a47ba4e591616b330c602",
+      "present": true
+    },
+    {
+      "file": "routes/mcpRoutes.js",
+      "sha256": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+      "present": true
+    },
+    {
+      "file": "routes/memberGoogleOAuthRoutes.js",
+      "sha256": "86b8b87fc364f75f1af01780baa30c449631c21c5719fe521234871ba5dc93ab",
+      "present": true
+    },
+    {
+      "file": "routes/outputSinkRoutes.js",
+      "sha256": "26fddd79f9226a1cd9d9a415de060b5ec0834f45f8080d185a7381f802b3465a",
+      "present": true
+    },
+    {
       "file": "routes/platformEngineRoutes.js",
       "sha256": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
       "present": true
     },
     {
       "file": "routes/repoConflictIntelligenceRoutes.js",
-      "sha256": "16a1d498ab405b94abe8e888cf8835d6ae74752ea8e06f9824043b90447b444d",
+      "sha256": "36d8a8a9120da88c410bd5467ada1e18f6a2a735c1b51d30299be5e49c27a06c",
       "present": true
     },
     {
@@ -88,12 +143,12 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "6f4af308d192f8eeeabb5848ddf254f50ef50e967b4e50652e2ab655873288f1",
+      "sha256": "0517abf165f8cab6e7fdfd725e9540af79058d806ab67a552f4c599cecb37d66",
       "present": true
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "baf41cb19ad042ef63d06b5122c689fe57edee1a5778c0479e0fc49278529927",
+      "sha256": "15f85059e603f28566f7b32b07edf6014b055ed04d09f4a5d0424f34337f7360",
       "present": true
     },
     {
@@ -119,6 +174,11 @@
     {
       "file": "supportTicketExternalCredentialActivationService.js",
       "sha256": "438abd99b99b6b620a6debee0681907ee4885b0cba18e8717ca72147f4c61dfe",
+      "present": true
+    },
+    {
+      "file": "supportTicketExternalCredentialOrchestrationService.js",
+      "sha256": "4ea13c63bb33277a684a362339708b6d433704607eb868e6b070c46fee3d06e1",
       "present": true
     },
     {
@@ -167,8 +227,53 @@
       "present": true
     },
     {
+      "file": "test-browser-runtime-governance.mjs",
+      "sha256": "6d3bc9177e0917ee1f72ce8928477811d0ce05345e76a1f8441e90c354ae7e39",
+      "present": true
+    },
+    {
+      "file": "test-capability-envelope-template-resolver.mjs",
+      "sha256": "e17f6d82099bf77827979dd25190a6437b3e318c78ec29bbf6e367ff6f88f36c",
+      "present": true
+    },
+    {
+      "file": "test-database-lifecycle-report-schedule-readiness.mjs",
+      "sha256": "68277277f151749493a24905bff5cda485384103dcf0c8889b71b2de39f14310",
+      "present": true
+    },
+    {
+      "file": "test-database-lifecycle-scheduler-approval-metadata.mjs",
+      "sha256": "d1f97c29d2ae5e0aa4dd552f2cd2abfe2b59a9c1693d3d92d4e09cd25c1a03cb",
+      "present": true
+    },
+    {
+      "file": "test-database-lifecycle-scheduler-binding-readiness.mjs",
+      "sha256": "c576521548758e63d670822e106322768da3d9f3bc03f16e142d332d2e193464",
+      "present": true
+    },
+    {
+      "file": "test-dynamic-container-authority-runtime.mjs",
+      "sha256": "d8ef4eeb964d80269a14ece5c2d5607b5c838b2903070c9750e492f22f5ed06a",
+      "present": true
+    },
+    {
       "file": "test-dynamic-container-rollout-safety.mjs",
       "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
+      "present": true
+    },
+    {
+      "file": "test-gmail-user-oauth-consent-flow.mjs",
+      "sha256": "a5298b48dd449e0274ccfb836ea3538fed51557664bc4ba8f7d28e0b2bdbc340",
+      "present": true
+    },
+    {
+      "file": "test-governed-addition-review.mjs",
+      "sha256": "069c4a3535d46e7dbc4c218f6c71b8470cca285ffbeeba53ce7803b00326adb1",
+      "present": true
+    },
+    {
+      "file": "test-mcp-runtime-initialize.mjs",
+      "sha256": "09e1b1a7a932fbc5955adc51b749a47777278e156726a41b96cb9bfc7c3d6803",
       "present": true
     },
     {
@@ -187,13 +292,18 @@
       "present": true
     },
     {
+      "file": "test-repo-conflict-intelligence-tenant-readiness.mjs",
+      "sha256": "d7732f75830c72440b63ab46a9f40f46daeaa612e11304c26e452ea76f72d89c",
+      "present": true
+    },
+    {
       "file": "test-repository-automation-control-plane.mjs",
       "sha256": "a6c0a71edc7a882a04697315452cdd158abb0d6dd708d7f5491ff23ca70df9ae",
       "present": true
     },
     {
       "file": "test-resource-api-service.mjs",
-      "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
+      "sha256": "2d1ad5ca77f072d12c9e71489924bf0fdd5574bb1aff86497f43f5cfd7c82561",
       "present": true
     },
     {
@@ -227,6 +337,11 @@
       "present": true
     },
     {
+      "file": "test-ticket-external-credential-orchestration.mjs",
+      "sha256": "79b405681a96915d6ca623a0edf9f575569a4567c0b0c3892cb2fb2756dde21e",
+      "present": true
+    },
+    {
       "file": "test-ticket-external-delivery-approval-policy.mjs",
       "sha256": "01d9bf3d39b87ec9d00b24bcba66b49fd825a18427dbcd75999cb4ac05428011",
       "present": true
@@ -255,14 +370,65 @@
       "file": "test-ticket-notification-delivery-adapters.mjs",
       "sha256": "e131751ad19f5a147bc5c4761de5dba34ae815f0993569f7b369bce3a2b9edc0",
       "present": true
+    },
+    {
+      "file": "test-wordpress-blog-publish-orchestrator.mjs",
+      "sha256": "1750f2b1ed971f9eb939a04da4df2b536a9deb457e2bcd5736de504141fcb2cc",
+      "present": true
+    },
+    {
+      "file": "wordpressBlogPublishOrchestrator.js",
+      "sha256": "1626b1c01466fb32b6d3ebf51139f38d3d549096ca2d0d7e0f1f9dd93d1d2048",
+      "present": true
     }
   ],
   "coverage": {
-    "candidate_count": 36,
-    "generated_rule_count": 36,
+    "candidate_count": 53,
+    "generated_rule_count": 53,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
+    {
+      "rule_id": "generated-admin-resource-archive-governance",
+      "operation": "DELETE /admin/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Requires the backend and platform-admin guards, verifies archive capability, changes lifecycle state, and verifies the exact archived readback before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-resource-archive-transaction-v1",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "inline_admin_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      }
+    },
     {
       "rule_id": "generated-tenant-resource-archive-governance",
       "operation": "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
@@ -278,7 +444,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
         "fail_closed": true
       },
       "preflight": {
@@ -306,6 +472,47 @@
       }
     },
     {
+      "rule_id": "generated-admin-resource-update-governance",
+      "operation": "PATCH /admin/resources/{resourceKey}/{resourceId}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Requires the backend and platform-admin guards, verifies the asset update capability, mutates supported fields, and verifies the exact readback before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-resource-update-transaction-v1",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "inline_admin_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      }
+    },
+    {
       "rule_id": "generated-tenant-resource-update-governance",
       "operation": "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
       "source_file": "routes/resourceApiRoutes.js",
@@ -320,7 +527,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
         "fail_closed": true
       },
       "preflight": {
@@ -345,6 +552,24 @@
         "tenant_id": "path.tenant_id",
         "resource_key": "path.resourceKey",
         "resource_id": "path.resourceId"
+      }
+    },
+    {
+      "rule_id": "generated-capability-envelope-template-resolve-read-action-v1",
+      "operation": "POST /admin/capability-envelope-templates/{templateKey}/resolve",
+      "source_file": "routes/capabilityEnvelopeTemplateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-governance",
+      "rationale": "Reads one active template, executes the established non-writing capability dry-run, and returns a hash-bound preview without creating an envelope.",
+      "evidence_refs": [
+        "capabilityEnvelopeTemplateResolver.js",
+        "routes/capabilityEnvelopeTemplateRoutes.js",
+        "test-capability-envelope-template-resolver.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "capability-envelope-template-resolve-read-action-v1",
+        "source_digest": "d99db429f16f1187649b58052cffe96b51b1b2fdcc5788a25269db0bc06c9ed2",
+        "fail_closed": true
       }
     },
     {
@@ -390,6 +615,41 @@
       }
     },
     {
+      "rule_id": "generated-dynamic-container-projection-preview-read-action-v1",
+      "operation": "POST /admin/container-authority/projection-preview",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-governance",
+      "rationale": "Reads the legacy authority sources and builds a projection plan in memory while the route explicitly reports no apply or external write.",
+      "evidence_refs": [
+        "dynamicContainerProjectionService.js",
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "test-dynamic-container-authority-runtime.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-projection-preview-read-action-v1",
+        "source_digest": "49e556d2f0d0fc57aa83c660ef584d78a1bc4e2a061ad33a70e072b7d33c9c54",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-gmail-authorization-url-read-action-v1",
+      "operation": "POST /admin/oauth/google/gmail-send/authorization-url",
+      "source_file": "routes/memberGoogleOAuthRoutes.js",
+      "classification": "read_action",
+      "owner": "identity-integrations",
+      "rationale": "Reads the target member and returns a short-lived signed consent URL without contacting Google or storing OAuth credentials.",
+      "evidence_refs": [
+        "routes/memberGoogleOAuthRoutes.js",
+        "test-gmail-user-oauth-consent-flow.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "gmail-authorization-url-read-action-v1",
+        "source_digest": "b9fa7b191ea68ba563209de893aa5c371a279d5493d8a41bd8353681023ac1cf",
+        "fail_closed": true
+      }
+    },
+    {
       "rule_id": "generated-admin-repo-conflict-analyze-read-action-v1",
       "operation": "POST /admin/repo-conflict-intelligence/analyze",
       "source_file": "routes/repoConflictIntelligenceRoutes.js",
@@ -403,7 +663,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-repo-conflict-analyze-read-action-v1",
-        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "source_digest": "69cbcf3f83fd601d35f917eaf67761dc58061d1a987df91db242fbc2c81351ba",
         "fail_closed": true
       }
     },
@@ -421,7 +681,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-repo-conflict-plan-read-action-v1",
-        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "source_digest": "69cbcf3f83fd601d35f917eaf67761dc58061d1a987df91db242fbc2c81351ba",
         "fail_closed": true
       }
     },
@@ -439,7 +699,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-repo-conflict-pr-preview-read-action-v1",
-        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
+        "source_digest": "4a7e9760f8798cb9714de652ae07df5deb9b05ce0abf0a2bd7a4091fdbc9eb0d",
         "fail_closed": true
       }
     },
@@ -457,7 +717,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-repo-conflict-resolve-dry-run-read-action-v1",
-        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
+        "source_digest": "4a7e9760f8798cb9714de652ae07df5deb9b05ce0abf0a2bd7a4091fdbc9eb0d",
         "fail_closed": true
       }
     },
@@ -475,7 +735,25 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-repo-conflict-semantic-preview-read-action-v1",
-        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "source_digest": "69cbcf3f83fd601d35f917eaf67761dc58061d1a987df91db242fbc2c81351ba",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-repo-conflict-tenant-readiness-read-action-v1",
+      "operation": "POST /admin/repo-conflict-intelligence/tenant-readiness-smoke",
+      "source_file": "routes/repoConflictIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-governance",
+      "rationale": "Reads the three tenant endpoint registrations and builds a sanitized readiness report with execution and provider writes disabled.",
+      "evidence_refs": [
+        "repoConflictIntelligenceService.js",
+        "routes/repoConflictIntelligenceRoutes.js",
+        "test-repo-conflict-intelligence-tenant-readiness.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "repo-conflict-tenant-readiness-read-action-v1",
+        "source_digest": "699457a7a5b2d9342ede3893972725ae64fec2349cf97008df95633f5743a885",
         "fail_closed": true
       }
     },
@@ -498,6 +776,89 @@
       }
     },
     {
+      "rule_id": "generated-admin-resource-create-governance",
+      "operation": "POST /admin/resources/{resourceKey}",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Requires the backend and platform-admin guards, validates the admin asset capability, creates the asset, and verifies its exact readback before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-resource-create-transaction-v1",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "inline_admin_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "request.body.tenant_id",
+        "resource_key": "path.resourceKey",
+        "resource_id": "response.id"
+      }
+    },
+    {
+      "rule_id": "generated-admin-resource-restore-governance",
+      "operation": "POST /admin/resources/{resourceKey}/{resourceId}/restore",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "resource-platform",
+      "rationale": "Requires the backend and platform-admin guards, verifies restore capability, changes lifecycle state, and verifies the exact active readback before committing one SQL transaction.",
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "src/application/resourceApi/resourceApiService.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-resource-api-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "admin-resource-restore-transaction-v1",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "inline_admin_capability_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "resource_key": "path.resourceKey",
+        "resource_id": "path.resourceId"
+      }
+    },
+    {
       "rule_id": "generated-ticket-external-credential-activation-plan-read-action-v1",
       "operation": "POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan",
       "source_file": "routes/supportTicketRoutes.js",
@@ -512,6 +873,24 @@
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
         "source_digest": "dca30411eb4ab2e80eeb247fab9660b8cde1ea5a184c00ba9f66dc85c3fb91fc",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-ticket-external-credential-orchestration-plan-read-action-v1",
+      "operation": "POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan",
+      "source_file": "routes/supportTicketRoutes.js",
+      "classification": "read_action",
+      "owner": "support-delivery-governance",
+      "rationale": "Reads the ticket and hold, composes the existing activation dry-run plan, and neither approves the hold nor activates, binds, or sends externally.",
+      "evidence_refs": [
+        "routes/supportTicketRoutes.js",
+        "supportTicketExternalCredentialOrchestrationService.js",
+        "test-ticket-external-credential-orchestration.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "ticket-external-credential-orchestration-plan-read-action-v1",
+        "source_digest": "5aec20563af8e078f4852c60160fef4b7d1aa7534d441c8008977a73623ba46e",
         "fail_closed": true
       }
     },
@@ -660,6 +1039,42 @@
       }
     },
     {
+      "rule_id": "generated-browser-runtime-health-read-action-v1",
+      "operation": "POST /browser-runtime/health",
+      "source_file": "routes/browserRuntimeRoutes.js",
+      "classification": "read_action",
+      "owner": "browser-runtime",
+      "rationale": "Reads the selected runtime and optional binding, then returns registry health and capability metadata without creating a run or event.",
+      "evidence_refs": [
+        "browserRuntimeGovernance.js",
+        "routes/browserRuntimeRoutes.js",
+        "test-browser-runtime-governance.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "browser-runtime-health-read-action-v1",
+        "source_digest": "b49aa27912be454c1c24c13bd0a34cf458510a9426b0c5945f05aa21a6a59029",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-browser-runtime-policy-check-read-action-v1",
+      "operation": "POST /browser-runtime/policy-check",
+      "source_file": "routes/browserRuntimeRoutes.js",
+      "classification": "read_action",
+      "owner": "browser-runtime",
+      "rationale": "Loads runtime policy context through SELECT queries and evaluates the requested action in memory without starting browser execution.",
+      "evidence_refs": [
+        "browserRuntimeGovernance.js",
+        "routes/browserRuntimeRoutes.js",
+        "test-browser-runtime-governance.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "browser-runtime-policy-check-read-action-v1",
+        "source_digest": "b49aa27912be454c1c24c13bd0a34cf458510a9426b0c5945f05aa21a6a59029",
+        "fail_closed": true
+      }
+    },
+    {
       "rule_id": "generated-tenant-connect-bootstrap-governance",
       "operation": "POST /connect/bootstrap",
       "source_file": "routes/connectRoutes.js",
@@ -699,6 +1114,42 @@
         "user_id": "auth.user_id",
         "tenant_id": "auth.tenant_id|response.principal.workspace_key",
         "mode": "request.body.mode|managed"
+      }
+    },
+    {
+      "rule_id": "generated-governed-addition-review-read-action-v1",
+      "operation": "POST /governed-addition/review",
+      "source_file": "routes/governanceRoutes.js",
+      "classification": "read_action",
+      "owner": "governance-runtime",
+      "rationale": "Normalizes supplied governance evidence and builds a validation review entirely in memory without activating or persisting the addition.",
+      "evidence_refs": [
+        "routeWorkflowGovernance.js",
+        "routes/governanceRoutes.js",
+        "test-governed-addition-review.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "governed-addition-review-read-action-v1",
+        "source_digest": "98f8f6a187057451c4605ac735c5f6b107581a13c985b597a1461da4807d5bd7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-mcp-initialize-read-action-v1",
+      "operation": "POST /mcp/initialize",
+      "source_file": "routes/mcpRoutes.js",
+      "classification": "read_action",
+      "owner": "mcp-runtime",
+      "rationale": "Returns the fixed MCP protocol and capability handshake without dispatching a tool, querying state, or recording a session.",
+      "evidence_refs": [
+        "mcpRuntime.js",
+        "routes/mcpRoutes.js",
+        "test-mcp-runtime-initialize.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "mcp-initialize-read-action-v1",
+        "source_digest": "1864d0b11875a6ef04c5633743efad971c203233e6f4bfa350e635d44d591183",
+        "fail_closed": true
       }
     },
     {
@@ -783,7 +1234,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-repo-conflict-analyze-read-action-v1",
-        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "source_digest": "69cbcf3f83fd601d35f917eaf67761dc58061d1a987df91db242fbc2c81351ba",
         "fail_closed": true
       }
     },
@@ -801,7 +1252,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-repo-conflict-plan-read-action-v1",
-        "source_digest": "0e3a2d33b1924b70f2702864b9e9dcf6fddbd656ccec1a9f0572ab78c0a0357b",
+        "source_digest": "69cbcf3f83fd601d35f917eaf67761dc58061d1a987df91db242fbc2c81351ba",
         "fail_closed": true
       }
     },
@@ -819,7 +1270,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-repo-conflict-resolve-dry-run-read-action-v1",
-        "source_digest": "8815cf48ddd0000e078943c3e58ee7048579916009d56e709c3acf52268e7362",
+        "source_digest": "4a7e9760f8798cb9714de652ae07df5deb9b05ce0abf0a2bd7a4091fdbc9eb0d",
         "fail_closed": true
       }
     },
@@ -838,7 +1289,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
         "fail_closed": true
       },
       "preflight": {
@@ -880,7 +1331,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
         "fail_closed": true
       },
       "preflight": {
@@ -980,6 +1431,60 @@
       }
     },
     {
+      "rule_id": "generated-database-lifecycle-report-schedule-readiness-read-action-v1",
+      "operation": "POST /platform/engines/database-lifecycle/report-snapshot-schedule-readiness",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Reads bounded snapshot-schedule rows and computes readiness in memory while explicitly disabling execution, deletion, archival, and compaction.",
+      "evidence_refs": [
+        "databaseTableLifecycle.js",
+        "routes/platformEngineRoutes.js",
+        "test-database-lifecycle-report-schedule-readiness.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "database-lifecycle-report-schedule-readiness-read-action-v1",
+        "source_digest": "faa16efc0ad0306cf3c6d3aa16f1a887f81a20d9c421f40884e45e978116addd",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-database-lifecycle-scheduler-approval-readback-read-action-v1",
+      "operation": "POST /platform/engines/database-lifecycle/scheduler-approval-readback",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Loads the target and approval event through SELECT queries and verifies their exact non-executing metadata without writing a new event.",
+      "evidence_refs": [
+        "databaseTableLifecycle.js",
+        "routes/platformEngineRoutes.js",
+        "test-database-lifecycle-scheduler-approval-metadata.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "database-lifecycle-scheduler-approval-readback-read-action-v1",
+        "source_digest": "844df854fa65422e711146da657b0e96c0c650f02c46050b75501075911b5b1a",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-database-lifecycle-scheduler-binding-readiness-read-action-v1",
+      "operation": "POST /platform/engines/database-lifecycle/scheduler-binding-readiness",
+      "source_file": "routes/platformEngineRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-engines",
+      "rationale": "Reads bounded scheduler-binding metadata and computes a non-executing readiness report without changing a schedule, binding, or approval event.",
+      "evidence_refs": [
+        "databaseTableLifecycle.js",
+        "routes/platformEngineRoutes.js",
+        "test-database-lifecycle-scheduler-binding-readiness.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "database-lifecycle-scheduler-binding-readiness-read-action-v1",
+        "source_digest": "b52e08acebcbb2879beed8f11913a156a0bc61f1aea14c6b63a406bfa3dd30e6",
+        "fail_closed": true
+      }
+    },
+    {
       "rule_id": "generated-database-lifecycle-decision-brief-read-action-v1",
       "operation": "POST /platform/engines/database-table-lifecycle/decision-brief",
       "source_file": "routes/platformEngineRoutes.js",
@@ -1048,6 +1553,24 @@
       "generated_evidence": {
         "recipe_id": "platform-engine-resolve-intent-read-action-v1",
         "source_digest": "0037e4c67202dbf3f91e13afc4ac52e3d5a1db62a4c25a430eb3a57b1b3800ef",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-wordpress-publish-authority-diagnostic-read-action-v1",
+      "operation": "POST /wordpress/publish-authority/diagnose",
+      "source_file": "routes/outputSinkRoutes.js",
+      "classification": "read_action",
+      "owner": "wordpress-runtime",
+      "rationale": "Reads brand and CMS grant authority, validates the proposed payload in memory, and explicitly performs no WordPress request or publish.",
+      "evidence_refs": [
+        "routes/outputSinkRoutes.js",
+        "test-wordpress-blog-publish-orchestrator.mjs",
+        "wordpressBlogPublishOrchestrator.js"
+      ],
+      "generated_evidence": {
+        "recipe_id": "wordpress-publish-authority-diagnostic-read-action-v1",
+        "source_digest": "7b806d06b436ee60516f5945691a1158acaaf0a7cfbb92f5e2549d727caca0e1",
         "fail_closed": true
       }
     }

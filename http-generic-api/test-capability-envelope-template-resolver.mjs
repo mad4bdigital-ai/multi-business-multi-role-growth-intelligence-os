@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+// frontend-surface-operation: POST /admin/capability-envelope-templates/{templateKey}/resolve
+// frontend-read-action-proof: POST /admin/capability-envelope-templates/{templateKey}/resolve
 import {
   buildCapabilityEnvelopeTemplatePassthrough,
   computeCapabilityEnvelopeTemplateResolutionHash,

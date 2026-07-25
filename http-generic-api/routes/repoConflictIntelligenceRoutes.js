@@ -1,13 +1,12 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { getPool } from "../db.js";
 import {
   analyzeRepoConflict,
+  assessTenantConflictReadiness,
   buildConflictCaseStudy,
   buildPrAutomationPreview,
   buildRepoConflictPlan,
   buildRepoConflictResolutionDryRun,
-  buildTenantConflictReadinessReport,
   buildTenantConflictResolutionDryRun,
   buildTenantConflictSummary,
   previewSemanticPatches,
@@ -60,19 +59,7 @@ export function buildRepoConflictIntelligenceRoutes({ requireBackendApiKey, requ
 
   router.post("/admin/repo-conflict-intelligence/tenant-readiness-smoke", ...adminGuards, async (req, res) => {
     try {
-      const [registryRows] = await getPool().query(
-        `SELECT tool_key, is_enabled, http_method, http_path, tags
-         FROM tenant_platform_endpoint_tools
-         WHERE tool_key IN (?, ?, ?)
-         ORDER BY tool_key`,
-        [
-          "tenant_repo_conflict_intelligence_analyze",
-          "tenant_repo_conflict_intelligence_plan",
-          "tenant_repo_conflict_intelligence_resolve_dry_run",
-        ],
-      );
-      return res.status(200).json(buildTenantConflictReadinessReport({
-        registry_rows: registryRows,
+      return res.status(200).json(await assessTenantConflictReadiness({
         sample_input: req.body?.sample_input,
       }));
     } catch (error) {

@@ -1,5 +1,8 @@
 import { getPool } from "./db.js";
-import { activateAndBindSupportTicketExternalCredential } from "./supportTicketExternalCredentialActivationService.js";
+import {
+  activateAndBindSupportTicketExternalCredential,
+  planSupportTicketExternalCredentialActivation,
+} from "./supportTicketExternalCredentialActivationService.js";
 import { checkSupportTicketExternalDeliveryReadiness } from "./supportTicketExternalDeliveryPolicyService.js";
 
 function parseJsonObject(value, fallback = {}) {
@@ -117,7 +120,7 @@ export async function planSupportTicketExternalCredentialOrchestration({ tenant_
     const hold = approval_hold_id ? await fetchHold(connection, { tenant_id, ticket_id, approval_hold_id }) : null;
     const orchestration_plan = buildOrchestrationPlan({ ticket, hold, ref_id, channel: externalChannel, audience: normalizedAudience, validation_evidence, approve_first });
     const activation_dry_run = orchestration_plan.ready_to_orchestrate
-      ? await activateAndBindSupportTicketExternalCredential({ tenant_id, ticket_id, ref_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, validation_evidence, mode: "dry_run" }, { connection })
+      ? await planSupportTicketExternalCredentialActivation({ tenant_id, ticket_id, ref_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, validation_evidence }, { connection })
       : null;
     return { ok: true, mode: "dry_run", orchestration_plan, activation_dry_run, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } finally { if (ownsConnection) connection.release(); }

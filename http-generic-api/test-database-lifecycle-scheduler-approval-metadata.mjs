@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+
+// frontend-surface-operation: POST /platform/engines/database-lifecycle/scheduler-approval-readback
+// frontend-read-action-proof: POST /platform/engines/database-lifecycle/scheduler-approval-readback
 import {
   applyDatabaseLifecycleSchedulerApproval,
   assertDatabaseLifecycleSchedulerApprovalAllowed,

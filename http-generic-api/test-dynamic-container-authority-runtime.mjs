@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
+
+// frontend-surface-operation: POST /admin/container-authority/projection-preview
+// frontend-read-action-proof: POST /admin/container-authority/projection-preview
 import {
   buildContainerClosureRows,
   enumerateContainerPaths,

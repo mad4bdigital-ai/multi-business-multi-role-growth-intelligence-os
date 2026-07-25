@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+
+// frontend-surface-operation: POST /wordpress/publish-authority/diagnose
+// frontend-read-action-proof: POST /wordpress/publish-authority/diagnose
 import {
   dispatchWordpressBlogPublish,
   diagnoseWordpressPublishAuthority,

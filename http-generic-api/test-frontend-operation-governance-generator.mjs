@@ -9,9 +9,13 @@ import {
 } from "./scripts/frontend-operation-governance-generator.mjs";
 
 const EXPECTED_MUTATION_OPERATIONS = [
+  "DELETE /admin/resources/{resourceKey}/{resourceId}",
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+  "PATCH /admin/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "POST /admin/container-authority/canary-closeouts",
+  "POST /admin/resources/{resourceKey}",
+  "POST /admin/resources/{resourceKey}/{resourceId}/restore",
   "POST /connect/bootstrap",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
@@ -75,8 +79,8 @@ assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 36,
-  generated_rule_count: 36,
+  candidate_count: EXPECTED_OPERATIONS.length,
+  generated_rule_count: EXPECTED_OPERATIONS.length,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
@@ -101,7 +105,7 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 36);
+assert.equal(writeResult.plan.coverage.generated_rule_count, EXPECTED_OPERATIONS.length);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
@@ -118,7 +122,7 @@ replaceEvidence(
   "connection.noRollbackEvidence"
 );
 const noRollbackPlan = buildOperationGovernance({ apiRoot: noRollbackFixture });
-for (const operation of EXPECTED_OPERATIONS.filter((entry) => entry.includes("/me/workspaces/"))) {
+for (const operation of EXPECTED_MUTATION_OPERATIONS.filter((entry) => entry.includes("/resources/"))) {
   assert(rejection(noRollbackPlan, operation).missing_evidence.includes("repository_verified_rollback"));
 }
 
@@ -130,7 +134,7 @@ replaceEvidence(
   "transactionRepository.readbackEvidenceRemoved"
 );
 const noReadbackPlan = buildOperationGovernance({ apiRoot: noReadbackFixture });
-for (const operation of EXPECTED_OPERATIONS.filter((entry) => entry.includes("/me/workspaces/"))) {
+for (const operation of EXPECTED_MUTATION_OPERATIONS.filter((entry) => entry.includes("/resources/"))) {
   assert(rejection(noReadbackPlan, operation).missing_evidence.includes("readback_follows_mutation"));
 }
 

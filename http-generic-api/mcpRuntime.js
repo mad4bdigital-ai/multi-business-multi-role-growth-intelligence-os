@@ -372,11 +372,7 @@ async function dispatchTool(name, args, deps) {
 
 export function buildMcpHandlers(deps = {}) {
   return {
-    mcpInitialize: async (_req, res) => res.json({
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: { listChanged: true } },
-      serverInfo: { name: "multi-business-growth-intelligence-os", version: "1.0.0" },
-    }),
+    mcpInitialize,
 
     mcpToolsList: async (_req, res) => res.json({ tools: TOOL_DEFINITIONS }),
 

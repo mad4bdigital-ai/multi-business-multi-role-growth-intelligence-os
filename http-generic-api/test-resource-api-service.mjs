@@ -6,6 +6,11 @@ import { createResourceRepository } from "./src/infrastructure/resourceApi/resou
 // frontend-surface-operation: PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
 // frontend-surface-operation: DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}
 // frontend-surface-operation: POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore
+// frontend-surface-operation: POST /admin/resources/{resourceKey}
+// frontend-surface-operation: PATCH /admin/resources/{resourceKey}/{resourceId}
+// frontend-surface-operation: DELETE /admin/resources/{resourceKey}/{resourceId}
+// frontend-surface-operation: POST /admin/resources/{resourceKey}/{resourceId}/restore
+// frontend-surface-operation: POST /admin/resources/{resourceKey}/{resourceId}/purge
 
 function createFakeRepository(overrides = {}) {
   const sessions = new Map([

@@ -408,6 +408,25 @@ export function buildTenantConflictReadinessReport(input = {}) {
   });
 }
 
+export async function assessTenantConflictReadiness(input = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const [registryRows] = await pool.query(
+    `SELECT tool_key, is_enabled, http_method, http_path, tags
+       FROM tenant_platform_endpoint_tools
+      WHERE tool_key IN (?, ?, ?)
+      ORDER BY tool_key`,
+    [
+      "tenant_repo_conflict_intelligence_analyze",
+      "tenant_repo_conflict_intelligence_plan",
+      "tenant_repo_conflict_intelligence_resolve_dry_run",
+    ],
+  );
+  return buildTenantConflictReadinessReport({
+    registry_rows: registryRows,
+    sample_input: input.sample_input,
+  });
+}
+
 export function buildTenantConflictSummary(input = {}) {
   const analysis = analyzeRepoConflict(input);
   return sanitize({ ok: true, scope: "tenant", classification: analysis.classification, recommended_path: analysis.recommended_path === "manual_required" ? "request_admin_review" : "request_admin_resolution", summary: analysis.summary, tenant_visible_files: analysis.files.map((file) => ({ path: file.path, path_class: file.path_class, strategy: file.strategy, risk: file.risk })), secrets_included: false });
