@@ -515,6 +515,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
         purposes: normalizedPurposes,
         limit: 1,
         excludeActiveClaims: true,
+        allowedEmailIds: runtimeGate.enabled ? runtimeGate.allowed_email_ids : [],
       });
       const email = rows[0] || null;
       if (!email) {
