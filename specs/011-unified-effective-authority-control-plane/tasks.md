@@ -30,7 +30,7 @@
 - [ ] T023 Add delegation contexts.
 - [ ] T024 Add decision, projection, invalidation, and drift ledgers.
 - [x] T025 Add indexes and query plans.
-- [ ] T026 Document rollback and backfill.
+- [x] T026 Document rollback and backfill.
 
 ## P1 — Projections
 
