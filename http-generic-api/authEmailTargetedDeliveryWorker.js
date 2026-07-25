@@ -439,13 +439,26 @@ export async function applyTargetAuthEmailDelivery({
       external_send_performed: true,
       secrets_included: false,
     };
-    await connection.query(
+    const [sentUpdate] = await connection.query(
       `UPDATE auth_email_outbox
           SET status = 'sent', provider = 'gmail_api', provider_message_id = ?, metadata_json = ?,
               last_error = NULL, sent_at = CURRENT_TIMESTAMP
-        WHERE email_id = ? AND status = 'processing'`,
-      [providerResult.provider_message_id, JSON.stringify(sentMetadata), email.email_id],
+        WHERE email_id = ? AND status = 'failed'
+          AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.delivery_attempt_id')) = ?`,
+      [
+        providerResult.provider_message_id,
+        JSON.stringify(sentMetadata),
+        email.email_id,
+        attempt.attempt_id,
+      ],
     );
+    if (Number(sentUpdate?.affectedRows || 0) !== 1) {
+      throw structuredError(
+        "auth_email_outbox_finalize_conflict",
+        "The reserved auth email could not be finalized after provider delivery.",
+        409,
+      );
+    }
     const lifecycleEventId = await recordLifecycleEvent(connection, {
       email,
       metadata,
