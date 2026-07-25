@@ -220,8 +220,8 @@ function createMemoryPool() {
     expected_state_revision: 3,
     payload: { reason: "worker_interrupted", secrets_included: false },
   }), { pool: memory.pool, uuid: () => ids.event });
-  assert.equal(result.state.lifecycle_status, "interrupted");
-  assert.equal(result.state.recovery_classification, "waiting_external_signal");
+  assert.equal(result.state.lifecycle_status, "recovery_pending");
+  assert.equal(result.state.recovery_classification, "interrupted_resumable");
 }
 
 {
