@@ -66,7 +66,19 @@ const ACTION_GRANT_SQL = `
     g.status,
     g.created_at
   FROM app_action_grants g
-  WHERE g.connection_id = ?
+  INNER JOIN user_app_connections c
+    ON c.connection_id = g.connection_id
+    AND c.app_key = g.app_key
+  INNER JOIN workspace_app_links l
+    ON l.connection_id = g.connection_id
+    AND l.workspace_id = g.workspace_id
+    AND l.app_key = g.app_key
+    AND l.tenant_id = c.tenant_id
+  WHERE c.tenant_id = ?
+    AND l.tenant_id = ?
+    AND c.status = 'active'
+    AND l.status = 'active'
+    AND g.connection_id = ?
     AND g.workspace_id = ?
     AND g.app_key = ?
     AND g.action_key = ?
@@ -157,7 +169,14 @@ export function createExactConnectionRepository(options = {}) {
 
     let grant = null;
     if (action) {
-      const grantRows = await sql.execute(ACTION_GRANT_SQL, [connection, workspace, row.app_key, action]);
+      const grantRows = await sql.execute(ACTION_GRANT_SQL, [
+        tenant,
+        tenant,
+        connection,
+        workspace,
+        row.app_key,
+        action,
+      ]);
       grant = requireUniqueRow(grantRows, {
         code: "exact_connection_action_grant_ambiguous",
         entityName: "Exact connection action grant",
