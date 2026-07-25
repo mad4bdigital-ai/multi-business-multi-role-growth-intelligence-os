@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": null,
-    "source_digest": "39dd6ea6078134c686e6e17805a47694e0c8e2d26992c0c9ddbe9b47eb92e0c0",
+    "ref": "main",
+    "source_digest": "e32f9c2de878bde016d18082d2615c10cb67a33aca05c268b214a826f96c3a68",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -31,7 +31,7 @@
       },
       {
         "file": "openapi/agent-skill-grant-approvals.yaml",
-        "sha256": "68fc4a9d0f87e2ea7d8cbf1e3ba669a70317f89e65fb7da67362ef62b181b45b",
+        "sha256": "1458e760134c471b3cd720769b5cbf55b149002ceede6021d12df38e52cc1b6b",
         "present": true
       },
       {
