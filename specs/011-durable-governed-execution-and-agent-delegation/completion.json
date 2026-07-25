@@ -294,6 +294,15 @@
         "Unit & Integration Tests"
       ]
     },
+    "phase3_delegation_persistence_ci": {
+      "status": "pending_pr_3110",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
     "migration": {
       "status": "not_required_for_phase1_shadow"
     },
