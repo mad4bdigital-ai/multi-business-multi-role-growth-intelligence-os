@@ -113,7 +113,8 @@ export function createTenantGrowthControlProjectionRepository({
   }
 
   async function listConfigurationVersions({ tenantId, workspaceId, brandKey, limit, offset }) {
-    const [rows] = await pool.query(
+    const db = await executor();
+    const [rows] = await db.query(
       `SELECT config_version_id,
               config_key,
               version_number,
