@@ -1,0 +1,357 @@
+{
+  "schema_version": "1.0.0",
+  "feature_key": "012-tenant-activation-lifecycle",
+  "tasks": ["T015", "T016", "T017"],
+  "runtime_authority": false,
+  "source_contracts": [
+    "specs/012-tenant-activation-lifecycle/spec.md",
+    "specs/012-tenant-activation-lifecycle/data-model.md",
+    "specs/012-tenant-activation-lifecycle/contracts/activation-operation.schema.json",
+    "specs/012-tenant-activation-lifecycle/contracts/tenant-activation-lifecycle.openapi.yaml",
+    "specs/012-tenant-activation-lifecycle/decisions/ADR-002-phased-legacy-audience-cutoff.md"
+  ],
+  "operation": {
+    "declared_statuses": [
+      "created",
+      "authenticating",
+      "authorized",
+      "resolving_session",
+      "bootstrapping",
+      "validating",
+      "preparing_tools",
+      "ready",
+      "active",
+      "executing",
+      "readback_pending",
+      "delivery_pending",
+      "acknowledgement_pending",
+      "retry_scheduled",
+      "unknown_outcome",
+      "reconciling",
+      "degraded",
+      "authorization_gated",
+      "validation_rate_limited",
+      "contract_degraded",
+      "failed",
+      "cancelled",
+      "rolled_back"
+    ],
+    "core_nonterminal_states": [
+      "created",
+      "authenticating",
+      "authorized",
+      "resolving_session",
+      "bootstrapping",
+      "validating",
+      "preparing_tools",
+      "ready",
+      "executing",
+      "readback_pending",
+      "retry_scheduled",
+      "unknown_outcome",
+      "reconciling"
+    ],
+    "aggregate_overlay_states": [
+      "delivery_pending",
+      "acknowledgement_pending"
+    ],
+    "stable_reported_states": [
+      "active",
+      "degraded",
+      "authorization_gated",
+      "validation_rate_limited",
+      "contract_degraded",
+      "failed",
+      "cancelled",
+      "rolled_back"
+    ],
+    "success_states": ["active"],
+    "terminal_without_retry": ["active", "cancelled", "rolled_back"],
+    "stable_retry_requires_governed_request": [
+      "degraded",
+      "authorization_gated",
+      "validation_rate_limited",
+      "contract_degraded",
+      "failed"
+    ],
+    "transitions": {
+      "created": ["authenticating", "authorized", "cancelled"],
+      "authenticating": ["authorized", "authorization_gated", "failed", "cancelled"],
+      "authorized": ["resolving_session", "cancelled"],
+      "resolving_session": ["bootstrapping", "authorization_gated", "degraded", "cancelled"],
+      "bootstrapping": ["validating", "preparing_tools", "ready", "degraded", "cancelled"],
+      "validating": ["preparing_tools", "ready", "degraded", "validation_rate_limited", "contract_degraded", "cancelled"],
+      "preparing_tools": ["ready", "degraded", "contract_degraded", "cancelled"],
+      "ready": ["active", "executing", "cancelled"],
+      "executing": ["readback_pending", "unknown_outcome", "failed", "cancelled"],
+      "readback_pending": ["active", "degraded", "failed", "unknown_outcome"],
+      "unknown_outcome": ["reconciling"],
+      "reconciling": ["active", "degraded", "failed", "unknown_outcome"],
+      "retry_scheduled": [
+        "authenticating",
+        "resolving_session",
+        "bootstrapping",
+        "validating",
+        "preparing_tools",
+        "executing",
+        "reconciling"
+      ]
+    },
+    "retry_entry_states": [
+      "degraded",
+      "authorization_gated",
+      "validation_rate_limited",
+      "contract_degraded",
+      "failed",
+      "unknown_outcome"
+    ],
+    "rules": {
+      "active_requires_same_operation_evidence": true,
+      "unknown_outcome_requires_reconcile_before_replay": true,
+      "retry_creates_monotonic_stage_attempt": true,
+      "prior_evidence_is_immutable": true,
+      "delivery_overlay_preserves_execution_outcome": true,
+      "acknowledgement_overlay_preserves_execution_outcome": true,
+      "recovered_success_from_unrelated_operation_forbidden": true
+    }
+  },
+  "stage_attempt": {
+    "statuses": [
+      "pending",
+      "running",
+      "succeeded",
+      "degraded",
+      "failed",
+      "unknown_outcome",
+      "cancelled"
+    ],
+    "transitions": {
+      "pending": ["running", "cancelled"],
+      "running": ["succeeded", "degraded", "failed", "unknown_outcome", "cancelled"]
+    },
+    "terminal_states": [
+      "succeeded",
+      "degraded",
+      "failed",
+      "unknown_outcome",
+      "cancelled"
+    ],
+    "unknown_outcome_is_immutable": true,
+    "retry_creates_new_attempt": true
+  },
+  "delivery": {
+    "statuses": ["not_prepared", "prepared", "sent", "failed", "expired"],
+    "record_transitions": {
+      "prepared": ["sent", "failed", "expired"]
+    },
+    "terminal_attempt_states": ["sent", "failed", "expired"],
+    "retry_creates_new_attempt": true,
+    "rewrites_execution_outcome": false
+  },
+  "acknowledgement": {
+    "statuses": ["not_requested", "pending", "acknowledged", "rejected", "expired"],
+    "record_transitions": {
+      "not_requested": ["pending"],
+      "pending": ["acknowledged", "rejected", "expired"]
+    },
+    "terminal_states": ["acknowledged", "rejected", "expired"],
+    "idempotent_final_observation": true,
+    "rewrites_execution_outcome": false,
+    "rewrites_delivery_outcome": false
+  },
+  "reconciliation": {
+    "statuses": [
+      "not_required",
+      "pending",
+      "executed",
+      "not_executed",
+      "conflicting",
+      "still_unknown",
+      "failed"
+    ],
+    "terminal_attempt_states": [
+      "executed",
+      "not_executed",
+      "conflicting",
+      "still_unknown",
+      "failed"
+    ],
+    "executes_original_mutation": false
+  },
+  "errors": [
+    {
+      "code": "USER_JWT_REQUIRED",
+      "http_status": 401,
+      "stage": "gateway",
+      "retryable": false,
+      "reconnect_required": true,
+      "user_action": "connect_oauth",
+      "readback": "gateway_auth_log"
+    },
+    {
+      "code": "USER_JWT_INVALID",
+      "http_status": 401,
+      "stage": "gateway",
+      "retryable": false,
+      "reconnect_required": true,
+      "user_action": "reconnect",
+      "readback": "token_verification_evidence"
+    },
+    {
+      "code": "TOKEN_RESOURCE_INVALID",
+      "http_status": 401,
+      "stage": "gateway",
+      "retryable": false,
+      "reconnect_required": true,
+      "user_action": "reconnect_or_correct_client",
+      "readback": "token_verification_evidence"
+    },
+    {
+      "code": "MEMBERSHIP_REQUIRED",
+      "http_status": 403,
+      "stage": "session",
+      "retryable": false,
+      "reconnect_required": false,
+      "user_action": "request_tenant_access",
+      "readback": "membership_registry"
+    },
+    {
+      "code": "WORKSPACE_NOT_READY",
+      "http_status": 409,
+      "stage": "bootstrap",
+      "retryable": "conditional",
+      "reconnect_required": false,
+      "user_action": "complete_workspace_bootstrap",
+      "readback": "workspace_registry"
+    },
+    {
+      "code": "CONNECTION_REQUIRED",
+      "http_status": 409,
+      "stage": "bootstrap",
+      "retryable": false,
+      "reconnect_required": false,
+      "user_action": "connect_named_app",
+      "readback": "connection_registry"
+    },
+    {
+      "code": "BOOTSTRAP_VALIDATING",
+      "http_status": 202,
+      "stage": "bootstrap",
+      "retryable": true,
+      "reconnect_required": false,
+      "user_action": "retry_later",
+      "readback": "bootstrap_evidence"
+    },
+    {
+      "code": "VALIDATION_RATE_LIMITED",
+      "http_status": 429,
+      "stage": "provider_validation",
+      "retryable": true,
+      "reconnect_required": false,
+      "user_action": "retry_after_guidance",
+      "readback": "provider_response_and_retry_time"
+    },
+    {
+      "code": "ACTIVATION_DEPENDENCY_UNAVAILABLE",
+      "http_status": 503,
+      "stage": "dependency",
+      "retryable": true,
+      "reconnect_required": false,
+      "user_action": "retry_later",
+      "readback": "stage_attempt_evidence"
+    },
+    {
+      "code": "ACTIVATION_OUTCOME_UNKNOWN",
+      "http_status": 202,
+      "stage": "dispatch",
+      "retryable": "reconcile_first",
+      "reconnect_required": false,
+      "user_action": "do_not_replay_blindly",
+      "readback": "operation_reconciliation_ledger"
+    },
+    {
+      "code": "DEPLOYMENT_STALE",
+      "http_status": 503,
+      "stage": "deployment",
+      "retryable": true,
+      "reconnect_required": false,
+      "user_action": "wait_for_deploy_or_operator",
+      "readback": "main_deployed_parity"
+    },
+    {
+      "code": "ACTIVATION_CONTRACT_ERROR",
+      "http_status": 502,
+      "stage": "contract",
+      "retryable": false,
+      "reconnect_required": false,
+      "user_action": "operator_support",
+      "readback": "schema_client_evidence"
+    }
+  ],
+  "reconnect_policy": {
+    "allowed_error_codes": [
+      "USER_JWT_REQUIRED",
+      "USER_JWT_INVALID",
+      "TOKEN_RESOURCE_INVALID"
+    ],
+    "forbidden_stages": [
+      "membership",
+      "workspace",
+      "bootstrap",
+      "connection",
+      "provider_validation",
+      "tool_readiness",
+      "contract",
+      "deployment",
+      "delivery",
+      "acknowledgement",
+      "dispatch_unknown_outcome"
+    ],
+    "deployment_mismatch_reconnect_required": false
+  },
+  "compatibility": {
+    "existing_oauth_client_stable": true,
+    "existing_public_hosts_callbacks_urls_stable": true,
+    "additive_response_fields_optional_during_migration": true,
+    "existing_required_fields_removal_allowed": false,
+    "existing_required_fields_rename_allowed": false,
+    "proposed_operation_endpoints_require_canonical_adoption": true,
+    "legacy_audience": {
+      "hard_cutoff": "2026-10-31T23:59:59Z",
+      "emergency_extension_max_days": 14,
+      "absolute_extension_limit_without_new_adr": "2026-11-14T23:59:59Z",
+      "cleanup_zero_usage_days": 30,
+      "before_cutoff_valid_legacy_reconnect_required": false,
+      "after_cutoff_unbound_legacy_http_status": 401,
+      "after_cutoff_unbound_legacy_reconnect_required": true,
+      "phases": [
+        {
+          "key": "measurement",
+          "start": "2026-07-22T00:00:00Z",
+          "end": "2026-08-15T23:59:59Z"
+        },
+        {
+          "key": "targeted_notice",
+          "start": "2026-08-16T00:00:00Z",
+          "end": "2026-09-30T23:59:59Z"
+        },
+        {
+          "key": "canary_enforcement",
+          "start": "2026-10-01T00:00:00Z",
+          "end": "2026-10-15T23:59:59Z"
+        },
+        {
+          "key": "final_warning",
+          "start": "2026-10-16T00:00:00Z",
+          "end": "2026-10-30T23:59:59Z"
+        },
+        {
+          "key": "general_enforcement",
+          "start": "2026-10-31T23:59:59Z",
+          "end": null
+        }
+      ]
+    }
+  },
+  "secrets_included": false
+}

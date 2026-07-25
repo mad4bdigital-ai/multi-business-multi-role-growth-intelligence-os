@@ -4,22 +4,18 @@
   "title": "Platform Dynamic Workflow Runtime",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-07-24T13:46:00Z",
   "current_increment": {
-    "phase": "authority_scope_shadow_closeout_completed",
-    "design_version": "0.3.0",
-    "pull_request": 2930,
-    "branch": "gpt/006-authority-scope-closeout-final-20260721",
-    "implementation_started": true,
-    "implementation_merged": true,
-    "migrations_executed": true,
-    "projection_dry_run_passed": true,
-    "projection_apply_readback_present": true,
-    "shadow_observation_passed": true,
-    "production_verification_passed": true,
-    "post_merge_audit_passed": true,
-    "release_readiness_passed": true,
-    "production_activation_authorized": false,
-    "enforcement_mode": "shadow_only"
+    "phase": "task_reconciliation_baseline_complete_batch_1_planned",
+    "branch": "gpt/006-task-reconciliation-audit",
+    "dynamic_container_implementation_merged": true,
+    "dynamic_container_migrations_executed": true,
+    "projection_validation_passed": true,
+    "read_only_canary_completed": true,
+    "canary_closed_to_shadow": true,
+    "task_reconciliation_baseline_completed": true,
+    "next_batch": "epic_a_hardening_and_operations",
+    "global_enforcement_enabled": false
   },
   "requirements": {
     "migration": true,
@@ -27,242 +23,92 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "design_pr": {
-      "number": 1929,
-      "branch": "gpt/006-platform-dynamic-workflow-runtime",
-      "role": "design_and_planning",
-      "status": "merged",
-      "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"
-    },
     "implementation_prs": [
-      {
-        "number": 1941,
-        "branch": "gpt/006-authority-scope-foundation",
-        "role": "authority_scope_foundation",
-        "status": "merged",
-        "merge_sha": "b315af10713268919be2f5c734103fcee944508e",
-        "migration_file": "20260628_authority_scope_registry_foundation.sql",
-        "migration_checksum_sha256": "2766ea298b74bd0ea4b5876be30f41e66e81a85e7f3857395f02d9ad4db1bfe2",
-        "migration_statement_count": 3,
-        "migration_ledger_run_id": "af79c934-dd9a-448e-9389-0380ab7457f1"
-      },
-      {
-        "number": 1945,
-        "branch": "gpt/006-authority-scope-shadow-integration",
-        "role": "authority_scope_shadow_integration",
-        "status": "merged",
-        "merge_sha": "71ef9dea87472babe07d150bceb07316826d85e6"
-      },
-      {
-        "number": 1949,
-        "branch": "gpt/006-authority-scope-shadow-evidence",
-        "role": "authority_scope_shadow_evidence",
-        "status": "merged",
-        "merge_sha": "520416ba7da14fccd2782867aa33ccc9f8be94b1",
-        "migration_file": "20260628_authority_scope_shadow_evidence.sql",
-        "migration_checksum_sha256": "b57bf8b1d0dca777764f7008e1dd291d356279b4199fb477642340229508bdbd",
-        "migration_statement_count": 1,
-        "migration_ledger_run_id": "5e0a68ec-f3aa-4133-98f4-acf67fded18b"
-      },
-      {
-        "number": 1955,
-        "branch": "gpt/006-authority-scope-shadow-readiness",
-        "role": "authority_scope_shadow_readiness",
-        "status": "merged",
-        "merge_sha": "d4cd8210aa70fcd85125bd0550a7324b649f9636",
-        "migration_file": "20260629_authority_scope_shadow_readiness.sql",
-        "migration_checksum_sha256": "4c830fd95c20bdd81a813dab25f8fac980e34f7b72cf58a28e821b59657f4cfa",
-        "migration_statement_count": 2,
-        "migration_ledger_run_id": "128f9543-9fc8-4ca5-bbd1-1aa88671c514"
-      }
+      {"number": 1929, "role": "design_and_planning", "status": "merged", "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"},
+      {"number": 1941, "role": "authority_scope_foundation", "status": "merged", "merge_sha": "b315af10713268919be2f5c734103fcee944508e"},
+      {"number": 1945, "role": "shadow_integration", "status": "merged", "merge_sha": "71ef9dea87472babe07d150bceb07316826d85e6"},
+      {"number": 1949, "role": "shadow_evidence", "status": "merged", "merge_sha": "520416ba7da14fccd2782867aa33ccc9f8be94b1"},
+      {"number": 1955, "role": "shadow_readiness", "status": "merged", "merge_sha": "d4cd8210aa706cd85125bd0550a7324b649f9636"},
+      {"number": 2930, "role": "shadow_closeout", "status": "merged", "merge_sha": "bfda4c3dabbf3e4ec0ba0fcdbf6f3d48808c3e0a"},
+      {"number": 2963, "role": "tenant_brand_projection_fallback", "status": "merged", "merge_sha": "7ea86a7007d48a1c7fd63192fa7ef8913c48ed4e"},
+      {"number": 2997, "role": "tenant_brand_fk_fix", "status": "merged", "merge_sha": "f0f0659e7b7d2bb8b171345bf8a4812f24813b5b"},
+      {"number": 3008, "role": "data_hold_documentation", "status": "merged", "merge_sha": "3003583c8071833c453b0991264c1780bc51bd85"},
+      {"number": 3037, "role": "wovacation_brand_link", "status": "merged", "merge_sha": "a9330bf69540336c66f15457d7a675fe21b005e5"},
+      {"number": 3047, "role": "wovacation_predicate_fix", "status": "merged", "merge_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4"},
+      {"number": 3061, "role": "default_workspace_classification_repair", "status": "merged", "merge_sha": "f351e2d6bd5329271953a63604f89d1dcc2e8e4b"},
+      {"number": 3080, "role": "dynamic_container_closeout_and_read_only_canary", "status": "merged", "merge_sha": "2a20e8c986cb361416d9cea073a75a56f92f3886"}
     ],
-    "closeout_pr": {
-      "number": "current",
-      "branch": "gpt/006-authority-scope-closeout-final-20260721",
-      "role": "completion",
-      "status": "current_pr"
-    },
-    "superseded_prs": [
-      {
-        "number": 1968,
-        "branch": "gpt/006-authority-scope-closeout",
-        "role": "stale_runtime_closeout_draft",
-        "status": "superseded_by_fresh_final_closeout_branch",
-        "reason": "branch diverged from main without file overlap after later runtime and closeout work landed"
-      },
-      {
-        "number": 1978,
-        "branch": "gpt/006-container-projection-source-loader",
-        "role": "projection_loader_fix",
-        "status": "closed_unmerged_but_fix_present_on_current_main",
-        "closed_at": "2026-07-05T19:58:23Z",
-        "reason": "current deployed main contains bounded loader behavior and structured source-load failure handling"
-      }
-    ]
+    "task_reconciliation": {
+      "branch": "gpt/006-task-reconciliation-audit",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "status": "baseline_complete_pending_pr"
+    }
   },
   "evidence": {
-    "authority_scope_shadow_closeout": {
-      "status": "complete",
-      "completion_classification": "completed_shadow_only_with_documented_non_blocking_projection_holds",
-      "completed_at": "2026-07-21T16:36:54.063Z",
-      "enforcement_enabled": false,
-      "promotion_requested": false,
-      "production_activation_authorized": false,
-      "provider_calls_made": false,
-      "credential_payloads_read": false,
-      "external_writes_made": false,
-      "secrets_included": false
-    },
-    "ci": {
-      "status": "pending_fresh_pr_checks",
-      "head_sha": "5c2da1e714ee3e4ec4d73679a7987e7b2848dfdf",
-      "note": "Fresh PR checks must pass on the final closeout PR before merge. The root Spec Kit remains in_progress, so this field is informational for the completed Authority Scope shadow increment."
-    },
-    "migration": {
-      "status": "pass",
-      "migration_executed": true,
-      "authorization_status": "authorized",
-      "dry_run_status": "pass",
-      "preflight_risk_count": 0,
-      "same_cycle_schema_readback": true,
-      "files": [
-        {
-          "file": "20260628_authority_scope_registry_foundation.sql",
-          "checksum_sha256": "2766ea298b74bd0ea4b5876be30f41e66e81a85e7f3857395f02d9ad4db1bfe2",
-          "statement_count": 3,
-          "ledger_run_id": "af79c934-dd9a-448e-9389-0380ab7457f1"
-        },
-        {
-          "file": "20260628_authority_scope_shadow_evidence.sql",
-          "checksum_sha256": "b57bf8b1d0dca777764f7008e1dd291d356279b4199fb477642340229508bdbd",
-          "statement_count": 1,
-          "ledger_run_id": "5e0a68ec-f3aa-4133-98f4-acf67fded18b"
-        },
-        {
-          "file": "20260629_authority_scope_shadow_readiness.sql",
-          "checksum_sha256": "4c830fd95c20bdd81a813dab25f8fac980e34f7b72cf58a28e821b59657f4cfa",
-          "statement_count": 2,
-          "ledger_run_id": "128f9543-9fc8-4ca5-bbd1-1aa88671c514"
-        }
+    "dynamic_container_ci": {"status": "pass", "checks_passed": 4, "checks_total": 4},
+    "migrations": {
+      "status": "applied",
+      "ledger_run_ids": [
+        "9c3efe4d-3e11-4413-b46c-463be48d14d0",
+        "3cebd87d-5da4-457a-9f1a-3261eb5eb2cc",
+        "afeac58e-73c1-47ee-a34c-e583403755a3"
       ],
-      "schema_objects": [
-        "authority_scope_registry",
-        "authority_scope_shadow_evidence",
-        "v_authority_scope_shadow_summary",
-        "v_container_rollout_readiness_v2"
-      ]
+      "same_cycle_readback_verified": true
     },
-    "projection_dry_run": {
+    "projection": {
       "status": "pass",
-      "projection_run_id": "7833dce7-4ebb-4c0f-96fa-36ef87a7bccf",
-      "source_snapshot_sha256": "43599f30c5fe36e834eaf6851ae0b8f243b4180e00e8ef5ad6ac7476882b8377",
-      "projected_container_count": 79,
-      "projected_relationship_count": 62,
+      "projected_container_count": 89,
+      "projected_relationship_count": 72,
       "projected_role_assignment_count": 38,
       "projected_resource_binding_count": 65,
-      "held_issue_count": 8,
-      "high_risk_issue_count": 0,
-      "provider_calls": false,
-      "credential_payload_reads": false,
-      "external_writes": false,
-      "secrets_included": false
+      "held_issue_count": 0,
+      "high_risk_issue_count": 0
     },
-    "projection_issues": {
-      "status": "documented_non_blocking_for_shadow_review",
-      "held_issue_count": 8,
-      "high_risk_issue_count": 0,
-      "ignored_fixture_count": 1,
-      "held_issue_codes": [
-        "workspace_brand_link_missing"
-      ],
-      "ignored_issue_codes": [
-        "workspace_brand_fixture_excluded"
-      ],
-      "policy_decision": "Held workspace brand links remain review items before any promotion beyond shadow. They do not grant authority, do not enable enforcement, and do not block shadow-only closeout while high-risk issues are zero."
-    },
-    "runtime_readback": {
-      "status": "pass",
-      "containers": 79,
-      "container_relationships": 64,
-      "container_resource_bindings": 65,
-      "container_effective_context_ledger": 500,
-      "container_shadow_comparisons": 400,
-      "authority_scope_registry": 15,
-      "authority_scope_shadow_evidence": 500,
-      "container_projection_runs": 4,
-      "container_identity_projection_issues": 36
-    },
-    "shadow_observation": {
-      "status": "pass_ready_for_review",
-      "policy_key": "dynamic_container_authority_v1",
+    "rollout_readiness": {
+      "status": "ready_for_review",
       "rollout_mode": "shadow",
-      "readiness_code": "ready_for_review",
-      "minimum_sample_count": 100,
       "comparison_sample_count": 100,
       "mismatch_count": 0,
       "critical_mismatch_count": 0,
-      "maximum_mismatch_percent": "0.0000",
-      "performance_sample_count": 100,
-      "p95_latency_ms": "26.437",
-      "p99_latency_ms": "100.307",
-      "p95_budget_ms": 150,
-      "p99_budget_ms": 400,
-      "audit_sample_count": 100,
-      "audited_sample_count": 100,
-      "audit_coverage_percent": "100.0000",
-      "audit_coverage_required_percent": "100.0000",
-      "relationship_issue_count": 0,
-      "high_risk_projection_issue_count": 0,
-      "enforcement_requested": 0,
-      "secrets_included": 0
+      "p95_latency_ms": 15.972,
+      "p99_latency_ms": 19.583,
+      "audit_coverage_percent": 100,
+      "enforcement_requested": 0
     },
-    "post_merge_audit": {
-      "status": "pass",
-      "platform_root_count": 1,
-      "platform_root_with_tenant_id": 0,
-      "tenant_scope_count": 14,
-      "tenant_scope_without_tenant_id": 0,
-      "inactive_scope_rows": 0,
-      "total_scope_rows": 15,
-      "non_shadow_evidence": 0,
-      "authority_granted_evidence": 0,
-      "provider_call_evidence": 0,
-      "credential_read_evidence": 0,
-      "secret_evidence": 0,
-      "secret_comparisons": 0,
-      "active_orphan_relationship_from": 0,
-      "active_orphan_relationship_to": 0,
-      "active_orphan_bindings": 0,
-      "disabled_orphan_relationships_documented": 2
+    "read_only_canary": {
+      "status": "accepted_closed_to_shadow",
+      "target_canary_key": "container_authority_rollout_readiness_v1",
+      "promotion_envelope_id": "33ea55e5-d145-4e91-981d-6c62c6d03fc4",
+      "probe_run_id": "a45bbfbd-d24f-4519-9968-10ce9eec3a73",
+      "sample_count": 100,
+      "success_count": 100,
+      "failure_count": 0,
+      "average_latency_ms": 11.355,
+      "maximum_latency_ms": 15.698,
+      "monitoring_p95_latency_ms": 15.075,
+      "audit_coverage_percent": 100,
+      "closeout_envelope_id": "4a961cc2-3928-41d7-9e7c-595e8bfc191a",
+      "final_rollout_mode": "shadow",
+      "global_enforcement_enabled": false
     },
-    "production_verification": {
-      "status": "pass",
-      "environment_key": "production",
-      "production_parity": "verified",
-      "readiness_classification": "ready",
-      "expected_commit_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
-      "deployed_commit_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
-      "deployment_manifest_commit_sha": "e4394ec6e1bef1f2039a77df0240d64dc4f4c811",
-      "deployed_at": "2026-07-21T15:51:40.810Z",
-      "blocking_gap_count": 0
+    "task_reconciliation": {
+      "status": "baseline_complete",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "total_task_count": 70,
+      "implemented_count": 7,
+      "partial_count": 25,
+      "no_direct_evidence_count": 38,
+      "checkboxes_changed": 0,
+      "next_batch": "epic_a_hardening_and_operations"
     },
-    "release_readiness": {
-      "status": "pass",
-      "checked_at": "2026-07-21T16:36:54.063Z",
-      "overall": "pass",
-      "summary": {
-        "total": 4,
-        "pass": 4,
-        "warn": 0,
-        "fail": 0
-      },
-      "degraded_surfaces": []
+    "safety": {
+      "provider_calls_made": false,
+      "credential_payloads_read": false,
+      "external_writes_made": false,
+      "production_activation_authorized": false,
+      "global_enforcement_enabled": false,
+      "secrets_included": false
     }
   },
-  "next_scope_before_enforcement": [
-    "resolve_or_formally_exclude_workspace_brand_link_missing_holds",
-    "run a new promotion-specific readiness review",
-    "obtain explicit enforcement authorization"
-  ],
   "secrets_included": false
 }

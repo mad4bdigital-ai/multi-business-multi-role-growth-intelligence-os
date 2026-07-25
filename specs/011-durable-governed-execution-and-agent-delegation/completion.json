@@ -56,6 +56,27 @@
       "number": 3042,
       "branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
       "role": "plan_bound_session_shadow",
+      "status": "merged",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+    },
+    "phase3_closeout_pr": {
+      "number": 3055,
+      "branch": "gpt/spec-011-phase3-closeout-20260723",
+      "role": "phase3_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "64b862e1de0c0398b0d87e1d7c93d1ceff866103"
+    },
+    "phase3_delegation_grant_shadow_pr": {
+      "number": 3067,
+      "branch": "gpt/spec-011-phase3-delegation-grant-shadow-20260723",
+      "role": "delegation_grant_shadow",
+      "status": "merged",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+    },
+    "phase3_delegation_grant_shadow_closeout_pr": {
+      "number": 3092,
+      "branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
+      "role": "delegation_grant_shadow_evidence_closeout",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -74,7 +95,14 @@
       {
         "number": 3042,
         "role": "phase3_plan_bound_session_shadow",
-        "status": "current_pr"
+        "status": "merged",
+        "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+      },
+      {
+        "number": 3067,
+        "role": "phase3_delegation_grant_shadow",
+        "status": "merged",
+        "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
       }
     ],
     "closeout_pr": {
@@ -135,9 +163,10 @@
       "secrets_included": false
     },
     "phase3_session_shadow": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
       "pull_request": 3042,
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
       "service": "http-generic-api/planBoundSessionShadow.js",
       "test": "http-generic-api/test-plan-bound-session-shadow.mjs",
       "design": "phase3-plan-bound-session-shadow.md",
@@ -156,8 +185,40 @@
       "provider_write": false,
       "secrets_included": false
     },
+    "phase3_delegation_grant_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
+      "pull_request": 3067,
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "service": "http-generic-api/delegationGrantShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-shadow.mjs",
+      "design": "phase3-delegation-grant-shadow.md",
+      "reused_plan_bound_session_shadow": "http-generic-api/planBoundSessionShadow.js",
+      "reused_manual_opt_in": "http-generic-api/agentDelegationOptIn.js",
+      "preview_contract": true,
+      "legacy_inspection_contract": true,
+      "revoke_preview": true,
+      "expire_preview": true,
+      "legacy_dispatch_eligible": false,
+      "tenant_scope": true,
+      "self_delegation_blocked": true,
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_binding": true,
+      "bounded_ttl_and_limits": true,
+      "readback_required": true,
+      "stop_on_drift_required": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_plan_bound_session_shadow_complete_on_branch"
+      "status": "phase3_delegation_grant_shadow_complete_on_main"
     },
     "ci": {
       "status": "pass",
@@ -182,7 +243,20 @@
       ]
     },
     "phase3_ci": {
-      "status": "pending_phase3_pr",
+      "status": "pass",
+      "head_sha": "e3c927bee291a425ada8e939bf3485a1e0762f02",
+      "base_sha": "d3cdf2e249d2c2fd62d52fbff0b83c3c4a6fbb6b",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_grant_shadow_ci": {
+      "status": "pass",
+      "head_sha": "2ad2d916cb43f8410c7f5ae80a6fb4bcffec69fa",
+      "base_sha": "bd404977fe12ef12c8449e143705e40a475690ce",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -198,6 +272,45 @@
     },
     "phase3_migration": {
       "status": "not_required_for_phase3_shadow_session"
+    },
+    "phase3_delegation_grant_shadow_migration": {
+      "status": "not_required_for_shadow_contract"
+    },
+    "phase3_delegation_grant_shadow_production_verification": {
+      "status": "verified_at_runtime_descendant_and_current_main_parity",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "deployed_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "current_main_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "runtime_verification_run_id": "5d5a1318-0ecd-4b38-8283-461ef627e642",
+      "checked_at": "2026-07-24T02:58:15.641Z",
+      "merge_to_runtime_status": "ahead",
+      "merge_to_runtime_ahead_by": 2,
+      "merge_to_runtime_behind_by": 0,
+      "runtime_to_main_status": "identical",
+      "runtime_to_main_ahead_by": 0,
+      "runtime_to_main_behind_by": 0,
+      "release_readiness": "pass",
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "degraded_contract_pre_execution_module_missing",
+      "release_operation_id": "8aada61f-4007-46e1-804f-60c4b0b3afe9",
+      "gate_id": "879fab13-058a-46f9-a746-7b252241de84",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "observed_error_code": "ERR_MODULE_NOT_FOUND",
+      "missing_module": "http-generic-api/knowledgeSurfaceResolver.js",
+      "transient_module_race_reconciled": true,
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "4bbc4963ef81a5f9cf847dcab9bd53742aebc1c505678f001c0fc625b66c4416",
+      "secrets_included": false
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -233,11 +346,51 @@
       "rollback_required": false,
       "secrets_included": false
     },
+    "phase3_production_verification": {
+      "status": "verified_at_runtime_descendant",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
+      "deployed_commit_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4",
+      "runtime_verification_run_id": "e2a51673-8bb4-4864-a1c2-1606d1fcc5e8",
+      "checked_at": "2026-07-23T18:31:36.459Z",
+      "phase3_to_runtime_status": "ahead",
+      "phase3_to_runtime_ahead_by": 7,
+      "phase3_to_runtime_behind_by": 0,
+      "current_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
+      "runtime_to_main_status": "ahead",
+      "runtime_to_main_ahead_by": 1,
+      "runtime_to_main_behind_by": 0,
+      "main_only_files": [
+        "docs/work-maps/README.md",
+        "docs/work-maps/data-model-domain-map.md",
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "superseded_before_execution",
+      "release_operation_id": "2cca7984-3d93-40eb-bcc3-78f6319e87ff",
+      "gate_id": "05d4ef00-0a42-47bc-bb5e-6649c6b50df7",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "02c13f7409d7cf84333dc80f034d2f8c45f89de5",
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "094633d4f0a6e81c1ef2239efa081c34c84d48dba82842c6652498a100735b03",
+      "secrets_included": false
+    },
     "post_merge_audit": {
       "phase1_status": "complete",
       "phase2_status": "complete_on_main",
       "phase2_closeout_status": "merged",
-      "phase3_status": "pending_phase3_merge",
+      "phase3_status": "complete_on_main",
+      "phase3_closeout_status": "merged",
+      "phase3_delegation_grant_shadow_status": "complete_on_main",
+      "phase3_delegation_grant_shadow_closeout_status": "current_pr",
       "spec_status": "pending_remaining_phases"
     }
   },
