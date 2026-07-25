@@ -241,4 +241,63 @@ assert(routeSource.includes("/tenant/control-plane/configuration-versions"));
 assert(routeSource.includes("/tenant/control-plane/activity-bindings"));
 assert(routeSource.includes("requireTenantProjectionPrincipal"));
 
+const tenantOpenApiSource = readFileSync("openapi/tenant-growth-control-plane.openapi.yaml", "utf8");
+const tenantOpenApi = YAML.parse(tenantOpenApiSource);
+assert.equal(tenantOpenApi.openapi, "3.1.0");
+assert(tenantOpenApi.components.securitySchemes.tenantBearerAuth);
+assert.deepEqual(tenantOpenApi.security, [{ tenantBearerAuth: [] }]);
+
+const configurationVersionsOperation = tenantOpenApi.paths["/tenant/control-plane/configuration-versions"].get;
+const activityBindingsOperation = tenantOpenApi.paths["/tenant/control-plane/activity-bindings"].get;
+assert.equal(configurationVersionsOperation.operationId, "listTenantGrowthControlConfigurationVersions");
+assert.equal(activityBindingsOperation.operationId, "listTenantGrowthControlActivityBindings");
+for (const operation of [configurationVersionsOperation, activityBindingsOperation]) {
+  assert.equal(operation["x-contract-completeness"], "canonical");
+  assert.deepEqual(
+    operation.parameters.map((parameter) => parameter.$ref),
+    [
+      "#/components/parameters/WorkspaceId",
+      "#/components/parameters/BrandKey",
+      "#/components/parameters/Limit",
+      "#/components/parameters/Cursor"
+    ]
+  );
+  for (const statusCode of ["200", "400", "401", "403", "500"]) {
+    assert(operation.responses[statusCode]);
+  }
+  assert.equal(operation.responses["404"], undefined);
+}
+
+assert.equal(tenantOpenApi.components.parameters.WorkspaceId.required, true);
+assert.equal(tenantOpenApi.components.parameters.WorkspaceId.schema.format, "uuid");
+assert.equal(tenantOpenApi.components.parameters.BrandKey.required, true);
+assert.equal(tenantOpenApi.components.parameters.Limit.schema.maximum, 100);
+assert.match(tenantOpenApi.components.parameters.Cursor.description, /opaque/i);
+
+const configurationProjectionProperties = tenantOpenApi.components.schemas.TenantConfigurationVersion.properties;
+const activityProjectionProperties = tenantOpenApi.components.schemas.TenantActivityBinding.properties;
+for (const restrictedField of [
+  "values",
+  "schema",
+  "defaultValues",
+  "mergeProfile",
+  "idempotencyKey",
+  "createdBy",
+  "approvedBy",
+  "approvalHoldId",
+  "executionContext",
+  "credentials",
+  "token"
+]) {
+  assert.equal(Object.hasOwn(configurationProjectionProperties, restrictedField), false);
+  assert.equal(Object.hasOwn(activityProjectionProperties, restrictedField), false);
+}
+assert.equal(configurationProjectionProperties.metadataOnly.const, true);
+assert.equal(configurationProjectionProperties.secretsIncluded.const, false);
+assert.equal(activityProjectionProperties.metadataOnly.const, true);
+assert.equal(activityProjectionProperties.secretsIncluded.const, false);
+assert.equal(tenantOpenApi.components.schemas.ProjectionEnvelopeBase.properties.providerCalls.const, false);
+assert.equal(tenantOpenApi.components.schemas.ProjectionEnvelopeBase.properties.externalWrites.const, false);
+assert.equal(tenantOpenApi.components.schemas.ProjectionEnvelopeBase.properties.secretsIncluded.const, false);
+
 console.log("tenant growth control plane projection tests passed");
