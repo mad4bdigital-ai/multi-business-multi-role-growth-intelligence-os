@@ -89,6 +89,12 @@ function operationalError(code, message) {
   return error;
 }
 
+function normalizeAdvisoryLockResult(value) {
+  if (value === 0 || value === 1) return value;
+  if (value === "0" || value === "1") return Number(value);
+  return null;
+}
+
 export async function runGovernedMigrationReconciliationRuntime(options = {}, dependencies = {}) {
   const apply = options.apply === true;
   const limit = Math.max(1, Math.min(Number(options.limit || 2000), 2000));
@@ -111,9 +117,9 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
       "SELECT GET_LOCK(?, 0) AS acquired",
       [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
     );
-    const lockResult = lockRows?.[0]?.acquired;
+    const lockResult = normalizeAdvisoryLockResult(lockRows?.[0]?.acquired);
 
-    if (Number(lockResult) === 0) {
+    if (lockResult === 0) {
       response = {
         ok: true,
         skipped: true,
@@ -122,7 +128,7 @@ export async function runGovernedMigrationReconciliationRuntime(options = {}, de
         mode: apply ? "apply" : "dry_run",
         secrets_included: false,
       };
-    } else if (Number(lockResult) !== 1) {
+    } else if (lockResult !== 1) {
       throw operationalError(
         "governed_migration_reconciliation_lock_failed",
         "The migration reconciliation advisory lock could not be evaluated.",

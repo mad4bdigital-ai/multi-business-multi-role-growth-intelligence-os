@@ -75,6 +75,15 @@ assert.equal(busy.released, true);
 assert.equal(busy.destroyed, false);
 assert.equal(busy.queries.some(({ sql }) => sql.includes("RELEASE_LOCK")), false);
 
+const stringBusy = createHarness({ acquired: "0" });
+const stringBusyResult = await runGovernedMigrationReconciliationRuntime(
+  { apply: false },
+  { pool: stringBusy.pool, execFileAsync: stringBusy.execFileAsync },
+);
+assert.equal(stringBusyResult.ok, true);
+assert.equal(stringBusyResult.skipped, true);
+assert.equal(stringBusy.executeCount, 0);
+
 const indeterminate = createHarness({ acquired: null });
 const indeterminateResult = await runGovernedMigrationReconciliationRuntime(
   { apply: false },
@@ -104,6 +113,15 @@ assert.deepEqual(
   success.queries.find(({ sql }) => sql.includes("GET_LOCK")).params,
   [GOVERNED_MIGRATION_RECONCILIATION_LOCK],
 );
+
+const stringSuccess = createHarness({ acquired: "1" });
+const stringSuccessResult = await runGovernedMigrationReconciliationRuntime(
+  { apply: false },
+  { pool: stringSuccess.pool, execFileAsync: stringSuccess.execFileAsync },
+);
+assert.equal(stringSuccessResult.ok, true);
+assert.equal(stringSuccess.executeCount, 1);
+assert.equal(stringSuccess.released, true);
 
 const failure = createHarness({ acquired: 1, executorError: new Error("executor failed") });
 const failureResult = await runGovernedMigrationReconciliationRuntime(
