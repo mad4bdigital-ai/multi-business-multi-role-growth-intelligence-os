@@ -315,6 +315,14 @@
     "phase3_delegation_grant_shadow_migration": {
       "status": "not_required_for_shadow_contract"
     },
+    "phase3_delegation_persistence_migration": {
+      "status": "contract_only_unapplied",
+      "file": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "migration_applied": false,
+      "database_write": false,
+      "backfill_performed": false,
+      "same_cycle_readback_required_before_apply": true
+    },
     "phase3_delegation_grant_shadow_production_verification": {
       "status": "verified_at_runtime_descendant_and_current_main_parity",
       "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
