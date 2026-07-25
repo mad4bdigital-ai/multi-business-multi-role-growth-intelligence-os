@@ -22224,3 +22224,174 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
+
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source-adapter readiness
+      responses:
+        "200": { description: Agent Governance Runtime readiness and blockers }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenant_id, scopes]
+              properties:
+                tenant_id: { type: string }
+                scopes:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+ } }
+        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: '^[a-z0-9_-]{1,32}
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source-adapter readiness
+      responses:
+        "200": { description: Agent Governance Runtime readiness and blockers }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenant_id, scopes]
+              properties:
+                tenant_id: { type: string }
+                scopes:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+ } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Logic runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+  /platform/agent-governance/engine-coverage:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceEngineCoverage
+      summary: Read evidence-backed Agent Engine runtime coverage
+      description: Returns workflow-bound Engine references separately from retrieval, selection, dispatch, success, and verification evidence. Textual references alone are not counted as usage.
+      parameters:
+        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source-adapter readiness
+      responses:
+        "200": { description: Agent Governance Runtime readiness and blockers }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenant_id, scopes]
+              properties:
+                tenant_id: { type: string }
+                scopes:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+ } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Engine runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+  /platform/agent-governance/readiness:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source-adapter readiness
+      responses:
+        "200": { description: Agent Governance Runtime readiness and blockers }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenant_id, scopes]
+              properties:
+                tenant_id: { type: string }
+                scopes:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
