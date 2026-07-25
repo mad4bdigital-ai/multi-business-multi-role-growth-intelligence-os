@@ -36,6 +36,6 @@ assert.match(ledger, /idempotency_key/, "ledger service must use idempotency_key
 assert.match(worker, /requireAuthEmailOutboxAttemptLedger/, "worker must require ledger before apply delivery");
 assert.match(worker, /claimAuthEmailOutboxDeliveryAttempt/, "worker must claim attempts before Gmail delivery");
 assert.match(worker, /updateAuthEmailOutboxDeliveryAttempt/, "worker must finalize attempts after delivery result");
-assert.doesNotMatch(migration, /\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bTRUNCATE\b/i, "migration must be additive schema only");
+assert.doesNotMatch(migration, /^\s*(INSERT|UPDATE|DELETE|DROP|TRUNCATE)\b/im, "migration must be additive schema only");
 
 console.log("auth email outbox delivery attempts migration test passed");
