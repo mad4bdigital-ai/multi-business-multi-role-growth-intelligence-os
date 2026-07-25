@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fc9c04c7e74cefb22dc26cf5a1dcd289fbaca405f26ec2d6164b38d12a0cedb2",
+    "source_digest": "33d04329c8864869e2a89dac5df14e23e75f79a3e7936e760a549d7c4d03010c",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "afbc908322486c56348c5e859d8ef19de38f522c88a8b8ce03c7bca8c8afb5e5",
+        "sha256": "231395b0d3b821e9674fac3ab01ca0bd62d29108b0c4a083f12cb699d1a21840",
         "present": true
       },
       {
@@ -896,7 +896,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "37890b007b3adb20c8beec323619c3e3d7104a21d70f5f2d6696e6f7cd81e85e",
+        "sha256": "69a47c54d6d63c51bd60f107bb584617cb32ca2e49b554f02379c509d910f390",
         "present": true
       },
       {
@@ -961,7 +961,7 @@
       },
       {
         "file": "test-connectors.mjs",
-        "sha256": "5b0e657371a2cf85edb84442a0d952bd61e0b83f1273bfc621907b4805c91055",
+        "sha256": "b0baaa83a3c50b496b98cfeed9e134378798d739948c16751cffc788c3e2c40c",
         "present": true
       },
       {
@@ -1091,7 +1091,7 @@
       },
       {
         "file": "test-session-insight-capability-envelope-actual-request-preflight-service.mjs",
-        "sha256": "29e13c55deb7529e65e86091c441b021fef88dca003fae9b07764d79101f20b2",
+        "sha256": "36ed5996d4105d84be22189a7a9ead92e8cfe9d4a85ea411f6d6bdaed7344501",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs",
-        "sha256": "02ecf532b9295ecc1a0475e683ea020a0a7454925217d379cd7c82a9c6c7d743",
+        "sha256": "650b9851dd75e34e72d4f7855657b38b26dd9a61bc5bc0290e5e21667dc2fd58",
         "present": true
       },
       {
@@ -1111,27 +1111,42 @@
       },
       {
         "file": "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs",
-        "sha256": "8612923701b94e1887ef9356f82b1d865af9e03985c720cf5f0d3a8dc2ed02fa",
+        "sha256": "e3504d396a1f612ce07d2984111b24d34662d0db99acd8603292dd6840c61869",
         "present": true
       },
       {
         "file": "test-session-insight-capability-envelope-dispatch-readback-service.mjs",
-        "sha256": "d33a41bf087d246e43410adefc36ac6ac5baced106ce7b6659b68a373cf3459a",
+        "sha256": "43f9b149f3e12d2a50cc1a1b07f838045e805eeab5df1f74f8ce3583c6ea7b60",
         "present": true
       },
       {
         "file": "test-session-insight-capability-envelope-plan-service.mjs",
-        "sha256": "8e6ae5609593c2eb863d97b42b41a4cbae088083a9a58eaf3fee0b2c96848647",
+        "sha256": "41cc54c2c4670454d5d2af24c1db1d5a7c6715bf2af71f5c67a5753038921a0f",
         "present": true
       },
       {
         "file": "test-session-insight-capability-envelope-request-gate-service.mjs",
-        "sha256": "b6b1b8492b6be8c24ce7080c5a8e6350479263d8636eb5bab8c2254b7029e167",
+        "sha256": "a67f268f2f271e866ae2ded92a0001c42c00d74c8a072d5e51990fec2dd0b63a",
         "present": true
       },
       {
         "file": "test-session-insight-payload-preview-review-service.mjs",
         "sha256": "f61200ab695047aa546e751cbab12b4e5be1c73a0dca57ced779d5641069f7ba",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-payload-preview-service.mjs",
+        "sha256": "2238a17aa5e881b8449fdb6fcd8af98f72bc61b9679f3fd4cf35a50cca07fbee",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-promotion-apply-request-service.mjs",
+        "sha256": "d8446819de574bdc6939ae23d104d7d476f1c029b48f5128478c0fc4bd11a072",
+        "present": true
+      },
+      {
+        "file": "test-session-insight-promotion-dry-run-executor-service.mjs",
+        "sha256": "784ecdb5c6e14bfbeb9be4df37d5bc2e32efe5b1f74f69d84684c7a9ac27c8cb",
         "present": true
       },
       {
@@ -1141,7 +1156,7 @@
       },
       {
         "file": "test-session-insight-remaining-scope-completion-service.mjs",
-        "sha256": "b3e6f6b2c0f20921d6ebc00053ffa2b0f09f0d2ae1ae3e473d41ae44f19808ad",
+        "sha256": "b6fda9ce31d80e51156146212ef41c1d480db77280f25c189345db06351f1434",
         "present": true
       },
       {
@@ -1151,7 +1166,7 @@
       },
       {
         "file": "test-session-insight-target-write-readback-service.mjs",
-        "sha256": "0028f8f91f08b07ae9383fba74945d8cc201d959fbe794e2d827603420e04b5a",
+        "sha256": "738fa8cbd6fa41b7e64f3c24f7bbfebe275295a44cbfaffd8104953c3551004f",
         "present": true
       },
       {
@@ -1175,8 +1190,18 @@
         "present": true
       },
       {
+        "file": "test-tenant-resolution-diagnostic-core.mjs",
+        "sha256": "586644732fd2b10d3fc94667912333dafea94427c4eb8009a6d2fccc7e37f47d",
+        "present": true
+      },
+      {
         "file": "test-tenant-ssh-cli-dry-run.mjs",
         "sha256": "66238db0ca21469e3c00422b6f6464bd9b6972ba723d9ca94218b4dea2b583d2",
+        "present": true
+      },
+      {
+        "file": "test-tenant-task-source-repair-preview.mjs",
+        "sha256": "451f57e25ec1285de7fe8a3921f3bc609b369f57f43bf01578ebf8f029bc3f6f",
         "present": true
       },
       {
@@ -1283,15 +1308,15 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
-    "unresolved_operation_class_count": 484,
-    "classified_mutation_count": 19,
-    "governed_mutation_operation_count": 19,
+    "unresolved_operation_class_count": 470,
+    "classified_mutation_count": 32,
+    "governed_mutation_operation_count": 32,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 150,
-    "test_owned_family_count": 8,
-    "untested_family_count": 157,
-    "test_owned_operation_count": 117,
-    "untested_operation_count": 877,
+    "test_owned_family_count": 19,
+    "untested_family_count": 146,
+    "test_owned_operation_count": 131,
+    "untested_operation_count": 863,
     "ready_task_count": 3,
     "blocked_task_count": 162,
     "coverage_complete": false
@@ -13569,20 +13594,53 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-resolution-diagnostic-core.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "tenant_membership_case_lock_and_mode_state_gate"
+              },
+              "approval": {
+                "mode": "tenant_runtime_authorization"
+              },
+              "readback": {
+                "mode": "transactional_locked_projection",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ],
+                "rationale": "Diagnostic, plan-preview, or escalation mutations and their evidence events share one SQL transaction; failures roll back before the connection is released."
+              }
+            },
+            "parameter_bindings": {
+              "case_id": "path.caseId",
+              "tenant_id": "auth.tenant_id",
+              "mode": "request.body.mode",
+              "case_status": "response.case.status"
+            },
+            "blockers": [],
+            "rule_id": "generated-tenant-resolution-diagnostic-state-change-v1",
+            "owner": "tenant-resolution-governance",
+            "rationale": "Locks the tenant case, applies exactly one allowed diagnostic mode with evidence events in a transaction, and returns the locked projection while denying provider calls and repair execution.",
+            "evidence_refs": [
+              "routes/activationAwarenessRoutes.js",
+              "tenantResolutionDiagnosticService.js",
+              "test-tenant-resolution-diagnostic-core.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -13631,20 +13689,53 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-tenant-task-source-repair-preview.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "tenant_membership_case_scope_and_task_lock"
+              },
+              "approval": {
+                "mode": "tenant_runtime_authorization"
+              },
+              "readback": {
+                "mode": "transactional_locked_projection",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ],
+                "rationale": "The case preview update and immutable event append execute on one connection; any mutation or projection failure rolls the transaction back before release."
+              }
+            },
+            "parameter_bindings": {
+              "case_id": "path.caseId",
+              "tenant_id": "auth.tenant_id",
+              "task_id": "request.body.task_id|resolved task",
+              "preview_fingerprint": "response.preview.preview_fingerprint_sha256"
+            },
+            "blockers": [],
+            "rule_id": "generated-tenant-task-source-repair-preview-state-change-v1",
+            "owner": "tenant-resolution-governance",
+            "rationale": "Locks the tenant-scoped case and task, stores the repair preview plus evidence event in one transaction, and returns the locked projection with task writes and external effects denied.",
+            "evidence_refs": [
+              "routes/activationAwarenessRoutes.js",
+              "tenantTaskSourceRepairPreviewService.js",
+              "test-tenant-task-source-repair-preview.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -14020,7 +14111,10 @@
       "evidence_routes": [
         "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview"
       ],
-      "tests": [],
+      "tests": [
+        "test-tenant-resolution-diagnostic-core.mjs",
+        "test-tenant-task-source-repair-preview.mjs"
+      ],
       "untested_operations": [
         "GET /tenant/activation/awareness",
         "GET /tenant/activation/operational-attention",
@@ -14029,8 +14123,6 @@
         "POST /tenant/resolution/cases",
         "GET /tenant/resolution/cases/{caseId}",
         "POST /tenant/resolution/cases/{caseId}/transitions",
-        "POST /tenant/resolution/cases/{caseId}/diagnostics",
-        "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview",
         "POST /tenant/resolution/cases/{caseId}/task-source-repair/apply",
         "POST /tenant/resolution/cases/{caseId}/task-source-repair/verify",
         "GET /tenant/resolution/skill-approvals",
@@ -14052,7 +14144,9 @@
         "resource-api-coverage.manifest.json",
         "routes/activationAwarenessRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-tenant-resolution-diagnostic-core.mjs",
+        "test-tenant-task-source-repair-preview.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -14068,18 +14162,6 @@
         },
         {
           "signature": "POST /tenant/resolution/cases/{caseId}/transitions",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /tenant/resolution/cases/{caseId}/diagnostics",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -14104,7 +14186,7 @@
         }
       ],
       "risk": {
-        "score": 6,
+        "score": 8,
         "class": "high"
       },
       "wave": "F1-tenant-shell"
@@ -19260,17 +19342,25 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-connectors.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "generated-hostinger-ssh-runtime-registry-read-action-v1",
+            "owner": "hosting-runtime-governance",
+            "rationale": "Reads one matching Hostinger target from the SQL authority registry and returns connection metadata plus a credential reference without contacting Hostinger, executing SSH, or changing provider state.",
+            "evidence_refs": [
+              "hostinger.js",
+              "routes/governanceRoutes.js",
+              "test-connectors.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -19500,6 +19590,7 @@
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [
+        "test-connectors.mjs",
         "test-governed-addition-review.mjs"
       ],
       "untested_operations": [
@@ -19507,7 +19598,6 @@
         "GET /governance/execution-log-latest",
         "GET /governance/execution-log-sheets-recovery",
         "GET /governance/execution-log-latest-inspect",
-        "POST /hostinger/ssh-runtime-read",
         "POST /site-migration/bootstrap-registry",
         "GET /ai/registry-readiness"
       ],
@@ -19529,6 +19619,7 @@
         "routes/governanceRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-connectors.mjs",
         "test-governed-addition-review.mjs"
       ],
       "surface_decision": {
@@ -19539,12 +19630,6 @@
       "operation_blockers": [
         {
           "signature": "POST /governance/resolve-context-diagnostic",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /hostinger/ssh-runtime-read",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -45291,20 +45376,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-promotion-dry-run-executor-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "approved_ready_promotion_and_explicit_record_preview"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "Recording is opt-in and appends a dry-run-only preview with execution disabled; retaining the record preserves audit evidence and no provider or target state needs reversal."
+              }
+            },
+            "parameter_bindings": {
+              "promotion_id": "request.body.promotion_id|selected promotion",
+              "record_preview": "request.body.record_preview",
+              "preview_id": "response.recorded_previews[].preview_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-recorded-dry-run-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Builds dry-run previews with execution disabled and, only when explicitly requested, appends each preview and verifies its exact non-executable readback.",
+            "evidence_refs": [
+              "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
+              "sessionInsightPromotionDryRunExecutorService.js",
+              "test-session-insight-promotion-dry-run-executor-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -45314,10 +45426,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/executor/dry-run"
+      "tests": [
+        "test-session-insight-promotion-dry-run-executor-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -45333,21 +45445,15 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-dry-run-executor-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/executor/dry-run",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -45422,20 +45528,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-promotion-apply-request-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "approved_promotion_and_dry_run_preview_gate"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The mutation appends a non-executable apply-request record only; no provider or target write occurs, and later lifecycle decisions supersede it without deleting audit evidence."
+              }
+            },
+            "parameter_bindings": {
+              "preview_id": "request.body.preview_id",
+              "apply_request_id": "response.apply_request.apply_request_id",
+              "promotion_id": "response.apply_request.promotion_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-apply-request-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates an approved promotion and dry-run preview, appends a non-executable apply-request record, and reads the exact record back in the same cycle.",
+            "evidence_refs": [
+              "routes/sessionInsightPromotionApplyRequestRoutes.js",
+              "sessionInsightPromotionApplyRequestService.js",
+              "test-session-insight-promotion-apply-request-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -45445,10 +45578,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/apply/request"
+      "tests": [
+        "test-session-insight-promotion-apply-request-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -45464,21 +45597,15 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionApplyRequestRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-apply-request-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/apply/request",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -45815,20 +45942,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-payload-preview-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "apply_request_and_active_dry_run_contract_gate"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The payload preview is an append-only, non-executable contract artifact; review events can supersede it while preserving the original evidence."
+              }
+            },
+            "parameter_bindings": {
+              "apply_request_id": "request.body.apply_request_id",
+              "payload_preview_id": "response.payload_preview.payload_preview_id",
+              "contract_key": "response.payload_preview.contract_key"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-payload-preview-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates the source request against an active dry-run contract, appends a payload preview with execution and target writes disabled, and reads it back immediately.",
+            "evidence_refs": [
+              "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
+              "sessionInsightPromotionPayloadPreviewService.js",
+              "test-session-insight-payload-preview-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -45840,10 +45994,10 @@
       "evidence_routes": [
         "POST /platform/session-insight-promotions/payload-preview/generate"
       ],
-      "tests": [],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/payload-preview/generate"
+      "tests": [
+        "test-session-insight-payload-preview-service.mjs"
       ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -45859,21 +46013,15 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-payload-preview-service.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/payload-preview/generate",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -46295,20 +46443,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-plan-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "adapter_readiness_gate_and_no_execution_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The record is a plan only and cannot request an envelope, execute an adapter, or write a target; later gates supersede it without removing audit evidence."
+              }
+            },
+            "parameter_bindings": {
+              "payload_preview_id": "request.body.payload_preview_id",
+              "apply_request_id": "request.body.apply_request_id",
+              "capability_plan_id": "response.capability_plan.capability_plan_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-capability-plan-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Checks adapter readiness, records a plan that cannot request or execute a capability envelope, and verifies the plan record in the same cycle.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+              "sessionInsightCapabilityEnvelopePlanService.js",
+              "test-session-insight-capability-envelope-plan-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -46399,9 +46574,7 @@
       "tests": [
         "test-session-insight-capability-envelope-plan-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-plans/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -46426,14 +46599,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-plans/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -46508,20 +46674,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-request-gate-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_plan_integrity_and_no_execution_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The gate record does not request an envelope or authorize execution; an explicit review decision can supersede it while retaining the immutable source evidence."
+              }
+            },
+            "parameter_bindings": {
+              "capability_plan_id": "request.body.capability_plan_id",
+              "request_gate_id": "response.request_gate.request_gate_id",
+              "promotion_id": "response.request_gate.promotion_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-request-gate-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates a capability plan, appends a request gate with all execution paths disabled, and reads the exact gate record back.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+              "sessionInsightCapabilityEnvelopeRequestGateService.js",
+              "test-session-insight-capability-envelope-request-gate-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -46612,9 +46805,7 @@
       "tests": [
         "test-session-insight-capability-envelope-request-gate-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -46639,14 +46830,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -46852,20 +47036,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "approved_request_gate_and_dry_run_payload_validation"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "This appends a no-dispatch record only; the provider, adapter, and target remain untouched, and a review decision can supersede the record."
+              }
+            },
+            "parameter_bindings": {
+              "request_gate_id": "request.body.request_gate_id",
+              "dispatch_dry_run_id": "response.dispatch_dry_run.dispatch_dry_run_id",
+              "capability_plan_id": "response.dispatch_dry_run.capability_plan_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-dispatch-dry-run-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates an approved request gate, records a dispatch dry-run that cannot dispatch or write, and verifies the exact record immediately.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+              "sessionInsightCapabilityEnvelopeDispatchDryRunService.js",
+              "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -46956,9 +47167,7 @@
       "tests": [
         "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -46983,14 +47192,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -47196,20 +47398,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "approved_dispatch_dry_run_and_duplicate_envelope_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_source_state_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The preflight record neither creates nor approves an envelope and is retained as immutable evidence for any later request."
+              }
+            },
+            "parameter_bindings": {
+              "dispatch_dry_run_id": "request.body.dispatch_dry_run_id",
+              "actual_request_preflight_id": "response.actual_request_preflight.actual_request_preflight_id",
+              "duplicate_live_envelope_count": "response.actual_request_preflight.duplicate_live_envelope_count"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-actual-request-preflight-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Checks the approved dry-run, payload hashes, request gate, promotion state, and duplicate envelopes before appending and reading back a no-execution preflight.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+              "sessionInsightCapabilityEnvelopeActualRequestPreflightService.js",
+              "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -47300,9 +47529,7 @@
       "tests": [
         "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -47327,14 +47554,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -47835,20 +48055,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "approved_envelope_ledger_consistency_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_approved_source_gate"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "This appends a readback attestation and cannot dispatch the adapter or mutate a target; preserving the attestation is required for audit continuity."
+              }
+            },
+            "parameter_bindings": {
+              "approval_decision_id": "request.body.approval_decision_id",
+              "dispatch_readback_id": "response.dispatch_readback.dispatch_readback_id",
+              "actual_capability_envelope_id": "response.dispatch_readback.actual_capability_envelope_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-dispatch-readback-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates the approval decision against the envelope ledger, appends a no-execution dispatch readback, and verifies the exact record.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+              "sessionInsightCapabilityEnvelopeDispatchReadbackService.js",
+              "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -47942,9 +48189,7 @@
       "tests": [
         "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -47969,14 +48214,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -48051,20 +48289,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "typed_confirmation_and_dispatch_readback_integrity_gate"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The record opens a planning gate but explicitly does not request or execute an adapter; later execution governance supersedes it without deleting evidence."
+              }
+            },
+            "parameter_bindings": {
+              "dispatch_readback_id": "request.body.dispatch_readback_id",
+              "typed_confirm": "request.body.typed_confirm",
+              "adapter_execution_gate_id": "response.adapter_execution_gate.adapter_execution_gate_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-adapter-execution-gate-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Requires typed confirmation and a valid dispatch readback, records a gate with adapter execution disabled, and verifies the exact gate record.",
+            "evidence_refs": [
+              "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+              "sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js",
+              "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -48155,9 +48420,7 @@
       "tests": [
         "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -48182,14 +48445,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -48264,20 +48520,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-remaining-scope-completion-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "typed_confirmation_and_adapter_gate_consistency_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "Completion is an append-only governance attestation with target writes disabled; retaining it preserves the evidence chain and no external state requires reversal."
+              }
+            },
+            "parameter_bindings": {
+              "adapter_execution_gate_id": "request.body.adapter_execution_gate_id",
+              "typed_confirm": "request.body.typed_confirm",
+              "remaining_scope_completion_id": "response.remaining_scope_completion.remaining_scope_completion_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-remaining-scope-completion-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Requires typed confirmation and a consistent no-execution adapter gate, appends the remaining-scope attestation, and verifies it immediately.",
+            "evidence_refs": [
+              "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+              "sessionInsightRemainingScopeCompletionService.js",
+              "test-session-insight-remaining-scope-completion-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -48368,9 +48651,7 @@
       "tests": [
         "test-session-insight-remaining-scope-completion-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -48395,14 +48676,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/remaining-scope-completions/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 12,
         "class": "critical"
@@ -48768,20 +49042,47 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-session-insight-target-write-readback-service.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "exact_target_write_and_item_consistency_check"
+              },
+              "approval": {
+                "mode": "runtime_admin_authorization"
+              },
+              "readback": {
+                "mode": "same_cycle_control_record_readback",
+                "same_cycle": true
+              },
+              "rollback": {
+                "mode": "immutable_append_only_control_record",
+                "rationale": "The operation appends a readback attestation only and cannot modify the target item or repeat the target write; retaining it is necessary for audit evidence."
+              }
+            },
+            "parameter_bindings": {
+              "target_write_id": "request.body.target_write_id",
+              "readback_id": "response.readback.readback_id",
+              "target_item_id": "response.readback.target_item_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-session-insight-target-write-readback-state-change-v1",
+            "owner": "session-insight-governance",
+            "rationale": "Validates an existing target write and its linked item, appends a readback-only attestation, and reads the exact attestation back without touching the target.",
+            "evidence_refs": [
+              "routes/sessionInsightTargetWriteReadbackRoutes.js",
+              "sessionInsightTargetWriteReadbackService.js",
+              "test-session-insight-target-write-readback-service.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -48873,9 +49174,7 @@
       "tests": [
         "test-session-insight-target-write-readback-service.mjs"
       ],
-      "untested_operations": [
-        "POST /platform/session-insight-promotions/target-write-readbacks/create"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -48898,14 +49197,7 @@
         "rationale": "No repository policy decision covers this route family.",
         "owner": null
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /platform/session-insight-promotions/target-write-readbacks/create",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 11,
         "class": "critical"
@@ -82753,7 +83045,9 @@
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -82766,7 +83060,9 @@
         "resource-api-coverage.manifest.json",
         "routes/activationAwarenessRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-tenant-resolution-diagnostic-core.mjs",
+        "test-tenant-task-source-repair-preview.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -82774,11 +83070,14 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-tenant-resolution-diagnostic-core.mjs",
+        "node test-tenant-task-source-repair-preview.mjs"
       ]
     },
     {
@@ -85800,6 +86099,7 @@
         "routes/governanceRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-connectors.mjs",
         "test-governed-addition-review.mjs"
       ],
       "acceptance_gates": [
@@ -85813,6 +86113,7 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-connectors.mjs",
         "node test-governed-addition-review.mjs"
       ]
     },
@@ -87560,14 +87861,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87591,7 +87892,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87606,14 +87908,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87637,7 +87939,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87698,14 +88001,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87729,7 +88032,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87787,14 +88091,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87818,7 +88122,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87833,14 +88138,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87864,7 +88169,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87879,14 +88185,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87910,7 +88216,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -88056,14 +88363,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -88077,7 +88384,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionApplyRequestRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-apply-request-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -88085,11 +88393,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-promotion-apply-request-service.mjs"
       ]
     },
     {
@@ -88099,14 +88409,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -88120,7 +88430,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-promotion-dry-run-executor-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -88128,11 +88439,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-promotion-dry-run-executor-service.mjs"
       ]
     },
     {
@@ -88142,14 +88455,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -88163,7 +88476,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-session-insight-payload-preview-service.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -88171,11 +88485,13 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-session-insight-payload-preview-service.mjs"
       ]
     },
     {
@@ -88273,14 +88589,14 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -88304,7 +88620,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -88318,14 +88635,14 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
+        "surface_policy_decision_required"
       ],
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -88347,7 +88664,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",

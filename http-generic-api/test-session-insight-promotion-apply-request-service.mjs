@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/apply/request
+// frontend-state-change-proof: POST /platform/session-insight-promotions/apply/request
+
 import assert from "node:assert/strict";
 import { createSessionInsightPromotionApplyRequest } from "./sessionInsightPromotionApplyRequestService.js";
 

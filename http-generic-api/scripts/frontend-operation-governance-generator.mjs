@@ -73,6 +73,17 @@ const EXTERNAL_EFFECT_TARGET_WRITE_PATTERNS = [
   },
 ];
 
+const STATE_CHANGE_PROVIDER_EFFECT_PATTERNS = [
+  {
+    code: "network_call_present",
+    pattern: /\b(?:fetch)\s*\(|\baxios\s*\./,
+  },
+  {
+    code: "process_or_mail_call_present",
+    pattern: /\b(?:spawn|exec|sendMail)\s*\(/,
+  },
+];
+
 const RESOURCE_RECIPES = [
   {
     recipe_id: "tenant-resource-create-transaction-v1",
@@ -252,12 +263,13 @@ function parseEvidenceRegistry(source = "") {
     throw new Error(`Operation-governance evidence registry is invalid JSON: ${error.message}`);
   }
   if (
-    registry?.schema_version !== "frontend-operation-governance-test-registry-v2"
+    registry?.schema_version !== "frontend-operation-governance-test-registry-v3"
     || !Array.isArray(registry.tests)
     || !Array.isArray(registry.read_action_batches)
+    || !Array.isArray(registry.state_change_batches)
     || !Array.isArray(registry.external_effect_batches)
   ) {
-    throw new Error("Operation-governance evidence registry must use frontend-operation-governance-test-registry-v2 with tests, read_action_batches, and external_effect_batches arrays.");
+    throw new Error("Operation-governance evidence registry must use frontend-operation-governance-test-registry-v3 with tests, read_action_batches, state_change_batches, and external_effect_batches arrays.");
   }
   return registry;
 }
@@ -276,6 +288,11 @@ function manifestTestFiles(source = "") {
 
 function parseReadActionProofClaims(source = "") {
   return unique([...canonicalText(source).matchAll(/^\s*\/\/\s*frontend-read-action-proof:\s*((?:POST|PUT|PATCH|DELETE)\s+\/\S+)\s*$/gm)]
+    .map((match) => match[1].trim()));
+}
+
+function parseStateChangeProofClaims(source = "") {
+  return unique([...canonicalText(source).matchAll(/^\s*\/\/\s*frontend-state-change-proof:\s*((?:POST|PUT|PATCH|DELETE)\s+\/\S+)\s*$/gm)]
     .map((match) => match[1].trim()));
 }
 
@@ -342,6 +359,102 @@ function readActionRecipes(registry = {}) {
   const operations = recipes.map((recipe) => recipe.operation);
   if (new Set(recipeIds).size !== recipeIds.length) throw new Error("Read-action recipe_id values must be unique.");
   if (new Set(operations).size !== operations.length) throw new Error("Read-action operation signatures must be unique.");
+  return recipes;
+}
+
+function stateChangeRecipes(registry = {}) {
+  const recipes = [];
+  for (const batch of registry.state_change_batches || []) {
+    const batchId = requiredString(batch?.batch_id, "state_change_batches[].batch_id");
+    const owner = requiredString(batch?.owner, `${batchId}.owner`);
+    const sourceFile = requiredString(batch?.source_file, `${batchId}.source_file`);
+    const defaultImplementationFile = String(batch?.implementation_file || "").trim();
+    const defaultTestFile = String(batch?.test_file || "").trim();
+    if (!/^routes\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(sourceFile)) throw new Error(`${batchId}.source_file must be a safe routes/*.js path.`);
+    if (!Array.isArray(batch?.operations) || !batch.operations.length) throw new Error(`${batchId}.operations must be a non-empty array.`);
+    for (const operation of batch.operations) {
+      const recipeId = requiredString(operation?.recipe_id, `${batchId}.operations[].recipe_id`);
+      const signature = requiredString(operation?.operation, `${recipeId}.operation`);
+      const operationSourceFile = requiredString(operation?.source_file || sourceFile, `${recipeId}.source_file`);
+      const implementationFile = requiredString(operation?.implementation_file || defaultImplementationFile, `${recipeId}.implementation_file`);
+      const testFile = requiredString(operation?.test_file || defaultTestFile, `${recipeId}.test_file`);
+      const proofFunctions = requiredStringArray(operation?.proof_functions, `${recipeId}.proof_functions`);
+      const routeMarkers = requiredStringArray(operation?.route_markers, `${recipeId}.route_markers`);
+      const preflightMarkers = requiredStringArray(operation?.preflight_markers, `${recipeId}.preflight_markers`);
+      const safetyMarkers = requiredStringArray(operation?.safety_markers, `${recipeId}.safety_markers`);
+      const providerDenialMarkers = requiredStringArray(operation?.provider_denial_markers, `${recipeId}.provider_denial_markers`);
+      const mutationReadbackPairs = operation?.mutation_readback_pairs;
+      const transactionMarkers = Array.isArray(operation?.transaction_markers)
+        ? operation.transaction_markers.map((entry) => requiredString(entry, `${recipeId}.transaction_markers`))
+        : [];
+      const preflightMode = requiredString(operation?.preflight_mode, `${recipeId}.preflight_mode`);
+      const approvalMode = requiredString(operation?.approval_mode, `${recipeId}.approval_mode`);
+      const readbackMode = requiredString(operation?.readback_mode, `${recipeId}.readback_mode`);
+      const rollbackMode = requiredString(operation?.rollback_mode, `${recipeId}.rollback_mode`);
+      const rollbackRationale = requiredString(operation?.rollback_rationale, `${recipeId}.rollback_rationale`);
+      const rationale = requiredString(operation?.rationale, `${recipeId}.rationale`);
+      const parameterBindings = operation?.parameter_bindings;
+      if (!Array.isArray(mutationReadbackPairs) || !mutationReadbackPairs.length) {
+        throw new Error(`${recipeId}.mutation_readback_pairs must be a non-empty array.`);
+      }
+      const normalizedPairs = mutationReadbackPairs.map((pair, index) => ({
+        mutation_marker: requiredString(pair?.mutation_marker, `${recipeId}.mutation_readback_pairs[${index}].mutation_marker`),
+        readback_marker: requiredString(pair?.readback_marker, `${recipeId}.mutation_readback_pairs[${index}].readback_marker`),
+      }));
+      if (!/^(?:POST|PUT|PATCH|DELETE) \/\S+$/.test(signature)) throw new Error(`${recipeId}.operation must be one canonical non-GET operation signature.`);
+      if (!/^routes\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(operationSourceFile)) throw new Error(`${recipeId}.source_file must be a safe routes/*.js path.`);
+      if (!/^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.js$/.test(implementationFile)) throw new Error(`${recipeId}.implementation_file must be a safe relative JavaScript file.`);
+      if (!/^(?:[A-Za-z0-9_.-]+\/)*test-[A-Za-z0-9_.-]+\.mjs$/.test(testFile)) throw new Error(`${recipeId}.test_file must be a safe relative test-*.mjs file.`);
+      if (proofFunctions.some((name) => !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name))) throw new Error(`${recipeId}.proof_functions must contain JavaScript function identifiers.`);
+      if (new Set(transactionMarkers).size !== transactionMarkers.length) throw new Error(`${recipeId}.transaction_markers must not contain duplicates.`);
+      if (rollbackMode === "transaction" && !transactionMarkers.length) throw new Error(`${recipeId}.transaction_markers are required for transaction rollback.`);
+      if (!parameterBindings || typeof parameterBindings !== "object" || Array.isArray(parameterBindings) || !Object.keys(parameterBindings).length) {
+        throw new Error(`${recipeId}.parameter_bindings must be a non-empty object.`);
+      }
+      recipes.push({
+        recipe_id: recipeId,
+        rule_id: `generated-${recipeId}`,
+        operation: signature,
+        source_file: operationSourceFile,
+        implementation_file: implementationFile,
+        test_file: testFile,
+        proof_functions: proofFunctions,
+        route_markers: routeMarkers,
+        preflight_markers: preflightMarkers,
+        safety_markers: safetyMarkers,
+        provider_denial_markers: providerDenialMarkers,
+        mutation_readback_pairs: normalizedPairs,
+        transaction_markers: transactionMarkers,
+        owner,
+        rationale,
+        classification: "state_change",
+        preflight_mode: preflightMode,
+        approval_mode: approvalMode,
+        readback: {
+          mode: readbackMode,
+          same_cycle: true,
+          ...(rollbackMode === "transaction" ? { before_commit: true } : {}),
+        },
+        rollback: rollbackMode === "transaction"
+          ? {
+            mode: "transaction",
+            on: ["mutation_failure", "readback_failure"],
+            rationale: rollbackRationale,
+          }
+          : {
+            mode: rollbackMode,
+            rationale: rollbackRationale,
+          },
+        parameter_bindings: Object.fromEntries(
+          Object.entries(parameterBindings).map(([key, value]) => [key, requiredString(value, `${recipeId}.parameter_bindings.${key}`)])
+        ),
+      });
+    }
+  }
+  const recipeIds = recipes.map((recipe) => recipe.recipe_id);
+  const operations = recipes.map((recipe) => recipe.operation);
+  if (new Set(recipeIds).size !== recipeIds.length) throw new Error("State-change recipe_id values must be unique.");
+  if (new Set(operations).size !== operations.length) throw new Error("State-change operation signatures must be unique.");
   return recipes;
 }
 
@@ -423,6 +536,7 @@ function externalEffectRecipes(registry = {}) {
 function registeredTestEvidence(apiRoot, registry) {
   const byOperation = new Map();
   const readActionProofs = new Map();
+  const stateChangeProofs = new Map();
   const externalEffectProofs = new Map();
   const testFiles = registeredTestFiles(registry);
   for (const testFile of testFiles) {
@@ -435,6 +549,10 @@ function registeredTestEvidence(apiRoot, registry) {
       if (!readActionProofs.has(operation)) readActionProofs.set(operation, []);
       readActionProofs.get(operation).push(testFile);
     }
+    for (const operation of parseStateChangeProofClaims(testSource)) {
+      if (!stateChangeProofs.has(operation)) stateChangeProofs.set(operation, []);
+      stateChangeProofs.get(operation).push(testFile);
+    }
     for (const operation of parseExternalEffectProofClaims(testSource)) {
       if (!externalEffectProofs.has(operation)) externalEffectProofs.set(operation, []);
       externalEffectProofs.get(operation).push(testFile);
@@ -442,10 +560,12 @@ function registeredTestEvidence(apiRoot, registry) {
   }
   for (const [operation, files] of byOperation) byOperation.set(operation, unique(files));
   for (const [operation, files] of readActionProofs) readActionProofs.set(operation, unique(files));
+  for (const [operation, files] of stateChangeProofs) stateChangeProofs.set(operation, unique(files));
   for (const [operation, files] of externalEffectProofs) externalEffectProofs.set(operation, unique(files));
   return {
     byOperation,
     readActionProofs,
+    stateChangeProofs,
     externalEffectProofs,
     registeredFiles: new Set(testFiles),
     manifestFiles: new Set(manifestTestFiles(readText(apiRoot, TEST_MANIFEST_FILE))),
@@ -585,6 +705,50 @@ function evaluateReadActionRecipe(recipe, context) {
     evidenceGate("test_manifest_registered", context.testEvidence.manifestFiles.has(recipe.test_file), recipe.test_file),
     evidenceGate("registered_operation_test", claimedTests.includes(recipe.test_file), recipe.test_file),
     evidenceGate("explicit_read_action_test_proof", proofTests.includes(recipe.test_file), recipe.test_file),
+  ];
+  return {
+    recipe,
+    gates,
+    evidenceFiles: unique([recipe.source_file, recipe.implementation_file, recipe.test_file]),
+  };
+}
+
+function stateChangeProviderEffectFindings(blocks = []) {
+  const body = blocks.map(proofBody).join("\n");
+  return STATE_CHANGE_PROVIDER_EFFECT_PATTERNS
+    .filter(({ pattern }) => pattern.test(body))
+    .map(({ code }) => code);
+}
+
+function evaluateStateChangeRecipe(recipe, context) {
+  const route = context.routesByFile.get(recipe.source_file)?.get(recipe.operation);
+  const implementationSource = context.sourceByFile.get(recipe.implementation_file) || "";
+  const proofBlocks = recipe.proof_functions.map((functionName) => extractFunctionBlock(implementationSource, functionName));
+  const combinedProof = proofBlocks.join("\n");
+  const providerEffectFindings = stateChangeProviderEffectFindings(proofBlocks);
+  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
+  const proofTests = context.testEvidence.stateChangeProofs.get(recipe.operation) || [];
+  const orderedPairs = recipe.mutation_readback_pairs.every(({ mutation_marker: mutationMarker, readback_marker: readbackMarker }) =>
+    ordered(combinedProof, mutationMarker, readbackMarker)
+  );
+  const pairEvidence = recipe.mutation_readback_pairs
+    .map(({ mutation_marker: mutationMarker, readback_marker: readbackMarker }) => `${mutationMarker} -> ${readbackMarker}`)
+    .join(", ");
+  const gates = [
+    evidenceGate("route_present", route, recipe.source_file),
+    evidenceGate("route_binding_present", route && recipe.route_markers.every((marker) => route.declaration.includes(marker)), recipe.route_markers.join(", ")),
+    evidenceGate("implementation_file_present", implementationSource, recipe.implementation_file),
+    evidenceGate("proof_functions_present", proofBlocks.every(Boolean), recipe.proof_functions.join(", ")),
+    evidenceGate("preflight_markers_present", combinedProof && recipe.preflight_markers.every((marker) => combinedProof.includes(marker)), recipe.preflight_markers.join(", ")),
+    evidenceGate("safety_markers_present", combinedProof && recipe.safety_markers.every((marker) => combinedProof.includes(marker)), recipe.safety_markers.join(", ")),
+    evidenceGate("provider_write_denial_explicit", combinedProof && recipe.provider_denial_markers.every((marker) => combinedProof.includes(marker)), recipe.provider_denial_markers.join(", ")),
+    evidenceGate("mutation_readback_ordered", combinedProof && orderedPairs, pairEvidence),
+    evidenceGate("transaction_markers_present", recipe.rollback.mode !== "transaction" || recipe.transaction_markers.every((marker) => combinedProof.includes(marker)), recipe.transaction_markers.join(", ") || "not_required"),
+    evidenceGate("provider_effect_absent", providerEffectFindings.length === 0, providerEffectFindings.length ? providerEffectFindings.join(", ") : "static provider-effect scan passed"),
+    evidenceGate("registry_test_registered", context.testEvidence.registeredFiles.has(recipe.test_file), recipe.test_file),
+    evidenceGate("test_manifest_registered", context.testEvidence.manifestFiles.has(recipe.test_file), recipe.test_file),
+    evidenceGate("registered_operation_test", claimedTests.includes(recipe.test_file), recipe.test_file),
+    evidenceGate("explicit_state_change_test_proof", proofTests.includes(recipe.test_file), recipe.test_file),
   ];
   return {
     recipe,
@@ -783,6 +947,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const registrySource = readText(apiRoot, TEST_REGISTRY_FILE);
   const registry = parseEvidenceRegistry(registrySource);
   const readActionRecipeList = readActionRecipes(registry);
+  const stateChangeRecipeList = stateChangeRecipes(registry);
   const externalEffectRecipeList = externalEffectRecipes(registry);
   const testEvidence = registeredTestEvidence(apiRoot, registry);
   const evidenceFiles = unique([
@@ -802,11 +967,13 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     BOOTSTRAP_TEST_FILE,
     ...registeredTestFiles(registry),
     ...readActionRecipeList.flatMap((recipe) => [recipe.source_file, recipe.implementation_file, recipe.test_file]),
+    ...stateChangeRecipeList.flatMap((recipe) => [recipe.source_file, recipe.implementation_file, recipe.test_file]),
     ...externalEffectRecipeList.flatMap((recipe) => [recipe.source_file, recipe.implementation_file, recipe.test_file]),
   ]);
   const sourceByFile = new Map(evidenceFiles.map((file) => [file, readText(apiRoot, file)]));
   const generatedSourceFiles = unique([
     ...readActionRecipeList.map((recipe) => recipe.source_file),
+    ...stateChangeRecipeList.map((recipe) => recipe.source_file),
     ...externalEffectRecipeList.map((recipe) => recipe.source_file),
   ]);
   const context = {
@@ -822,6 +989,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     evaluateCanaryRecipe(context),
     evaluateBootstrapRecipe(context),
     ...readActionRecipeList.map((recipe) => evaluateReadActionRecipe(recipe, context)),
+    ...stateChangeRecipeList.map((recipe) => evaluateStateChangeRecipe(recipe, context)),
     ...externalEffectRecipeList.map((recipe) => evaluateExternalEffectRecipe(recipe, context)),
   ];
   const operationRules = [];

@@ -51,7 +51,17 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
   }
   const match = rowObjs.find(rowObj => matchesTarget(rowObj, input));
   if (!match) {
-    return { ok: false, endpoint_key: "hostinger_ssh_runtime_read", resolution_status: "blocked", reason: "no_matching_hosting_account_registry_row", authoritative_source: "table.hosting_accounts", input };
+    return {
+      ok: false,
+      endpoint_key: "hostinger_ssh_runtime_read",
+      resolution_status: "blocked",
+      reason: "no_matching_hosting_account_registry_row",
+      authoritative_source: "table.hosting_accounts",
+      input,
+      provider_write_performed: false,
+      external_write_executed: false,
+      secrets_included: false,
+    };
   }
   return {
     ok: true,
@@ -76,6 +86,9 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
     auth_validation_status: match.auth_validation_status || "",
     endpoint_binding_status: match.endpoint_binding_status || "",
     resolver_execution_ready: asBoolFn(match.resolver_execution_ready),
-    last_runtime_check_at: match.last_runtime_check_at || ""
+    last_runtime_check_at: match.last_runtime_check_at || "",
+    provider_write_performed: false,
+    external_write_executed: false,
+    secrets_included: false,
   };
 }

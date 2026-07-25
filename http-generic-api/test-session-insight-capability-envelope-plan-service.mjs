@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-plans/create
+// frontend-state-change-proof: POST /platform/session-insight-promotions/capability-envelope-plans/create
+
 import assert from "node:assert/strict";
 import {
   createSessionInsightCapabilityEnvelopePlan,

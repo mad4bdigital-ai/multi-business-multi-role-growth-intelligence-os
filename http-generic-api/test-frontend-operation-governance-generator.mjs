@@ -8,7 +8,7 @@ import {
   syncOperationGovernance,
 } from "./scripts/frontend-operation-governance-generator.mjs";
 
-const EXPECTED_MUTATION_OPERATIONS = [
+const EXPECTED_TRANSACTIONAL_MUTATION_OPERATIONS = [
   "DELETE /admin/resources/{resourceKey}/{resourceId}",
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /admin/resources/{resourceKey}/{resourceId}",
@@ -25,6 +25,13 @@ const evidenceRegistry = JSON.parse(fs.readFileSync("frontend-operation-governan
 const EXPECTED_READ_ACTION_OPERATIONS = evidenceRegistry.read_action_batches
   .flatMap((batch) => batch.operations.map((operation) => operation.operation))
   .sort();
+const EXPECTED_REGISTERED_STATE_CHANGE_OPERATIONS = evidenceRegistry.state_change_batches
+  .flatMap((batch) => batch.operations.map((operation) => operation.operation))
+  .sort();
+const EXPECTED_MUTATION_OPERATIONS = [
+  ...EXPECTED_TRANSACTIONAL_MUTATION_OPERATIONS,
+  ...EXPECTED_REGISTERED_STATE_CHANGE_OPERATIONS,
+].sort();
 const EXPECTED_EXTERNAL_EFFECT_OPERATIONS = evidenceRegistry.external_effect_batches
   .flatMap((batch) => batch.operations.map((operation) => operation.operation))
   .sort();
@@ -51,6 +58,12 @@ const EVIDENCE_FILES = [
   "test-tenant-connect-bootstrap-transaction.mjs",
   ...evidenceRegistry.tests.map((entry) => entry.file),
   ...evidenceRegistry.read_action_batches.flatMap((batch) => [
+    batch.source_file,
+    batch.implementation_file,
+    batch.test_file,
+    ...batch.operations.flatMap((operation) => [operation.source_file, operation.implementation_file, operation.test_file]),
+  ]),
+  ...evidenceRegistry.state_change_batches.flatMap((batch) => [
     batch.source_file,
     batch.implementation_file,
     batch.test_file,
@@ -104,8 +117,24 @@ const externalEffectRules = plan.operation_rules.filter((rule) => rule.classific
 assert.deepEqual(mutationRules.map((rule) => rule.operation).sort(), EXPECTED_MUTATION_OPERATIONS);
 assert.deepEqual(readActionRules.map((rule) => rule.operation).sort(), EXPECTED_READ_ACTION_OPERATIONS);
 assert.deepEqual(externalEffectRules.map((rule) => rule.operation).sort(), EXPECTED_EXTERNAL_EFFECT_OPERATIONS);
-assert(mutationRules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
-assert(mutationRules.every((rule) => rule.rollback.mode === "transaction"));
+assert(mutationRules.every((rule) => rule.readback.same_cycle === true));
+assert(mutationRules.every((rule) => rule.preflight.mode && rule.approval.mode && Object.keys(rule.parameter_bindings).length));
+const transactionalMutationRules = mutationRules.filter((rule) =>
+  EXPECTED_TRANSACTIONAL_MUTATION_OPERATIONS.includes(rule.operation)
+);
+assert(transactionalMutationRules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
+assert(transactionalMutationRules.every((rule) => rule.rollback.mode === "transaction"));
+const registeredStateChangeByOperation = new Map(
+  evidenceRegistry.state_change_batches.flatMap((batch) =>
+    batch.operations.map((operation) => [operation.operation, operation])
+  )
+);
+for (const rule of mutationRules.filter((entry) => registeredStateChangeByOperation.has(entry.operation))) {
+  const expected = registeredStateChangeByOperation.get(rule.operation);
+  assert.equal(rule.readback.mode, expected.readback_mode);
+  assert.equal(rule.rollback.mode, expected.rollback_mode);
+  assert.equal(rule.readback.before_commit, expected.rollback_mode === "transaction" ? true : undefined);
+}
 assert(readActionRules.every((rule) => !Object.hasOwn(rule, "preflight") && !Object.hasOwn(rule, "approval")));
 assert(readActionRules.every((rule) => !Object.hasOwn(rule, "readback") && !Object.hasOwn(rule, "rollback") && !Object.hasOwn(rule, "parameter_bindings")));
 assert(externalEffectRules.every((rule) => rule.readback.mode === "inline_provider_response" && rule.readback.same_cycle === true));
@@ -232,6 +261,58 @@ const noBootstrapRegistrationPlan = buildOperationGovernance({ apiRoot: noBootst
 assert(
   rejection(noBootstrapRegistrationPlan, "POST /connect/bootstrap")
     .missing_evidence.includes("registered_operation_test")
+);
+
+const noStateChangeProofFixture = createFixture();
+replaceEvidence(
+  noStateChangeProofFixture,
+  "test-session-insight-promotion-apply-request-service.mjs",
+  "// frontend-state-change-proof: POST /platform/session-insight-promotions/apply/request",
+  "// explicit state-change proof removed for fail-closed regression"
+);
+const noStateChangeProofPlan = buildOperationGovernance({ apiRoot: noStateChangeProofFixture });
+assert(
+  rejection(noStateChangeProofPlan, "POST /platform/session-insight-promotions/apply/request")
+    .missing_evidence.includes("explicit_state_change_test_proof")
+);
+
+const noStateChangeReadbackFixture = createFixture();
+replaceEvidence(
+  noStateChangeReadbackFixture,
+  "sessionInsightPromotionApplyRequestService.js",
+  "INSERT INTO session_insight_promotion_apply_requests",
+  "INSERT INTO session_insight_governance_evidence_removed"
+);
+const noStateChangeReadbackPlan = buildOperationGovernance({ apiRoot: noStateChangeReadbackFixture });
+assert(
+  rejection(noStateChangeReadbackPlan, "POST /platform/session-insight-promotions/apply/request")
+    .missing_evidence.includes("mutation_readback_ordered")
+);
+
+const noStateChangeProviderDenialFixture = createFixture();
+replaceEvidence(
+  noStateChangeProviderDenialFixture,
+  "sessionInsightPromotionApplyRequestService.js",
+  "provider_call_executed: false,",
+  "provider_call_status_removed: true,"
+);
+const noStateChangeProviderDenialPlan = buildOperationGovernance({ apiRoot: noStateChangeProviderDenialFixture });
+assert(
+  rejection(noStateChangeProviderDenialPlan, "POST /platform/session-insight-promotions/apply/request")
+    .missing_evidence.includes("provider_write_denial_explicit")
+);
+
+const noRegisteredTransactionRollbackFixture = createFixture();
+replaceEvidence(
+  noRegisteredTransactionRollbackFixture,
+  "tenantTaskSourceRepairPreviewService.js",
+  'if (typeof connection.rollback === "function") await connection.rollback();',
+  'if (typeof connection.noRollbackEvidence === "function") await connection.noRollbackEvidence();'
+);
+const noRegisteredTransactionRollbackPlan = buildOperationGovernance({ apiRoot: noRegisteredTransactionRollbackFixture });
+assert(
+  rejection(noRegisteredTransactionRollbackPlan, "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview")
+    .missing_evidence.includes("transaction_markers_present")
 );
 
 const noReadActionProofFixture = createFixture();

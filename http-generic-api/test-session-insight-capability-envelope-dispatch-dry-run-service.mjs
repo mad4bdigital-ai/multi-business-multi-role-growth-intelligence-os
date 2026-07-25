@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create
+// frontend-state-change-proof: POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create
+
 import assert from "node:assert/strict";
 import {
   createSessionInsightCapabilityEnvelopeDispatchDryRun,

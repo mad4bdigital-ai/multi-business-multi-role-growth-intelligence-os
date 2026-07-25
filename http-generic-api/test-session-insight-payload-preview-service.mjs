@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/payload-preview/generate
+// frontend-state-change-proof: POST /platform/session-insight-promotions/payload-preview/generate
+
 import assert from "node:assert/strict";
 import { generateSessionInsightContractPayloadPreview } from "./sessionInsightPromotionPayloadPreviewService.js";
 

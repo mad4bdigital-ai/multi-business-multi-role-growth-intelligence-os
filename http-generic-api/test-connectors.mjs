@@ -4,6 +4,8 @@
  */
 // frontend-surface-operation: POST /github/preview-file-updates
 // frontend-external-effect-proof: POST /github/preview-file-updates
+// frontend-surface-operation: POST /hostinger/ssh-runtime-read
+// frontend-read-action-proof: POST /hostinger/ssh-runtime-read
 
 import { hostingerSshRuntimeRead, matchesHostingerSshTarget } from "./hostinger.js";
 
@@ -89,6 +91,9 @@ assert(
 
   assert("hostinger runtime read resolves matching row", result.ok === true, JSON.stringify(result));
   assert("hostinger runtime read reports SQL authoritative source", result.authoritative_source === "table.hosting_accounts", JSON.stringify(result));
+  assert("hostinger runtime read denies provider writes", result.provider_write_performed === false, JSON.stringify(result));
+  assert("hostinger runtime read denies external writes", result.external_write_executed === false, JSON.stringify(result));
+  assert("hostinger runtime read excludes secrets", result.secrets_included === false, JSON.stringify(result));
   const removedMirrorKey = 'legacy' + '_mirror_source';
   assert("hostinger runtime read does not return sheet mirror source", result[removedMirrorKey] === undefined, JSON.stringify(result));
   assert("hostinger runtime read normalizes booleans", result.ssh_available === true && result.wp_cli_available === false, JSON.stringify(result));

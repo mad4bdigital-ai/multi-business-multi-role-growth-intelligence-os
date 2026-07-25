@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/target-write-readbacks/create
+// frontend-state-change-proof: POST /platform/session-insight-promotions/target-write-readbacks/create
+
 import assert from "node:assert/strict";
 import { createSessionInsightTargetWriteReadback, listSessionInsightTargetWriteReadbacks } from "./sessionInsightTargetWriteReadbackService.js";
 

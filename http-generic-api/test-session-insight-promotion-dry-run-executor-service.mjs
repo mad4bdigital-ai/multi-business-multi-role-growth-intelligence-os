@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/executor/dry-run
+// frontend-state-change-proof: POST /platform/session-insight-promotions/executor/dry-run
+
 import assert from "node:assert/strict";
 import {
   buildSessionInsightPromotionExecutionPreview,
@@ -30,7 +33,7 @@ function promotionRow(overrides = {}) {
   };
 }
 
-function makePool() {
+function makePool({ omitReadback = false } = {}) {
   const state = {
     calls: [],
     previewInserts: [],
@@ -63,6 +66,22 @@ function makePool() {
         assert.equal(safety.external_write_executed, false);
         assert.equal(safety.secrets_included, false);
         return [{ affectedRows: 1 }];
+      }
+      if (compact.startsWith("SELECT preview_id, promotion_id, execution_mode")) {
+        if (omitReadback) return [[]];
+        return [[{
+          preview_id: params[0],
+          promotion_id: state.row.promotion_id,
+          execution_mode: "dry_run",
+          execution_allowed: 0,
+          execution_status: "preview_generated",
+          safety_contract_json: JSON.stringify({
+            provider_call_executed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          }),
+          secrets_included: 0,
+        }]];
       }
       if (compact.startsWith("SELECT approval_status, promotion_status")) {
         return [[{ approval_status: "approved", promotion_status: "ready", promotion_allowed: 0, count: 1 }]];
@@ -107,10 +126,25 @@ function makePool() {
   assert.equal(result.ok, true);
   assert.equal(result.count, 1);
   assert.equal(result.recorded_count, 1);
+  assert.equal(result.recorded_previews[0].readback_verified, true);
+  assert.equal(result.recorded_previews[0].provider_call_executed, false);
+  assert.equal(result.recorded_previews[0].external_write_executed, false);
   assert.equal(result.previews[0].execution_allowed, false);
   assert.equal(result.previews[0].safety_contract.runtime_promotion_executed, false);
   assert.equal(result.executor_policy.mode, "dry_run_only");
   assert.equal(result.executor_policy.writes_backlog_policy_or_canonical, false);
+  assert.equal(pool.state.previewInserts.length, 1);
+}
+
+{
+  const pool = makePool({ omitReadback: true });
+  await assert.rejects(
+    previewSessionInsightPromotionExecution({
+      pool,
+      filters: { record_preview: true, limit: 5, created_by: "test_executor" },
+    }),
+    (error) => error?.code === "session_insight_execution_preview_readback_failed"
+  );
   assert.equal(pool.state.previewInserts.length, 1);
 }
 

@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /tenant/resolution/cases/{caseId}/diagnostics
+// frontend-state-change-proof: POST /tenant/resolution/cases/{caseId}/diagnostics
+
 import assert from "node:assert/strict";
 import {
   runTenantResolutionDiagnosticAction,

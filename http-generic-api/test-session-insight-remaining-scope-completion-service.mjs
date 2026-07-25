@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/remaining-scope-completions/create
+// frontend-state-change-proof: POST /platform/session-insight-promotions/remaining-scope-completions/create
+
 import assert from "node:assert/strict";
 import {
   createSessionInsightRemainingScopeCompletion,

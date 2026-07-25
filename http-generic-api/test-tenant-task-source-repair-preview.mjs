@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /tenant/resolution/cases/{caseId}/task-source-repair/preview
+// frontend-state-change-proof: POST /tenant/resolution/cases/{caseId}/task-source-repair/preview
+
 import assert from "node:assert/strict";
 import {
   previewTenantTaskSourceRepair,

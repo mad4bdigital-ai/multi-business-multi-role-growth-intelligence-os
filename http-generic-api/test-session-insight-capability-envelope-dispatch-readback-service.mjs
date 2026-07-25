@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create
+// frontend-state-change-proof: POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create
+
 import assert from "node:assert/strict";
 import {
   createSessionInsightCapabilityEnvelopeDispatchReadback,

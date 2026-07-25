@@ -148,7 +148,37 @@ async function writeExecutionPreviewRecord(pool, preview, createdBy = "session_i
       createdBy,
     ]
   );
-  return id;
+  const [rows] = await pool.query(
+    `SELECT preview_id, promotion_id, execution_mode, execution_allowed, execution_status,
+            safety_contract_json, secrets_included
+       FROM session_insight_promotion_execution_previews
+      WHERE preview_id = ?
+      LIMIT 1`,
+    [id]
+  );
+  const readback = rows[0] || null;
+  if (
+    !readback
+    || readback.preview_id !== id
+    || readback.execution_mode !== "dry_run"
+    || Number(readback.execution_allowed || 0) !== 0
+    || readback.execution_status !== "preview_generated"
+    || Number(readback.secrets_included || 0) !== 0
+  ) {
+    const err = new Error("Execution preview record readback failed.");
+    err.status = 500;
+    err.code = "session_insight_execution_preview_readback_failed";
+    throw err;
+  }
+  return {
+    promotion_id: preview.promotion_id,
+    preview_id: id,
+    readback_verified: true,
+    execution_allowed: false,
+    provider_call_executed: false,
+    external_write_executed: false,
+    secrets_included: false,
+  };
 }
 
 export async function previewSessionInsightPromotionExecution({ pool = getPool(), filters = {} } = {}) {
@@ -199,10 +229,7 @@ export async function previewSessionInsightPromotionExecution({ pool = getPool()
   const recorded = [];
   if (recordPreview) {
     for (const preview of previews) {
-      recorded.push({
-        promotion_id: preview.promotion_id,
-        preview_id: await writeExecutionPreviewRecord(pool, preview, createdBy),
-      });
+      recorded.push(await writeExecutionPreviewRecord(pool, preview, createdBy));
     }
   }
   const [summaryRows] = await pool.query(

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "07cfc2e59bccf33fee2c396d15eb0726b29dd1bbedcc41b3af18c0c5aa5d300e",
+    "source_digest": "02511c75f1d0d64cc26960c38b84f32473bd247cab505e825231a3f40247ec35",
     "fail_closed": true
   },
   "source_authority": [
@@ -48,12 +48,17 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "4c519aa13644a263aa62dd528f9a634d916ab0d9b1fc14382e091ffe5f111c76",
+      "sha256": "3bd86ba579dfc45e2ddcb41592e321bde38a1d13e274784ff4e71b709e2c2835",
       "present": true
     },
     {
       "file": "github.js",
       "sha256": "e43ee273dec18528581402014568744cf6a0ffcdf26862815e721a040efddaaf",
+      "present": true
+    },
+    {
+      "file": "hostinger.js",
+      "sha256": "ef9582b4653da0bf29eb1e41863d08c11e7a53ea242f710726e2758479ff5044",
       "present": true
     },
     {
@@ -89,6 +94,11 @@
     {
       "file": "routeWorkflowGovernance.js",
       "sha256": "1c94eeb1b194df4dfae29780b8d4c6ae3f1bf3e9f87fd0260ec707b44c283427",
+      "present": true
+    },
+    {
+      "file": "routes/activationAwarenessRoutes.js",
+      "sha256": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
       "present": true
     },
     {
@@ -177,6 +187,61 @@
       "present": true
     },
     {
+      "file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+      "sha256": "9f4ee7f608454abffcc7afd3e153039d5fa8d2b459177b6bca2a5ac48bd12ac5",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+      "sha256": "3d93addd216f287acafad4cdb61d00200c002eaec274f92d1720502dbf04d134",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+      "sha256": "8764b7c24cf6a20888b59276375271863bb378f494b1be5107173e5fd4894022",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+      "sha256": "102825f43f401c15d44f6897cdf182224855fa3052c585224420207d86ac51a9",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+      "sha256": "59ef7453d38d73768e70a05f150c7ba92fb9d5b9ba983378569652bcd582f8b6",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+      "sha256": "1969749f8b8020720f4ca87d22aac7f0d071cc9e5865a9ec22e29c79c2955a37",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightPromotionApplyRequestRoutes.js",
+      "sha256": "cf520528a72818d44547738fdad6f2e3f096949227217733a7a8e910c3123947",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
+      "sha256": "401d7d33f6d624940285c3d943b203800c890a7e18778e589de55d8989cb8552",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
+      "sha256": "0816095e982315271a8de95878079a04f03ac1ea3b1426d8b8ff3f1ebafeff71",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+      "sha256": "814a062cb88c2a318cf7c84ea55a6763cfa1d2e6016c7edac09920dd724e9f34",
+      "present": true
+    },
+    {
+      "file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+      "sha256": "6e841383080c5900f4e866d3e66e182ae026615b329adefbe7420bfdfd319e81",
+      "present": true
+    },
+    {
       "file": "routes/supportTicketRoutes.js",
       "sha256": "369383aff7c327e71712ff37bf0e052743bf389f2ea0c39517e6fb26949c72f2",
       "present": true
@@ -188,7 +253,7 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "37890b007b3adb20c8beec323619c3e3d7104a21d70f5f2d6696e6f7cd81e85e",
+      "sha256": "69a47c54d6d63c51bd60f107bb584617cb32ca2e49b554f02379c509d910f390",
       "present": true
     },
     {
@@ -204,6 +269,61 @@
     {
       "file": "services/taskResolver.js",
       "sha256": "f221a4f9b58822f4fb8b78cb41fef69ef1fcebf1f2ed7d199912cf0ee3b5f9e4",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopeActualRequestPreflightService.js",
+      "sha256": "dac0ba85aefc75fa257df03348c62e6416683153e58cccc84219e6451bc002c8",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js",
+      "sha256": "7acf2c560dbab5c56480ba2ca77d60fb2c0de8adbc48c680070232d2c71c8b2f",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopeDispatchDryRunService.js",
+      "sha256": "649f35406ad110821488a454f444e9a088c089d75facdb076668ba0573acf454",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopeDispatchReadbackService.js",
+      "sha256": "de116934a1428f478911512373ac2b92687bc40e35ff08e6ca3b978fbbeab89c",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopePlanService.js",
+      "sha256": "11757a87e34b287c082413d7b1247d633648c80112c654cabeb65a4b0b33308a",
+      "present": true
+    },
+    {
+      "file": "sessionInsightCapabilityEnvelopeRequestGateService.js",
+      "sha256": "a652caa7c19892039c286437bf8dde2fd92a1437fdba70807c51364c55ed232f",
+      "present": true
+    },
+    {
+      "file": "sessionInsightPromotionApplyRequestService.js",
+      "sha256": "d337fb3dc1938c4a6a39a01d3a2488b1e63675597176c03ac4a792e54599ee82",
+      "present": true
+    },
+    {
+      "file": "sessionInsightPromotionDryRunExecutorService.js",
+      "sha256": "2695c55b80dbb32f872bf5a95502b7f529e875b3ddc81cb502616a7ec1c6d7c7",
+      "present": true
+    },
+    {
+      "file": "sessionInsightPromotionPayloadPreviewService.js",
+      "sha256": "033f151840f224a2a72b68448386988591698c046e4a7c75812fb9bb7ffcd8ca",
+      "present": true
+    },
+    {
+      "file": "sessionInsightRemainingScopeCompletionService.js",
+      "sha256": "8b32eb88c57096d2d57a8976e4a322c5542a282e5086a8c04654a4df7101f21d",
+      "present": true
+    },
+    {
+      "file": "sessionInsightTargetWriteReadbackService.js",
+      "sha256": "2fa9f608a081c57e9e43842ca4e20ec7daf9aa35af23016990a196a23e838a19",
       "present": true
     },
     {
@@ -277,6 +397,16 @@
       "present": true
     },
     {
+      "file": "tenantResolutionDiagnosticService.js",
+      "sha256": "c7a58416b13d348910a5c3fa9112d84b9845a948d7dc8496c40ba6bdedba78c0",
+      "present": true
+    },
+    {
+      "file": "tenantTaskSourceRepairPreviewService.js",
+      "sha256": "52a009673042241c7138a48c48799d85de33871fc8b7f78028f7807642d4fd78",
+      "present": true
+    },
+    {
       "file": "test-agent-governance-runtime.mjs",
       "sha256": "cb6fcec8be7145e9bc3321c6af5b2a25e934f4e05d14fcf4351b36286015b2d0",
       "present": true
@@ -308,7 +438,7 @@
     },
     {
       "file": "test-connectors.mjs",
-      "sha256": "5b0e657371a2cf85edb84442a0d952bd61e0b83f1273bfc621907b4805c91055",
+      "sha256": "b0baaa83a3c50b496b98cfeed9e134378798d739948c16751cffc788c3e2c40c",
       "present": true
     },
     {
@@ -387,6 +517,61 @@
       "present": true
     },
     {
+      "file": "test-session-insight-capability-envelope-actual-request-preflight-service.mjs",
+      "sha256": "36ed5996d4105d84be22189a7a9ead92e8cfe9d4a85ea411f6d6bdaed7344501",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs",
+      "sha256": "650b9851dd75e34e72d4f7855657b38b26dd9a61bc5bc0290e5e21667dc2fd58",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs",
+      "sha256": "e3504d396a1f612ce07d2984111b24d34662d0db99acd8603292dd6840c61869",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-capability-envelope-dispatch-readback-service.mjs",
+      "sha256": "43f9b149f3e12d2a50cc1a1b07f838045e805eeab5df1f74f8ce3583c6ea7b60",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-capability-envelope-plan-service.mjs",
+      "sha256": "41cc54c2c4670454d5d2af24c1db1d5a7c6715bf2af71f5c67a5753038921a0f",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-capability-envelope-request-gate-service.mjs",
+      "sha256": "a67f268f2f271e866ae2ded92a0001c42c00d74c8a072d5e51990fec2dd0b63a",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-payload-preview-service.mjs",
+      "sha256": "2238a17aa5e881b8449fdb6fcd8af98f72bc61b9679f3fd4cf35a50cca07fbee",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-promotion-apply-request-service.mjs",
+      "sha256": "d8446819de574bdc6939ae23d104d7d476f1c029b48f5128478c0fc4bd11a072",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-promotion-dry-run-executor-service.mjs",
+      "sha256": "784ecdb5c6e14bfbeb9be4df37d5bc2e32efe5b1f74f69d84684c7a9ac27c8cb",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-remaining-scope-completion-service.mjs",
+      "sha256": "b6fda9ce31d80e51156146212ef41c1d480db77280f25c189345db06351f1434",
+      "present": true
+    },
+    {
+      "file": "test-session-insight-target-write-readback-service.mjs",
+      "sha256": "738fa8cbd6fa41b7e64f3c24f7bbfebe275295a44cbfaffd8104953c3551004f",
+      "present": true
+    },
+    {
       "file": "test-tenant-connect-bootstrap-transaction.mjs",
       "sha256": "12b38133e5032cc6a108a9d0799f11de83b20b4feab20d26d54f138411980f67",
       "present": true
@@ -402,8 +587,18 @@
       "present": true
     },
     {
+      "file": "test-tenant-resolution-diagnostic-core.mjs",
+      "sha256": "586644732fd2b10d3fc94667912333dafea94427c4eb8009a6d2fccc7e37f47d",
+      "present": true
+    },
+    {
       "file": "test-tenant-ssh-cli-dry-run.mjs",
       "sha256": "66238db0ca21469e3c00422b6f6464bd9b6972ba723d9ca94218b4dea2b583d2",
+      "present": true
+    },
+    {
+      "file": "test-tenant-task-source-repair-preview.mjs",
+      "sha256": "451f57e25ec1285de7fe8a3921f3bc609b369f57f43bf01578ebf8f029bc3f6f",
       "present": true
     },
     {
@@ -468,8 +663,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 69,
-    "generated_rule_count": 69,
+    "candidate_count": 83,
+    "generated_rule_count": 83,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -1417,7 +1612,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "github-file-update-preview-external-effect-v1",
-        "source_digest": "acd09bfb1a5a715c945d16e5142d81ba2853ab3b94703107c53250390d72424e",
+        "source_digest": "eab07244ef21815e76856834de337a3f5546c4e256445cf0e658d45315c56bd8",
         "fail_closed": true
       },
       "preflight": {
@@ -1457,6 +1652,24 @@
       "generated_evidence": {
         "recipe_id": "governed-addition-review-read-action-v1",
         "source_digest": "98f8f6a187057451c4605ac735c5f6b107581a13c985b597a1461da4807d5bd7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-hostinger-ssh-runtime-registry-read-action-v1",
+      "operation": "POST /hostinger/ssh-runtime-read",
+      "source_file": "routes/governanceRoutes.js",
+      "classification": "read_action",
+      "owner": "hosting-runtime-governance",
+      "rationale": "Reads one matching Hostinger target from the SQL authority registry and returns connection metadata plus a credential reference without contacting Hostinger, executing SSH, or changing provider state.",
+      "evidence_refs": [
+        "hostinger.js",
+        "routes/governanceRoutes.js",
+        "test-connectors.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "hostinger-ssh-runtime-registry-read-action-v1",
+        "source_digest": "62da8433f547996f73af463c5e452e0ce259df32a2a755dc1afc5aafde5b8680",
         "fail_closed": true
       }
     },
@@ -1938,6 +2151,413 @@
       }
     },
     {
+      "rule_id": "generated-session-insight-apply-request-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/apply/request",
+      "source_file": "routes/sessionInsightPromotionApplyRequestRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates an approved promotion and dry-run preview, appends a non-executable apply-request record, and reads the exact record back in the same cycle.",
+      "evidence_refs": [
+        "routes/sessionInsightPromotionApplyRequestRoutes.js",
+        "sessionInsightPromotionApplyRequestService.js",
+        "test-session-insight-promotion-apply-request-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-apply-request-state-change-v1",
+        "source_digest": "5b781d3630621db0d147d925fe7d686cc7a119cf95c8c31a9e5d37f9d511d6cd",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "approved_promotion_and_dry_run_preview_gate"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The mutation appends a non-executable apply-request record only; no provider or target write occurs, and later lifecycle decisions supersede it without deleting audit evidence."
+      },
+      "parameter_bindings": {
+        "preview_id": "request.body.preview_id",
+        "apply_request_id": "response.apply_request.apply_request_id",
+        "promotion_id": "response.apply_request.promotion_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-actual-request-preflight-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Checks the approved dry-run, payload hashes, request gate, promotion state, and duplicate envelopes before appending and reading back a no-execution preflight.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+        "sessionInsightCapabilityEnvelopeActualRequestPreflightService.js",
+        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-actual-request-preflight-state-change-v1",
+        "source_digest": "c69dbd6aa7660623d1d7db8bb38e7b835f8becb3828d4354ece5bcc55f9b3aef",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "approved_dispatch_dry_run_and_duplicate_envelope_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The preflight record neither creates nor approves an envelope and is retained as immutable evidence for any later request."
+      },
+      "parameter_bindings": {
+        "dispatch_dry_run_id": "request.body.dispatch_dry_run_id",
+        "actual_request_preflight_id": "response.actual_request_preflight.actual_request_preflight_id",
+        "duplicate_live_envelope_count": "response.actual_request_preflight.duplicate_live_envelope_count"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-adapter-execution-gate-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Requires typed confirmation and a valid dispatch readback, records a gate with adapter execution disabled, and verifies the exact gate record.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+        "sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js",
+        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-adapter-execution-gate-state-change-v1",
+        "source_digest": "853b17737f279df469ab2b3a8c2f2c69edfae10bc6bce39dfb86bfa1004e3146",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "typed_confirmation_and_dispatch_readback_integrity_gate"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The record opens a planning gate but explicitly does not request or execute an adapter; later execution governance supersedes it without deleting evidence."
+      },
+      "parameter_bindings": {
+        "dispatch_readback_id": "request.body.dispatch_readback_id",
+        "typed_confirm": "request.body.typed_confirm",
+        "adapter_execution_gate_id": "response.adapter_execution_gate.adapter_execution_gate_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-dispatch-dry-run-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates an approved request gate, records a dispatch dry-run that cannot dispatch or write, and verifies the exact record immediately.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+        "sessionInsightCapabilityEnvelopeDispatchDryRunService.js",
+        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-dispatch-dry-run-state-change-v1",
+        "source_digest": "50fffdda9c124b9c73d71a32b9cfc5f7e685402d485b7320d38253f8ab79d0b9",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "approved_request_gate_and_dry_run_payload_validation"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "This appends a no-dispatch record only; the provider, adapter, and target remain untouched, and a review decision can supersede the record."
+      },
+      "parameter_bindings": {
+        "request_gate_id": "request.body.request_gate_id",
+        "dispatch_dry_run_id": "response.dispatch_dry_run.dispatch_dry_run_id",
+        "capability_plan_id": "response.dispatch_dry_run.capability_plan_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-dispatch-readback-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates the approval decision against the envelope ledger, appends a no-execution dispatch readback, and verifies the exact record.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+        "sessionInsightCapabilityEnvelopeDispatchReadbackService.js",
+        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-dispatch-readback-state-change-v1",
+        "source_digest": "1e0407b1404e593c1e6afafed1a31af0c1ec10f51d89dafe165cb9a075d0d942",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "approved_envelope_ledger_consistency_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_approved_source_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "This appends a readback attestation and cannot dispatch the adapter or mutate a target; preserving the attestation is required for audit continuity."
+      },
+      "parameter_bindings": {
+        "approval_decision_id": "request.body.approval_decision_id",
+        "dispatch_readback_id": "response.dispatch_readback.dispatch_readback_id",
+        "actual_capability_envelope_id": "response.dispatch_readback.actual_capability_envelope_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-capability-plan-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-plans/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Checks adapter readiness, records a plan that cannot request or execute a capability envelope, and verifies the plan record in the same cycle.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+        "sessionInsightCapabilityEnvelopePlanService.js",
+        "test-session-insight-capability-envelope-plan-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-capability-plan-state-change-v1",
+        "source_digest": "d7ad8eb5ed821d2407e9d43188dbd815dae1c412614bf36469d84f4602f33274",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "adapter_readiness_gate_and_no_execution_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The record is a plan only and cannot request an envelope, execute an adapter, or write a target; later gates supersede it without removing audit evidence."
+      },
+      "parameter_bindings": {
+        "payload_preview_id": "request.body.payload_preview_id",
+        "apply_request_id": "request.body.apply_request_id",
+        "capability_plan_id": "response.capability_plan.capability_plan_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-request-gate-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates a capability plan, appends a request gate with all execution paths disabled, and reads the exact gate record back.",
+      "evidence_refs": [
+        "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+        "sessionInsightCapabilityEnvelopeRequestGateService.js",
+        "test-session-insight-capability-envelope-request-gate-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-request-gate-state-change-v1",
+        "source_digest": "2ace2057d7ce0fa3617d9c4d982f65e9cdfb5ba81485acf469aa518c30a2338b",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "capability_plan_integrity_and_no_execution_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The gate record does not request an envelope or authorize execution; an explicit review decision can supersede it while retaining the immutable source evidence."
+      },
+      "parameter_bindings": {
+        "capability_plan_id": "request.body.capability_plan_id",
+        "request_gate_id": "response.request_gate.request_gate_id",
+        "promotion_id": "response.request_gate.promotion_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-recorded-dry-run-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/executor/dry-run",
+      "source_file": "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Builds dry-run previews with execution disabled and, only when explicitly requested, appends each preview and verifies its exact non-executable readback.",
+      "evidence_refs": [
+        "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
+        "sessionInsightPromotionDryRunExecutorService.js",
+        "test-session-insight-promotion-dry-run-executor-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-recorded-dry-run-state-change-v1",
+        "source_digest": "395def7f708e09a186620542df7ef2ecba1b60e453a2b493c9dd45ee58d36465",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "approved_ready_promotion_and_explicit_record_preview"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "Recording is opt-in and appends a dry-run-only preview with execution disabled; retaining the record preserves audit evidence and no provider or target state needs reversal."
+      },
+      "parameter_bindings": {
+        "promotion_id": "request.body.promotion_id|selected promotion",
+        "record_preview": "request.body.record_preview",
+        "preview_id": "response.recorded_previews[].preview_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-payload-preview-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/payload-preview/generate",
+      "source_file": "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates the source request against an active dry-run contract, appends a payload preview with execution and target writes disabled, and reads it back immediately.",
+      "evidence_refs": [
+        "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
+        "sessionInsightPromotionPayloadPreviewService.js",
+        "test-session-insight-payload-preview-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-payload-preview-state-change-v1",
+        "source_digest": "ca7db3389f103144ccc38a9e049a851a3e00c80507a68082e2fca7ed10051c2f",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "apply_request_and_active_dry_run_contract_gate"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_source_state_gate"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The payload preview is an append-only, non-executable contract artifact; review events can supersede it while preserving the original evidence."
+      },
+      "parameter_bindings": {
+        "apply_request_id": "request.body.apply_request_id",
+        "payload_preview_id": "response.payload_preview.payload_preview_id",
+        "contract_key": "response.payload_preview.contract_key"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-remaining-scope-completion-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/remaining-scope-completions/create",
+      "source_file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Requires typed confirmation and a consistent no-execution adapter gate, appends the remaining-scope attestation, and verifies it immediately.",
+      "evidence_refs": [
+        "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+        "sessionInsightRemainingScopeCompletionService.js",
+        "test-session-insight-remaining-scope-completion-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-remaining-scope-completion-state-change-v1",
+        "source_digest": "e5ca2d09e9890199fcff8112aa4c2bc79c7985cb73017246de289f51a571978e",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "typed_confirmation_and_adapter_gate_consistency_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "Completion is an append-only governance attestation with target writes disabled; retaining it preserves the evidence chain and no external state requires reversal."
+      },
+      "parameter_bindings": {
+        "adapter_execution_gate_id": "request.body.adapter_execution_gate_id",
+        "typed_confirm": "request.body.typed_confirm",
+        "remaining_scope_completion_id": "response.remaining_scope_completion.remaining_scope_completion_id"
+      }
+    },
+    {
+      "rule_id": "generated-session-insight-target-write-readback-state-change-v1",
+      "operation": "POST /platform/session-insight-promotions/target-write-readbacks/create",
+      "source_file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+      "classification": "state_change",
+      "owner": "session-insight-governance",
+      "rationale": "Validates an existing target write and its linked item, appends a readback-only attestation, and reads the exact attestation back without touching the target.",
+      "evidence_refs": [
+        "routes/sessionInsightTargetWriteReadbackRoutes.js",
+        "sessionInsightTargetWriteReadbackService.js",
+        "test-session-insight-target-write-readback-service.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "session-insight-target-write-readback-state-change-v1",
+        "source_digest": "08eba1c9f8411703225b77f109f3f83df408ed1d52a97b9846f6c6699788cfb7",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "exact_target_write_and_item_consistency_check"
+      },
+      "approval": {
+        "mode": "runtime_admin_authorization"
+      },
+      "readback": {
+        "mode": "same_cycle_control_record_readback",
+        "same_cycle": true
+      },
+      "rollback": {
+        "mode": "immutable_append_only_control_record",
+        "rationale": "The operation appends a readback attestation only and cannot modify the target item or repeat the target write; retaining it is necessary for audit evidence."
+      },
+      "parameter_bindings": {
+        "target_write_id": "request.body.target_write_id",
+        "readback_id": "response.readback.readback_id",
+        "target_item_id": "response.readback.target_item_id"
+      }
+    },
+    {
       "rule_id": "generated-tenant-operation-ci-diagnose-external-effect-v1",
       "operation": "POST /tenant/operations/ci-diagnose",
       "source_file": "routes/operationOrchestratorRoutes.js",
@@ -2027,6 +2647,92 @@
         "recipe_id": "tenant-operation-status-read-action-v1",
         "source_digest": "467b483b2df5634ae72797c339ae5cb3dc3ae7e9df7c5be86f70e08f5ead17fb",
         "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-tenant-resolution-diagnostic-state-change-v1",
+      "operation": "POST /tenant/resolution/cases/{caseId}/diagnostics",
+      "source_file": "routes/activationAwarenessRoutes.js",
+      "classification": "state_change",
+      "owner": "tenant-resolution-governance",
+      "rationale": "Locks the tenant case, applies exactly one allowed diagnostic mode with evidence events in a transaction, and returns the locked projection while denying provider calls and repair execution.",
+      "evidence_refs": [
+        "routes/activationAwarenessRoutes.js",
+        "tenantResolutionDiagnosticService.js",
+        "test-tenant-resolution-diagnostic-core.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-resolution-diagnostic-state-change-v1",
+        "source_digest": "2292c5889f1bc2353d5ed6f22be0d6809e45edf668c900efa1e0dfe172ca96c9",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "tenant_membership_case_lock_and_mode_state_gate"
+      },
+      "approval": {
+        "mode": "tenant_runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_locked_projection",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ],
+        "rationale": "Diagnostic, plan-preview, or escalation mutations and their evidence events share one SQL transaction; failures roll back before the connection is released."
+      },
+      "parameter_bindings": {
+        "case_id": "path.caseId",
+        "tenant_id": "auth.tenant_id",
+        "mode": "request.body.mode",
+        "case_status": "response.case.status"
+      }
+    },
+    {
+      "rule_id": "generated-tenant-task-source-repair-preview-state-change-v1",
+      "operation": "POST /tenant/resolution/cases/{caseId}/task-source-repair/preview",
+      "source_file": "routes/activationAwarenessRoutes.js",
+      "classification": "state_change",
+      "owner": "tenant-resolution-governance",
+      "rationale": "Locks the tenant-scoped case and task, stores the repair preview plus evidence event in one transaction, and returns the locked projection with task writes and external effects denied.",
+      "evidence_refs": [
+        "routes/activationAwarenessRoutes.js",
+        "tenantTaskSourceRepairPreviewService.js",
+        "test-tenant-task-source-repair-preview.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "tenant-task-source-repair-preview-state-change-v1",
+        "source_digest": "545d8936c7c8f6a4eebebb258a7b92bf3abcd19a49d4dbce890dab3654863540",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "tenant_membership_case_scope_and_task_lock"
+      },
+      "approval": {
+        "mode": "tenant_runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_locked_projection",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ],
+        "rationale": "The case preview update and immutable event append execute on one connection; any mutation or projection failure rolls the transaction back before release."
+      },
+      "parameter_bindings": {
+        "case_id": "path.caseId",
+        "tenant_id": "auth.tenant_id",
+        "task_id": "request.body.task_id|resolved task",
+        "preview_fingerprint": "response.preview.preview_fingerprint_sha256"
       }
     },
     {
