@@ -499,10 +499,12 @@ export async function applyTargetAuthEmailDelivery({
 
     const outcomeUnknown = providerCallStarted;
     const attemptStatus = outcomeUnknown ? "unknown" : "failed";
-    const outboxStatus = outcomeUnknown ? "delivery_unknown" : "failed";
-    const errorCode = outcomeUnknown
-      ? "gmail_delivery_result_unknown"
-      : String(error?.code || "gmail_delivery_failed");
+    const deliveryState = outcomeUnknown ? "delivery_unknown" : "failed";
+    const errorCode = providerResult?.provider_message_id
+      ? "delivery_persistence_failed_after_provider_success"
+      : outcomeUnknown
+        ? "gmail_delivery_result_unknown"
+        : String(error?.code || "gmail_delivery_failed");
     let persistenceErrorCode = null;
 
     try {
