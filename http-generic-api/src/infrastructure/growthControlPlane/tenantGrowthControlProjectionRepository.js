@@ -58,9 +58,20 @@ function activityBindingRow(row) {
   });
 }
 
-export function createTenantGrowthControlProjectionRepository({ pool }) {
-  if (!pool || typeof pool.query !== "function") {
-    throw new Error("A SQL pool is required for tenant Growth Control Plane projections.");
+export function createTenantGrowthControlProjectionRepository({
+  pool = null,
+  resolvePool = async () => getPool()
+} = {}) {
+  if (pool != null && typeof pool.query !== "function") {
+    throw new Error("The provided tenant Growth Control Plane SQL pool is invalid.");
+  }
+
+  async function executor() {
+    const resolved = pool || await resolvePool();
+    if (!resolved || typeof resolved.query !== "function") {
+      throw new Error("A SQL pool is required for tenant Growth Control Plane projections.");
+    }
+    return resolved;
   }
 
   async function resolveTenantWorkspaceScope({ tenantId, userId, workspaceId, brandKey }) {
