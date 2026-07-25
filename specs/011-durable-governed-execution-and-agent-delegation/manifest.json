@@ -85,6 +85,13 @@
   "phase3_delegation_persistence_branch": "gpt/spec-011-phase3-delegation-persistence-20260725",
   "phase3_delegation_persistence_pull_request": 3110,
   "phase3_delegation_persistence_source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
+  "phase3_delegation_persistence_merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b",
+  "phase3_delegation_persistence_final_ci_head_sha": "22f100d6aece8600fa953bed7f05fd1f975890f5",
+  "phase3_delegation_persistence_final_ci_base_sha": "2587f804045e5045a87a5df3009ea2bac8aa45d8",
+  "phase3_delegation_persistence_closeout_branch": "gpt/spec-011-phase3-delegation-persistence-closeout-20260725",
+  "phase3_delegation_persistence_deployment_required": false,
+  "phase3_delegation_persistence_migration_applied": false,
+  "phase3_delegation_persistence_runtime_authority": false,
   "deliverables": [
     "spec",
     "plan",
