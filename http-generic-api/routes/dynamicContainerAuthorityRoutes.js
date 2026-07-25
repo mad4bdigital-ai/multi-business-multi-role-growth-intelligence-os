@@ -484,4 +484,11 @@ export function buildDynamicContainerAuthorityRoutes({ requireBackendApiKey, req
   return router;
 }
 
-export const _testingDynamicContainerAuthorityRoutes = { verifyUserJwt,assertAllowedKeys,enforcePreviewRate,errorResponse };
+export const _testingDynamicContainerAuthorityRoutes = {
+  verifyUserJwt,
+  assertAllowedKeys,
+  enforcePreviewRate,
+  enforceTopologyReadRate,
+  resetTopologyReadRateForTests:() => topologyReadRate.clear(),
+  errorResponse
+};
