@@ -7,6 +7,7 @@ const HASH_PATTERN = /^[0-9a-f]{64}$/;
 const KEY_PATTERN = /^[a-z0-9][a-z0-9._:-]{1,190}$/;
 const COMMANDS = new Set(["initialize", "checkpoint", "approve", "reject", "callback", "cancel", "resume", "recover"]);
 const WAITING_STATUSES = new Set(["awaiting_approval", "awaiting_callback", "awaiting_input", "interrupted"]);
+const EXTERNAL_SIGNAL_STATUSES = new Set(["awaiting_approval", "awaiting_callback", "awaiting_input"]);
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 const RESUMABLE_STATUSES = new Set(["resume_ready", "awaiting_input", "interrupted", "recovery_pending"]);
 const COMPLETED_STEP_STATUSES = new Set(["completed", "succeeded", "success", "skipped"]);
