@@ -64,12 +64,19 @@ function bodyOf(req = {}) {
 function resolveBudget(req = {}) {
   const body = bodyOf(req);
   const operationKey = normalizeOperationKey(body.operation_key || body.operation || body.intent);
-  if (!operationKey) return { ...FALLBACK_BUDGET, operation_key: null };
+  if (!operationKey) {
+    return { ...FALLBACK_BUDGET, operation_key: null, enforce_budget: false };
+  }
   try {
     const contract = getOperationContract(operationKey);
-    return { ...FALLBACK_BUDGET, ...contract.budget, operation_key: contract.operation_key };
+    return {
+      ...FALLBACK_BUDGET,
+      ...contract.budget,
+      operation_key: contract.operation_key,
+      enforce_budget: true,
+    };
   } catch {
-    return { ...FALLBACK_BUDGET, operation_key: compact(operationKey, 128) || null };
+    return { ...FALLBACK_BUDGET, operation_key: compact(operationKey, 128) || null, enforce_budget: false };
   }
 }
 
