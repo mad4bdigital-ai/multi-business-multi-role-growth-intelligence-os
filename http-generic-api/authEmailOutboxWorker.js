@@ -786,6 +786,7 @@ export async function runAuthEmailOutboxWorker({ pool = getPool(), purposes = DE
       failed,
       skipped,
       external_send_performed: delivered.length > 0 || failed.some((item) => item.external_send_performed === true),
+      runtime_delivery_gate_used: runtimeGate.enabled,
       secrets_included: false,
     };
   } finally {
