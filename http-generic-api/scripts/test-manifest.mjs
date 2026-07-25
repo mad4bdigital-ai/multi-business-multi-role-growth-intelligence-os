@@ -316,6 +316,7 @@ export const testCommands = [
   "node test-local-connector-device-disable-rotate-script.mjs",
   "node test-tenant-safe-tool-route-rebinding.mjs",
   "node test-openapi-endpoint-inventory-sync.mjs",
+  "node test-openapi-inventory-fragment-discovery.mjs",
   "node test-openapi-builder-schema-guard.mjs",
   "node test-activation-gateway.mjs",
   "node test-activation-gateway-runtime-bundle-parity.mjs",
