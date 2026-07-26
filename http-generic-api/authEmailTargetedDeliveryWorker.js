@@ -399,7 +399,7 @@ export async function applyTargetAuthEmailDelivery({
     };
     const [reservation] = await connection.query(
       `UPDATE auth_email_outbox
-          SET status = 'processing', provider = 'gmail_api', metadata_json = ?, last_error = NULL
+          SET status = 'failed', provider = 'gmail_api', metadata_json = ?, last_error = NULL
         WHERE email_id = ? AND status = 'queued'`,
       [JSON.stringify(reservationMetadata), email.email_id],
     );
@@ -439,13 +439,26 @@ export async function applyTargetAuthEmailDelivery({
       external_send_performed: true,
       secrets_included: false,
     };
-    await connection.query(
+    const [sentUpdate] = await connection.query(
       `UPDATE auth_email_outbox
           SET status = 'sent', provider = 'gmail_api', provider_message_id = ?, metadata_json = ?,
               last_error = NULL, sent_at = CURRENT_TIMESTAMP
-        WHERE email_id = ? AND status = 'processing'`,
-      [providerResult.provider_message_id, JSON.stringify(sentMetadata), email.email_id],
+        WHERE email_id = ? AND status = 'failed'
+          AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.delivery_attempt_id')) = ?`,
+      [
+        providerResult.provider_message_id,
+        JSON.stringify(sentMetadata),
+        email.email_id,
+        attempt.attempt_id,
+      ],
     );
+    if (Number(sentUpdate?.affectedRows || 0) !== 1) {
+      throw structuredError(
+        "auth_email_outbox_finalize_conflict",
+        "The reserved auth email could not be finalized after provider delivery.",
+        409,
+      );
+    }
     const lifecycleEventId = await recordLifecycleEvent(connection, {
       email,
       metadata,
@@ -486,10 +499,12 @@ export async function applyTargetAuthEmailDelivery({
 
     const outcomeUnknown = providerCallStarted;
     const attemptStatus = outcomeUnknown ? "unknown" : "failed";
-    const outboxStatus = outcomeUnknown ? "delivery_unknown" : "failed";
-    const errorCode = outcomeUnknown
-      ? "gmail_delivery_result_unknown"
-      : String(error?.code || "gmail_delivery_failed");
+    const deliveryState = outcomeUnknown ? "delivery_unknown" : "failed";
+    const errorCode = providerResult?.provider_message_id
+      ? "delivery_persistence_failed_after_provider_success"
+      : outcomeUnknown
+        ? "gmail_delivery_result_unknown"
+        : String(error?.code || "gmail_delivery_failed");
     let persistenceErrorCode = null;
 
     try {
@@ -499,16 +514,22 @@ export async function applyTargetAuthEmailDelivery({
         ...metadata,
         delivery_attempt_id: attempt.attempt_id,
         delivery_provider: "gmail_api",
-        delivery_state: outboxStatus,
+        delivery_state: deliveryState,
         manual_reconciliation_required: outcomeUnknown,
         external_send_performed: externalSendPerformed,
         secrets_included: false,
       };
       await connection.query(
         `UPDATE auth_email_outbox
-            SET status = ?, provider = 'gmail_api', metadata_json = ?, last_error = ?
-          WHERE email_id = ? AND status = 'processing'`,
-        [outboxStatus, JSON.stringify(failureMetadata), errorCode.slice(0, 1000), email.email_id],
+            SET status = 'failed', provider = 'gmail_api', metadata_json = ?, last_error = ?
+          WHERE email_id = ? AND status = 'failed'
+            AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.delivery_attempt_id')) = ?`,
+        [
+          JSON.stringify(failureMetadata),
+          errorCode.slice(0, 1000),
+          email.email_id,
+          attempt.attempt_id,
+        ],
       );
       const lifecycleEventId = await recordLifecycleEvent(connection, {
         email,
