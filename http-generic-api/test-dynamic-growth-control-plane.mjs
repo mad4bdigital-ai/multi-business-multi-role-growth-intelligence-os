@@ -72,7 +72,7 @@ assert.equal(resolved.values.maxResources, 3);
 assert.deepEqual(resolved.values.locales, ["ar-EG","en"]);
 assert.match(resolved.sha256, /^[a-f0-9]{64}$/);
 
-const manifest = validateActivityPackManifest({
+const legacyManifest = validateActivityPackManifest({
   entitySchemas: { destination: { type: "object" } },
   knowledgeProfile: { pointerKey: "travel.knowledge.active" },
   kpiTaxonomy: ["qualified_lead_rate"],
@@ -82,7 +82,99 @@ const manifest = validateActivityPackManifest({
   providerCompatibility: [],
   tests: { fixtures: ["travel-basic"] }
 });
-assert.match(manifest.checksumSha256, /^[a-f0-9]{64}$/);
+assert.match(legacyManifest.checksumSha256, /^[a-f0-9]{64}$/);
+
+const structuredActivityPack = {
+  identity: { activityPackKey: "travel.organic_growth", version: 1 },
+  entitySchemas: {
+    destination: {
+      type: "object",
+      additionalProperties: false,
+      required: ["destinationKey"],
+      properties: { destinationKey: { type: "string", minLength: 3 } }
+    }
+  },
+  knowledgeProfile: { pointerKey: "travel.knowledge.active" },
+  kpiTaxonomy: ["qualified_lead_rate"],
+  capabilities: [
+    { capabilityKey: "intent_map_generate", version: 1 },
+    { capabilityKey: "content_brief_generate", version: 1 }
+  ],
+  workflows: [{
+    workflowKey: "organic_growth_plan",
+    version: 1,
+    nodes: [
+      { id: "intent", capability: "intent_map_generate", mode: "internal_draft" },
+      { id: "briefs", capability: "content_brief_generate", depends_on: ["intent"] }
+    ]
+  }],
+  policies: [{
+    policyKey: "internal_draft_policy",
+    capabilities: ["intent_map_generate", "content_brief_generate"],
+    workflows: ["organic_growth_plan"]
+  }],
+  providerCompatibility: [{
+    providerKey: "cms.page",
+    capabilities: ["content_brief_generate"],
+    workflows: ["organic_growth_plan"]
+  }],
+  tests: {
+    fixtures: ["travel-basic"],
+    compatibilityDeclarations: [{
+      providerKey: "cms.page",
+      capabilityKey: "content_brief_generate",
+      workflowKey: "organic_growth_plan"
+    }]
+  }
+};
+const structuredManifest = validateActivityPackManifest(structuredActivityPack);
+assert.match(structuredManifest.checksumSha256, /^[a-f0-9]{64}$/);
+assert.equal(structuredManifest.secretsIncluded, false);
+assert.equal(structuredManifest.manifest.identity.activityPackKey, "travel.organic_growth");
+
+function cloneActivityPack(value = structuredActivityPack) {
+  return JSON.parse(JSON.stringify(value));
+}
+function assertActivityPackIssue(value, issue) {
+  assert.throws(
+    () => validateActivityPackManifest(value),
+    (error) => error.code === "GROWTH_CONTROL_ACTIVITY_PACK_INVALID"
+      && error.status === 422
+      && error.details.some((detail) => detail.issue === issue)
+  );
+}
+
+const duplicateCapability = cloneActivityPack();
+duplicateCapability.capabilities.push({ capabilityKey: "intent_map_generate", version: 2 });
+assertActivityPackIssue(duplicateCapability, "duplicate_key");
+
+const unknownCapability = cloneActivityPack();
+unknownCapability.workflows[0].nodes[1].capability = "content_unknown_generate";
+assertActivityPackIssue(unknownCapability, "unknown_capability_reference");
+
+const unknownDependency = cloneActivityPack();
+unknownDependency.workflows[0].nodes[1].depends_on = ["missing_node"];
+assertActivityPackIssue(unknownDependency, "unknown_node_reference");
+
+const cyclicWorkflow = cloneActivityPack();
+cyclicWorkflow.workflows[0].nodes[0].depends_on = ["briefs"];
+assertActivityPackIssue(cyclicWorkflow, "workflow_cycle");
+
+const incompatibleProvider = cloneActivityPack();
+incompatibleProvider.providerCompatibility[0].capabilities = ["provider_only_capability"];
+assertActivityPackIssue(incompatibleProvider, "unknown_capability_reference");
+
+const invalidCompatibilityDeclaration = cloneActivityPack();
+invalidCompatibilityDeclaration.tests.compatibilityDeclarations[0].providerKey = "unknown.provider";
+assertActivityPackIssue(invalidCompatibilityDeclaration, "unknown_provider_reference");
+
+const inlinePointer = cloneActivityPack();
+inlinePointer.workflows[0].nodes[0].promptBody = "inline prompt content";
+assertActivityPackIssue(inlinePointer, "inline_pointer_forbidden");
+
+const invalidTests = cloneActivityPack();
+invalidTests.tests = [];
+assertActivityPackIssue(invalidTests, "must_be_object");
 
 assert.deepEqual(
   assertGrowthControlConfigurationTransition("draft", "ready"),
