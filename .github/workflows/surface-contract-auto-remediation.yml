@@ -2,6 +2,11 @@ name: Surface Contract Auto Remediation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - gpt/agent-capability-evidence-v1
+    paths:
+      - .github/workflows/surface-contract-auto-remediation.yml
 
 permissions:
   contents: write
