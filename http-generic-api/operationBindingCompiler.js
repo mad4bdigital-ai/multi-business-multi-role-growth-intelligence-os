@@ -217,12 +217,13 @@ function normalizeCandidate(input, index) {
 }
 
 function scoreCandidate(candidate, weights) {
-  const m = candidate.metrics;
-  const score = m.quality * weights.quality + m.reliability * weights.reliability + m.privacy * weights.privacy +
-    m.preference_match * weights.preference_match + m.context_reuse * weights.context_reuse +
-    (1 - m.estimated_cost) * weights.estimated_cost + (1 - m.expected_latency) * weights.expected_latency +
-    (1 - m.saturation) * weights.saturation;
-  return Number(score.toFixed(6));
+  return scoreOperationBindingCandidate({
+    binding_id: candidate.binding_id,
+    binding_key: candidate.binding_key,
+    eligible: true,
+    metrics: candidate.metrics,
+    weights,
+  }).score;
 }
 
 function rankCandidate(candidate, context, score) {
