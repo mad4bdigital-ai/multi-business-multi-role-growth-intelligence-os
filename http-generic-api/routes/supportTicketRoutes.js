@@ -111,6 +111,7 @@ import {
   runAuthEmailOutboxWorker,
   skipAuthEmailOutboxIneligible,
 } from "../authEmailOutboxWorker.js";
+import { canViewSupportTicketResolution } from "../supportTicketResolutionService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
