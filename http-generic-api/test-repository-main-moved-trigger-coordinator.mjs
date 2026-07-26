@@ -38,6 +38,24 @@ assert.equal(normalized.before_sha, beforeSha);
 assert.equal(normalized.after_sha, afterSha);
 assert.equal(normalized.deleted, false);
 
+const productionEnv = {
+  RELEASE_TRIGGER_REPOSITORY: repository,
+  ACTIVATION_GITHUB_BRANCH: "Production",
+};
+const productionNormalized = normalizeRepositoryMainMovedEvent({
+  ...normalized,
+  branch: "refs/heads/Production",
+  source_event_id: "delivery-production",
+}, { env: productionEnv });
+assert.equal(productionNormalized.branch, "Production");
+
+assert.throws(
+  () => normalizeRepositoryMainMovedEvent({ ...productionNormalized, branch: "main" }, { env: productionEnv }),
+  (error) => error.code === "repository_main_moved_branch_not_supported"
+    && error.status === 400
+    && error.details?.expected_branch === "Production",
+);
+
 assert.throws(
   () => normalizeRepositoryMainMovedEvent({ ...normalized, repository: "other/repository" }, { env }),
   (error) => error.code === "repository_main_moved_repository_not_allowed" && error.status === 403,
