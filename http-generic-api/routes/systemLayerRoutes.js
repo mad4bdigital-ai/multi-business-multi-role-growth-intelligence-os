@@ -27,7 +27,7 @@ import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHub
 import { GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS } from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import * as GitHubRepositoryMainMovedWebhookProvisioningRuntime from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
-import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems, shouldChunkDispatchedToolResponse } from "./gptToolsRoutes.js";
 import {
   PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   catalogGovernedResources,
