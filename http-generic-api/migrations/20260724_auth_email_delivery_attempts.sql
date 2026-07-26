@@ -1,10 +1,5 @@
--- Add deterministic targeted delivery states, an internal delivery-attempt ledger, and governed tools.
--- This migration does not call Gmail or send email.
-
-ALTER TABLE `auth_email_outbox`
-  MODIFY COLUMN `status`
-    ENUM('queued','processing','sent','failed','skipped','delivery_unknown')
-    NOT NULL DEFAULT 'queued';
+-- Add an internal delivery-attempt ledger and governed tools.
+-- Additive only. This migration does not alter the outbox status enum, call Gmail, or send email.
 
 CREATE TABLE IF NOT EXISTS `auth_email_delivery_attempts` (
   `attempt_id` CHAR(36) NOT NULL,
