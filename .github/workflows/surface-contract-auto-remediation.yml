@@ -43,60 +43,8 @@ jobs:
           set -euo pipefail
           git fetch origin main --depth=1
           git show origin/main:http-generic-api/openapi.yaml > "$RUNNER_TEMP/openapi-main.yaml"
-          python3 - <<'PY'
-          from pathlib import Path
-          import os
-
-          source = Path(os.environ['RUNNER_TEMP']) / 'openapi-main.yaml'
-          target = Path('http-generic-api/openapi.yaml')
-          marker = '  /platform/agent-governance/readiness:\n'
-          coverage = '''  /platform/agent-governance/logic-coverage:
-    get:
-      tags: [platform-agent-governance]
-      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
-      operationId: getAgentGovernanceLogicCoverage
-      summary: Read evidence-backed Agent Logic runtime coverage
-      description: Returns Logic inventory separately from retrieval, selection, dispatch, success, and verification evidence. Active inventory alone is not counted as usage.
-      parameters:
-        - { name: logic_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
-        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' } }
-        - name: usage_status
-          in: query
-          required: false
-          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
-        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
-      responses:
-        "200": { description: Logic runtime coverage and usage evidence }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { description: Admin principal required }
-  /platform/agent-governance/engine-coverage:
-    get:
-      tags: [platform-agent-governance]
-      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
-      operationId: getAgentGovernanceEngineCoverage
-      summary: Read evidence-backed Agent Engine runtime coverage
-      description: Returns workflow-bound Engine references separately from retrieval, selection, dispatch, success, and verification evidence. Textual references alone are not counted as usage.
-      parameters:
-        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
-        - name: usage_status
-          in: query
-          required: false
-          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
-        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
-      responses:
-        "200": { description: Engine runtime coverage and usage evidence }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { description: Admin principal required }
-'''
-          text = source.read_text(encoding='utf-8')
-          if marker not in text:
-              raise SystemExit('Agent Governance readiness marker not found in current main OpenAPI')
-          if '/platform/agent-governance/logic-coverage:' in text or '/platform/agent-governance/engine-coverage:' in text:
-              raise SystemExit('Current main already contains capability coverage paths')
-          target.write_text(text.replace(marker, coverage + marker, 1), encoding='utf-8')
-          PY
+          cd http-generic-api
+          node scripts/repair-agent-capability-openapi.mjs "$RUNNER_TEMP/openapi-main.yaml" openapi.yaml
 
       - name: Validate repaired OpenAPI and focused tests
         working-directory: http-generic-api
@@ -111,8 +59,9 @@ jobs:
         run: |
           set -euo pipefail
           git show origin/main:.github/workflows/surface-contract-auto-remediation.yml > .github/workflows/surface-contract-auto-remediation.yml
+          rm http-generic-api/scripts/repair-agent-capability-openapi.mjs
           git config user.name "growth-intelligence-platform[bot]"
           git config user.email "growth-intelligence-platform[bot]@users.noreply.github.com"
-          git add http-generic-api/openapi.yaml .github/workflows/surface-contract-auto-remediation.yml
+          git add http-generic-api/openapi.yaml .github/workflows/surface-contract-auto-remediation.yml http-generic-api/scripts/repair-agent-capability-openapi.mjs
           git commit -m "Repair Agent capability coverage OpenAPI contracts"
           git push origin HEAD:${GITHUB_REF_NAME}
