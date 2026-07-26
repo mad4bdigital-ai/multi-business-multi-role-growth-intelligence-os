@@ -67,6 +67,11 @@ const effectiveSubject = createEffectiveSubject({
   tenantRef: "tenant-a",
   workspaceRef: "workspace-a",
 });
+const tenantOnlySubject = createEffectiveSubject({
+  subjectType: "tenant_user",
+  subjectRef: "user-a",
+  tenantRef: "tenant-a",
+});
 
 const authorizedScopeRepository = {
   async findAuthorizedScope({ tenantRef, userRef }) {
