@@ -87,10 +87,17 @@
       "status": "merged",
       "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
     },
-    "phase3_delegation_persistence_closeout_pr": {
+    "phase3_delegation_persistence_original_closeout_pr": {
       "number": 3132,
       "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-20260725",
-      "role": "delegation_persistence_evidence_closeout",
+      "role": "delegation_persistence_evidence_closeout_original",
+      "status": "closed_unmerged",
+      "head_sha": "3733b608d724b83616c6da350a5c2464470169f0"
+    },
+    "phase3_delegation_persistence_closeout_pr": {
+      "number": 3146,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726",
+      "role": "delegation_persistence_evidence_closeout_recovery",
       "status": "current_pr"
     },
     "implementation_prs": [
