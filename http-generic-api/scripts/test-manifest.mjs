@@ -600,6 +600,7 @@ export const testCommands = [
   "node test-operation-registry-repository.mjs",
   "node test-operation-binding-compiler.mjs",
   "node test-operation-binding-eligibility.mjs",
+  "node test-operation-binding-scoring.mjs",
   "node test-operation-compiled-manifest-persistence.mjs",
   "node test-operation-runtime-verifier.mjs",
   "node test-operation-authority-preflight.mjs",
