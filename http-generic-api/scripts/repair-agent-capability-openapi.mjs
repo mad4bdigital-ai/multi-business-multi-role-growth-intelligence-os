@@ -59,7 +59,7 @@ if (source.includes('/platform/agent-governance/logic-coverage:') || source.incl
   throw new Error('Source OpenAPI already contains Agent capability coverage paths');
 }
 
-const repaired = source.replace(marker, `${coveragePaths}${marker}`);
+const repaired = source.replace(marker, () => `${coveragePaths}${marker}`);
 const parsed = YAML.parse(repaired);
 if (!parsed?.paths?.['/platform/agent-governance/logic-coverage'] || !parsed?.paths?.['/platform/agent-governance/engine-coverage']) {
   throw new Error('Repaired OpenAPI did not expose both capability coverage paths');
