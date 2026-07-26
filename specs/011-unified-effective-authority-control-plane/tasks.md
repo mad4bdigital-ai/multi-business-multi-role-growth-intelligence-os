@@ -57,7 +57,7 @@
 
 - [ ] T050 Publish authority change events.
 - [ ] T051 Implement cache/projection invalidation consumers.
-- [ ] T052 Implement Registered/Authorized/Projected/Executable/Observed reconciler.
+- [x] T052 Implement Registered/Authorized/Projected/Executable/Observed reconciler.
 - [ ] T053 Create `AUTHORITY_PROJECTION_DRIFT` lifecycle.
 - [ ] T054 Add synthetic Admin, Tenant, support, agent, and revoked principals.
 - [ ] T055 Add alerting, ownership, and SLO telemetry.
