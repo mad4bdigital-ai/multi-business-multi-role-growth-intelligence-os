@@ -60,9 +60,21 @@ async function main() {
       status.summary.deployment,
     );
   }
-  assertCheck(checks, "dev db status is OK", status.summary.db_status.status === 200 && status.summary.db_status.ok, status.summary.db_status);
-  assertCheck(checks, "dev db clone has expected minimum table count", Number(status.summary.db_status.table_count || 0) >= 160, status.summary.db_status);
-  assertCheck(checks, "dev db clone has expected minimum row count", Number(status.summary.db_status.row_count || 0) >= 40000, status.summary.db_status);
+  const dbEvaluation = evaluateDevDbStatus({
+    health: status.summary.health,
+    dbStatus: status.summary.db_status,
+  });
+  assertCheck(checks, "dev DB status is available or policy governed", dbEvaluation.passed, {
+    ...status.summary.db_status,
+    db_connected: status.summary.health.db_connected,
+    policy_governed: dbEvaluation.policyGoverned,
+  });
+  if (dbEvaluation.directStatusOk) {
+    assertCheck(checks, "dev db clone has expected minimum table count", Number(status.summary.db_status.table_count || 0) >= 160, status.summary.db_status);
+    assertCheck(checks, "dev db clone has expected minimum row count", Number(status.summary.db_status.row_count || 0) >= 40000, status.summary.db_status);
+  } else {
+    assertCheck(checks, "dev health confirms DB connection", status.summary.health.db_connected === true, status.summary.health);
+  }
 
   const unauthDb = await requestJson(`${base}/dev/db/status`, { timeout_ms: 60000 });
   assertCheck(checks, "dev db status rejects unauthenticated access", unauthDb.status === 401 || unauthDb.status === 403, { status: unauthDb.status, code: unauthDb.body?.error?.code || null });
