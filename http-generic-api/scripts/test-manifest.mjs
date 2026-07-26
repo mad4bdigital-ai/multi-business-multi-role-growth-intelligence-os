@@ -54,6 +54,7 @@ export const testCommands = [
   "node test-platform-execution-envelope-kernel.mjs",
   "node test-context-kernel-domain.mjs",
   "node test-context-kernel-registry-adapters.mjs",
+  "node test-context-kernel-application-use-cases.mjs",
   "node test-platform-scoped-approval-kernel.mjs",
   "node test-platform-execution-concurrency-kernel.mjs",
   "node test-platform-adapter-contract-kernel.mjs",
