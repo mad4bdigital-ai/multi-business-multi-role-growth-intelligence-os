@@ -750,23 +750,29 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
     const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const helperBindings = helperInvocationBindings(scanSource, match.index, aliases, mountPrefix);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
       for (const expandedRoute of expandRoutePaths(route)) {
-        const routePath = joinRoutePath(mountPrefix, expandedRoute);
-        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-        for (const method of methods) {
-          operations.push({
-            method,
-            path: routePath,
-            signature: `${method} ${routePath}`,
-            source_file: file,
-            source_index: match.index,
-            declaration,
-            route_guards: routeGuards,
-            inherited_guards: inheritedGuards,
-          });
+        for (const binding of helperBindings) {
+          const routePath = joinRoutePath(binding.mount_prefix, expandedRoute);
+          const inheritedGuards = unique([
+            ...activeRouterUseGuards(scanSource, match.index, routePath, aliases),
+            ...binding.guards,
+          ]);
+          for (const method of methods) {
+            operations.push({
+              method,
+              path: routePath,
+              signature: `${method} ${routePath}`,
+              source_file: file,
+              source_index: match.index,
+              declaration,
+              route_guards: routeGuards,
+              inherited_guards: inheritedGuards,
+            });
+          }
         }
       }
     }
