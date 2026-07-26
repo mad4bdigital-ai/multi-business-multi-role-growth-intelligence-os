@@ -129,6 +129,10 @@ import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
+import {
+  createOperationRuntimeErrorHandler,
+  createOperationRuntimeGuard,
+} from "../operationRuntimeGuard.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -153,6 +157,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(createOperationRuntimeGuard());
   app.use(buildTenantGptOAuthMetadataRoutes());
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
@@ -299,4 +304,5 @@ export function registerRoutes(app, deps) {
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
   app.post("/admin/session-continuity/link-user", deps.requireBackendApiKey, requireAdminPrincipal, buildSessionContinuityHandler());
   app.use("/admin/cli", buildAdminCliRoutes(deps));
+  app.use(createOperationRuntimeErrorHandler());
 }
