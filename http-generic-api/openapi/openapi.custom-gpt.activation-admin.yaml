@@ -1406,13 +1406,13 @@ paths:
                   properties: {}
       responses:
         "200":
-          description: Hard activation complete.
+          description: Hard activation diagnostic report produced; activation status may be active or degraded.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HardActivationRunResponse"
         "424":
-          description: Required activation evidence is missing or degraded.
+          description: Hard activation could not produce a complete diagnostic evidence report.
           content:
             application/json:
               schema:
