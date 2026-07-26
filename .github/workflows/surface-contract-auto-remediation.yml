@@ -22,8 +22,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: surface-contract-auto-remediation-${{ github.ref }}
-  cancel-in-progress: true
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   remediate:

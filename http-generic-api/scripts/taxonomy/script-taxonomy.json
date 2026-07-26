@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-06.v1",
+  "version": "2026-07-24.v2",
   "purpose": "Classify http-generic-api/scripts root utilities before CI-driven relocation into responsibility-based subfolders.",
   "defaultDestinationRoot": "http-generic-api/scripts",
   "safety": {
@@ -19,6 +19,7 @@
   "categories": [
     { "key": "activation", "folder": "activation", "description": "Activation access, session, surface and operational intelligence scripts.", "patterns": ["^activation-", "^sync-activation-"] },
     { "key": "ads", "folder": "ads", "description": "Ads provider profile, budget and credential readiness scripts.", "patterns": ["^ads-", "^google-ads-"] },
+    { "key": "automation", "folder": "automation", "description": "Automation ownership, overlap analysis, scheduling and coordination scripts.", "patterns": ["automation-overlap", "automation-coordination"] },
     { "key": "agent-runtime", "folder": "agent-runtime", "description": "Agent runtime smoke, trace and model policy scripts.", "patterns": ["^agent-runtime-", "^openrouter-"] },
     { "key": "audit", "folder": "audit", "description": "Audit, rollup, coverage and evidence readback scripts.", "patterns": ["audit", "readback", "coverage"] },
     { "key": "backup", "folder": "backup", "description": "Backup export, copy, guard and destination preparation scripts.", "patterns": ["^backup-", "^db-backup-", "^local-backup-"] },
