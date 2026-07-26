@@ -7,6 +7,7 @@ import {
   encodeGmailRawMessage,
   evaluateAuthEmailOutboxSendEligibility,
   normalizePurposeList,
+  resolveAuthEmailOutboxRuntimeDeliveryGate,
 } from "./authEmailOutboxWorker.js";
 
 assert.deepEqual(
@@ -43,6 +44,91 @@ const ready = buildAuthEmailOutboxWorkerReadiness({
   confirm: "SEND_AUTH_EMAIL_OUTBOX",
 });
 assert.equal(ready.ready, true, "apply should be ready with feature flag and typed confirmation");
+
+const sqlGateReadiness = buildAuthEmailOutboxWorkerReadiness({
+  env: {},
+  apply: true,
+  confirm: "SEND_AUTH_EMAIL_OUTBOX",
+  runtimeGateEnabled: true,
+});
+assert.equal(sqlGateReadiness.ready, true, "a validated SQL runtime gate should enable one bounded apply pass");
+assert.equal(sqlGateReadiness.delivery_feature_flag_enabled, false);
+assert.equal(sqlGateReadiness.runtime_delivery_gate_enabled, true);
+assert.equal(sqlGateReadiness.delivery_enabled, true);
+
+const runtimeGate = await resolveAuthEmailOutboxRuntimeDeliveryGate({
+  pool: {
+    async query() {
+      return [[{
+        status: "active",
+        config_json: JSON.stringify({
+          enabled: true,
+          purposes: ["support_ticket_admin_notification"],
+          max_messages: 2,
+          allowed_email_ids: ["email_1", "email_2"],
+          expected_confirm: "SEND_AUTH_EMAIL_OUTBOX",
+          expires_at: "2026-07-25T01:00:00.000Z",
+        }),
+      }]];
+    },
+  },
+  purposes: ["support_ticket_admin_notification"],
+  limit: 2,
+  now: new Date("2026-07-25T00:00:00.000Z"),
+});
+assert.equal(runtimeGate.enabled, true);
+assert.deepEqual(runtimeGate.allowed_email_ids, ["email_1", "email_2"]);
+assert.equal(runtimeGate.allowed_email_count, 2);
+assert.equal(runtimeGate.max_messages, 2);
+assert.deepEqual(runtimeGate.reasons, []);
+
+const expiredRuntimeGate = await resolveAuthEmailOutboxRuntimeDeliveryGate({
+  pool: {
+    async query() {
+      return [[{
+        status: "active",
+        config_json: JSON.stringify({
+          enabled: true,
+          purposes: ["support_ticket_admin_notification"],
+          max_messages: 2,
+          allowed_email_ids: ["email_1", "email_2"],
+          expected_confirm: "SEND_AUTH_EMAIL_OUTBOX",
+          expires_at: "2026-07-24T23:59:59.000Z",
+        }),
+      }]];
+    },
+  },
+  purposes: ["support_ticket_admin_notification"],
+  limit: 2,
+  now: new Date("2026-07-25T00:00:00.000Z"),
+});
+assert.equal(expiredRuntimeGate.enabled, false);
+assert.ok(expiredRuntimeGate.reasons.includes("auth_email_outbox_runtime_gate_expired"));
+
+const mismatchedRuntimeGate = await resolveAuthEmailOutboxRuntimeDeliveryGate({
+  pool: {
+    async query() {
+      return [[{
+        status: "active",
+        config_json: JSON.stringify({
+          enabled: true,
+          purposes: ["support_ticket_admin_notification"],
+          max_messages: 1,
+          allowed_email_ids: ["email_1"],
+          expected_confirm: "WRONG_CONFIRMATION",
+          expires_at: "2026-07-25T01:00:00.000Z",
+        }),
+      }]];
+    },
+  },
+  purposes: ["support_ticket_admin_notification"],
+  limit: 2,
+  now: new Date("2026-07-25T00:00:00.000Z"),
+});
+assert.equal(mismatchedRuntimeGate.enabled, false);
+assert.ok(mismatchedRuntimeGate.reasons.includes("auth_email_outbox_runtime_gate_limit_exceeded"));
+assert.ok(mismatchedRuntimeGate.reasons.includes("auth_email_outbox_runtime_gate_email_scope_invalid"));
+assert.ok(mismatchedRuntimeGate.reasons.includes("auth_email_outbox_runtime_gate_confirmation_mismatch"));
 
 const mime = buildMimeMessage({
   from: "sender@example.com",
@@ -129,5 +215,7 @@ assert.deepEqual(
   { eligible: true, reason: null },
   "open ticket notifications should remain eligible",
 );
+
+await import("./test-auth-email-outbox-attempt-ledger.mjs");
 
 console.log("auth email outbox worker tests passed");

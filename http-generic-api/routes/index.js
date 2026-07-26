@@ -87,6 +87,7 @@ import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
 import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 import { buildPlatformPrivateCapabilityVaultRoutes } from "./platformPrivateCapabilityVaultRoutes.js";
 import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";
+import { buildAuthEmailTargetedDeliveryRoutes } from "./authEmailTargetedDeliveryRoutes.js";
 import { buildSessionInsightPromotionReviewRoutes } from "./sessionInsightPromotionReviewRoutes.js";
 import { buildSessionInsightPromotionDryRunExecutorRoutes } from "./sessionInsightPromotionDryRunExecutorRoutes.js";
 import { buildSessionInsightPromotionApplyRequestRoutes } from "./sessionInsightPromotionApplyRequestRoutes.js";
@@ -127,6 +128,7 @@ import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoute
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
+import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -210,10 +212,12 @@ export function registerRoutes(app, deps) {
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildOperationOrchestratorRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAuthEmailTargetedDeliveryRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
   app.use(buildTenantInfrastructureRoutes(deps));

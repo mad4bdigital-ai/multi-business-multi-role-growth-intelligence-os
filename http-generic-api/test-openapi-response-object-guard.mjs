@@ -33,6 +33,38 @@ assert.deepEqual(unexpectedMessages(malformedDescription), [
   'Response Object property "or concurrent update." is not allowed by OpenAPI 3.1',
 ]);
 
+const malformedComponentDescription = collect(`
+openapi: 3.1.0
+info: { title: Test, version: 1.0.0 }
+paths: {}
+components:
+  responses:
+    NotFound: { description: Agent, skill, or request not found, content: { application/json: { schema: { type: object } } } }
+`, "malformed-component-description.yaml");
+assert.deepEqual(unexpectedMessages(malformedComponentDescription), [
+  'Response Object property "or request not found" is not allowed by OpenAPI 3.1',
+  'Response Object property "skill" is not allowed by OpenAPI 3.1',
+]);
+
+const quotedComponentDescription = collect(`
+openapi: 3.1.0
+info: { title: Test, version: 1.0.0 }
+paths: {}
+components:
+  responses:
+    NotFound:
+      description: "Agent, skill, or request not found"
+      content:
+        application/json:
+          schema: { type: object }
+    Conflict:
+      description: "Approval lifecycle, scope, idempotency, or readback conflict"
+      content:
+        application/json:
+          schema: { type: object }
+`, "quoted-component-description.yaml");
+assert.deepEqual(quotedComponentDescription, []);
+
 const malformedHeadersAndLinks = collect(`
 openapi: 3.1.0
 info: { title: Test, version: 1.0.0 }
