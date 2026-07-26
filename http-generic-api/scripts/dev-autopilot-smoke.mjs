@@ -29,6 +29,18 @@ function assertCheck(checks, name, passed, details = {}) {
   checks.push({ name, passed: Boolean(passed), details });
 }
 
+export function evaluateDevDbStatus({ health = {}, dbStatus = {} } = {}) {
+  const directStatusOk = dbStatus.status === 200 && dbStatus.ok === true;
+  const policyGoverned = [401, 403].includes(Number(dbStatus.status)) &&
+    dbStatus.error_code === "dev_db_status_not_allowed" &&
+    health.db_connected === true;
+  return { directStatusOk, policyGoverned, passed: directStatusOk || policyGoverned };
+}
+
+export function unauthenticatedHeartbeatRequestOptions() {
+  return { method: "POST", timeout_ms: 60000 };
+}
+
 async function main() {
   const args = parseArgs();
   const base = String(args.base_url || "https://dev.mad4b.com").replace(/\/$/, "");
@@ -48,9 +60,21 @@ async function main() {
       status.summary.deployment,
     );
   }
-  assertCheck(checks, "dev db status is OK", status.summary.db_status.status === 200 && status.summary.db_status.ok, status.summary.db_status);
-  assertCheck(checks, "dev db clone has expected minimum table count", Number(status.summary.db_status.table_count || 0) >= 160, status.summary.db_status);
-  assertCheck(checks, "dev db clone has expected minimum row count", Number(status.summary.db_status.row_count || 0) >= 40000, status.summary.db_status);
+  const dbEvaluation = evaluateDevDbStatus({
+    health: status.summary.health,
+    dbStatus: status.summary.db_status,
+  });
+  assertCheck(checks, "dev DB status is available or policy governed", dbEvaluation.passed, {
+    ...status.summary.db_status,
+    db_connected: status.summary.health.db_connected,
+    policy_governed: dbEvaluation.policyGoverned,
+  });
+  if (dbEvaluation.directStatusOk) {
+    assertCheck(checks, "dev db clone has expected minimum table count", Number(status.summary.db_status.table_count || 0) >= 160, status.summary.db_status);
+    assertCheck(checks, "dev db clone has expected minimum row count", Number(status.summary.db_status.row_count || 0) >= 40000, status.summary.db_status);
+  } else {
+    assertCheck(checks, "dev health confirms DB connection", status.summary.health.db_connected === true, status.summary.health);
+  }
 
   const unauthDb = await requestJson(`${base}/dev/db/status`, { timeout_ms: 60000 });
   assertCheck(checks, "dev db status rejects unauthenticated access", unauthDb.status === 401 || unauthDb.status === 403, { status: unauthDb.status, code: unauthDb.body?.error?.code || null });
@@ -64,12 +88,10 @@ async function main() {
     assertCheck(checks, `manifest has hash for ${name}`, Boolean(manifest.body?.files?.[name]?.sha256), { name });
   }
 
-  const unauthHeartbeat = await requestJson(`${base}/connector-agent/heartbeat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device_id: "smoke-test" }),
-    timeout_ms: 60000,
-  });
+  const unauthHeartbeat = await requestJson(
+    `${base}/connector-agent/heartbeat`,
+    unauthenticatedHeartbeatRequestOptions(),
+  );
   assertCheck(checks, "heartbeat rejects unauthenticated access", unauthHeartbeat.status === 401 || unauthHeartbeat.status === 403, { status: unauthHeartbeat.status, code: unauthHeartbeat.body?.error?.code || null });
 
   const passed = checks.filter((check) => check.passed).length;
@@ -86,7 +108,9 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-main().catch((err) => {
-  console.error(JSON.stringify({ ok: false, error: { code: err.code || "dev_autopilot_smoke_failed", message: err.message }, secrets_included: false, destructive_actions_attempted: false }, null, 2));
-  process.exitCode = 1;
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(JSON.stringify({ ok: false, error: { code: err.code || "dev_autopilot_smoke_failed", message: err.message }, secrets_included: false, destructive_actions_attempted: false }, null, 2));
+    process.exitCode = 1;
+  });
+}
