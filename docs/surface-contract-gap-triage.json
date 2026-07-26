@@ -3,13 +3,13 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 82,
+  "total_triaged_items": 83,
   "class_counts": {
     "legacy_baseline_backlog": 19,
-    "new_surface_immediate_review": 61,
+    "new_surface_immediate_review": 62,
     "safety_marker_review": 2
   },
-  "gate_candidate_count": 61,
+  "gate_candidate_count": 62,
   "gate_candidate_files": [
     "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
     "20260724_auth_email_delivery_attempts.sql",
@@ -55,6 +55,7 @@
     "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
     "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql",
     "20260717_virtual_tool_readback_readiness.sql",
+    "20260726_support_ticket_resolution_triage_playbook.sql",
     "20260720_github_update_pull_request_branch_503_response_contract.sql",
     "20260720_tenant_tool_input_schema_strictness.sql",
     "20260716_self_healing_release_advisor_mutation_policy.sql",
@@ -497,7 +498,7 @@
     },
     {
       "migration_file": "20260723_auth_email_outbox_skip_ineligible_policy_tags.sql",
-      "score": 914,
+      "score": 913,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -915,7 +916,7 @@
     },
     {
       "migration_file": "20260719_fix_growth_intelligence_report_read_tool_path.sql",
-      "score": 830,
+      "score": 829,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1398,7 +1399,7 @@
     },
     {
       "migration_file": "20260718_growth_intelligence_report_read_tool.sql",
-      "score": 729,
+      "score": 728,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1440,7 +1441,7 @@
     },
     {
       "migration_file": "20260715_dynamic_container_canary_probe_sampler_tool.sql",
-      "score": 726,
+      "score": 725,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1660,60 +1661,6 @@
       }
     },
     {
-      "migration_file": "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
-      "score": 706,
-      "queue_class": "critical_review",
-      "triage_class": "legacy_baseline_backlog",
-      "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "high",
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "verify_callable_handler_or_admin_preview"
-      ],
-      "owner_hints": [
-        "runtime-registry-review"
-      ],
-      "recommended_next_step": "triage manually",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
-      "score": 705,
-      "queue_class": "critical_review",
-      "triage_class": "legacy_baseline_backlog",
-      "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "high",
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "verify_callable_handler_or_admin_preview"
-      ],
-      "owner_hints": [
-        "runtime-registry-review"
-      ],
-      "recommended_next_step": "triage manually",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "197_sprint66_tenant_database_query_readonly_tool.sql",
       "score": 705,
       "queue_class": "critical_review",
@@ -1743,6 +1690,60 @@
     {
       "migration_file": "198_sprint66_tenant_ssh_probe_tool.sql",
       "score": 705,
+      "queue_class": "critical_review",
+      "triage_class": "legacy_baseline_backlog",
+      "gate_scope": "legacy_baseline_candidate",
+      "gap_severity": "high",
+      "missing_docs": [],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "remediation_action_keys": [
+        "verify_callable_handler_or_admin_preview"
+      ],
+      "owner_hints": [
+        "runtime-registry-review"
+      ],
+      "recommended_next_step": "triage manually",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
+      "score": 705,
+      "queue_class": "critical_review",
+      "triage_class": "legacy_baseline_backlog",
+      "gate_scope": "legacy_baseline_candidate",
+      "gap_severity": "high",
+      "missing_docs": [],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "remediation_action_keys": [
+        "verify_callable_handler_or_admin_preview"
+      ],
+      "owner_hints": [
+        "runtime-registry-review"
+      ],
+      "recommended_next_step": "triage manually",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
+      "score": 704,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",
@@ -1905,7 +1906,7 @@
     },
     {
       "migration_file": "20260722_close_verified_high_operational_attention.sql",
-      "score": 663,
+      "score": 662,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -2422,6 +2423,49 @@
       }
     },
     {
+      "migration_file": "20260726_support_ticket_resolution_triage_playbook.sql",
+      "score": 559,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
       "score": 555,
       "queue_class": "high_review",
@@ -2466,7 +2510,7 @@
     },
     {
       "migration_file": "20260720_tenant_tool_input_schema_strictness.sql",
-      "score": 550,
+      "score": 549,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
