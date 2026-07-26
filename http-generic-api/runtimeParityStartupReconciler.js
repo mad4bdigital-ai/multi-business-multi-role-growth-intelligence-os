@@ -99,7 +99,7 @@ export async function reconcileRuntimeParityOnStartup(options = {}) {
     const result = await createTrigger({
       source_event_id: sourceEventId,
       repository,
-      branch: "main",
+      branch,
       before_sha: beforeSha,
       after_sha: afterSha,
       forced: false,
