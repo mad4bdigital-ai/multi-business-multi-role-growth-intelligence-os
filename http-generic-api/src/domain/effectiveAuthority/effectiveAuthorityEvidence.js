@@ -25,13 +25,17 @@ export function evaluateConnectorProjectionConsistency({
   authorizedCount = 0,
   projectedCount = 0,
   executableCandidateCount = 0,
+  observedCount = null,
 } = {}) {
-  const counts = Object.freeze({
+  const hasObservedCount = observedCount !== null && observedCount !== undefined;
+  const countValues = {
     registeredCount: finiteCount(registeredCount),
     authorizedCount: finiteCount(authorizedCount),
     projectedCount: finiteCount(projectedCount),
     executableCandidateCount: finiteCount(executableCandidateCount),
-  });
+  };
+  if (hasObservedCount) countValues.observedCount = finiteCount(observedCount);
+  const counts = Object.freeze(countValues);
   const issueCodes = [];
 
   if (counts.authorizedCount > counts.registeredCount) {
@@ -45,6 +49,15 @@ export function evaluateConnectorProjectionConsistency({
   }
   if (counts.authorizedCount > 0 && counts.projectedCount === 0) {
     issueCodes.push("AUTHORITY_AUTHORIZED_NOT_PROJECTED");
+  }
+  if (hasObservedCount && counts.observedCount !== counts.projectedCount) {
+    issueCodes.push("AUTHORITY_OBSERVED_PROJECTION_MISMATCH");
+  }
+  if (hasObservedCount && counts.observedCount > counts.projectedCount) {
+    issueCodes.push("AUTHORITY_OBSERVED_EXCEEDS_PROJECTED");
+  }
+  if (hasObservedCount && counts.projectedCount > 0 && counts.observedCount === 0) {
+    issueCodes.push("AUTHORITY_PROJECTED_NOT_OBSERVED");
   }
   if (
     scopeType === "platform" &&
@@ -61,6 +74,7 @@ export function evaluateConnectorProjectionConsistency({
     driftDetected: uniqueIssueCodes.length > 0,
     issueCodes: uniqueIssueCodes,
     counts,
+    ...(hasObservedCount ? { observationStatus: "observed" } : {}),
     enforcementMode: "shadow_only",
     authorityGranted: false,
     secretsIncluded: false,

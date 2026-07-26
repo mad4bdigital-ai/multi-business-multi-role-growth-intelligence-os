@@ -16,6 +16,7 @@ const capabilityRow = {
   schema_version: 1,
   status: "active",
 };
+
 const scopes = [
   {
     scopeId: "scope-platform",
@@ -32,6 +33,20 @@ const scopes = [
     version: 3,
   },
 ];
+
+function connectorRows(count, tenantId = "tenant-1") {
+  return Array.from({ length: count }, (_, index) => ({
+    system_id: `system-${tenantId}-${index + 1}`,
+    tenant_id: tenantId,
+    system_key: `connector_${index + 1}`,
+    display_name: `Connector ${index + 1}`,
+    provider_family: "test",
+    connector_family: "test",
+    status: "active",
+    active_installation_count: index < 2 ? 1 : 0,
+  }));
+}
+
 const scopeRepository = {
   async listScopes({ limit, afterScopeKey }) {
     assert.equal(limit, 10);
@@ -42,6 +57,7 @@ const scopeRepository = {
     };
   },
 };
+
 const authorityRepository = {
   async findCapabilityByKey(key) {
     assert.equal(key, "connector.inventory.read");
@@ -63,7 +79,20 @@ const authorityRepository = {
       executableCandidateCount: 0,
     };
   },
+  async listConnectorInventory({ scope, limit, afterSystemId }) {
+    assert.equal(limit, 100);
+    assert.equal(afterSystemId, null);
+    if (scope.scopeType === "platform") {
+      return {
+        rows: connectorRows(6),
+        hasMore: false,
+        nextSystemId: null,
+      };
+    }
+    return { rows: [], hasMore: false, nextSystemId: null };
+  },
 };
+
 let sequence = 0;
 const previewReconciler = createEffectiveAuthorityReconciler({
   scopeRepository,
@@ -86,6 +115,9 @@ assert.deepEqual(preview.summary, {
   persisted_count: 0,
 });
 assert.equal(preview.items[0].status, "aligned");
+assert.equal(preview.items[0].observed_count, 6);
+assert.equal(preview.items[0].observation_status, "observed");
+assert.equal(preview.items[1].observed_count, 0);
 assert.equal(preview.items[0].authority_granted, false);
 assert.equal(preview.items[0].execution_authority_changed, false);
 assert.equal(preview.items[1].status, "drift");
@@ -149,6 +181,9 @@ const degraded = await createEffectiveAuthorityReconciler({
       error.code = "ER_DBACCESS_DENIED_ERROR";
       throw error;
     },
+    async listConnectorInventory() {
+      return { rows: [], hasMore: false, nextSystemId: null };
+    },
   },
   now: () => new Date("2026-07-24T00:02:00.000Z"),
 }).run({ persist: false });
@@ -157,5 +192,41 @@ assert.equal(degraded.status, "degraded");
 assert.equal(degraded.summary.degraded_count, 1);
 assert.equal(degraded.items[0].error_code, "ER_DBACCESS_DENIED_ERROR");
 assert.equal(degraded.items[0].authority_granted, false);
+
+const overflow = await createEffectiveAuthorityReconciler({
+  scopeRepository: {
+    async listScopes() {
+      return { scopes: [scopes[1]], page: { hasMore: false, nextScopeKey: null } };
+    },
+  },
+  authorityRepository: {
+    async findCapabilityByKey() {
+      return capabilityRow;
+    },
+    async summarizeConnectorProjectionStages() {
+      return {
+        registeredCount: 2,
+        authorizedCount: 2,
+        projectedCount: 2,
+        executableCandidateCount: 1,
+      };
+    },
+    async listConnectorInventory({ limit, afterSystemId }) {
+      assert.equal(limit, 1);
+      assert.equal(afterSystemId, null);
+      return {
+        rows: connectorRows(1),
+        hasMore: true,
+        nextSystemId: "system-tenant-1-1",
+      };
+    },
+  },
+  now: () => new Date("2026-07-24T00:03:00.000Z"),
+}).run({ persist: false, observationLimit: 1 });
+assert.equal(overflow.ok, false);
+assert.equal(overflow.status, "degraded");
+assert.equal(overflow.items[0].error_code, "AUTHORITY_OBSERVATION_LIMIT_EXCEEDED");
+assert.equal(overflow.items[0].observation_status, "unavailable");
+assert.equal(overflow.items[0].authority_granted, false);
 
 console.log("effective authority reconciler tests passed");

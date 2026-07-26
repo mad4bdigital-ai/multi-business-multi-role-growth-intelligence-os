@@ -3,6 +3,7 @@ import {
   CONNECTOR_INVENTORY_CAPABILITY_KEY,
   EffectiveAuthorityError,
   assertNoSecretEvidence,
+  buildConnectorReadinessItem,
   buildEffectiveAuthorityManifest,
   normalizeSemanticCapability,
 } from "../../domain/effectiveAuthority/effectiveAuthority.js";
@@ -19,6 +20,85 @@ function normalizeRunLimit(value, fallback = 50, maximum = 200) {
     throw new TypeError(`Reconciliation limit must be an integer between 1 and ${maximum}.`);
   }
   return parsed;
+}
+
+function normalizeObservationLimit(value, fallback = 200, maximum = 1000) {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > maximum) {
+    throw new TypeError(
+      `Reconciliation observation limit must be an integer between 1 and ${maximum}.`
+    );
+  }
+  return parsed;
+}
+
+async function observeConnectorProjection({ authorityRepository, scope, limit }) {
+  const resourceIds = new Set();
+  let afterSystemId = null;
+  let scannedCount = 0;
+
+  while (true) {
+    const remaining = limit - scannedCount;
+    if (remaining < 1) {
+      throw new EffectiveAuthorityError(
+        "AUTHORITY_OBSERVATION_LIMIT_EXCEEDED",
+        "Observed Connector Inventory exceeded the bounded reconciliation limit.",
+        503,
+        { limit }
+      );
+    }
+
+    const page = await authorityRepository.listConnectorInventory({
+      scope,
+      limit: Math.min(100, remaining),
+      afterSystemId,
+    });
+    if (!page || !Array.isArray(page.rows)) {
+      throw new EffectiveAuthorityError(
+        "AUTHORITY_OBSERVATION_PAGE_INVALID",
+        "Observed Connector Inventory returned an invalid page.",
+        503
+      );
+    }
+
+    for (const row of page.rows) {
+      scannedCount += 1;
+      const item = buildConnectorReadinessItem(row);
+      if (!item.systemId) {
+        throw new EffectiveAuthorityError(
+          "AUTHORITY_OBSERVED_RESOURCE_ID_MISSING",
+          "Observed Connector Inventory item is missing systemId.",
+          503
+        );
+      }
+      resourceIds.add(item.systemId);
+    }
+
+    if (page.hasMore !== true) {
+      return Object.freeze({
+        observedCount: resourceIds.size,
+        scannedCount,
+      });
+    }
+
+    const nextSystemId = String(page.nextSystemId || "").trim();
+    if (!nextSystemId || nextSystemId === afterSystemId) {
+      throw new EffectiveAuthorityError(
+        "AUTHORITY_OBSERVATION_CURSOR_INVALID",
+        "Observed Connector Inventory returned an invalid continuation cursor.",
+        503
+      );
+    }
+    if (scannedCount >= limit) {
+      throw new EffectiveAuthorityError(
+        "AUTHORITY_OBSERVATION_LIMIT_EXCEEDED",
+        "Observed Connector Inventory exceeded the bounded reconciliation limit.",
+        503,
+        { limit }
+      );
+    }
+    afterSystemId = nextSystemId;
+  }
 }
 
 function safeErrorCode(error) {
@@ -58,19 +138,22 @@ export function createEffectiveAuthorityReconciler({
   if (
     !authorityRepository ||
     typeof authorityRepository.findCapabilityByKey !== "function" ||
+    typeof authorityRepository.listConnectorInventory !== "function" ||
     typeof authorityRepository.summarizeConnectorProjectionStages !== "function"
   ) {
     throw new TypeError(
-      "Effective authority reconciler requires capability and projection summary repository methods."
+      "Effective authority reconciler requires capability, observed inventory, and projection summary repository methods."
     );
   }
 
   async function run({
     limit = 50,
+    observationLimit = 200,
     afterScopeKey = null,
     persist = false,
   } = {}) {
     const boundedLimit = normalizeRunLimit(limit);
+    const boundedObservationLimit = normalizeObservationLimit(observationLimit);
     if (persist && evidenceService?.enabled !== true) {
       throw new EffectiveAuthorityError(
         "AUTHORITY_RECONCILIATION_EVIDENCE_DISABLED",
@@ -93,10 +176,18 @@ export function createEffectiveAuthorityReconciler({
     for (const scope of scopePage.scopes) {
       const evaluatedAt = asDate(now(), "Reconciliation clock");
       try {
-        const counts = await authorityRepository.summarizeConnectorProjectionStages({ scope });
+        const [counts, observation] = await Promise.all([
+          authorityRepository.summarizeConnectorProjectionStages({ scope }),
+          observeConnectorProjection({
+            authorityRepository,
+            scope,
+            limit: boundedObservationLimit,
+          }),
+        ]);
         const consistency = evaluateConnectorProjectionConsistency({
           scopeType: scope.scopeType,
           ...counts,
+          observedCount: observation.observedCount,
         });
         const manifest = buildEffectiveAuthorityManifest({
           decisionId: decisionIdFactory(),
@@ -145,6 +236,8 @@ export function createEffectiveAuthorityReconciler({
           authorized_count: consistency.counts.authorizedCount,
           projected_count: consistency.counts.projectedCount,
           executable_candidate_count: consistency.counts.executableCandidateCount,
+          observed_count: consistency.counts.observedCount,
+          observation_status: consistency.observationStatus,
           drift_detected: consistency.driftDetected,
           drift_issue_codes: [...consistency.issueCodes],
           evidence_status: evidence.status,
@@ -171,6 +264,8 @@ export function createEffectiveAuthorityReconciler({
           decision: "degraded",
           authority_granted: false,
           enforcement_mode: "shadow_only",
+          observed_count: null,
+          observation_status: "unavailable",
           drift_detected: true,
           drift_issue_codes: ["AUTHORITY_RECONCILIATION_SCOPE_FAILED"],
           evidence_status: "not_persisted",
@@ -215,6 +310,8 @@ export function createEffectiveAuthorityReconciler({
 
 export const _testingEffectiveAuthorityReconciler = Object.freeze({
   normalizeRunLimit,
+  normalizeObservationLimit,
+  observeConnectorProjection,
   safeErrorCode,
   SYNTHETIC_PRINCIPAL,
 });
