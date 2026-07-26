@@ -1,4 +1,5 @@
 import { stableOperationHash } from "./operationRegistryContracts.js";
+import { filterOperationBindingEligibility } from "./operationBindingEligibility.js";
 
 const SCOPE_RANK = Object.freeze({ platform: 1, tenant: 2, workspace: 3, resource: 4 });
 const COMPILE_MODES = new Set(["shadow", "active"]);
