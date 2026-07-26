@@ -215,39 +215,6 @@ function normalizeCandidate(input, index) {
   return candidate;
 }
 
-function scopeMatch(candidate, context) {
-  const expected = { resource: context.resource_ref, workspace: context.workspace_id, tenant: context.tenant_id, platform: null };
-  if (candidate.binding_scope_type === "platform") return candidate.scope_ref === null;
-  return Boolean(expected[candidate.binding_scope_type]) && candidate.scope_ref === expected[candidate.binding_scope_type];
-}
-
-function evaluateEligibility(candidate, context) {
-  const reasons = [];
-  if (candidate.denied || candidate.deny_reasons.length > 0) reasons.push("policy_denied");
-  reasons.push(...candidate.deny_reasons.map((reason) => `deny:${reason}`));
-  const allowedStatuses = context.compile_mode === "active" ? new Set(["active"]) : new Set(["shadow", "active"]);
-  if (!allowedStatuses.has(candidate.status)) reasons.push("lifecycle_not_eligible");
-  const now = Date.parse(context.now);
-  if (candidate.valid_from && now < Date.parse(candidate.valid_from)) reasons.push("not_yet_valid");
-  if (candidate.valid_until && now >= Date.parse(candidate.valid_until)) reasons.push("expired");
-  if (!scopeMatch(candidate, context)) reasons.push("scope_mismatch");
-  if (context.provider_family) {
-    if (candidate.provider_family && candidate.provider_family !== context.provider_family) reasons.push("provider_family_mismatch");
-  } else if (candidate.provider_family) reasons.push("provider_context_missing");
-  if (context.required_capability_key && candidate.capability_key !== context.required_capability_key) reasons.push("capability_mismatch");
-  if (context.expected_effect_class && candidate.effect_class !== context.expected_effect_class) reasons.push("effect_class_mismatch");
-  const gates = [
-    ["dispatch_allowed", "dispatch_not_allowed"], ["endpoint_export_ready", "endpoint_export_not_ready"],
-    ["capability_available", "capability_unavailable"], ["resource_authorized", "resource_authority_missing"],
-    ["credential_ready", "credential_not_ready"], ["adapter_healthy", "adapter_unhealthy"],
-    ["capacity_available", "capacity_unavailable"], ["effect_allowed", "effect_not_allowed"]
-  ];
-  for (const [field, reason] of gates) if (!candidate[field]) reasons.push(reason);
-  if (candidate.requires_approval && !candidate.approval_ready) reasons.push("approval_not_ready");
-  if (candidate.requires_readback && !candidate.readback_ready) reasons.push("readback_not_ready");
-  return [...new Set(reasons)].sort();
-}
-
 function scoreCandidate(candidate, weights) {
   const m = candidate.metrics;
   const score = m.quality * weights.quality + m.reliability * weights.reliability + m.privacy * weights.privacy +
