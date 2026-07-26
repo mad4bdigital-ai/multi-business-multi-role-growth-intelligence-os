@@ -75,6 +75,7 @@ schemas:
       source_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
       operation_count: { type: integer, minimum: 0 }
       plan: { $ref: '#/schemas/InventoryPlan' }
+      inventory_evidence: { $ref: '#/schemas/InventoryEvidence' }
       required_confirmation: { type: string }
       run_id: { type: [string, 'null'], format: uuid }
       readback_count: { type: integer, minimum: 0 }
