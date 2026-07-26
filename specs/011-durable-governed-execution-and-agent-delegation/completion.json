@@ -471,7 +471,7 @@
       "phase3_delegation_grant_shadow_status": "complete_on_main",
       "phase3_delegation_grant_shadow_closeout_status": "merged",
       "phase3_delegation_persistence_status": "complete_on_main",
-      "phase3_delegation_persistence_closeout_status": "current_branch",
+      "phase3_delegation_persistence_closeout_status": "current_pr",
       "phase3_delegation_persistence_migration_status": "contract_only_unapplied",
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
