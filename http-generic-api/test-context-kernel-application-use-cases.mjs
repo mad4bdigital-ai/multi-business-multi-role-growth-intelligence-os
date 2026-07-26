@@ -225,7 +225,7 @@ const ambiguousResolutionService = createContextResolutionService({
 });
 const ambiguous = await ambiguousResolutionService.resolve({
   principal,
-  effectiveSubject,
+  effectiveSubject: tenantOnlySubject,
   operationIntent: "read_workspace",
   operationKind: "read",
   riskClass: "read",
