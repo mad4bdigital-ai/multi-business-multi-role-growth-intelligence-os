@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-effective-authority-projection-parity.mjs",
   "node test-ueacp-performance-retention-indexes.mjs",
   "node test-effective-authority-cross-tenant-matrix.mjs",
   "node test-activation-effective-authority-openapi.mjs",
