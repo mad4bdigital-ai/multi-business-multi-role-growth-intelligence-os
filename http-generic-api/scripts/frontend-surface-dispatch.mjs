@@ -526,6 +526,11 @@ function middlewareAliases(source = "") {
     }
     helperRe.lastIndex = closing + 1;
   }
+  for (const match of text.matchAll(
+    /\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*requireSecurityMiddleware\s*\(\s*(["'`])[^"'`]+\2\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*,?\s*\)\s*;/g,
+  )) {
+    aliases.set(match[1], match[3]);
+  }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
     const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
