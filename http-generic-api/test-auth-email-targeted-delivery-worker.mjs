@@ -58,7 +58,11 @@ function createHarness(email) {
       log.push({ sql, params });
       if (sql.includes("FROM auth_email_outbox e")) return [[email]];
       if (sql.includes("MAX(retry_count)")) return [[{ retry_count: 0 }]];
-      if (sql.includes("UPDATE auth_email_outbox") && sql.includes("status = 'processing'")) {
+      if (
+        sql.includes("UPDATE auth_email_outbox") &&
+        sql.includes("status = 'failed'") &&
+        sql.includes("status = 'queued'")
+      ) {
         return [{ affectedRows: 1 }];
       }
       return [{ affectedRows: 1 }];
@@ -129,7 +133,21 @@ try {
     (entry) => typeof entry === "object" && entry.sql.includes("INSERT INTO auth_email_delivery_attempts"),
   );
   const providerIndex = successHarness.log.indexOf("provider_send");
+  const reservationIndex = successHarness.log.findIndex(
+    (entry) =>
+      typeof entry === "object" &&
+      entry.sql.includes("SET status = 'failed'") &&
+      entry.sql.includes("status = 'queued'"),
+  );
   assert.ok(attemptInsertIndex >= 0 && attemptInsertIndex < providerIndex);
+  assert.ok(reservationIndex >= 0 && reservationIndex < providerIndex);
+  const sentUpdate = successHarness.log.find(
+    (entry) =>
+      typeof entry === "object" &&
+      entry.sql.includes("SET status = 'sent'") &&
+      entry.sql.includes("$.delivery_attempt_id"),
+  );
+  assert.equal(sentUpdate.params.at(-1), success.attempt_id);
 
   const unknownEmailId = "66666666-6666-4666-8666-666666666666";
   const unknownHarness = createHarness(queuedEmail(unknownEmailId));
@@ -155,7 +173,10 @@ try {
       (entry) =>
         typeof entry === "object" &&
         entry.sql.includes("UPDATE auth_email_outbox") &&
-        entry.params?.[0] === "delivery_unknown",
+        entry.sql.includes("SET status = 'failed'") &&
+        entry.sql.includes("$.delivery_attempt_id") &&
+        typeof entry.params?.[0] === "string" &&
+        entry.params[0].includes('"delivery_state":"delivery_unknown"'),
     ),
   );
 } finally {
@@ -186,7 +207,7 @@ assert.match(routeSource, /auth-email-outbox\/targeted-apply/);
 assert.match(routeSource, /auth-email-outbox\/attempts/);
 assert.match(indexSource, /buildAuthEmailTargetedDeliveryRoutes/);
 assert.match(migrationSource, /CREATE TABLE IF NOT EXISTS `auth_email_delivery_attempts`/);
-assert.match(migrationSource, /ENUM\('queued','processing','sent','failed','skipped','delivery_unknown'\)/);
+assert.doesNotMatch(migrationSource, /ALTER TABLE/);
 assert.match(migrationSource, /auth_email_outbox_targeted_apply/);
 
 console.log("auth email targeted delivery worker tests passed");

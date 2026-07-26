@@ -101,3 +101,32 @@ Because the change is additive, runtime rollback is to keep all new rows fail-cl
 4. Add renewal no-widening checks across plan, resources, intents, risk, limits, and expiry.
 
 T141 remains open until the governed lifecycle mutations are implemented and verified.
+
+## Slice C closeout evidence
+
+- Implementation PR: #3110.
+- Merge SHA: `d154a24c0cba9bf692fa3105c574c557b1975e4b`.
+- Final CI head: `22f100d6aece8600fa953bed7f05fd1f975890f5`.
+- Final CI base: `2587f804045e5045a87a5df3009ea2bac8aa45d8`.
+- Required checks passed: Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests.
+
+The isolated merge diff contains an unapplied migration contract, deterministic contract test, CI registration, and evidence only. It does not add a route, enable runtime authority, write the database, backfill legacy rows, dispatch a provider, or require deployment.
+
+The wider `main`-to-runtime readiness warning includes unrelated operational changes and is not attributed to Slice C. No Release Operation was opened for this closeout.
+
+The migration remains `contract_only_unapplied`. Applying it requires separate governed approval, MariaDB validation, an exact-SHA maintenance and rollback plan, and same-cycle information-schema plus view readback.
+
+Slice C is `complete_on_main`. T141 remains open for governed create, inspect, revoke, expire, idempotency receipt, same-cycle readback, and renewal no-widening behavior.
+
+The overall Spec 011 status remains `in_progress`.
+
+## Closeout recovery evidence
+
+- Original closeout PR #3132 was closed without merge.
+- The original head branch was deleted, but verified commit `3733b608d724b83616c6da350a5c2464470169f0` remained available.
+- Recovery branch: `gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726`.
+- Recovery PR: #3146.
+
+The recovery preserves the same three-file documentation and evidence scope. It does not alter the migration, apply SQL, enable runtime authority, create a public route, dispatch a provider, or require deployment.
+
+PR #3146 supersedes the unmerged closeout PR #3132.
