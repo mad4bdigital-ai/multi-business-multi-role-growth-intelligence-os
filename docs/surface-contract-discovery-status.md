@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 570
+- Migrations with detected surfaces: 573
 - Migrations reported here: 80
-- OpenAPI operations detected: 1031
-- OpenAPI paths detected: 949
+- OpenAPI operations detected: 1043
+- OpenAPI paths detected: 961
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,51 +32,51 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 513/570 (90.00%)
-- Documentation gap migrations: 57
-- Gap severity: high=45, medium=32, low=2
-- SQL route coverage in OpenAPI: 22/29 (75.86%)
-- SQL route-like literals exempted from OpenAPI scoring: 664/693
-- SQL routes missing OpenAPI path coverage: 7
-- Migrations without explicit `secrets_included=false` marker: 11
+- Documentation complete migrations: 513/573 (89.53%)
+- Documentation gap migrations: 60
+- Gap severity: high=47, medium=33, low=2
+- SQL route coverage in OpenAPI: 22/32 (68.75%)
+- SQL route-like literals exempted from OpenAPI scoring: 665/697
+- SQL routes missing OpenAPI path coverage: 10
+- Migrations without explicit `secrets_included=false` marker: 12
 
 ### Surface Totals
 
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 14 | 11 |
-| tools | 2604 | 484 |
-| views | 492 | 193 |
+| tools | 2611 | 487 |
+| views | 495 | 194 |
 | policies | 192 | 131 |
-| routes | 693 | 284 |
+| routes | 697 | 286 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 51 |
-| `deployment_parity_checklist.md` | 51 |
-| `docs/ai-docs-agent-governance.md` | 55 |
-| `docs/auto-docs-agent/README.md` | 57 |
-| `docs/change-documentation-governance.md` | 57 |
+| `Updating Registry Patch Index.md` | 54 |
+| `deployment_parity_checklist.md` | 54 |
+| `docs/ai-docs-agent-governance.md` | 58 |
+| `docs/auto-docs-agent/README.md` | 60 |
+| `docs/change-documentation-governance.md` | 60 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 539 |
-| no_credential_payload_read | 526 |
-| no_raw_secrets | 524 |
-| no_external_send | 521 |
-| no_external_write | 540 |
-| secrets_included_false | 559 |
+| no_provider_call | 541 |
+| no_credential_payload_read | 527 |
+| no_raw_secrets | 525 |
+| no_external_send | 522 |
+| no_external_write | 542 |
+| secrets_included_false | 561 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 29 |
-| admin_tool_registry_route | 208 |
+| http_route | 32 |
+| admin_tool_registry_route | 209 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 14 |
 | registry_only_surface | 6 |
@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 79
-- Critical review: 47
-- High review: 30
+- Total queue items: 82
+- Critical review: 48
+- High review: 32
 - Medium review: 2
 - Low review: 0
 
@@ -98,24 +98,24 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 |---|---:|---:|---:|---:|---:|---:|---|
 | `190_sprint66_workspace_lifecycle_foundation.sql` | critical_review | 1611 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `1020_sprint69_multi_surface_tenant_agent_runtime.sql` | critical_review | 1425 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
-| `20260723_auth_email_outbox_admin_tools.sql` | critical_review | 1292 | high | 5 | 3 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `193_sprint67_workspace_resource_authority_foundation.sql` | critical_review | 1106 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
-| `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` | critical_review | 1074 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
+| `20260724_auth_email_delivery_attempts.sql` | critical_review | 1293 | high | 5 | 3 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `20260723_auth_email_outbox_admin_tools.sql` | critical_review | 1291 | high | 5 | 3 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `193_sprint67_workspace_resource_authority_foundation.sql` | critical_review | 1105 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
+| `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` | critical_review | 1073 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
 | `20260717_tenant_task_source_repair_apply_gate.sql` | critical_review | 1054 | high | 5 | 0 | 2 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `200_sprint68_workspace_invitation_control_tools.sql` | critical_review | 1027 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
-| `20260715_platform_capability_shadow_certification_issue.sql` | critical_review | 981 | medium | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
+| `20260715_platform_capability_shadow_certification_issue.sql` | critical_review | 980 | medium | 5 | 0 | 3 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `20260723_auth_email_outbox_skip_ineligible_tool.sql` | critical_review | 932 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` | critical_review | 914 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
 | `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql` | critical_review | 903 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `201_sprint68_workspace_access_request_control_tools.sql` | critical_review | 903 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `194_sprint66_tenant_infrastructure_readiness_tools.sql` | critical_review | 900 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `20260715_dynamic_container_canary_runtime_observability.sql` | critical_review | 884 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view |
-| `20260718_github_list_issue_comments_endpoint.sql` | critical_review | 867 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1030_sprint69_generic_platform_resource_context.sql` | critical_review | 866 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_policy_seed_readiness |
+| `20260718_github_list_issue_comments_endpoint.sql` | critical_review | 866 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `194_sprint67_workspace_resource_grant_assignment_tools.sql` | critical_review | 864 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
-| `189_sprint66_tenant_gpt_operating_guide_tools.sql` | critical_review | 863 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
-| `20260718_tenant_connect_bootstrap_tool.sql` | critical_review | 847 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `189_sprint66_tenant_gpt_operating_guide_tools.sql` | critical_review | 862 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 
 
 ## Latest Surface Coverage
@@ -245,7 +245,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `20260722_generalized_surface_callability_and_reconciliation_guard.sql`
 - `20260723_auth_email_outbox_admin_tools.sql`
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql`
-- ...and 5 more
+- ...and 7 more
 
 ## SQL Route OpenAPI Gaps
 
@@ -253,6 +253,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `20260723_auth_email_outbox_admin_tools.sql`: `/admin/support/tickets/auth-email-outbox/apply`, `/admin/support/tickets/auth-email-outbox/dry-run`, `/admin/support/tickets/auth-email-outbox/status`
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql`: `/admin/support/tickets/auth-email-outbox/skip-ineligible`
 - `20260723_auth_email_outbox_skip_ineligible_tool.sql`: `/admin/support/tickets/auth-email-outbox/skip-ineligible`
+- `20260724_auth_email_delivery_attempts.sql`: `/admin/support/tickets/auth-email-outbox/attempts`, `/admin/support/tickets/auth-email-outbox/targeted-apply`, `/admin/support/tickets/auth-email-outbox/targeted-dry-run`
 
 ## Details
 

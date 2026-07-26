@@ -54,6 +54,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Automation Workflows
 
+- `.github/workflows/automation-overlap-guard.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
@@ -82,6 +83,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/openapi-response-object-guard.mjs`
 - `http-generic-api/scripts/openapi-route-coverage.mjs`
 - `http-generic-api/scripts/openapi-runtime-auth-sync.mjs`
+- `http-generic-api/scripts/repo-maintenance-coordination.mjs`
 - `http-generic-api/scripts/repo-maintenance-sync.mjs`
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
@@ -107,12 +109,14 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`
+- `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-schema-output-paths.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
+- `http-generic-api/test-operation-orchestrator-openapi-contract.mjs`
 - `http-generic-api/test-platform-endpoint-export-schema-parity.mjs`
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
