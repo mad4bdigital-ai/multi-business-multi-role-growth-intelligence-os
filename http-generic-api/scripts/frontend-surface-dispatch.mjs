@@ -19,7 +19,6 @@ const AUTH_GUARDS = new Set([
   "verifyUserJwt",
   "requireUser",
   "requireTenantPrincipal",
-  "requireTenantOperationPrincipal",
   "requireResolutionPrincipal",
   "requireActiveMembership",
   "requireWorkspaceOwner",
@@ -528,9 +527,7 @@ function middlewareAliases(source = "") {
   }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
-    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
-      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
   }
   return aliases;
 }
@@ -598,7 +595,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasBackend = guardChain.includes("requireBackendApiKey");
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
-  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
@@ -635,21 +632,13 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
 }
 
 function enclosingHelper(source, sourceIndex) {
-  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
   let match;
   let enclosing = null;
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
-    if (closing >= sourceIndex) {
-      enclosing = {
-        name: match[1],
-        closing,
-        parameters: splitTopLevelArguments(match[2])
-          .map((parameter) => parameter.match(/^[A-Za-z_$][A-Za-z0-9_$]*/)?.[0])
-          .filter(Boolean),
-      };
-    }
+    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
   }
   return enclosing;
 }
@@ -677,176 +666,6 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
-function mountedPrefixesForReceiver(source, receiverName, startIndex = 0) {
-  if (!receiverName) return [];
-  const escaped = receiverName.replace(/[.*+?^${}()|[\]\\]/g, "\\function mountedPrefixesForReceiver(source, receiverName, startIndex = 0) {
-  if (!receiverName) return [];
-  const escaped = receiverName.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
-");
-  const useRe = new RegExp(
-    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\1\\s*,\\s*${escaped}\\b`,
-    "g",
-  );
-  useRe.lastIndex = startIndex;
-  return unique([...source.matchAll(useRe)].map((match) => normalizeRoutePath(match[2])));
-}
-
-function helperInvocationBindings(source, sourceIndex, aliases, mountPrefix) {
-  const helper = enclosingHelper(source, sourceIndex);
-  const fallback = [{ mount_prefix: normalizeRoutePath(mountPrefix), guards: [] }];
-  if (!helper || helper.parameters[0] !== "router") return fallback;
-
-  const escapedName = helper.name.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
-");
-  const callRe = new RegExp(`\\b${escapedName}\\s*\\(`, "g");
-  callRe.lastIndex = helper.closing + 1;
-  const bindings = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const opening = source.indexOf("(", call.index);
-    const closing = findMatchingDelimiter(source, opening, "(", ")");
-    if (closing < 0) continue;
-    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
-    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
-    if (!receiverName) {
-      callRe.lastIndex = closing + 1;
-      continue;
-    }
-    const guards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const internalPrefixes = mountedPrefixesForReceiver(source, receiverName, closing + 1);
-    for (const internalPrefix of internalPrefixes.length ? internalPrefixes : ["/"]) {
-      bindings.push({
-        mount_prefix: joinRoutePath(mountPrefix, internalPrefix),
-        guards,
-      });
-    }
-    callRe.lastIndex = closing + 1;
-  }
-
-  const seen = new Set();
-  const uniqueBindings = bindings.filter((binding) => {
-    const key = `${binding.mount_prefix}|${binding.guards.join(",")}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  return uniqueBindings.length ? uniqueBindings : fallback;
-}
-");
-  const useRe = new RegExp(
-    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\1\\s*,\\s*${escaped}\\b`,
-    "g",
-  );
-  useRe.lastIndex = startIndex;
-  return unique([...source.matchAll(useRe)].map((match) => normalizeRoutePath(match[2])));
-}
-
-function helperInvocationBindings(source, sourceIndex, aliases, mountPrefix) {
-  const helper = enclosingHelper(source, sourceIndex);
-  const fallback = [{ mount_prefix: normalizeRoutePath(mountPrefix), guards: [] }];
-  if (!helper || helper.parameters[0] !== "router") return fallback;
-
-  const escapedName = helper.name.replace(/[.*+?^${}()|[\]\\]/g, "\\function mountedPrefixesForReceiver(source, receiverName, startIndex = 0) {
-  if (!receiverName) return [];
-  const escaped = receiverName.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
-");
-  const useRe = new RegExp(
-    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\1\\s*,\\s*${escaped}\\b`,
-    "g",
-  );
-  useRe.lastIndex = startIndex;
-  return unique([...source.matchAll(useRe)].map((match) => normalizeRoutePath(match[2])));
-}
-
-function helperInvocationBindings(source, sourceIndex, aliases, mountPrefix) {
-  const helper = enclosingHelper(source, sourceIndex);
-  const fallback = [{ mount_prefix: normalizeRoutePath(mountPrefix), guards: [] }];
-  if (!helper || helper.parameters[0] !== "router") return fallback;
-
-  const escapedName = helper.name.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
-");
-  const callRe = new RegExp(`\\b${escapedName}\\s*\\(`, "g");
-  callRe.lastIndex = helper.closing + 1;
-  const bindings = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const opening = source.indexOf("(", call.index);
-    const closing = findMatchingDelimiter(source, opening, "(", ")");
-    if (closing < 0) continue;
-    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
-    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
-    if (!receiverName) {
-      callRe.lastIndex = closing + 1;
-      continue;
-    }
-    const guards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const internalPrefixes = mountedPrefixesForReceiver(source, receiverName, closing + 1);
-    for (const internalPrefix of internalPrefixes.length ? internalPrefixes : ["/"]) {
-      bindings.push({
-        mount_prefix: joinRoutePath(mountPrefix, internalPrefix),
-        guards,
-      });
-    }
-    callRe.lastIndex = closing + 1;
-  }
-
-  const seen = new Set();
-  const uniqueBindings = bindings.filter((binding) => {
-    const key = `${binding.mount_prefix}|${binding.guards.join(",")}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  return uniqueBindings.length ? uniqueBindings : fallback;
-}
-");
-  const callRe = new RegExp(`\\b${escapedName}\\s*\\(`, "g");
-  callRe.lastIndex = helper.closing + 1;
-  const bindings = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const opening = source.indexOf("(", call.index);
-    const closing = findMatchingDelimiter(source, opening, "(", ")");
-    if (closing < 0) continue;
-    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
-    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
-    if (!receiverName) {
-      callRe.lastIndex = closing + 1;
-      continue;
-    }
-    const guards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const internalPrefixes = mountedPrefixesForReceiver(source, receiverName, closing + 1);
-    for (const internalPrefix of internalPrefixes.length ? internalPrefixes : ["/"]) {
-      bindings.push({
-        mount_prefix: joinRoutePath(mountPrefix, internalPrefix),
-        guards,
-      });
-    }
-    callRe.lastIndex = closing + 1;
-  }
-
-  const seen = new Set();
-  const uniqueBindings = bindings.filter((binding) => {
-    const key = `${binding.mount_prefix}|${binding.guards.join(",")}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  return uniqueBindings.length ? uniqueBindings : fallback;
-}
-
 export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
@@ -867,29 +686,23 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
     const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const helperBindings = helperInvocationBindings(scanSource, match.index, aliases, mountPrefix);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
       for (const expandedRoute of expandRoutePaths(route)) {
-        for (const binding of helperBindings) {
-          const routePath = joinRoutePath(binding.mount_prefix, expandedRoute);
-          const inheritedGuards = unique([
-            ...activeRouterUseGuards(scanSource, match.index, routePath, aliases),
-            ...binding.guards,
-          ]);
-          for (const method of methods) {
-            operations.push({
-              method,
-              path: routePath,
-              signature: `${method} ${routePath}`,
-              source_file: file,
-              source_index: match.index,
-              declaration,
-              route_guards: routeGuards,
-              inherited_guards: inheritedGuards,
-            });
-          }
+        const routePath = joinRoutePath(mountPrefix, expandedRoute);
+        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
+        for (const method of methods) {
+          operations.push({
+            method,
+            path: routePath,
+            signature: `${method} ${routePath}`,
+            source_file: file,
+            source_index: match.index,
+            declaration,
+            route_guards: routeGuards,
+            inherited_guards: inheritedGuards,
+          });
         }
       }
     }
