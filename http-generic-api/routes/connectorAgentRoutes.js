@@ -2,6 +2,7 @@ import { Router } from "express";
 import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import {
   connectorAuthPredicateForToken,
