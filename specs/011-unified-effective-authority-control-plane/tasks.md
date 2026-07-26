@@ -40,7 +40,7 @@
 - [ ] T033 Compile Dashboard from authority projection.
 - [ ] T034 Compile Tool Catalog visibility and action eligibility.
 - [x] T035 Preserve backward-compatible legacy fields.
-- [ ] T036 Compare exact IDs and reasons across projections.
+- [x] T036 Compare exact IDs and reasons across projections.
 
 ## P1 — Security and tests
 
