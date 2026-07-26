@@ -80,6 +80,46 @@ function createFakePool({ expectedReadbackCount, existingRows = [], lockAcquired
   return pool;
 }
 
+const registrySyncContract = YAML.parse(
+  await readFile(new URL("./openapi/openapi-registry-sync.yaml", import.meta.url), "utf8"),
+);
+const inventoryEvidenceSchema = registrySyncContract.schemas.InventoryEvidence;
+const inventorySyncResponseSchema = registrySyncContract.schemas.InventorySyncResponse;
+assert(inventoryEvidenceSchema, "InventoryEvidence schema must be declared");
+assert.equal(inventoryEvidenceSchema.additionalProperties, false);
+assert.deepEqual(
+  [...inventoryEvidenceSchema.required].sort(),
+  [
+    "secrets_included",
+    "source_document_count",
+    "suppressed_route_conflict_count",
+    "suppressed_route_conflicts",
+    "suppressed_route_duplicate_count",
+  ].sort(),
+);
+assert.equal(inventoryEvidenceSchema.properties.source_document_count.minimum, 0);
+assert.equal(inventoryEvidenceSchema.properties.suppressed_route_duplicate_count.minimum, 0);
+assert.equal(inventoryEvidenceSchema.properties.suppressed_route_conflict_count.minimum, 0);
+assert.equal(inventoryEvidenceSchema.properties.secrets_included.const, false);
+assert.deepEqual(
+  [...inventoryEvidenceSchema.properties.suppressed_route_conflicts.items.required].sort(),
+  [
+    "authoritative_operation_id",
+    "route",
+    "source_file",
+    "suppressed_operation_id",
+  ].sort(),
+);
+assert.equal(
+  inventorySyncResponseSchema.properties.inventory_evidence.$ref,
+  "#/schemas/InventoryEvidence",
+);
+assert.equal(
+  inventorySyncResponseSchema.required.includes("inventory_evidence"),
+  false,
+  "inventory_evidence must remain an additive optional response field",
+);
+
 const fullInventory = await collectOpenApiEndpointInventory();
 assert(fullInventory.operation_count >= 500);
 assert.match(fullInventory.source_fingerprint, /^[a-f0-9]{64}$/);
