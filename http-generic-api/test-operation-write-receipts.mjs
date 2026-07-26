@@ -89,7 +89,7 @@ function createMemoryPool(initialReceipt = null) {
         return [{ affectedRows: 1 }];
       }
       if (compact.startsWith("UPDATE operation_write_receipts") && compact.includes("dispatch_result_sha256")) {
-        if (!db.receipt || db.receipt.receipt_id !== params[13] || Number(db.receipt.state_revision) !== Number(params[14])) return [{ affectedRows: 0 }];
+        if (!db.receipt || db.receipt.receipt_id !== params[12] || Number(db.receipt.state_revision) !== Number(params[13])) return [{ affectedRows: 0 }];
         db.receipt = {
           ...db.receipt,
           state_revision: Number(params[0]), receipt_status: params[1], dispatch_result_sha256: params[2],
