@@ -3,13 +3,13 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 83,
+  "total_triaged_items": 84,
   "class_counts": {
     "legacy_baseline_backlog": 19,
-    "new_surface_immediate_review": 62,
+    "new_surface_immediate_review": 63,
     "safety_marker_review": 2
   },
-  "gate_candidate_count": 62,
+  "gate_candidate_count": 63,
   "gate_candidate_files": [
     "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
     "20260724_auth_email_delivery_attempts.sql",
@@ -55,6 +55,7 @@
     "20260720_cleanup_tenant_gpt_oauth_smoke_authority.sql",
     "20260719_expand_resource_authority_tenant_gpt_oauth_smoke.sql",
     "20260717_virtual_tool_readback_readiness.sql",
+    "20260725_repository_authority_capability_readiness_repair.sql",
     "20260726_support_ticket_resolution_triage_playbook.sql",
     "20260720_github_update_pull_request_branch_503_response_contract.sql",
     "20260720_tenant_tool_input_schema_strictness.sql",
@@ -77,7 +78,7 @@
   "items": [
     {
       "migration_file": "190_sprint66_workspace_lifecycle_foundation.sql",
-      "score": 1611,
+      "score": 1610,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",
@@ -135,7 +136,7 @@
     },
     {
       "migration_file": "20260724_auth_email_delivery_attempts.sql",
-      "score": 1293,
+      "score": 1292,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -311,7 +312,7 @@
     },
     {
       "migration_file": "20260717_tenant_task_source_repair_apply_gate.sql",
-      "score": 1054,
+      "score": 1053,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -352,8 +353,8 @@
       }
     },
     {
-      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
-      "score": 1027,
+      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
+      "score": 1026,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",
@@ -379,7 +380,7 @@
       }
     },
     {
-      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
+      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
       "score": 1026,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
@@ -1627,7 +1628,7 @@
     },
     {
       "migration_file": "20260716_dynamic_container_preview_canary_probe_sampler_tool.sql",
-      "score": 709,
+      "score": 708,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1832,7 +1833,7 @@
     },
     {
       "migration_file": "20260721_ci_guard_operational_alert_ingestion_slo.sql",
-      "score": 696,
+      "score": 695,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -2423,6 +2424,46 @@
       }
     },
     {
+      "migration_file": "20260725_repository_authority_capability_readiness_repair.sql",
+      "score": 559,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "20260726_support_ticket_resolution_triage_playbook.sql",
       "score": 559,
       "queue_class": "high_review",
@@ -2805,7 +2846,7 @@
     },
     {
       "migration_file": "20260712_github_rerun_workflow_response_schema_alignment.sql",
-      "score": 530,
+      "score": 529,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -3173,7 +3214,7 @@
     },
     {
       "migration_file": "20260720_credential_intake_platform_secret_governance_hardening.sql",
-      "score": 409,
+      "score": 408,
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",
