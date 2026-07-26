@@ -1,0 +1,25 @@
+{
+  "surface_key": "permission_grants",
+  "display_name": "Authorized Permission Grants",
+  "description": "Tenant-scoped granted permission keys visible during activation.",
+  "source_table": "permission_grants",
+  "result_key_column": "permission_key",
+  "result_label_column": "permission_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "granted",
+  "active_status_values": ["1"],
+  "result_columns": [
+    "permission_key",
+    "tenant_id",
+    "installation_id",
+    "granted",
+    "granted_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 40,
+  "status": "active",
+  "notes": "Repo-managed activation surface. Permission keys only; no secrets."
+}

@@ -1,0 +1,7 @@
+{
+  "surface_key": "local_connector_routes",
+  "source_table": "local_connector_routes",
+  "reason": "Excluded because PR 2417 creates route lifecycle persistence only. Tenant-visible activation cards, route APIs, and object-level authorization are intentionally deferred to later runtime PRs.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

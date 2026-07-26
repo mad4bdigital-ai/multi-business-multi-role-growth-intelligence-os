@@ -16,6 +16,7 @@
     "activation_state",
     "auto_bootstrap_state",
     "hard_activation_wrapper_state",
+    "activation_awareness_state",
     "execution_logging_state",
     "governance_rules",
     "governance_drift_state",
@@ -30,6 +31,9 @@
     "output_artifacts_state",
     "sink_dispatch_state",
     "agent_chain_state",
+    "memory_scope_state",
+    "agent_governance_state",
+    "capability_assurance_state",
     "local_connector_governance_state"
   ],
   "properties": {
@@ -157,6 +161,97 @@
     "activation_state": { "$ref": "../../schemas/execution.schema.json#/$defs/activation_state" },
     "auto_bootstrap_state": { "$ref": "../../schemas/execution.schema.json#/$defs/auto_bootstrap_state" },
     "hard_activation_wrapper_state": { "$ref": "../../schemas/execution.schema.json#/$defs/hard_activation_wrapper_state" },
+    "activation_awareness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_table",
+        "snapshot_table",
+        "response_profile_authority",
+        "delivery_policy_authority",
+        "default_response_profile",
+        "session_policy",
+        "lifecycle_states",
+        "completeness_required",
+        "dynamic_tabs_preserved",
+        "dashboard_preserved",
+        "secret_policy"
+      ],
+      "properties": {
+        "run_table": { "const": "activation_runs" },
+        "snapshot_table": { "const": "activation_snapshot_ledger" },
+        "response_profile_authority": { "const": "activation_response_profile_registry" },
+        "delivery_policy_authority": { "const": "activation_delivery_policy_registry" },
+        "default_response_profile": { "const": "evidence" },
+        "supported_response_profiles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["evidence", "summary", "dashboard", "diagnostic", "full"] },
+          "default": ["evidence", "summary", "dashboard", "diagnostic", "full"]
+        },
+        "session_policy": {
+          "type": "string",
+          "enum": ["reuse_or_create", "create_new", "reuse_only", "read_only"],
+          "default": "reuse_or_create"
+        },
+        "lifecycle_states": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["validation_state", "evidence_state", "delivery_state", "consumer_ack_state"] },
+          "default": ["validation_state", "evidence_state", "delivery_state", "consumer_ack_state"]
+        },
+        "completeness_required": { "const": true },
+        "details_omitted_silently": { "const": false },
+        "deferred_details_require_governed_refs": { "const": true },
+        "dynamic_tabs_preserved": { "const": true },
+        "dashboard_preserved": { "const": true },
+        "tenant_scope_authority": { "const": "signed_jwt_membership" },
+        "admin_scope_authority": { "const": "platform_admin_authorization" },
+        "secret_policy": { "const": "never_return_raw_secret_values" }
+      }
+    },
+    "operational_alerting_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_table",
+        "rule_registry",
+        "sync_run_table",
+        "notification_outbox",
+        "evidence_authority",
+        "known_issue_visibility_policy",
+        "dedupe_authority",
+        "recovery_resolution_policy",
+        "notification_reconciliation_policy",
+        "completeness_contract",
+        "secret_policy"
+      ],
+      "properties": {
+        "lifecycle_table": { "const": "operational_alerts" },
+        "rule_registry": { "const": "operational_alert_rule_registry" },
+        "sync_run_table": { "const": "operational_alert_sync_runs" },
+        "notification_outbox": { "const": "operational_alert_notification_outbox" },
+        "evidence_authority": { "const": "sql_runtime_evidence_sources_plus_operational_alert_lifecycle" },
+        "known_issue_visibility_policy": { "const": "platform_admin_only" },
+        "dedupe_authority": { "const": "effective_resource_identity_not_raw_record_id" },
+        "recovery_resolution_policy": { "const": "later_success_must_match_operation_fingerprint" },
+        "notification_reconciliation_policy": { "const": "resolve_and_revalidate_before_queue" },
+        "lifecycle_states": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["open", "acknowledged", "investigating", "resolved", "ignored"] },
+          "default": ["open", "acknowledged", "investigating", "resolved", "ignored"]
+        },
+        "completeness_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all_known_issues_visible", "all_matching_problems_returned_in_page", "final_result_complete"],
+          "properties": {
+            "all_known_issues_visible": { "type": "boolean" },
+            "all_matching_problems_returned_in_page": { "type": "boolean" },
+            "final_result_complete": { "type": "boolean" }
+          }
+        },
+        "secret_policy": { "const": "never_return_raw_secret_values" }
+      }
+    },
     "execution_logging_state": { "$ref": "../../schemas/operations.schema.json#/$defs/execution_logging_state" },
     "governance_rules": { "$ref": "../../schemas/governance.schema.json#/$defs/governance_rules" },
     "governance_drift_state": { "$ref": "../../schemas/governance.schema.json#/$defs/governance_drift_state" },
@@ -212,6 +307,79 @@
           "default": ["pending", "dispatched", "failed", "skipped"]
         },
         "dispatch_policy": { "type": "string", "enum": ["manual_or_scheduled", "disabled", "auto"], "default": "manual_or_scheduled" }
+      }
+    },
+    "memory_scope_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "resolution_order", "cross_scope_default"],
+      "properties": {
+        "authority": { "const": "explicit_scope_resolution" },
+        "resolution_order": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["workflow", "agent", "role", "brand", "tenant", "global"]
+        },
+        "cross_scope_default": { "const": "deny" }
+      }
+    },
+    "agent_governance_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["research_policy", "handoff_policy", "external_prompt_policy", "response_profile_authority"],
+      "properties": {
+        "research_policy": { "const": "internal_first_then_policy_allowed_external" },
+        "handoff_policy": { "const": "opaque_expiring_audited_state" },
+        "external_prompt_policy": { "const": "quarantine_without_execution_authority" },
+        "response_profile_authority": { "const": "presentation_only" }
+      }
+    },
+    "tool_dispatch_binding_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "binding_table", "integrity_view", "resolution_chain", "mutation_policy", "compound_operation_policy", "runtime_status"],
+      "properties": {
+        "authority": { "const": "platform_tool_dispatch_binding_registry" },
+        "binding_table": { "const": "platform_tool_dispatch_bindings" },
+        "integrity_view": { "const": "v_platform_tool_dispatch_integrity" },
+        "resolution_chain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["action", "endpoint", "endpoint_export", "dispatch_binding", "callable_tool", "capability_policy", "readback_policy"]
+        },
+        "mutation_policy": { "const": "capability_and_same_cycle_readback_required" },
+        "compound_operation_policy": { "const": "partial_success_must_be_explicit" },
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "degraded", "blocked"], "default": "validating" }
+      }
+    },
+    "capability_assurance_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "canonical_capability_table",
+        "evidence_table",
+        "certification_table",
+        "debt_table",
+        "readiness_view",
+        "gap_view",
+        "invocation_authority_policy",
+        "resource_authority_policy",
+        "secret_policy"
+      ],
+      "properties": {
+        "authority": { "const": "capability_assurance_graph" },
+        "canonical_capability_table": { "const": "platform_plugin_capabilities" },
+        "evidence_table": { "const": "platform_evidence_events" },
+        "certification_table": { "const": "platform_capability_certifications" },
+        "debt_table": { "const": "platform_capability_debt" },
+        "readiness_view": { "const": "v_platform_capability_readiness_vector" },
+        "gap_view": { "const": "v_platform_capability_assurance_gaps" },
+        "invocation_authority_policy": { "const": "fresh_capability_envelope_required_for_scoped_execution" },
+        "resource_authority_policy": { "const": "capability_specific_effective_resource_binding_required_for_external_resource_mutation" },
+        "secret_policy": { "const": "hash_and_reference_only_no_plaintext" },
+        "reconciliation_tool": { "const": "platform_capability_assurance_reconcile" },
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "degraded", "blocked"], "default": "validating" }
       }
     },
     "local_connector_governance_state": {

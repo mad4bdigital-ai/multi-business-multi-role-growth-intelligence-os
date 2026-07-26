@@ -3,11 +3,14 @@ import { prepareExecutionRequest } from "./executionPreparation.js";
 import { dispatchPreparedExecution } from "./executionDispatch.js";
 import { validateAndShapeExecutionResponse } from "./executionResponse.js";
 import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
+import { resolveExecutionGraphMemoryContext } from "./executionGraphMemoryContext.js";
+import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
 import {
   getExecutionJob,
   pollExecutionJobResult,
   submitGenericExecutionJob,
-  submitSiteMigrationJob
+  submitSiteMigrationJob,
+  tickExecutionJob
 } from "./executionAsync.js";
 
 export function createExecutionFacade(deps) {
@@ -112,6 +115,7 @@ export function createExecutionFacade(deps) {
     updateJob,
     jobRepository,
     enqueueJob,
+    executeSingleQueuedJob,
     failAsyncSubmission,
     toJobSummary,
     // job read
@@ -183,7 +187,6 @@ export function createExecutionFacade(deps) {
           provider_domain,
           parent_action_key,
           endpoint_key,
-          drive,
           hostingAccounts,
           policies,
           callerHeaders,
@@ -253,7 +256,6 @@ export function createExecutionFacade(deps) {
             action,
             endpoint,
             brand,
-            drive,
             hostingAccounts,
             policies,
             callerHeaders,
@@ -294,7 +296,8 @@ export function createExecutionFacade(deps) {
             fetchChunkedTable,
             headerMap,
             getCell,
-            REGISTRY_SPREADSHEET_ID
+            REGISTRY_SPREADSHEET_ID,
+            resolveActionEndpointToolManifest
           }
         );
         if (!preparation.ok) {
@@ -322,6 +325,17 @@ export function createExecutionFacade(deps) {
           pathResolverLoad
         } = preparation;
 
+        const graphMemoryContext = await resolveExecutionGraphMemoryContext({
+          requestPayload,
+          action,
+          endpoint,
+          brand,
+          resolvedMethodPath,
+          providerDomain: resolvedProviderDomain,
+          parentActionKey: parent_action_key,
+          endpointKey: endpoint_key
+        });
+
         const dryRunRequested = requestPayload.dry_run === true || String(requestPayload.dry_run || "").trim().toLowerCase() === "true";
         if (dryRunRequested) {
           const report = buildPassiveExecutionReport({
@@ -343,7 +357,8 @@ export function createExecutionFacade(deps) {
             finalQuery,
             baseUrl,
             requestUrl,
-            principal: requestPayload._principal || null
+            principal: requestPayload._principal || null,
+            graphMemoryContext
           });
 
           await performUniversalServerWriteback({
@@ -431,7 +446,8 @@ export function createExecutionFacade(deps) {
             execution_trace_id,
             sync_execution_started_at,
             resolvedMethodPath,
-            policies
+            policies,
+            graphMemoryContext
           },
           {
             policyValue,
@@ -564,7 +580,9 @@ export function createExecutionFacade(deps) {
         toJobSummary,
         TERMINAL_JOB_STATUSES,
         ACTIVE_JOB_STATUSES,
-        normalizeJobStatus
+        normalizeJobStatus,
+        updateJob,
+        nowIso
       });
     },
 
@@ -578,6 +596,15 @@ export function createExecutionFacade(deps) {
         updateJob,
         normalizeJobStatus,
         performUniversalServerWriteback
+      });
+    },
+
+    async tickJob(jobId) {
+      return tickExecutionJob(jobId, {
+        resolveJob,
+        executeSingleQueuedJob,
+        toJobSummary,
+        normalizeJobStatus,
       });
     }
   };

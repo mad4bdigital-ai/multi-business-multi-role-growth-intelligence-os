@@ -1185,3 +1185,112 @@ If a template state change can affect governed additions:
 - affected dependency traceability must remain explicit
 - unknown dependent scope must not be silently ignored
 - impact and lineage review must remain available before dependent green classification is allowed
+## Growth Intelligence Dry-Run Authority
+
+The `tenant_brand_growth_intelligence_pilot_v1` workflow is authorized only for
+read-only intelligence generation and dry-run planning. Direct instructions must
+not reinterpret a generated opportunity, backlog item, or approval queue entry as
+provider-write or external-send authority.
+
+Every generated action must preserve:
+- tenant and brand scope
+- evidence or explicit assumption state
+- impact/effort/confidence-derived priority score
+- risk and execution class
+- approval hold for non-advisory work
+- readback requirements
+- `provider_write = false`
+- `external_send = false`
+- `secrets_included = false`
+
+When internal registry persistence is explicitly requested, write report,
+insight, action, workflow, and approval-hold records transactionally. Approval
+decisions update lifecycle state only and must return
+`execution_dispatched = false`.
+
+Persisted insight lifecycle decisions are limited to `accepted`, `rejected`, or
+`stale`. Deterministic fingerprints must supersede prior matching active
+insights. A readiness assessment may classify a report as `review_ready` only
+after explicit insight acceptance and all quality/safety controls pass, but it
+must still return `execution_allowed = false`.
+
+## Sequential Plan Execution Instructions
+
+An accepted multi-step plan must be compiled before execution. Execute at most
+one atomically claimed ready step per tick, enforce dependencies and success
+criteria, checkpoint every transition, and stop at approval, blocked, paused,
+failed, cancelled, or completed states. Approval changes readiness only and must
+not silently execute the next step.
+# Agent Governance Binding Repair
+
+Bind research source order, response presentation, handoff continuation, and external prompt trust to their SQL registries. No prompt text, response profile, or handoff payload may self-assert execution authority.
+## Superseded Closed-PR And Orphan Branch Cleanup Authority
+
+Direct instructions must not reinterpret a closed or stale pull request as branch-deletion authority. Generic deletion of unmerged branches remains blocked.
+
+`github_superseded_branch_cleanup` may delete one governed work branch only when all common evidence requirements pass and one lifecycle mode is satisfied:
+- closed-PR mode: the matching pull request is closed and labeled `superseded`, and no matching pull request remains open
+- orphan mode: `allow_orphan_branch=true`, no matching pull request exists in any state, and every non-generated changed file has the same Git blob SHA on the branch and the current default branch
+- explicit replacement commit SHAs are supplied and each is an ancestor of the current default branch
+- the replacement commits cover every non-generated file changed by the branch
+- generated-file exclusions come only from the active policy allowlist
+- changed-file and ahead-commit limits remain within the policy thresholds
+- the default-branch SHA, branch SHA, lifecycle mode, content-equivalence evidence, and evidence fingerprint still match the dry-run evidence
+- an approved GitHub capability envelope, exact typed confirmation, and explicit reason are present
+
+The recipe must never target a protected/default branch, force-update a ref, use a generic deletion fallback, return secrets, or delete before a synchronous no-secret intent audit succeeds. It must write completion or failure audit evidence after the provider result and must not report success before same-cycle missing-ref readback and completion audit succeed.
+
+## Existing Git Blob Commit Authority
+
+Direct instructions may invoke `repo_existing_blob_commit_apply` only for an existing non-protected work branch and only after capability-envelope approval. The request must bind exact repository scope, branch, expected head SHA, commit message, and unique `{path, blob_sha}` changes. Runtime must reject stale heads, invalid modes, duplicate or unsafe paths, missing branches, protected/default branches, and any ref update that would require force. Success requires a no-force ref update plus same-cycle verification that every requested path resolves to the requested blob SHA. Blob content must not be transported or returned.
+
+## Capability Report Selection Boundary
+
+Capability contract verification and live operational verification are separate authority surfaces. `platform_capability_contract_report` may inspect declared schema/tool contracts and classify proposed versus implemented surfaces, but it must not return live counts or claim historical CI/deployment truth. `platform_capability_live_report` may query current MySQL-primary maturity, gap, envelope, certification, and source-resolution state with bounded freshness, but it must not infer contractual completeness or restate historical report numbers. A combined conclusion requires an explicit later comparison step; neither tool may silently call or merge the other.
+### Repository Mutation Authority V6
+
+Repository mutation authority must be action-specific. A generic read-only repository binding, an admin role by itself, a successful prior PR analysis, or the presence of an adapter must never grant mutation authority.
+
+Before any V6 repository write:
+- resolve the authenticated tenant/user/workspace hierarchy and reject cross-scope overrides
+- resolve one active `platform_resource_authority_bindings` row for the exact GitHub repository URI, recipe key, permission level, and `apply` mode
+- validate tenant-owned authority against the exact active `connected_systems` and `installations` records
+- require the recipe to be `active`, `risk_class=mutation`, `mode=apply`, `read_only=0`, and gated by dry-run, capability envelope, typed confirmation, and same-cycle readback
+- bind the capability envelope and approval hold to the exact plan item, resource, action, and head SHA
+- reserve one `repository_mutation_runs_v6` row before provider dispatch
+- perform one provider write at most, followed by same-cycle readback and bounded audit evidence
+
+Replay rules:
+- the unique `(plan_id, plan_item_id)` run identity is authoritative
+- any existing run blocks another provider write
+- `write_confirmed`, `readback_verified`, and `readback_failed` indicate a write was dispatched
+- `unknown_provider_outcome` requires readback/reconciliation only; automatic replay is forbidden
+- readback failure must not be reclassified as successful execution
+
+Mutation recipes in `planned`, disabled, expired, mismatched, incomplete-evidence, or unauthorized states must block before token resolution and provider dispatch. Force-push and repository-engine migration apply are always forbidden.
+
+## Operational Alert P0 Reconciliation Enforcement
+
+For unified operational alert synchronization:
+
+- derive skill-approval identity from agent, skill, and effective tenant/brand scope; `grant_id` is evidence, not alert identity
+- do not merge execution failures with different operation keys or normalized failure reasons
+- do not keep a failure open when a later verified success matches the same recovery fingerprint
+- do not classify fallback-backed or route-resolved execution as an unrecovered critical failure
+- do not promote malformed source rows or lifecycle-inconsistent completed tasks into the high/critical notification queue
+- resolve or skip stale pending notifications before current eligible notifications are queued
+- preserve no-secret evidence, tenant scope, source health, same-cycle readback, and explicit lifecycle state
+
+For a diverged non-protected work branch, `github_branch_merge_commit_create` is the only governed multi-parent reconciliation mutation. It requires fresh `admin_branch_reconcile` evidence, expected base and branch SHAs, a reviewed resolution commit whose sole parent is the expected base SHA, exact changed-file scope coverage with no extra files and at most 50 files, a ready GitHub capability envelope, and typed `CREATE_MERGE_COMMIT_<BRANCH_SLUG>` confirmation. The created commit must use parent order `[expected_branch_sha, expected_base_sha]`, use the validated resolution tree, update only the work-branch ref with `force=false`, and pass same-cycle ref, ancestry, tree, `ahead_only`, and `behind_by=0` readback. Default/protected branches, stale evidence, resolution scope drift, missing branch files, extra files, and any force update remain blocked.
+
+## GitHub Branch Cleanup Sweep Enforcement
+
+For `github_branch_cleanup_sweep`:
+- route every request to dry-run unless `mode=apply` is explicit
+- require fixed bounded limits: no more than 300 scanned branches and 25 deletes per invocation
+- accept only a subset of governed disposable prefixes; never permit arbitrary prefix expansion
+- block default/protected branches, open PRs, branches with unique commits, recent branches below the reviewed threshold, invalid metadata, and comparison failures
+- bind apply to the dry-run base SHA, evidence fingerprint, typed confirmation, and one approved capability envelope
+- rerun the same plan before mutation and invoke the existing single-branch delete guard for every candidate
+- stop on the first deletion failure, return partial-success evidence, and forbid force, generic delete fallback, or automatic replay after unknown provider outcome
+- return no credentials, tokens, or raw secret values

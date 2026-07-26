@@ -1,0 +1,37 @@
+{
+  "surface_key": "authority_scope_shadow_evidence",
+  "display_name": "Authority Scope Shadow Evidence",
+  "description": "Read-only audit evidence comparing tenant container resolution with the Authority Scope registry.",
+  "source_table": "authority_scope_shadow_evidence",
+  "result_key_column": "evidence_id",
+  "result_label_column": "comparison_status",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": [
+    "resolved",
+    "unresolved"
+  ],
+  "result_columns": [
+    "evidence_id",
+    "tenant_id",
+    "request_id",
+    "resolution_id",
+    "principal_type",
+    "target_container_id",
+    "scope_key",
+    "scope_type",
+    "scope_tenant_id",
+    "status",
+    "comparison_status",
+    "enforcement_mode",
+    "authority_granted",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 12,
+  "status": "active",
+  "notes": "Read-only and tenant-filtered. principal_id, mismatch_codes_json, duration_ms, and error fields are intentionally excluded from the activation surface."
+}

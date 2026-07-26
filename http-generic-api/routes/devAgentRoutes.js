@@ -14,6 +14,14 @@ import { Router }           from "express";
 import { randomUUID }       from "node:crypto";
 import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
+import { runSessionSummaryAutosweep, summarizeTranscriptWithModel } from "../sessionSummaryService.js";
+import { runN8nWorkflowRuntime } from "../n8nWorkflowRuntime.js";
+import { runOpenClaudeOpenRouterLiveDispatch } from "../openClaudeBridgeRuntime.js";
+import {
+  loadAgentModelRuntimeSettings,
+  saveAgentModelRuntimeSettings,
+  summarizeModelRuntimeSettings,
+} from "../agentModelRuntimeSettings.js";
 
 // ── Discussion AI prompt ──────────────────────────────────────────────────────
 
@@ -38,6 +46,33 @@ USER CONTEXT:
 
 Be concrete and actionable. If the user confirms the proposal, acknowledge and suggest next steps.
 If they want to refine it, help narrow scope and priority. Keep replies focused and under 300 words.`;
+}
+
+function sanitizeModelReadinessError(error) {
+  const message = String(error?.message || error || "model_readiness_failed");
+  const providerMatch = message.match(/\b(Anthropic|OpenAI|Gemini) API\s+(\d{3})/i);
+  if (providerMatch) {
+    return {
+      code: "model_provider_error",
+      provider: providerMatch[1].toLowerCase(),
+      upstream_status: Number(providerMatch[2]),
+      message: `${providerMatch[1]} API returned ${providerMatch[2]}`,
+    };
+  }
+  if (/invalid\s+(x-api-key|api key|authorization|credentials?)/i.test(message)) {
+    return { code: "invalid_model_credentials", message: "Model credentials are invalid." };
+  }
+  if (/missing\s+.*(api key|credential|token)/i.test(message)) {
+    return { code: "missing_model_credentials", message: "Model credentials are missing." };
+  }
+  return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
+}
+
+async function resolveStandardCallModel(deps, taskClass = "summary") {
+  if (deps.getCallModelForTaskAsync) return await deps.getCallModelForTaskAsync(taskClass, "standard");
+  if (deps.getCallModelForClassAsync) return await deps.getCallModelForClassAsync("standard");
+  if (deps.getCallModelForClass) return deps.getCallModelForClass("standard");
+  return deps.callModel || null;
 }
 
 async function loadUserContext(tenant_id) {
@@ -74,6 +109,482 @@ async function loadUserContext(tenant_id) {
   return ctx;
 }
 
+function boundedPositiveInt(value, fallback, min = 1, max = 100) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(parsed, max));
+}
+
+function normalizeComparisonText(value = "", limit = 12000) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit)}...[truncated]` : text;
+}
+
+function normalizeComparisonTurns(body = {}) {
+  if (Array.isArray(body.turns) && body.turns.length) {
+    return body.turns.slice(0, 80).map((turn, index) => ({
+      turn_index: Number.isFinite(Number(turn.turn_index)) ? Number(turn.turn_index) : index,
+      role: String(turn.role || "user"),
+      content: normalizeComparisonText(turn.content || turn.text || ""),
+      action_key: turn.action_key || null,
+    })).filter((turn) => turn.content);
+  }
+  const text = normalizeComparisonText(body.text || body.content || body.input?.text || "");
+  return text ? [{ turn_index: 0, role: "user", content: text, action_key: null }] : [];
+}
+
+function summarizeComparisonShape(result = {}) {
+  const text = String(result.summary_text || result.summary || "");
+  const bullets = Array.isArray(result.bullets) ? result.bullets : [];
+  return {
+    summary_chars: text.length,
+    bullet_count: bullets.length,
+    source: result.source || "current_model_summary",
+    method: result.method || "model_backed",
+  };
+}
+
+async function timedStep(fn) {
+  const started = Date.now();
+  try {
+    const result = await fn();
+    return { ok: true, latency_ms: Date.now() - started, result };
+  } catch (err) {
+    return { ok: false, latency_ms: Date.now() - started, error: { code: err.code || "summary_comparison_step_failed", message: String(err.message || err).slice(0, 240) } };
+  }
+}
+
+function normalizeQualityScore(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 1 || score > 5) {
+    const err = new Error("quality scores must be integers between 1 and 5.");
+    err.code = "summary_comparison_quality_score_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return Math.round(score);
+}
+
+function normalizePreferredOutput(value) {
+  const preferred = String(value || "").trim();
+  const allowed = new Set(["current_model_summary", "n8n_experiment", "tie", "neither"]);
+  if (!allowed.has(preferred)) {
+    const err = new Error("preferred_output must be current_model_summary, n8n_experiment, tie, or neither.");
+    err.code = "summary_comparison_preferred_output_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return preferred;
+}
+
+function stableSignalKey(parts = []) {
+  return parts
+    .map((part) => String(part || "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "_").replace(/^_+|_+$/g, ""))
+    .filter(Boolean)
+    .join(":")
+    .slice(0, 190);
+}
+
+function redactSensitiveText(value = "") {
+  return String(value || "")
+    .replace(/(api[_-]?key|x-api-key|token|secret|authorization|bearer)\s*[:=]\s*[^\s,;}]+/gi, "$1=[redacted]")
+    .replace(/(invalid\s+x-api-key|invalid\s+api\s+key|authentication_error)/gi, "credential_error")
+    .replace(/(request_id|request-id)\s*[:=]\s*[A-Za-z0-9_\-]+/gi, "$1=[redacted]")
+    .replace(/req_[A-Za-z0-9_\-]+/g, "req_[redacted]");
+}
+
+function clampText(value, limit = 1000) {
+  const text = redactSensitiveText(value).replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
+}
+
+function safeParseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null || value === "") return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeRepoAnalysisScope(value = "platform_repo") {
+  const scope = String(value || "platform_repo").trim();
+  const allowed = new Set(["platform_repo"]);
+  if (!allowed.has(scope)) {
+    const err = new Error("Only platform_repo is currently allowed for repo-analysis dry runs.");
+    err.code = "summary_development_repo_scope_blocked";
+    err.status = 403;
+    throw err;
+  }
+  return scope;
+}
+
+function normalizeApprovalPhrase(value = "") {
+  const phrase = String(value || "").trim();
+  const required = "APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS";
+  if (phrase !== required) {
+    const err = new Error(`approval_phrase must be exactly ${required}.`);
+    err.code = "summary_development_approval_phrase_invalid";
+    err.status = 403;
+    throw err;
+  }
+  return phrase;
+}
+
+function normalizeProviderBridgePrompt(value = "", limit = 4000) {
+  const prompt = clampText(value, limit);
+  if (!prompt) {
+    const err = new Error("prompt is required for provider bridge dry run.");
+    err.code = "provider_bridge_prompt_required";
+    err.status = 400;
+    throw err;
+  }
+  return prompt;
+}
+
+function buildOpenClaudeReadOnlyExecutionEnvelope({ approval = {}, runtime = {}, signal = {}, analysisGoal = "" } = {}) {
+  const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({
+    runtime,
+    signal,
+    repoScope: approval.repo_scope || "platform_repo",
+    analysisGoal,
+  });
+  return {
+    adapter: "openclaude_repo_analysis_read_only_execution_envelope_v1",
+    approval_id: approval.approval_id,
+    approval_key: approval.approval_key,
+    approval_status: approval.approval_status,
+    approval_mode: approval.approval_mode,
+    repo_scope: approval.repo_scope || "platform_repo",
+    runtime_key: runtime.runtime_key || approval.runtime_key,
+    device_id: runtime.device_id || null,
+    command_path: runtime.command_hint || "openclaude",
+    argv: commandPlan.suggested_args,
+    allowed_tools: commandPlan.allowed_tools,
+    denied_tools: commandPlan.denied_tools,
+    execution_ready: true,
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    secrets_included: false,
+    command_plan: commandPlan,
+  };
+}
+
+function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
+  const prompt = [
+    "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
+    "Do not edit files. Do not run shell commands. Do not write patches. Do not reveal secrets.",
+    "Produce a concise patch plan only: relevant files, likely migration/tests, risks, and acceptance criteria.",
+    `Signal: ${signal.title || signal.signal_key || "unknown"}`,
+    `Signal type: ${signal.signal_type || "unknown"}`,
+    `Priority: ${signal.priority || "medium"}`,
+    `Evidence: ${clampText(signal.evidence_text || signal.description || "", 1200)}`,
+    analysisGoal ? `User analysis goal: ${clampText(analysisGoal, 500)}` : "",
+  ].filter(Boolean).join("\n");
+
+  return {
+    adapter: "openclaude_repo_analysis_command_plan_v1",
+    repo_scope: repoScope,
+    runtime_key: runtime.runtime_key || "openclaude_essam_local_v1",
+    runtime_command_hint: runtime.command_hint || "openclaude",
+    allowed_tools: ["Read", "Grep", "Glob", "LS"],
+    denied_tools: ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+    suggested_args: [
+      "--print",
+      "--bare",
+      "--allowedTools",
+      "Read,Grep,Glob,LS",
+      prompt,
+    ],
+    prompt_preview: prompt,
+    local_execution_allowed: false,
+    local_execution_attempted: false,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    secrets_included: false,
+  };
+}
+
+function safeParseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime = {}, profile = {}, signal = {}, prompt = "", repoPath = "" } = {}) {
+  const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+  const profilePolicy = safeParseJsonObject(profile.policy_json);
+  const resolvedRepoPath = repoPath || runtimePolicy.repo_path || "D:\\mad4b-agent-workspaces\\growth-intelligence-os-readonly";
+  const resolvedPrompt = clampText(prompt || [
+    "Run a read-only Codex repo analysis for the Growth Intelligence Platform.",
+    "Do not edit files. Do not run commands that mutate state. Do not reveal secrets.",
+    "Return a concise patch plan only: relevant files, likely migration/tests, risks, and acceptance criteria.",
+    signal?.title ? `Signal: ${signal.title}` : "Signal: none",
+    signal?.evidence_text ? `Evidence: ${clampText(signal.evidence_text, 1200)}` : "",
+  ].filter(Boolean).join("\n"), 4000);
+  return {
+    adapter: "codex_interactive_user_read_only_execution_envelope_v1",
+    runtime_key: runtime.runtime_key || "codex_essam_chatgpt_v1",
+    profile_key: profile.profile_key || "codex_essam_chatgpt_oauth_v1",
+    device_id: runtime.device_id || "essam-pc",
+    interactive_user: runtimePolicy.interactive_user || "essam\\it",
+    auth_mode: runtimePolicy.auth_mode || "chatgpt_oauth",
+    auth_status: runtimePolicy.auth_status || "unknown",
+    command_path: runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd",
+    working_directory: resolvedRepoPath,
+    argv: [
+      "exec",
+      "--cd",
+      resolvedRepoPath,
+      "--sandbox",
+      "read-only",
+      "--ask-for-approval",
+      "never",
+      "--color",
+      "never",
+      "--ephemeral",
+      resolvedPrompt,
+    ],
+    powershell_example: `& "${runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd"}" exec --cd "${resolvedRepoPath}" --sandbox read-only --ask-for-approval never --color never --ephemeral "${resolvedPrompt.replace(/"/g, '\\"')}"`,
+    allowed_capabilities: ["repo_read", "analysis", "patch_plan"],
+    denied_capabilities: ["file_write", "shell_mutation", "git_push", "git_commit", "apply_patch", "secret_read"],
+    execution_ready: runtimePolicy.auth_status === "logged_in_user_verified" || profile.status === "available",
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    local_execution_attempted: false,
+    copy_platform_secret_to_device: false,
+    secrets_included: false,
+    policy: {
+      runtime_can_mutate_repo: Boolean(runtimePolicy.can_mutate_repo),
+      profile_can_mutate_repo: Boolean(profilePolicy.can_mutate_repo),
+      requires_interactive_user_context: true,
+      connector_service_context_supported: false,
+    },
+  };
+}
+
+function inferSignalPriority(type, evidence = "") {
+  const text = String(evidence || "").toLowerCase();
+  if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
+  if (["blocker", "security_need", "runtime_gap"].includes(type)) return "high";
+  if (["automation_need", "browser_need", "integration_need"].includes(type)) return "medium";
+  return "medium";
+}
+
+function recommendedRuntimeForSignal(type, evidence = "") {
+  const text = String(evidence || "").toLowerCase();
+  if (/openclaude|coding agent|repo|patch|code|branch|pull request|pr\b/.test(text)) return "openclaude_essam_local_v1";
+  if (/browser|inspect|screenshot|extract|scrap|crawl|dom|network|console|متصفح|استخراج|تشخيص/.test(text)) return null;
+  if (/fallback|rate limit|429|openrouter/.test(text)) return "platform_openrouter_dev_agent_v1";
+  return "platform_gemini_dev_agent_v1";
+}
+
+function buildSummaryDevelopmentSignal({ source_surface, source_ref, tenant_id, user_id, type, title, description, evidence, source_summary_id = null, source_comparison_id = null }) {
+  const signalType = type || "feature_request";
+  const safeTitle = clampText(title || evidence || signalType, 240);
+  return {
+    signal_id: randomUUID(),
+    signal_key: stableSignalKey([source_surface, source_ref, signalType, safeTitle]),
+    tenant_id: tenant_id || null,
+    user_id: user_id || null,
+    source_surface,
+    source_ref: source_ref || null,
+    source_summary_id,
+    source_comparison_id,
+    signal_type: signalType,
+    title: safeTitle,
+    description: clampText(description || evidence, 2000),
+    evidence_text: clampText(evidence, 4000),
+    recommended_runtime_key: recommendedRuntimeForSignal(signalType, evidence || description || title),
+    recommended_action: "human_review",
+    priority: inferSignalPriority(signalType, evidence || description || title),
+    policy_json: JSON.stringify({
+      auto_execute_code: false,
+      auto_mutate_repo: false,
+      requires_human_approval: true,
+      agent_runtime_may_dry_run_only: true,
+      secrets_included: false,
+    }),
+    metadata_json: JSON.stringify({ extracted_by: "summary_development_automation_v1" }),
+  };
+}
+
+async function insertSummaryDevelopmentSignal(pool, signal) {
+  const [result] = await pool.query(
+    `INSERT INTO \`summary_development_signals\`
+       (signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+        source_summary_id, source_comparison_id, signal_type, title, description,
+        evidence_text, recommended_runtime_key, recommended_action, priority,
+        status, policy_json, metadata_json, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, 'summary_development_automation_v1')
+     ON DUPLICATE KEY UPDATE
+       description = VALUES(description),
+       evidence_text = VALUES(evidence_text),
+       recommended_runtime_key = VALUES(recommended_runtime_key),
+       priority = VALUES(priority),
+       policy_json = VALUES(policy_json),
+       metadata_json = VALUES(metadata_json),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      signal.signal_id,
+      signal.signal_key,
+      signal.tenant_id,
+      signal.user_id,
+      signal.source_surface,
+      signal.source_ref,
+      signal.source_summary_id,
+      signal.source_comparison_id,
+      signal.signal_type,
+      signal.title,
+      signal.description,
+      signal.evidence_text,
+      signal.recommended_runtime_key,
+      signal.recommended_action,
+      signal.priority,
+      signal.policy_json,
+      signal.metadata_json,
+    ]
+  );
+  return result.affectedRows === 1 ? "created" : "updated";
+}
+
+async function persistSummaryComparisonRun({ pool = getPool(), payload, tenant_id = null, user_id = null, n8nBindingKey = "summary_n8n_experiment_v1" } = {}) {
+  if (!payload?.comparison_id) return { ok: false, skipped: true, reason: "missing_comparison_id" };
+  const modelShape = payload.current_model_summary?.shape || {};
+  const n8nShape = payload.n8n_experiment?.shape || {};
+  await pool.query(
+    `INSERT INTO \`summary_comparison_runs\`
+       (comparison_id, tenant_id, user_id, n8n_binding_key,
+        input_text_chars, input_turn_count,
+        current_model_ok, current_model_latency_ms, current_model_summary_chars,
+        current_model_bullet_count, current_model_source, current_model_method,
+        n8n_ok, n8n_latency_ms, n8n_summary_chars, n8n_bullet_count,
+        n8n_source, n8n_method, faster_path,
+        production_route_unchanged, writes_session_summaries, result_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)`,
+    [
+      payload.comparison_id,
+      tenant_id,
+      user_id,
+      n8nBindingKey,
+      Number(payload.input?.text_chars || 0),
+      Number(payload.input?.turn_count || 0),
+      payload.current_model_summary?.ok ? 1 : 0,
+      payload.current_model_summary?.latency_ms ?? null,
+      modelShape.summary_chars ?? null,
+      modelShape.bullet_count ?? null,
+      modelShape.source || null,
+      modelShape.method || null,
+      payload.n8n_experiment?.ok ? 1 : 0,
+      payload.n8n_experiment?.latency_ms ?? null,
+      n8nShape.summary_chars ?? null,
+      n8nShape.bullet_count ?? null,
+      n8nShape.source || null,
+      n8nShape.method || null,
+      payload.comparison?.faster_path || null,
+      JSON.stringify(payload),
+    ]
+  );
+  return { ok: true, comparison_id: payload.comparison_id };
+}
+
+async function loadSessionSummaryHealth({ pool = getPool(), lookbackDays = 7, limit = 20 } = {}) {
+  const [status_breakdown] = await pool.query(
+    `SELECT execution_status, recovery_status, recovery_notes, COUNT(*) AS count, MAX(created_at) AS last_seen
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY execution_status, recovery_status, recovery_notes
+     ORDER BY count DESC, last_seen DESC`,
+    [lookbackDays]
+  );
+
+  const [daily_breakdown] = await pool.query(
+    `SELECT DATE(created_at) AS day, execution_status, recovery_status, COUNT(*) AS count
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY DATE(created_at), execution_status, recovery_status
+     ORDER BY day DESC, execution_status, recovery_status`,
+    [lookbackDays]
+  );
+
+  const [archive_coverage] = await pool.query(
+    `SELECT archive_status,
+            COUNT(*) AS sessions,
+            SUM(CASE WHEN drive_jsonl_id IS NULL OR drive_jsonl_id = '' THEN 1 ELSE 0 END) AS missing_drive_jsonl,
+            SUM(CASE WHEN drive_jsonl_id IS NOT NULL AND drive_jsonl_id <> '' THEN 1 ELSE 0 END) AS has_drive_jsonl
+     FROM \`customer_sessions\`
+     WHERE originator = 'gpt_action'
+       AND session_status IN ('completed', 'closed')
+       AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY archive_status
+     ORDER BY sessions DESC`,
+    [lookbackDays]
+  );
+
+  const [[summary_backlog]] = await pool.query(
+    `SELECT COUNT(*) AS unsummarized_completed_sessions
+     FROM \`customer_sessions\` cs
+     LEFT JOIN \`session_summaries\` ss ON ss.session_id = cs.session_id
+     WHERE cs.originator = 'gpt_action'
+       AND cs.session_status IN ('completed', 'closed')
+       AND cs.turn_count >= 1
+       AND ss.summary_id IS NULL`
+  );
+
+  const [recent_runs] = await pool.query(
+    `SELECT id, execution_status, recovery_status, recovery_notes, failure_reason,
+            artifact_json_asset_id, execution_trace_id_writeback, created_at
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    [limit]
+  );
+
+  const totalRuns = status_breakdown.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const warningRuns = status_breakdown
+    .filter(row => String(row.execution_status || '').includes('warning') || (row.recovery_status && row.recovery_status !== 'not_required'))
+    .reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const failedRuns = status_breakdown
+    .filter(row => String(row.execution_status || '').toLowerCase() === 'failed')
+    .reduce((sum, row) => sum + Number(row.count || 0), 0);
+
+  return {
+    ok: true,
+    lookback_days: lookbackDays,
+    totals: {
+      summary_runs: totalRuns,
+      warning_runs: warningRuns,
+      failed_runs: failedRuns,
+      unsummarized_completed_sessions: Number(summary_backlog?.unsummarized_completed_sessions || 0),
+    },
+    status_breakdown,
+    daily_breakdown,
+    archive_coverage,
+    recent_runs,
+  };
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export function buildDevAgentRoutes(deps) {
@@ -81,12 +592,1881 @@ export function buildDevAgentRoutes(deps) {
   const router = Router();
   router.use(requireBackendApiKey);
 
+  // ── GET /dev-agent/model-readiness ────────────────────────────────────────
+  router.get("/dev-agent/model-readiness", async (req, res) => {
+    const taskClass = String(req.query.task_class || "summary").trim() || "summary";
+    const selection = deps.resolveAgentModelProviderAsync
+      ? await deps.resolveAgentModelProviderAsync("standard", process.env, taskClass)
+      : {
+          provider: deps.resolveAgentModelProvider
+            ? deps.resolveAgentModelProvider(process.env)
+            : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase(),
+          model: process.env.AGENT_MODEL || null,
+          source: "legacy_env",
+          explicit_provider: String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null,
+        };
+    const provider = selection.provider;
+    const explicit_provider = selection.explicit_provider || null;
+    const modelOverride = Boolean(process.env.AGENT_MODEL);
+    const envPresence = {
+      openrouter: Boolean(process.env.OPENROUTER_API_KEY),
+      anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
+    };
+
+    try {
+      const callModel = await resolveStandardCallModel(deps);
+
+      if (!callModel) {
+        return res.status(503).json({
+          ok: false,
+          readiness: "blocked",
+          provider,
+          model: selection.model || null,
+          task_class: selection.task_class || taskClass,
+          selection_source: selection.source || "unknown",
+          explicit_provider,
+          model_override: modelOverride,
+          env_presence: envPresence,
+          error: { code: "call_model_not_configured", message: "callModel is not wired into route dependencies." },
+        });
+      }
+
+      const response = await callModel([
+        { role: "system", content: "Return only JSON." },
+        { role: "user", content: "Return {\"ok\":true,\"purpose\":\"model_readiness\"}." },
+      ], []);
+
+      return res.json({
+        ok: true,
+        readiness: "active",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        response_shape: {
+          has_content: typeof response?.content === "string" && response.content.length > 0,
+          has_tool_calls: Array.isArray(response?.tool_calls),
+          tokens_used: Number(response?.tokens_used || 0),
+        },
+      });
+    } catch (err) {
+      const error = sanitizeModelReadinessError(err);
+      return res.status(error.upstream_status === 401 ? 401 : 503).json({
+        ok: false,
+        readiness: "blocked",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        error,
+      });
+    }
+  });
+
+  // ── GET /dev-agent/openclaude/bridge/v1/health ───────────────────────────
+  router.get("/dev-agent/openclaude/bridge/v1/health", async (req, res) => {
+    try {
+      const [[contract]] = await getPool().query(
+        "SELECT config_key, config_json, status, note, updated_at FROM `platform_runtime_config` WHERE config_key = ? LIMIT 1",
+        ["openclaude_provider_bridge_contract_v1"]
+      );
+      const [[runtime]] = await getPool().query(
+        "SELECT runtime_key, status, device_id, command_hint, policy_json, updated_at FROM `dev_agent_runtime_registry` WHERE runtime_key = ? LIMIT 1",
+        ["openclaude_essam_local_v1"]
+      );
+      const [[profile]] = await getPool().query(
+        "SELECT profile_key, provider_key, status, endpoint_url, policy_json, metadata_json, updated_at FROM `dev_agent_runtime_provider_profiles` WHERE profile_key = ? LIMIT 1",
+        ["openclaude_essam_openrouter_bridge_v1"]
+      );
+      const [[certification]] = await getPool().query(
+        "SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, updated_at FROM `runtime_dispatch_certification_registry` WHERE certification_key = ? LIMIT 1",
+        ["openclaude_platform_provider_bridge_v1"]
+      );
+
+      const contractJson = safeParseJsonObject(contract?.config_json);
+      const runtimePolicy = safeParseJsonObject(runtime?.policy_json);
+      const profilePolicy = safeParseJsonObject(profile?.policy_json);
+      const profileMetadata = safeParseJsonObject(profile?.metadata_json);
+      const endpointLive = profileMetadata.endpoint_live === true || profileMetadata.endpoint_live === "true";
+      const dispatchAllowed = Boolean(Number(certification?.dispatch_allowed || 0));
+      const liveProviderReady = endpointLive && dispatchAllowed && profile?.status === "active";
+
+      return res.json({
+        ok: true,
+        readiness: liveProviderReady ? "ready_for_live_provider_dispatch" : "contract_registered_pending_provider_dispatch",
+        bridge: {
+          contract_key: contract?.config_key || "openclaude_provider_bridge_contract_v1",
+          contract_status: contractJson.status || "missing_contract",
+          route_live: true,
+          provider_dispatch_enabled: dispatchAllowed,
+          live_provider_ready: liveProviderReady,
+          chat_completions_endpoint: "/dev-agent/openclaude/bridge/v1/chat/completions",
+          health_endpoint: "/dev-agent/openclaude/bridge/v1/health",
+        },
+        runtime: {
+          runtime_key: runtime?.runtime_key || "openclaude_essam_local_v1",
+          status: runtime?.status || "missing_runtime",
+          device_id: runtime?.device_id || "essam-pc",
+          execution_status: runtimePolicy.execution_status || "blocked_pending_provider_bridge_route",
+          local_runtime_required_for_provider_bridge: false,
+        },
+        profile: {
+          profile_key: profile?.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          provider_key: profile?.provider_key || "openclaude_openrouter_openai_compatible",
+          status: profile?.status || "missing_profile",
+          endpoint_live: endpointLive,
+        },
+        policy: {
+          allowed_tools: profilePolicy.allowed_tools || contractJson.allowed_openclaude_tools || ["Read", "Grep", "Glob", "LS"],
+          denied_tools: profilePolicy.denied_tools || contractJson.denied_openclaude_tools || ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+          copy_platform_secret_to_device: false,
+          return_provider_api_key_to_agent: false,
+          repo_mutation_allowed: false,
+          local_shell_execution_allowed: false,
+          secrets_included: false,
+        },
+        certification: certification || null,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        readiness: "error",
+        error: { code: "openclaude_bridge_health_failed", message: String(err.message || err).slice(0, 240) },
+        secrets_included: false,
+      });
+    }
+  });
+
+  // ── POST /dev-agent/openclaude/bridge/v1/chat/completions ────────────────
+  router.post("/dev-agent/openclaude/bridge/v1/chat/completions", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const dryRun = body.dry_run === true || String(req.get("x-openclaude-bridge-dry-run") || "").toLowerCase() === "true";
+      const liveDispatch = body.live_dispatch === true || String(req.get("x-openclaude-bridge-live-dispatch") || "").toLowerCase() === "true";
+      if (!dryRun && !liveDispatch) {
+        return res.status(403).json({
+          ok: false,
+          error: {
+            code: "openclaude_bridge_dispatch_mode_required",
+            message: "Send dry_run=true for a no-provider-call compatibility check, or live_dispatch=true for certified provider dispatch.",
+          },
+          bridge: {
+            provider_dispatch_attempted: false,
+            provider_dispatch_enabled: false,
+            local_execution_attempted: false,
+            repo_mutation_allowed: false,
+          },
+          secrets_included: false,
+        });
+      }
+
+      const messages = Array.isArray(body.messages) ? body.messages.slice(0, 20) : [];
+      const lastUserMessage = [...messages].reverse().find((message) => String(message?.role || "") === "user");
+      const prompt = normalizeProviderBridgePrompt(
+        lastUserMessage?.content || body.prompt || body.input || "OpenClaude provider bridge dry-run health check.",
+        4000
+      );
+      const model = String(body.model || "openclaude-platform-bridge-dry-run").slice(0, 191);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      if (liveDispatch) {
+        const liveMessages = messages.length ? messages : [{ role: "user", content: prompt }];
+        const live = await runOpenClaudeOpenRouterLiveDispatch({
+          messages: liveMessages,
+          model: body.model || "",
+          maxTokens: body.max_tokens || body.maxTokens || 256,
+          timeoutMs: body.timeout_ms || body.timeoutMs || 15000,
+          profileKey: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          providerKey: body.provider_key || "openclaude_openrouter_openai_compatible",
+        });
+        return res.json({
+          id: `chatcmpl_openclaude_bridge_${randomUUID()}`,
+          object: "chat.completion",
+          created: nowSeconds,
+          model: live.model,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: live.content,
+              },
+              finish_reason: "stop",
+            },
+          ],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: live.tokens_used,
+            estimated_prompt_chars: prompt.length,
+          },
+          bridge: {
+            mode: "live_provider_dispatch",
+            contract_key: "openclaude_provider_bridge_contract_v1",
+            runtime_key: "openclaude_essam_local_v1",
+            profile_key: live.profile_key,
+            provider_key: live.provider_key,
+            model_source: live.model_source,
+            provider_dispatch_attempted: true,
+            local_execution_attempted: false,
+            repo_mutation_allowed: false,
+            allowed_tools: live.allowed_tools,
+            denied_tools: live.denied_tools,
+            credential_hash_present: live.credential_hash_present,
+          },
+          secrets_included: false,
+        });
+      }
+
+      return res.json({
+        id: `chatcmpl_dryrun_${randomUUID()}`,
+        object: "chat.completion",
+        created: nowSeconds,
+        model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: "OpenClaude provider bridge dry-run passed. No provider call was made, no local command was executed, no repository mutation was attempted, and no provider secrets were returned.",
+            },
+            finish_reason: "stop",
+          },
+        ],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          estimated_prompt_chars: prompt.length,
+        },
+        bridge: {
+          mode: "dry_run_no_provider_call",
+          contract_key: "openclaude_provider_bridge_contract_v1",
+          runtime_key: "openclaude_essam_local_v1",
+          profile_key: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          provider_dispatch_attempted: false,
+          local_execution_attempted: false,
+          repo_mutation_allowed: false,
+          allowed_tools: ["Read", "Grep", "Glob", "LS"],
+          denied_tools: ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+          prompt_preview: clampText(prompt, 500),
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({
+        ok: false,
+        error: { code: err.code || "openclaude_bridge_dry_run_failed", message: String(err.message || err).slice(0, 240) },
+        secrets_included: false,
+      });
+    }
+  });
+
+  // ── POST /dev-agent/summary-comparison/run ───────────────────────────────
+  router.post("/dev-agent/summary-comparison/run", async (req, res) => {
+    const body = req.body || {};
+    const comparison_id = randomUUID();
+    const tenant_id = body.tenant_id || null;
+    const user_id = body.user_id || null;
+    const turns = normalizeComparisonTurns(body);
+    if (!turns.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "summary_comparison_input_required", message: "Provide text, content, input.text, or turns[]." },
+      });
+    }
+
+    const text = turns.map((turn) => turn.content).join("\n\n");
+    const n8nBindingKey = String(body.n8n_binding_key || "summary_n8n_experiment_v1").trim();
+    const session = {
+      session_id: `summary_comparison_${comparison_id}`,
+      tenant_id: tenant_id || "00000000-0000-0000-0000-000000000000",
+      user_id,
+      turn_count: turns.length,
+      workspace_key: "summary_comparison",
+    };
+
+    const modelStep = await timedStep(async () => {
+      const callModel = await resolveStandardCallModel(deps, "summary");
+      if (!callModel) {
+        const err = new Error("callModel is not configured for summary comparison.");
+        err.code = "call_model_not_configured";
+        throw err;
+      }
+      const insight = await summarizeTranscriptWithModel({ session, turns, callModel });
+      return {
+        summary: insight.summary_text,
+        tasks_completed: insight.tasks_completed || [],
+        blockers: insight.blockers || [],
+        feature_requests: insight.feature_requests || [],
+        integration_needs: insight.integration_needs || [],
+        complexity: insight.complexity || "medium",
+        source: "current_model_summary",
+        method: "sessionSummaryService.summarizeTranscriptWithModel",
+      };
+    });
+
+    const n8nStep = await timedStep(async () => {
+      const runtime = await runN8nWorkflowRuntime({
+        pool: getPool(),
+        binding_key: n8nBindingKey,
+        tenant_id,
+        user_id,
+        input: {
+          text,
+          max_bullets: Number(body.max_bullets || 5),
+          max_chars: Number(body.max_chars || 900),
+        },
+      });
+      if (!runtime.ok) {
+        const err = new Error(runtime.error?.message || "n8n summary experiment failed");
+        err.code = runtime.error?.code || "n8n_summary_experiment_failed";
+        throw err;
+      }
+      return runtime.result;
+    });
+
+    const payload = {
+      ok: modelStep.ok && n8nStep.ok,
+      comparison_id,
+      production_route_unchanged: true,
+      writes_session_summaries: false,
+      input: {
+        turn_count: turns.length,
+        text_chars: text.length,
+      },
+      current_model_summary: {
+        ...modelStep,
+        shape: modelStep.ok ? summarizeComparisonShape(modelStep.result) : null,
+      },
+      n8n_experiment: {
+        binding_key: n8nBindingKey,
+        ...n8nStep,
+        shape: n8nStep.ok ? summarizeComparisonShape(n8nStep.result) : null,
+      },
+      comparison: {
+        model_latency_ms: modelStep.latency_ms,
+        n8n_latency_ms: n8nStep.latency_ms,
+        faster_path: modelStep.ok && n8nStep.ok
+          ? (modelStep.latency_ms <= n8nStep.latency_ms ? "current_model_summary" : "n8n_experiment")
+          : null,
+        source_difference: modelStep.ok && n8nStep.ok
+          ? `${modelStep.result.source || "current_model_summary"} vs ${n8nStep.result.source || "n8n_experiment"}`
+          : null,
+      },
+      secrets_included: false,
+    };
+
+    let persistence = { ok: false, skipped: true };
+    try {
+      persistence = await persistSummaryComparisonRun({
+        pool: getPool(),
+        payload,
+        tenant_id,
+        user_id,
+        n8nBindingKey,
+      });
+    } catch (err) {
+      persistence = { ok: false, error: { code: "summary_comparison_persist_failed", message: String(err.message || err).slice(0, 240) } };
+    }
+
+    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
+    return res.status(statusCode).json({ ...payload, persistence });
+  });
+
+  // ── POST /dev-agent/summary-comparison/score ─────────────────────────────
+  router.post("/dev-agent/summary-comparison/score", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const comparisonId = String(body.comparison_id || "").trim();
+      if (!comparisonId) {
+        return res.status(400).json({ ok: false, error: { code: "comparison_id_required", message: "comparison_id is required." } });
+      }
+      const preferredOutput = normalizePreferredOutput(body.preferred_output);
+      const qualityScoreModel = normalizeQualityScore(body.quality_score_model);
+      const qualityScoreN8n = normalizeQualityScore(body.quality_score_n8n);
+      const qualityNotes = String(body.quality_notes || "").trim().slice(0, 1000) || null;
+      const useCaseFit = String(body.use_case_fit || "").trim().slice(0, 128) || null;
+      const reviewedBy = String(body.reviewed_by || body.user_id || "").trim().slice(0, 64) || null;
+
+      const [updateResult] = await getPool().query(
+        `UPDATE \`summary_comparison_runs\`
+         SET preferred_output = ?,
+             quality_score_model = ?,
+             quality_score_n8n = ?,
+             quality_notes = ?,
+             use_case_fit = ?,
+             reviewed_by = ?,
+             reviewed_at = NOW()
+         WHERE comparison_id = ?`,
+        [preferredOutput, qualityScoreModel, qualityScoreN8n, qualityNotes, useCaseFit, reviewedBy, comparisonId]
+      );
+      if (!updateResult.affectedRows) {
+        return res.status(404).json({ ok: false, error: { code: "summary_comparison_not_found", message: "comparison_id was not found." } });
+      }
+      const [rows] = await getPool().query(
+        `SELECT comparison_id, n8n_binding_key, preferred_output,
+                quality_score_model, quality_score_n8n, quality_notes,
+                use_case_fit, reviewed_by, reviewed_at,
+                production_route_unchanged, writes_session_summaries
+         FROM \`summary_comparison_runs\`
+         WHERE comparison_id = ?
+         LIMIT 1`,
+        [comparisonId]
+      );
+      res.json({
+        ok: true,
+        comparison_id: comparisonId,
+        score: rows[0] || null,
+        production_route_unchanged: true,
+        writes_session_summaries: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "summary_comparison_score_failed", message: err.message } });
+    }
+  });
+
+  // ── GET /dev-agent/summary-comparison/report ─────────────────────────────
+  router.get("/dev-agent/summary-comparison/report", async (req, res) => {
+    try {
+      const lookbackDays = boundedPositiveInt(req.query.lookback_days, 7, 1, 90);
+      const limit = boundedPositiveInt(req.query.limit, 20, 1, 100);
+      const bindingKey = String(req.query.n8n_binding_key || "").trim();
+      const where = ["created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"];
+      const params = [lookbackDays];
+      if (bindingKey) {
+        where.push("n8n_binding_key = ?");
+        params.push(bindingKey);
+      }
+      const whereSql = where.join(" AND ");
+
+      const [[totals]] = await getPool().query(
+        `SELECT COUNT(*) AS total_runs,
+                SUM(CASE WHEN current_model_ok = 1 THEN 1 ELSE 0 END) AS current_model_ok_runs,
+                SUM(CASE WHEN n8n_ok = 1 THEN 1 ELSE 0 END) AS n8n_ok_runs,
+                AVG(current_model_latency_ms) AS avg_model_latency_ms,
+                AVG(n8n_latency_ms) AS avg_n8n_latency_ms,
+                AVG(current_model_summary_chars) AS avg_model_summary_chars,
+                AVG(n8n_summary_chars) AS avg_n8n_summary_chars,
+                SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
+                SUM(CASE WHEN faster_path = 'current_model_summary' THEN 1 ELSE 0 END) AS model_faster_runs,
+                SUM(CASE WHEN writes_session_summaries = 1 THEN 1 ELSE 0 END) AS session_summary_write_violations,
+                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations,
+                SUM(CASE WHEN preferred_output IS NOT NULL THEN 1 ELSE 0 END) AS reviewed_runs,
+                AVG(quality_score_model) AS avg_quality_score_model,
+                AVG(quality_score_n8n) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}`,
+        params
+      );
+
+      const [byBinding] = await getPool().query(
+        `SELECT n8n_binding_key,
+                COUNT(*) AS total_runs,
+                AVG(current_model_latency_ms) AS avg_model_latency_ms,
+                AVG(n8n_latency_ms) AS avg_n8n_latency_ms,
+                SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
+                MAX(created_at) AS last_seen
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY n8n_binding_key
+         ORDER BY total_runs DESC, last_seen DESC`,
+        params
+      );
+
+      const [preferredOutputBreakdown] = await getPool().query(
+        `SELECT COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(preferred_output, 'unreviewed')
+         ORDER BY count DESC, preferred_output ASC`,
+        params
+      );
+
+      const [useCaseFitBreakdown] = await getPool().query(
+        `SELECT COALESCE(use_case_fit, 'unreviewed') AS use_case_fit,
+                COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(use_case_fit, 'unreviewed'), COALESCE(preferred_output, 'unreviewed')
+         ORDER BY use_case_fit ASC, count DESC, preferred_output ASC`,
+        params
+      );
+
+      const [recentRuns] = await getPool().query(
+        `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
+                input_text_chars, input_turn_count,
+                current_model_ok, current_model_latency_ms, current_model_summary_chars,
+                n8n_ok, n8n_latency_ms, n8n_summary_chars,
+                faster_path, production_route_unchanged, writes_session_summaries,
+                created_at
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+
+      const totalRuns = Number(totals?.total_runs || 0);
+      const n8nFasterRuns = Number(totals?.n8n_faster_runs || 0);
+      const reviewedRuns = Number(totals?.reviewed_runs || 0);
+      const avgModelQuality = Number(Number(totals?.avg_quality_score_model || 0).toFixed(2));
+      const avgN8nQuality = Number(Number(totals?.avg_quality_score_n8n || 0).toFixed(2));
+      const modelPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "current_model_summary")?.count || 0);
+      const n8nPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "n8n_experiment")?.count || 0);
+      const qualityDecisionHint = reviewedRuns < 10
+        ? "needs_more_reviewed_samples"
+        : (avgModelQuality > avgN8nQuality && modelPreferredRuns >= n8nPreferredRuns
+          ? "keep_current_model_as_default_use_n8n_for_preview_or_fallback"
+          : "review_for_possible_preview_expansion_only");
+      res.json({
+        ok: true,
+        lookback_days: lookbackDays,
+        filter: { n8n_binding_key: bindingKey || null },
+        totals: {
+          total_runs: totalRuns,
+          current_model_ok_runs: Number(totals?.current_model_ok_runs || 0),
+          n8n_ok_runs: Number(totals?.n8n_ok_runs || 0),
+          avg_model_latency_ms: Math.round(Number(totals?.avg_model_latency_ms || 0)),
+          avg_n8n_latency_ms: Math.round(Number(totals?.avg_n8n_latency_ms || 0)),
+          avg_model_summary_chars: Math.round(Number(totals?.avg_model_summary_chars || 0)),
+          avg_n8n_summary_chars: Math.round(Number(totals?.avg_n8n_summary_chars || 0)),
+          n8n_faster_runs: n8nFasterRuns,
+          model_faster_runs: Number(totals?.model_faster_runs || 0),
+          n8n_speed_win_rate: totalRuns ? Number((n8nFasterRuns / totalRuns).toFixed(3)) : 0,
+          session_summary_write_violations: Number(totals?.session_summary_write_violations || 0),
+          production_route_change_violations: Number(totals?.production_route_change_violations || 0),
+          reviewed_runs: reviewedRuns,
+          avg_quality_score_model: avgModelQuality,
+          avg_quality_score_n8n: avgN8nQuality,
+        },
+        preferred_output_breakdown: preferredOutputBreakdown,
+        use_case_fit_breakdown: useCaseFitBreakdown,
+        quality_decision_hint: {
+          status: qualityDecisionHint,
+          model_preferred_runs: modelPreferredRuns,
+          n8n_preferred_runs: n8nPreferredRuns,
+          reviewed_runs: reviewedRuns,
+          recommended_default: qualityDecisionHint === "keep_current_model_as_default_use_n8n_for_preview_or_fallback" ? "current_model_summary" : null,
+          recommended_n8n_role: qualityDecisionHint === "keep_current_model_as_default_use_n8n_for_preview_or_fallback" ? "quick_preview_or_limited_fallback_candidate" : "needs_more_review",
+        },
+        by_binding: byBinding,
+        recent_runs: recentRuns,
+        production_route_unchanged: true,
+        reads_only: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_comparison_report_failed", message: err.message } });
+    }
+  });
+
+  // ── Summary development automation ───────────────────────────────────────
+  router.get("/dev-agent/summary-development/runtimes", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const where = [];
+      const params = [];
+      if (status) {
+        where.push("status = ?");
+        params.push(status);
+      }
+      const [runtimes] = await getPool().query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key,
+                execution_surface, device_id, endpoint_url, command_hint,
+                supported_use_cases_json, capabilities_json, policy_json,
+                status, notes, updated_at
+         FROM \`dev_agent_runtime_registry\`
+         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+         ORDER BY FIELD(status, 'active', 'available', 'planned', 'degraded', 'disabled'), runtime_key`,
+        params
+      );
+      res.json({ ok: true, runtimes, secrets_included: false, reads_only: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_runtimes_failed", message: err.message } });
+    }
+  });
+
+  router.get("/dev-agent/summary-development/providers", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const runtimeKey = String(req.query.runtime_key || "").trim();
+      const where = [];
+      const params = [];
+      if (status) { where.push("p.status = ?"); params.push(status); }
+      const [providers] = await getPool().query(
+        `SELECT p.provider_key, p.display_name, p.provider_family,
+                p.openclaude_provider_key, p.credential_mode, p.execution_surface,
+                p.supported_runtime_types_json, p.required_env_names_json,
+                p.capabilities_json, p.policy_json, p.status, p.notes, p.updated_at
+         FROM \`dev_agent_provider_registry\` p
+         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+         ORDER BY FIELD(p.status, 'active', 'available', 'planned', 'degraded', 'disabled'),
+                  p.provider_family, p.provider_key`,
+        params
+      );
+      let profiles = [];
+      if (runtimeKey) {
+        const [profileRows] = await getPool().query(
+          `SELECT rp.profile_key, rp.runtime_key, rp.provider_key,
+                  p.display_name AS provider_display_name,
+                  p.openclaude_provider_key, rp.profile_name, rp.selection_mode,
+                  rp.credential_mode, rp.model_hint, rp.endpoint_url,
+                  rp.status, rp.policy_json, rp.metadata_json, rp.notes, rp.updated_at
+           FROM \`dev_agent_runtime_provider_profiles\` rp
+           JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+           WHERE rp.runtime_key = ?
+           ORDER BY FIELD(rp.selection_mode, 'preferred', 'fallback', 'manual', 'disabled'),
+                    FIELD(rp.status, 'active', 'available', 'planned', 'degraded', 'disabled'),
+                    rp.profile_key`,
+          [runtimeKey]
+        );
+        profiles = profileRows;
+      }
+      res.json({
+        ok: true,
+        providers,
+        runtime_key: runtimeKey || null,
+        profiles,
+        provider_count: providers.length,
+        profile_count: profiles.length,
+        reads_only: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_providers_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/provider-bridge-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const profileKey = String(body.profile_key || "openclaude_essam_platform_bridge_v1").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const signalId = String(body.signal_id || "").trim() || null;
+    const taskClass = String(body.task_class || "summary").trim() || "summary";
+    let prompt;
+
+    try {
+      prompt = normalizeProviderBridgePrompt(body.prompt || body.input?.prompt || "");
+    } catch (err) {
+      return res.status(err.status || 400).json({ ok: false, error: { code: err.code, message: err.message }, secrets_included: false });
+    }
+
+    try {
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                p.provider_family, p.openclaude_provider_key, p.execution_surface,
+                p.policy_json AS provider_policy_json
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+         WHERE rp.profile_key = ?
+         LIMIT 1`,
+        [profileKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: { code: "provider_bridge_profile_not_found", message: "profile_key was not found." } });
+      }
+      if (profile.credential_mode !== "platform_managed") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "provider_bridge_profile_not_platform_managed", message: "Provider bridge dry run only supports platform_managed profiles." }, secrets_included: false });
+      }
+      if (profile.provider_key !== "platform_model_provider_bridge" && profile.provider_key !== "openclaude_openrouter_openai_compatible") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "provider_bridge_profile_blocked", message: "Profile is not approved for platform bridge dry run." }, secrets_included: false });
+      }
+
+      let signal = null;
+      if (signalId) {
+        const [signalRows] = await pool.query(
+          `SELECT signal_id, signal_key, tenant_id, user_id, signal_type, title,
+                  description, evidence_text, priority, source_surface, source_ref
+           FROM \`summary_development_signals\`
+           WHERE signal_id = ?
+           LIMIT 1`,
+          [signalId]
+        );
+        signal = signalRows[0] || null;
+      }
+
+      const callModel = await resolveStandardCallModel(deps, taskClass);
+      if (!callModel) {
+        return res.status(503).json({ ok: false, error: { code: "provider_bridge_call_model_not_configured", message: "Platform model resolver is not configured." }, secrets_included: false });
+      }
+
+      const started = Date.now();
+      const response = await callModel([
+        {
+          role: "system",
+          content: "You are a guarded provider bridge for a local coding agent. Return a concise read-only analysis plan. Do not ask for secrets. Do not include credentials. Do not propose direct repo mutation.",
+        },
+        {
+          role: "user",
+          content: [
+            "Provider bridge dry run request.",
+            `Profile: ${profile.profile_key}`,
+            `Runtime: ${profile.runtime_key}`,
+            signal ? `Signal: ${signal.title} (${signal.signal_type}, ${signal.priority})` : "Signal: none",
+            `Prompt: ${prompt}`,
+            "Return: objective, relevant files/surfaces, risks, acceptance criteria, and next gated step.",
+          ].join("\n"),
+        },
+      ], []);
+      const latencyMs = Date.now() - started;
+      const result = {
+        adapter: "platform_model_provider_bridge_dry_run_v1",
+        profile_key: profile.profile_key,
+        provider_key: profile.provider_key,
+        runtime_key: profile.runtime_key,
+        task_class: taskClass,
+        signal_id: signal?.signal_id || null,
+        response_text: clampText(response?.content || "", 4000),
+        response_shape: {
+          has_content: typeof response?.content === "string" && response.content.length > 0,
+          has_tool_calls: Array.isArray(response?.tool_calls) && response.tool_calls.length > 0,
+          tokens_used: Number(response?.tokens_used || 0),
+        },
+        latency_ms: latencyMs,
+        local_execution_attempted: false,
+        openclaude_execution_attempted: false,
+        secrets_included: false,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_provider_bridge_dry_run_${runId}`,
+          signal?.tenant_id || null,
+          requestedBy,
+          profile.runtime_key,
+          JSON.stringify({ profile_key: profile.profile_key, signal_id: signal?.signal_id || null, task_class: taskClass }),
+          JSON.stringify({
+            adapter: result.adapter,
+            platform_managed_credentials: true,
+            copy_platform_secret_to_device: false,
+            local_execution_attempted: false,
+            openclaude_execution_attempted: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          signal ? 1 : 0,
+          JSON.stringify(result),
+        ]
+      );
+
+      return res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        copy_platform_secret_to_device: false,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_provider_bridge_dry_run_${runId}`, requestedBy, JSON.stringify({ code: err.code || "provider_bridge_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "provider_bridge_dry_run_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/codex-interactive-execution-envelope", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "codex_essam_chatgpt_v1").trim();
+    const profileKey = String(body.profile_key || "codex_essam_chatgpt_oauth_v1").trim();
+    const signalId = String(body.signal_id || "").trim() || null;
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const repoPath = String(body.repo_path || "").trim();
+    const prompt = normalizeProviderBridgePrompt(body.prompt || body.analysis_goal || "Create a read-only Codex patch plan for the current platform repository.");
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "codex_runtime_not_found", message: "runtime_key was not found." }, secrets_included: false });
+      }
+      if (runtime.provider_key !== "codex" || runtime.runtime_type !== "local_coding_agent") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_runtime_required", message: "Only Codex local coding-agent runtimes are supported." }, secrets_included: false });
+      }
+
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                rp.metadata_json, p.provider_family, p.credential_mode AS provider_credential_mode
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+         WHERE rp.profile_key = ? AND rp.runtime_key = ?
+         LIMIT 1`,
+        [profileKey, runtimeKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: { code: "codex_profile_not_found", message: "profile_key was not found for runtime_key." }, secrets_included: false });
+      }
+      if (profile.provider_key !== "codex_chatgpt_oauth") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_profile_not_interactive_oauth", message: "Interactive execution envelope currently supports Codex ChatGPT OAuth only." }, secrets_included: false });
+      }
+
+      const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+      if (runtimePolicy.auth_status !== "logged_in_user_verified" && profile.status !== "available") {
+        return res.status(409).json({
+          ok: false,
+          blocked: true,
+          error: { code: "codex_interactive_login_required", message: "Codex ChatGPT OAuth must be verified under the interactive Windows user before creating an execution envelope." },
+          auth_status: runtimePolicy.auth_status || "unknown",
+          secrets_included: false,
+        });
+      }
+
+      let signal = null;
+      if (signalId) {
+        const [signalRows] = await pool.query(
+          `SELECT signal_id, signal_key, tenant_id, user_id, signal_type, title,
+                  description, evidence_text, priority, source_surface, source_ref
+           FROM \`summary_development_signals\`
+           WHERE signal_id = ?
+           LIMIT 1`,
+          [signalId]
+        );
+        signal = signalRows[0] || null;
+      }
+
+      const envelope = buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime, profile, signal, prompt, repoPath });
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_codex_interactive_envelope_${runId}`,
+          signal?.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ profile_key: profile.profile_key, signal_id: signal?.signal_id || null, repo_path: envelope.working_directory }),
+          JSON.stringify({
+            adapter: envelope.adapter,
+            execution_status: envelope.execution_status,
+            requires_interactive_user_context: true,
+            connector_service_context_supported: false,
+            read_only: true,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            copy_platform_secret_to_device: false,
+            secrets_included: false,
+          }),
+          signal ? 1 : 0,
+          JSON.stringify(envelope),
+        ]
+      );
+
+      return res.json({
+        ok: true,
+        run_id: runId,
+        ...envelope,
+        no_code_execution_by_platform: true,
+        no_repo_mutation: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_codex_interactive_envelope_${runId}`, requestedBy, JSON.stringify({ code: err.code || "codex_interactive_execution_envelope_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "codex_interactive_execution_envelope_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/codex-interactive-execution-request", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "codex_essam_chatgpt_v1").trim();
+    const profileKey = String(body.profile_key || "codex_essam_chatgpt_oauth_v1").trim();
+    const userId = String(body.user_id || body.target_user_id || "").trim();
+    const tenantId = String(body.tenant_id || "").trim() || null;
+    const requestedBy = String(body.requested_by || body.user_id || "gpt_admin_assistant").trim();
+    const prompt = normalizeProviderBridgePrompt(body.prompt || body.analysis_goal || "Create a read-only Codex patch plan for the current platform repository.");
+    if (!userId) {
+      return res.status(400).json({ ok: false, error: { code: "codex_execution_user_id_required", message: "user_id is required to enqueue a Local Manager desktop command." }, secrets_included: false });
+    }
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) return res.status(404).json({ ok: false, error: { code: "codex_runtime_not_found", message: "runtime_key was not found." }, secrets_included: false });
+      if (runtime.provider_key !== "codex" || runtime.runtime_type !== "local_coding_agent") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_runtime_required", message: "Only Codex local coding-agent runtimes are supported." }, secrets_included: false });
+      }
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                rp.metadata_json
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         WHERE rp.profile_key = ? AND rp.runtime_key = ?
+         LIMIT 1`,
+        [profileKey, runtimeKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) return res.status(404).json({ ok: false, error: { code: "codex_profile_not_found", message: "profile_key was not found for runtime_key." }, secrets_included: false });
+      if (profile.provider_key !== "codex_chatgpt_oauth") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_profile_not_interactive_oauth", message: "Only Codex ChatGPT OAuth profile is supported for interactive execution." }, secrets_included: false });
+      }
+      const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+      if (runtimePolicy.auth_status !== "logged_in_user_verified" && profile.status !== "available") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "codex_interactive_login_required", message: "Codex ChatGPT OAuth must be verified under the interactive Windows user before execution." }, secrets_included: false });
+      }
+      const envelope = buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime, profile, prompt, repoPath: String(body.repo_path || "").trim() });
+      const commandId = randomUUID();
+      const commandPayload = {
+        runtime_key: runtime.runtime_key,
+        profile_key: profile.profile_key,
+        command_path: envelope.command_path,
+        working_directory: envelope.working_directory,
+        prompt,
+        sandbox: "read-only",
+        timeout_seconds: Math.max(30, Math.min(Number(body.timeout_seconds || 600), 1800)),
+        output_max_chars: Math.max(500, Math.min(Number(body.output_max_chars || 8000), 20000)),
+        run_id: runId,
+        secrets_included: false,
+      };
+      await pool.query(
+        `INSERT INTO \`local_manager_desktop_commands\`
+          (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation,
+           payload_json, requested_by, request_context_json, expires_at)
+         VALUES (?, ?, ?, ?, 'desktop', 'codex_exec_readonly', 'queued', ?, 0, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
+        [
+          commandId,
+          tenantId,
+          userId,
+          runtime.device_id || "essam-pc",
+          Math.max(1, Math.min(Number(body.priority || 50), 1000)),
+          JSON.stringify(commandPayload),
+          requestedBy,
+          JSON.stringify({ run_id: runId, adapter: "codex_interactive_execution_request_v1", secrets_included: false }),
+          Math.max(60, Math.min(Number(body.ttl_seconds || 900), 3600)),
+        ]
+      );
+      const result = {
+        adapter: "codex_interactive_execution_request_v1",
+        run_id: runId,
+        command_id: commandId,
+        runtime_key: runtime.runtime_key,
+        profile_key: profile.profile_key,
+        device_id: runtime.device_id || "essam-pc",
+        user_id: userId,
+        tenant_id: tenantId,
+        execution_status: "queued_local_manager_desktop_command",
+        local_manager_action: "codex_exec_readonly",
+        envelope,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        copy_platform_secret_to_device: false,
+        secrets_included: false,
+      };
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'queued', 0, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_codex_execution_request_${runId}`,
+          tenantId,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ command_id: commandId, profile_key: profile.profile_key, user_id: userId }),
+          JSON.stringify({ read_only: true, local_manager_action: "codex_exec_readonly", auto_mutate_repo: false, secrets_included: false }),
+          JSON.stringify(result),
+        ]
+      );
+      return res.status(202).json({ ok: true, ...result });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_codex_execution_request_${runId}`, requestedBy, JSON.stringify({ code: err.code || "codex_execution_request_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "codex_execution_request_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.get("/dev-agent/summary-development/codex-interactive-execution/:runId", async (req, res) => {
+    try {
+      const runId = String(req.params.runId || "").trim();
+      if (!runId) return res.status(400).json({ ok: false, error: { code: "run_id_required", message: "runId is required." }, secrets_included: false });
+      const [[run]] = await getPool().query(
+        `SELECT run_id, run_key, status, result_json, error_json, created_at, updated_at
+         FROM \`summary_development_automation_runs\`
+         WHERE run_id = ?
+         LIMIT 1`,
+        [runId]
+      );
+      if (!run) return res.status(404).json({ ok: false, error: { code: "codex_execution_run_not_found", message: "run_id was not found." }, secrets_included: false });
+      const result = safeParseJsonObject(run.result_json);
+      const commandId = result.command_id || null;
+      let command = null;
+      if (commandId) {
+        const [[row]] = await getPool().query(
+          `SELECT command_id, action, status, result_json, error_code, error_message, created_at, claimed_at, completed_at, expires_at
+           FROM \`local_manager_desktop_commands\`
+           WHERE command_id = ?
+           LIMIT 1`,
+          [commandId]
+        );
+        if (row) {
+          command = {
+            command_id: row.command_id,
+            action: row.action,
+            status: row.status,
+            result: safeParseJsonObject(row.result_json),
+            error_code: row.error_code,
+            error_message: row.error_message,
+            created_at: row.created_at,
+            claimed_at: row.claimed_at,
+            completed_at: row.completed_at,
+            expires_at: row.expires_at,
+            secrets_included: false,
+          };
+        }
+      }
+      return res.json({ ok: true, run_id: runId, run_status: run.status, command, result, error: safeParseJsonObject(run.error_json), secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "codex_execution_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.get("/dev-agent/summary-development/signals", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const signalType = String(req.query.signal_type || "").trim();
+      const limit = boundedPositiveInt(req.query.limit, 50, 1, 200);
+      const where = ["1=1"];
+      const params = [];
+      if (status) { where.push("status = ?"); params.push(status); }
+      if (signalType) { where.push("signal_type = ?"); params.push(signalType); }
+      const [signals] = await getPool().query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                source_summary_id, source_comparison_id, signal_type, title,
+                description, recommended_runtime_key, recommended_action,
+                priority, status, converted_task_id, created_at, updated_at
+         FROM \`summary_development_signals\`
+         WHERE ${where.join(" AND ")}
+         ORDER BY FIELD(priority, 'critical', 'high', 'medium', 'low'), created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+      res.json({ ok: true, signals, count: signals.length, secrets_included: false, reads_only: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_signals_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/extract", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runKey = `summary_dev_extract_${runId}`;
+    const lookbackDays = boundedPositiveInt(body.lookback_days || req.query.lookback_days, 14, 1, 90);
+    const limit = boundedPositiveInt(body.limit || req.query.limit, 80, 1, 250);
+    const tenantId = body.tenant_id || null;
+    const createPendingTasks = body.create_pending_tasks === true || req.query.create_pending_tasks === "true";
+    const sourceFilter = { lookback_days: lookbackDays, limit, tenant_id: tenantId, create_pending_tasks: createPendingTasks };
+
+    await pool.query(
+      `INSERT INTO \`summary_development_automation_runs\`
+         (run_id, run_key, mode, tenant_id, requested_by, source_filter_json, policy_json, status, started_at)
+       VALUES (?, ?, 'extract_signals', ?, ?, ?, ?, 'running', NOW())`,
+      [
+        runId,
+        runKey,
+        tenantId,
+        body.requested_by || body.user_id || null,
+        JSON.stringify(sourceFilter),
+        JSON.stringify({ auto_execute_code: false, auto_mutate_repo: false, create_pending_tasks: createPendingTasks, secrets_included: false }),
+      ]
+    ).catch(() => {});
+
+    try {
+      const where = ["created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"];
+      const params = [lookbackDays];
+      if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
+
+      const [summaries] = await pool.query(
+        `SELECT summary_id, session_id, tenant_id, user_id, summary_text,
+                blockers, feature_requests, integration_needs, created_at
+         FROM \`session_summaries\`
+         WHERE ${where.join(" AND ")}
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+
+      const [comparisons] = await pool.query(
+        `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
+                preferred_output, quality_score_model, quality_score_n8n,
+                quality_notes, use_case_fit, faster_path, created_at
+         FROM \`summary_comparison_runs\`
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+           ${tenantId ? "AND tenant_id = ?" : ""}
+           AND (preferred_output IS NOT NULL OR faster_path = 'n8n_experiment')
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        tenantId ? [lookbackDays, tenantId, Math.min(limit, 80)] : [lookbackDays, Math.min(limit, 80)]
+      ).catch(() => [[]]);
+
+      const signals = [];
+      for (const summary of summaries) {
+        const sourceRef = summary.summary_id || summary.session_id;
+        for (const item of safeParseJsonArray(summary.feature_requests)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "feature_request",
+            title: item,
+            description: `Feature request extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+        for (const item of safeParseJsonArray(summary.blockers)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "blocker",
+            title: item,
+            description: `Blocker extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+        for (const item of safeParseJsonArray(summary.integration_needs)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "integration_need",
+            title: item,
+            description: `Integration need extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+      }
+
+      for (const comparison of comparisons) {
+        const modelScore = Number(comparison.quality_score_model || 0);
+        const n8nScore = Number(comparison.quality_score_n8n || 0);
+        const preferred = String(comparison.preferred_output || "");
+        if (preferred === "current_model_summary" || (modelScore && n8nScore && modelScore > n8nScore)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "summary_comparison",
+            source_ref: comparison.comparison_id,
+            source_comparison_id: comparison.comparison_id,
+            tenant_id: comparison.tenant_id,
+            user_id: comparison.user_id,
+            type: "quality_gap",
+            title: `Improve ${comparison.n8n_binding_key || "n8n summary experiment"} for ${comparison.use_case_fit || "summary quality"}`,
+            description: "Summary comparison preferred the current model path; keep this as evidence for n8n summary runtime improvement.",
+            evidence: comparison.quality_notes || `preferred_output=${preferred}; model=${modelScore}; n8n=${n8nScore}`,
+          }));
+        }
+        if (preferred === "n8n_experiment" || comparison.faster_path === "n8n_experiment") {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "summary_comparison",
+            source_ref: comparison.comparison_id,
+            source_comparison_id: comparison.comparison_id,
+            tenant_id: comparison.tenant_id,
+            user_id: comparison.user_id,
+            type: "runtime_gap",
+            title: `Evaluate ${comparison.n8n_binding_key || "n8n runtime"} for preview/fallback expansion`,
+            description: "Summary comparison showed n8n can provide useful fast preview/fallback behavior; keep this as routing policy evidence, not production promotion.",
+            evidence: comparison.quality_notes || `preferred_output=${preferred}; faster_path=${comparison.faster_path}`,
+          }));
+        }
+      }
+
+      let created = 0;
+      let updated = 0;
+      let tasksCreated = 0;
+      for (const signal of signals.slice(0, 300)) {
+        const action = await insertSummaryDevelopmentSignal(pool, signal);
+        if (action === "created") created += 1;
+        else updated += 1;
+
+        if (createPendingTasks && ["high", "critical"].includes(signal.priority)) {
+          const taskId = randomUUID();
+          const taskKey = stableSignalKey(["summary_dev_signal", signal.signal_key]);
+          const [taskResult] = await pool.query(
+            `INSERT INTO \`platform_pending_tasks\`
+               (task_id, task_key, title, description, brief, activation_prompt,
+                task_type, priority, status, blocker_level, owner_scope,
+                tenant_id, user_id, source_surface, source_ref,
+                activation_visibility, context_json, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, 'automation', ?, 'pending', 'soft', 'platform', ?, ?, 'summary_development_signal', ?, 1, ?, 'summary_development_automation_v1')
+             ON DUPLICATE KEY UPDATE
+               description = VALUES(description),
+               brief = VALUES(brief),
+               activation_prompt = VALUES(activation_prompt),
+               priority = VALUES(priority),
+               updated_at = CURRENT_TIMESTAMP`,
+            [
+              taskId,
+              taskKey,
+              signal.title,
+              signal.description,
+              `Summary-derived ${signal.signal_type}: ${signal.title}`,
+              `Review this summary-derived development signal. Do not execute code automatically. Recommended runtime: ${signal.recommended_runtime_key || "human_review"}. Evidence: ${signal.evidence_text}`,
+              signal.priority,
+              signal.tenant_id,
+              signal.user_id,
+              signal.signal_key,
+              JSON.stringify({ signal_key: signal.signal_key, signal_type: signal.signal_type, policy: JSON.parse(signal.policy_json) }),
+            ]
+          );
+          if (taskResult.affectedRows === 1) tasksCreated += 1;
+        }
+      }
+
+      await pool.query(
+        `UPDATE \`summary_development_automation_runs\`
+           SET status = 'completed', scanned_count = ?, signals_created = ?,
+               signals_updated = ?, tasks_created = ?, result_json = ?, completed_at = NOW()
+         WHERE run_id = ?`,
+        [summaries.length + comparisons.length, created, updated, tasksCreated, JSON.stringify({ signals_considered: signals.length }), runId]
+      ).catch(() => {});
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        scanned_count: summaries.length + comparisons.length,
+        signals_considered: signals.length,
+        signals_created: created,
+        signals_updated: updated,
+        tasks_created: tasksCreated,
+        create_pending_tasks: createPendingTasks,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `UPDATE \`summary_development_automation_runs\`
+           SET status = 'failed', error_json = ?, completed_at = NOW()
+         WHERE run_id = ?`,
+        [JSON.stringify({ code: err.code || "summary_development_extract_failed", message: String(err.message || err).slice(0, 240) }), runId]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_extract_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/agent-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const mode = String(body.mode || "plan_only").trim();
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+    if (mode !== "plan_only") {
+      return res.status(403).json({
+        ok: false,
+        blocked: true,
+        error: { code: "summary_development_agent_execution_blocked", message: "Only plan_only dry-run mode is currently allowed." },
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, capabilities_json, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, recommended_runtime_key,
+                recommended_action, priority, status, policy_json
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const runtimePolicy = typeof runtime.policy_json === "string" ? JSON.parse(runtime.policy_json || "{}") : (runtime.policy_json || {});
+      const signalPolicy = typeof signal.policy_json === "string" ? JSON.parse(signal.policy_json || "{}") : (signal.policy_json || {});
+      const localRuntimeReady = runtime.status === "active" || runtime.status === "available";
+      const localExecutionAllowed = false;
+      const plan = {
+        objective: signal.title,
+        source: {
+          surface: signal.source_surface,
+          ref: signal.source_ref,
+          signal_type: signal.signal_type,
+          priority: signal.priority,
+        },
+        recommended_runtime: runtime.runtime_key,
+        runtime_status: runtime.status,
+        local_runtime_ready: localRuntimeReady,
+        local_execution_attempted: false,
+        local_execution_allowed: localExecutionAllowed,
+        dry_run_mode: "plan_only",
+        proposed_steps: [
+          "Review the signal evidence and confirm the intended platform change.",
+          "Inspect relevant routes, migrations, tests, and registry rows before editing.",
+          "Prepare a minimal patch plan with files, migrations, tests, and rollback notes.",
+          "Run CI and live smoke only after a human approves repository mutation.",
+        ],
+        likely_files_or_surfaces: [
+          "http-generic-api/routes/devAgentRoutes.js",
+          "http-generic-api/migrations/",
+          "admin_platform_endpoint_tools registry rows",
+          "tests covering the affected runtime/policy contract",
+        ],
+        acceptance_criteria: [
+          "No secrets are printed or persisted in outputs.",
+          "No code is executed during this dry run.",
+          "No repository files are modified by this dry run.",
+          "Any future patch must be on a non-protected branch with CI evidence.",
+          "A human must approve before OpenClaude or another coding agent can write files.",
+        ],
+        blockers: runtime.status === "planned"
+          ? [`Runtime ${runtime.runtime_key} is planned and not installed/activated yet.`]
+          : [],
+        evidence_excerpt: clampText(signal.evidence_text || signal.description || "", 1000),
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_agent_dry_run_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ signal_id: signal.signal_id, signal_key: signal.signal_key, mode }),
+          JSON.stringify({
+            ...runtimePolicy,
+            ...signalPolicy,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            local_execution_allowed: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(plan),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        runtime_status: runtime.status,
+        plan,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, runtime_key, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_agent_dry_run_${runId}`, requestedBy, runtimeKey, JSON.stringify({ code: err.code || "summary_development_agent_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_agent_dry_run_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/repo-analysis-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const analysisGoal = String(body.analysis_goal || "").trim();
+    let repoScope;
+
+    try {
+      repoScope = normalizeRepoAnalysisScope(body.repo_scope || "platform_repo");
+    } catch (err) {
+      return res.status(err.status || 403).json({ ok: false, blocked: true, error: { code: err.code, message: err.message }, secrets_included: false });
+    }
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, capabilities_json, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+      if (runtime.provider_key !== "openclaude") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_repo_analysis_runtime_blocked", message: "Repo-analysis dry run currently allows only the OpenClaude local runtime." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "Runtime must be available or active before repo-analysis planning." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, recommended_runtime_key,
+                recommended_action, priority, status, policy_json
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({ runtime, signal, repoScope, analysisGoal });
+      const result = {
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: repoScope,
+        analysis_goal: clampText(analysisGoal, 500),
+        command_plan: commandPlan,
+        execution_status: "not_executed_plan_only",
+        approval_required_for_execution: true,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_repo_analysis_dry_run_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ signal_id: signal.signal_id, signal_key: signal.signal_key, repo_scope: repoScope }),
+          JSON.stringify({
+            repo_analysis_adapter: "openclaude_repo_analysis_command_plan_v1",
+            allowed_tools: commandPlan.allowed_tools,
+            denied_tools: commandPlan.denied_tools,
+            local_execution_allowed: false,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(result),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, runtime_key, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_repo_analysis_dry_run_${runId}`, requestedBy, runtimeKey, JSON.stringify({ code: err.code || "summary_development_repo_analysis_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_dry_run_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/repo-analysis-approve", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const approvalId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const approvedBy = String(body.approved_by || body.requested_by || body.user_id || "").trim() || null;
+    const ttlMinutes = boundedPositiveInt(body.ttl_minutes, 30, 5, 120);
+    let repoScope;
+    let approvalPhrase;
+
+    try {
+      repoScope = normalizeRepoAnalysisScope(body.repo_scope || "platform_repo");
+      approvalPhrase = normalizeApprovalPhrase(body.approval_phrase || "");
+    } catch (err) {
+      return res.status(err.status || 403).json({
+        ok: false,
+        blocked: true,
+        error: { code: err.code, message: err.message },
+        approval_created: false,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    }
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+      if (runtime.provider_key !== "openclaude") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_repo_analysis_runtime_blocked", message: "Only OpenClaude local runtime can receive this approval." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "Runtime must be available or active before approval." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, priority, status
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const approvalKey = stableSignalKey(["repo_analysis_approval", signal.signal_id, runtime.runtime_key, repoScope, approvalId]);
+      const approvedTools = ["Read", "Grep", "Glob", "LS"];
+      const deniedTools = ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"];
+      const policy = {
+        approval_mode: "repo_analysis_read_only",
+        local_execution_allowed_after_approval: true,
+        allowed_tools: approvedTools,
+        denied_tools: deniedTools,
+        auto_mutate_repo: false,
+        write_tools_allowed: false,
+        shell_allowed: false,
+        requires_new_approval_per_signal: true,
+        secrets_included: false,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_agent_approvals\`
+           (approval_id, approval_key, signal_id, signal_key, runtime_key,
+            repo_scope, approval_mode, approval_status, approved_tools_json,
+            denied_tools_json, approval_phrase, approved_by, expires_at,
+            policy_json, metadata_json)
+         VALUES (?, ?, ?, ?, ?, ?, 'repo_analysis_read_only', 'approved', ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?, ?)`,
+        [
+          approvalId,
+          approvalKey,
+          signal.signal_id,
+          signal.signal_key,
+          runtime.runtime_key,
+          repoScope,
+          JSON.stringify(approvedTools),
+          JSON.stringify(deniedTools),
+          approvalPhrase,
+          approvedBy,
+          ttlMinutes,
+          JSON.stringify(policy),
+          JSON.stringify({ source_surface: signal.source_surface, source_ref: signal.source_ref, signal_type: signal.signal_type, title: signal.title }),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        approval_id: approvalId,
+        approval_key: approvalKey,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: repoScope,
+        approval_mode: "repo_analysis_read_only",
+        approval_status: "approved",
+        approved_tools: approvedTools,
+        denied_tools: deniedTools,
+        ttl_minutes: ttlMinutes,
+        execution_allowed: "read_only_repo_analysis_after_approval",
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_approval_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/repo-analysis-execution-envelope", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const approvalId = String(body.approval_id || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const analysisGoal = String(body.analysis_goal || "").trim();
+
+    if (!approvalId) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_approval_id_required", message: "approval_id is required." } });
+    }
+
+    try {
+      const [approvalRows] = await pool.query(
+        `SELECT approval_id, approval_key, signal_id, signal_key, runtime_key,
+                repo_scope, approval_mode, approval_status,
+                approved_tools_json, denied_tools_json, approved_by,
+                approved_at, expires_at, policy_json
+         FROM \`summary_development_agent_approvals\`
+         WHERE approval_id = ?
+         LIMIT 1`,
+        [approvalId]
+      );
+      const approval = approvalRows[0];
+      if (!approval) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_approval_not_found", message: "approval_id was not found." } });
+      }
+      if (approval.approval_status !== "approved") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_approval_not_approved", message: "approval is not in approved status." }, approval_status: approval.approval_status, secrets_included: false });
+      }
+      if (new Date(approval.expires_at).getTime() <= Date.now()) {
+        await pool.query(
+          `UPDATE \`summary_development_agent_approvals\`
+           SET approval_status = 'expired', updated_at = CURRENT_TIMESTAMP
+           WHERE approval_id = ? AND approval_status = 'approved'`,
+          [approval.approval_id]
+        ).catch(() => {});
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_approval_expired", message: "approval has expired." }, secrets_included: false });
+      }
+      if (approval.approval_mode !== "repo_analysis_read_only") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_approval_mode_blocked", message: "Only repo_analysis_read_only approvals are supported." }, secrets_included: false });
+      }
+
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [approval.runtime_key]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime || runtime.provider_key !== "openclaude") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_invalid", message: "approval runtime is not a valid OpenClaude runtime." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "runtime is not available for read-only execution." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, priority, status
+         FROM \`summary_development_signals\`
+         WHERE signal_id = ?
+         LIMIT 1`,
+        [approval.signal_id]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "approval signal was not found." } });
+      }
+
+      const envelope = buildOpenClaudeReadOnlyExecutionEnvelope({ approval, runtime, signal, analysisGoal });
+      const result = {
+        approval_id: approval.approval_id,
+        approval_key: approval.approval_key,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: approval.repo_scope,
+        execution_envelope: envelope,
+        execution_status: "approved_envelope_only",
+        next_required_step: "local_connector_read_only_execution",
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_execution_envelope_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ approval_id: approval.approval_id, signal_id: signal.signal_id, repo_scope: approval.repo_scope }),
+          JSON.stringify({
+            adapter: envelope.adapter,
+            approved_tools: envelope.allowed_tools,
+            denied_tools: envelope.denied_tools,
+            execution_attempted: false,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(result),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_execution_envelope_${runId}`, requestedBy, JSON.stringify({ code: err.code || "summary_development_execution_envelope_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_execution_envelope_failed", message: err.message } });
+    }
+  });
+
+  // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
+  router.get("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const state = await loadAgentModelRuntimeSettings({ force: req.query.force === "true" });
+      res.json({
+        ok: true,
+        source: state.source,
+        updated_at: state.updated_at || null,
+        settings: summarizeModelRuntimeSettings(state.config, process.env),
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "model_settings_read_failed", message: err.message } });
+    }
+  });
+
+  router.patch("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const payload = body.settings && typeof body.settings === "object" ? body.settings : body;
+      const result = await saveAgentModelRuntimeSettings({ config: payload });
+      res.json({
+        ok: true,
+        settings: summarizeModelRuntimeSettings(result.config, process.env),
+      });
+    } catch (err) {
+      const status = err.status || 400;
+      res.status(status).json({ ok: false, error: { code: err.code || "model_settings_update_failed", message: err.message } });
+    }
+  });
+
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) return res.status(503).json({ ok: false, error: "callModel not configured" });
 
@@ -95,7 +2475,7 @@ export function buildDevAgentRoutes(deps) {
       res.json({ ok: true, run_id, message: "Dev agent sweep started" });
 
       // Fire-and-forget (don't await — let it complete in background)
-      runDevAgentSweep({ ...deps, callModel })
+      runDevAgentSweep({ ...deps, callModel, run_id })
         .then(result => {
           console.log(`[devAgent] sweep ${result.run_id} done:`, result);
         })
@@ -104,6 +2484,40 @@ export function buildDevAgentRoutes(deps) {
         });
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // ── POST /dev-agent/session-summaries/autosweep ─────────────────────────
+  router.post("/dev-agent/session-summaries/autosweep", async (req, res) => {
+    try {
+      const callModel = await resolveStandardCallModel(deps, "summary");
+      const body = req.body || {};
+      const run_id = body.run_id || randomUUID();
+      const result = await runSessionSummaryAutosweep({
+        pool: getPool(),
+        callModel: callModel || null,
+        run_id,
+        limit: Math.min(Number(body.limit || req.query.limit || 20), 100),
+        minTurnCount: Math.max(Number(body.min_turn_count || req.query.min_turn_count || 1), 1),
+        includeActiveLong: body.include_active_long === true || req.query.include_active_long === "true",
+        activeTurnThreshold: Math.max(Number(body.active_turn_threshold || req.query.active_turn_threshold || 80), 1),
+        minNewTurns: Math.max(Number(body.min_new_turns || req.query.min_new_turns || 10), 1),
+      });
+      res.status(result.ok ? 200 : 207).json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "session_summary_autosweep_failed", message: err.message } });
+    }
+  });
+
+  // ── GET /dev-agent/session-summaries/health ──────────────────────────────
+  router.get("/dev-agent/session-summaries/health", async (req, res) => {
+    try {
+      const lookbackDays = boundedPositiveInt(req.query.lookback_days, 7, 1, 90);
+      const limit = boundedPositiveInt(req.query.limit, 20, 1, 100);
+      const health = await loadSessionSummaryHealth({ pool: getPool(), lookbackDays, limit });
+      res.json(health);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "session_summary_health_failed", message: err.message } });
     }
   });
 
@@ -263,9 +2677,7 @@ export function buildDevAgentRoutes(deps) {
       ).catch(() => {});
 
       // Build LLM messages
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) {
         return res.status(503).json({ ok: false, error: "callModel not configured" });

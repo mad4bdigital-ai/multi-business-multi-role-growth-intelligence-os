@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_certifications",
+  "display_name": "Capability Assurance Certifications",
+  "description": "Admin-only current certification metadata for capability runtime and readback assurance.",
+  "source_table": "platform_capability_certifications",
+  "covered_source_tables": ["platform_capability_certifications"],
+  "result_key_column": "certification_id",
+  "result_label_column": "capability_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "certification_status",
+  "active_status_values": [],
+  "result_columns": ["certification_id", "capability_key", "certification_type", "environment", "subject_type", "subject_key", "certification_status", "source_registry", "source_key", "certified_at", "expires_at", "revoked_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 277,
+  "status": "active",
+  "notes": "Excludes metadata_json, evidence payloads, and all secret-related fields."
+}

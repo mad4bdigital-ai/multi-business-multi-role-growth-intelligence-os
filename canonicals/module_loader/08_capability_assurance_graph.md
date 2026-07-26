@@ -1,0 +1,38 @@
+## Capability Assurance Loader Dependencies
+
+For governed capability execution, module_loader must resolve and return:
+- canonical capability row and plugin key;
+- active binding and export state;
+- authority requirement type;
+- fresh capability envelope and expiry;
+- capability-specific effective resource bindings when resource-scoped authority is required;
+- approval and quota state when required;
+- canonical resource adapter identity resolved before certification and readback contract selection;
+- audit, readback, certification, and rollback requirements;
+- resolved source provenance;
+- open blocking capability debt.
+
+The loader must keep invocation authority and resource authority separate. Admin or Tenant tool exposure may satisfy neither a missing actor scope nor a missing external-resource binding. The existence of an unrelated active binding must never mark a capability resource-ready.
+
+App keys, provider keys, resource types, and runtime surfaces remain selectors. Loader output must retain the selected canonical `adapter_key`, reject an explicit contract bound to another adapter, and block equal-ranked current readback contracts as ambiguous.
+
+Required assurance surfaces include:
+- `platform_plugin_capabilities`
+- `platform_plugin_bindings`
+- `platform_plugin_capability_exports`
+- `capability_resolution_envelope_ledger`
+- `platform_capability_envelope_binding_links`
+- `platform_evidence_events`
+- `platform_capability_certifications`
+- `platform_capability_source_links`
+- `platform_capability_debt`
+
+When canonical tables are not yet promoted as primary authority, loader output must identify compatibility projection use and preserve source-table/source-key evidence.
+
+Secret-like fields, credential payloads, and plaintext secret values must not enter the loaded assurance context. Only governed references and hashes are allowed.
+
+## Dynamic Container Authority Loader Foundation
+
+The foundation loader may expose registry metadata only from `container_type_registry`, `containers`, `container_relationship_type_registry`, `container_relationships`, `container_classification_type_registry`, `container_classifications`, `container_role_template_registry`, `container_role_template_permissions`, `container_role_assignments`, `container_resource_dimension_registry`, `container_resource_bindings`, `container_authority_epochs`, and the bounded closure/read-model views.
+
+Foundation loading must remain read-only and no-secret. It must not select credentials, mint tokens, construct provider clients, or convert classifications, sharing edges, or role templates into execution authority. Any future effective-context loader must pin one tenant authority epoch, enforce traversal limits, include contributing path/source evidence, and return a blocked decision on ambiguity, cycle evidence, cross-tenant edges, or limit exhaustion.

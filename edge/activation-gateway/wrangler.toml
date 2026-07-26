@@ -1,0 +1,14 @@
+name = "mad4b-activation-gateway"
+main = "src/worker.mjs"
+compatibility_date = "2026-06-25"
+workers_dev = true
+
+[vars]
+ACTIVATION_GATEWAY_ENFORCE_HOST = "true"
+
+# Configure as encrypted Worker secrets before deployment:
+# - ACTIVATION_GATEWAY_DEPLOYMENT_ATTESTATION_JSON
+# - ACTIVATION_GATEWAY_POLICY_PUBLIC_KEY_JWK
+#
+# Bind activation.mad4b.com only after temporary-domain smoke, signed-policy
+# verification, origin readiness, and rollback rehearsal pass.

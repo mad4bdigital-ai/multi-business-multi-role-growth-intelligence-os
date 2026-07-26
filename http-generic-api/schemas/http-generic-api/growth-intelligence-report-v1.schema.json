@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/growth-intelligence-report-v1.schema.json",
+  "title": "Growth Intelligence Report v1",
+  "type": "object",
+  "required": [
+    "report_id",
+    "report_type",
+    "schema_version",
+    "tenant_id",
+    "brand_key",
+    "executive_summary",
+    "brand_context",
+    "activity_intelligence",
+    "evidence",
+    "seo_opportunity_map",
+    "growth_opportunities",
+    "prioritized_backlog",
+    "approval_queue_view"
+  ],
+  "properties": {
+    "report_id": { "type": "string", "minLength": 1 },
+    "report_type": { "const": "growth_intelligence_pilot" },
+    "schema_version": { "const": "1.0.0" },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "brand_key": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string" },
+    "executive_summary": { "type": "object" },
+    "brand_context": { "type": "object" },
+    "activity_intelligence": { "type": "object" },
+    "evidence": { "type": "array", "items": { "type": "object" } },
+    "seo_opportunity_map": { "type": "array", "items": { "type": "object" } },
+    "growth_opportunities": { "type": "array", "items": { "type": "object" } },
+    "prioritized_backlog": { "type": "array", "items": { "type": "object" } },
+    "approval_queue_view": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": false
+}
+

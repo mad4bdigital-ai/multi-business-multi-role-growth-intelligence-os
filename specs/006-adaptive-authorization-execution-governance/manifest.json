@@ -1,0 +1,78 @@
+{
+  "spec_key": "006-adaptive-authorization-execution-governance",
+  "title": "Adaptive Authorization and Execution Governance",
+  "status": "deep_design_complete_implementation_pending",
+  "created_at": "2026-06-28",
+  "architecture": {
+    "relationship_authority": "relationship_graph_with_revision_evidence",
+    "policy_decision": "typed_subject_action_resource_context",
+    "grant_model": "explicit_scoped_grants",
+    "approval": "scoped_expiring_request_bound",
+    "enforcement": "distributed_pep_shared_kernel",
+    "execution": "certified_adapter_orchestration",
+    "verification": "capability_specific_readback",
+    "operations": "narrow_reconciliation_controllers",
+    "consistency": "revision_vector_plus_same_cycle_mutation_validation",
+    "migration": "additive_shadow_first_capability_by_capability"
+  },
+  "pilot_capabilities": [
+    "activation.skills.read",
+    "platform.output-artifact.write",
+    "content.wordpress.publish"
+  ],
+  "deep_design_documents": [
+    "deep-design-index.md",
+    "formal-decision-model.md",
+    "invariants-and-state-machines.md",
+    "threat-model.md",
+    "consistency-and-reconciliation.md",
+    "adapter-contract-and-certification.md",
+    "testing-and-parity-strategy.md",
+    "rollout-pr-sequence.md",
+    "operational-model.md",
+    "api-error-catalog.md",
+    "implementation-boundaries.md",
+    "storage-and-migration-plan.md",
+    "end-to-end-flows.md",
+    "deep-design-task-breakdown.md"
+  ],
+  "non_negotiable_invariants": [
+    "aliases_and_ui_do_not_grant_authority",
+    "active_grants_remain_active_when_approval_is_required",
+    "policy_decision_is_side_effect_free",
+    "final_execution_boundary_revalidates_authority",
+    "state_changing_envelopes_are_single_use_by_default",
+    "approval_is_bound_to_request_and_revision_evidence",
+    "adapter_selection_is_deterministic_and_certification_gated",
+    "provider_acknowledgement_is_not_verified_success",
+    "recovered_requires_fresh_readback_evidence",
+    "projections_are_never_execution_authority"
+  ],
+  "initial_implementation_pr": {
+    "scope": "state_semantics_and_operational_projections",
+    "provider_mutation": false,
+    "new_authority_tables": false,
+    "enforcement_change": false,
+    "required_tests": [
+      "active_grant_approval_separation",
+      "projection_count_reconciliation",
+      "admin_global_scope_visibility",
+      "derived_readiness_regression"
+    ]
+  },
+  "delivery_mode": "multi_pr",
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed": false,
+  "local_device_used": false,
+  "transport": "auth_host_governed_github",
+  "known_risks": [
+    "logical_model_may_overlap_existing_registry_authorities",
+    "policy_engine_selection_requires_separate_review",
+    "relationship_revision_strategy_requires_scale_validation",
+    "shadow_parity_thresholds_not_yet_approved",
+    "physical_migrations_not_yet_designed_against_live_census",
+    "pull_request_creation_surface_not_registered_in_auth_host",
+    "ci_not_yet_run_on_specification_branch"
+  ],
+  "sensitive_values_included": false
+}

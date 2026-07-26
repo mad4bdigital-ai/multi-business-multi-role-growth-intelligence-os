@@ -3,8 +3,12 @@ import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import {
+  connectorAuthPredicateForToken,
+  connectorLocalApiKeySelectFragment,
+} from "../connectorSchemaCompatibility.js";
 
-const AGENT_VERSION = "2026.05.18.1";
+const AGENT_VERSION = "2026.05.28.1";
 const ROOT = process.cwd();
 const CONNECTOR_PORT = 7070;
 
@@ -34,7 +38,61 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "browser4-adapter.mjs": {
+    relativePath: "local-connector/browser4-adapter.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
+
+const LOCAL_TOOL_RELEASES = [
+  {
+    tool_key: "browser4",
+    display_name: "Browser4 Local Adapter",
+    owner_app: "mad4b-local-manager",
+    install_kind: "connector_agent_manifest",
+    status: "active",
+    platform: "windows",
+    files: ["browser4-adapter.mjs", "server.mjs"],
+    env: {
+      CONNECTOR_BROWSER4_ENABLED: "true",
+      BROWSER4_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
+      BROWSER4_WORK_DIR: "D:\\n8n-data\\browser-runtime-artifacts",
+      BROWSER4_JAVA_HOME: "D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
+      BROWSER4_SERVER_URL: "http://localhost:8182",
+    },
+    install_policy: {
+      allowlisted_domains_only: true,
+      no_raw_shell_surface: true,
+      no_secret_return: true,
+      governed_runtime_binding_required: true,
+    },
+  },
+  {
+    tool_key: "auto_browser",
+    display_name: "Auto Browser Visual Takeover Candidate",
+    owner_app: "mad4b-local-manager",
+    install_kind: "external_provider_manifest_candidate",
+    status: "candidate_pending_install_plan",
+    platform: "windows",
+    files: ["server.mjs"],
+    source_url: "https://github.com/LvcidPsyche/auto-browser",
+    env: {
+      CONNECTOR_AUTO_BROWSER_ENABLED: "false",
+      AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000",
+      AUTO_BROWSER_HEALTH_PATH: "/healthz",
+      AUTO_BROWSER_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
+    },
+    install_policy: {
+      allowlisted_domains_only: true,
+      no_raw_shell_surface: true,
+      no_secret_return: true,
+      governed_runtime_binding_required: true,
+      explicit_user_approval_required: true,
+      adapter_poc_required_before_activation: true,
+    },
+  },
+];
 
 const DEFAULT_WINDOWS_ALIASES = [
   { alias: "node_ver", cmd: "node", args: ["--version"], allow_extra_args: false, description: "Node.js version" },
@@ -45,6 +103,13 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "db_restore_certify_probe", cmd: "node", args: ["db-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only DB restore certification prerequisite probe" },
   { alias: "n8n_restore_certify_probe", cmd: "node", args: ["n8n-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only n8n restore certification prerequisite probe" },
 ];
+
+const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
+  powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
+  windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
+};
 
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -89,6 +154,81 @@ function psQuote(value) {
   return String(value ?? "").replace(/'/g, "''");
 }
 
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^\"|\"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizeRequestedCapabilities(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues.map((item) => normalizeWindowsPath(item, 260)).filter(Boolean))].slice(0, 25);
+
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
+  const apps = {};
+  for (const item of appGrantValues) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: String(item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: String(item?.capability_class || "desktop_app").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "desktop_app",
+      risk_class: String(item?.risk_class || "interactive").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path || item?.cmd, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args)
+      ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20)
+      : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: String(item?.description || item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
+function connectorCapabilityEnvLines(capabilities = []) {
+  return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
+}
+
 function buildAllowlistEnvValue(aliases) {
   const obj = {};
   for (const a of aliases) {
@@ -97,9 +237,157 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
+function tokenizeCommandTemplate(template) {
+  const raw = String(template || "").trim();
+  if (!raw) return null;
+  const cmdMatch = raw.match(/^cmd(?:\.exe)?\s+\/c\s+(.+)$/i);
+  if (cmdMatch) return { command: "cmd.exe", args: ["/d", "/c", cmdMatch[1]] };
+  const tokens = [];
+  let current = "";
+  let quote = null;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (/\s/.test(ch)) {
+      if (current) { tokens.push(current); current = ""; }
+      continue;
+    }
+    current += ch;
+  }
+  if (current) tokens.push(current);
+  if (!tokens.length) return null;
+  return { command: tokens[0], args: tokens.slice(1) };
+}
+
+function checksumShellPolicy(aliases) {
+  return crypto.createHash("sha256").update(JSON.stringify(aliases)).digest("hex");
+}
+
+function checksumConnectorPolicy(parts = {}) {
+  return crypto.createHash("sha256").update(JSON.stringify(parts)).digest("hex");
+}
+
+function mergePermissionGrants(...values) {
+  const merged = { capabilities: [], allowed_paths: [], apps: {}, shell_aliases: [] };
+  for (const value of values) {
+    const normalized = normalizePermissionGrants(value || {});
+    merged.capabilities.push(...normalized.capabilities);
+    merged.allowed_paths.push(...normalized.allowed_paths);
+    Object.assign(merged.apps, normalized.apps);
+    merged.shell_aliases.push(...normalized.shell_aliases);
+  }
+  return {
+    capabilities: [...new Set(merged.capabilities)].filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]),
+    allowed_paths: [...new Set(merged.allowed_paths)].slice(0, 25),
+    apps: Object.fromEntries(Object.entries(merged.apps).slice(0, 50)),
+    shell_aliases: merged.shell_aliases.slice(0, 50),
+  };
+}
+
+function normalizeAppPolicyRow(row) {
+  const alias = normalizeGrantAlias(row.app_alias || row.alias || row.app_key, "app");
+  const command = normalizeWindowsPath(row.command_path || row.command || row.executable_path, 260);
+  if (!alias || !command) return null;
+  const processName = String(row.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+  return {
+    display_name: String(row.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || alias,
+    command,
+    process_name: processName,
+    browser: row.browser === 1 || row.browser === true,
+    capability_class: String(row.capability_class || "desktop_app").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "desktop_app",
+    risk_class: String(row.risk_class || "interactive").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "interactive",
+  };
+}
+
+async function loadConnectorGrantPolicy(configId) {
+  const [capRows] = await getPool().query(
+    `SELECT capability_key, COALESCE(status, 'active') AS status, COALESCE(source, 'db') AS source, updated_at
+       FROM local_connector_capability_grants
+      WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
+      ORDER BY capability_key`,
+    [configId]
+  ).catch((err) => {
+    if (String(err?.message || '').includes('local_connector_capability_grants')) return [[]];
+    throw err;
+  });
+  const capabilities = [...new Set((capRows || []).map((row) => String(row.capability_key || '').trim()).filter((key) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[key]))];
+
+  const [fileRows] = await getPool().query(
+    `SELECT path_pattern, access_mode, description, created_at AS updated_at
+       FROM local_connector_file_access_rules
+      WHERE config_id = ?
+      ORDER BY id`,
+    [configId]
+  ).catch(() => [[]]);
+  const allowedPaths = [...new Set((fileRows || [])
+    .map((row) => normalizeWindowsPath(String(row.path_pattern || '').replace(/\\\*$/, ''), 260))
+    .filter(Boolean))].slice(0, 25);
+
+  const [appRows] = await getPool().query(
+    `SELECT app_alias, display_name, command_path, process_name, browser, capability_class, risk_class,
+            COALESCE(status, 'active') AS status,
+            COALESCE(source, 'db') AS source,
+            updated_at
+       FROM local_connector_app_allowlists
+      WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
+      ORDER BY app_alias`,
+    [configId]
+  ).catch((err) => {
+    if (String(err?.message || '').includes('local_connector_app_allowlists')) return [[]];
+    throw err;
+  });
+  const apps = {};
+  for (const row of appRows || []) {
+    const alias = normalizeGrantAlias(row.app_alias, "app");
+    const entry = normalizeAppPolicyRow(row);
+    if (alias && entry) apps[alias] = entry;
+  }
+
+  return mergePermissionGrants({ capabilities, allowed_paths: allowedPaths, apps });
+}
+
+function normalizeShellPolicyRow(row) {
+  const alias = normalizeGrantAlias(row.alias, "alias");
+  if (!alias) return null;
+  let parsed = null;
+  try {
+    const obj = JSON.parse(row.command_template);
+    if (obj && typeof obj === "object" && typeof obj.command === "string") {
+      parsed = { command: obj.command, args: Array.isArray(obj.args) ? obj.args.map(String) : [] };
+    }
+  } catch {
+    parsed = tokenizeCommandTemplate(row.command_template);
+  }
+  if (!parsed?.command) return null;
+  return {
+    alias,
+    command: parsed.command,
+    args: parsed.args || [],
+    display_name: String(row.description || alias).slice(0, 160),
+    allow_extra_args: row.allow_extra_args === 1 || row.allow_extra_args === true,
+    max_extra_args: Number(row.max_extra_args || 0) || 0,
+    risk_class: String(row.risk_class || "read_only"),
+    source: String(row.source || "db"),
+    updated_at: row.updated_at || null,
+  };
+}
+
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
+  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
+    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
+    : [];
   return [
-    `BACKEND_API_KEY=${connectorSecret}`,
+    `CONNECTOR_SECRET=${connectorSecret}`,
+    ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -107,21 +395,35 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    ...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities]),
+    ...appAllowlistLine,
+    ...filePathLine,
+    "CONNECTOR_BROWSER4_ENABLED=true",
+    "BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
+    "BROWSER4_WORK_DIR=D:\\n8n-data\\browser-runtime-artifacts",
+    "BROWSER4_JAVA_HOME=D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
+    "BROWSER4_SERVER_URL=http://localhost:8182",
+    "CONNECTOR_AUTO_BROWSER_ENABLED=false",
+    "AUTO_BROWSER_BASE_URL=http://127.0.0.1:8000",
+    "AUTO_BROWSER_HEALTH_PATH=/healthz",
+    "AUTO_BROWSER_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
     "N8N_LISTEN_ADDRESS=127.0.0.1",
     "N8N_PUBLIC_URL=https://n8n.mad4b.com/",
-    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(aliases)}`,
+    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(allAliases)}`,
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port });
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
-    "$Root = Split-Path -Parent $MyInvocation.MyCommand.Path",
+    "$InstallerPath = Split-Path -Parent $MyInvocation.MyCommand.Path",
+    "$Root = Join-Path $env:LOCALAPPDATA 'Mad4B\\LocalManager\\updates'",
+    "New-Item -ItemType Directory -Force -Path $Root | Out-Null",
     "$CfService = 'cloudflared'",
     "$NodeService = 'local-connector'",
     "$ServerMjs = Join-Path $Root 'server.mjs'",
@@ -156,6 +458,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "Get-Mad4BManifestFile -Name 'connector-safe-upgrade.ps1' -OutFile $SafeUpgradePs1",
     "Get-Mad4BManifestFile -Name 'db-restore-certifier.mjs' -OutFile $DbRestoreCertifier",
     "Get-Mad4BManifestFile -Name 'n8n-restore-certifier.mjs' -OutFile $N8nRestoreCertifier",
+    "if ($Manifest.files.'browser4-adapter.mjs') { Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile (Join-Path $Root 'browser4-adapter.mjs') }",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$EnvText = @'",
@@ -172,17 +475,22 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "",
     "if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) { winget install NSSM.NSSM -e --silent }",
     "$nodeSvc = Get-Service -Name $NodeService -ErrorAction SilentlyContinue",
+    "$nodePath = (Get-Command node).Source",
     "if (-not $nodeSvc) {",
-    "  $nodePath = (Get-Command node).Source",
     "  & nssm install $NodeService $nodePath \"`\"$ServerMjs`\"\"",
-    "  & nssm set $NodeService AppDirectory $Root",
-    "  & nssm set $NodeService AppStdout (Join-Path $Root 'connector.log')",
-    "  & nssm set $NodeService AppStderr (Join-Path $Root 'connector-error.log')",
-    "  & nssm set $NodeService AppRotateFiles 1",
-    "  & nssm set $NodeService AppRotateBytes 5242880",
-    "  & nssm set $NodeService Start SERVICE_AUTO_START",
-    "  & nssm set $NodeService ObjectName LocalSystem",
     "}",
+    "& nssm set $NodeService Application $nodePath",
+    "& nssm set $NodeService AppParameters \"`\"$ServerMjs`\"\"",
+    "& nssm set $NodeService AppDirectory $Root",
+    "& nssm set $NodeService AppStdout (Join-Path $Root 'connector.log')",
+    "& nssm set $NodeService AppStderr (Join-Path $Root 'connector-error.log')",
+    "& nssm set $NodeService AppRotateFiles 1",
+    "& nssm set $NodeService AppRotateBytes 5242880",
+    "& nssm set $NodeService Start SERVICE_AUTO_START",
+    "& nssm set $NodeService ObjectName LocalSystem",
+    "Stop-Service $NodeService -Force -ErrorAction SilentlyContinue",
+    "Start-Sleep -Seconds 2",
+    "Start-Service $NodeService -ErrorAction SilentlyContinue",
     "",
     "$TaskName = 'Mad4B-LocalConnector-Watchdog'",
     "$TaskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -File `\"$WatchdogPs1`\"\"",
@@ -243,12 +551,44 @@ async function resolveHeartbeatConfig(req, body = {}) {
   if (backendToken && token === backendToken) {
     sql += " ORDER BY updated_at DESC LIMIT 1";
   } else {
-    sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
-    params.push(token);
+    const authPredicate = await connectorAuthPredicateForToken(token);
+    sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
+    params.push(...authPredicate.params);
   }
   const [rows] = await getPool().query(sql, params);
   if (rows[0]) return rows[0];
   throw httpError(403, "connector_auth_failed", "Connector heartbeat auth failed.");
+}
+
+async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null, errorMessage = null } = {}) {
+  const primaryUrl = String(config?.device_runtime_url || config?.tunnel_url || "").trim().replace(/\/$/, "");
+  if (!config?.config_id || !primaryUrl) return;
+  const routeHealth = status === "failed" ? "degraded" : "healthy";
+  const params = status === "failed"
+    ? [routeHealth, String(errorCode || "heartbeat_failed").slice(0, 128), String(errorMessage || "Connector heartbeat reported failure.").slice(0, 1000), config.config_id, primaryUrl]
+    : [routeHealth, config.config_id, primaryUrl];
+  const sql = status === "failed"
+    ? `UPDATE \`local_connector_device_routes\`
+          SET health_status = ?,
+              last_health_at = NOW(),
+              last_failure_at = NOW(),
+              last_error_code = ?,
+              last_error_message = ?,
+              updated_at = NOW()
+        WHERE config_id = ?
+          AND route_type = 'cloudflare_tunnel'
+          AND REPLACE(TRIM(TRAILING '/' FROM endpoint_url), '\\n', '') = ?`
+    : `UPDATE \`local_connector_device_routes\`
+          SET health_status = ?,
+              last_health_at = NOW(),
+              last_success_at = NOW(),
+              last_error_code = NULL,
+              last_error_message = NULL,
+              updated_at = NOW()
+        WHERE config_id = ?
+          AND route_type = 'cloudflare_tunnel'
+          AND REPLACE(TRIM(TRAILING '/' FROM endpoint_url), '\\n', '') = ?`;
+  await getPool().query(sql, params).catch(() => {});
 }
 
 async function writeHeartbeat(config, body = {}) {
@@ -293,6 +633,8 @@ async function writeHeartbeat(config, body = {}) {
     ]
   );
 
+  await syncPrimaryRouteFromHeartbeat(config, { status, errorCode, errorMessage });
+
   const eventId = crypto.randomUUID();
   await getPool().query(
     `INSERT INTO \`local_connector_recovery_events\`
@@ -324,6 +666,8 @@ export function buildConnectorAgentRoutes() {
           has_watchdog: true,
           has_safe_upgrade: true,
           has_n8n_lifecycle: true,
+          has_local_tool_releases: true,
+          local_tool_count: LOCAL_TOOL_RELEASES.length,
         },
         secrets_included: false,
       });
@@ -355,12 +699,19 @@ export function buildConnectorAgentRoutes() {
         minimum_watchdog_version: "2026.05.18.1",
         generated_at: new Date().toISOString(),
         files,
+        local_tools: {
+          owner_app: "mad4b-local-manager",
+          release_model: "manifest_driven_allowlisted_tools",
+          install_scope: "per_user_device",
+          tools: LOCAL_TOOL_RELEASES,
+        },
         upgrade_policy: {
           verify_sha256: true,
           node_check_required: true,
           backup_before_replace: true,
           health_check_required: true,
           rollback_on_failed_health: true,
+          local_tool_release_owner: "mad4b-local-manager",
         },
       });
     } catch (err) {
@@ -372,18 +723,23 @@ export function buildConnectorAgentRoutes() {
     try {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
+      const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, ${connectorLocalApiKeySelect}, cf_token FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
         [payload.user_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
+      const dbGrants = await loadConnectorGrantPolicy(config.config_id);
       const installer = buildInstallPowerShell({
         cfToken: config.cf_token,
         connectorSecret: config.connector_secret,
+        connectorLocalApiKey: config.connector_local_api_key || '',
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
+        capabilities: payload.capabilities || [],
+        permissionGrants: mergePermissionGrants(dbGrants, payload.permission_grants || {}),
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -409,6 +765,80 @@ export function buildConnectorAgentRoutes() {
       return res.status(200).send(loaded.buffer);
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "connector_agent_file_failed", message: err.message } });
+    }
+  });
+
+  router.get("/connector-agent/policy", async (req, res) => {
+    try {
+      const token = bearerToken(req);
+      if (!token) throw httpError(401, "connector_auth_required", "Connector policy requires bearer auth.");
+      const configId = boundedString(req.query.config_id, 64);
+      const deviceId = boundedString(req.query.device_id, 128);
+      const params = [];
+      let sql = "SELECT * FROM `local_connector_user_configs` WHERE is_enabled = 1";
+      if (configId) { sql += " AND config_id = ?"; params.push(configId); }
+      if (deviceId) { sql += " AND device_id = ?"; params.push(deviceId); }
+      const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
+      if (backendToken && token === backendToken) {
+        sql += " ORDER BY updated_at DESC LIMIT 1";
+      } else {
+        const authPredicate = await connectorAuthPredicateForToken(token);
+        sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
+        params.push(...authPredicate.params);
+      }
+      const [[config]] = await getPool().query(sql, params);
+      if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
+
+      const [rows] = await getPool().query(
+        `SELECT alias, command_template, allow_extra_args, description,
+                COALESCE(status, 'active') AS status,
+                COALESCE(risk_class, 'read_only') AS risk_class,
+                COALESCE(source, 'db') AS source,
+                updated_at
+           FROM \`local_connector_shell_allowlists\`
+          WHERE config_id = ?
+            AND COALESCE(status, 'active') = 'active'
+          ORDER BY alias`,
+        [config.config_id]
+      );
+      const aliases = {};
+      for (const row of rows) {
+        const entry = normalizeShellPolicyRow(row);
+        if (entry) aliases[entry.alias] = entry;
+      }
+      const aliasList = Object.entries(aliases).map(([alias, entry]) => ({ alias, ...entry }));
+      const grantPolicy = await loadConnectorGrantPolicy(config.config_id);
+      const checksum = checksumConnectorPolicy({ aliases: aliasList, grants: grantPolicy });
+      const policyVersion = aliasList.reduce((max, item) => {
+        const ts = item.updated_at ? Date.parse(item.updated_at) : 0;
+        return Number.isFinite(ts) && ts > max ? ts : max;
+      }, 0) || Date.now();
+      return res.status(200).json({
+        ok: true,
+        config_id: config.config_id,
+        user_id: config.user_id,
+        tenant_id: config.tenant_id,
+        device_id: config.device_id,
+        auth: {
+          connector_secret_configured: Boolean(config.connector_secret),
+          connector_local_api_key_configured: Boolean(config.connector_local_api_key),
+        },
+        policy_version: String(policyVersion),
+        checksum,
+        shell_aliases: aliases,
+        alias_count: Object.keys(aliases).length,
+        capability_grants: {
+          capabilities: grantPolicy.capabilities,
+          allowed_paths: grantPolicy.allowed_paths,
+          apps: grantPolicy.apps,
+          app_aliases: Object.keys(grantPolicy.apps),
+        },
+        generated_at: new Date().toISOString(),
+        ttl_seconds: 300,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_policy_failed", message: err.message }, secrets_included: false });
     }
   });
 

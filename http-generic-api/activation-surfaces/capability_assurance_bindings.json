@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_bindings",
+  "display_name": "Capability Assurance Bindings",
+  "description": "Admin-only canonical capability binding state with credential material excluded.",
+  "source_table": "platform_plugin_bindings",
+  "covered_source_tables": ["platform_plugin_bindings"],
+  "result_key_column": "binding_key",
+  "result_label_column": "capability_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "binding_status",
+  "active_status_values": [],
+  "result_columns": ["binding_key", "capability_key", "binding_family", "source_table", "source_key", "binding_status", "exposure_scope", "dispatch_allowed", "apply_allowed", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 272,
+  "status": "active",
+  "notes": "Excludes credential_source and metadata_json."
+}

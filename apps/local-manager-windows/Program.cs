@@ -2,10 +2,12 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net.Http;
-using System.Security.Cryptography;
+using System.Net.Http.Headers;
+using Microsoft.Win32;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace Mad4B.LocalManager.Windows;
@@ -15,37 +17,174 @@ internal static class Program
     private const string BaseUrl = "https://auth.mad4b.com";
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
     private const string SignInUrl = BaseUrl + "/app/local-manager/link-device?mode=signin&source=windows-app";
-    private const string SignUpUrl = BaseUrl + "/app/local-manager/link-device?mode=signup&source=windows-app";
+    private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
+    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
     private const string DevicesUrl = BaseUrl + "/app/local-manager/devices?source=windows-app";
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
-    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
-    private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
-    private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
-    private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
-    private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
+    private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
+    private const string N8nPublicUrl = "";
+    private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
+    private const string N8nUserFolder = @"D:\n8n-data";
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        if (WindowsAppRegistration.TryHandleCommandLine(args, Application.ExecutablePath)) return;
+        if (TryBootstrapInstallFromPortablePath()) return;
+
+        CloseExistingLocalManagerProcesses();
+        using var singleInstanceMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var isFirstInstance);
+        if (!isFirstInstance)
+        {
+            CloseExistingLocalManagerProcesses();
+            System.Threading.Thread.Sleep(750);
+            using var retryMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var retryIsFirstInstance);
+            if (!retryIsFirstInstance)
+            {
+                MessageBox.Show("Mad4B Local Manager is already running. Close the existing window before starting another copy.", "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            RunMainFormWithSidecar();
+            return;
+        }
+
+        RunMainFormWithSidecar();
     }
+
+    private static void RunMainFormWithSidecar()
+    {
+        var deviceIdentityStore = new DeviceIdentityStore();
+        var deviceControlClient = new DeviceControlClient(BaseUrl);
+        var capabilityVerifier = new ConnectorCapabilityVerifier(deviceControlClient);
+        var runtimeClient = new LocalRuntimeClient(BaseUrl);
+        var dispatcher = new SidecarReadOnlyDispatcher(deviceIdentityStore, capabilityVerifier, runtimeClient);
+        var supervisor = new SidecarLifecycleSupervisor(new SidecarRpcServer(), dispatcher.DispatchAsync);
+        supervisor.Start();
+
+        try
+        {
+            Application.Run(new MainForm());
+        }
+        finally
+        {
+            supervisor.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static string ProgramInstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+
+    private static string InstalledExePath => Path.Combine(ProgramInstallRoot, "Mad4B-Local-Manager.exe");
+
+    private static bool TryBootstrapInstallFromPortablePath()
+    {
+        var currentPath = Path.GetFullPath(Application.ExecutablePath);
+        var installedPath = Path.GetFullPath(InstalledExePath);
+        if (PathsEqual(currentPath, installedPath))
+        {
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ProgramInstallRoot);
+            CloseExistingLocalManagerProcesses();
+
+            Exception? lastError = null;
+            for (var attempt = 1; attempt <= 5; attempt++)
+            {
+                try
+                {
+                    File.Copy(currentPath, installedPath, true);
+                    lastError = null;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    System.Threading.Thread.Sleep(500);
+                }
+            }
+
+            if (lastError is not null) throw lastError;
+            WindowsAppRegistration.EnsureRegistered(installedPath, Application.ProductVersion);
+            Process.Start(new ProcessStartInfo { FileName = installedPath, UseShellExecute = true, WorkingDirectory = ProgramInstallRoot, Verb = "open" });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Could not install Mad4B Local Manager to the local app folder. " + ex.Message, "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return true;
+        }
+    }
+
+    private static bool PathsEqual(string left, string right) => string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+
+    private static void CloseExistingLocalManagerProcesses()
+    {
+        var currentProcessId = Environment.ProcessId;
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.Id == currentProcessId || !LooksLikeLocalManagerProcess(process)) continue;
+                if (process.MainWindowHandle != IntPtr.Zero) process.CloseMainWindow();
+                if (!process.WaitForExit(3000)) process.Kill(true);
+            }
+            catch { }
+            finally { process.Dispose(); }
+        }
+    }
+
+    private static bool LooksLikeLocalManagerProcess(Process process)
+    {
+        try
+        {
+            var title = process.MainWindowTitle ?? "";
+            if (title.Contains("Mad4B Local Manager", StringComparison.OrdinalIgnoreCase)) return true;
+            var name = process.ProcessName ?? "";
+            if (LooksLikeLocalManagerText(name)) return true;
+            var module = process.MainModule;
+            var modulePath = module?.FileName ?? "";
+            if (LooksLikeLocalManagerText(modulePath)) return true;
+            var versionInfo = module?.FileVersionInfo;
+            var metadata = string.Join(" ", new[] { versionInfo?.ProductName, versionInfo?.FileDescription, versionInfo?.OriginalFilename });
+            return LooksLikeLocalManagerText(metadata);
+        }
+        catch { return false; }
+    }
+
+    private static bool LooksLikeLocalManagerText(string value) => value.Contains("Mad4B", StringComparison.OrdinalIgnoreCase) && (value.Contains("LocalManager", StringComparison.OrdinalIgnoreCase) || value.Contains("Local-Manager", StringComparison.OrdinalIgnoreCase) || value.Contains("Local Manager", StringComparison.OrdinalIgnoreCase));
 
     private sealed class MainForm : Form
     {
+        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 };
+        private bool _desktopCommandPollRunning;
+        private int _desktopCommandPollFailureCount;
+        private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private bool _autopilotRecoveryRunning;
+        private bool _autopilotRecoveryAttempted;
         private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+        private readonly DeviceIdentityStore _deviceIdentityStore = new();
+        private readonly DeviceLinkClient _deviceLinkClient = new(BaseUrl);
+        private readonly DeviceControlClient _deviceControlClient = new(BaseUrl);
+        private readonly ConnectorCapabilityVerifier _connectorCapabilityVerifier;
+        private readonly SignedInstallerCoordinator _signedInstallerCoordinator = new(BaseUrl, UpdatesRoot);
+        private readonly HashSet<string> _lastRequestedCapabilities = new(StringComparer.OrdinalIgnoreCase);
 
         public MainForm()
         {
+            _connectorCapabilityVerifier = new ConnectorCapabilityVerifier(_deviceControlClient);
             Text = "Mad4B Local Manager";
-            MinimumSize = new Size(860, 720);
+            MinimumSize = new Size(900, 780);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
 
@@ -56,20 +195,19 @@ internal static class Program
                 AutoSize = true,
                 Location = new Point(24, 20)
             };
-
             var body = new Label
             {
                 Text = "Sign in with Mad4B, link this Windows device, then use the stored device-scoped token for controls.\n\nThe token is protected with Windows DPAPI for the current Windows user and is not written in plaintext.",
                 AutoSize = false,
                 Location = new Point(28, 72),
-                Size = new Size(780, 82)
+                Size = new Size(820, 82)
             };
 
             var signInButton = MakeButton("Sign in", 28, 164, 140, async (_, _) => await StartDeviceLinkAsync("signin"));
             var signUpButton = MakeButton("Create account", 184, 164, 150, async (_, _) => await StartDeviceLinkAsync("signup"));
             var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync("link"));
             var openButton = MakeButton("Open web app", 526, 164, 140, (_, _) => OpenUrl(LocalManagerUrl));
-            var forgetButton = MakeButton("Forget device", 682, 164, 140, (_, _) => ForgetDeviceToken());
+            var forgetButton = MakeButton("Forget device", 682, 164, 150, (_, _) => ForgetDeviceToken());
 
             _pairingCode = new Label
             {
@@ -77,7 +215,7 @@ internal static class Program
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 AutoSize = false,
                 Location = new Point(28, 218),
-                Size = new Size(780, 38)
+                Size = new Size(820, 38)
             };
 
             var devicesButton = MakeButton("Device session", 28, 272, 150, async (_, _) => await LoadDeviceSessionAsync());
@@ -89,30 +227,34 @@ internal static class Program
             var shortcutButton = MakeButton("Create desktop shortcut", 28, 336, 210, (_, _) => CreateShortcut());
             var folderButton = MakeButton("Open local folder", 254, 336, 170, (_, _) => OpenLocalFolder());
             var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
-            var tokenStatusButton = MakeButton("Token status", 656, 336, 160, (_, _) => ShowTokenStatus());
+            var tokenStatusButton = MakeButton("Token status", 656, 336, 166, (_, _) => ShowTokenStatus());
+
+            var repairButton = MakeButton("Repair connector", 28, 392, 170, async (_, _) => await RepairConnectorAsync());
+            var capabilitiesButton = MakeButton("Capabilities", 214, 392, 150, async (_, _) => await ConfigureConnectorCapabilitiesAsync());
+            var repairControlsButton = MakeButton("Repair controls", 380, 392, 150, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
+            var startN8nButton = MakeButton("Start n8n", 546, 392, 130, async (_, _) => await StartN8nLocalAsync());
+            var openN8nButton = MakeButton("Open n8n", 692, 392, 130, async (_, _) => await OpenN8nLocalAsync());
 
             _status = new Label
             {
                 Name = "StatusLabel",
-                Text = "Ready. No plaintext device token is stored.",
+                Text = "Ready.\nNo plaintext device token is stored.",
                 AutoSize = false,
-                Location = new Point(28, 406),
-                Size = new Size(780, 48)
+                Location = new Point(28, 450),
+                Size = new Size(820, 48)
             };
-
             _progress = new ProgressBar
             {
-                Location = new Point(28, 464),
-                Size = new Size(780, 22),
+                Location = new Point(28, 508),
+                Size = new Size(820, 22),
                 Minimum = 0,
                 Maximum = 100,
                 Value = 0
             };
-
             _output = new TextBox
             {
-                Location = new Point(28, 506),
-                Size = new Size(780, 150),
+                Location = new Point(28, 550),
+                Size = new Size(820, 150),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
                 ReadOnly = true,
@@ -122,12 +264,10 @@ internal static class Program
 
             Controls.AddRange(new Control[]
             {
-                title, body,
-                signInButton, signUpButton, linkButton, openButton, forgetButton,
-                _pairingCode,
+                title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
-                shortcutButton, folderButton, updateButton, tokenStatusButton,
-                _status, _progress, _output
+                shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, capabilitiesButton, repairControlsButton,
+                startN8nButton, openN8nButton, _status, _progress, _output
             });
 
             Shown += async (_, _) =>
@@ -135,25 +275,20 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 ShowTokenStatus();
                 await CheckAndInstallUpdateAsync(false);
+                await RunStartupAutopilotAsync();
+                StartDesktopCommandPolling();
             };
         }
 
         private static Button MakeButton(string text, int x, int y, int width, EventHandler onClick)
         {
-            var button = new Button
-            {
-                Text = text,
-                Location = new Point(x, y),
-                Size = new Size(width, 42)
-            };
+            var button = new Button { Text = text, Location = new Point(x, y), Size = new Size(width, 42) };
             button.Click += onClick;
             return button;
         }
 
-        private static string InstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+        private static string InstallRoot => DeviceIdentityStore.DefaultInstallRoot;
         private static string UpdatesRoot => Path.Combine(InstallRoot, "updates");
-        private static string LinkStatusPath => Path.Combine(InstallRoot, "device-link-status.json");
-        private static string ProtectedTokenPath => Path.Combine(InstallRoot, "device-token.dpapi");
 
         private static string CurrentSemVer()
         {
@@ -181,21 +316,7 @@ internal static class Program
         private void SaveDeviceToken(string token, string? deviceId, string? status)
         {
             EnsureLocalFiles(_status);
-            var plaintext = Encoding.UTF8.GetBytes(token);
-            var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-            var protectedBytes = ProtectedData.Protect(plaintext, entropy, DataProtectionScope.CurrentUser);
-            File.WriteAllBytes(ProtectedTokenPath, protectedBytes);
-            File.WriteAllText(LinkStatusPath, JsonSerializer.Serialize(new
-            {
-                linked = true,
-                linked_at = DateTimeOffset.UtcNow,
-                device_id = deviceId,
-                status,
-                token_persisted = true,
-                token_storage = "Windows DPAPI CurrentUser",
-                token_file = ProtectedTokenPath,
-                secrets_included = false
-            }, _json));
+            _deviceIdentityStore.Save(token, deviceId, status);
             _status.Text = "Device token saved with Windows DPAPI CurrentUser.";
         }
 
@@ -203,11 +324,9 @@ internal static class Program
         {
             try
             {
-                if (!File.Exists(ProtectedTokenPath)) return null;
-                var protectedBytes = File.ReadAllBytes(ProtectedTokenPath);
-                var entropy = Encoding.UTF8.GetBytes("mad4b-local-manager-device-token-v1");
-                var plaintext = ProtectedData.Unprotect(protectedBytes, entropy, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(plaintext);
+                var token = _deviceIdentityStore.Load(out var error);
+                if (showErrors && error is not null) _status.Text = "Could not read DPAPI token: " + error;
+                return token;
             }
             catch (Exception ex)
             {
@@ -219,13 +338,13 @@ internal static class Program
         private void ShowTokenStatus()
         {
             EnsureLocalFiles(_status);
-            var hasFile = File.Exists(ProtectedTokenPath);
+            var hasFile = _deviceIdentityStore.TokenFileExists;
             var token = LoadDeviceToken(false);
             _status.Text = token is not null
-                ? "Linked. Device token is available from DPAPI for this Windows user."
+                ? "Linked.\nDevice token is available from DPAPI for this Windows user."
                 : hasFile
                     ? "Device token file exists but could not be unprotected for this Windows user."
-                    : "Not linked. No DPAPI device token is stored.";
+                    : "Not linked.\nNo DPAPI device token is stored.";
             _output.Text = JsonSerializer.Serialize(new
             {
                 linked = token is not null,
@@ -239,12 +358,11 @@ internal static class Program
 
         private void ForgetDeviceToken()
         {
-            if (File.Exists(ProtectedTokenPath)) File.Delete(ProtectedTokenPath);
-            if (File.Exists(LinkStatusPath)) File.Delete(LinkStatusPath);
+            _deviceIdentityStore.Delete();
             _pairingCode.Text = "Pairing code: not started";
             _progress.Value = 0;
             _status.Text = "Device token removed from this Windows profile.";
-            _output.Text = "Device token removed. Link this device again to restore controls.";
+            _output.Text = "Device token removed.\r\nLink this device again to restore controls.";
         }
 
         private async Task StartDeviceLinkAsync(string mode = "link")
@@ -256,30 +374,22 @@ internal static class Program
                 _status.Text = "Creating pairing code…";
                 _pairingCode.Text = "Pairing code: creating…";
                 _output.Text = "Waiting for pairing code…";
-
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var payload = new
-                {
-                    device_id = Environment.MachineName,
-                    hostname = Environment.MachineName,
-                    platform = "windows",
-                    app_version = Application.ProductVersion
-                };
-                using var response = await client.PostAsync(
-                    DeviceLinkStartUrl,
-                    new StringContent(JsonSerializer.Serialize(payload, _json), Encoding.UTF8, "application/json"));
-                var text = await response.Content.ReadAsStringAsync();
-                var start = JsonSerializer.Deserialize<DeviceLinkStartResponse>(text, _json);
+                var response = await _deviceLinkClient.StartAsync(
+                    Environment.MachineName,
+                    Environment.MachineName,
+                    "windows",
+                    Application.ProductVersion);
+                var start = response.Payload;
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
                 {
                     _status.Text = "Could not create pairing code: " + (start?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
                     _pairingCode.Text = "Pairing code: failed";
-                    _output.Text = text;
+                    _output.Text = response.RawText;
                     return;
                 }
 
                 _pairingCode.Text = "Pairing code: " + start.UserCode;
-                _status.Text = "Pairing code created. Browser opened for approval.";
+                _status.Text = "Pairing code created.\nBrowser opened for approval.";
                 _progress.Value = 10;
                 _output.Text = JsonSerializer.Serialize(new { pairing_code = start.UserCode, expires_in = start.ExpiresIn, secrets_included = false }, _json);
                 var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
@@ -295,26 +405,15 @@ internal static class Program
 
         private async Task PollDeviceLinkAsync(string code, string pollToken, int intervalSeconds)
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             var started = DateTimeOffset.UtcNow;
             while (DateTimeOffset.UtcNow - started < TimeSpan.FromMinutes(10))
             {
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-
-                var payload = new { device_code = code, poll_token = pollToken };
-                using var response = await client.PostAsync(
-                    DeviceLinkPollUrl,
-                    new StringContent(JsonSerializer.Serialize(payload, _json), Encoding.UTF8, "application/json"));
-                var text = await response.Content.ReadAsStringAsync();
-                var poll = JsonSerializer.Deserialize<DeviceLinkPollResponse>(text, _json);
-
-                if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
+                var response = await _deviceLinkClient.PollAsync(code, pollToken);
+                var poll = response.Payload;
+                if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
                     SaveDeviceToken(poll.DeviceAccessToken, poll.Device?.DeviceId, poll.Status);
@@ -328,15 +427,15 @@ internal static class Program
                         token_plaintext_shown = false,
                         secrets_included = false
                     }, _json);
+                    await RunStartupAutopilotAsync();
                     return;
                 }
 
                 _status.Text = "Pairing stopped: " + (poll?.Error?.Message ?? poll?.Status ?? response.ReasonPhrase ?? "unknown status");
-                _output.Text = text;
+                _output.Text = response.RawText;
                 return;
             }
-
-            _status.Text = "Pairing timed out. Start a new code to try again.";
+            _status.Text = "Pairing timed out.\nStart a new code to try again.";
         }
 
         private async Task LoadDeviceSessionAsync()
@@ -344,10 +443,20 @@ internal static class Program
             var token = LoadDeviceToken();
             if (string.IsNullOrWhiteSpace(token))
             {
-                _output.Text = "No linked device token. Use 'Link this device' first.";
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
                 return;
             }
-            await CallDeviceApiAsync(DeviceSessionUrl, token, "Device session");
+            try
+            {
+                _status.Text = "Loading Device session using DPAPI-protected device token…";
+                var response = await _deviceLinkClient.GetSessionAsync(token);
+                _status.Text = response.IsSuccessStatusCode ? "Device session loaded." : "Device session failed: " + response.StatusCode;
+                _output.Text = response.RawText;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Device session failed: " + ex.Message;
+            }
         }
 
         private async Task LoadDeviceControlsAsync(string section, string fallbackUrl)
@@ -359,27 +468,1021 @@ internal static class Program
                 OpenUrl(fallbackUrl);
                 return;
             }
-            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, section);
+            await DisplayDeviceControlsAsync(section, token, section);
         }
 
-        private async Task CallDeviceApiAsync(string url, string token, string label)
+        private async Task DisplayDeviceControlsAsync(string section, string token, string label)
         {
             try
             {
                 _status.Text = "Loading " + label + " using DPAPI-protected device token…";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                req.Headers.Accept.ParseAdd("application/json");
-                using var response = await client.SendAsync(req);
-                var text = await response.Content.ReadAsStringAsync();
+                var response = await _deviceControlClient.GetAsync(section, token);
                 _status.Text = response.IsSuccessStatusCode ? label + " loaded." : label + " failed: " + response.StatusCode;
-                _output.Text = text;
+                _output.Text = response.RawText;
             }
             catch (Exception ex)
             {
                 _status.Text = label + " failed: " + ex.Message;
             }
+        }
+
+        private async Task<bool> RequireCurrentVersionForPrivilegedActionAsync(string actionName)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
+                using var response = await client.GetAsync(infoUrl);
+                var text = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _status.Text = actionName + " blocked: could not verify the latest Local Manager version.";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "update_check_failed",
+                        status_code = (int)response.StatusCode,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, _json);
+                    return false;
+                }
+
+                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+                if (info?.Ok == true && info.UpdateAvailable == true)
+                {
+                    _status.Text = actionName + " blocked until Local Manager is updated to " + info.LatestVersion + ".";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        privileged_action_blocked = true,
+                        action = actionName,
+                        reason = "local_manager_update_required",
+                        current_version = info.CurrentVersion ?? CurrentSemVer(),
+                        latest_version = info.LatestVersion,
+                        secrets_included = false
+                    }, _json);
+                    await CheckAndInstallUpdateAsync(true);
+                    return false;
+                }
+
+                return info?.Ok == true;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = actionName + " blocked: update status could not be verified.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    privileged_action_blocked = true,
+                    action = actionName,
+                    reason = "update_check_exception",
+                    error = ex.Message,
+                    current_version = CurrentSemVer(),
+                    secrets_included = false
+                }, _json);
+                return false;
+            }
+        }
+
+        private async Task RunStartupAutopilotAsync()
+        {
+            if (_autopilotRecoveryRunning || _autopilotRecoveryAttempted) return;
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            _autopilotRecoveryAttempted = true;
+            _autopilotRecoveryRunning = true;
+            try
+            {
+                var footprint = await LocalConnectorFootprint.AssessAsync();
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    autopilot = "local_connector_footprint",
+                    repair_required = footprint.RepairRequired,
+                    repair_suggested = footprint.RepairSuggested,
+                    cloudflared_present = footprint.CloudflaredPresent,
+                    cloudflared_running = footprint.CloudflaredRunning,
+                    connector_service_present = footprint.ConnectorServicePresent,
+                    connector_service_running = footprint.ConnectorServiceRunning,
+                    reason = footprint.Reason,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+
+                if (footprint.RepairRequired)
+                {
+                    _status.Text = "Autopilot detected a fresh or formatted Windows installation. Restoring the signed local connector now…";
+                    await RepairConnectorAsync();
+                    return;
+                }
+
+                if (footprint.RepairSuggested)
+                {
+                    _status.Text = "Autopilot detected stopped connector services. Use Repair connector if they do not recover.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Autopilot footprint check failed: " + ex.Message;
+            }
+            finally
+            {
+                _autopilotRecoveryRunning = false;
+            }
+        }
+
+        private static string ClassifyRepairOutcome(string status)
+        {
+            var text = status ?? "";
+            if (text.StartsWith("Repair link request failed:", StringComparison.OrdinalIgnoreCase)) return "link_request_failed";
+            if (text.Contains("blocked", StringComparison.OrdinalIgnoreCase)) return "privileged_action_blocked";
+            if (text.Contains("downloaded:", StringComparison.OrdinalIgnoreCase)
+                && text.Contains("Click the same button again", StringComparison.OrdinalIgnoreCase)) return "local_confirmation_cancelled";
+            if (text.Contains("UAC prompt was cancelled", StringComparison.OrdinalIgnoreCase)) return "uac_cancelled";
+            if (text.Contains("Windows did not return a process handle", StringComparison.OrdinalIgnoreCase)) return "process_handle_unavailable";
+            if (text.StartsWith("Connector repair failed:", StringComparison.OrdinalIgnoreCase)) return "repair_exception";
+            if (text.Contains("failed with a non-zero exit code.", StringComparison.OrdinalIgnoreCase)) return "installer_exit_nonzero";
+            if (text.Contains("completed, but post-install runtime verification did not pass.", StringComparison.OrdinalIgnoreCase)) return "installer_completed_runtime_unverified";
+            if (text.Contains("completed. Post-install verification passed.", StringComparison.OrdinalIgnoreCase)) return "verification_completed";
+            return "incomplete";
+        }
+
+        private async Task RepairConnectorAsync()
+        {
+            var token = LoadDeviceToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
+                return;
+            }
+
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Repair connector")) return;
+
+            try
+            {
+                EnsureLocalFiles(_status);
+                _progress.Value = 0;
+                _status.Text = "Requesting device-scoped connector repair installer…";
+                var response = await _signedInstallerCoordinator.RequestRepairAsync(token);
+                var link = response.Link;
+                if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
+                {
+                    _status.Text = "Repair link request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _output.Text = response.RawText;
+                    return;
+                }
+
+                _progress.Value = 25;
+                _status.Text = "Downloading signed repair installer…";
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Repair);
+                _progress.Value = 75;
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    repair_installer_downloaded = true,
+                    installer_path = download.InstallerPath,
+                    canonical_device_id = link.CanonicalDeviceId,
+                    config_id = link.ConfigId,
+                    run_as_admin_required = link.RunAsAdminRequired,
+                    secrets_included = false
+                }, _json);
+
+                await RunElevatedInstallerAndVerifyAsync(
+                    download,
+                    "connector repair installer",
+                    "Repair connector",
+                    "This will repair and restart the local connector service. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("repairs", "Repair verification"));
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Connector repair failed: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
+        private async Task ConfigureConnectorCapabilitiesAsync()
+        {
+            var token = LoadDeviceToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
+                return;
+            }
+
+            var dynamicCapabilities = (await LoadDynamicCapabilityChoicesAsync(token))
+                .Where(item => !string.Equals(item.Key, "powershell_admin", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(item.Key, "windows_control", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            using var form = new Form
+            {
+                Text = "Connector capabilities",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 610),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var intro = new Label
+            {
+                Text = "Choose optional high-risk capabilities to enable on this device.\nThey require a device-scoped installer and local Administrator approval.",
+                Location = new Point(18, 18),
+                Size = new Size(480, 52)
+            };
+            var dynamicLabel = new Label
+            {
+                Text = "Registry capabilities",
+                Location = new Point(520, 18),
+                Size = new Size(190, 22)
+            };
+            var dynamicList = new CheckedListBox
+            {
+                Location = new Point(520, 44),
+                Size = new Size(190, 116),
+                CheckOnClick = true,
+                HorizontalScrollbar = true
+            };
+            foreach (var capability in dynamicCapabilities)
+            {
+                var index = dynamicList.Items.Add(capability);
+                if (_lastRequestedCapabilities.Contains(capability.Key)) dynamicList.SetItemChecked(index, true);
+            }
+            var powershell = new CheckBox
+            {
+                Text = "Admin PowerShell recovery (/ps)",
+                Location = new Point(22, 84),
+                Size = new Size(480, 28)
+            };
+            var windowsControl = new CheckBox
+            {
+                Text = "Windows app/process control (/win)",
+                Location = new Point(22, 122),
+                Size = new Size(480, 28)
+            };
+            powershell.Checked = _lastRequestedCapabilities.Contains("powershell_admin");
+            windowsControl.Checked = _lastRequestedCapabilities.Contains("windows_control");
+            var appLabel = new Label { Text = "Optional app executable grant", Location = new Point(22, 160), Size = new Size(690, 22) };
+            var appAlias = new TextBox { PlaceholderText = "app alias e.g. photoshop", Location = new Point(22, 188), Size = new Size(180, 28) };
+            var appPath = new TextBox { PlaceholderText = "C:\\Path\\To\\App.exe", Location = new Point(212, 188), Size = new Size(390, 28) };
+            var browseApp = new Button { Text = "Browse", Location = new Point(614, 186), Size = new Size(90, 32) };
+            browseApp.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose application executable", Filter = "Applications (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    appPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+            var supportedApps = new Button { Text = "Supported apps", Location = new Point(482, 222), Size = new Size(120, 32) };
+            supportedApps.Click += async (_, _) =>
+            {
+                var selected = await PickSupportedAppAsync(form, token);
+                if (selected is null) return;
+                appAlias.Text = selected.Alias;
+                appPath.Text = selected.ExecutablePath;
+            };
+            var discoverApps = new Button { Text = "Installed apps", Location = new Point(614, 222), Size = new Size(110, 32) };
+            discoverApps.Click += (_, _) =>
+            {
+                var selected = PickInstalledApp(form);
+                if (selected is null) return;
+                appAlias.Text = SafeFileSegment(selected.DisplayName).ToLowerInvariant();
+                appPath.Text = selected.ExecutablePath;
+            };
+
+            var folderLabel = new Label { Text = "Optional allowed folder/path grant", Location = new Point(22, 230), Size = new Size(690, 22) };
+            var allowedPath = new TextBox { PlaceholderText = "Allowed folder for read/write/list operations", Location = new Point(22, 258), Size = new Size(580, 28) };
+            var browseFolder = new Button { Text = "Browse", Location = new Point(614, 256), Size = new Size(90, 32) };
+            browseFolder.Click += (_, _) =>
+            {
+                using var dialog = new FolderBrowserDialog { Description = "Choose an allowed folder for this connector" };
+                if (dialog.ShowDialog(form) == DialogResult.OK) allowedPath.Text = dialog.SelectedPath;
+            };
+
+            var helperLabel = new Label { Text = "Optional helper command grant", Location = new Point(22, 300), Size = new Size(690, 22) };
+            var helperAlias = new TextBox { PlaceholderText = "helper alias e.g. app_status", Location = new Point(22, 328), Size = new Size(180, 28) };
+            var helperPath = new TextBox { PlaceholderText = "C:\\Path\\To\\Helper.exe or .cmd", Location = new Point(212, 328), Size = new Size(390, 28) };
+            var browseHelper = new Button { Text = "Browse", Location = new Point(614, 326), Size = new Size(90, 32) };
+            browseHelper.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose helper command", Filter = "Executables/scripts (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    helperPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(helperAlias.Text)) helperAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+
+            var warning = new Label
+            {
+                Text = "These options are explicit local grants. They become connector allowlists only after this app downloads a short-lived installer and you approve UAC.",
+                Location = new Point(22, 380),
+                Size = new Size(690, 60),
+                ForeColor = Color.DarkOrange
+            };
+            var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
+            form.Controls.AddRange(new Control[] { intro, dynamicLabel, dynamicList, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, supportedApps, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+
+            if (form.ShowDialog(this) != DialogResult.OK) return;
+            var requestedCapabilities = new List<string>();
+            if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
+            if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
+            foreach (var item in dynamicList.CheckedItems)
+            {
+                if (item is DynamicCapabilityChoice capability && !string.IsNullOrWhiteSpace(capability.Key)) requestedCapabilities.Add(capability.Key);
+            }
+            _lastRequestedCapabilities.Clear();
+            foreach (var capability in requestedCapabilities) _lastRequestedCapabilities.Add(capability);
+
+            var selectedApps = new List<object>();
+            if (!string.IsNullOrWhiteSpace(appPath.Text))
+            {
+                selectedApps.Add(new
+                {
+                    app_alias = string.IsNullOrWhiteSpace(appAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(appPath.Text)).ToLowerInvariant() : SafeFileSegment(appAlias.Text).ToLowerInvariant(),
+                    display_name = string.IsNullOrWhiteSpace(appAlias.Text) ? Path.GetFileNameWithoutExtension(appPath.Text) : appAlias.Text.Trim(),
+                    executable_path = appPath.Text.Trim(),
+                    process_name = Path.GetFileNameWithoutExtension(appPath.Text),
+                    browser = false,
+                    capability_class = "desktop_app",
+                    risk_class = "interactive"
+                });
+            }
+            var selectedPaths = new List<string>();
+            if (!string.IsNullOrWhiteSpace(allowedPath.Text)) selectedPaths.Add(allowedPath.Text.Trim());
+            var selectedHelpers = new List<object>();
+            if (!string.IsNullOrWhiteSpace(helperPath.Text))
+            {
+                selectedHelpers.Add(new
+                {
+                    alias = string.IsNullOrWhiteSpace(helperAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(helperPath.Text)).ToLowerInvariant() : SafeFileSegment(helperAlias.Text).ToLowerInvariant(),
+                    command = helperPath.Text.Trim(),
+                    args = Array.Empty<string>(),
+                    allow_extra_args = false,
+                    description = string.IsNullOrWhiteSpace(helperAlias.Text) ? Path.GetFileNameWithoutExtension(helperPath.Text) : helperAlias.Text.Trim()
+                });
+            }
+            if (requestedCapabilities.Count == 0 && selectedApps.Count == 0 && selectedPaths.Count == 0 && selectedHelpers.Count == 0)
+            {
+                _status.Text = "No connector capability or permission changes selected.";
+                return;
+            }
+
+            if (!await RequireCurrentVersionForPrivilegedActionAsync("Connector capabilities")) return;
+
+            try
+            {
+                EnsureLocalFiles(_status);
+                _progress.Value = 0;
+                _status.Text = "Requesting capability installer from auth.mad4b.com…";
+                var response = await _signedInstallerCoordinator.RequestCapabilitiesAsync(
+                    token,
+                    requestedCapabilities,
+                    selectedApps,
+                    selectedPaths,
+                    selectedHelpers);
+                var link = response.Link;
+                if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
+                {
+                    _status.Text = "Capability installer request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _output.Text = response.RawText;
+                    return;
+                }
+
+                _progress.Value = 25;
+                var download = await _signedInstallerCoordinator.DownloadAsync(link, SignedInstallerKind.Capabilities);
+                _progress.Value = 75;
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    capability_installer_downloaded = true,
+                    installer_path = download.InstallerPath,
+                    capabilities = requestedCapabilities,
+                    app_grants = selectedApps.Count,
+                    allowed_paths = selectedPaths,
+                    helper_grants = selectedHelpers.Count,
+                    canonical_device_id = link.CanonicalDeviceId,
+                    run_as_admin_required = link.RunAsAdminRequired,
+                    secrets_included = false
+                }, _json);
+
+                await RunElevatedInstallerAndVerifyAsync(
+                    download,
+                    "connector capability installer",
+                    "Connector capabilities",
+                    "This will update the local connector service configuration for the selected capabilities and permission grants. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("settings", "Capability verification"));
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Capability installer failed: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
+        private const int ConnectorRuntimeVerificationAttempts = 18;
+        private static readonly TimeSpan ConnectorRuntimeVerificationDelay = TimeSpan.FromSeconds(5);
+
+        private async Task RunElevatedInstallerAndVerifyAsync(SignedInstallerDownload download, string installerLabel, string dialogTitle, string explanation, Func<Task<bool>>? verifyAfterInstall)
+        {
+            var result = MessageBox.Show(
+                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then verify the post-install runtime state.",
+                dialogTitle,
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning);
+            if (result != DialogResult.OK)
+            {
+                _status.Text = $"{installerLabel} downloaded: {download.InstallerPath}. Click the same button again when ready to apply it.";
+                return;
+            }
+
+            _status.Text = $"Launching {installerLabel} with Administrator approval…";
+            _progress.Value = Math.Max(_progress.Value, 80);
+            _output.Text = JsonSerializer.Serialize(new
+            {
+                installer_launching = true,
+                installer_label = installerLabel,
+                installer_path = download.InstallerPath,
+                uac_required = true,
+                token_plaintext_shown = false,
+                secrets_included = false
+            }, _json);
+
+            var runResult = await _signedInstallerCoordinator.RunElevatedAsync(download);
+            if (runResult == SignedInstallerRunResult.CancelledByUser)
+            {
+                _status.Text = $"{installerLabel} was not applied because the UAC prompt was cancelled.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    installer_applied = false,
+                    installer_label = installerLabel,
+                    cancelled_by_user = true,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+                return;
+            }
+            if (runResult == SignedInstallerRunResult.ProcessHandleUnavailable)
+            {
+                _status.Text = $"Windows did not return a process handle for {installerLabel}.";
+                return;
+            }
+            if (runResult == SignedInstallerRunResult.Failed)
+            {
+                _status.Text = $"{installerLabel} failed with a non-zero exit code.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    installer_applied = false,
+                    installer_label = installerLabel,
+                    installer_exit_nonzero = true,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+                return;
+            }
+
+            _progress.Value = Math.Max(_progress.Value, 92);
+            _status.Text = $"{installerLabel} finished. Waiting for post-install runtime verification…";
+            await Task.Delay(TimeSpan.FromSeconds(3));
+
+            var postInstallVerified = verifyAfterInstall is null || await verifyAfterInstall();
+            _progress.Value = 100;
+            if (!postInstallVerified)
+            {
+                _status.Text = $"{installerLabel} completed, but post-install runtime verification did not pass.";
+                return;
+            }
+
+            _status.Text = $"{installerLabel} completed. Post-install verification passed.";
+        }
+
+        private async Task<bool> RefreshDeviceControlsAfterInstallerAsync(string section, string label)
+        {
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _status.Text = label + ": no linked device token; use Device session after relinking.";
+                return false;
+            }
+
+            var attempts = string.Equals(section, "repairs", StringComparison.OrdinalIgnoreCase)
+                ? ConnectorRuntimeVerificationAttempts
+                : 1;
+            ConnectorFootprintAssessment? lastFootprint = null;
+            ConnectorCapabilityVerification? lastVerification = null;
+            string? lastTransientError = null;
+
+            for (var attempt = 1; attempt <= attempts; attempt++)
+            {
+                if (string.Equals(section, "repairs", StringComparison.OrdinalIgnoreCase))
+                {
+                    lastFootprint = await LocalConnectorFootprint.AssessAsync();
+                    _status.Text = $"{label}: waiting for connector services, tunnel, heartbeat, and route ({attempt}/{attempts})…";
+                    _progress.Value = Math.Min(99, 92 + (attempt * 7 / attempts));
+                }
+
+                try
+                {
+                    lastVerification = await _connectorCapabilityVerifier.VerifyAsync(section, token);
+                    _output.Text = lastVerification.ControlEnvelope.GetRawText();
+                    if (lastVerification.RuntimeVerified)
+                    {
+                        _status.Text = label + " verified.";
+                        return true;
+                    }
+                }
+                catch (Exception ex) when (IsTransientConnectorVerificationFailure(ex))
+                {
+                    lastTransientError = ex.GetBaseException().Message;
+                }
+
+                if (attempt < attempts)
+                {
+                    await Task.Delay(ConnectorRuntimeVerificationDelay);
+                }
+            }
+
+            _output.Text = JsonSerializer.Serialize(new
+            {
+                ok = false,
+                section,
+                runtime_verified = false,
+                verification_attempts = attempts,
+                verification_window_seconds = (int)ConnectorRuntimeVerificationDelay.TotalSeconds * Math.Max(0, attempts - 1),
+                cloudflared_present = lastFootprint?.CloudflaredPresent,
+                cloudflared_running = lastFootprint?.CloudflaredRunning,
+                connector_service_present = lastFootprint?.ConnectorServicePresent,
+                connector_service_running = lastFootprint?.ConnectorServiceRunning,
+                local_footprint_reason = lastFootprint?.Reason,
+                last_runtime_evidence = lastVerification?.Evidence,
+                last_transient_error = lastTransientError,
+                token_plaintext_shown = false,
+                secrets_included = false
+            }, _json);
+            _status.Text = label + ": installer completed but connector runtime did not become active within the bounded verification window.";
+            return false;
+        }
+
+        private static bool IsTransientConnectorVerificationFailure(Exception exception)
+        {
+            var root = exception.GetBaseException();
+            if (root is HttpRequestException or TaskCanceledException or TimeoutException) return true;
+            if (root is not InvalidOperationException invalidOperation) return false;
+
+            var match = Regex.Match(invalidOperation.Message ?? string.Empty, @"status (?<code>\d{3})\.");
+            return match.Success
+                && int.TryParse(match.Groups["code"].Value, out var statusCode)
+                && (statusCode == 429 || statusCode >= 500);
+        }
+
+        private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} — {ExecutablePath}";
+        }
+
+        private sealed record SupportedAppChoice(string Alias, string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} ({Alias}) — {ExecutablePath}";
+        }
+
+        private sealed record DynamicCapabilityChoice(string Key, string Label, string SurfaceType, string IntegrationType)
+        {
+            public override string ToString() => string.IsNullOrWhiteSpace(SurfaceType)
+                ? $"{Label} ({Key})"
+                : $"{Label} ({Key}) — {SurfaceType}/{IntegrationType}";
+        }
+
+        private async Task<IReadOnlyList<DynamicCapabilityChoice>> LoadDynamicCapabilityChoicesAsync(string token)
+        {
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return Array.Empty<DynamicCapabilityChoice>();
+                return ParseDynamicCapabilityChoices(response.RawText)
+                    .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .OrderBy(item => item.Label, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch
+            {
+                return Array.Empty<DynamicCapabilityChoice>();
+            }
+        }
+
+        private static IEnumerable<DynamicCapabilityChoice> ParseDynamicCapabilityChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_capabilities").Concat(FindNamedArrayItems(document.RootElement, "supported_browser_adapters")).Concat(FindNamedArrayItems(document.RootElement, "supported_agent_surfaces")))
+            {
+                var key = JsonString(item, "key") ?? JsonString(item, "app_alias");
+                var label = JsonString(item, "label") ?? JsonString(item, "display_name") ?? key;
+                var surfaceType = JsonString(item, "surface_type") ?? "capability";
+                var integrationType = JsonString(item, "integration_type") ?? "capability";
+                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(label)) continue;
+                yield return new DynamicCapabilityChoice(key, label, surfaceType, integrationType);
+            }
+        }
+
+        private async Task<SupportedAppChoice?> PickSupportedAppAsync(IWin32Window owner, string token)
+        {
+            var apps = (await DiscoverSupportedAppsAsync(token)).OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No supported app templates were found on this Windows profile. Use Installed apps or Browse instead.", "Supported apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose supported app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search supported apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.Alias.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as SupportedAppChoice : null;
+        }
+
+        private async Task<IEnumerable<SupportedAppChoice>> DiscoverSupportedAppsAsync(string token)
+        {
+            var localFallback = DiscoverSupportedApps().ToList();
+            try
+            {
+                var response = await _deviceControlClient.GetAsync("settings", token);
+                if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.RawText)) return localFallback;
+                var backendChoices = ParseSupportedAppChoices(response.RawText).ToList();
+                if (backendChoices.Count == 0) return localFallback;
+                return MergeSupportedAppChoices(backendChoices.Concat(localFallback));
+            }
+            catch
+            {
+                return localFallback;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> MergeSupportedAppChoices(IEnumerable<SupportedAppChoice> choices)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var choice in choices)
+            {
+                if (string.IsNullOrWhiteSpace(choice.Alias) || string.IsNullOrWhiteSpace(choice.ExecutablePath)) continue;
+                if (!seen.Add(choice.Alias)) continue;
+                yield return choice;
+            }
+        }
+
+        private static IEnumerable<SupportedAppChoice> ParseSupportedAppChoices(string rawJson)
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_apps"))
+            {
+                var integrationType = JsonString(item, "integration_type");
+                var surfaceType = JsonString(item, "surface_type");
+                if (!string.Equals(integrationType, "local_app", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrWhiteSpace(surfaceType) && !string.Equals(surfaceType, "browser_runtime", StringComparison.OrdinalIgnoreCase) && !string.Equals(surfaceType, "desktop_app", StringComparison.OrdinalIgnoreCase)) continue;
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+            foreach (var item in FindNamedArrayItems(document.RootElement, "supported_browsers"))
+            {
+                var alias = JsonString(item, "app_alias") ?? JsonString(item, "key");
+                var displayName = JsonString(item, "display_name") ?? JsonString(item, "label") ?? alias;
+                var processName = JsonString(item, "process_name") ?? alias;
+                var executablePath = JsonString(item, "executable_path") ?? DetectKnownExecutable(alias, processName);
+                if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(executablePath)) continue;
+                yield return new SupportedAppChoice(alias, displayName, executablePath);
+            }
+        }
+
+        private static IEnumerable<JsonElement> FindNamedArrayItems(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in property.Value.EnumerateArray()) yield return item;
+                    }
+                    foreach (var nested in FindNamedArrayItems(property.Value, propertyName)) yield return nested;
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray()) foreach (var nested in FindNamedArrayItems(item, propertyName)) yield return nested;
+            }
+        }
+
+        private static string? JsonString(JsonElement element, string propertyName)
+        {
+            if (element.ValueKind != JsonValueKind.Object) return null;
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase)) continue;
+                return property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
+            }
+            return null;
+        }
+
+        private static string? DetectKnownExecutable(string? alias, string? processName)
+        {
+            foreach (var template in SupportedAppTemplates())
+            {
+                if (!string.Equals(template.Alias, alias, StringComparison.OrdinalIgnoreCase) && !string.Equals(template.Alias, processName, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate)) return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static IEnumerable<SupportedAppChoice> DiscoverSupportedApps()
+        {
+            var seenAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var template in SupportedAppTemplates())
+            {
+                foreach (var candidate in template.Candidates.Select(Environment.ExpandEnvironmentVariables))
+                {
+                    if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate)) continue;
+                    if (!seenAliases.Add(template.Alias)) continue;
+                    yield return new SupportedAppChoice(template.Alias, template.DisplayName, candidate);
+                    break;
+                }
+            }
+        }
+
+        private static IEnumerable<(string Alias, string DisplayName, string[] Candidates)> SupportedAppTemplates()
+        {
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            yield return ("edge", "Microsoft Edge", new[] { Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe") });
+            yield return ("chrome", "Google Chrome", new[] { Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe") });
+            yield return ("firefox", "Mozilla Firefox", new[] { Path.Combine(programFiles, "Mozilla Firefox", "firefox.exe"), Path.Combine(programFilesX86, "Mozilla Firefox", "firefox.exe") });
+            yield return ("brave", "Brave Browser", new[] { Path.Combine(programFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"), Path.Combine(programFilesX86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe") });
+            yield return ("opera", "Opera", new[] { Path.Combine(localAppData, "Programs", "Opera", "launcher.exe"), Path.Combine(programFiles, "Opera", "launcher.exe") });
+            yield return ("chromium", "Chromium", new[] { Path.Combine(programFiles, "Chromium", "Application", "chrome.exe"), Path.Combine(programFilesX86, "Chromium", "Application", "chrome.exe") });
+            yield return ("vscode", "Visual Studio Code", new[] { Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"), Path.Combine(programFiles, "Microsoft VS Code", "Code.exe") }); yield return ("cursor", "Cursor", new[] { Path.Combine(localAppData, "Programs", "Cursor", "Cursor.exe"), Path.Combine(programFiles, "Cursor", "Cursor.exe") });
+            yield return ("notepad", "Windows Notepad", new[] { Path.Combine(windows, "System32", "notepad.exe") });
+        }
+
+        private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
+        {
+            var apps = DiscoverInstalledApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No installed applications with executable paths were discovered. Use Browse instead.", "Installed apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose installed app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search installed apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as InstalledAppChoice : null;
+        }
+
+        private static IEnumerable<InstalledAppChoice> DiscoverInstalledApps()
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            foreach (var subkeyPath in new[] { @"Software\Microsoft\Windows\CurrentVersion\Uninstall", @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
+            {
+                using var rootKey = root.OpenSubKey(subkeyPath);
+                if (rootKey is null) continue;
+                foreach (var name in rootKey.GetSubKeyNames())
+                {
+                    using var key = rootKey.OpenSubKey(name);
+                    var displayName = Convert.ToString(key?.GetValue("DisplayName"))?.Trim();
+                    if (string.IsNullOrWhiteSpace(displayName)) continue;
+                    var exe = ResolveInstalledAppExecutable(
+                        Convert.ToString(key?.GetValue("DisplayIcon")),
+                        Convert.ToString(key?.GetValue("InstallLocation")),
+                        Convert.ToString(key?.GetValue("UninstallString")));
+                    if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe) || !seen.Add(exe)) continue;
+                    yield return new InstalledAppChoice(displayName, exe);
+                }
+            }
+        }
+
+        private static string ResolveInstalledAppExecutable(string? displayIcon, string? installLocation, string? uninstallString)
+        {
+            foreach (var candidate in new[] { displayIcon, uninstallString })
+            {
+                var exe = ExtractExecutablePath(candidate);
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe)) return exe;
+            }
+            var folder = (installLocation ?? "").Trim().Trim('"');
+            if (Directory.Exists(folder))
+            {
+                foreach (var exe in Directory.EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly).OrderBy(path => Path.GetFileName(path).Length).Take(5))
+                {
+                    if (File.Exists(exe)) return exe;
+                }
+            }
+            return "";
+        }
+
+        private static string ExtractExecutablePath(string? raw)
+        {
+            var value = (raw ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            if (value.StartsWith("\""))
+            {
+                var end = value.IndexOf('"', 1);
+                if (end > 1) value = value.Substring(1, end - 1);
+            }
+            else
+            {
+                var exeIndex = value.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+                if (exeIndex >= 0) value = value.Substring(0, exeIndex + 4);
+                else value = value.Split(',', ' ').FirstOrDefault() ?? "";
+            }
+            value = value.Trim().Trim('"');
+            if (value.Contains(',')) value = value.Split(',')[0].Trim().Trim('"');
+            return value.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? value : "";
+        }
+
+        private static StringContent JsonContent(object payload) => new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        private static string SafeFileSegment(string value)
+        {
+            var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
+            var safe = new string(chars).Trim('-');
+            return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+        }
+
+        private async Task OpenN8nLocalAsync() { try { var profile = await LoadN8nProfileAsync(); var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl; OpenUrl(url); _status.Text = string.IsNullOrWhiteSpace(profile.PublicUrl) ? "Opening local n8n." : "Opening public n8n."; } catch (Exception ex) { _status.Text = "Could not open n8n: " + ex.Message; _output.Text = ex.ToString(); } }
+
+        private async Task StartN8nLocalAsync()
+        {
+            try
+            {
+                EnsureLocalFiles(_status);
+                var profile = await LoadN8nProfileAsync();
+                var commandPath = profile.CommandPath;
+                var userFolder = profile.UserFolder;
+                var localUrl = profile.LocalUrl;
+                var publicUrl = profile.PublicUrl;
+                var openUrl = string.IsNullOrWhiteSpace(publicUrl) ? localUrl : publicUrl;
+                Directory.CreateDirectory(userFolder);
+                Directory.CreateDirectory(Path.GetDirectoryName(commandPath) ?? N8nUserFolder);
+
+                var scriptPath = Path.Combine(InstallRoot, "start-n8n-local.cmd");
+                var script = string.Join("\r\n", new[]
+                {
+                    "@echo off",
+                    "title Mad4B n8n Local Runtime",
+                    "setlocal EnableExtensions",
+                    "echo Mad4B Local n8n autopilot",
+                    "echo Profile source: " + profile.ProfileSource,
+                    "echo System ID: " + profile.SystemId,
+                    "echo.",
+                    "set \"PATH=%ProgramFiles%\\nodejs;%PATH%\"",
+                    "where node >nul 2>&1",
+                    "if errorlevel 1 goto install_node",
+                    "goto node_ready",
+                    ":install_node",
+                    "echo Node.js was not found. Installing Node.js LTS with winget...",
+                    "winget install OpenJS.NodeJS.LTS -e --silent",
+                    "set \"PATH=%ProgramFiles%\\nodejs;%PATH%\"",
+                    ":node_ready",
+                    "where node >nul 2>&1",
+                    "if errorlevel 1 (echo ERROR: Node.js is still missing. Install Node.js LTS and run again. & pause & exit /b 1)",
+                    "if not exist \"" + userFolder + "\" mkdir \"" + userFolder + "\"",
+                    "if not exist \"" + (Path.GetDirectoryName(commandPath) ?? N8nUserFolder) + "\" mkdir \"" + (Path.GetDirectoryName(commandPath) ?? N8nUserFolder) + "\"",
+                    "set \"NPM_CONFIG_PREFIX=" + profile.NpmPrefix + "\"",
+                    "set \"PATH=" + profile.NpmPrefix + ";" + profile.NpmPrefix + "\\node_modules\\.bin;%PATH%\"",
+                    "if not exist \"" + commandPath + "\" (",
+                    "  echo n8n was not found. Installing n8n globally into %NPM_CONFIG_PREFIX%...",
+                    "  call npm config set prefix \"%NPM_CONFIG_PREFIX%\"",
+                    "  call npm install -g n8n",
+                    ")",
+                    "if not exist \"" + commandPath + "\" (echo ERROR: n8n command is still missing at " + commandPath + " & pause & exit /b 1)",
+                    "set \"N8N_USER_FOLDER=" + userFolder + "\"",
+                    "set \"N8N_PORT=" + profile.Port + "\"",
+                    "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"", "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"", "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"", "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"", "set \"N8N_RUNNERS_LAUNCHER_HEALTH_CHECK_PORT=" + profile.LauncherHealthCheckPort + "\"",
+                    "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"",
+                    "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"",
+                    "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"",
+                    "set \"N8N_RUNNERS_LAUNCHER_HEALTH_CHECK_PORT=" + profile.LauncherHealthCheckPort + "\"",
+                    "set \"N8N_EDITOR_BASE_URL=" + profile.EditorBaseUrl + "\"",
+                    "set \"WEBHOOK_URL=" + profile.WebhookUrl + "\"",
+                    "cd /d \"" + userFolder + "\"",
+                    "echo Starting n8n...",
+                    "echo Local:  " + localUrl,
+                    "echo Public: " + (string.IsNullOrWhiteSpace(publicUrl) ? "not configured" : publicUrl),
+                    "echo Keep this window open while using n8n.",
+                    "call \"" + commandPath + "\"",
+                    "echo.",
+                    "echo n8n stopped. Press any key to close this window.",
+                    "pause >nul"
+                }) + "\r\n";
+                File.WriteAllText(scriptPath, script, Encoding.ASCII);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/k \"" + scriptPath + "\"",
+                    WorkingDirectory = userFolder,
+                    UseShellExecute = true
+                });
+
+                _status.Text = "n8n autopilot launched. Keep the terminal window open.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    n8n_start_requested = true,
+                    lifecycle = profile.LifecycleMode,
+                    system_id = profile.SystemId,
+                    installation_id = profile.InstallationId,
+                    command = commandPath,
+                    user_folder = userFolder,
+                    local_url = localUrl,
+                    public_url = publicUrl,
+                    local_only = profile.LocalOnly,
+                    script_path = scriptPath,
+                    secrets_included = false
+                }, _json);
+                OpenUrl(openUrl);
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Could not start n8n: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
+        private async Task<N8nLocalProfile> LoadN8nProfileAsync()
+        {
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return N8nLocalProfile.Default();
+            var response = await _deviceControlClient.GetAsync("n8n", token);
+            if (!response.IsSuccessStatusCode) return N8nLocalProfile.Default();
+            using var doc = JsonDocument.Parse(response.RawText);
+            var root = doc.RootElement;
+            var connector = root.TryGetProperty("n8n_connector", out var c) ? c : default;
+            var profile = connector.ValueKind == JsonValueKind.Object && connector.TryGetProperty("profile", out var p) ? p : default;
+            return N8nLocalProfile.FromJson(connector, profile);
         }
 
         private void CreateShortcut()
@@ -406,7 +1509,6 @@ internal static class Program
                 using var response = await client.GetAsync(infoUrl);
                 var text = await response.Content.ReadAsStringAsync();
                 var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
-
                 if (!response.IsSuccessStatusCode || info?.Ok != true)
                 {
                     if (userInitiated)
@@ -428,9 +1530,8 @@ internal static class Program
                         release_notes = info.ReleaseNotes,
                         secrets_included = false
                     }, _json);
-
                     var result = MessageBox.Show(
-                        $"Mad4B Local Manager {info.LatestVersion} is available. Download and install now?",
+                        $"Mad4B Local Manager {info.LatestVersion} is available.\nDownload and install now?",
                         "Update available",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Information);
@@ -468,14 +1569,12 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _status.Text = "Checking latest Windows app…";
                 _progress.Value = 0;
-
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
                 using var response = await client.GetAsync(UpdateUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
-
                 var total = response.Content.Headers.ContentLength;
-                var target = Path.Combine(UpdatesRoot, "Mad4B-Local-Manager-Setup-latest.exe");
-
+                var safeVersion = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+                var target = Path.Combine(UpdatesRoot, $"Mad4B-Local-Manager-Setup-{safeVersion}.exe");
                 await using (var source = await response.Content.ReadAsStreamAsync())
                 await using (var destination = File.Create(target))
                 {
@@ -489,32 +1588,21 @@ internal static class Program
                         readTotal += read;
                         if (total.HasValue && total.Value > 0)
                         {
-                            var pct = (int)Math.Min(100, (readTotal * 100L) / total.Value);
+                            var pct = (int)Math.Min(100, readTotal * 100L / total.Value);
                             _progress.Value = pct;
                         }
                     }
                 }
 
                 var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 2)
-                {
-                    throw new InvalidOperationException("Downloaded installer file is missing or empty.");
-                }
+                if (!fileInfo.Exists || fileInfo.Length < 2) throw new InvalidOperationException("Downloaded installer file is missing or empty.");
                 var signature = File.ReadAllBytes(target).Take(2).ToArray();
                 if (signature.Length < 2 || signature[0] != (byte)'M' || signature[1] != (byte)'Z')
                 {
                     throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
-
                 _progress.Value = 100;
-                _status.Text = $"Latest installer downloaded: {target}. Launching…";
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "open"
-                });
+                _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
             }
             catch (Exception ex)
             {
@@ -522,90 +1610,414 @@ internal static class Program
             }
         }
 
+        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
+        private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
+        private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
+        private async Task PollDesktopCommandsAsync()
+        {
+            if (_desktopCommandPollRunning) return;
+            if (DateTimeOffset.UtcNow < _desktopCommandPollBackoffUntil) return;
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return;
+            _desktopCommandPollRunning = true;
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                using var response = await client.SendAsync(req);
+                var text = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
+                    {
+                        var failure = AutopilotNetworkRecovery.ClassifyHttp(response.StatusCode, text);
+                        RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
+                    }
+                    return;
+                }
+                _desktopCommandPollFailureCount = 0;
+                _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+                using var doc = JsonDocument.Parse(text);
+                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return;
+                foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command);
+            }
+            catch (Exception ex)
+            {
+                var failure = await AutopilotNetworkRecovery.ClassifyAsync(BaseUrl, ex);
+                RegisterDesktopCommandPollFailure(failure.Message, failure.Diagnostic);
+            }
+            finally
+            {
+                _desktopCommandPollRunning = false;
+            }
+        }
+        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null)
+        {
+            _desktopCommandPollFailureCount += 1;
+            var backoffSeconds = Math.Min(300, _desktopCommandPollFailureCount switch
+            {
+                <= 1 => 15,
+                2 => 30,
+                3 => 60,
+                _ => 120
+            });
+            _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+
+            // Desktop command polling is a background convenience path. Do not keep
+            // overwriting the main status every timer tick for transient TLS/network
+            // failures; show only the first and periodic failures, and write a
+            // sanitized diagnostic payload with no token or command payload secrets.
+            if (_desktopCommandPollFailureCount == 1 || _desktopCommandPollFailureCount % 5 == 0)
+            {
+                _status.Text = $"Desktop command polling paused for {backoffSeconds}s: {message}";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    desktop_command_polling = "paused",
+                    failure_count = _desktopCommandPollFailureCount,
+                    backoff_seconds = backoffSeconds,
+                    message,
+                    diagnostic,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+            }
+        }
+
+        private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
+        {
+            var commandId = JsonValue(command, "command_id");
+            var action = JsonValue(command, "action");
+            command.TryGetProperty("payload", out var payload);
+            try
+            {
+                if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    var url = JsonValue(payload, "url");
+                    if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("open_url command is missing url.");
+                    OpenUrl(url);
+                    _status.Text = "Desktop command opened URL.";
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "open_n8n", StringComparison.OrdinalIgnoreCase))
+                {
+                    var profile = await LoadN8nProfileAsync();
+                    var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl;
+                    OpenUrl(url);
+                    _status.Text = "Desktop command opened n8n.";
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "notify", StringComparison.OrdinalIgnoreCase))
+                {
+                    var title = JsonValue(payload, "title", "Mad4B");
+                    var message = JsonValue(payload, "message", "");
+                    ShowTopMostMessage(title, message);
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "repair_connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await RepairConnectorAsync();
+                    var repairStatus = _status.Text ?? "";
+                    var repairStage = ClassifyRepairOutcome(repairStatus);
+                    var repairVerified = string.Equals(repairStage, "verification_completed", StringComparison.Ordinal);
+                    await CompleteDesktopCommandAsync(client, token, commandId, repairVerified, new
+                    {
+                        action,
+                        source = "local_manager_windows",
+                        app_managed_installer = true,
+                        browser_download = false,
+                        visible_desktop = true,
+                        repair_stage = repairStage,
+                        repair_verified = repairVerified,
+                        status_message = repairStatus,
+                        current_version = CurrentSemVer(),
+                        secrets_included = false
+                    }, repairVerified ? null : "connector_repair_not_verified", repairVerified ? null : repairStatus);
+                    return;
+                }
+                if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "capture_chatgpt_current_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    await CaptureChatGptCurrentUrlCommandAsync(client, token, commandId, payload);
+                    return;
+                }
+                if (string.Equals(action, "codex_exec_readonly", StringComparison.OrdinalIgnoreCase))
+                {
+                    await ExecuteCodexReadOnlyCommandAsync(client, token, commandId, payload);
+                    return;
+                }
+                throw new NotSupportedException("Unsupported desktop action: " + action);
+            }
+            catch (Exception ex)
+            {
+                await CompleteDesktopCommandAsync(client, token, commandId, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message);
+            }
+        }
+
+        private async Task CaptureChatGptCurrentUrlCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        {
+            var action = "capture_chatgpt_current_url";
+            var sessionId = JsonValue(payload, "session_id");
+            var captureEndpoint = JsonValue(payload, "capture_endpoint");
+            var source = JsonValue(payload, "source", "local_connector");
+            var clipboardText = "";
+            try { if (Clipboard.ContainsText()) clipboardText = Clipboard.GetText(); } catch { }
+            var initialUrl = LooksLikeChatGptConversationUrl(clipboardText) ? clipboardText : "";
+            var currentUrl = PromptForChatGptUrl(initialUrl);
+            if (string.IsNullOrWhiteSpace(currentUrl)) throw new InvalidOperationException("No ChatGPT conversation URL was captured.");
+            if (!LooksLikeChatGptConversationUrl(currentUrl)) throw new InvalidOperationException("Captured URL must be a chatgpt.com conversation or share URL.");
+            await CompleteDesktopCommandAsync(client, token, commandId, true, new
+            {
+                action,
+                current_url = currentUrl,
+                session_id = sessionId,
+                capture_endpoint = captureEndpoint,
+                source,
+                next_tool = "gpt_session_conversation_ref_capture_current",
+                handled_by = "local_manager_windows",
+                visible_desktop = true,
+                page_content_included = false,
+                cookies_included = false,
+                secrets_included = false
+            });
+        }
+
+        private static bool LooksLikeChatGptConversationUrl(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)) return false;
+            if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) && !string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!uri.Host.EndsWith("chatgpt.com", StringComparison.OrdinalIgnoreCase)) return false;
+            var path = uri.AbsolutePath;
+            return path.StartsWith("/share/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains("/c/", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/c/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string PromptForChatGptUrl(string initialValue = "")
+        {
+            using var form = new Form
+            {
+                Text = "Capture ChatGPT conversation URL",
+                StartPosition = FormStartPosition.CenterScreen,
+                Size = new Size(720, 220),
+                TopMost = true,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MinimizeBox = false,
+                MaximizeBox = false
+            };
+            var label = new Label
+            {
+                Text = "Paste the current ChatGPT conversation or share URL. No page content, cookies, or tokens are captured.",
+                Location = new Point(18, 18),
+                Size = new Size(660, 42)
+            };
+            var input = new TextBox
+            {
+                Text = initialValue,
+                Location = new Point(18, 70),
+                Size = new Size(660, 30)
+            };
+            var ok = new Button { Text = "Capture", DialogResult = DialogResult.OK, Location = new Point(478, 120), Size = new Size(95, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(585, 120), Size = new Size(95, 34) };
+            form.Controls.AddRange(new Control[] { label, input, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            return form.ShowDialog() == DialogResult.OK ? input.Text.Trim() : "";
+        }
+
+        private async Task ExecuteCodexReadOnlyCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        {
+            var action = "codex_exec_readonly";
+            var commandPath = JsonValue(payload, "command_path", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm", "codex.cmd"));
+            var workingDirectory = JsonValue(payload, "working_directory", @"D:\mad4b-agent-workspaces\growth-intelligence-os-readonly");
+            var prompt = JsonValue(payload, "prompt");
+            var sandbox = JsonValue(payload, "sandbox", "read-only");
+            var timeoutSeconds = Math.Clamp(JsonInt(payload, "timeout_seconds", 300), 30, 1800);
+            var outputMaxChars = Math.Clamp(JsonInt(payload, "output_max_chars", 5000), 500, 20000);
+
+            if (string.IsNullOrWhiteSpace(prompt)) throw new InvalidOperationException("codex_exec_readonly is missing prompt.");
+            if (!string.Equals(sandbox, "read-only", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("codex_exec_readonly requires sandbox=read-only.");
+            if (!File.Exists(commandPath)) throw new FileNotFoundException("Codex command was not found.", commandPath);
+            if (!Directory.Exists(workingDirectory)) throw new DirectoryNotFoundException("Codex working directory was not found: " + workingDirectory);
+
+            Directory.CreateDirectory(Path.Combine(InstallRoot, "codex-runs"));
+            var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var outputPath = Path.Combine(InstallRoot, "codex-runs", $"codex-readonly-output-{stamp}.txt");
+            var lastMessagePath = Path.Combine(InstallRoot, "codex-runs", $"codex-readonly-last-message-{stamp}.txt");
+            var startedAt = DateTimeOffset.UtcNow;
+            _status.Text = "Running Codex read-only analysis…";
+
+            using var process = new Process();
+            process.StartInfo.FileName = commandPath;
+            process.StartInfo.WorkingDirectory = workingDirectory;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add("exec");
+            process.StartInfo.ArgumentList.Add("--cd");
+            process.StartInfo.ArgumentList.Add(workingDirectory);
+            process.StartInfo.ArgumentList.Add("--sandbox");
+            process.StartInfo.ArgumentList.Add("read-only");
+            process.StartInfo.ArgumentList.Add("--color");
+            process.StartInfo.ArgumentList.Add("never");
+            process.StartInfo.ArgumentList.Add("--ephemeral");
+            process.StartInfo.ArgumentList.Add("-o");
+            process.StartInfo.ArgumentList.Add(lastMessagePath);
+            process.StartInfo.ArgumentList.Add(prompt);
+
+            process.Start();
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            var completed = await Task.WhenAny(process.WaitForExitAsync(), Task.Delay(TimeSpan.FromSeconds(timeoutSeconds))) != null && process.HasExited;
+            if (!completed)
+            {
+                try { process.Kill(true); } catch { }
+            }
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+            File.WriteAllText(outputPath, stdout + Environment.NewLine + stderr, Encoding.UTF8);
+            var lastMessage = File.Exists(lastMessagePath) ? await File.ReadAllTextAsync(lastMessagePath, Encoding.UTF8) : "";
+            var exitCode = completed ? process.ExitCode : -1;
+            var ok = completed && exitCode == 0;
+            var durationMs = (long)(DateTimeOffset.UtcNow - startedAt).TotalMilliseconds;
+            var safeStdout = TailText(RedactLocalCommandOutput(stdout), outputMaxChars);
+            var safeStderr = TailText(RedactLocalCommandOutput(stderr), Math.Min(outputMaxChars, 5000));
+            var safeLastMessage = TailText(RedactLocalCommandOutput(lastMessage), outputMaxChars);
+            _status.Text = ok ? "Codex read-only analysis completed." : "Codex read-only analysis failed.";
+            _output.Text = JsonSerializer.Serialize(new { ok, exit_code = exitCode, duration_ms = durationMs, output_path = outputPath, last_message_path = lastMessagePath, secrets_included = false }, _json);
+            await CompleteDesktopCommandAsync(client, token, commandId, ok, new
+            {
+                action,
+                handled_by = "local_manager_windows",
+                visible_desktop = true,
+                command_path = commandPath,
+                working_directory = workingDirectory,
+                sandbox = "read-only",
+                ephemeral = true,
+                exit_code = exitCode,
+                timed_out = !completed,
+                duration_ms = durationMs,
+                output_path = outputPath,
+                last_message_path = lastMessagePath,
+                stdout_tail = safeStdout,
+                stderr_tail = safeStderr,
+                last_message = safeLastMessage,
+                auto_mutate_repo = false,
+                secrets_included = false
+            }, ok ? null : "codex_exec_readonly_failed", ok ? null : (completed ? "Codex exited with code " + exitCode : "Codex timed out."));
+        }
+
+        private async Task CompleteDesktopCommandAsync(HttpClient client, string token, string commandId, bool ok, object result, string? errorCode = null, string? errorMessage = null) { if (string.IsNullOrWhiteSpace(commandId)) return; using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/complete") { Content = JsonContent(new { status = ok ? "completed" : "failed", result, error_code = errorCode, error_message = errorMessage }) }; req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); }
+        private static string JsonValue(JsonElement element, string name, string fallback = "") { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return fallback; var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString(); return string.IsNullOrWhiteSpace(text) ? fallback : text!; }
+        private static int JsonInt(JsonElement element, string name, int fallback) { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback; return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : (int.TryParse(value.ToString(), out var parsed) ? parsed : fallback); }
+        private static string RedactLocalCommandOutput(string value) => Regex.Replace(value ?? "", @"(?i)(access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|secret|authorization|bearer|password)\s*[:=]\s*\S+", "$1=[redacted]");
+        private static string TailText(string value, int maxChars) { var text = value ?? ""; if (text.Length <= maxChars) return text; return "...[truncated]\n" + text.Substring(text.Length - maxChars); }
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
         }
     }
 
+    private sealed class N8nLocalProfile
+    {
+        public string SystemId { get; init; } = "default-local-n8n";
+        public string? InstallationId { get; init; }
+        public string ProfileSource { get; init; } = "app_fallback";
+        public string LifecycleMode { get; init; } = "local_manager_autopilot";
+        public string InstallMode { get; init; } = "npm_global_if_missing";
+        public bool LocalOnly { get; init; } = true;
+        public string CommandPath { get; init; } = N8nCommandPath;
+        public string NpmPrefix { get; init; } = @"D:\npm-global";
+        public string UserFolder { get; init; } = N8nUserFolder;
+        public string LocalUrl { get; init; } = "http://127.0.0.1:5682/";
+        public string PublicUrl { get; init; } = N8nPublicUrl;
+        public int Port { get; init; } = 5682;
+        public string ListenAddress { get; init; } = "127.0.0.1";
+        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5682/";
+        public string WebhookUrl { get; init; } = "http://127.0.0.1:5682/";
+
+        public static N8nLocalProfile Default() => new();
+
+        public static N8nLocalProfile FromJson(JsonElement connector, JsonElement profile)
+        {
+            var fallback = Default();
+            return new N8nLocalProfile
+            {
+                SystemId = GetString(connector, "system_id", fallback.SystemId),
+                InstallationId = GetNullableString(connector, "installation_id"),
+                ProfileSource = GetString(profile, "profile_source", fallback.ProfileSource),
+                LifecycleMode = GetString(profile, "lifecycle_mode", fallback.LifecycleMode),
+                InstallMode = GetString(profile, "install_mode", fallback.InstallMode),
+                LocalOnly = GetBool(profile, "local_only", fallback.LocalOnly),
+                CommandPath = GetString(profile, "command_path", fallback.CommandPath),
+                NpmPrefix = GetString(profile, "npm_prefix", fallback.NpmPrefix),
+                UserFolder = GetString(profile, "user_folder", fallback.UserFolder),
+                LocalUrl = GetString(profile, "local_url", fallback.LocalUrl),
+                PublicUrl = GetString(profile, "public_url", fallback.PublicUrl),
+                Port = GetInt(profile, "port", fallback.Port),
+                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress), TaskBrokerPort = GetInt(profile, "task_broker_port", fallback.TaskBrokerPort), TaskBrokerUrl = GetString(profile, "task_broker_url", fallback.TaskBrokerUrl), TaskBrokerListenAddress = GetString(profile, "task_broker_listen_address", fallback.TaskBrokerListenAddress), LauncherHealthCheckPort = GetInt(profile, "launcher_health_check_port", fallback.LauncherHealthCheckPort),
+                EditorBaseUrl = GetString(profile, "editor_base_url", fallback.EditorBaseUrl),
+                WebhookUrl = GetString(profile, "webhook_url", fallback.WebhookUrl),
+            };
+        }
+
+        private static string GetString(JsonElement element, string name, string fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? fallback : text!;
+        }
+
+        private static string? GetNullableString(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+
+        private static bool GetBool(JsonElement element, string name, bool fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            return value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.String => bool.TryParse(value.GetString(), out var parsed) ? parsed : fallback,
+                _ => fallback,
+            };
+        }
+
+        private static int GetInt(JsonElement element, string name, int fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+            return int.TryParse(value.ToString(), out var parsed) ? parsed : fallback;
+        }
+    }
+
     private sealed class WindowsUpdateInfo
     {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("latest_version")]
-        public string? LatestVersion { get; set; }
-
-        [JsonPropertyName("current_version")]
-        public string? CurrentVersion { get; set; }
-
-        [JsonPropertyName("update_available")]
-        public bool? UpdateAvailable { get; set; }
-
-        [JsonPropertyName("release_notes")]
-        public string[]? ReleaseNotes { get; set; }
+        [JsonPropertyName("ok")] public bool Ok { get; set; }
+        [JsonPropertyName("latest_version")] public string? LatestVersion { get; set; }
+        [JsonPropertyName("current_version")] public string? CurrentVersion { get; set; }
+        [JsonPropertyName("update_available")] public bool? UpdateAvailable { get; set; }
+        [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }
     }
 
-    private sealed class DeviceLinkError
-    {
-        [JsonPropertyName("code")]
-        public string? Code { get; set; }
-
-        [JsonPropertyName("message")]
-        public string? Message { get; set; }
-    }
-
-    private sealed class DeviceLinkStartResponse
-    {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("device_code")]
-        public string? DeviceCode { get; set; }
-
-        [JsonPropertyName("user_code")]
-        public string? UserCode { get; set; }
-
-        [JsonPropertyName("verification_uri")]
-        public string? VerificationUri { get; set; }
-
-        [JsonPropertyName("verification_uri_complete")]
-        public string? VerificationUriComplete { get; set; }
-
-        [JsonPropertyName("poll_token")]
-        public string? PollToken { get; set; }
-
-        [JsonPropertyName("interval")]
-        public int Interval { get; set; } = 3;
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; }
-
-        [JsonPropertyName("error")]
-        public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkPollResponse
-    {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("status")]
-        public string? Status { get; set; }
-
-        [JsonPropertyName("device_access_token")]
-        public string? DeviceAccessToken { get; set; }
-
-        [JsonPropertyName("device")]
-        public DeviceLinkDevice? Device { get; set; }
-
-        [JsonPropertyName("error")]
-        public DeviceLinkError? Error { get; set; }
-    }
-
-    private sealed class DeviceLinkDevice
-    {
-        [JsonPropertyName("device_id")]
-        public string? DeviceId { get; set; }
-    }
 }

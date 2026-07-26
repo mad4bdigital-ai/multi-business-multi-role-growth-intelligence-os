@@ -103,7 +103,7 @@ async function checkAgentSkill(agentId, targetModule) {
   if (!requiredSkillKey) return true;
 
   const [rows] = await getPool().query(
-    `SELECT asg.grant_id FROM agent_skill_grants asg
+    `SELECT asg.grant_id FROM v_effective_agent_skill_grants asg
      JOIN agent_skills ask ON ask.skill_id = asg.skill_id
      WHERE asg.agent_id = ? AND ask.skill_key = ? AND asg.status = 'active'
      LIMIT 1`,

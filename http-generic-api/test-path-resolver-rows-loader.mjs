@@ -188,7 +188,7 @@ function makeDeps() {
       target_key: "arab_cooling",
       mutation_intent: "create_brand_folder"
     },
-    makeDeps()
+    { ...makeDeps(), DATA_SOURCE: "sheets" }
   );
 
   assert.equal(loaded.requested, true);

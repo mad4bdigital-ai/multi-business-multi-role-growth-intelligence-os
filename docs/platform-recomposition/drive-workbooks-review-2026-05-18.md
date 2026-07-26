@@ -144,7 +144,7 @@ Captured sheets:
 - GA Metrics Feed
 - Live Data Sources
 - Live Signal Rules
-- real intelligence layer???
+- Real Intelligence Layer
 - Search Console Feed
 
 ### Business Metrics Warehouse

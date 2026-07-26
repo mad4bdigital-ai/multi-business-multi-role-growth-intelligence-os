@@ -1,6 +1,30 @@
-export function isOAuthConfigured(action) {
-  const fileId = String(action.oauth_config_file_id || "").trim();
-  return fileId !== "" && fileId.toLowerCase() !== "null";
+function parseRuntimeBindingProfile(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const raw = String(value || "").trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function isOAuthConfigured(action = {}) {
+  const profile = parseRuntimeBindingProfile(action.runtime_binding_profile);
+  const strategy = profile.auth_strategy && typeof profile.auth_strategy === "object"
+    ? profile.auth_strategy
+    : {};
+  const allowedAuthTypes = Array.isArray(strategy.allowed_auth_types)
+    ? strategy.allowed_auth_types.map(value => String(value || "").trim().toLowerCase())
+    : [];
+
+  return Boolean(
+    String(action.oauth_config_ref || "").trim() ||
+    String(action.oauth_client_id_ref || "").trim() ||
+    String(action.oauth_client_secret_ref || "").trim() ||
+    allowedAuthTypes.includes("oauth2")
+  );
 }
 
 export function inferAuthMode({ action, brand }) {

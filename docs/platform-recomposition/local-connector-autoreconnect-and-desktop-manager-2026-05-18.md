@@ -102,14 +102,6 @@ Validated behavior:
 - Tenant JWT `GET /local/tools` returns tenant-safe tools only and hides `local.admin.*`.
 - Tenant `local.connector.health` succeeds through device-scoped credentials.
 
-### Admin / break-glass connector
-
-```text
-https://connector.mad4b.com
-```
-
-This remains an admin/break-glass surface. It is not the tenant/member default gateway.
-
 ## Implemented DB metadata
 
 Migration:
@@ -555,7 +547,14 @@ Implementation status as of this doc update:
 - Shared provisioning creates deterministic `lc-*` hostname values.
 - Shared provisioning has helpers to create Cloudflare DNS CNAME and publish tunnel ingress routes.
 - Signed installer generation reads `COALESCE(device_runtime_url, tunnel_url)`.
-- The legacy direct `POST /local-connector/install` route still contains older duplicate provisioning logic and should be refactored to call `provisionLocalConnectorInstall()` directly to avoid drift.
+- Resolved after this review: the active direct `POST /local-connector/install` route delegates to `provisionLocalConnectorInstall()`; regression coverage guards the shared provisioning path.
+
+Operational disable/rotate path:
+
+- `DELETE /local-connector/uninstall` disables the device row and clears stored connector credentials.
+- For record-specific operations such as disabling a reported active `ab` device, use `http-generic-api/scripts/local-connector-device-disable-rotate.mjs`.
+- The script defaults to dry-run. Apply requires `--confirm DISABLE_ROTATE_LOCAL_CONNECTOR_DEVICE`, clears `cf_token`, `connector_secret`, and `connector_local_api_key`, reads back credential presence booleans only, and attempts bounded `execution_log` evidence.
+- It must not print raw connector secrets, Cloudflare tokens, installer bodies, or local API keys.
 
 ## Autopilot customer-selectable route modes
 
@@ -641,6 +640,12 @@ Autopilot behavior expected from the desktop app/bootstrapper:
 9. Keep Cloudflare tunnel as fallback unless customer explicitly disables it.
 10. Never use `connector.mad4b.com` for tenant/customer runtime.
 
+## 2026-05-28 Local Manager capability governance update
+
+Local Manager 0.2.12 now owns connector repair/capability installer application through an app-managed UAC flow. The capability chain is complete only when `/connector-agent/installer.ps1` writes signed capability flags and dynamic grants into the effective connector `.env`; Settings refresh alone is not proof. Validate with live connector probes: `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`.
+
+The 2026-05-28 Essam validation confirmed PowerShell and Windows control enabled by explicit local UAC consent, `D:\\` in `allowed_paths`, and dynamic app alias `cursor--user`. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
+
 ## Sprint 63 runtime governance update
 
 Sprint 63 added Local Manager beta status, route selector smoke, installer/reprovision smoke, GitHub tooling schema smoke, and DB/n8n restore certifier probe aliases.
@@ -656,7 +661,6 @@ The installed `essam-pc` runtime still needs the updated connector installer or 
 ## Next implementation steps
 
 1. Run updated installer/safe-upgrade on `essam-pc`, then verify `db_restore_certify_probe` and `n8n_restore_certify_probe` appear in `connector_shell list`.
-2. Refactor legacy direct `POST /local-connector/install` to call `provisionLocalConnectorInstall()` instead of duplicating provisioning logic.
 2. Implement route selector in `connectorProxyRoutes.js` using `local_connector_device_routes` with fallback.
 3. Add route registration/update endpoints for Desktop Manager.
 4. Add a small regression smoke test for token-gated installer route that checks status/headers without printing installer content.

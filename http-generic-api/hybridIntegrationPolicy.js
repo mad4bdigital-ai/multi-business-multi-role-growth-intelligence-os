@@ -118,13 +118,14 @@ async function readPolicyRows(tenantId) {
   }
 }
 
-export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect" } = {}) {
+export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect", db = null } = {}) {
   const modes = normalizeIntegrationModesObject(integrationModes);
   if (!tenantId || !Object.keys(modes).length) return { updated: 0, skipped: true };
+  const executor = db || getPool();
   let updated = 0;
   for (const [appKey, policy] of Object.entries(modes)) {
     try {
-      await getPool().query(
+      await executor.query(
         `INSERT INTO \`tenant_integration_policies\`
            (tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, notes, status, created_by, updated_by, source)
          VALUES (?,?,?,?,?,?,'active',?,?,?)
@@ -151,7 +152,7 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
       );
       updated += 1;
     } catch (err) {
-      if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) return { updated, skipped: true, reason: err.code };
+      if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) return { updated: 0, skipped: true, reason: err.code };
       throw err;
     }
   }
@@ -206,13 +207,15 @@ export async function assessHybridIntegrationReadiness({ tenantId, userId, conne
     const [rows] = await getPool().query(
       `SELECT connection_id, tenant_id, user_id, app_key, auth_type, display_label,
               account_label, validation_status, status, is_primary,
-              last_validated_at, last_used_at, updated_at
+              last_validated_at, last_used_at,
+              COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at
          FROM \`user_app_connections\`
         WHERE tenant_id = ?
           AND app_key IN (?)
           AND status = 'active'
           AND (? = '' OR user_id = ? OR is_primary = 1)
-        ORDER BY app_key ASC, (user_id = ?) DESC, is_primary DESC, updated_at DESC`,
+        ORDER BY app_key ASC, (user_id = ?) DESC, is_primary DESC,
+                 COALESCE(last_used_at, last_validated_at, connected_at) DESC`,
       [tenantId, appKeys, userId || "", userId || "", userId || ""]
     );
     connectionRows = rows || [];

@@ -18,6 +18,13 @@ import { writeAuditLogAsync } from "./auditLogger.js";
 import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
+import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
+import {
+  dispatchWordpressBlogPublish,
+  isWordpressBlogPublishWorkflow,
+} from "./wordpressBlogPublishOrchestrator.js";
 
 const EXECUTABLE_DECISIONS = new Set([
   "ALLOW_SELF_SERVE",
@@ -25,6 +32,11 @@ const EXECUTABLE_DECISIONS = new Set([
 ]);
 
 const EXECUTABLE_PLAN_STATUSES = new Set(["validated", "approved"]);
+const CONNECTOR_SKILL_MAP = {
+  wordpress: "api.wordpress_write",
+  mcp_connector: "api.make_mcp",
+  content_workflow: "logic.evaluate_pack",
+};
 
 // ── Loaders ───────────────────────────────────────────────────────────────────
 
@@ -63,15 +75,83 @@ async function loadConnectedSystem(tenant_id, brand_key) {
   return rows[0] || null;
 }
 
-async function loadWorkflowDef(workflow_key) {
-  if (!workflow_key) return null;
-  const [rows] = await getPool().query(
-    `SELECT workflow_key, execution_mode, execution_class, target_module, review_required
-     FROM \`workflows\`
-     WHERE workflow_key = ? AND (active = 1 OR active = 'TRUE' OR active = '1') LIMIT 1`,
-    [workflow_key]
-  );
-  return rows[0] || null;
+async function validateAgentSkillGrant(plan, connectorType) {
+  const requiredSkill = CONNECTOR_SKILL_MAP[connectorType];
+  if (!requiredSkill) return { ok: true };
+  if (!plan.agent_id) {
+    return {
+      ok: false,
+      error: {
+        code: "agent_skill_context_required",
+        message: `Connector '${connectorType}' requires an assigned agent before execution.`,
+      },
+    };
+  }
+
+  try {
+    const [skillRows] = await getPool().query(
+      `SELECT sg.grant_id FROM \`v_effective_agent_skill_grants\` sg
+       JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
+       WHERE sg.agent_id = ? AND sk.skill_key = ?
+         AND sg.status = 'active' AND sk.status = 'active'
+         AND (sg.tenant_id IS NULL OR sg.tenant_id = ?)
+         AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
+       LIMIT 1`,
+      [plan.agent_id, requiredSkill, plan.tenant_id]
+    );
+    if (skillRows.length) return { ok: true };
+    return {
+      ok: false,
+      error: {
+        code: "required_agent_skill_grant_missing",
+        message: `Agent '${plan.agent_id}' lacks active skill grant '${requiredSkill}'.`,
+        required_skill: requiredSkill,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "agent_skill_grant_resolution_failed",
+        message: error?.message || "Agent skill grant validation failed.",
+        required_skill: requiredSkill,
+      },
+    };
+  }
+}
+
+async function validateDispatchCapabilityEnvelope(plan, connectorType, apply) {
+  const acceptedAppKeys = connectorType === "wordpress"
+    ? ["wordpress_rest"]
+    : connectorType === "mcp_connector"
+      ? ["make_mcp", "make", "makecom"]
+      : [];
+  const required = connectorType === "mcp_connector" || (connectorType === "wordpress" && apply === true);
+  if (!required) return { ok: true, required: false };
+
+  const steps = Array.isArray(plan.steps_json) ? plan.steps_json : [];
+  const fallbackSources = steps.flatMap((step) => [
+    step,
+    step?.body,
+    step?.arguments,
+    step?.params,
+  ].filter(Boolean));
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    source: plan,
+    fallbackSources,
+    acceptedAppKeys,
+    expectedTenantId: plan.tenant_id || "",
+  });
+  if (resolved.ok) return { ok: true, required: true, envelope_id: resolved.envelope_id };
+  return {
+    ok: false,
+    required: true,
+    error: {
+      code: resolved.status || "capability_resolution_envelope_rejected",
+      message: resolved.message || `Connector '${connectorType}' requires a valid capability resolution envelope.`,
+      envelope_required: true,
+    },
+  };
 }
 
 async function loadAction(action_key) {
@@ -113,7 +193,7 @@ function buildWpContext(brand) {
 
 // ── DB write helpers (all non-throwing) ──────────────────────────────────────
 
-async function createWorkflowRun(run_id, plan, service_mode) {
+async function createWorkflowRun(run_id, trace_id, plan, service_mode) {
   // Resolve agent_id from execution plan if not already on plan object
   let agent_id = plan.agent_id || null;
   if (!agent_id && plan.plan_id) {
@@ -123,19 +203,43 @@ async function createWorkflowRun(run_id, plan, service_mode) {
     agent_id = planRow[0]?.agent_id || null;
   }
 
+  const actorId = plan.user_id || null;
+  const inputContext = {
+    brand_key: plan.brand_key || null,
+    target_key: plan.target_key || null,
+    intent_key: plan.intent_key || null,
+    workflow_id: plan.workflow_id || null,
+    workflow_key: plan.workflow_key || null,
+    trace_id,
+    run_id,
+    secrets_included: false,
+  };
   await getPool().query(
     `INSERT INTO \`workflow_runs\`
-       (run_id, tenant_id, user_id, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
+       (run_id, tenant_id, workspace_id, workspace_key, user_id, actor_id, actor_type,
+        brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+        execution_context_json, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
     [
       run_id,
       plan.tenant_id || null,
+      plan.workspace_id || null,
+      plan.workspace_key || null,
       plan.user_id || null,
+      actorId,
+      actorId ? "user" : "system",
+      plan.brand_id || null,
+      plan.brand_key || plan.target_key || null,
+      plan.request_id || null,
+      plan.session_id || null,
+      plan.conversation_id || null,
+      trace_id || run_id,
+      JSON.stringify({ source: "connector_executor", ...inputContext }),
       plan.workflow_key || "connector_dispatch",
       agent_id,
       plan.plan_id,
       service_mode || "self_serve",
-      JSON.stringify({ brand_key: plan.brand_key, target_key: plan.target_key, intent_key: plan.intent_key }),
+      JSON.stringify(inputContext),
     ]
   );
 }
@@ -156,14 +260,35 @@ async function finaliseWorkflowRun(run_id, final_status, output, error_msg) {
   );
 }
 
-async function createStepRun(run_id, tenant_id, step_key, status, input, output, error_msg) {
+async function createStepRun(run_id, trace_id, plan, step_key, status, input, output, error_msg) {
   try {
+    const stepRunId = randomUUID();
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`step_runs\`
-         (step_run_id, run_id, tenant_id, step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
-       VALUES (?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
+         (step_run_id, run_id, tenant_id, workspace_id, workspace_key, user_id,
+          actor_id, actor_type, brand_id, brand_key, request_id, session_id,
+          conversation_id, correlation_id, execution_context_json,
+          step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
       [
-        randomUUID(), run_id, tenant_id || null, step_key, status,
+        stepRunId,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", run_id, step_run_id: stepRunId, step_key, secrets_included: false }),
+        step_key,
+        status,
         input ? JSON.stringify(input) : null,
         output ? JSON.stringify(output) : null,
         error_msg || null,
@@ -172,13 +297,38 @@ async function createStepRun(run_id, tenant_id, step_key, status, input, output,
   } catch { /* non-blocking */ }
 }
 
-async function createSpan(trace_id, run_id, span_name, status, duration_ms, tenant_id, attrs) {
+async function createSpan(trace_id, run_id, span_name, status, duration_ms, plan, attrs) {
   try {
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`telemetry_spans\`
-         (span_id, trace_id, run_id, tenant_id, span_name, span_type, status, duration_ms, attributes_json, started_at)
-       VALUES (?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
-      [randomUUID(), trace_id, run_id, tenant_id || null, span_name, status, duration_ms || 0, JSON.stringify(attrs || {})]
+         (span_id, trace_id, run_id, tenant_id, workspace_id, workspace_key,
+          user_id, actor_id, actor_type, brand_id, brand_key,
+          request_id, session_id, conversation_id, correlation_id, execution_context_json,
+          span_name, span_type, status, duration_ms, attributes_json, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
+      [
+        randomUUID(),
+        trace_id,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", trace_id, run_id, secrets_included: false }),
+        span_name,
+        status,
+        duration_ms || 0,
+        JSON.stringify(attrs || {}),
+      ]
     );
   } catch { /* non-blocking */ }
 }
@@ -325,16 +475,32 @@ export async function dispatchPlan(plan_id, {
     };
   }
 
-  const [brand, connectedSystem, workflowDef, actionRow] = await Promise.all([
+  const [brand, connectedSystem, workflowResolution, actionRow] = await Promise.all([
     loadBrand(plan.brand_key || plan.target_key),
     loadConnectedSystem(plan.tenant_id, plan.brand_key || plan.target_key),
-    loadWorkflowDef(plan.workflow_key),
+    resolveRuntimeWorkflow({
+      workflow_id: plan.workflow_id,
+      workflow_key: plan.workflow_key,
+    }),
     loadAction(plan.workflow_key || plan.intent_key),
   ]);
+  if (!workflowResolution.ok && workflowResolution.resolution.code !== "workflow_identity_missing") {
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: workflowResolution.resolution.code,
+        message: workflowResolution.resolution.message,
+        resolution: workflowResolution.resolution,
+      },
+    };
+  }
+  const workflowDef = workflowResolution.ok ? workflowResolution.workflow : null;
 
   const isWordpress =
     brand?.auth_type === "basic_auth_app_password" ||
-    connectedSystem?.connector_family === "wordpress";
+    connectedSystem?.connector_family === "wordpress" ||
+    isWordpressBlogPublishWorkflow(plan.workflow_key);
 
   // GAP 6: runtime_capability_class from actions table is authoritative when
   // connector_family is not set on the connected_systems row.
@@ -345,44 +511,60 @@ export async function dispatchPlan(plan_id, {
   const connector_type = isWordpress ? "wordpress" : isMcp ? "mcp_connector" : "content_workflow";
   const service_mode   = plan.service_mode || "self_serve";
 
-  await createWorkflowRun(run_id, plan, service_mode);
-  await getPool().query(
-    "UPDATE `execution_plans` SET plan_status = 'executing' WHERE plan_id = ?",
+  assertPreflightAllowed(await evaluateConnectorDispatchPreflight({
+    plan,
+    connectorType: connector_type,
+    workflowDef,
+    apply,
+  }));
+
+  const capabilityEnvelope = await validateDispatchCapabilityEnvelope(plan, connector_type, apply);
+  if (!capabilityEnvelope.ok) return { ok: false, plan_id, error: capabilityEnvelope.error };
+
+  const skillGrant = await validateAgentSkillGrant(plan, connector_type);
+  if (!skillGrant.ok) return { ok: false, plan_id, error: skillGrant.error };
+
+  const [claim] = await getPool().query(
+    `UPDATE \`execution_plans\`
+     SET plan_status = 'executing'
+     WHERE plan_id = ? AND plan_status IN ('validated', 'approved')`,
     [plan_id]
   );
+  if (claim.affectedRows !== 1) {
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: "plan_already_claimed",
+        message: "Plan dispatch was already claimed or its status changed before execution.",
+      },
+    };
+  }
 
-  // Skill gate: verify the agent is granted the skill required for this connector type.
-  // Fails open (warns but proceeds) when the agent_skill_grants table is absent or empty,
-  // so existing plans remain executable while skills are still being seeded.
-  const CONNECTOR_SKILL_MAP = {
-    wordpress:        "api.wordpress_write",
-    mcp_connector:    "api.make_mcp",
-    content_workflow: "logic.evaluate_pack",
-  };
-  const requiredSkill = CONNECTOR_SKILL_MAP[connector_type];
-  if (requiredSkill && plan.agent_id) {
-    try {
-      const [skillRows] = await getPool().query(
-        `SELECT sg.grant_id FROM \`agent_skill_grants\` sg
-         JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
-         WHERE sg.agent_id = ? AND sk.skill_key = ?
-           AND sg.status = 'active' AND sk.status = 'active'
-           AND (sg.tenant_id IS NULL OR sg.tenant_id = ?)
-           AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
-         LIMIT 1`,
-        [plan.agent_id, requiredSkill, plan.tenant_id]
-      );
-      if (!skillRows.length) {
-        console.warn(
-          `[connectorExecutor] skill gate: agent '${plan.agent_id}' lacks '${requiredSkill}' — proceeding (fail-open until grants are fully seeded)`
-        );
-      }
-    } catch { /* non-blocking — never let skill check break execution */ }
+  try {
+    await createWorkflowRun(run_id, trace_id, plan, service_mode);
+  } catch (error) {
+    await getPool().query(
+      `UPDATE \`execution_plans\`
+       SET plan_status = 'failed'
+       WHERE plan_id = ? AND plan_status = 'executing'`,
+      [plan_id]
+    ).catch(() => {});
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: "workflow_run_create_failed",
+        message: error?.message || "Failed to create workflow run after claiming the plan.",
+      },
+    };
   }
 
   let result, dispatchError;
   try {
-    if (isWordpress) {
+    if (isWordpressBlogPublishWorkflow(plan.workflow_key)) {
+      result = await dispatchWordpressBlogPublish(plan, { ...deps, brand });
+    } else if (isWordpress) {
       const wpContext = buildWpContext(brand);
       if (!wpContext) {
         throw new Error(
@@ -412,7 +594,7 @@ export async function dispatchPlan(plan_id, {
   await Promise.all([
     finaliseWorkflowRun(run_id, final_status, succeeded ? result : null, dispatchError?.message),
     createStepRun(
-      run_id, plan.tenant_id,
+      run_id, trace_id, plan,
       `connector_dispatch.${connector_type}`,
       succeeded ? "completed" : "failed",
       { plan_id, connector_type, apply },
@@ -423,8 +605,10 @@ export async function dispatchPlan(plan_id, {
       "UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?",
       [succeeded ? "completed" : "failed", plan_id]
     ),
-    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan.tenant_id, {
-      plan_id, run_id, connector_type, apply, brand_key: plan.brand_key, workflow_key: plan.workflow_key,
+    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan, {
+      plan_id, run_id, connector_type, apply, brand_key: plan.brand_key,
+      workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
+      workflow_key: plan.workflow_key,
     }),
   ]);
 
@@ -436,19 +620,29 @@ export async function dispatchPlan(plan_id, {
       tenant_id:    plan.tenant_id,
       brand_key:    plan.brand_key || null,
       workflow_key: plan.workflow_key || null,
+      workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
       output:       result.output,
     }).catch(err => console.warn("[outputSinkRouter] non-fatal:", err?.message));
   }
 
   writeAuditLogAsync({
     actor_id: actor_id || plan.user_id || "system",
-    actor_type: "system",
+    actor_type: actor_id || plan.user_id ? "user" : "system",
+    user_id: plan.user_id || null,
+    tenant_id: plan.tenant_id,
+    workspace_id: plan.workspace_id || null,
+    workspace_key: plan.workspace_key || null,
+    brand_id: plan.brand_id || null,
+    brand_key: plan.brand_key || plan.target_key || null,
+    request_id: plan.request_id || null,
+    session_id: plan.session_id || null,
+    conversation_id: plan.conversation_id || null,
+    correlation_id: trace_id,
     action: "connector.dispatch",
     resource_type: "execution_plan",
     resource_id: plan_id,
-    tenant_id: plan.tenant_id,
     outcome: succeeded ? "success" : "failure",
-    metadata: { run_id, trace_id, connector_type, apply, duration_ms },
+    metadata: { run_id, trace_id, connector_type, apply, duration_ms, secrets_included: false },
   });
 
   return {

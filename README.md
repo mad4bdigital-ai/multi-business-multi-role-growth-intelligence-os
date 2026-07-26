@@ -1,4 +1,4 @@
-﻿# Multi-Business Multi-Role Growth Intelligence OS
+# Multi-Business Multi-Role Growth Intelligence OS
 
 **A multi-tenant, Human-Managed, governed-registry-driven execution system — designed for multi-agent workflows within a business intelligence context, collaborative by design, and fully realizing the vision of a Growth AI Intelligence-Human Managed Platform.**
 
@@ -9,6 +9,14 @@ Created by [Essam Nagy](https://nagy.essam.website)
 This repository is the canonical source for that system. It is not primarily a generic web application stack, even though it contains application runtime code.
 
 The architecture is centered on canonical authority documents, registry-backed execution control, validation-first runtime behavior, and governed logging/writeback.
+
+Explicit multi-agent work can run on a tenant-owned Local Manager device through Ollama or a localhost OpenAI-compatible provider, or through the platform-managed runtime. Local execution, settings changes, installation, and managed fallback remain separately controlled actions. See `docs/hybrid-local-managed-agent-runtime.md`.
+
+The planned unified local desktop experience keeps MAD4B Local Desktop as the
+product container and embeds a governed, pinned Hermes Surface workspace. A
+native MAD4B sidecar retains DPAPI, device identity, signed installers, UAC,
+connector recovery, and local command governance. See
+`docs/hermes-surface-local-manager-container-architecture.md`.
 
 ## Canonical authority order
 
@@ -47,18 +55,68 @@ Execution is expected to be:
 
 Execution without validation evidence is not considered complete.
 
+## Interruption readiness gate
+
+Before long tests, branch integration, or runtime-sensitive delivery, run:
+
+```bash
+cd http-generic-api
+npm run readiness:interruptions
+```
+
+The gate dynamically checks Node compatibility, direct dependency resolution,
+mergeability with `origin/main`, sensitive runtime overlap, and worktree/EOL drift.
+It recommends targeted tests for changed sensitive surfaces and writes a JSON report
+when invoked with `--report-file`. The allowlisted sequential plan executor verifies
+evidence freshness before every generated test, writes atomic checkpoints, resumes
+only matching plans, and uses an exclusive execution lease.
+CI runs the merge guard before tests, the dependency guard after `npm ci`, and a
+post-test stale-evidence rejection gate. See
+`docs/interruption-readiness-automation.md`.
+
+## Runtime startup and deployment provenance
+
+The API start lifecycle generates a deployment manifest before loading `server.js`.
+CI also spawns the real server and requires `/version` plus commit evidence, preventing
+top-level route import failures from reaching auto-deploy. Hostinger environments
+must set `DEPLOYMENT_BRANCH` explicitly because detached checkouts and hostname
+fallback are not authoritative branch evidence. See `docs/hostinger-node-deploy.md`
+and `docs/execution-log-hostinger-503-recovery-2026-06-14.md`.
+
+## First value-producing workflow
+
+The first promoted Growth Intelligence path is `tenant_brand_growth_intelligence_pilot_v1`.
+It resolves tenant, brand core, and business activity context and produces JSON/Markdown
+reports, SEO opportunities, a prioritized backlog, approval holds, readback, and audit
+evidence. It is strictly read-only/dry-run: no provider writes, external sends, or secrets.
+Explicit `persistence_mode=internal_registry` stores reports, insights, actions, workflow
+evidence, and approval holds transactionally without dispatching execution.
+Persisted insights have explicit decisions and deterministic supersession; immutable
+readiness assessments can prove human-review readiness but never authorize execution.
+See `docs/growth-intelligence-platform-architecture.md`,
+`docs/growth-intelligence-operational-runbook.md`, and `docs/release-train-policy.md`.
+
+## Sequential plan execution
+
+Multi-step plans can be compiled into durable dependency-aware steps and executed
+one claimed step at a time. The orchestrator records append-only events, bounded
+retries, approval stops, resumable state, and a complete timeline. Approval
+returns work to a ready state but never silently dispatches the next step.
+Plans may also be submitted to the existing background worker with an
+idempotency key so execution does not depend on an open HTTP request.
+See `docs/sequential-plan-orchestration-architecture.md`.
+
 ## Activation alignment rule
 
 Conversation or Custom GPT activation must follow the provider bootstrap chain, not just health diagnostics:
 
 1. health may prove transport reachability only
-2. Admin GPT on `auth.mad4b.com`: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` for the governed same-cycle Drive, Sheets bootstrap, and GitHub chain.
-3. Direct runtime fallback: Drive probe `google_drive_api:listDriveFiles`
-4. Direct runtime fallback: Sheets probe `google_sheets_api:getSheetValues` with `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`
-5. Direct runtime fallback bootstrap row: `query.range=Activation Bootstrap Config!A2:J2`
-6. Direct runtime fallback GitHub validation using bootstrap/registry-resolved action and endpoint keys
+2. Admin GPT on `auth.mad4b.com`: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` for the governed same-cycle Drive, DB-native bootstrap config, and GitHub chain.
+3. Direct runtime fallback: Drive probe `google_drive_api:listDriveFiles`.
+4. Direct runtime fallback: DB-native bootstrap config via `/activation/bootstrap-config` or `activation_bootstrap_config_read`; do not read Google Sheets for activation bootstrap.
+5. Direct runtime fallback GitHub validation using DB bootstrap/registry-resolved action and endpoint keys.
 
-Health, `/status`, release-readiness, tenant listing, brand counts, and action counts are diagnostics only. They must not replace Drive, Sheets bootstrap, or GitHub probes. If Drive or Sheets is skipped while activation tooling is available, classify activation as degraded with `missing_required_provider_bootstrap_attempt`.
+Health, `/status`, release-readiness, tenant listing, brand counts, and action counts are diagnostics only. They must not replace Drive, DB bootstrap config, or GitHub probes. If Drive or DB bootstrap validation is skipped while activation tooling is available, classify activation as degraded with `missing_required_provider_bootstrap_attempt`.
 
 `hard_activation_wrapper` is a routing label only. It must never be sent as a provider `parent_action_key`.
 
@@ -116,7 +174,7 @@ Important governed surfaces (all SQL-primary, `DATA_SOURCE=sql`):
 | `endpoints` | Endpoint keys, method, path, domain |
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
-| `agent_chain_events` | Event bus for inter-agent chaining |
+| `agent_chain_events` | Optional manual-API queue for explicitly approved inter-agent chaining |
 | `local_connector_user_configs` | Per-user device tunnel config, connector_secret |
 | `local_connector_shell_allowlists` | Per-device shell alias allowlists |
 | `local_connector_file_access_rules` | Per-device file path access rules |
@@ -143,9 +201,9 @@ That subtree currently contains:
 - a modularized WordPress migration subsystem
 - a strictly MySQL-backed primary data layer
 
-### Sheets to MySQL data layer
+### SQL-first data layer
 
-The `http-generic-api/` subtree includes a production MySQL-backed data layer alongside Google Sheets. The runtime remains Sheets-first by default (`DATA_SOURCE=sheets`); switch to `dual` or `sql` to route reads through MySQL.
+The `http-generic-api/` subtree includes a production MySQL-backed data layer alongside Google Sheets legacy/recovery support. Runtime execution is SQL-first by default (`DATA_SOURCE=sql`). Use `sheets` only for legacy recovery/bootstrap workflows, and use `dual` only as a transition or recovery mode because async mirroring can drift if it is not monitored.
 
 **Environment variables required:**
 | Variable | Purpose | Default |
@@ -155,7 +213,7 @@ The `http-generic-api/` subtree includes a production MySQL-backed data layer al
 | `DB_NAME` | MySQL database name | (required) |
 | `DB_USER` | MySQL username | (required) |
 | `DB_PASSWORD` | MySQL password | (required) |
-| `DATA_SOURCE` | Routing mode: `sheets` / `dual` / `sql` | `sheets` |
+| `DATA_SOURCE` | Routing mode: `sql` / `dual` / `sheets` | `sql` |
 | `REGISTRY_SPREADSHEET_ID` | Primary Google Sheets workbook ID | (required for CLI scripts) |
 | `ACTIVITY_SPREADSHEET_ID` | Activity log workbook ID | defaults to `REGISTRY_SPREADSHEET_ID` |
 
@@ -214,9 +272,13 @@ Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3
 - `http-generic-api/routes/localConnectorRoutes.js` â€” `POST /local-connector/shell`, `POST /local-connector/file/read`, `POST /local-connector/file/write`, `GET /local-connector/health`.
 - `http-generic-api/routes/localConnectorInstallRoutes.js` â€” `POST /local-connector/install` auto-provisions a Cloudflare tunnel per user/device (CF API + Hostinger DNS), seeds shell allowlist, returns `install.bat`, `install-local-connector.ps1`, `.env`, and `start-connector.bat`. Owner/admin auth uses root env credentials; user/API-client auth resolves Cloudflare and Hostinger credentials from DB app connections. Idempotent for repeat login and new-device routing.
 - `http-generic-api/routes/dispatchRoutes.js` â€” `POST /dispatch` universal intent dispatcher: resolves `intent_key â†’ task_routes â†’ target_module â†’ MODULE_EXECUTORS`, validates agent skill grants, executes or returns routing advice. `GET /dispatch/routes` lists all active routes with `directly_dispatched` flag.
-- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` — admin single-host OpenAPI spec for `auth.mad4b.com`. Generated by `scripts/split-openapi.mjs` from `openapi.yaml` for routes tagged `activation`, `admin-control`, or `system-layer`. Currently 19 ops: activation context, system + admin tool registries (list/call), GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), a small set of admin-CLI surfaces (`getLocalConnectorInstallBundle`, `repairLocalConnector`, `listDnsRecords`), and schema import. All other admin work routes through `callAdminTool` with a registered tool_key. Tenant GPT uses `http-generic-api/openapi.tenant-gpt.auth.yaml` on the same host with OAuth/user-JWT scoping (5 MCP-style meta-ops: `activateSession`, `listTools`, `callTool`, `writeSessionTurn`, `endSession`).
-- `http-generic-api/openapi.gpt-action.local-connector.yaml` — local connector OpenAPI spec for `connector.mad4b.com`, hand-maintained. Eleven ops: health, github, gcloud, shell, files, fetch-upload, shell-fetch-upload, ps (PowerShell), win (Windows UI), n8n, plus connector cf (Cloudflare API).
-- `local-connector/` â€” Node.js break-glass connector running on `mohammedlap` at port 7070, exposed via Cloudflare Tunnel to `connector.mad4b.com`. Also routes `n8n.mad4b.com â†’ localhost:5678`.
+- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` — admin single-host OpenAPI spec for `auth.mad4b.com`. Generated by `scripts/split-openapi.mjs` from `openapi.yaml` for routes tagged `activation`, `admin-control`, or `system-layer`. Currently 23 ops: activation context, system + admin tool registries (list/call), GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), device tools, selected admin-CLI surfaces, and schema/data-source diagnostics. All other admin work routes through `callAdminTool` with a registered tool_key. Tenant GPT uses `http-generic-api/openapi.tenant-gpt.auth.yaml` on the same host with OAuth/user-JWT scoping and remains constrained to five MCP-style operations: `activateSession`, `listTools`, `callTool`, `writeSessionTurn`, and `endSession`.
+- `http-generic-api/openapi.gpt-action.local-connector.yaml` — hand-maintained Admin-only break-glass OpenAPI spec for `connector.mad4b.com`. It points to the standalone local connector, not to `http-generic-api/server.js`. Eleven ops: health, github, gcloud, shell, files, fetch-upload, shell-fetch-upload, ps (PowerShell), win (Windows UI), n8n, plus connector cf (Cloudflare API).
+- `local-connector/` â€” Node.js break-glass connector running on the active admin Windows host at port 7070, exposed via Cloudflare Tunnel to `connector.mad4b.com`. This runtime must remain independently usable when `auth.mad4b.com` / Hostinger `server.js` is unavailable.
+
+### Local Manager capability installer chain
+
+Local Manager 0.2.16 owns connector repair/capability installer application through an app-managed UAC flow. It registers the per-user installation in Windows Installed Apps, supports explicit and quiet uninstall commands, shows supported app grant templates alongside installed-app discovery, checks the `cloudflared` and `local-connector` service footprint after startup or device linking, and blocks privileged Repair/Capabilities flows until the app confirms it is current. Polling diagnostics classify DNS, Cloudflare tunnel 1033/HTTP 530, platform-origin 502/503/504, rate-limit, timeout, and transport failures without exposing secrets. It requests signed no-pause BAT bootstraps, downloads to an exclusive `.download` temporary file, flushes and closes it, moves the completed BAT into place, then performs size and SHA validation with bounded read-lock retries. Capability activation is not considered complete from Settings refresh alone; verify live connector behavior through `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
 
 ### Migrations (032â€“035)
 
@@ -229,14 +291,14 @@ Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3
 
 ### Custom GPT - auth-host + local connector architecture
 
-Both Custom GPT assistants use `auth.mad4b.com` as the governed control-plane client and may use a standalone local connector action when local-device execution is required:
+Custom GPT assistants use `auth.mad4b.com` as the governed control-plane client. The standalone direct connector is Admin-only break-glass, not a shared tenant surface:
 
-- **Admin Platform** (`openapi.custom-gpt.auth-dispatcher.yaml` -> `auth.mad4b.com`): 19 ops covering activation context, system + admin tool registries, the GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), and a small set of admin-CLI surfaces; all other admin work routes through `callAdminTool` with a registered tool_key from `admin_platform_endpoint_tools`. Auth: admin/service `BACKEND_API_KEY`.
-- **Tenant Platform** (`openapi.tenant-gpt.auth.yaml` -> `auth.mad4b.com`): 5 MCP-style meta-ops (`activateSession`, `listTools`, `callTool`, `writeSessionTurn`, `endSession`); tool_keys resolved through `tenant_platform_endpoint_tools`. Auth: tenant OAuth/user JWT.
-- **Local Connector** (`openapi.gpt-action.local-connector.yaml` -> `connector.mad4b.com`, or `connect.mad4b.com` if configured as the connector host alias): 11-op standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the admin Windows device.
+- **Admin Platform** (`openapi.custom-gpt.auth-dispatcher.yaml` -> `auth.mad4b.com`): 23 ops covering activation context, system + admin tool registries, the GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), device tools, selected admin-CLI surfaces, and schema/data-source diagnostics; all other admin work routes through `callAdminTool` with a registered tool_key from `admin_platform_endpoint_tools`. Auth: admin/service `BACKEND_API_KEY`.
+- **Tenant Platform** (`openapi.tenant-gpt.auth.yaml` -> `auth.mad4b.com`): five OAuth/user-JWT scoped MCP-style operations: activation, registry-backed tool list/call, session turn, and session end. Tenant capability expansion happens through governed `/gpt/tools` and `/gpt/tools/call` registry bindings, never by adding direct platform-management or provider routes to the tenant schema. Auth: tenant OAuth/user JWT. Tenant GPTs must not include the standalone `connector.mad4b.com` action.
+- **Local Connector** (`openapi.gpt-action.local-connector.yaml` -> `connector.mad4b.com`, or `connect.mad4b.com` if configured as the connector host alias): 11-op Admin-only standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows device. Auth: standalone `CONNECTOR_SECRET`; runtime: Cloudflare Tunnel to `local-connector/server.mjs`, not Hostinger `http-generic-api/server.js`.
 - **Self-serve setup** (`https://auth.mad4b.com/connect`): signup/signin, DB credential capture for Cloudflare + Hostinger, new-device install bundle generation, and Custom GPT redirect.
 
-The local connector is intentionally a separate plugin/action because it connects to a local environment. Use the auth-host system layer first for discovery, policy, and runtime validation; call the connector only for approved local execution or explicit break-glass recovery.
+The local connector is intentionally a separate plugin/action because it connects to a local environment and must remain available when the auth-host control plane is unavailable. Use the auth-host system layer first for discovery, policy, and runtime validation; call the direct connector only for explicit admin break-glass recovery or local reachability checks.
 
 **Schema coverage rule:** `openapi.yaml` is the single source of truth for every callable HTTP route. Every `http_path` registered in `admin_platform_endpoint_tools` or `tenant_platform_endpoint_tools` must also be documented there. As of 2026-05-16, all 33 admin and 17 tenant tool paths are documented. When adding a new DB-registered tool, add the route to `openapi.yaml` in the same change, then re-run `node scripts/split-openapi.mjs`. Routes tagged `activation`, `admin-control`, or `system-layer` become direct dispatcher operations; everything else (e.g. `connector-proxy`, `tenant-connect`, `local-connector`) stays documentation-only and is reached through `callAdminTool` / `callTool`.
 
@@ -254,14 +316,51 @@ The local connector is intentionally a separate plugin/action because it connect
 - `authCredentialResolution.js`, `userAppConnectionCredentials.js`, `authInjection.js`, `executionPreparation.js`, and `routes/systemLayerRoutes.js` — parent-action external auth strategy: exported tools can resolve platform, user, tenant, or explicit connection credentials at runtime
 - MCP connector branch added: `makecom_mcp` dispatches via JSON-RPC 2.0 to Make MCP stateless endpoint
 
+## Platform Plugin smoke certification governance
+
+The Platform Plugin dispatch track is governed through smoke certification, recertification policy, audit history, and rollback controls.
+
+Current checkpoint: complete through Phase 44 as of 2026-05-28.
+
+Key docs:
+
+- [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md) — guarded REST dispatch, provider smoke, certification, expiry, and drift gates.
+- [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md) — recertification policy registry, queue, batch, policy audit, history, and rollback.
+- [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md) — completed phases 31-44 and planned phases 45-50.
+
+Current live proof target:
+
+```text
+plugin_key: tenant.nagy_sample_crm_20260525
+action_key: crm.contact.list
+mock target: /platform/mock-providers/crm/contacts
+result: guarded provider smoke dispatch returns HTTP 200 with secrets_included=false
+```
+
+Operational rule: a Platform Plugin action must not become `dispatch_ready` or promotion-ready unless it has a valid smoke certification. Certifications expire, can drift, and are regulated by policy. Risky future policy changes should move through approval hold before apply.
+
 ## Upgrade direction
 
-All 9 upgrade phases are complete. The project is in a production-ready, fully governed state.
+All 9 upgrade phases are complete. Supervisor-agent source contracts are readiness-gated and must not be treated as production-active unrestricted parallel execution without current live-schema and controlled-tenant behavioral evidence.
+
+Run the repeatable readiness checks from `http-generic-api/`:
+
+```powershell
+npm run supervisor:readiness
+npm run supervisor:readiness:live
+```
+
+The live command is read-only: it checks schema metadata plus active route/grant and fallback-agent relationships. See [`docs/supervisor-agent-runtime-readiness.md`](docs/supervisor-agent-runtime-readiness.md) for enforced guarantees and activation boundaries.
+
+The bounded causal provider-lane certification is admin-only and must run through `auth.mad4b.com` with list-before-call discovery. It proves one synthetic plan-to-workflow-run-to-provider path with zero tools, local execution, repository mutation, or secret return; it does not authorize unrestricted master-agent execution. See [`docs/execution-log-supervisor-provider-certification-2026-06-15.md`](docs/execution-log-supervisor-provider-certification-2026-06-15.md).
+
+Sub-agent delegation is optional and fail-closed. `linked_workflows` never dispatch automatically; creation and single-event dispatch require explicit `manual_api` opt-in through governed APIs, and fallback agents require a separate opt-in flag. See [`docs/optional-manual-agent-delegation.md`](docs/optional-manual-agent-delegation.md).
 
 Ongoing priorities:
 - maintain canonical/runtime alignment on every change
 - keep test coverage and architecture checks green
 - treat deployment parity as a required verification step, not optional
+- adopt governance checklist changes only when they match the current repo boundaries; see [`docs/governance-adoption.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/docs/governance-adoption.md>)
 
 ## Documentation map
 
@@ -278,8 +377,20 @@ Operations and validation:
 - [`governed_mutation_playbook.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/governed_mutation_playbook.md>)
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`docs/external-endpoint-auth-strategy.md`](docs/external-endpoint-auth-strategy.md)
+- [`docs/live-repo-knowledge-loading-governance.md`](docs/live-repo-knowledge-loading-governance.md)
+- [`docs/ai-docs-agent-governance.md`](docs/ai-docs-agent-governance.md)
+- [`docs/openrouter-docs-agent-provider-contract.md`](docs/openrouter-docs-agent-provider-contract.md)
+- [`docs/codex-dual-mode-tenant-policy.md`](docs/codex-dual-mode-tenant-policy.md)
+- [`docs/dynamic-capability-resolution-graph.md`](docs/dynamic-capability-resolution-graph.md)
+- [`docs/auto-docs-agent/README.md`](docs/auto-docs-agent/README.md)
+- [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md)
+- [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md)
+- [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md)
 - [`deployment_parity_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/deployment_parity_checklist.md>)
 - [`docs/development-environment-governance.md`](docs/development-environment-governance.md)
+- [`docs/hostinger-node-deploy.md`](docs/hostinger-node-deploy.md)
+- [`http-generic-api/docs/hostinger-runtime-sync-runbook.md`](http-generic-api/docs/hostinger-runtime-sync-runbook.md)
+- [`docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`](docs/tenant-wordpress-validation-collation-repair-2026-06-06.md)
 - [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)
 
 Agent-facing guide:
@@ -317,7 +428,7 @@ Do not edit generated root canonical files directly. The authoritative canonical
 ## Documentation Integrity Architecture
 This repository employs a strict cross-referencing documentation pattern to ensure AI Agents and future developers maintain context when the code changes:
 1. **Central Canonical Enforcement:** Any behavioral change in the backend must be reflected in the relevant `canonicals/` source files, followed by `node build-canonicals.mjs`.
-2. **Agent Knowledge Guide:** `AI_Agent_Knowledge_Guide.md` represents the runtime persona. If structural constraints change (e.g., placeholder auto-resolution for `<activation_bootstrap_spreadsheet_id>`), they must be updated there.
+2. **Agent Knowledge Guide:** `AI_Agent_Knowledge_Guide.md` represents the runtime persona. If structural constraints change (e.g., DB-native activation bootstrap authority through `/activation/bootstrap-config`), they must be updated there.
 3. **Architectural Maps:** Files like `runtime_boundary_map.md` and `runtime_confirmation_procedure.md` outline execution topologies. 
 **Rule:** When you update one layer (e.g., extracting `server.js` to `stateManager.js`), trace the update across the Canonical sources, the Agent Knowledge Guide, and the Architectural Maps to maintain absolute documentation parity.
 
@@ -380,3 +491,24 @@ For ongoing operations:
 - CI runs automatically on every push/PR (canonical checks -> memory schema refs -> syntax -> tests -> architecture drift -> export floor)
 
 This repository should be approached as a governed operating model with executable runtime modules, not as a conventional app-first project.
+Agent behavior governance, internal-first research routing, opaque handoffs, prompt quarantine, and skill runtime coverage are documented in [docs/agent-governance-runtime-architecture.md](docs/agent-governance-runtime-architecture.md).
+
+
+### Spec Kit and resource API coverage
+
+- `.specify/` contains the repository constitution and reusable feature/spec/plan/task/checklist templates.
+- `specs/` contains approved feature specifications and contracts.
+- `http-generic-api/resource-api-coverage.manifest.json` is the logical resource and operation coverage authority.
+- `http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed` blocks new uncovered tables, views, routes, or tool exports.
+- `GET /admin/resource-coverage/audit` performs bounded live discovery of legacy coverage debt.
+#### Resource API layer boundaries
+
+Resource API code follows an enforced transport/application/domain/infrastructure split:
+
+- `routes/resourceApiRoutes.js`: route registration and JWT transport boundary only.
+- `src/api/resourceApi/`: HTTP mapping and structured error responses.
+- `src/application/resourceApi/`: membership, authorization, lifecycle, audit, and same-cycle readback orchestration.
+- `src/domain/resourceApi/`: resource descriptors, capabilities, pagination, and invariants.
+- `src/infrastructure/resourceApi/`: SQL repositories and dependency composition.
+
+`node test-resource-api-architecture.mjs` is a blocking CI test that rejects SQL or database imports above the infrastructure layer. See `docs/folder-map.md` and `docs/adr-2026-06-22-resource-api-layer-boundaries.md`.

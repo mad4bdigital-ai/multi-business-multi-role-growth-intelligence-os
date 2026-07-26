@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildSessionArchivePath,
   previewText,
@@ -21,6 +22,31 @@ function flattenParams(value) {
   if (Array.isArray(value)) return value.flatMap(flattenParams);
   if (value && typeof value === "object") return Object.values(value).flatMap(flattenParams);
   return [value];
+}
+
+{
+  const migration = readFileSync("migrations/110_sprint62u_session_turn_sql_content_cleanup.sql", "utf8");
+  assert(migration.includes("MODIFY COLUMN `content` TEXT NULL"), "migration must allow null SQL content");
+  assert(migration.includes("'preview_only'"), "migration must add preview_only storage mode");
+  assert(migration.includes("SET `content` = NULL"), "migration must clear legacy SQL turn content");
+  assert(migration.includes("SET `storage_mode` = 'preview_only'"), "migration must convert legacy inline rows");
+}
+
+{
+  const migration = readFileSync("migrations/243_sprint68_gpt_session_archive_doc_rollover.sql", "utf8");
+  assert(migration.includes("drive_doc_part_index"), "migration must add current doc part index");
+  assert(migration.includes("drive_doc_part_count"), "migration must add doc part count");
+  assert(migration.includes("drive_doc_part` SMALLINT"), "migration must add per-turn doc part metadata");
+}
+
+{
+  const service = readFileSync("sessionArchiveService.js", "utf8");
+  const uploadPipeline = readFileSync("uploadPipeline.js", "utf8");
+  assert(service.includes("SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns`"), "archive service should refresh turn index before writing");
+  assert(service.includes("effectiveTurnIndex < nextAvailable"), "archive service should avoid stale duplicate turn indexes");
+  assert(uploadPipeline.includes("isRetryableGoogleDocAppendError"), "Google Doc append should classify retryable stale-precondition errors");
+  assert(uploadPipeline.includes("maxAttempts = 3"), "Google Doc append should retry bounded attempts");
+  assert(uploadPipeline.includes("Precondition") || uploadPipeline.includes("precondition"), "Google Doc append should retry precondition failures");
 }
 
 {
@@ -88,7 +114,9 @@ function flattenParams(value) {
     session: {
       session_id: "sess-1",
       tenant_id: "tenant-1",
+      workspace_key: "workspace-1",
       user_id: "user-1",
+      brand_key: "brand-1",
       started_at: "2026-05-16T10:00:00.000Z",
     },
     role: "assistant",
@@ -100,9 +128,16 @@ function flattenParams(value) {
 
   assert.equal(result.archive_status, "ready");
   assert.equal(result.drive_doc_id, "doc-1");
+  assert(
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready" && call.params[1] === null),
+    "successful Drive writes should self-heal stale archive write_failed status"
+  );
   assert(driveWrites.docText.includes(fullContent), "full content should be written to Drive doc");
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "Drive doc should include a stable text bookmark marker");
   assert(driveWrites.docText.includes("### Runtime Event"), "Drive doc should include runtime event metadata");
   assert(driveWrites.docText.includes('"action_key": "example_action"'), "Drive doc should include action metadata");
+  assert(driveWrites.docText.includes('"doc_content_mode": "full_turn_text"'), "user/assistant turns should be marked as full text in the Doc");
+  assert(driveWrites.docText.includes('"full_content_storage": "jsonl_sidecar"'), "Drive doc should point to JSONL as full-fidelity storage");
   assert(!driveWrites.docText.includes(`"content": "${fullContent}`), "Drive doc metadata should not duplicate full content JSON");
   assert(driveWrites.jsonl.includes(fullContent), "full content should be written to Drive JSONL");
   assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullContent, "JSONL should remain parseable full-fidelity content");
@@ -110,13 +145,245 @@ function flattenParams(value) {
   const sqlParamStrings = pool.calls.flatMap((call) => flattenParams(call.params)).filter((value) => typeof value === "string");
   assert(!sqlParamStrings.includes(fullContent), "SQL params must not contain the full turn content");
   assert(sqlParamStrings.some((value) => value.includes("...[truncated]")), "SQL should contain a bounded preview");
+  const turnInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `gpt_session_turns`"));
+  assert(turnInsert, "turn write should index gpt_session_turns");
+  assert.match(turnInsert.sql, /tenant_id/);
+  assert.match(turnInsert.sql, /workspace_key/);
+  assert.match(turnInsert.sql, /brand_key/);
+  assert.match(turnInsert.sql, /execution_context_json/);
+  assert.equal(turnInsert.params[1], "tenant-1");
+  assert.equal(turnInsert.params[2], "workspace-1");
+  assert.equal(turnInsert.params[3], "user-1");
+  assert.equal(turnInsert.params[5], "user");
+  assert.equal(turnInsert.params[6], "brand-1");
+  assert.equal(turnInsert.params[12], null, "gpt_session_turns.content must stay null for Drive-mode archival");
+  assert.equal(turnInsert.params[14], previewText(fullContent), "bounded preview should live only in content_preview");
+  assert.equal(turnInsert.params[18], "drive", "Drive archive writes should keep storage_mode=drive");
+  const eventInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `session_events`"));
+  assert(eventInsert, "turn write should index session_events");
+  assert.match(eventInsert.sql, /workspace_key/);
+  assert.match(eventInsert.sql, /brand_key/);
+  assert.match(eventInsert.sql, /correlation_id/);
+  assert.equal(eventInsert.params[3], "tenant-1");
+  assert.equal(eventInsert.params[4], "workspace-1");
+  assert.equal(eventInsert.params[5], "user-1");
+  assert.equal(eventInsert.params[7], "user");
+  assert.equal(eventInsert.params[8], "brand-1");
+  assert.equal(eventInsert.params[10], "example_action");
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { folders: [], docText: "", jsonl: "" };
+  const fullToolContent = [
+    "Tool: admin_control",
+    "Status: HTTP 200 ok=true",
+    "",
+    "Args:",
+    JSON.stringify({ tool: "github", args: ["run", "view", "123", "--log-failed"] }, null, 2),
+    "",
+    "Result:",
+    `{"stdout":"${"very long tool output ".repeat(200)}"}`,
+  ].join("\n");
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T12:15:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { driveWrites.folders.push({ name, parentId }); return `${parentId}/${name}`; },
+    async createGoogleDocInDrive(_name, _parentId, initialText) { driveWrites.docText += initialText; return { drive_file_id: "doc-tool", drive_web_url: "https://drive/doc-tool" }; },
+    async appendTextToGoogleDoc(_docId, text) { driveWrites.docText += text; },
+    async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+  };
+
+  await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-tool",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "tool",
+    content: fullToolContent,
+    action_key: "admin_control",
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "tool sections should include a stable bookmark marker");
+  assert(driveWrites.docText.includes("### Tool Call Summary"), "tool sections should be summarized in the readable Google Doc");
+  assert(driveWrites.docText.includes("Full content: JSONL sidecar"), "tool summaries should point to JSONL for full fidelity");
+  assert(driveWrites.docText.includes('"doc_content_mode": "summary_only"'), "tool runtime metadata should disclose summary-only doc content");
+  assert(!driveWrites.docText.includes(fullToolContent), "Google Doc should not contain the full tool dump");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullToolContent, "tool JSONL should remain parseable full-fidelity content");
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { jsonl: "" };
+  const fullContent = "partial archive still writes JSONL full content";
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T12:30:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive() { return { drive_file_id: "doc-partial", drive_web_url: "https://drive/doc-partial" }; },
+    async createGoogleDocFromTextInDrive(_name, _parentId, text) {
+      driveWrites.rebuiltDocText = text;
+      return { drive_file_id: "doc-rebuilt", drive_web_url: "https://drive/doc-rebuilt" };
+    },
+    async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
+    async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial", drive_web_url: "https://drive/jsonl-partial" }; },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial" }; },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-partial",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "assistant",
+    content: fullContent,
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready_rebuilt");
+  assert.equal(result.archive_error, null);
+  assert.equal(result.drive_doc_id, "doc-rebuilt");
+  assert(driveWrites.jsonl.includes(fullContent), "JSONL sidecar should still receive full content when Doc append fails");
+  assert(driveWrites.rebuiltDocText.includes(fullContent), "rebuilt Google Doc should be rendered from full JSONL content");
+  assert(driveWrites.rebuiltDocText.includes("rebuilt_from_jsonl"), "rebuilt Google Doc should carry rebuild evidence");
   assert(
-    pool.calls.some((call) => call.sql.includes("INSERT INTO `gpt_session_turns`")),
-    "turn write should index gpt_session_turns"
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_rebuilt"),
+    "successful Doc rebuild should mark the session ready_rebuilt rather than ready_partial"
+  );
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { jsonl: "", textSnapshot: "" };
+  const fullContent = "text snapshot fallback preserves full transcript content";
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T13:00:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive() { return { drive_file_id: "doc-snapshot", drive_web_url: "https://drive/doc-snapshot" }; },
+    async createGoogleDocFromTextInDrive() { throw new Error("Bad Request"); },
+    async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
+    async uploadContentToDrive(content, filename, mimeType) {
+      if (mimeType === "text/plain") {
+        driveWrites.textSnapshot = content;
+        driveWrites.textSnapshotFilename = filename;
+        return { drive_file_id: "txt-rebuilt", drive_web_url: "https://drive/txt-rebuilt" };
+      }
+      driveWrites.jsonl = content;
+      return { drive_file_id: "jsonl-snapshot", drive_web_url: "https://drive/jsonl-snapshot" };
+    },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-snapshot" }; },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-snapshot",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "assistant",
+    content: fullContent,
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready_text_snapshot");
+  assert.equal(result.archive_error, null);
+  assert.equal(result.drive_doc_id, "txt-rebuilt");
+  assert.match(driveWrites.textSnapshotFilename, /Session_Transcript_Rebuilt_/);
+  assert(driveWrites.textSnapshot.includes(fullContent), "text snapshot should be rendered from full JSONL content");
+  assert(driveWrites.textSnapshot.includes("rebuilt_from_jsonl"), "text snapshot should preserve rebuild evidence");
+  assert(
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_text_snapshot"),
+    "Google Doc import fallback should mark the session ready_text_snapshot"
+  );
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { docs: new Map([["doc-1", "existing transcript text ".repeat(80)]]), jsonl: "", createdDocNames: [] };
+  const session = {
+    session_id: "sess-rollover",
+    tenant_id: "tenant-1",
+    user_id: "user-1",
+    started_at: "2026-05-16T10:00:00.000Z",
+    drive_folder_id: "folder-rollover",
+    drive_doc_id: "doc-1",
+    drive_doc_url: "https://drive/doc-1",
+    drive_doc_part_index: 1,
+    drive_doc_part_count: 1,
+    drive_jsonl_id: "jsonl-rollover",
+    drive_jsonl_url: "https://drive/jsonl-rollover",
+  };
+  const fullContent = "rollover turn content ".repeat(40);
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    docRolloverChars: 1200,
+    now: () => new Date("2026-05-16T14:00:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive(name, _parentId, initialText) {
+      const id = `doc-${driveWrites.docs.size + 1}`;
+      driveWrites.createdDocNames.push(name);
+      driveWrites.docs.set(id, initialText);
+      return { drive_file_id: id, drive_web_url: `https://drive/${id}` };
+    },
+    async appendTextToGoogleDoc(docId, text) {
+      driveWrites.docs.set(docId, `${driveWrites.docs.get(docId) || ""}${text}`);
+    },
+    async uploadContentToDrive() { throw new Error("should not create a new JSONL when archive already exists"); },
+    async fetchDriveContent(fileId) {
+      if (driveWrites.docs.has(fileId)) return driveWrites.docs.get(fileId);
+      if (fileId === "jsonl-rollover") return driveWrites.jsonl;
+      return "";
+    },
+    async updateDriveFileContent(_fileId, content) {
+      driveWrites.jsonl = content;
+      return { drive_file_id: "jsonl-rollover" };
+    },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session,
+    role: "assistant",
+    content: fullContent,
+    action_key: "rollover_action",
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready");
+  assert.equal(result.drive_doc_id, "doc-2", "large append should roll over to a new transcript doc part");
+  assert.equal(result.drive_doc_part, 2, "turn write should report the new doc part");
+  assert.equal(driveWrites.createdDocNames[0], "Session Transcript Part 2");
+  assert(!driveWrites.docs.get("doc-1").includes(fullContent), "old doc part should not receive the new turn after rollover");
+  assert(driveWrites.docs.get("doc-2").includes("Transcript Part: 2"), "new doc part should include part heading");
+  assert(driveWrites.docs.get("doc-2").includes(fullContent), "new doc part should receive the turn content");
+  assert(driveWrites.docs.get("doc-2").includes('"drive_doc_part": 2'), "runtime metadata should disclose the doc part");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).drive_doc_id, "doc-2", "JSONL should point at the effective doc part");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).drive_doc_part, 2, "JSONL should retain doc part metadata");
+  assert(
+    pool.calls.some((call) => call.sql.includes("drive_doc_part_index") && call.params.includes("doc-2")),
+    "customer_sessions should be updated to the current transcript part"
   );
   assert(
-    pool.calls.some((call) => call.sql.includes("INSERT INTO `session_events`")),
-    "turn write should index session_events"
+    pool.calls.some((call) => call.sql.includes("SET drive_doc_part = ?") && call.params[0] === 2),
+    "gpt_session_turns drive_doc_part should be populated when the column exists"
   );
 }
 

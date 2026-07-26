@@ -33,6 +33,7 @@ import {
   makeActivationSheetsBackoffKey
 } from "./activationBootstrapCache.js";
 import { buildActivationEnvelope } from "./activationResponse.js";
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
 function buildActivationEnvelopeFromEvidence(evidence = {}) {
   return buildActivationEnvelope(evidence);
@@ -174,6 +175,7 @@ export function buildArtifactFileName(input = {}) {
 
 function normalizeAssociationStatus(value = "") {
   const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "not_associated";
   if (normalized === "associated") return "associated";
   if (normalized === "not_associated") return "not_associated";
   return "unknown";
@@ -341,7 +343,7 @@ export function buildEngineEvidenceFromWorkflow({
       used_engine_registry_refs: used_engine_registry_refs ?? "",
       used_engine_file_ids: used_engine_file_ids ?? "",
       engine_resolution_status: engine_resolution_status ?? "",
-      engine_association_status: engine_association_status ?? "unknown"
+      engine_association_status: engine_association_status ?? "not_associated"
     };
   }
 
@@ -358,7 +360,7 @@ export function buildEngineEvidenceFromWorkflow({
       used_engine_registry_refs: "",
       used_engine_file_ids: "",
       engine_resolution_status: engine_resolution_status ?? "",
-      engine_association_status: engine_association_status ?? "unknown"
+      engine_association_status: engine_association_status ?? "not_associated"
     };
   }
 
@@ -807,7 +809,7 @@ export function evaluateWritebackSmokeSuite(args = {}) {
 }
 
 export async function persistOversizedArtifact(input = {}) {
-  const { drive } = await getGoogleClients();
+  const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
   const artifact_file_name = buildArtifactFileName({
     brand_name: input.brand_name || input.target_key || "unknown_brand",
     endpoint_key: input.endpoint_key,
@@ -1782,7 +1784,10 @@ export async function executeUpstreamAttempt({
 
   const upstream = providerFetchResult.upstream;
 
-  const contentType = upstream.headers.get("content-type") || "";
+  const upstreamContentType = upstream.headers.get("content-type") || "";
+  const contentType = isRawTextResponseRequest(requestPayload, upstreamContentType)
+    ? "text/plain"
+    : upstreamContentType;
   let data;
   let responseText = "";
 

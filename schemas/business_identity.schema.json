@@ -22,7 +22,6 @@
           "type": "string",
           "enum": [
             "document",
-            "spreadsheet",
             "knowledge_file",
             "database",
             "api",
@@ -30,10 +29,6 @@
           ]
         },
         "file_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "gid": {
           "type": "string",
           "minLength": 1
         },
@@ -54,20 +49,25 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "spreadsheet_id",
-            "sheet_name"
+            "registry_source",
+            "registry_table"
           ],
           "properties": {
-            "spreadsheet_id": {
+            "registry_source": {
+              "type": "string",
+              "enum": [
+                "sql_primary",
+                "recovery_import"
+              ],
+              "default": "sql_primary"
+            },
+            "registry_table": {
               "type": "string",
               "minLength": 1
             },
-            "sheet_name": {
+            "registry_row_id": {
               "type": "string",
-              "minLength": 1
-            },
-            "sheet_title": {
-              "type": "string"
+              "default": ""
             }
           }
         },
@@ -84,26 +84,7 @@
           "default": {},
           "additionalProperties": true
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "file_type": {
-                "const": "spreadsheet"
-              }
-            },
-            "required": [
-              "file_type"
-            ]
-          },
-          "then": {
-            "required": [
-              "gid"
-            ]
-          }
-        }
-      ]
+      }
     },
     "sessionContext": {
       "type": "object",

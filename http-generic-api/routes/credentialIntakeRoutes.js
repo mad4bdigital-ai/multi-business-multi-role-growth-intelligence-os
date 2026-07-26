@@ -3,6 +3,15 @@ import { randomUUID, createHash, randomBytes } from "node:crypto";
 import { getPool } from "../db.js";
 import { encryptCredentials } from "../tokenEncryption.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
+import { enqueueCredentialIntakeCompletedWebhook } from "../webhookDeliveryDispatcher.js";
+import { atomicallyConsumeCredentialIntakeSession } from "../credentialIntakeSingleUse.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
+import { promoteCredentialIntakePlatformSecrets } from "../services/platformSecretPromotionService.js";
+import {
+  buildCredentialIntakeBinding,
+  normalizeCredentialIntakeRedirect,
+  validateCredentialIntakeSessionSecurity,
+} from "../credentialIntakeBindingPolicy.js";
 
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
@@ -17,10 +26,12 @@ const ALLOWED_AUTH_TYPES = new Set([
   "oauth2",
   "custom_headers",
   "client_credentials",
+  "ssh_key_pair",
+  "remote_database",
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
-const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "select", "checkbox"]);
+const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "json", "select", "checkbox"]);
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
@@ -121,6 +132,23 @@ function defaultCredentialSchema(authType) {
       { name: "scope", label: "Scope", type: "text", target: "metadata", required: false, secret: false },
     ];
   }
+  if (authType === "ssh_key_pair") {
+    return [
+      { name: "ssh_host", label: "SSH host", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_port", label: "SSH port", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_user", label: "SSH username", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "ssh_private_key", label: "SSH private key", type: "textarea", target: "credentials", required: true, secret: true, autocomplete: "new-password", help: "Paste the private key. It is encrypted server-side and never shown again." },
+    ];
+  }
+  if (authType === "remote_database") {
+    return [
+      { name: "db_host", label: "DB_HOST", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_port", label: "DB_PORT", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_name", label: "DB_NAME", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_user", label: "DB_USER", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "db_password", label: "DB_PASSWORD", type: "password", target: "credentials", required: true, secret: true, autocomplete: "new-password" },
+    ];
+  }
   if (authType === "custom_headers") {
     return [
       { name: "header_name", label: "Header name", type: "text", target: "metadata", required: true, secret: false },
@@ -175,8 +203,12 @@ function normalizeCredentialSchema(authType, schema) {
 
 function inputHtml(field, value = "") {
   const common = `name="${htmlEscape(field.name)}" ${field.required ? "required" : ""} autocomplete="${htmlEscape(field.autocomplete)}" placeholder="${htmlEscape(field.placeholder)}"`;
-  if (field.type === "textarea") {
-    return `<textarea ${common}>${htmlEscape(value)}</textarea>`;
+  if (field.type === "textarea" || field.type === "json") {
+    const rows = field.type === "json" ? "10" : "";
+    const accept = field.type === "json"
+      ? `<input class="json-file" type="file" accept="application/json,.json" data-target="${htmlEscape(field.name)}">`
+      : "";
+    return `${accept}<textarea ${common} ${rows ? `rows="${rows}"` : ""}>${htmlEscape(value)}</textarea>`;
   }
   if (field.type === "select") {
     const options = field.options.map((opt) => `<option value="${htmlEscape(opt.value)}">${htmlEscape(opt.label)}</option>`).join("");
@@ -201,12 +233,24 @@ function noStoreHeaders(res) {
   );
 }
 
-async function loadApp(appKey) {
-  const [rows] = await getPool().query(
-    "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
-    [appKey]
-  );
-  return rows[0] || null;
+async function loadApp(appKey, pool = getPool()) {
+  try {
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status, credential_intake_redirect_allowlist_json FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    return rows[0] || null;
+  } catch (error) {
+    if (error?.code !== "ER_BAD_FIELD_ERROR") throw error;
+    const [rows] = await pool.query(
+      "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+      [appKey]
+    );
+    const app = rows[0] || null;
+    if (app) app.credential_intake_redirect_allowlist_json = null;
+    console.warn(JSON.stringify({ event: "credential_intake_optional_column_fallback", app_key: appKey, secrets_included: false }));
+    return app;
+  }
 }
 
 async function loadPendingSession(token) {
@@ -222,11 +266,71 @@ async function loadPendingSession(token) {
     await getPool().query("UPDATE credential_intake_sessions SET status = 'expired' WHERE session_id = ?", [session.session_id]);
     return { ok: false, status: 410, error: "credential_intake_session_expired" };
   }
-  return { ok: true, session };
+  const security = await validateCredentialIntakeSessionSecurity({ queryable: getPool(), session });
+  if (!security.ok) {
+    await getPool().query(
+      `UPDATE credential_intake_sessions
+          SET status = 'revoked', revoked_reason = ?
+        WHERE session_id = ?
+          AND status = 'pending'`,
+      [String(security.code || "credential_intake_authority_revoked").slice(0, 128), session.session_id]
+    );
+    return { ok: false, status: 410, error: security.code || "credential_intake_authority_revoked" };
+  }
+  return { ok: true, session, security };
 }
 
 function sessionSchema(session) {
   return normalizeCredentialSchema(session.auth_type, safeJsonParse(session.credential_schema_json, null));
+}
+
+function parseJsonCredentialField(value, fieldName) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.length > 64 * 1024) {
+    const err = new Error(`${fieldName} is too large. Maximum size is 64KB.`);
+    err.status = 400;
+    err.code = "json_credential_too_large";
+    throw err;
+  }
+  try { return JSON.parse(raw); }
+  catch {
+    const err = new Error(`${fieldName} must be valid JSON.`);
+    err.status = 400;
+    err.code = "invalid_json_credential";
+    throw err;
+  }
+}
+
+function extractMcpServersConfig(value) {
+  const parsed = parseJsonCredentialField(value, "mcp_servers_json");
+  if (!parsed) return null;
+  const servers = parsed.mcpServers && typeof parsed.mcpServers === "object" && !Array.isArray(parsed.mcpServers)
+    ? parsed.mcpServers
+    : null;
+  if (!servers || !Object.keys(servers).length) {
+    const err = new Error("mcp_servers_json must contain an mcpServers object.");
+    err.status = 400;
+    err.code = "invalid_mcp_servers_json";
+    throw err;
+  }
+  const [serverName, server] = Object.entries(servers)[0];
+  if (!server || typeof server !== "object" || !server.url) {
+    const err = new Error("mcpServers entries must include a url.");
+    err.status = 400;
+    err.code = "invalid_mcp_server_entry";
+    throw err;
+  }
+  const auth = String(server.headers?.Authorization || server.headers?.authorization || "").trim();
+  const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+  return {
+    raw: parsed,
+    serverName,
+    server,
+    endpoint: String(server.url || "").trim(),
+    transport: String(server.type || "http").trim() || "http",
+    bearer,
+  };
 }
 
 function collectSubmission({ authType, schema, body = {}, session = {} }) {
@@ -247,6 +351,28 @@ function collectSubmission({ authType, schema, body = {}, session = {} }) {
       throw err;
     }
     if (!rawValue) continue;
+
+    if (authType === "mcp" && field.name === "mcp_servers_json") {
+      const config = extractMcpServersConfig(rawValue);
+      credentials.mcp_servers_json = JSON.stringify(config.raw);
+      credentials.mcp_servers = config.raw.mcpServers;
+      if (config.bearer) {
+        credentials.mcp_bearer = config.bearer;
+        credentials.bearer_token = config.bearer;
+      }
+      connection.mcp_endpoint = config.endpoint;
+      metadata.mcp_server_name = config.serverName;
+      metadata.mcp_transport = config.transport;
+      continue;
+    }
+
+    if (field.type === "json") {
+      const parsedJson = parseJsonCredentialField(rawValue, field.name);
+      if (field.target === "credentials") credentials[field.name] = parsedJson;
+      else if (field.target === "metadata") metadata[field.name] = parsedJson;
+      else metadata[field.name] = parsedJson;
+      continue;
+    }
 
     if (field.target === "credentials") credentials[field.name] = rawValue;
     else if (field.target === "connection") {
@@ -272,6 +398,129 @@ function collectSubmission({ authType, schema, body = {}, session = {} }) {
   if (!Object.keys(credentials).length && authType !== "webhook") throw Object.assign(new Error("At least one credential secret is required."), { status: 400 });
 
   return { credentials, metadata, connection, displayLabel };
+}
+
+function normalizePlatformSecretMappings(metadata = {}) {
+  const raw = Array.isArray(metadata.platform_secret_mappings) ? metadata.platform_secret_mappings : [];
+  return raw
+    .map((mapping = {}) => ({
+      credential_field: normalizeFieldName(mapping.credential_field || mapping.field),
+      secret_key: normalizeFieldName(mapping.secret_key || mapping.secretKey),
+      secret_type: normalizeFieldName(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+    }))
+    .filter((mapping) => mapping.credential_field && mapping.secret_key)
+    .slice(0, 20);
+}
+
+async function writeCredentialIntakeContinuationTask({ session, connectionId, metadata = {}, autoPromotion = null, req }) {
+  const continuation = metadata.continuation && typeof metadata.continuation === "object" ? metadata.continuation : {};
+  const taskKey = `credential_intake_completed:${session.session_id}`;
+  const autoPromotionOk = autoPromotion?.ok === true;
+  const targetKey = String(metadata.target_key || continuation.target_key || "").trim() || null;
+  const providerFamily = String(metadata.provider_family || continuation.provider_family || "").trim() || null;
+  const connectorFamily = String(metadata.connector_family || continuation.connector_family || "").trim() || null;
+  const nextAction = continuation.next_action || (autoPromotionOk
+    ? "Run provider/runtime readback and smoke validation without asking the user to type completion text."
+    : "Read credential_intake completion status and continue the blocked workflow if promotion is complete.");
+  const context = {
+    event_type: "credential_intake.completed",
+    session_id: session.session_id,
+    connection_id: connectionId,
+    tenant_id: session.tenant_id,
+    user_id: session.user_id,
+    app_key: session.app_key,
+    auth_type: session.auth_type,
+    target_key: targetKey,
+    provider_family: providerFamily,
+    connector_family: connectorFamily,
+    auto_promotion_ok: autoPromotionOk,
+    auto_promotion_status: autoPromotion?.ok ? "completed" : autoPromotion?.skipped ? "skipped" : "not_requested",
+    promoted_count: autoPromotion?.promoted_count || 0,
+    secret_keys: Array.isArray(autoPromotion?.promoted) ? autoPromotion.promoted.map((item) => item.secret_key).filter(Boolean) : [],
+    continuation,
+    no_user_done_message_required: true,
+    secrets_included: false,
+  };
+
+  const title = continuation.title || `Validate credential intake continuation for ${session.app_key}`;
+  await getPool().query(
+    `INSERT INTO platform_pending_tasks
+       (task_id, task_key, title, description, brief, activation_prompt, task_type, priority, status,
+        blocker_level, owner_scope, tenant_id, user_id, source_surface, source_ref,
+        activation_visibility, context_json, created_by, updated_by)
+     VALUES (UUID(), ?, ?, ?, ?, ?, 'automation', ?, 'pending', 'soft', 'platform', ?, ?,
+             'credential_intake.completed', ?, 1, ?, 'credential_intake_routes', 'credential_intake_routes')
+     ON DUPLICATE KEY UPDATE
+       title = VALUES(title),
+       description = VALUES(description),
+       brief = VALUES(brief),
+       activation_prompt = VALUES(activation_prompt),
+       priority = VALUES(priority),
+       status = IF(status = 'done', status, 'pending'),
+       context_json = VALUES(context_json),
+       updated_by = 'credential_intake_routes',
+       updated_at = NOW()`,
+    [
+      taskKey,
+      title,
+      `A secure credential intake session was submitted for ${session.app_key}. Continue from the recorded event; do not ask the user to send a manual completion message.`,
+      `Credential intake ${session.session_id} completed for ${session.app_key}; connection ${connectionId}; auto-promotion ${context.auto_promotion_status}.`,
+      nextAction,
+      continuation.priority || (autoPromotionOk ? "high" : "medium"),
+      session.tenant_id,
+      session.user_id,
+      `credential_intake_sessions:${session.session_id}`,
+      JSON.stringify(context),
+    ]
+  );
+
+  writeAuditLogAsync({
+    tenant_id: session.tenant_id,
+    actor_id: session.user_id,
+    actor_type: "credential_intake_link",
+    action: "credential_intake.continuation_task_created",
+    resource_type: "platform_pending_task",
+    resource_id: taskKey,
+    after_json: context,
+    ip_address: req?.ip || null,
+    user_agent: req?.headers?.["user-agent"] || null,
+  });
+
+  return { ok: true, task_key: taskKey, secrets_included: false };
+}
+
+async function maybeAutoPromotePlatformSecrets({ session, credentials = {}, metadata = {}, connectionId, req }) {
+  if (metadata.auto_promote_platform_secrets !== true) return null;
+  const promotionReason = String(metadata.promotion_reason || "").trim();
+  if (metadata.promotion_approved !== true || promotionReason.length < 12) {
+    return { ok: false, skipped: true, reason: "promotion_approval_required", secrets_included: false };
+  }
+  const mappings = normalizePlatformSecretMappings(metadata);
+  if (!mappings.length) {
+    return { ok: false, skipped: true, reason: "platform_secret_mappings_required", secrets_included: false };
+  }
+  const missingFields = mappings
+    .filter((mapping) => !String(credentials[mapping.credential_field] || "").trim())
+    .map((mapping) => mapping.credential_field);
+  if (missingFields.length) {
+    return { ok: false, skipped: true, reason: "mapped_intake_fields_missing", missing_fields: [...new Set(missingFields)], secrets_included: false };
+  }
+  return promoteCredentialIntakePlatformSecrets({
+    session,
+    credentials,
+    metadata,
+    mappings,
+    connectionId,
+    req,
+    context: {
+      systemId: String(metadata.system_id || "").trim() || null,
+      ownerId: String(metadata.owner_id || "growth_intelligence_platform").trim(),
+      providerFamily: String(metadata.provider_family || "").trim() || null,
+      connectorFamily: String(metadata.connector_family || "").trim() || null,
+      targetKey: String(metadata.target_key || "").trim() || null,
+      promotionReason,
+    },
+  });
 }
 
 function renderCredentialForm({ session, app, error = "" }) {
@@ -301,6 +550,7 @@ function renderCredentialForm({ session, app, error = "" }) {
     input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 14px; padding: 13px 14px; font: inherit; margin-top: 7px; }
     textarea { min-height: 96px; resize: vertical; }
     button { width: 100%; margin-top: 22px; border: 0; border-radius: 16px; padding: 14px 18px; font-weight: 700; background: #2563eb; color: white; cursor: pointer; }
+    .json-file { background: #f8fafc; margin-top: 7px; }
     .meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin: 18px 0; }
     .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 14px; padding: 12px; }
     .optional, small { color: #64748b; font-weight: 500; font-size: 12px; display:block; margin-top:4px; }
@@ -325,18 +575,201 @@ function renderCredentialForm({ session, app, error = "" }) {
     </form>
     <p class="fine">This page is single-use and short-lived. The URL contains a one-time token; do not share it after submission.</p>
   </main>
+  <script>
+    document.querySelectorAll('.json-file').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 64 * 1024) { alert('JSON file is too large. Maximum size is 64KB.'); input.value = ''; return; }
+        const target = document.querySelector('textarea[name="' + input.dataset.target + '"]');
+        if (!target) return;
+        target.value = await file.text();
+      });
+    });
+  </script>
 </body>
 </html>`;
 }
 
-function renderDone(connectionId) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p><p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
+function renderDone(connectionId, autoPromotion = null) {
+  const continuationHtml = autoPromotion?.continuationTask?.ok
+    ? `<p>Continuation signal recorded. You do not need to send a manual “done” message.</p>`
+    : "";
+  const promotionHtml = autoPromotion?.ok
+    ? `<p>Platform continuation completed automatically. Promoted fields: <code>${htmlEscape(autoPromotion.promoted_count || 0)}</code>.</p>${continuationHtml}`
+    : autoPromotion?.skipped
+      ? `<p>Connection saved. Automatic continuation is pending: <code>${htmlEscape(autoPromotion.reason || "skipped")}</code>.</p>${continuationHtml}`
+      : continuationHtml;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p>${promotionHtml}<p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
+}
+
+function renderCredentialIntakeFailure(requestId) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Credential intake unavailable</title></head><body><main><h1>Credential intake is temporarily unavailable</h1><p>No credential data was submitted or stored.</p><p>Support reference: <code>${htmlEscape(requestId)}</code></p></main></body></html>`;
+}
+
+async function revokeSupersededPendingSessions(pool, { userId, tenantId, appKey, authType }) {
+  const [result] = await pool.query(
+    `UPDATE credential_intake_sessions
+        SET status = 'revoked', revoked_reason = 'superseded_by_new_session'
+      WHERE user_id = ? AND tenant_id = ? AND app_key = ? AND auth_type = ?
+        AND status = 'pending' AND expires_at > NOW()`,
+    [userId, tenantId, appKey, authType]
+  );
+  return Number(result?.affectedRows || 0);
 }
 
 function absoluteBaseUrl(req) {
-  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  return `${proto}://${host}`;
+  const proto = req?.headers?.["x-forwarded-proto"] || req?.protocol || "https";
+  const host = req?.headers?.["x-forwarded-host"] || req?.headers?.host;
+  return host ? `${proto}://${host}` : "";
+}
+
+export async function createCredentialIntakeSessionRecord({
+  pool = getPool(),
+  request = null,
+  userId,
+  tenantId,
+  appKey,
+  authType,
+  displayLabel = null,
+  mcpEndpoint = null,
+  webhookUrl = null,
+  apiBaseUrl = null,
+  workspaceId = null,
+  connectionTargetRef = null,
+  purpose = null,
+  redirectUri = null,
+  authoritySnapshot = null,
+  credentialSchema = null,
+  metadata = {},
+  expiresInMinutes = DEFAULT_TTL_MINUTES,
+  createdBy = null,
+} = {}) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedTenantId = String(tenantId || "").trim();
+  const normalizedAppKey = String(appKey || "").trim();
+  const normalizedAuthType = String(authType || "").trim();
+  if (!normalizedUserId || !normalizedTenantId || !normalizedAppKey || !normalizedAuthType) {
+    const err = new Error("user_id, tenant_id, app_key, auth_type are required.");
+    err.status = 400;
+    err.code = "missing_required_fields";
+    throw err;
+  }
+  if (!ALLOWED_AUTH_TYPES.has(normalizedAuthType)) {
+    const err = new Error("Unsupported auth_type.");
+    err.status = 400;
+    err.code = "unsupported_auth_type";
+    throw err;
+  }
+
+  const app = await loadApp(normalizedAppKey, pool);
+  if (!app) {
+    const err = new Error(`App ${normalizedAppKey} was not found.`);
+    err.status = 404;
+    err.code = "app_not_found";
+    throw err;
+  }
+  if (!["active", "beta"].includes(String(app.status || "").toLowerCase())) {
+    const err = new Error("App is not active or beta.");
+    err.status = 409;
+    err.code = "app_not_active";
+    throw err;
+  }
+
+  const normalizedSchema = normalizeCredentialSchema(normalizedAuthType, credentialSchema || null);
+  if (normalizedAuthType !== "oauth2" && !normalizedSchema.length) {
+    const err = new Error("No credential fields are available for this auth_type.");
+    err.status = 400;
+    err.code = "empty_credential_schema";
+    throw err;
+  }
+
+  const sessionId = randomUUID();
+  const token = randomToken();
+  const tokenHash = sha256(token);
+  const ttl = clampTtlMinutes(expiresInMinutes);
+  const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
+  const safeMetadata = metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+  const normalizedTargetRef = String(
+    connectionTargetRef
+      || safeMetadata.connection_target_ref
+      || (workspaceId ? `workspace:${workspaceId}:app:${normalizedAppKey}` : `app:${normalizedAppKey}`)
+  ).trim().slice(0, 255);
+  const normalizedPurpose = String(purpose || safeMetadata.purpose || `connect:${normalizedAppKey}`).trim().slice(0, 160);
+  const allowedRedirectUri = normalizeCredentialIntakeRedirect({
+    redirectUri,
+    requestOrigin: absoluteBaseUrl(request),
+    registryAllowlist: app.credential_intake_redirect_allowlist_json,
+  });
+  const authoritySnapshotHash = String(authoritySnapshot?.snapshot_hash || "").trim() || null;
+  const authoritySnapshotVersion = String(authoritySnapshot?.version || "").trim().slice(0, 64) || null;
+  const binding = buildCredentialIntakeBinding({
+    userId: normalizedUserId,
+    tenantId: normalizedTenantId,
+    appKey: normalizedAppKey,
+    authType: normalizedAuthType,
+    connectionTargetRef: normalizedTargetRef,
+    purpose: normalizedPurpose,
+    allowedRedirectUri,
+    authoritySnapshotHash,
+  });
+
+  renderCredentialForm({
+    session: {
+      app_key: normalizedAppKey,
+      auth_type: normalizedAuthType,
+      display_label: displayLabel || null,
+      expires_at: expiresAt,
+      credential_schema_json: JSON.stringify({ fields: normalizedSchema }),
+    },
+    app,
+  });
+  const supersededPendingSessions = await revokeSupersededPendingSessions(pool, {
+    userId: normalizedUserId,
+    tenantId: normalizedTenantId,
+    appKey: normalizedAppKey,
+    authType: normalizedAuthType,
+  });
+
+  await pool.query(
+    `INSERT INTO credential_intake_sessions
+       (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
+        mcp_endpoint, webhook_url, api_base_url, workspace_id,
+        connection_target_ref, purpose, allowed_redirect_uri, binding_digest,
+        authority_snapshot_hash, authority_snapshot_version,
+        credential_schema_json, metadata_json, status, expires_at, created_by)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+    [sessionId, tokenHash, normalizedUserId, normalizedTenantId, normalizedAppKey, normalizedAuthType, displayLabel || null,
+     mcpEndpoint || null, webhookUrl || null, apiBaseUrl || null, workspaceId || null,
+     binding.connection_target_ref, binding.purpose, binding.allowed_redirect_uri, binding.binding_digest,
+     authoritySnapshotHash, authoritySnapshotVersion,
+     JSON.stringify({ fields: normalizedSchema }), JSON.stringify(safeMetadata), expiresAt, createdBy || normalizedUserId]
+  );
+
+  const path = `/credential-intake/${encodeURIComponent(token)}`;
+  const baseUrl = absoluteBaseUrl(request);
+  return {
+    ok: true,
+    session_id: sessionId,
+    intake_url: baseUrl ? `${baseUrl}${path}` : path,
+    expires_at: expiresAt,
+    app_key: normalizedAppKey,
+    auth_type: normalizedAuthType,
+    field_count: normalizedSchema.length,
+    binding_context: {
+      connection_target_ref: binding.connection_target_ref,
+      purpose: binding.purpose,
+      redirect_configured: Boolean(binding.allowed_redirect_uri),
+      authority_snapshot_version: authoritySnapshotVersion,
+    },
+    page_preflight: {
+      ok: true,
+      rendered: true,
+      superseded_pending_sessions: supersededPendingSessions,
+      automatic_retry_after_render_failure: false,
+    },
+    secrets_included: false,
+  };
 }
 
 export function buildCredentialIntakeRoutes(deps = {}) {
@@ -349,58 +782,34 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.post("/credential-intake/sessions", requireBackendApiKey, async (req, res) => {
     try {
-      const {
-        user_id,
-        tenant_id,
-        app_key,
-        auth_type,
-        display_label,
-        mcp_endpoint,
-        webhook_url,
-        api_base_url,
-        workspace_id,
-        credential_schema,
-        metadata,
-        expires_in_minutes,
-        created_by,
-      } = req.body || {};
-
-      if (!user_id || !tenant_id || !app_key || !auth_type) {
-        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "user_id, tenant_id, app_key, auth_type are required." } });
-      }
-      if (!ALLOWED_AUTH_TYPES.has(String(auth_type))) {
-        return res.status(400).json({ ok: false, error: { code: "unsupported_auth_type", message: "Unsupported auth_type." } });
-      }
-
-      const app = await loadApp(app_key);
-      if (!app) return res.status(404).json({ ok: false, error: { code: "app_not_found", message: `App ${app_key} was not found.` } });
-
-      const normalizedSchema = normalizeCredentialSchema(auth_type, credential_schema || null);
-      if (auth_type !== "oauth2" && !normalizedSchema.length) {
-        return res.status(400).json({ ok: false, error: { code: "empty_credential_schema", message: "No credential fields are available for this auth_type." } });
-      }
-
-      const sessionId = randomUUID();
-      const token = randomToken();
-      const tokenHash = sha256(token);
-      const ttl = clampTtlMinutes(expires_in_minutes);
-      const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
-
-      await getPool().query(
-        `INSERT INTO credential_intake_sessions
-           (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
-            mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
-            metadata_json, status, expires_at, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
-        [sessionId, tokenHash, user_id, tenant_id, app_key, auth_type, display_label || null,
-         mcp_endpoint || null, webhook_url || null, api_base_url || null, workspace_id || null,
-         JSON.stringify({ fields: normalizedSchema }), JSON.stringify(metadata || {}), expiresAt, created_by || req?.auth?.user_id || null]
-      );
-
-      const intakeUrl = `${absoluteBaseUrl(req)}/credential-intake/${encodeURIComponent(token)}`;
-      return res.status(201).json({ ok: true, session_id: sessionId, intake_url: intakeUrl, expires_at: expiresAt, app_key, auth_type, field_count: normalizedSchema.length });
+      assertCapabilityKillSwitchOpen({ surface: "raw_credential_intake_creation", action: "create" });
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createCredentialIntakeSessionRecord({
+        request: req,
+        userId: input.user_id,
+        tenantId: input.tenant_id,
+        appKey: input.app_key,
+        authType: input.auth_type,
+        displayLabel: input.display_label || null,
+        mcpEndpoint: input.mcp_endpoint || null,
+        webhookUrl: input.webhook_url || null,
+        apiBaseUrl: input.api_base_url || null,
+        workspaceId: input.workspace_id || null,
+        connectionTargetRef: input.connection_target_ref || null,
+        purpose: input.purpose || null,
+        redirectUri: input.redirect_uri || null,
+        credentialSchema: input.credential_schema || null,
+        metadata: input.metadata || {},
+        expiresInMinutes: input.expires_in_minutes,
+        createdBy: input.created_by || req?.auth?.user_id || null,
+      });
+      return res.status(201).json(result);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "credential_intake_session_create_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "credential_intake_session_create_failed", message: err.message, ...(err.details ? { details: err.details } : {}) },
+        secrets_included: false,
+      });
     }
   });
 
@@ -423,44 +832,64 @@ export function buildCredentialIntakeRoutes(deps = {}) {
 
   router.get("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
+    let loaded = null;
     try {
-      const loaded = await loadPendingSession(req.params.token);
+      loaded = await loadPendingSession(req.params.token);
       if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
       const app = await loadApp(loaded.session.app_key);
       return res.status(200).type("html").send(renderCredentialForm({ session: loaded.session, app: app || {} }));
-    } catch {
-      return res.status(500).type("text").send("Credential intake page failed.");
+    } catch (error) {
+      const requestId = randomUUID();
+      console.error(JSON.stringify({ event: "credential_intake.page_render_failed", request_id: requestId, code: error?.code || "credential_intake_page_render_failed", secrets_included: false }));
+      writeAuditLogAsync({
+        tenant_id: loaded?.session?.tenant_id || null,
+        actor_id: loaded?.session?.user_id || null,
+        actor_type: "credential_intake_link",
+        action: "credential_intake.page_render_failed",
+        resource_type: "credential_intake_page",
+        resource_id: requestId,
+        after_json: { code: error?.code || "credential_intake_page_render_failed", stage: "page_render", secrets_included: false },
+        ip_address: req.ip || null,
+        user_agent: req.headers?.["user-agent"] || null,
+      });
+      return res.status(500).type("html").send(renderCredentialIntakeFailure(requestId));
     }
   });
 
   router.post("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
     try {
-      const loaded = await loadPendingSession(req.params.token);
-      if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
-      const session = loaded.session;
-      const schema = sessionSchema(session);
-      const { credentials, metadata, connection, displayLabel } = collectSubmission({ authType: session.auth_type, schema, body: req.body || {}, session });
+      const consumed = await atomicallyConsumeCredentialIntakeSession({
+        pool: getPool(),
+        tokenHash: sha256(req.params.token),
+        validateSession: ({ connection, session }) => validateCredentialIntakeSessionSecurity({ queryable: connection, session }),
+        createConnection: async ({ connection: transaction, session }) => {
+          const schema = sessionSchema(session);
+          const {
+            credentials,
+            metadata,
+            connection: submittedConnection,
+            displayLabel,
+          } = collectSubmission({ authType: session.auth_type, schema, body: req.body || {}, session });
+          const connectionId = randomUUID();
+          await transaction.query(
+            `INSERT INTO user_app_connections
+               (connection_id, user_id, tenant_id, app_key, display_label, auth_type,
+                encrypted_credentials, account_label, account_metadata,
+                mcp_endpoint, webhook_url, api_base_url, is_primary, status, validation_status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'active','pending_validation')`,
+            [connectionId, session.user_id, session.tenant_id, session.app_key, displayLabel,
+             session.auth_type, encryptCredentials(credentials), displayLabel || submittedConnection.api_base_url || submittedConnection.mcp_endpoint || submittedConnection.webhook_url || null,
+             JSON.stringify({ ...metadata, intake_session_id: session.session_id, intake_type: "schema_driven_web_form" }),
+             submittedConnection.mcp_endpoint, submittedConnection.webhook_url, submittedConnection.api_base_url]
+          );
+          return { connectionId, schema, credentials, metadata, submittedConnection };
+        },
+      });
+      if (!consumed.ok) return res.status(consumed.status).type("text").send(consumed.error);
 
-      const connectionId = randomUUID();
-      await getPool().query(
-        `INSERT INTO user_app_connections
-           (connection_id, user_id, tenant_id, app_key, display_label, auth_type,
-            encrypted_credentials, account_label, account_metadata,
-            mcp_endpoint, webhook_url, api_base_url, is_primary, status, validation_status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'active','pending_validation')`,
-        [connectionId, session.user_id, session.tenant_id, session.app_key, displayLabel,
-         session.auth_type, encryptCredentials(credentials), displayLabel || connection.api_base_url || connection.mcp_endpoint || connection.webhook_url || null,
-         JSON.stringify({ ...metadata, intake_session_id: session.session_id, intake_type: "schema_driven_web_form" }),
-         connection.mcp_endpoint, connection.webhook_url, connection.api_base_url]
-      );
-
-      await getPool().query(
-        `UPDATE credential_intake_sessions
-            SET status = 'used', used_at = NOW(), connection_id = ?
-          WHERE session_id = ?`,
-        [connectionId, session.session_id]
-      );
+      const { session, connectionId } = consumed;
+      const { schema, credentials, metadata, submittedConnection } = consumed.created;
 
       writeAuditLogAsync({
         tenant_id: session.tenant_id,
@@ -473,15 +902,39 @@ export function buildCredentialIntakeRoutes(deps = {}) {
           app_key: session.app_key,
           auth_type: session.auth_type,
           field_count: schema.length,
-          has_mcp_endpoint: !!connection.mcp_endpoint,
-          has_webhook_url: !!connection.webhook_url,
-          has_api_base_url: !!connection.api_base_url,
+          has_mcp_endpoint: !!submittedConnection.mcp_endpoint,
+          has_webhook_url: !!submittedConnection.webhook_url,
+          has_api_base_url: !!submittedConnection.api_base_url,
         },
         ip_address: req.ip,
         user_agent: req.headers["user-agent"] || null,
       });
 
-      return res.status(201).type("html").send(renderDone(connectionId));
+      const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+      const continuationTask = await writeCredentialIntakeContinuationTask({ session, connectionId, metadata, autoPromotion, req })
+        .catch((error) => ({ ok: false, error: error.message, secrets_included: false }));
+      await enqueueCredentialIntakeCompletedWebhook({ pool: getPool(), session, connectionId }).catch((error) => {
+        writeAuditLogAsync({
+          tenant_id: session.tenant_id,
+          actor_id: session.user_id,
+          actor_type: "credential_intake_link",
+          action: "credential_intake.webhook_enqueue_failed",
+          resource_type: "credential_intake_session",
+          resource_id: session.session_id,
+          after_json: { error_code: error.code || "credential_intake_webhook_enqueue_failed", secrets_included: false },
+          ip_address: req.ip,
+          user_agent: req.headers["user-agent"] || null,
+        });
+      });
+
+      const doneHtml = renderDone(connectionId, { ...autoPromotion, continuationTask });
+      if (session.allowed_redirect_uri) {
+        const redirectLocation = session.allowed_redirect_uri.startsWith("/")
+          ? `${absoluteBaseUrl(req)}${session.allowed_redirect_uri}`
+          : session.allowed_redirect_uri;
+        return res.status(303).set("Location", redirectLocation).type("html").send(doneHtml);
+      }
+      return res.status(201).type("html").send(doneHtml);
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};

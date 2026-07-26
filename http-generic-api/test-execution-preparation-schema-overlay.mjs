@@ -9,6 +9,23 @@ const overlayEndpoint = {
   endpoint_path_or_function: "/wp/v2/posts",
   method: "POST",
   module_binding: "wordpress_module",
+  schema_json: JSON.stringify({
+    operationId: "createPostBase",
+    method: "POST",
+    path: "/wp/v2/posts",
+    bodySchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" }
+      }
+    },
+    response: {
+      type: "object",
+      properties: {
+        id: { type: "integer" }
+      }
+    }
+  }),
   schema_overlay_mode: "endpoint_child_schema",
   schema_overlay_status: "validated",
   child_openai_schema_file_id: "overlay-asset-001"

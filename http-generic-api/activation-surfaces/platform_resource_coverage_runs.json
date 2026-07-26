@@ -1,0 +1,34 @@
+{
+    "surface_key":  "platform_resource_coverage_runs",
+    "display_name":  "Platform Resource Coverage Runs",
+    "description":  "Admin-only bounded resource coverage audit run metadata and finding counts.",
+    "source_table":  "platform_resource_coverage_runs",
+    "covered_source_tables":  [
+                                  "platform_resource_coverage_runs"
+                              ],
+    "result_key_column":  "run_id",
+    "result_label_column":  "trigger_source",
+    "tenant_column":  null,
+    "user_column":  null,
+    "status_column":  "status",
+    "active_status_values":  [
+                                 "complete",
+                                 "debt_detected",
+                                 "gaps_detected",
+                                 "failed"
+                             ],
+    "result_columns":  [
+                           "run_id",
+                           "trigger_source",
+                           "commit_sha",
+                           "status",
+                           "finding_count",
+                           "created_at"
+                       ],
+    "include_for_admin":  true,
+    "include_for_tenant":  false,
+    "max_rows":  100,
+    "sort_order":  332,
+    "status":  "active",
+    "notes":  "Excludes totals_json and any resource payload; records no credentials or secret values."
+}

@@ -1,0 +1,26 @@
+{
+  "surface_key": "installations",
+  "display_name": "Authorized Installations",
+  "description": "Tenant-scoped active installations visible during activation.",
+  "source_table": "installations",
+  "result_key_column": "installation_id",
+  "result_label_column": "scope",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "installation_id",
+    "system_id",
+    "tenant_id",
+    "scope",
+    "status",
+    "expires_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 30,
+  "status": "active",
+  "notes": "Repo-managed activation surface. Excludes credential_ref."
+}

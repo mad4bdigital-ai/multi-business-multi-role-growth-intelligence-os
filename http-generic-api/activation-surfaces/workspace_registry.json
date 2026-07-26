@@ -1,0 +1,28 @@
+{
+  "surface_key": "workspace_registry",
+  "display_name": "Authorized Workspaces",
+  "description": "Tenant-scoped workspaces visible during activation.",
+  "source_table": "workspace_registry",
+  "result_key_column": "workspace_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "bootstrap_status",
+  "active_status_values": ["ready", "in_progress", "degraded"],
+  "result_columns": [
+    "workspace_id",
+    "tenant_id",
+    "workspace_key",
+    "display_name",
+    "workspace_type",
+    "bootstrap_status",
+    "linked_brand_key",
+    "linked_system_ids"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 10,
+  "status": "active",
+  "notes": "Repo-managed activation surface. No credential fields."
+}

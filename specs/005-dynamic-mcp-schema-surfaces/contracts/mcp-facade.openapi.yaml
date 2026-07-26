@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: Mad4B Dynamic MCP Facade Contract
+  version: 1.0.0
+paths:
+  /tools:
+    get:
+      operationId: listSurfaceTools
+      responses:
+        '200':
+          description: Principal-filtered dynamic tool catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCatalogResponse'
+  /tools/call:
+    post:
+      operationId: callSurfaceTool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCallRequest'
+      responses:
+        '200':
+          description: Governed tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallResponse'
+        '409':
+          description: Schema version conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ToolSummary:
+      type: object
+      required: [name, description, inputSchema, schemaVersion, availability]
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        description: { type: string }
+        inputSchema: { type: object, additionalProperties: true }
+        outputSchema: { type: object, additionalProperties: true }
+        schemaVersion: { type: integer, minimum: 1 }
+        consequential: { type: boolean }
+        availability:
+          type: object
+          required: [state, dispatchAllowed]
+          additionalProperties: false
+          properties:
+            state: { type: string }
+            dispatchAllowed: { type: boolean }
+            blockingReasonCodes:
+              type: array
+              items: { type: string }
+    ToolCatalogResponse:
+      type: object
+      required: [ok, surfaceKey, registryVersion, tools, page, secretsIncluded]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean }
+        surfaceKey: { type: string }
+        registryVersion: { type: integer, minimum: 1 }
+        generatedAt: { type: string, format: date-time }
+        etag: { type: string }
+        tools:
+          type: array
+          items: { $ref: '#/components/schemas/ToolSummary' }
+        page:
+          type: object
+          required: [hasMore]
+          additionalProperties: true
+          properties:
+            nextCursor: { type: [integer, 'null'], minimum: 0 }
+            hasMore: { type: boolean }
+        secretsIncluded: { type: boolean, const: false }
+    ToolCallRequest:
+      type: object
+      required: [name, toolArgs]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        schemaVersion: { type: integer, minimum: 1 }
+        registryVersion: { type: integer, minimum: 1 }
+        toolArgs: { type: object, additionalProperties: true }
+        idempotencyKey: { type: string }
+    ToolCallResponse:
+      type: object
+      required: [ok, requestId, secretsIncluded]
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        result: { type: object, additionalProperties: true }
+        requestId: { type: string }
+        registryVersion: { type: integer, minimum: 1 }
+        schemaVersion: { type: integer, minimum: 1 }
+        secretsIncluded: { type: boolean, const: false }
+    ErrorResponse:
+      type: object
+      required: [error, secretsIncluded]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          additionalProperties: false
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+        secretsIncluded: { type: boolean, const: false }

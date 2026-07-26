@@ -3,6 +3,27 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { resolveAccess } from "../accessDecisionEngine.js";
 import { dispatchPlan } from "../connectorExecutor.js";
+import {
+  getSequentialPlanTimeline,
+  persistCompiledSequentialPlan,
+  resumeSequentialPlan,
+  runSequentialPlan,
+  SEQUENTIAL_PLAN_RUN_JOB_TYPE,
+  tickSequentialPlan,
+} from "../sequentialPlanOrchestrator.js";
+function persistedPlanStatus(runtimeStatus = "draft") {
+  if (runtimeStatus === "blocked") return "failed";
+  if (["awaiting_approval", "paused"].includes(runtimeStatus)) return "validated";
+  return runtimeStatus;
+}
+
+function principalActor(req) {
+  return String(
+    req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
+    req.auth?.sub || req.auth?.mode || "backend_api_key"
+  ).trim();
+}
+
 
 export function buildPlannerRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -58,7 +79,7 @@ export function buildPlannerRoutes(deps) {
         );
         if (routeMeta[0]?.execution_layer) {
           const [agentRow] = await getPool().query(
-            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' ORDER BY agent_id ASC LIMIT 1",
             [routeMeta[0].execution_layer]
           );
           resolved_agent_id = agentRow[0]?.agent_id || null;
@@ -96,7 +117,7 @@ export function buildPlannerRoutes(deps) {
     try {
       const {
         tenant_id, user_id, resolution_id,
-        intent_key, brand_key, target_key, workflow_key, route_key,
+        intent_key, brand_key, target_key, workflow_id, workflow_key, route_key,
         risk_level = "low",
       } = req.body || {};
 
@@ -124,7 +145,7 @@ export function buildPlannerRoutes(deps) {
         );
         if (routeMeta[0]?.execution_layer) {
           const [agentRow] = await getPool().query(
-            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' ORDER BY agent_id ASC LIMIT 1",
             [routeMeta[0].execution_layer]
           );
           plan_agent_id = agentRow[0]?.agent_id || null;
@@ -134,24 +155,26 @@ export function buildPlannerRoutes(deps) {
       // Build steps preview
       const steps = [];
       if (intent_key) steps.push({ step: 1, type: "intent_resolution", key: intent_key });
-      if (workflow_key) steps.push({ step: 2, type: "workflow", key: workflow_key });
+      if (workflow_id || workflow_key) {
+        steps.push({ step: 2, type: "workflow", workflow_id: workflow_id || null, key: workflow_key || null });
+      }
       if (brand_key || target_key) steps.push({ step: 3, type: "target_resolution", brand_key: brand_key || null, target_key: target_key || null });
       steps.push({ step: steps.length + 1, type: "execution_dispatch", mode: access.service_mode || "self_serve" });
 
       const validation_errors = [];
-      if (!workflow_key && !intent_key) validation_errors.push("No workflow_key or intent_key specified.");
+      if (!workflow_id && !workflow_key && !intent_key) validation_errors.push("No workflow_id, workflow_key, or intent_key specified.");
       if (access.decision === "DENY") validation_errors.push(`Access denied: ${access.reason}`);
 
       const plan_status = validation_errors.length > 0 ? "draft" : "validated";
 
       await getPool().query(
         `INSERT INTO \`execution_plans\`
-           (plan_id, tenant_id, user_id, resolution_id, intent_key, brand_key, target_key, workflow_key, route_key,
+           (plan_id, tenant_id, user_id, resolution_id, intent_key, brand_key, target_key, workflow_key, workflow_id, route_key,
             agent_id, service_mode, access_decision, plan_status, steps_json, validation_errors)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           plan_id, tenant_id, user_id || null, resolution_id || null,
-          intent_key || null, brand_key || null, target_key || null, workflow_key || null, route_key || null,
+          intent_key || null, brand_key || null, target_key || null, workflow_key || null, workflow_id || null, route_key || null,
           plan_agent_id,
           access.service_mode || "self_serve", access.decision, plan_status,
           JSON.stringify(steps),
@@ -194,11 +217,11 @@ export function buildPlannerRoutes(deps) {
   router.patch("/planner/plans/:id/status", requireBackendApiKey, async (req, res) => {
     try {
       const { status } = req.body || {};
-      const VALID = ["draft", "validated", "approved", "executing", "completed", "failed", "cancelled"];
+      const VALID = ["draft", "validated", "approved", "executing", "awaiting_approval", "paused", "blocked", "completed", "failed", "cancelled"];
       if (!VALID.includes(status)) {
         return res.status(400).json({ ok: false, error: { code: "invalid_status", message: `status must be one of: ${VALID.join(", ")}` } });
       }
-      await getPool().query("UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?", [status, req.params.id]);
+      await getPool().query("UPDATE `execution_plans` SET plan_status = ?, runtime_status = ? WHERE plan_id = ?", [persistedPlanStatus(status), status, req.params.id]);
       return res.status(200).json({ ok: true, plan_id: req.params.id, plan_status: status });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
@@ -215,13 +238,95 @@ export function buildPlannerRoutes(deps) {
       const apply         = req.query.apply === "true" || req.body?.apply === true;
       const post_types    = req.body?.post_types || ["post"];
       const publish_status = req.body?.publish_status || "draft";
-      const actor_id      = req.body?.actor_id || null;
+      const actor_id      = principalActor(req);
 
       const result = await dispatchPlan(plan_id, { apply, post_types, publish_status, actor_id });
       const httpStatus = result.ok ? 200 : (result.error?.code === "plan_not_found" ? 404 : 400);
       return res.status(httpStatus).json(result);
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "execute_failed", message: err.message } });
+    }
+  });
+
+  router.post("/planner/plans/:id/compile", requireBackendApiKey, async (req, res) => {
+    try {
+      const tenantId = String(req.body?.tenant_id || "").trim();
+      const steps = req.body?.steps;
+      const result = await persistCompiledSequentialPlan({
+        pool: getPool(),
+        planId: req.params.id,
+        tenantId,
+        steps,
+        actorId: principalActor(req),
+      });
+      return res.status(201).json({ ok: true, ...result });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_compile_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/planner/plans/:id/tick", requireBackendApiKey, async (req, res) => {
+    try {
+      const result = await tickSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_tick_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/planner/plans/:id/run", requireBackendApiKey, async (req, res) => {
+    try {
+      const result = await runSequentialPlan({
+        pool: getPool(),
+        planId: req.params.id,
+        actorId: principalActor(req),
+        maxTicks: req.body?.max_ticks || 25,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_run_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/planner/plans/:id/enqueue", requireBackendApiKey, async (req, res) => {
+    try {
+      if (!deps.executionFacade || typeof deps.executionFacade.submitJob !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "sequential_plan_queue_unavailable", message: "Background execution queue is unavailable." }, secrets_included: false });
+      }
+      const actorId = principalActor(req);
+      const idempotencyKey = String(req.body?.idempotency_key || req.header("Idempotency-Key") || `sequential-plan:${req.params.id}`).trim();
+      const submitted = await deps.executionFacade.submitJob({
+        job_type: SEQUENTIAL_PLAN_RUN_JOB_TYPE,
+        request_payload: {
+          plan_id: req.params.id,
+          actor_id: actorId,
+          max_ticks: req.body?.max_ticks || 25,
+          execution_trace_id: req.body?.execution_trace_id || "",
+        },
+        max_attempts: 1,
+      }, actorId, idempotencyKey);
+      return res.status(submitted.status).json({ ...submitted.body, plan_id: req.params.id, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_enqueue_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/planner/plans/:id/resume", requireBackendApiKey, async (req, res) => {
+    try {
+      const result = await resumeSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_resume_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.get("/planner/plans/:id/timeline", requireBackendApiKey, async (req, res) => {
+    try {
+      const timeline = await getSequentialPlanTimeline({ pool: getPool(), planId: req.params.id });
+      if (!timeline) return res.status(404).json({ ok: false, error: { code: "sequential_plan_not_found", message: "Execution plan not found." }, secrets_included: false });
+      return res.status(200).json({ ok: true, ...timeline, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "sequential_plan_timeline_failed", message: err.message }, secrets_included: false });
     }
   });
 

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "policy_key": "spec_kit_completion_gate_v1",
+  "enforcement_mode": "changed_scope_fail_closed",
+  "spec_root": "specs",
+  "required_feature_files": ["spec.md", "plan.md", "tasks.md", "completion.json"],
+  "required_checklist_directory": "checklists",
+  "delivery_modes": ["single_pr", "multi_pr"],
+  "completion_statuses": ["in_progress", "complete"],
+  "single_pr_forbidden_requirements": ["migration", "production_verification", "post_merge_audit"],
+  "accepted_checkbox_states": {
+    "complete": ["x", "X"],
+    "not_applicable": ["~"]
+  },
+  "current_pr_marker": "current",
+  "legacy_behavior": "Unchanged legacy Spec Kits are grandfathered. Any future change to a legacy Spec Kit requires adoption of this policy.",
+  "secrets_included": false
+}

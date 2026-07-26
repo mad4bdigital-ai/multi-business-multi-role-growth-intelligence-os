@@ -1,0 +1,360 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
+import { resolveActionManifestDiagnostic } from "./actionManifestDiagnostic.js";
+
+// frontend-surface-operation: POST /platform/action-manifest/resolve
+// frontend-surface-operation: POST /platform/execution-readiness/dry-run
+
+function surfaceRow(surfaceId, name, schemaRef) {
+  return {
+    surface_id: surfaceId,
+    logical_surface_key: surfaceId,
+    surface_name: name,
+    surface_type: "registry",
+    surface_scope: "runtime",
+    storage_type: "sql_table",
+    active_status: "active",
+    authority_status: "authoritative",
+    required_for_execution: "TRUE",
+    resolution_rule: "sql_primary",
+    owner_layer: "governed_context_resolution",
+    schema_ref: schemaRef,
+    schema_version: "v1",
+    binding_mode: "sql_runtime_authority",
+    sheet_role: "runtime_manifest",
+    source_surface_id: null,
+    source_surface_role: null,
+    retired_replacement_surface_id: null,
+    backend_type: "sql",
+    backend_adapter: `governed_context_resolution.${schemaRef}`,
+    authority_model: "sql_runtime_authority",
+    portability_class: "runtime_authority",
+    repair_candidate_types: "surface_authority|readback|binding_integrity",
+    repair_priority: "high",
+    updated_at: "2026-05-26T00:00:00.000Z",
+  };
+}
+
+function createPool() {
+  const state = { queries: [] };
+  const pool = {
+    state,
+    async query(sql, params = []) {
+      state.queries.push({ sql, params });
+      const compactSql = String(sql).replace(/\s+/g, " ").trim();
+      if (compactSql.includes("FROM `registry_surfaces_catalog`")) {
+        const surfaceId = params[0];
+        if (surfaceId === "surface.endpoint_registry_sheet") return [[surfaceRow(surfaceId, "API Actions Endpoint Registry", "endpoints")]];
+        if (surfaceId === "surface.platform_tool_manifest") return [[surfaceRow(surfaceId, "Platform Tool Manifest", "admin_platform_endpoint_tools")]];
+        if (surfaceId === "surface.actions_registry_sheet") return [[surfaceRow(surfaceId, "Actions Registry", "actions")]];
+        throw new Error(`unexpected surface: ${surfaceId}`);
+      }
+      if (compactSql.includes("FROM `actions` a")) {
+        return [[{
+          action_key: "crm.contact.list",
+          status: "active",
+          module_binding: "http_generic_api",
+          connector_family: "rest_api",
+          runtime_capability_class: "tenant_plugin_action",
+          runtime_callable: 1,
+          primary_executor: "platform_plugin_private_rest_dispatch",
+          action_id: "act.crm.contact.list",
+          action_title: "List CRM contacts",
+          action_class: "read",
+          action_scope: "tenant",
+          route_target: "platformPluginPrivateRestDispatch",
+          execution_layer: "runtime",
+          logging_target: "execution_log_unified",
+          openai_action_binding: "http_generic_api",
+          endpoint_group: "crm",
+          review_required: "FALSE",
+          openai_schema_ref: "schema.crm.contact.list",
+          openai_schema_file_name: "crm.openapi.yaml",
+          openai_schema_storage_surface: "db",
+          required_variable_contracts: "tenant_id|connection_id",
+          runtime_binding_profile: "tenant_rest_plugin",
+          request_envelope_required: "TRUE",
+          structured_api_supported: "TRUE",
+          conversational_trigger_supported: "FALSE",
+          provider_agnostic: "TRUE",
+          allowed_actor_roles: "admin|member",
+          allowed_governance_levels: "standard|advanced",
+          client_allowed: "tenant_1",
+          team_allowed: "growth",
+          admin_only: "FALSE",
+          writeback_scope: "none",
+          plugin_binding_id: "bind.crm.contact.list",
+          plugin_app_key: "tenant.nagy_sample_crm_20260525",
+          plugin_binding_role: "primary_api",
+          plugin_credential_source: "tenant_connection",
+          plugin_exposure_default: "runtime_only",
+          plugin_binding_status: "active",
+          plugin_display_name: "Nagy Sample CRM Plugin",
+          plugin_auth_type: "api_key",
+          plugin_category: "rest_api",
+          plugin_status: "active",
+          policy_tenant_id: "tenant_1",
+          policy_source_mode: "dedicated",
+          policy_fallback_allowed: 0,
+          policy_status: "active",
+          active_connection_count: 1,
+          primary_connection_count: 1,
+        }]];
+      }
+      if (compactSql.includes("FROM endpoints")) {
+        return [[{
+          endpoint_id: "ep.crm.contact.list",
+          parent_action_key: "crm.contact.list",
+          endpoint_key: "crm_contact_list",
+          endpoint_title: "List CRM contacts endpoint",
+          endpoint_operation: "listContacts",
+          endpoint_role: "primary",
+          method: "GET",
+          provider_domain: "tenant_plugin_private_rest",
+          provider_family: "rest_api",
+          endpoint_path_or_function: "/contacts",
+          route_target: "platformPluginPrivateRestDispatch",
+          openai_action_name: "crm_contact_list",
+          module_binding: "http_generic_api",
+          connector_family: "rest_api",
+          status: "active",
+          spec_validation_status: "valid",
+          auth_validation_status: "valid",
+          privacy_validation_status: "valid",
+          execution_readiness: "ready",
+          transport_required: "TRUE",
+          fallback_allowed: "FALSE",
+          schema_json_present: 1,
+          child_openai_schema_file_id_present: 0,
+          schema_overlay_mode: "none",
+          schema_overlay_status: "ready",
+          schema_overlay_parent_action_key: null,
+          required_variable_contracts: "tenant_id|connection_id",
+          runtime_binding_profile: "tenant_rest_plugin",
+          review_required: "FALSE",
+          admin_only: "FALSE",
+          allowed_actor_roles: "admin|member",
+          allowed_governance_levels: "standard|advanced",
+          client_allowed: "tenant_1",
+          team_allowed: "growth",
+          writeback_scope: "none",
+        }]];
+      }
+      if (compactSql.includes("FROM app_integration_tool_bindings b")) {
+        return [[
+          {
+            binding_id: "tool.bind.connection.create",
+            app_key: "tenant.nagy_sample_crm_20260525",
+            tool_key: "admin_app_connection_create",
+            tool_surface: "admin_platform_tool",
+            binding_role: "connection_management",
+            credential_source: "tenant_connection",
+            exposure_scope: "admin",
+            binding_status: "active",
+            display_name: "Create Admin App Connection",
+            description: "Create a governed app connection.",
+            http_method: "POST",
+            http_path: "/app-connections",
+            path_param_keys: null,
+            input_schema_present: 1,
+            fixed_body_present: 0,
+            tags: "credentials,app-integrations,admin",
+            tool_is_enabled: 1,
+          },
+        ]];
+      }
+      throw new Error(`unexpected query: ${compactSql}`);
+    },
+  };
+  return pool;
+}
+
+{
+  const pool = createPool();
+  const result = await resolveActionEndpointToolManifest({
+    pool,
+    action_key: "crm.contact.list",
+    endpoint_key: "crm_contact_list",
+    plugin_key: "tenant.nagy_sample_crm_20260525",
+    tenant_id: "tenant_1",
+    user_id: "user_1",
+    actor_role: "member",
+    governance_level: "standard",
+    client_key: "tenant_1",
+    team_key: "growth",
+    limit: 5,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.resolver, "shared_action_endpoint_tool_manifest_resolver");
+  assert.equal(result.mode, "read_model_only");
+  assert.equal(result.surface_authority.action_registry.ok, true);
+  assert.equal(result.surface_authority.endpoint_registry.ok, true);
+  assert.equal(result.surface_authority.tool_manifest.ok, true);
+  assert.equal(result.count, 1);
+  assert.equal(result.manifests[0].action.action_key, "crm.contact.list");
+  assert.equal(result.manifests[0].endpoints.length, 1);
+  assert.equal(result.manifests[0].endpoints[0].endpoint_key, "crm_contact_list");
+  assert.equal(result.manifests[0].tools.length, 1);
+  assert.equal(result.manifests[0].tools[0].tool_key, "admin_app_connection_create");
+  assert.equal(result.manifests[0].readiness.manifest_complete, true);
+  assert.equal(result.secrets_included, false);
+  assert.equal(result.manifests[0].secrets_included, false);
+  assert(result.authority_chain.includes("action_registry_authority_resolver"));
+  assert(result.authority_chain.includes("platform_tool_manifest"));
+}
+
+{
+  const result = await resolveActionManifestDiagnostic(
+    {
+      action_key: "crm.contact.list",
+      endpoint_key: "crm_contact_list",
+      plugin_key: "tenant.nagy_sample_crm_20260525",
+      tool_key: "admin_app_connection_create",
+      tenant_id: "tenant_1",
+      user_id: "user_1",
+      actor_role: "member",
+      governance_level: "standard",
+      preview_enforce: true,
+      require_plugin_connection: true,
+    },
+    {
+      async resolveActionEndpointToolManifest(args) {
+        assert.equal(args.action_key, "crm.contact.list");
+        assert.equal(args.endpoint_key, "crm_contact_list");
+        assert.equal(args.plugin_key, "tenant.nagy_sample_crm_20260525");
+        assert.equal(args.tool_key, "admin_app_connection_create");
+        return {
+          ok: true,
+          resolver: "shared_action_endpoint_tool_manifest_resolver",
+          mode: "read_model_only",
+          requested: args,
+          count: 1,
+          surface_authority: {
+            action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+            endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+            tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+          },
+          authority_chain: ["action_registry_authority_resolver", "endpoint_registry", "platform_tool_manifest"],
+          manifests: [
+            {
+              action: {
+                action_key: "crm.contact.list",
+                plugin: {
+                  plugin_key: "tenant.nagy_sample_crm_20260525",
+                  binding: { status: "active", credential_source: "tenant_connection" },
+                  tenant_policy: { status: "active" },
+                  connection_summary: { active_connection_count: 1, primary_connection_available: true },
+                },
+                evaluation: { allowed: true, reasons: [] },
+              },
+              endpoints: [{ endpoint_key: "crm_contact_list", readiness: { active: true, execution_readiness: "ready" } }],
+              tools: [{ tool_key: "admin_app_connection_create", is_enabled: true, binding: { active: true } }],
+              readiness: { action_allowed: true, endpoint_count: 1, tool_count: 1, manifest_complete: true },
+              secrets_included: false,
+            },
+          ],
+          secrets_included: false,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, "dry_run_readiness_only");
+  assert.equal(result.will_execute, false);
+  assert.equal(result.requested.tool_key, "admin_app_connection_create");
+  assert.equal(result.execution_authority_manifest.tool_key, "admin_app_connection_create");
+  assert.equal(result.execution_authority_guard_preview.guard_status, "passed");
+  assert.equal(result.execution_authority_guard_preview.would_dispatch, true);
+  assert.equal(result.next_step, "dispatch_would_be_allowed_by_manifest_guard");
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const result = await resolveActionManifestDiagnostic(
+    { action_key: "denied.action", endpoint_key: "denied_endpoint", preview_enforce: true },
+    {
+      async resolveActionEndpointToolManifest(args) {
+        return {
+          ok: true,
+          resolver: "shared_action_endpoint_tool_manifest_resolver",
+          mode: "read_model_only",
+          requested: args,
+          count: 1,
+          surface_authority: {
+            action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+            endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+            tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+          },
+          authority_chain: ["action_registry_authority_resolver", "endpoint_registry", "platform_tool_manifest"],
+          manifests: [
+            {
+              action: {
+                action_key: "denied.action",
+                evaluation: { allowed: false, reasons: ["actor_role_not_allowed"] },
+              },
+              endpoints: [{ endpoint_key: "denied_endpoint", readiness: { active: true, execution_readiness: "ready" } }],
+              tools: [],
+              readiness: { action_allowed: false, endpoint_count: 1, tool_count: 0, manifest_complete: false },
+              secrets_included: false,
+            },
+          ],
+          secrets_included: false,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.execution_authority_guard_preview.guard_status, "blocked");
+  assert.equal(result.execution_authority_guard_preview.would_dispatch, false);
+  assert(result.execution_authority_guard_preview.error.details.block_codes.includes("execution_authority_action_not_allowed"));
+  assert.equal(result.next_step, "dispatch_would_be_blocked_by_manifest_guard");
+}
+
+{
+  const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+  assert(routes.includes("/platform/action-manifest/resolve"), "action manifest diagnostic route must be mounted");
+  assert(routes.includes("resolveActionManifestDiagnostic"), "route must call diagnostic resolver");
+  const migration = readFileSync("migrations/147_sprint65_action_manifest_diagnostic_tool.sql", "utf8");
+  assert(migration.includes("action_manifest_resolve"), "tool registry migration must register action manifest resolver tool");
+  assert(migration.includes("/platform/action-manifest/resolve"), "tool registry migration must point at diagnostic route");
+  assert(migration.includes("dry-run"), "tool description must declare dry-run behavior");
+}
+
+{
+  const resolverSource = readFileSync("actionEndpointToolManifestResolver.js", "utf8");
+  assert(resolverSource.includes("NULL AS review_required"), "endpoint manifest resolver must not require non-existent endpoints.review_required column");
+  assert(!resolverSource.includes("runtime_binding_profile, review_required"), "endpoint manifest resolver must avoid direct review_required select from endpoints");
+}
+
+{
+  const dryRunSource = readFileSync("executionReadinessDryRun.js", "utf8");
+  assert(dryRunSource.includes("resolveActionManifestDiagnostic"), "execution readiness dry-run must include action manifest diagnostic");
+  assert(dryRunSource.includes("resolvePlatformGraphContext"), "execution readiness dry-run must include graph context");
+  assert(dryRunSource.includes("loadBrandReadiness"), "execution readiness dry-run must include Brand readiness");
+  assert(dryRunSource.includes("loadBusinessReadiness"), "execution readiness dry-run must include Business Activity readiness");
+  assert(dryRunSource.includes("loadWorkflowLogicReadiness"), "execution readiness dry-run must include Workflow/Logic readiness");
+  assert(dryRunSource.includes("loadSkillReadiness"), "execution readiness dry-run must include Skill readiness");
+  assert(dryRunSource.includes("will_execute: false"), "execution readiness dry-run must never execute");
+  assert(dryRunSource.includes("secrets_included: false"), "execution readiness dry-run must be secret-free");
+  assert(dryRunSource.includes("summarizeGraphNodes"), "execution readiness dry-run must summarize graph nodes");
+  assert(dryRunSource.includes("summarizeGraphEdges"), "execution readiness dry-run must summarize graph edges");
+  assert(dryRunSource.includes("detail_truncated"), "execution readiness dry-run must report detail truncation");
+
+  const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+  assert(routes.includes("/platform/execution-readiness/dry-run"), "execution readiness dry-run route must be mounted");
+  assert(routes.includes("resolveExecutionReadinessDryRun"), "execution readiness dry-run route must call resolver");
+
+  const migration = readFileSync("migrations/149_sprint65_execution_readiness_dry_run_tool.sql", "utf8");
+  assert(migration.includes("execution_readiness_dry_run"), "execution readiness dry-run admin tool must be registered");
+  assert(migration.includes("/platform/execution-readiness/dry-run"), "execution readiness dry-run tool must point to route");
+
+  const openapi = readFileSync("openapi.yaml", "utf8");
+  assert(openapi.includes("/platform/execution-readiness/dry-run:"), "execution readiness dry-run route must be documented in OpenAPI");
+  assert(openapi.includes("operationId: executionReadinessDryRun"), "execution readiness dry-run OpenAPI operationId must be stable");
+}
+
+console.log("action endpoint tool manifest resolver tests passed");

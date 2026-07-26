@@ -294,3 +294,42 @@ using:
 - `Registry Surfaces Catalog`
 - `Row Audit Schema`
 - `Validation & Repair Registry`
+
+---
+
+Dynamic Audit Runtime Closure Rule
+
+The Dynamic Audit runtime must execute through the SQL-primary governed cycle:
+
+- `audit_log` bridge events enter `platform_audit_event_bus` as `pending_rollup`
+- repo, Drive, release-readiness, DB, and checkpoint evidence must remain bounded and no-secret
+- the internal scheduler must resolve cadence and limits from `platform_runtime_config`
+- the audit-log bridge must persist and advance a primary-key cursor; recurring cycles must not rescan the full audit history
+- runtime cycles must use bounded fast-readiness queries; full evidence-quality scans remain explicit deep-audit operations outside the recurring critical path
+- `enabled=false` must stop startup and already-scheduled cycles before lock acquisition or evidence mutation
+- every cycle must use MySQL advisory locks and record a scheduler run result
+- overlapping bridge, rollup, source-producer, and checkpoint cycles are forbidden
+- processed event-bus rows must transition to `rolled_up`
+- provider diagnostics and GitHub REST fallbacks are operational evidence, not asset mutations
+- direct DB calls without table/mutation metadata remain unresolved rather than receiving fabricated semantics
+- Drive evidence is authoritative only for SQL-recorded uploads, artifacts, or workspace assets
+- repo file-audit runs must preserve commit SHA and audit depth; changed-file observation is not exhaustive validation
+- checkpoint rollups may write `main_commit_sha` only from runtime provenance and must never infer `deployed_commit_sha`
+- readiness must evaluate bridge lag, all-source rollup lag, scheduler freshness, repo audit coverage, Drive readback, checkpoint completion, DB semantic quality, duplicate keys, and evidence violations
+- raw request/response payloads, before/after bodies, credentials, tokens, and secret values must not be stored
+
+Recovered, active, or continuous classification is forbidden while the scheduler is stale, backlog exceeds policy thresholds, or required evidence surfaces remain missing.
+## Operational Alerting Evidence Contract
+
+The unified operational alerting surface must preserve the distinction between runtime evidence and alert lifecycle state:
+
+- `execution_log`, telemetry, readiness, connector, task, agent, skill, freshness, and signal surfaces remain evidence authorities
+- `operational_alerts` is the SQL-primary lifecycle and deduplication store; it must not replace or rewrite the underlying evidence
+- every alert must preserve a stable `alert_key`, `source_type`, `reason_code`, severity, lifecycle state, verification state, first/last seen timestamps, occurrence count, and governed evidence reference
+- execution-derived alerts should preserve `execution_log_id` and `trace_id` when available
+- raw credentials, tokens, passwords, private keys, prompt bodies, and secret-bearing payload fields must never be stored in or returned through alert evidence
+- platform Known Issues are admin-visible and must not leak into tenant-scoped responses
+- alert synchronization must write an audited sync-run record and return same-cycle readback evidence
+- a successful final result must explicitly report whether all expected Known Issues are visible, whether the page contains all matching problems, whether any evidence source degraded, and whether the final result is complete
+
+`execution_log` remains evidence, not an alert queue. Resolution of an alert must not delete its source evidence.

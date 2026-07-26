@@ -1,0 +1,178 @@
+{
+  "template_version": 1,
+  "workflow_key": "summary_experiment",
+  "binding_key": "summary_n8n_experiment_v1",
+  "task_class": "summary",
+  "runtime_type": "n8n",
+  "credential": {
+    "type": "httpHeaderAuth",
+    "name": "Platform Classification Webhook Header Auth",
+    "header_name": "Authorization",
+    "value_env_var": "N8N_WEBHOOK_TOKEN"
+  },
+  "workflow": {
+    "name": "Platform Summary Experiment v1",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "platform-summary-experiment",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "headerAuth"
+        },
+        "id": "2d4482d8-394d-4dd6-a214-85bc8e0812a7",
+        "name": "Platform Summary Experiment Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "__N8N_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+            "name": "Platform Classification Webhook Header Auth"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $json.body || $json.input || $json;\nconst raw = String(payload.input?.text || payload.text || payload.content || '').trim();\nconst maxBullets = Math.max(3, Math.min(Number(payload.input?.max_bullets || payload.max_bullets || 5), 8));\nconst maxChars = Math.max(240, Math.min(Number(payload.input?.max_chars || payload.max_chars || 900), 1800));\nconst cleaned = raw.replace(/\\s+/g, ' ').trim();\nconst sentences = cleaned\n  .split(/(?<=[.!?؟])\\s+/)\n  .map((s) => s.trim())\n  .filter(Boolean);\nconst candidates = sentences.length ? sentences : cleaned.split(/[,;،؛]\\s+/).map((s) => s.trim()).filter(Boolean);\nconst bullets = [];\nconst seen = new Set();\nfor (const sentence of candidates) {\n  const normalized = sentence.toLowerCase().replace(/[^a-z0-9\\u0600-\\u06ff]+/g, ' ').trim();\n  if (!normalized || seen.has(normalized)) continue;\n  seen.add(normalized);\n  const clipped = sentence.length > 180 ? sentence.slice(0, 177).trim() + '...' : sentence;\n  bullets.push(clipped);\n  if (bullets.length >= maxBullets) break;\n}\nlet summary = bullets.join(' ');\nif (!summary && cleaned) summary = cleaned.slice(0, maxChars);\nif (summary.length > maxChars) summary = summary.slice(0, maxChars - 3).trim() + '...';\nreturn [{ json: {\n  summary,\n  bullets,\n  source: 'n8n_summary_experiment_v1',\n  method: 'deterministic_extractive',\n  input_length: raw.length,\n  bullet_count: bullets.length,\n  experimental: true\n} }];"
+        },
+        "id": "5ce2c90a-f0b2-4c4c-bdaa-9d89bd034057",
+        "name": "Summarize Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          280,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { summary: $json.summary, bullets: $json.bullets, source: $json.source, method: $json.method, experimental: $json.experimental } }}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "7e3fe6b4-294b-45e8-814f-b0a40e66cf83",
+        "name": "Return Summary",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          560,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "Platform Summary Experiment Webhook": {
+        "main": [
+          [
+            {
+              "node": "Summarize Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Summarize Request": {
+        "main": [
+          [
+            {
+              "node": "Return Summary",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  },
+  "runtime_binding": {
+    "input_schema_json": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "max_bullets": {
+          "type": "number"
+        },
+        "max_chars": {
+          "type": "number"
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "use_case": {
+          "type": "string"
+        }
+      }
+    },
+    "output_schema_json": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "bullets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "experimental": {
+          "type": "boolean"
+        }
+      }
+    },
+    "experiment_policy": {
+      "enabled": true,
+      "enforcement_mode": "block_explicit_denied_use_cases",
+      "allowed_use_cases": [
+        "quick_preview",
+        "fallback_candidate",
+        "arabic_quick_preview",
+        "evaluation_note"
+      ],
+      "blocked_use_cases": [
+        "production_session_memory",
+        "canonical_summary_write",
+        "session_summary_autosweep",
+        "graph_memory_write",
+        "durable_session_memory"
+      ],
+      "default_use_case": "quick_preview",
+      "promotion_status": "not_promoted"
+    }
+  },
+  "security_assertions": {
+    "contains_secret_values": false,
+    "uses_native_header_auth": true,
+    "token_source": "N8N_WEBHOOK_TOKEN",
+    "code_node_uses_process_env": false,
+    "code_node_contains_bearer_literal": false,
+    "production_replacement": false,
+    "canonical_summary_write_allowed": false
+  }
+}

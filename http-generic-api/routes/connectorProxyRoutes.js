@@ -1,5 +1,15 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { resolveEffectiveCredential } from "../credentialResolver.js";
+import { decryptCredentials } from "../tokenEncryption.js";
+import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
+import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import { assertCapabilityKillSwitchOpen } from "../capabilityKillSwitchPolicy.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
@@ -12,6 +22,20 @@ const ROUTE_TYPE_ORDER = [
 ];
 
 const ROUTE_LEVEL_FAILURE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
+const CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_PROXY_TIMEOUT_MS) || 12000, 1000),
+  25000,
+);
+const CONNECTOR_PROXY_MAX_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_PROXY_MAX_TIMEOUT_MS) || 120000, CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS),
+  600000,
+);
+
+function requestedConnectorProxyTimeout(req) {
+  const requested = Number(req?.body?.timeout_ms || req?.query?.timeout_ms || 0);
+  if (!Number.isFinite(requested) || requested <= 0) return CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS;
+  return Math.min(Math.max(requested, 1000), CONNECTOR_PROXY_MAX_TIMEOUT_MS);
+}
 
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
@@ -19,6 +43,18 @@ function httpError(status, code, message, details = null) {
   err.code = code;
   err.details = details;
   return err;
+}
+
+function sendConnectorProxyError(res, err) {
+  return res.status(err.status || 502).json({
+    ok: false,
+    error: {
+      code: err.code || "proxy_failed",
+      message: err.message,
+      ...(err.details ? { details: err.details } : {}),
+    },
+    secrets_included: false,
+  });
 }
 
 function ambiguousDeviceError(deviceId, rows) {
@@ -41,19 +77,49 @@ function ambiguousDeviceError(deviceId, rows) {
 async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = null }) {
   const requested = String(deviceId || "").trim();
   if (!requested) return "";
+
+  const normalized = requested.toLowerCase();
+  const platformTenantId = "00000000-0000-0000-0000-000000000000";
+  const params = [normalized];
+  let scopeSql = "";
+
+  if (userId) {
+    scopeSql += " AND (user_id = ? OR user_id IS NULL)";
+    params.push(userId);
+  }
+  if (tenantId) {
+    scopeSql += " AND (tenant_id = ? OR tenant_id = ? OR tenant_id IS NULL)";
+    params.push(tenantId, platformTenantId);
+  }
+
   try {
     const [rows] = await getPool().query(
-      `SELECT canonical_device_id
+      `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, updated_at
          FROM \`local_connector_device_aliases\`
-        WHERE alias_device_id = ?
+        WHERE LOWER(alias_device_id) = ?
           AND status = 'active'
-          AND (user_id = ? OR user_id IS NULL)
-          AND (tenant_id = ? OR tenant_id IS NULL)
-        ORDER BY (user_id IS NOT NULL) DESC, (tenant_id IS NOT NULL) DESC, updated_at DESC
-        LIMIT 1`,
-      [requested, userId, tenantId]
+          ${scopeSql}
+        ORDER BY CASE WHEN user_id = ? THEN 0 WHEN user_id IS NULL THEN 2 ELSE 1 END,
+                 CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = ? THEN 1 WHEN tenant_id IS NULL THEN 3 ELSE 2 END,
+                 updated_at DESC
+        LIMIT 10`,
+      [...params, userId || "", tenantId || "", platformTenantId]
     );
-    return rows[0]?.canonical_device_id || requested;
+    if (!rows.length) return requested;
+
+    const canonicalIds = [...new Set(rows.map((row) => String(row.canonical_device_id || "").trim()).filter(Boolean))];
+    if (canonicalIds.length === 1) return canonicalIds[0];
+
+    // Admin/global requests may see multiple alias rows. Treat them as safe only
+    // when every matching row resolves to the same active config; otherwise leave
+    // the original device id so resolveDeviceConfig can return its normal 404/409.
+    const configIds = [...new Set(rows.map((row) => String(row.canonical_config_id || "").trim()).filter(Boolean))];
+    if (configIds.length === 1) {
+      const rowWithConfig = rows.find((row) => String(row.canonical_config_id || "").trim() === configIds[0]);
+      return String(rowWithConfig?.canonical_device_id || "").trim() || requested;
+    }
+
+    return requested;
   } catch {
     return requested;
   }
@@ -61,15 +127,20 @@ async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = nu
 
 async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId = null } = {}) {
   deviceId = await resolveCanonicalDeviceId({ deviceId, userId, tenantId });
+  const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
   const selectSql = `SELECT config_id,
                            COALESCE(device_runtime_url, tunnel_url) AS tunnel_url,
                            public_gateway_url,
                            device_runtime_url,
                            admin_recovery_url,
                            connector_secret,
+                           ${connectorLocalApiKeySelect},
                            user_id,
                            tenant_id,
-                           device_id
+                           device_id,
+                           last_health_at,
+                           last_error_code,
+                           last_error_message
                       FROM \`local_connector_user_configs\`
                      WHERE is_enabled = 1`;
 
@@ -80,12 +151,15 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
     const params = [userId, deviceId];
     let sql = `${selectSql} AND user_id = ? AND device_id = ?`;
     if (tenantId) {
-      sql += " AND tenant_id = ?";
+      sql += " AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')";
       params.push(tenantId);
+      sql += " ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC LIMIT 2";
+      params.push(tenantId);
+    } else {
+      sql += " ORDER BY updated_at DESC LIMIT 2";
     }
-    sql += " ORDER BY updated_at DESC LIMIT 2";
     const [rows] = await getPool().query(sql, params);
-    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+    if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
     if (rows[0]) return rows[0];
   }
 
@@ -94,12 +168,15 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
     const params = [deviceId];
     let sql = `${selectSql} AND device_id = ?`;
     if (tenantId) {
-      sql += " AND tenant_id = ?";
+      sql += " AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')";
       params.push(tenantId);
+      sql += " ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC LIMIT 2";
+      params.push(tenantId);
+    } else {
+      sql += " ORDER BY updated_at DESC LIMIT 2";
     }
-    sql += " ORDER BY updated_at DESC LIMIT 2";
     const [rows] = await getPool().query(sql, params);
-    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+    if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
     if (rows[0]) return rows[0];
   }
 
@@ -130,7 +207,20 @@ function routeTypeRank(routeType) {
   return idx === -1 ? ROUTE_TYPE_ORDER.length : idx;
 }
 
+function secondsSince(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return null;
+  return Math.max(0, Math.floor((Date.now() - time) / 1000));
+}
+
+function isFailureAfterSuccess(route) {
+  if (!route?.last_failure_at || !route?.last_success_at) return false;
+  return new Date(route.last_failure_at).getTime() > new Date(route.last_success_at).getTime();
+}
+
 function routeResponseMeta(route) {
+  const lastHealthAt = route.last_health_at || route.last_success_at || route.updated_at || null;
   return {
     route_id: route.route_id || null,
     route_type: route.route_type || "legacy_config",
@@ -138,7 +228,41 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    last_health_at: route.last_health_at || null,
+    last_success_at: route.last_success_at || null,
+    last_failure_at: route.last_failure_at || null,
+    last_error_code: route.last_error_code || null,
+    last_error_message: route.last_error_message || null,
+    health_age_seconds: secondsSince(lastHealthAt),
+    failure_after_success: isFailureAfterSuccess(route),
   };
+}
+
+function normalizeDeviceLabel(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function isWrongDeviceHealthResponse(data, device) {
+  const expected = normalizeDeviceLabel(device?.device_id);
+  const actual = normalizeDeviceLabel(data?.hostname);
+  if (!expected || !actual || expected === actual) return false;
+  try {
+    const [rows] = await getPool().query(
+      `SELECT 1
+         FROM \`local_connector_device_aliases\`
+        WHERE status = 'active'
+          AND LOWER(alias_device_id) = ?
+          AND LOWER(canonical_device_id) = ?
+          AND (user_id = ? OR user_id IS NULL)
+          AND (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '00000000-0000-0000-0000-000000000000')
+        LIMIT 1`,
+      [actual, expected, device?.user_id || null, device?.tenant_id || null]
+    );
+    if (rows.length) return false;
+  } catch {
+    // Fall through to strict mismatch when alias lookup fails.
+  }
+  return true;
 }
 
 async function fetchConnectorJson(url, options) {
@@ -148,34 +272,89 @@ async function fetchConnectorJson(url, options) {
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    data = {
-      ok: false,
-      error: {
-        code: "connector_non_json_response",
-        message: "Connector returned a non-JSON response.",
-        details: { status: response.status, body_preview: text.slice(0, 500) },
-      },
-    };
+    const bodyPreview = text.slice(0, 500);
+    const disabledCapability = response.status === 403 && /(?:\bDISABLED\b|endpoint is disabled|CONNECTOR_[A-Z0-9_]+_ENABLED)/i.test(bodyPreview);
+    data = disabledCapability
+      ? {
+          ok: false,
+          error: {
+            code: "DISABLED",
+            message: bodyPreview || "Connector capability endpoint is disabled.",
+            details: { status: response.status, body_preview: bodyPreview },
+          },
+        }
+      : {
+          ok: false,
+          error: {
+            code: "connector_non_json_response",
+            message: "Connector returned a non-JSON response.",
+            details: { status: response.status, body_preview: bodyPreview },
+          },
+        };
   }
   return { response, data };
 }
 
+async function listRegisteredRoutes(device, { includeDown = false } = {}) {
+  if (!device?.config_id) return [];
+  const healthClause = includeDown
+    ? "AND health_status IN ('healthy','unknown','degraded','down')"
+    : "AND health_status IN ('healthy','unknown','degraded')";
+  const [rows] = await getPool().query(
+    `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
+            tls_mode, auth_mode, health_status, last_health_at, last_success_at, last_failure_at,
+            last_error_code, last_error_message, updated_at
+       FROM \`local_connector_device_routes\`
+      WHERE config_id = ?
+        AND is_enabled = 1
+        ${healthClause}
+      ORDER BY priority ASC,
+               FIELD(health_status, 'healthy','unknown','degraded','down') ASC,
+               FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
+               updated_at DESC`,
+    [device.config_id]
+  );
+  return rows;
+}
+
 async function listCandidateRoutes(device) {
   const routes = [];
+  let registeredRoutes = [];
+  let registeredRoutesIncludingDown = [];
   if (device?.config_id) {
-    const [rows] = await getPool().query(
-      `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
-              tls_mode, auth_mode, health_status, last_failure_at, updated_at
-         FROM \`local_connector_device_routes\`
-        WHERE config_id = ?
-          AND is_enabled = 1
-          AND health_status IN ('healthy','unknown')
-        ORDER BY priority ASC,
-                 FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
-                 updated_at DESC`,
-      [device.config_id]
+    registeredRoutes = await listRegisteredRoutes(device);
+    routes.push(...registeredRoutes);
+  }
+
+  const deviceRuntimeUrl = String(device?.device_runtime_url || device?.tunnel_url || "").trim();
+  const normalizedDeviceRuntimeUrl = deviceRuntimeUrl.replace(/\/$/, "");
+  const hasDeviceRuntimeRoute = routes.some((route) =>
+    String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl
+  );
+  if (deviceRuntimeUrl && !hasDeviceRuntimeRoute && device?.config_id) {
+    registeredRoutesIncludingDown = await listRegisteredRoutes(device, { includeDown: true });
+    const recoverableRegisteredRoute = registeredRoutesIncludingDown.find((route) =>
+      String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl &&
+      route.route_type === "cloudflare_tunnel" &&
+      route.route_id
     );
-    routes.push(...rows);
+    if (recoverableRegisteredRoute) routes.push({ ...recoverableRegisteredRoute, priority: Math.min(Number(recoverableRegisteredRoute.priority ?? 50), 25) });
+  }
+  const hasRecoverableDeviceRuntimeRoute = routes.some((route) =>
+    String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl
+  );
+  if (deviceRuntimeUrl && !hasRecoverableDeviceRuntimeRoute) {
+    routes.push({
+      route_id: null,
+      config_id: device.config_id || null,
+      route_type: "cloudflare_tunnel",
+      route_label: "Device runtime URL",
+      endpoint_url: deviceRuntimeUrl,
+      priority: 25,
+      tls_mode: "required",
+      auth_mode: "bearer_connector_secret",
+      health_status: "unknown",
+    });
   }
 
   if (!routes.length && device?.tunnel_url) {
@@ -212,6 +391,17 @@ async function markRouteSuccess(route) {
         WHERE route_id = ?`,
       [route.route_id]
     );
+    if (route.config_id) {
+      await getPool().query(
+        `UPDATE \`local_connector_user_configs\`
+            SET last_health_at = NOW(),
+                last_error_code = NULL,
+                last_error_message = NULL,
+                updated_at = NOW()
+          WHERE config_id = ?`,
+        [route.config_id]
+      );
+    }
   } catch {
     // Health metadata must not break the proxy response.
   }
@@ -220,6 +410,8 @@ async function markRouteSuccess(route) {
 async function markRouteFailure(route, code, message, { terminal = false } = {}) {
   if (!route?.route_id) return;
   const health = terminal ? "down" : "degraded";
+  const errorCode = String(code || "route_failed").slice(0, 128);
+  const errorMessage = String(message || "Route dispatch failed.").slice(0, 1000);
   try {
     await getPool().query(
       `UPDATE \`local_connector_device_routes\`
@@ -230,24 +422,147 @@ async function markRouteFailure(route, code, message, { terminal = false } = {})
               last_error_message = ?,
               updated_at = NOW()
         WHERE route_id = ?`,
-      [health, String(code || "route_failed").slice(0, 128), String(message || "Route dispatch failed.").slice(0, 1000), route.route_id]
+      [health, errorCode, errorMessage, route.route_id]
     );
+
+    if (route.config_id) {
+      const [healthyRows] = await getPool().query(
+        `SELECT COUNT(*) AS healthy_count
+           FROM \`local_connector_device_routes\`
+          WHERE config_id = ?
+            AND is_enabled = 1
+            AND health_status = 'healthy'`,
+        [route.config_id]
+      );
+      const healthyCount = Number(healthyRows?.[0]?.healthy_count || 0);
+      if (healthyCount === 0) {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = ?,
+                  last_error_message = ?,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [errorCode, errorMessage, route.config_id]
+        );
+      } else {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = NULL,
+                  last_error_message = NULL,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [route.config_id]
+        );
+      }
+    }
   } catch {
     // Health metadata must not break fallback.
   }
 }
 
-function buildForwardOptions(req) {
+function pickFirstString(values = []) {
+  for (const value of values) {
+    const clean = String(value || "").trim();
+    if (clean) return clean;
+  }
+  return "";
+}
+
+const N8N_ENVELOPE_REQUIRED_ACTIONS = new Set([
+  "start",
+  "stop",
+  "restart",
+  "activate_workflow",
+  "deactivate_workflow",
+  "run_workflow",
+  "execute_workflow",
+]);
+
+function normalizeN8nAction(body = {}) {
+  return String(body.action || body.n8n_action || body.operation || "").trim().toLowerCase();
+}
+
+async function requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId }) {
+  const action = normalizeN8nAction(req.body || {});
+  if (!N8N_ENVELOPE_REQUIRED_ACTIONS.has(action)) return null;
+  const acceptedIntents = [action, "n8n_workflow_control", "workflow_control", "automation_workflows"];
+  if (action === "run_workflow") acceptedIntents.push("execute_workflow");
+  if (action === "execute_workflow") acceptedIntents.push("run_workflow");
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: req.body || {},
+    acceptedAppKeys: ["n8n"],
+    acceptedIntents,
+    expectedTenantId: tenantId,
+    expectedUserId: userId,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `connector_n8n:${action}` });
+  return resolved;
+}
+
+async function loadPreferredN8nApiConnection({ tenantId, userId }) {
+  if (!tenantId || !userId) return null;
+  const [rows] = await getPool().query(
+    `SELECT * FROM \`user_app_connections\`
+      WHERE tenant_id = ?
+        AND user_id = ?
+        AND app_key = 'n8n'
+        AND auth_type = 'api_key'
+        AND status = 'active'
+      ORDER BY is_primary DESC, connected_at DESC
+      LIMIT 1`,
+    [tenantId, userId]
+  ).catch(() => [[]]);
+  return rows[0] || null;
+}
+
+async function resolveN8nApiBridge({ tenantId, userId }) {
+  const conn = await loadPreferredN8nApiConnection({ tenantId, userId });
+  if (!conn) return null;
+  const resolved = await resolveEffectiveCredential({
+    tenantId,
+    userId,
+    connectionId: conn.connection_id,
+    credentialRole: "n8n_api_key",
+    includeSecret: true,
+    allowPlatformFallback: false,
+  }).catch(() => null);
+  if (resolved?.status !== "resolved" || !resolved.secret) return null;
+
+  let credentials = {};
+  try { credentials = decryptCredentials(conn.encrypted_credentials) || {}; } catch { credentials = {}; }
+  return {
+    apiKey: resolved.secret,
+    publicBaseUrl: pickFirstString([credentials.N8N_BASE_URL, credentials.n8n_base_url, conn.api_base_url]),
+    localBaseUrl: pickFirstString([credentials.N8N_LOCAL_BASE_URL, credentials.n8n_local_base_url]),
+    webhookBaseUrl: pickFirstString([credentials.N8N_WEBHOOK_BASE_URL, credentials.n8n_webhook_base_url]),
+    connectionId: conn.connection_id,
+  };
+}
+
+async function buildForwardOptions(req, targetPath, context = {}) {
   const baseOptions = {
     method: req.method,
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(requestedConnectorProxyTimeout(req)),
   };
 
   if (["POST", "PUT", "PATCH"].includes(req.method) && req.body && Object.keys(req.body).length) {
     const forwardedBody = { ...req.body };
     delete forwardedBody.user_id;
     delete forwardedBody.tenant_id;
+    if (targetPath === "/n8n") {
+      const bridge = await resolveN8nApiBridge({ tenantId: context.tenantId, userId: context.userId });
+      if (bridge?.apiKey) {
+        forwardedBody._platform_n8n_api_key = bridge.apiKey;
+        forwardedBody._platform_n8n_local_base_url = bridge.localBaseUrl || "";
+        forwardedBody._platform_n8n_public_base_url = bridge.publicBaseUrl || "";
+        forwardedBody._platform_n8n_connection_id = bridge.connectionId || "";
+      }
+    }
     baseOptions.body = JSON.stringify(forwardedBody);
   }
 
@@ -284,6 +599,64 @@ async function attemptRoute({ req, route, url, baseOptions, candidateTokens }) {
   return last;
 }
 
+async function connectorRouteDiagnostics(req, res, deviceId) {
+  const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
+  const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
+  let userId = isUserAuth ? req.auth.user_id : null;
+  const tenantId = req.auth?.tenant_id || req.query.tenant_id || null;
+  if (!userId && isAdmin) {
+    userId = (req.query.user_id || "").trim() || null;
+  }
+  if (!userId && !isAdmin) {
+    return res.status(401).json({ ok: false, error: { code: "user_identity_required", message: "Sign-in or pass user_id for admin callers." } });
+  }
+
+  let device;
+  try {
+    device = await resolveDeviceConfig(userId, deviceId, { isAdmin, tenantId });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: { code: err.code || "device_config_resolution_failed", message: err.message, details: err.details || undefined },
+    });
+  }
+  if (!device) {
+    return res.status(404).json({ ok: false, error: { code: "device_not_found", message: `No active connector found for device '${deviceId}'.` } });
+  }
+
+  const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true });
+  const routes = await listCandidateRoutes(device);
+  const candidateTokens = isAdmin
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
+
+  return res.status(200).json({
+    ok: true,
+    device: {
+      config_id: device.config_id,
+      device_id: device.device_id,
+      user_id: device.user_id,
+      tenant_id: device.tenant_id,
+      device_runtime_url: device.device_runtime_url ? redactUrlForError(device.device_runtime_url) : null,
+      tunnel_url: device.tunnel_url ? redactUrlForError(device.tunnel_url) : null,
+      admin_recovery_url: device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
+      config_last_health_at: device.last_health_at || null,
+      config_health_age_seconds: secondsSince(device.last_health_at),
+      config_last_error_code: device.last_error_code || null,
+      config_last_error_message: device.last_error_message || null,
+      connector_auth_configured: candidateTokens.length > 0,
+    },
+    route_count: routes.length,
+    registered_route_count: registeredRoutes.length,
+    selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
+    candidate_routes: routes.map(routeResponseMeta),
+    registered_routes: registeredRoutes.map(routeResponseMeta),
+    proxy_default_timeout_ms: CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS,
+    proxy_max_timeout_ms: CONNECTOR_PROXY_MAX_TIMEOUT_MS,
+    secrets_included: false,
+  });
+}
+
 async function proxyToDevice(req, res, deviceId, targetPath) {
   const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
   const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
@@ -314,17 +687,36 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   }
 
   const candidateTokens = isAdmin
-    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
-    : uniqueTruthy([device.connector_secret]);
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
   if (!candidateTokens.length) {
     return res.status(503).json({ ok: false, error: { code: "connector_auth_unconfigured", message: "No per-device connector auth token is configured for this device proxy." } });
+  }
+
+  if (targetPath === "/n8n") {
+    try {
+      const envelope = await requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId });
+      if (envelope?.envelope_id) req.body._capability_envelope_id = envelope.envelope_id;
+    } catch (err) {
+      return res.status(err.status || 403).json({
+        ok: false,
+        error: {
+          code: err.code || "capability_resolution_envelope_required",
+          message: err.message || "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.",
+          details: err.details || undefined,
+        },
+        envelope_required: true,
+        connector_forwarded: false,
+        secrets_included: false,
+      });
+    }
   }
 
   const forwardedQuery = { ...req.query };
   delete forwardedQuery.user_id;
   delete forwardedQuery.tenant_id;
   const queryString = Object.keys(forwardedQuery).length ? "?" + new URLSearchParams(forwardedQuery).toString() : "";
-  const baseOptions = buildForwardOptions(req);
+  const baseOptions = await buildForwardOptions(req, targetPath, { tenantId, userId });
   const routes = await listCandidateRoutes(device);
 
   if (!routes.length) {
@@ -342,6 +734,24 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
       const errorMessage = attempt?.data?.error?.message || null;
       attempts.push({ ...meta, status, error_code: errorCode });
 
+      if (status === 403 && errorCode === "DISABLED") {
+        // The route is reachable and connector auth was sufficient to get a structured
+        // capability response. Optional break-glass capabilities such as /ps or /win
+        // may be intentionally disabled. Treat that as a capability state, not a
+        // route/auth failure, so Browser4 or health-capable routes are not marked
+        // degraded by a disabled optional endpoint.
+        await markRouteSuccess(route);
+        if (attempt.data && typeof attempt.data === "object" && !Array.isArray(attempt.data)) {
+          return res.status(status).json({
+            ...attempt.data,
+            connector_route: meta,
+            connector_route_attempts: attempts,
+            connector_capability_status: "disabled",
+          });
+        }
+        return res.status(status).send(attempt.data);
+      }
+
       if ([401, 403].includes(status)) {
         await markRouteFailure(route, "connector_auth_failed", errorMessage || "Connector rejected all configured auth tokens.");
         continue;
@@ -349,6 +759,12 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
 
       if (isRouteLevelFailure(attempt.response, attempt.data)) {
         await markRouteFailure(route, errorCode || `http_${status}`, errorMessage || `Route returned HTTP ${status}.`, { terminal: status === 530 || status === 503 });
+        continue;
+      }
+
+      if (targetPath === "/health" && await isWrongDeviceHealthResponse(attempt.data, device)) {
+        await markRouteFailure(route, "wrong_device_response", `Route returned health for '${attempt.data.hostname}' instead of '${device.device_id}'.`);
+        attempts[attempts.length - 1].error_code = "wrong_device_response";
         continue;
       }
 
@@ -390,6 +806,46 @@ export function buildConnectorProxyRoutes(deps) {
     });
   }
 
+  router.post("/local-manager/device/agent-runtime", async (req, res) => {
+    try {
+      const device = await requireLocalManagerDevice(req);
+      const action = String(req.body?.action || "capabilities");
+      if (!["capabilities", "recommend_models"].includes(action)) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "invalid_device_runtime_read_action",
+            message: "Local Manager device runtime access supports read-only capability and recommendation actions.",
+          },
+          secrets_included: false,
+        });
+      }
+
+      req.auth = {
+        mode: "user_jwt",
+        user_id: device.user_id,
+        tenant_id: device.tenant_id,
+      };
+      req.body = { action };
+      req.query = {};
+      return await proxyToDevice(req, res, device.device_id, "/agent-runtime");
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "device_runtime_read_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.get("/connector/:device_id/diagnostics", requireBackendApiKey, async (req, res) => {
+    try { await connectorRouteDiagnostics(req, res, req.params.device_id); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_diagnostics_failed", message: err.message } }); }
+  });
+
   router.get("/connector/:device_id/policy", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/policy"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
@@ -401,17 +857,26 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/shell"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/shell");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/files", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/files"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_file_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/files");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/dependencies", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/dependencies"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
+  router.post("/connector/:device_id/agent-runtime", requireBackendApiKey, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/agent-runtime"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
   });
 
@@ -422,6 +887,16 @@ export function buildConnectorProxyRoutes(deps) {
 
   router.post("/connector/:device_id/browser", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/browser"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
+  router.post("/connector/:device_id/browser4", requireBackendApiKey, adminOnly, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/browser4"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
+  router.post("/connector/:device_id/auto-browser", requireBackendApiKey, adminOnly, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/auto-browser"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
   });
 
@@ -436,13 +911,17 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/n8n", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/n8n"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "n8n_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/n8n");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/cf", requireBackendApiKey, adminOnly, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/cf"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "cloudflare_mutation", action: req.body?.action });
+      await proxyToDevice(req, res, req.params.device_id, "/cf");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   router.post("/connector/:device_id/fetch-upload", requireBackendApiKey, async (req, res) => {
@@ -461,8 +940,10 @@ export function buildConnectorProxyRoutes(deps) {
   });
 
   router.post("/connector/:device_id/shell-fetch-upload", requireBackendApiKey, async (req, res) => {
-    try { await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload"); }
-    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+    try {
+      assertCapabilityKillSwitchOpen({ surface: "local_shell", action: "shell_fetch_upload" });
+      await proxyToDevice(req, res, req.params.device_id, "/shell-fetch-upload");
+    } catch (err) { return sendConnectorProxyError(res, err); }
   });
 
   return router;

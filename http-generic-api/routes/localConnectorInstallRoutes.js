@@ -3,6 +3,15 @@ import { getPool } from "../db.js";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
+import {
+  requireFreshLocalManagerDeviceForPrivilegedInstaller,
+  requireLocalManagerDevice,
+} from "../services/localManagerDeviceLinkService.js";
+import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
+import {
+  connectorLocalApiKeySelectFragment,
+  hasConnectorLocalApiKeyColumn,
+} from "../connectorSchemaCompatibility.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
@@ -25,6 +34,100 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "db_restore_certify_probe", cmd: "node", args: ["db-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only DB restore certification prerequisite probe" },
   { alias: "n8n_restore_certify_probe", cmd: "node", args: ["n8n-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only n8n restore certification prerequisite probe" },
 ];
+
+const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
+  powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
+  windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
+};
+
+function cleanText(value, max = 255) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function normalizeRequestedCapabilities(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
+}
+
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^"|"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  // Block characters that are unsafe in Windows paths or generated .bat/.env lines.
+  // Windows itself disallows <>|?* for paths; &^%! are additionally blocked here
+  // because dynamic user-selected grants are rendered into installer scripts.
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues
+    .map((item) => normalizeWindowsPath(item, 260))
+    .filter(Boolean))].slice(0, 25);
+
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
+  const apps = {};
+  for (const item of appGrantValues) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: cleanText(item?.display_name || alias, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: cleanText(item?.capability_class || "desktop_app", 80) || "desktop_app",
+      risk_class: cleanText(item?.risk_class || "interactive", 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args) ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20) : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: cleanText(item?.description || item?.display_name || alias, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
+function connectorCapabilityEnvLines(capabilities = []) {
+  return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
+}
 
 function resolveLocalConnectorPrincipalAliases(userId, tenantId) {
   const normalizedUser = String(userId || "").trim().toLowerCase();
@@ -278,6 +381,36 @@ async function provisionTunnel(accountId, tunnelName, cfToken = null) {
   }, cfToken);
   const tokenResult = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnel.id}/token`, null, cfToken);
   return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
+}
+
+async function rotateTunnelCredential(accountId, tunnelId, tunnelName, cfToken = null) {
+  const tunnelSecret = Buffer.from(
+    randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
+    "hex",
+  ).toString("base64");
+  const updated = await cfRequest(
+    "PATCH",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}`,
+    { name: tunnelName, tunnel_secret: tunnelSecret },
+    cfToken,
+  );
+  const token = updated?.token || await cfRequest(
+    "GET",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`,
+    null,
+    cfToken,
+  );
+  await cfRequest(
+    "DELETE",
+    `/accounts/${accountId}/cfd_tunnel/${tunnelId}/connections`,
+    null,
+    cfToken,
+  );
+  return {
+    tunnelId: updated?.id || tunnelId,
+    tunnelName: updated?.name || tunnelName,
+    token,
+  };
 }
 
 async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
@@ -580,8 +713,11 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
+function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envEchoLines = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => `echo ${line}${index === 0 ? ">" : ">>"} \"%~dp0.env\"`);
   return [
     "@echo off",
     "setlocal EnableDelayedExpansion",
@@ -596,54 +732,73 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
     "set CONNECTOR_DIR=%~dp0",
     "set SERVER_MJS=%~dp0server.mjs",
     "",
-    "REM ── 1. Install cloudflared ──",
+    "REM ── 1. Install or rebind cloudflared ──",
     "where cloudflared >nul 2>&1 || (winget install Cloudflare.cloudflared -e --silent)",
-    "sc query %CF_SERVICE% >nul 2>&1 || (cloudflared service install " + cfToken + ")",
-    "sc query %CF_SERVICE% >nul 2>&1 && net start %CF_SERVICE% >nul 2>&1",
+    "sc query %CF_SERVICE% >nul 2>&1 && net stop %CF_SERVICE% >nul 2>&1",
+    "sc query %CF_SERVICE% >nul 2>&1 && cloudflared service uninstall >nul 2>&1",
+    "timeout /t 2 /nobreak >nul",
+    "sc query %CF_SERVICE% >nul 2>&1 && sc delete %CF_SERVICE% >nul 2>&1",
+    "timeout /t 2 /nobreak >nul",
+    "cloudflared service install " + cfToken,
+    "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service install failed. & exit /b 1)",
+    "net start %CF_SERVICE% >nul 2>&1",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: cloudflared service did not start. & exit /b 1)",
     "",
     "REM ── 2. Write .env ──",
-    `echo BACKEND_API_KEY=${connectorSecret}> "%~dp0.env"`,
-    `echo CONNECTOR_PORT=${port}>> "%~dp0.env"`,
-    "echo MAIN_API_URL=https://api.mad4b.com>> \"%~dp0.env\"",
-    "echo CONNECTOR_SHELL_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_FILES_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_APPS_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_FETCH_UPLOAD_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_N8N_ENABLED=true>> \"%~dp0.env\"",
-    "echo N8N_COMMAND=D:\\npm-global\\n8n.cmd>> \"%~dp0.env\"",
-    "echo N8N_USER_FOLDER=D:\\n8n-data>> \"%~dp0.env\"",
-    "echo N8N_PORT=5678>> \"%~dp0.env\"",
-    "echo N8N_LISTEN_ADDRESS=127.0.0.1>> \"%~dp0.env\"",
-    "echo N8N_PUBLIC_URL=https://n8n.mad4b.com/>> \"%~dp0.env\"",
-    `echo CONNECTOR_SHELL_ALLOWLIST=${allowlistVal}>> "%~dp0.env"`,
+    ...envEchoLines,
     "",
     "REM ── 3. Install Node connector as Windows service via NSSM ──",
     "where nssm >nul 2>&1 || (winget install NSSM.NSSM -e --silent)",
-    "sc query %NODE_SERVICE% >nul 2>&1",
-    "if %ERRORLEVEL% neq 0 (",
-    "  for /f \"tokens=*\" %%p in ('where node') do set NODE_EXE=%%p",
-    "  nssm install %NODE_SERVICE% \"!NODE_EXE!\" \"\\\"%SERVER_MJS%\\\"\"",
-    "  nssm set %NODE_SERVICE% AppDirectory \"%CONNECTOR_DIR%\"",
-    "  nssm set %NODE_SERVICE% AppStdout \"%CONNECTOR_DIR%connector.log\"",
-    "  nssm set %NODE_SERVICE% AppStderr \"%CONNECTOR_DIR%connector-error.log\"",
-    "  nssm set %NODE_SERVICE% AppRotateFiles 1",
-    "  nssm set %NODE_SERVICE% AppRotateBytes 5242880",
-    "  nssm set %NODE_SERVICE% Start SERVICE_AUTO_START",
-    "  nssm set %NODE_SERVICE% ObjectName LocalSystem",
-    ")",
+    "for /f \"tokens=*\" %%p in ('where node') do set NODE_EXE=%%p",
+    "if not defined NODE_EXE (echo ERROR: node.exe was not found. & exit /b 1)",
+    "sc query %NODE_SERVICE% >nul 2>&1 || nssm install %NODE_SERVICE% \"!NODE_EXE!\" \"\\\"%SERVER_MJS%\\\"\"",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: local-connector service install failed. & exit /b 1)",
+    "nssm set %NODE_SERVICE% Application \"!NODE_EXE!\"",
+    "nssm set %NODE_SERVICE% AppParameters \"\\\"%SERVER_MJS%\\\"\"",
+    "nssm set %NODE_SERVICE% AppDirectory \"%CONNECTOR_DIR%\"",
+    "nssm set %NODE_SERVICE% AppStdout \"%CONNECTOR_DIR%connector.log\"",
+    "nssm set %NODE_SERVICE% AppStderr \"%CONNECTOR_DIR%connector-error.log\"",
+    "nssm set %NODE_SERVICE% AppRotateFiles 1",
+    "nssm set %NODE_SERVICE% AppRotateBytes 5242880",
+    "nssm set %NODE_SERVICE% Start SERVICE_AUTO_START",
+    "nssm set %NODE_SERVICE% ObjectName LocalSystem",
+    "nssm set %NODE_SERVICE% AppExit Default Restart",
+    "nssm set %NODE_SERVICE% AppThrottle 1500",
+    "nssm set %NODE_SERVICE% AppRestartDelay 5000",
+    "sc failure %NODE_SERVICE% reset= 86400 actions= restart/5000/restart/15000/restart/60000 >nul 2>&1",
+    "sc failure %CF_SERVICE% reset= 86400 actions= restart/5000/restart/15000/restart/60000 >nul 2>&1",
+    "net stop %NODE_SERVICE% >nul 2>&1",
+    "timeout /t 2 /nobreak >nul",
     "net start %NODE_SERVICE% >nul 2>&1",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: local-connector service did not start. & exit /b 1)",
     "",
+    "REM ── 4. Require local connector health before success ──",
+    "for /L %%i in (1,1,12) do (",
+    `  powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:${port}/health' -UseBasicParsing -TimeoutSec 8; if ($r.StatusCode -eq 200) { exit 0 }; exit 1 } catch { exit 1 }"`,
+    "  if !ERRORLEVEL! EQU 0 goto connector_health_ok",
+    "  timeout /t 5 /nobreak >nul",
+    ")",
+    "echo ERROR: local connector health check failed. Check connector-error.log. & exit /b 1",
+    ":connector_health_ok",
     "echo.",
     `echo Done. Tunnel: ${tunnelUrl}`,
-    "echo Connector service running on port " + port,
+    "echo Connector service running and healthy on port " + port,
     "pause",
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
+  const allowlistVal = buildAllowlistEnvValue(allAliases);
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
+  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
+    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
+    : [];
   return [
-    `BACKEND_API_KEY=${connectorSecret}`,
+    `CONNECTOR_SECRET=${connectorSecret}`,
+    ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -651,6 +806,9 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    ...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities]),
+    ...appAllowlistLine,
+    ...filePathLine,
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
@@ -669,8 +827,36 @@ function buildStartConnectorBat() {
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port });
+function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = false }) {
+  const safeDeviceId = String(deviceId || "device").replace(/[^a-zA-Z0-9_-]+/g, "-");
+  const safeUrl = String(ps1Url || "").replace(/"/g, "");
+  const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1";
+  const doneSuffix = appManaged ? "exit /b 0" : "pause";
+  return [
+    "@echo off",
+    "setlocal EnableExtensions",
+    "REM Mad4B Local Connector repair bootstrap.",
+    "REM Downloads the manifest-verified PowerShell installer and runs it elevated/current-admin.",
+    "",
+    "net session >nul 2>&1",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: Run as Administrator. & ${failSuffix})`,
+    "",
+    "set ROOT=%~dp0",
+    `set PS1=%ROOT%install-local-connector-${safeDeviceId}.ps1`,
+    `set PS1_URL=${safeUrl}`,
+    "echo Downloading current connector repair installer...",
+    "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-WebRequest -Uri '%PS1_URL%' -OutFile '%PS1%' -UseBasicParsing -TimeoutSec 90\"",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: Failed to download PowerShell installer. & ${failSuffix})`,
+    "echo Running current connector repair installer...",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File \"%PS1%\"",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: PowerShell installer failed. & ${failSuffix})`,
+    "echo Done. Connector repair bootstrap completed.",
+    doneSuffix,
+  ].join("\r\n");
+}
+
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -724,10 +910,24 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "  winget install Cloudflare.cloudflared -e --silent",
     "}",
     "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
-    "if (-not $cfSvc) {",
-    `  cloudflared service install ${cfToken}`,
+    "if ($cfSvc) {",
+    "  Stop-Service $CfService -Force -ErrorAction SilentlyContinue",
+    "  & cloudflared service uninstall 2>$null",
+    "  Start-Sleep -Seconds 2",
+    "  $cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
+    "  if ($cfSvc) {",
+    "    & sc.exe delete $CfService | Out-Null",
+    "    Start-Sleep -Seconds 2",
+    "  }",
     "}",
-    "Start-Service $CfService -ErrorAction SilentlyContinue",
+    `& cloudflared service install ${cfToken}`,
+    "if ($LASTEXITCODE -ne 0) { throw \"cloudflared service install failed with exit code $LASTEXITCODE.\" }",
+    "$cfSvc = Get-Service -Name $CfService -ErrorAction SilentlyContinue",
+    "if (-not $cfSvc) { throw 'cloudflared service was not created.' }",
+    "Start-Service $CfService",
+    "$cfSvc.WaitForStatus('Running', [TimeSpan]::FromSeconds(20))",
+    "$cfSvc.Refresh()",
+    "if ($cfSvc.Status -ne 'Running') { throw 'cloudflared service did not reach Running state.' }",
     "",
     "# 4. Part B — Node connector as Windows service (NSSM)",
     "if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {",
@@ -735,29 +935,67 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "  winget install NSSM.NSSM -e --silent",
     "}",
     "$nodeSvc = Get-Service -Name $NodeService -ErrorAction SilentlyContinue",
+    "$nodePath = (Get-Command node).Source",
     "if (-not $nodeSvc) {",
-    "  $nodePath = (Get-Command node).Source",
     "  & nssm install $NodeService $nodePath \"`\"$ServerMjs`\"\"",
-    "  & nssm set $NodeService AppDirectory $Root",
-    "  & nssm set $NodeService AppStdout (Join-Path $Root 'connector.log')",
-    "  & nssm set $NodeService AppStderr (Join-Path $Root 'connector-error.log')",
-    "  & nssm set $NodeService AppRotateFiles 1",
-    "  & nssm set $NodeService AppRotateBytes 5242880",
-    "  & nssm set $NodeService Start SERVICE_AUTO_START",
-    "  & nssm set $NodeService ObjectName LocalSystem",
     "}",
-    "# 5. Install watchdog scheduled task for auto-reconnect and rollback",
+    "& nssm set $NodeService Application $nodePath",
+    "& nssm set $NodeService AppParameters \"`\"$ServerMjs`\"\"",
+    "& nssm set $NodeService AppDirectory $Root",
+    "& nssm set $NodeService AppStdout (Join-Path $Root 'connector.log')",
+    "& nssm set $NodeService AppStderr (Join-Path $Root 'connector-error.log')",
+    "& nssm set $NodeService AppRotateFiles 1",
+    "& nssm set $NodeService AppRotateBytes 5242880",
+    "& nssm set $NodeService Start SERVICE_AUTO_START",
+    "& nssm set $NodeService ObjectName LocalSystem",
+    "& nssm set $NodeService AppExit Default Restart",
+    "& nssm set $NodeService AppThrottle 1500",
+    "& nssm set $NodeService AppRestartDelay 5000",
+    "& sc.exe failure $NodeService 'reset= 86400' 'actions= restart/5000/restart/15000/restart/60000' | Out-Null",
+    "& sc.exe failure $CfService 'reset= 86400' 'actions= restart/5000/restart/15000/restart/60000' | Out-Null",
+    "Stop-Service $NodeService -Force -ErrorAction SilentlyContinue",
+    "Start-Sleep -Seconds 2",
+    "Start-Service $NodeService",
+    "$nodeSvc = Get-Service -Name $NodeService -ErrorAction SilentlyContinue",
+    "if (-not $nodeSvc) { throw 'local-connector service was not created.' }",
+    "$nodeSvc.WaitForStatus('Running', [TimeSpan]::FromSeconds(20))",
+    "$nodeSvc.Refresh()",
+    "if ($nodeSvc.Status -ne 'Running') { throw 'local-connector service did not reach Running state.' }",
+    "",
+    "# 5. Require local connector health before installer success",
+    `$Port = ${Number(port)}`,
+    "$HealthUrl = 'http://127.0.0.1:' + $Port + '/health'",
+    "$HealthOk = $false",
+    "$HealthError = ''",
+    "for ($attempt = 1; $attempt -le 12; $attempt++) {",
+    "  try {",
+    "    $healthResponse = Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec 8",
+    "    if ($healthResponse.StatusCode -eq 200) { $HealthOk = $true; break }",
+    "  } catch {",
+    "    $HealthError = $_.Exception.Message",
+    "  }",
+    "  Start-Sleep -Seconds 5",
+    "}",
+    "$RuntimeStatePath = Join-Path $Root 'connector-runtime-state.json'",
+    "$RuntimeState = [ordered]@{",
+    "  timestamp_utc = (Get-Date).ToUniversalTime().ToString('o')",
+    "  stage = $(if ($HealthOk) { 'installer_local_health_verified' } else { 'installer_local_health_failed' })",
+    "  local_health = $HealthOk",
+    "  cloudflared_status = (Get-Service -Name $CfService -ErrorAction SilentlyContinue).Status.ToString().ToLowerInvariant()",
+    "  connector_status = (Get-Service -Name $NodeService -ErrorAction SilentlyContinue).Status.ToString().ToLowerInvariant()",
+    "  details = $HealthError",
+    "  secrets_included = $false",
+    "}",
+    "$RuntimeState | ConvertTo-Json -Depth 3 | Set-Content -Path $RuntimeStatePath -Encoding UTF8",
+    "if (-not $HealthOk) { throw 'local connector health check failed after service start. See connector-error.log and connector-runtime-state.json.' }",
+    "Write-Host \"Connector running and healthy on port ${port}.\"",
+    "",
+    "# 6. Install watchdog scheduled task for auto-reconnect and rollback",
     "$TaskName = 'Mad4B-LocalConnector-Watchdog'",
-    "$TaskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -File `\"$WatchdogPs1`\"\"",
+    "$TaskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -File `\"$WatchdogPs1`\" -Root `\"$Root`\" -Port ${port}\"",
     "$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)",
     "$TaskPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest",
     "Register-ScheduledTask -TaskName $TaskName -Action $TaskAction -Trigger $TaskTrigger -Principal $TaskPrincipal -Force | Out-Null",
-    "",
-    "Start-Service $NodeService -ErrorAction SilentlyContinue",
-    "Start-Sleep -Seconds 3",
-    "$nodeSvc = Get-Service -Name $NodeService -ErrorAction SilentlyContinue",
-    "if ($nodeSvc?.Status -eq 'Running') { Write-Host \"Connector running on port ${port}.\" }",
-    "else { Write-Host 'WARN: connector service did not start. Check connector-error.log' }",
     "",
     `Write-Host "Done. Tunnel: ${tunnelUrl}"`,
   ].join("\r\n");
@@ -765,19 +1003,65 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+async function reconcileConnectorDeviceAliases(pool, {
+  userId,
+  tenantId,
+  configId,
+  canonicalDeviceId,
+  aliasDeviceIds = [],
+}) {
+  await pool.query(
+    `UPDATE \`local_connector_device_aliases\` a
+       LEFT JOIN \`local_connector_user_configs\` c
+         ON c.config_id = a.canonical_config_id
+        AND c.user_id = a.user_id
+        AND c.tenant_id = a.tenant_id
+        SET a.status = 'archived',
+            a.reason = 'canonical_config_missing_archived_by_provisioning'
+     WHERE a.user_id = ?
+       AND a.tenant_id = ?
+       AND a.status = 'active'
+       AND (a.canonical_config_id IS NULL OR c.config_id IS NULL)`,
+    [userId, tenantId]
+  );
+
+  const aliases = [...new Set(aliasDeviceIds
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+  for (const aliasDeviceId of aliases) {
+    await pool.query(
+      `INSERT INTO \`local_connector_device_aliases\`
+         (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status)
+       VALUES (?, ?, ?, ?, ?, 'installer_provisioning_canonical_reconciliation', 'active')
+       ON DUPLICATE KEY UPDATE
+         canonical_device_id = VALUES(canonical_device_id),
+         canonical_config_id = VALUES(canonical_config_id),
+         reason = VALUES(reason),
+         status = 'active'`,
+      [aliasDeviceId, canonicalDeviceId, configId, userId, tenantId]
+    );
+  }
+}
+
 export async function provisionLocalConnectorInstall(req, body = {}) {
   const {
     user_id, tenant_id, device_id,
     hostname = null,
     custom_aliases = [],
     local_apps = [],
+    capabilities = [],
+    permission_grants = {},
     reprovision = false,
   } = body || {};
+  const requestedPermissionGrants = normalizePermissionGrants({ ...permission_grants, capabilities });
+  const requestedCapabilities = requestedPermissionGrants.capabilities;
   if (!user_id || !tenant_id || !device_id) {
     throw httpError(400, "missing_fields", "user_id, tenant_id, device_id required.");
   }
 
   const pool = getPool();
+  const connectorLocalApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+  const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
   const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
   const resolvedUserId = principal.userId;
   const resolvedTenantId = principal.tenantId;
@@ -789,7 +1073,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    `SELECT config_id, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -798,6 +1082,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   let tunnelToken = existing?.cf_token || null;
   let tunnelUrl = existing?.tunnel_url || null;
   let connectorSecret = existing?.connector_secret || null;
+  let connectorLocalApiKey = existing?.connector_local_api_key || null;
   const requestedRuntimeHostname = String(hostname || "").trim().toLowerCase();
   if (requestedRuntimeHostname && !requestedRuntimeHostname.endsWith(`.${DNS_DOMAIN}`)) {
     throw httpError(400, "invalid_runtime_hostname", `hostname must end with .${DNS_DOMAIN}`);
@@ -807,43 +1092,89 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
 
   if (!existing || reprovision) {
     const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
-    const provisioned = await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
+    const provisioned = existing?.cf_tunnel_id && reprovision
+          ? await rotateTunnelCredential(
+            accountId,
+            existing.cf_tunnel_id,
+            existing.cf_tunnel_name || tunnelName,
+            provisioningCredentials.cloudflareToken,
+          )
+          : await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
     tunnelId = provisioned.tunnelId;
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = reprovision
+          ? randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "")
+          : connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
-    await pool.query(
-      `INSERT INTO \`local_connector_user_configs\`
-         (config_id, user_id, tenant_id, device_id,
-          tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
-          connector_secret, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE
-         tunnel_url = VALUES(tunnel_url),
-         public_gateway_url = VALUES(public_gateway_url),
-         device_runtime_url = VALUES(device_runtime_url),
-         admin_recovery_url = VALUES(admin_recovery_url),
-         connector_secret = VALUES(connector_secret),
-         cf_tunnel_id = VALUES(cf_tunnel_id),
-         cf_tunnel_name = VALUES(cf_tunnel_name),
-         cf_token = VALUES(cf_token),
-         is_enabled = 1`,
-      [
-        configId,
-        resolvedUserId,
-        resolvedTenantId,
-        device_id,
-        tunnelUrl,
-        LOCAL_GATEWAY_URL,
-        deviceRuntimeUrl,
-        ADMIN_RECOVERY_URL,
-        connectorSecret,
-        tunnelId,
-        tunnelName,
-        tunnelToken,
-      ]
-    );
+    if (connectorLocalApiKeyColumnSupported) {
+      await pool.query(
+        `INSERT INTO \`local_connector_user_configs\`
+           (config_id, user_id, tenant_id, device_id,
+            tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
+            connector_secret, connector_local_api_key, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           tunnel_url = VALUES(tunnel_url),
+           public_gateway_url = VALUES(public_gateway_url),
+           device_runtime_url = VALUES(device_runtime_url),
+           admin_recovery_url = VALUES(admin_recovery_url),
+           connector_secret = VALUES(connector_secret),
+           connector_local_api_key = VALUES(connector_local_api_key),
+           cf_tunnel_id = VALUES(cf_tunnel_id),
+           cf_tunnel_name = VALUES(cf_tunnel_name),
+           cf_token = VALUES(cf_token),
+           is_enabled = 1`,
+        [
+          configId,
+          resolvedUserId,
+          resolvedTenantId,
+          device_id,
+          tunnelUrl,
+          LOCAL_GATEWAY_URL,
+          deviceRuntimeUrl,
+          ADMIN_RECOVERY_URL,
+          connectorSecret,
+          connectorLocalApiKey,
+          tunnelId,
+          tunnelName,
+          tunnelToken,
+        ]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO \`local_connector_user_configs\`
+           (config_id, user_id, tenant_id, device_id,
+            tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
+            connector_secret, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           tunnel_url = VALUES(tunnel_url),
+           public_gateway_url = VALUES(public_gateway_url),
+           device_runtime_url = VALUES(device_runtime_url),
+           admin_recovery_url = VALUES(admin_recovery_url),
+           connector_secret = VALUES(connector_secret),
+           cf_tunnel_id = VALUES(cf_tunnel_id),
+           cf_tunnel_name = VALUES(cf_tunnel_name),
+           cf_token = VALUES(cf_token),
+           is_enabled = 1`,
+        [
+          configId,
+          resolvedUserId,
+          resolvedTenantId,
+          device_id,
+          tunnelUrl,
+          LOCAL_GATEWAY_URL,
+          deviceRuntimeUrl,
+          ADMIN_RECOVERY_URL,
+          connectorSecret,
+          tunnelId,
+          tunnelName,
+          tunnelToken,
+        ]
+      );
+    }
   }
 
   const [[cfgRow]] = await pool.query(
@@ -851,12 +1182,19 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     [resolvedUserId, resolvedTenantId, device_id]
   );
   const finalConfigId = cfgRow.config_id;
+  await reconcileConnectorDeviceAliases(pool, {
+    userId: resolvedUserId,
+    tenantId: resolvedTenantId,
+    configId: finalConfigId,
+    canonicalDeviceId: device_id,
+    aliasDeviceIds: [device_id, hostname],
+  });
 
   const runtimeUrl = deviceRuntimeUrl || buildDeviceRuntimeUrl(finalConfigId);
   const runtimeHost = new URL(runtimeUrl).hostname;
   const localAppRoutes = buildDefaultLocalAppRoutes({
     hostname: runtimeHost,
-    localApps,
+    localApps: local_apps,
   });
   if (tunnelId) {
     await upsertCloudflareCnameRecord(runtimeHost, tunnelId, provisioningCredentials.cloudflareToken);
@@ -889,42 +1227,59 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT });
-  const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT });
+  const routeLifecycle = await buildLocalConnectorRouteLifecycleFromDb({
+    config_id: finalConfigId,
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    device_runtime_url: runtimeUrl,
+    public_gateway_url: LOCAL_GATEWAY_URL,
+    admin_recovery_url: ADMIN_RECOVERY_URL,
+    tunnel_url: tunnelUrl,
+  });
 
   return {
     ok: true,
     config_id: finalConfigId,
     device_id,
+    installed: true,
+    reprovisioned: Boolean(!existing || reprovision),
+    existing_config_reused: Boolean(existing && !reprovision),
     tunnel_url: tunnelUrl,
     public_gateway_url: LOCAL_GATEWAY_URL,
     device_runtime_url: runtimeUrl,
     admin_recovery_url: ADMIN_RECOVERY_URL,
-    connector_secret: connectorSecret,
     cf_tunnel_id: tunnelId,
     credential_source: provisioningCredentials.source,
+    secrets_included: false,
+    connector_secret_included: false,
+    connector_local_api_key_included: false,
+    route_lifecycle: routeLifecycle,
+    target_selection: routeLifecycle.target,
+    install: {
+      download_link_available: true,
+      download_link_endpoint: "/local-connector/install/download-link",
+      installer_download_endpoint: "/local-connector/install/download",
+      reprovision_supported: true,
+      reprovision_requires_explicit_flag: true,
+    },
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
     installation: {
       aliases: allAliases.map((a) => a.alias),
-      install_bat: installScript,
-      install_ps1: installPowerShell,
-      files: {
-        ".env": connectorEnv,
-        "start-connector.bat": startConnectorBat,
-        "install-local-connector.ps1": installPowerShell,
-        "install.bat": installScript,
+      capabilities: requestedCapabilities,
+      permission_grants: {
+        allowed_paths: requestedPermissionGrants.allowed_paths,
+        app_aliases: Object.keys(requestedPermissionGrants.apps),
+        shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
       },
       local_runtime: {
         port: CONNECTOR_PORT,
         env_file: ".env",
         start_command: "start-connector.bat",
-        tunnel_command: `cloudflared service install ${tunnelToken}`,
       },
       steps: [
-        "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
-        "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
+        "1. Request a short-lived installer through /local-connector/install/download-link.",
+        "2. Download and run the generated installer as Administrator.",
         "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
         `4. Test: GET /local-connector/health?user_id=${resolvedUserId}&tenant_id=${resolvedTenantId}&device_id=${device_id}`,
       ],
@@ -936,29 +1291,143 @@ export function buildLocalConnectorInstallRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
+  // ── POST /local-connector/install/device-download-link ───────────────────
+  // Allows the signed-in Local Manager app to request a short-lived repair installer
+  // for its own linked device without requiring a platform/admin bearer token.
+  router.post("/local-connector/install/device-download-link", async (req, res) => {
+    try {
+      const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
+      const format = String(req.body?.format || "bat").trim().toLowerCase();
+      const requestedTenantId = req.auth?.is_admin === true
+        ? String(req.body?.tenant_id || "").trim()
+        : "";
+      const selectedTenantId = requestedTenantId || device.tenant_id || "";
+      const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
+      const appManaged = req.body?.app_managed === true || req.body?.suppress_pause === true || req.body?.no_pause === true;
+      if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
+      const [rows] = await getPool().query(
+        `SELECT c.config_id, c.tenant_id, c.device_id
+           FROM \`local_connector_user_configs\` c
+          WHERE c.user_id = ?
+            AND c.is_enabled = 1
+            AND (
+              c.device_id = ?
+              OR c.config_id IN (
+                SELECT a.canonical_config_id
+                  FROM \`local_connector_device_aliases\` a
+                 WHERE a.alias_device_id = ?
+                   AND a.user_id = ?
+                   AND a.status = 'active'
+              )
+            )
+          ORDER BY CASE WHEN c.device_id = ? THEN 0 ELSE 1 END,
+                   CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
+                   COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
+          LIMIT 1`,
+        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
+      );
+      const config = rows[0] || null;
+      if (requestedTenantId && config && String(config.tenant_id || "") !== requestedTenantId) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "connector_config_tenant_mismatch",
+            message: "No active connector config was found for the requested tenant and linked device.",
+          },
+          secrets_included: false,
+        });
+      }
+      if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
+      await reconcileConnectorDeviceAliases(getPool(), {
+        userId: device.user_id,
+        tenantId: config.tenant_id || device.tenant_id,
+        configId: config.config_id,
+        canonicalDeviceId: config.device_id,
+        aliasDeviceIds: [device.device_id, device.session?.hostname, config.device_id],
+      });
+      const token = signInstallerDownloadToken({
+        user_id: device.user_id,
+        tenant_id: config.tenant_id || device.tenant_id,
+        device_id: config.device_id,
+        format,
+        capabilities,
+        permission_grants: permissionGrants,
+        app_managed: appManaged,
+        exp: Math.floor(Date.now() / 1000) + ttl * 60,
+      });
+      const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
+      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      return res.status(200).json({
+        ok: true,
+        device_id: device.device_id,
+        canonical_device_id: config.device_id,
+        config_id: config.config_id,
+        format,
+        capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
+        ttl_minutes: ttl,
+        download_url,
+        app_managed: appManaged,
+        run_as_admin_required: true,
+        auth_context: device.auth_context,
+        reauth_required_for_stale_device_tokens: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_download_link_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // ── POST /local-connector/install/download-link ──────────────────────────
-  // Creates a short-lived signed download link for install-local-connector.ps1.
+  // Creates a short-lived signed download link for install-local-connector.ps1 or .bat.
   // The token is HMAC-signed and contains no connector credentials itself.
   router.post("/local-connector/install/download-link", requireBackendApiKey, async (req, res) => {
     try {
       const { user_id, tenant_id, device_id, ttl_minutes = 30 } = req.body || {};
+      const format = String(req.body?.format || "ps1").trim().toLowerCase();
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+      if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
       const [[config]] = await getPool().query(
-        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [principal.userId, device_id]
+        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [principal.userId, principal.tenantId, device_id]
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
       const ttl = Math.max(5, Math.min(120, Number(ttl_minutes || 30)));
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const token = signInstallerDownloadToken({
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
-        format: "ps1",
+        format,
+        capabilities,
+        permission_grants: permissionGrants,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
-      const download_url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(token)}`;
-      return res.status(200).json({ ok: true, device_id, config_id: config.config_id, ttl_minutes: ttl, download_url, secrets_included: false });
+      const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
+      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      return res.status(200).json({
+        ok: true,
+        device_id,
+        config_id: config.config_id,
+        format,
+        capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
+        ttl_minutes: ttl,
+        download_url,
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "download_link_failed", message: err.message } });
     }
@@ -969,21 +1438,38 @@ export function buildLocalConnectorInstallRoutes(deps) {
   router.get("/local-connector/install/download", async (req, res) => {
     try {
       const payload = verifyInstallerDownloadToken(req.query.token);
-      if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
+      if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-        [payload.user_id, payload.device_id]
+        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        [payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
-      const installer = buildInstallPowerShell({
-        cfToken: config.cf_token,
-        connectorSecret: config.connector_secret,
-        tunnelUrl: config.tunnel_url,
-        aliases: DEFAULT_WINDOWS_ALIASES,
-        port: CONNECTOR_PORT,
+      const permissionGrants = normalizePermissionGrants(payload.permission_grants || { capabilities: payload.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
+      const ps1Token = signInstallerDownloadToken({
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id,
+        device_id: payload.device_id,
+        format: "ps1",
+        capabilities,
+        permission_grants: permissionGrants,
+        exp: payload.exp,
       });
-      const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
+      const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
+      const installer = payload.format === "bat"
+        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id, appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true })
+        : buildInstallPowerShell({
+            cfToken: config.cf_token,
+            connectorSecret: config.connector_secret,
+            tunnelUrl: config.tunnel_url,
+            aliases: DEFAULT_WINDOWS_ALIASES,
+            port: CONNECTOR_PORT,
+            capabilities,
+            permissionGrants,
+          });
+      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
+      const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
@@ -1274,22 +1760,38 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const { user_id, tenant_id, device_id } = req.body || {};
       const isUserAuthUninstall = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
       if (!device_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." }, secrets_included: false });
       }
       if (!isUserAuthUninstall && (!user_id || !tenant_id)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." } });
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id and tenant_id are required for admin/service calls." }, secrets_included: false });
       }
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
-      const [result] = await getPool().query(
-        "UPDATE `local_connector_user_configs` SET is_enabled = 0 WHERE user_id = ? AND tenant_id = ? AND device_id = ?",
+      const pool = getPool();
+      const localApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+      const secretAssignments = [
+        "is_enabled = 0",
+        "cf_token = NULL",
+        "connector_secret = NULL",
+        ...(localApiKeyColumnSupported ? ["connector_local_api_key = NULL"] : []),
+        "updated_at = NOW()",
+      ];
+      const [result] = await pool.query(
+        `UPDATE \`local_connector_user_configs\`
+            SET ${secretAssignments.join(", ")}
+          WHERE user_id = ? AND tenant_id = ? AND device_id = ?`,
         [principal.userId, principal.tenantId, device_id]
       );
-      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" } });
-      return res.status(200).json({ ok: true, message: "Local connector disabled for this device." });
+      if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: { code: "config_not_found" }, secrets_included: false });
+      return res.status(200).json({
+        ok: true,
+        disabled: true,
+        rotated: true,
+        message: "Local connector disabled and stored connector credentials cleared for this device.",
+        secrets_included: false,
+      });
     } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "uninstall_failed", message: err.message } });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "uninstall_failed", message: err.message }, secrets_included: false });
     }
   });
-
   return router;
 }

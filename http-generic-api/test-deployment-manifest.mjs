@@ -14,7 +14,9 @@ try {
   writeFileSync(manifestPath, JSON.stringify({
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     branch: "main",
+    branch_source: "env:DEPLOYMENT_BRANCH",
     commit_sha: "abc123",
+    commit_source: "env:DEPLOYMENT_COMMIT_SHA",
     deployed_at: "2026-05-15T00:00:00.000Z",
     service_version: "test",
   }));
@@ -23,6 +25,8 @@ try {
   const manifest = readDeploymentManifest(env);
   assert.equal(manifest.ok, true, "manifest is read from DEPLOYMENT_MANIFEST_PATH");
   assert.equal(manifest.manifest.commit_sha, "abc123", "commit sha is normalized");
+  assert.equal(manifest.manifest.branch_source, "env:DEPLOYMENT_BRANCH", "branch evidence source is normalized");
+  assert.equal(manifest.manifest.commit_source, "env:DEPLOYMENT_COMMIT_SHA", "commit evidence source is normalized");
 
   assert.equal(
     classifyDeploymentProvenance({ manifestResult: manifest, env: { DEPLOYMENT_EXPECTED_COMMIT_SHA: "abc123" } }).deployment_status,

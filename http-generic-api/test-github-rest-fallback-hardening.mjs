@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const adminCliRoutes = readFileSync('routes/adminCliRoutes.js', 'utf8');
+const preflight = readFileSync('governedExecutionPreflight.js', 'utf8');
+
+assert(adminCliRoutes.includes('parseGithubApiMethod'), 'GitHub REST fallback must parse -X/--method');
+assert(adminCliRoutes.includes('parseGithubFieldValues'), 'GitHub REST fallback must parse -f/--field values');
+assert(adminCliRoutes.includes('github_rest_conflict'), 'GitHub REST fallback must classify 409 conflicts');
+assert(adminCliRoutes.includes('github_rest_validation_failed'), 'GitHub REST fallback must classify 422 validation errors');
+assert(adminCliRoutes.includes('/^\\/pulls\\/\\d+\\/update-branch$/'), 'GitHub REST fallback must allow PR update-branch mutations');
+assert(adminCliRoutes.includes('/^\\/pulls\\/\\d+\\/merge$/'), 'GitHub REST fallback must allow PR merge mutations');
+assert(adminCliRoutes.includes('githubPullCloseAllowed'), 'GitHub REST fallback must explicitly gate PR close mutations');
+assert(adminCliRoutes.includes('assertGithubPullCloseAllowed'), 'GitHub PR close fallback must validate the exact payload');
+assert(adminCliRoutes.includes('github_rest_pr_close_payload_invalid'), 'GitHub PR close fallback must reject fields other than state=closed');
+assert(adminCliRoutes.includes('github_rest_pr_close_readback_failed'), 'GitHub PR close fallback must require same-cycle readback');
+assert(adminCliRoutes.includes('readback_verified: true'), 'GitHub PR close fallback must report verified readback');
+assert(adminCliRoutes.includes('allowedContentsRead'), 'GitHub REST fallback must allow guarded read-only contents path reads');
+assert(adminCliRoutes.includes('/^\\/contents\\/.+/.test(apiTarget)'), 'GitHub REST contents read fallback must be limited to /contents paths');
+assert(adminCliRoutes.includes('githubContentsMutationAllowed'), 'GitHub REST fallback must explicitly gate contents writes');
+assert(adminCliRoutes.includes('assertGithubContentsWritePathAllowed'), 'GitHub REST fallback contents writes must use repo path policy');
+assert(adminCliRoutes.includes('allowedContentsMutation'), 'GitHub REST fallback must include guarded contents mutation support');
+assert(adminCliRoutes.includes('toUpperCase() === "PUT"'), 'GitHub REST fallback contents mutation must be limited to non-destructive PUT writes');
+assert(!adminCliRoutes.includes('["PUT", "DELETE"].includes'), 'GitHub REST fallback must not allow contents DELETE through the write fallback');
+assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');
+assert(adminCliRoutes.includes('command === "graphql"'), 'GitHub REST fallback must support explicit GraphQL API calls');
+assert(adminCliRoutes.includes('assertGithubGraphqlReadOnly'), 'GitHub GraphQL fallback must enforce read-only queries');
+assert(adminCliRoutes.includes('github_rest_graphql_mutation_blocked'), 'GitHub GraphQL fallback must block mutations and subscriptions');
+assert(adminCliRoutes.includes('command === "diff" && maybeId && hasCliFlag(args, "--name-only")'), 'GitHub REST fallback must support gh pr diff --name-only');
+assert(adminCliRoutes.includes('/pulls/${encodeURIComponent(prNumber)}/files?per_page=100'), 'GitHub PR diff name-only fallback must read pull request files');
+assert(adminCliRoutes.includes('github_pr_not_mergeable_dirty'), 'PR merge must classify dirty PRs before merge attempts');
+assert(adminCliRoutes.includes('mergeable_state'), 'Dirty PR diagnostics must include mergeable_state evidence');
+
+assert(preflight.includes('pr_mergeable_state'), 'Repository mutation preflight must include PR mergeable_state evidence');
+assert(preflight.includes('pull_request_mergeable_state_dirty'), 'Repository mutation preflight must classify dirty PRs explicitly');
+assert(preflight.includes('pr_maintainer_can_modify'), 'Repository mutation preflight must include maintainer_can_modify evidence');
+
+console.log('github rest fallback hardening tests passed');

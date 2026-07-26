@@ -1,3 +1,28 @@
+import {
+  DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
+} from "./databaseTableLifecycle.js";
+import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "./connectedExecutionWorker.js";
+import { TENANT_SSH_CLI_EXECUTE_JOB_TYPE } from "./tenantSshCliExecutionWorker.js";
+import { buildStaleJobTimeoutPayload, isRunningJobStale } from "./jobUtils.js";
+import {
+  HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+  normalizeHostingerSshTargetProbeJobPayload,
+  validateHostingerSshTargetProbeJobPayload,
+} from "./hostingerSshDeployExecutor.js";
+import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  normalizeHostingerAsyncDeployPayload,
+  validateHostingerAsyncDeployPayload,
+} from "./asyncReleaseDeployContract.js";
+import {
+  HOSTINGER_SSH_PROBE_RUNNER_MODES,
+  describeHostingerSshProbeRunnerMode,
+  normalizeHostingerSshProbeRunnerMode,
+  startDetachedHostingerSshProbeRunner,
+} from "./hostingerSshProbeRunnerModes.js";
+
 export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKey, deps = {}) {
   const {
     normalizeSiteMigrationPayload,
@@ -59,7 +84,7 @@ export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKe
     idempotencyKey
   });
 
-  jobRepository.set(job);
+  await jobRepository.set(job);
   if (idempotencyLookupKey) {
     await idempotencyRepository.set(idempotencyLookupKey, job.job_id);
   }
@@ -157,6 +182,16 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
   const validationErrors =
     requestedJobType === "site_migration"
       ? validateSiteMigrationPayload(normalizeSiteMigrationPayload(requestPayload)).errors
+      : requestedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE
+      ? []
+      : requestedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE
+      ? []
+      : requestedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE
+      ? []
+      : requestedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE
+      ? validateHostingerSshTargetProbeJobPayload(requestPayload)
+      : requestedJobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE
+      ? validateHostingerAsyncDeployPayload(requestPayload)
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
@@ -235,6 +270,44 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     normalizedJobType === "site_migration"
       ? normalizeSiteMigrationPayload(requestPayload)
       : null;
+  const isDatabaseLifecycleSnapshotJob = normalizedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE;
+  const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
+  const isTenantSshCliExecuteJob = normalizedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE;
+  const isHostingerSshTargetProbeJob = normalizedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE;
+  const isHostingerAsyncDeployJob = normalizedJobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE;
+  const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
+    ? {
+        ...requestPayload,
+        schedule_key: String(requestPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim(),
+        binding_key: String(requestPayload.binding_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY).trim(),
+        summary_only: requestPayload.summary_only !== false,
+      }
+    : null;
+  const connectedExecutionResumeActionPayload = isConnectedExecutionResumeActionJob
+    ? {
+        ...requestPayload,
+        connected_session_id: String(requestPayload.connected_session_id || "").trim(),
+        resume_action_id: String(requestPayload.resume_action_id || "").trim(),
+        dry_run: true,
+      }
+    : null;
+  const tenantSshCliExecutePayload = isTenantSshCliExecuteJob
+    ? {
+        connection_id: String(requestPayload.connection_id || "").trim(),
+        approval_request_id: String(requestPayload.approval_request_id || "").trim(),
+        command_key: String(requestPayload.command_key || "").trim(),
+        tenant_id: String(requestPayload.tenant_id || "").trim(),
+        user_id: String(requestPayload.user_id || "").trim(),
+        timeout_ms: requestPayload.timeout_ms,
+        secrets_included: false,
+      }
+    : null;
+  const hostingerSshTargetProbePayload = isHostingerSshTargetProbeJob
+    ? normalizeHostingerSshTargetProbeJobPayload(requestPayload)
+    : null;
+  const hostingerAsyncDeployPayload = isHostingerAsyncDeployJob
+    ? normalizeHostingerAsyncDeployPayload(requestPayload)
+    : null;
 
   const job = {
     job_id: buildJobId(),
@@ -251,26 +324,86 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
               normalizedSiteMigrationPayload?.source?.target_key ||
               ""
           ).trim()
+        : isDatabaseLifecycleSnapshotJob
+        ? String(databaseLifecycleSnapshotPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim()
+        : isConnectedExecutionResumeActionJob
+        ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
+        : isTenantSshCliExecuteJob
+        ? String(tenantSshCliExecutePayload.connection_id || "").trim()
+        : isHostingerSshTargetProbeJob
+        ? String(hostingerSshTargetProbePayload.target_id || "").trim()
+        : isHostingerAsyncDeployJob
+        ? String(hostingerAsyncDeployPayload.target_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
         ? "site_migration_controller"
+        : isDatabaseLifecycleSnapshotJob
+        ? "database_lifecycle_scheduler"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_worker"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_worker"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
         ? "site_migrate"
+        : isDatabaseLifecycleSnapshotJob
+        ? "database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_allowlisted_execute"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe"
+        : isHostingerAsyncDeployJob
+        ? "remote_runtime_hostinger_deploy_release"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
         ? "site_migration"
+        : isDatabaseLifecycleSnapshotJob
+        ? "database_lifecycle_scheduler_snapshot_runner"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action_worker_bridge"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_dedicated_worker_runtime"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "release_async_deploy_queue_worker"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
         ? "wordpress_site_migration"
+        : isDatabaseLifecycleSnapshotJob
+        ? "database_lifecycle"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution"
+        : isTenantSshCliExecuteJob
+        ? "tenant_infrastructure"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime"
+        : isHostingerAsyncDeployJob
+        ? "release_intelligence"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
         ? "wf_wordpress_site_migration"
+        : isDatabaseLifecycleSnapshotJob
+        ? "wf_database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "wf_connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "wf_tenant_ssh_cli_allowlisted_execute"
+        : isHostingerSshTargetProbeJob
+        ? "wf_hostinger_ssh_target_probe_queue_worker"
+        : isHostingerAsyncDeployJob
+        ? "wf_async_release_deploy"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
@@ -281,7 +414,21 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
           ).trim()
         : String(requestPayload.brand_name || requestPayload.brand || "").trim(),
     execution_trace_id,
-    request_payload: normalizedJobType === "site_migration" ? normalizedSiteMigrationPayload : requestPayload,
+    request_payload: normalizedJobType === "site_migration"
+      ? normalizedSiteMigrationPayload
+      : isDatabaseLifecycleSnapshotJob
+      ? databaseLifecycleSnapshotPayload
+      : isConnectedExecutionResumeActionJob
+      ? connectedExecutionResumeActionPayload
+      : isTenantSshCliExecuteJob
+      ? tenantSshCliExecutePayload
+      : isHostingerSshTargetProbeJob
+      ? hostingerSshTargetProbePayload
+      : isHostingerAsyncDeployJob
+      ? hostingerAsyncDeployPayload
+      : requestPayload,
+    runner_mode: isHostingerSshTargetProbeJob ? normalizeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : "",
+    runner_mode_evidence: isHostingerSshTargetProbeJob ? describeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : null,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
     result_payload: null,
@@ -294,7 +441,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
 
   // GAP 14: endpoint readiness probe — block submission if the target endpoint
   // is not in a ready state (e.g., schema not validated, blocked, inventory-only).
-  if (typeof deps.checkEndpointReadiness === "function" && job.parent_action_key && job.endpoint_key) {
+  if (!isDatabaseLifecycleSnapshotJob && typeof deps.checkEndpointReadiness === "function" && job.parent_action_key && job.endpoint_key) {
     try {
       const readiness = await deps.checkEndpointReadiness({
         parent_action_key: job.parent_action_key,
@@ -318,7 +465,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     }
   }
 
-  jobRepository.set(job);
+  await jobRepository.set(job);
   if (idempotencyLookupKey) {
     await idempotencyRepository.set(idempotencyLookupKey, job.job_id);
   }
@@ -330,13 +477,31 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     endpoint_key: job.endpoint_key
   });
 
+  if (isHostingerSshTargetProbeJob) {
+    const runnerMode = normalizeHostingerSshProbeRunnerMode(job.runner_mode || hostingerSshTargetProbePayload.runner_mode);
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.DETACHED_PROCESS) {
+      const detached = startDetachedHostingerSshProbeRunner({ jobId: job.job_id, mode: runnerMode, reason: hostingerSshTargetProbePayload.approval_reason });
+      if (!detached?.ok) {
+        const failure = await failAsyncSubmission(jobRepository, idempotencyRepository, job, detached?.error, idempotencyLookupKey);
+        return { status: 503, body: failure };
+      }
+      return { status: 202, body: { ...toJobSummary(job), runner: detached, runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, queued_in_bullmq: false, secrets_included: false } };
+    }
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.CRON_WORKER) {
+      return { status: 202, body: { ...toJobSummary(job), runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, cron_claim_required: true, cron_command: "node scripts/hostingerSshProbeDetachedRunner.mjs --mode cron_worker --limit 5", queued_in_bullmq: false, secrets_included: false } };
+    }
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.EXTERNAL_RUNNER) {
+      return { status: 202, body: { ...toJobSummary(job), runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, external_claim_required: true, external_runner_contract: { job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE, claim_by_job_id: job.job_id, status_url: `/jobs/${job.job_id}`, result_url: `/jobs/${job.job_id}/result`, no_secret_response: true }, queued_in_bullmq: false, secrets_included: false } };
+    }
+  }
+
   const enqueueResult = await enqueueJob(job.job_id);
   if (!enqueueResult?.ok) {
     const failure = await failAsyncSubmission(jobRepository, idempotencyRepository, job, enqueueResult?.error, idempotencyLookupKey);
     return { status: 503, body: failure };
   }
 
-  return { status: 202, body: toJobSummary(job) };
+  return { status: 202, body: { ...toJobSummary(job), runner_mode: job.runner_mode || null, runner_mode_evidence: job.runner_mode_evidence || null } };
 }
 
 export async function getExecutionJob(jobId, deps = {}) {
@@ -345,7 +510,9 @@ export async function getExecutionJob(jobId, deps = {}) {
     toJobSummary,
     TERMINAL_JOB_STATUSES,
     ACTIVE_JOB_STATUSES,
-    normalizeJobStatus
+    normalizeJobStatus,
+    updateJob,
+    nowIso
   } = deps;
 
   const job = await resolveJob(jobId);
@@ -362,6 +529,15 @@ export async function getExecutionJob(jobId, deps = {}) {
     };
   }
 
+  if (typeof updateJob === "function" && isRunningJobStale(job)) {
+    updateJob(job, {
+      status: "failed",
+      completed_at: typeof nowIso === "function" ? nowIso() : new Date().toISOString(),
+      result_payload: null,
+      error_payload: buildStaleJobTimeoutPayload(job),
+    });
+  }
+
   const summary = toJobSummary(job);
   return {
     status: 200,
@@ -370,6 +546,57 @@ export async function getExecutionJob(jobId, deps = {}) {
       terminal: TERMINAL_JOB_STATUSES.has(normalizeJobStatus(job.status)),
       active: ACTIVE_JOB_STATUSES.has(normalizeJobStatus(job.status))
     }
+  };
+}
+
+export async function tickExecutionJob(jobId, deps = {}) {
+  const {
+    resolveJob,
+    executeSingleQueuedJob,
+    toJobSummary,
+    normalizeJobStatus,
+  } = deps;
+
+  const job = await resolveJob(jobId);
+  if (!job) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        error: { code: "job_not_found", message: "Job not found." },
+        secrets_included: false,
+      },
+    };
+  }
+
+  const currentStatus = normalizeJobStatus(job.status);
+  if (currentStatus !== "queued") {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        error: {
+          code: "job_not_queued",
+          message: "Only queued jobs can be ticked manually.",
+          details: { job_id: job.job_id, current_status: currentStatus },
+        },
+        secrets_included: false,
+      },
+    };
+  }
+
+  await executeSingleQueuedJob(job);
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      ticked: true,
+      before_status: currentStatus,
+      job: toJobSummary(job),
+      result: job.result_payload || null,
+      error: job.error_payload || null,
+      secrets_included: false,
+    },
   };
 }
 
@@ -408,6 +635,15 @@ export async function pollExecutionJobResult(jobId, deps = {}) {
       String(job.execution_trace_id || "").trim() || createExecutionTraceId();
     if (job.execution_trace_id !== execution_trace_id) {
       updateJob(job, { execution_trace_id });
+    }
+
+    if (isRunningJobStale(job)) {
+      updateJob(job, {
+        status: "failed",
+        completed_at: nowIso(),
+        result_payload: null,
+        error_payload: buildStaleJobTimeoutPayload(job),
+      });
     }
 
     const status = normalizeJobStatus(job.status);

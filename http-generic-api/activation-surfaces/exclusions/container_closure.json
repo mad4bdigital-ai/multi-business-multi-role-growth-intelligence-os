@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_closure",
+  "source_table": "container_closure",
+  "reason": "Excluded because it is a derived internal closure projection for authority resolution and cache validation. Raw closure paths are not activation-visible state.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

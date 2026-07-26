@@ -16,9 +16,24 @@ Every HTTP client execution that may touch a brand, business activity, or functi
 
 If a request declares `business_activity_type_key`, `business_activity_type`, `activity_type_key`, or equivalent structured context, the runtime treats it as governed context. Business activity resolution must precede business-type knowledge, brand specialization, workflow selection, and engine compatibility interpretation.
 
+## Platform resource context rule
+
+Any intent that names or implies a Brand, Workspace, Asset, CMS Site, or Connection must resolve through `platform_resource_context_resolve` before requesting internal identifiers or selecting downstream tools. The resolver may start from any supported resource type and may return an optional Brand context; Brand or Workspace is not a mandatory entry point.
+
+Use helper surfaces by purpose:
+
+- `platform_resource_context_catalog` for authorized discovery and paginated selectors.
+- `platform_resource_context_related` when a canonical resource type and key are already known.
+- `platform_resource_context_diagnostic_handoff` before provider-specific diagnostics.
+- `platform_resource_context_readiness_smoke` for Admin descriptor/schema readiness.
+
+When direct matching fails, `resource_reference_interpreter_v1` may generate bounded `candidate_refs` from the authorized catalog only. Candidate generation is never authority; deterministic matching, ambiguity checks, signed principal scope, and effective grants remain mandatory.
+
+The older `brand_workspace_context_resolve` tool is a backward-compatibility surface, not the primary route for new generic context requests.
+
 ## Brand rule
 
-Brand-targeted execution must resolve through Brand Registry before execution. Target-resolved endpoints, WordPress endpoints, and endpoints with `brand_resolution_source` require resolved brand context. Brand Core remains required for brand outputs and live brand operations.
+Brand-targeted execution must resolve through Brand Registry before execution. Target-resolved endpoints, WordPress endpoints, and endpoints with `brand_resolution_source` require resolved brand context. Brand Core remains required for brand outputs and live brand operations, but it is not required merely to resolve a standalone Workspace, Asset, Site, or Connection.
 
 ## Logic rule
 

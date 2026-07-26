@@ -5,6 +5,8 @@ import {
   normalizeJobStatus,
   normalizeWebhookUrl,
   normalizeMaxAttempts,
+  normalizeJobExecutionTimeoutMs,
+  buildStaleJobTimeoutPayload,
   nextRetryDelayMs,
   nowIso,
   buildJobId
@@ -17,6 +19,31 @@ import {
 import { githubGitBlobChunkRead } from "./github.js";
 import { hostingerSshRuntimeRead as hostingerSshRuntimeReadBase } from "./hostinger.js";
 import { resumeValidationJob as resumeValidationJobBase, SOLVER_JOB_TYPE } from "./registryValidationAsyncSolver.js";
+import {
+  DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+  runDatabaseLifecycleSchedulerSnapshot,
+} from "./databaseTableLifecycle.js";
+import {
+  CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
+  runConnectedExecutionResumeAction,
+} from "./connectedExecutionWorker.js";
+import {
+  TENANT_SSH_CLI_EXECUTE_JOB_TYPE,
+  runTenantSshCliExecuteJob,
+} from "./tenantSshCliExecutionWorker.js";
+import {
+  HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+  runHostingerSshTargetProbeJob,
+} from "./hostingerSshDeployExecutor.js";
+import {
+  HOSTINGER_ASYNC_DEPLOY_JOB_TYPE,
+  runHostingerAsyncDeployJob,
+} from "./asyncReleaseDeployWorker.js";
+import {
+  runSequentialPlan,
+  SEQUENTIAL_PLAN_RUN_JOB_TYPE,
+} from "./sequentialPlanOrchestrator.js";
+import { getPool } from "./db.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -78,6 +105,8 @@ export function toJobSummary(job) {
     runtime_classification: job.runtime_classification || null,
     recovery: job.recovery || null,
     operator_view: job.operator_view || null,
+    runner_mode: job.runner_mode || job.request_payload?.runner_mode || null,
+    runner_mode_evidence: job.runner_mode_evidence || null,
     activation_status: job.runtime_classification?.activation_status || "",
     status_url: `/jobs/${job.job_id}`,
     result_url: `/jobs/${job.job_id}/result`
@@ -375,9 +404,144 @@ export function configureJobRunner(
       .catch(err => console.error("RETRY_ENQUEUE_FAILED:", { job_id: job.job_id, err: err?.message }));
   }
 
+  async function withJobExecutionTimeout(job, executor) {
+    const overrideTimeoutMs = Number(deps.jobExecutionTimeoutMs);
+    const timeoutMs = Number.isFinite(overrideTimeoutMs) && overrideTimeoutMs > 0
+      ? Math.floor(overrideTimeoutMs)
+      : normalizeJobExecutionTimeoutMs(job);
+    let timer = null;
+    try {
+      const timeoutOutcome = new Promise((resolve) => {
+        timer = setTimeout(() => {
+          resolve({
+            success: false,
+            statusCode: 504,
+            payload: buildStaleJobTimeoutPayload(job),
+          });
+        }, timeoutMs);
+      });
+      return await Promise.race([executor(), timeoutOutcome]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function executeQueuedJobByType(job) {
     const jobType = String(job?.job_type || "http_execute").trim();
     if (jobType === "site_migration") return await executeSiteMigrationJob(job);
+    if (jobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE) {
+      try {
+        const payload = await (deps.runDatabaseLifecycleSchedulerSnapshot || runDatabaseLifecycleSchedulerSnapshot)(job.request_payload || {});
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "database_lifecycle_snapshot_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE) {
+      try {
+        const payload = await (deps.runConnectedExecutionResumeAction || runConnectedExecutionResumeAction)(job.request_payload || {});
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "connected_execution_resume_action_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === SEQUENTIAL_PLAN_RUN_JOB_TYPE) {
+      try {
+        const payload = await (deps.runSequentialPlan || runSequentialPlan)({
+          pool: getPool(),
+          planId: String(job.request_payload?.plan_id || "").trim(),
+          actorId: String(job.request_payload?.actor_id || job.requested_by || "").trim() || null,
+          maxTicks: Number(job.request_payload?.max_ticks || 25),
+        });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "sequential_plan_run_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE) {
+      try {
+        const payload = await (deps.runTenantSshCliExecuteJob || runTenantSshCliExecuteJob)({ ...(job.request_payload || {}), worker_job_id: job.job_id });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "tenant_ssh_cli_execute_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE) {
+      try {
+        const payload = await (deps.runHostingerSshTargetProbeJob || runHostingerSshTargetProbeJob)({ ...(job.request_payload || {}), worker_job_id: job.job_id });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload: { ...payload, worker_job_id: job.job_id, secrets_included: false },
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "hostinger_ssh_target_probe_job_failed", message: err?.message || String(err), details: err?.details || null }, worker_job_id: job.job_id, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === HOSTINGER_ASYNC_DEPLOY_JOB_TYPE) {
+      try {
+        const payload = await (deps.runHostingerAsyncDeployJob || runHostingerAsyncDeployJob)({
+          ...(job.request_payload || {}),
+          worker_job_id: job.job_id,
+        });
+        return {
+          success: payload?.ok === true || payload?.transient === true,
+          statusCode: payload?.transient === true ? 202 : payload?.ok === true ? 200 : 409,
+          payload: { ...payload, worker_job_id: job.job_id, secrets_included: false },
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: {
+            ok: false,
+            error: {
+              code: err?.code || "hostinger_async_deploy_job_failed",
+              message: err?.message || String(err),
+              details: err?.details || null,
+            },
+            worker_job_id: job.job_id,
+            secrets_included: false,
+          },
+        };
+      }
+    }
     if (jobType === SOLVER_JOB_TYPE) {
       if (!sheetsClient) {
         return {
@@ -430,7 +594,7 @@ export function configureJobRunner(
       parent_action_key: job.parent_action_key, endpoint_key: job.endpoint_key
     });
 
-    const outcome = await executeQueuedJobByType(job);
+    const outcome = await withJobExecutionTimeout(job, () => executeQueuedJobByType(job));
     const success = outcome.success === true;
 
     if (success) {

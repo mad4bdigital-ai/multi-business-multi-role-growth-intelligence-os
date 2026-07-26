@@ -59,7 +59,7 @@ The admin GPT can generate a pre-filled installer and hand you a Drive download 
 
 ### Diagnosing tunnel errors
 
-Cloudflare error **1033** means cloudflared is configured but not running. Fix:
+Cloudflare error **1033** is often transient. Retry connector health up to three total attempts with short backoff. Only if all attempts fail should you treat cloudflared or the connector service as down and proceed with repair:
 ```powershell
 # Check service status
 Get-Service cloudflared
@@ -88,7 +88,7 @@ Get-EventLog -LogName System -Source cloudflared -Newest 10
 
 All error responses use the shape `{ ok: false, error: { code, message } }`.
 
-Authentication: send `Authorization: Bearer <BACKEND_API_KEY>` on every authenticated request.
+Authentication: send `Authorization: Bearer <CONNECTOR_SECRET>` or `x-connector-secret: <CONNECTOR_SECRET>` on every authenticated request. `CONNECTOR_SECRET` is an Admin-only break-glass credential and is independent of `auth.mad4b.com`. Existing admin devices may continue using `CONNECTOR_LOCAL_API_KEY` as a compatibility alias until they are reprovisioned; do not use `BACKEND_API_KEY` for the standalone connector except during an explicitly documented legacy-device migration window.
 
 ---
 
@@ -287,7 +287,7 @@ This makes provisioning fully automated for any user/device. The platform stores
 The generated `.env` is the local runtime contract for `server.mjs`:
 
 ```
-BACKEND_API_KEY=<device connector secret>
+CONNECTOR_SECRET=<device connector secret>
 CONNECTOR_PORT=7070
 CONNECTOR_SHELL_ENABLED=true
 CONNECTOR_SHELL_ALLOWLIST={...}
@@ -302,7 +302,7 @@ Run `install-local-connector.ps1` as Administrator from the `local-connector` fo
 The same tunnel ID can be active on multiple machines simultaneously. Cloudflare load-balances across all connected cloudflared instances. To add a spare:
 
 1. Copy `cloudflared-config.yml` and the credentials file (`~/.cloudflared/<tunnel-id>.json`) to the spare device.
-2. Copy and fill `.env` with the same `BACKEND_API_KEY`.
+2. Copy and fill `.env` with the same `CONNECTOR_SECRET`.
 3. Start cloudflared on the spare: `cloudflared tunnel run --config cloudflared-config.yml`.
 4. Start the Node server on the spare: `node server.mjs`.
 

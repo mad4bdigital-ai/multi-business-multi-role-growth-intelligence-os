@@ -4,6 +4,7 @@ export function buildActivationOperatorView(classification = {}, progress = {}, 
 
   if (evidence.drive_ok) succeeded.push("Google Drive");
   if (evidence.sheets_ok) succeeded.push("Google Sheets");
+  else if (evidence.sheets_required === false || evidence.sheets_skipped === true) succeeded.push("DB bootstrap config");
   if (evidence.github_ok) succeeded.push("GitHub");
 
   let headline = "Activation is being evaluated.";

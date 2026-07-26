@@ -32,15 +32,46 @@ For first-turn activation in a new conversation:
 2. require signed-in Custom GPT Action transport and read `GET /activation/session-context` through `http_generic_api` for previous same-user sessions, related scopes, transcript availability, and embedded platform access evidence
 3. read `GET /activation/platform-access` when explicit access/count refresh is needed for all-brand, plugin, logic, engine, and runtime-action evidence
 4. call `GET /activation/bootstrap-config` for the authoritative backend runtime bootstrap row — `source: backend_runtime`, `sheets_required: false`, includes `bootstrap_row` (system_name, api_base_url, environment, github_repo, cloudflare_zone, connector_url, activated_at) and live `platform_state`. This backend row is required context, but it does not replace provider-bootstrap validation.
-5. for Admin GPT activation, call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation. Use `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate` only for targeted recovery evidence.
-6. for direct runtime fallback, use resolved bootstrap/registry authority for Drive, Sheets bootstrap, and GitHub validation only when the admin system tool is unavailable
-7. classify missing live validation caused by unavailable provider authorization as `authorization_gated`, not as missing Registry authority
+5. for Admin GPT activation, call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, DB-native bootstrap config read, and GitHub validation. This is provider/bootstrap evidence only; it does not open or read GPT Session Context and must not replace step 2. Use `activation_drive_probe`, `activation_bootstrap_config_read`, and `activation_github_validate` for targeted recovery evidence. `activation_sheets_bootstrap_read` is a deprecated compatibility alias that must not call Google Sheets.
+6. when available, prefer `activation_hard_run` / `POST /activation/hard-run` for Admin GPT hard activation because it returns a single evidence matrix. Hard activation is complete only when `activation_complete=true`, `evidence_matrix.session_context.ok=true`, `evidence_matrix.provider_bootstrap.ok=true`, `evidence_matrix.repo_canonicals.ok=true`, and `evidence_matrix.tool_catalog.ok=true`. Repo canonical evidence must come from live repository/canonical manifest readback, and tool catalog evidence must come from SQL runtime authority plus activation authorized surfaces.
+7. for direct runtime fallback, use resolved bootstrap/registry authority for Drive, DB bootstrap config, and GitHub validation only when the admin system tool is unavailable
+8. classify missing live validation caused by unavailable provider authorization as `authorization_gated`, not as missing Registry authority
 
 Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostic evidence only. They must not satisfy or replace the required `GET /activation/bootstrap-config` or `activation_provider_bootstrap_validate`.
 
 The session-context layer is required once per Custom GPT session/action connection before normal platform work. It should carry platform access evidence when available. Raw prompt/response dumps may be requested only with bounded controls (`include_raw=true`, `limit`, `offset`, and `raw_max_chars`). User JWT session-context reads must remain same-user scoped; admin/service authority may inspect explicit `user_id` when policy allows.
 
+Do not report “Session Context opened/loaded” unless current-cycle evidence includes `getActivationSessionContext` or `/activation/hard-run` session evidence with `activation_layer=session_context`, `session_id`, `session_management`, `platform_access`, and `conversation_memory.status`. If provider bootstrap succeeds but Session Context was not attempted, hard activation must classify as `degraded_missing_session_context_evidence`; provider bootstrap may be active, but overall hard activation is incomplete.
+
 Live governed readiness requires Registry-resolved validation through `http_generic_api`; Google remains a provider-specific endpoint path only when selected by registry governance.
+
+Activation Operational Awareness Rule
+
+Activation must return an adaptive operational dashboard when the registry tables are available. The dashboard must be provider/connector-driven, not hardcoded. It must read operational tiles, callbacks, and auth-source routing from SQL runtime registries and must scope visible connected systems to the current subject.
+
+The source chain for each external platform must prefer platform-native connections first. If the user has not connected a platform inside the product, activation may expose ChatGPT account Apps & integrations as a conversation-time fallback only when runtime evidence can confirm or check that path. If no platform or ChatGPT app access is available, activation must provide prompt-guided/manual fallback instructions instead of failing silently.
+
+ChatGPT account app fallback must not be treated as platform-owned background sync. Background monitoring, persistent refresh, and writeback require platform-native credentials or governed connector authority. Write-capable callbacks require explicit governed capability and user confirmation.
+
+Dynamic Tabs Activation Policy
+
+Activation must support users and admins who can access more than one workspace, Brand, or container. The response must group relevant evidence into `dynamic_tabs.containers[]`. Each container must include registry-driven tabs and sections for overview, roles/access, connectors, agents, skills, tasks, and operational tiles.
+
+The dynamic tab layer must be subject-scoped. Tenant users may only see containers, roles, connectors, agents, skills, and tasks allowed by their tenant/user scope. Platform admins may see platform-wide containers, including the platform-owner Brand container, without receiving secret values.
+
+Dynamic tab definitions and section data sources must live in SQL registries. Adding a new tab or surface should require registry rows rather than route-specific hardcoding whenever the generic tab mechanism can support it.
+
+Activation must also auto-discover sections from `activation_authorized_surface_registry` using `activation_dynamic_tab_discovery_rule_registry`. This keeps the GPT activation dashboard aligned as new internal tables, views, connectors, agents, skills, tasks, evidence surfaces, external app integrations, and readiness views are added. Unknown surfaces must fall back to `container_auto_discovered_surfaces` instead of being ignored.
+
+Auto-discovered sections must remain subject-scoped and secret-safe. Runtime must allow only registered safe columns, strip sensitive fields, and expose degraded section evidence instead of throwing away partially available tabs.
+
+Operational Intelligence Policy
+
+Activation must include `operational_intelligence` when its registries are available. This layer must summarize what requires attention now, what actions are allowed, which evidence is stale, what signals have arrived, how containers relate, which connector packs are available, and what fallback path is recommended for each external platform.
+
+The output must distinguish advisory actions from write-capable actions. Writeback and background operations require platform-native credentials or governed connector authority, plus capability validation and explicit user confirmation when required. ChatGPT app fallback is conversation-time only unless runtime tooling provides stronger evidence.
+
+The layer must be designed for automatic growth: new connector packs, signals, relationship types, freshness policies, attention rules, section actions, and dashboard preferences should be introduced through SQL registries before route-specific code changes.
 
 First-Turn Native Attempt Enforcement Rule
 

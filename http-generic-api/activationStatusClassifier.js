@@ -19,6 +19,10 @@ const REASON_CODES = Object.freeze({
  *   partial provider success → validating
  *   default → degraded
  */
+function sheetsStepSatisfied(evidence = {}) {
+  return evidence.sheets_ok || evidence.sheets_required === false || evidence.sheets_skipped === true;
+}
+
 export function classifyActivationFromEvidence(evidence = {}) {
   if (!evidence.transport_attempted) {
     return {
@@ -54,7 +58,7 @@ export function classifyActivationFromEvidence(evidence = {}) {
 
   if (
     evidence.drive_ok &&
-    evidence.sheets_ok &&
+    sheetsStepSatisfied(evidence) &&
     evidence.github_ok &&
     evidence.bootstrap_row_read &&
     evidence.binding_resolved &&
@@ -67,7 +71,7 @@ export function classifyActivationFromEvidence(evidence = {}) {
     };
   }
 
-  if (evidence.drive_ok || evidence.sheets_ok || evidence.github_ok || evidence.bootstrap_row_read) {
+  if (evidence.drive_ok || evidence.sheets_ok || evidence.sheets_skipped || evidence.github_ok || evidence.bootstrap_row_read) {
     return {
       activation_status: "validating",
       status_authority: "runtime_canonical",

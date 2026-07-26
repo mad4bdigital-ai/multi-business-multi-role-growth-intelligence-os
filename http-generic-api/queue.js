@@ -53,11 +53,12 @@ if (!REDIS_ENABLED) {
 
 export function getRedisRuntimeStatus() {
   if (!redis) {
-    return { url: "", status: "disabled", connected: false };
+    return { url_configured: false, url_redacted: "", status: "disabled", connected: false };
   }
   const status = String(redis?.status || "").trim().toLowerCase();
   return {
-    url: EFFECTIVE_REDIS_URL,
+    url_configured: REDIS_URL_CONFIGURED,
+    url_redacted: REDIS_URL_CONFIGURED ? "<redacted>" : EFFECTIVE_REDIS_URL,
     status: status || "unknown",
     connected: status === "ready"
   };

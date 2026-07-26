@@ -1,8 +1,8 @@
 # direct_instructions_registry_patch.clean-v1
 
-Clean-room staging overlay for direct platform instructions.
+Consolidated reference overlay for direct platform instructions.
 
-This file is not runtime authority yet. It reconciles the direct instruction layer with the current SQL-primary runtime.
+This file is not runtime authority. It records authority and promotion rules that must be verified against active canonical sources and runtime enforcement.
 
 ## 1. Authority rules
 

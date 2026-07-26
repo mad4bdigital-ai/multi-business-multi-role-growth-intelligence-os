@@ -1,19 +1,17 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import {
-  ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
-  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
 } from "../config.js";
 import { getPool } from "../db.js";
-import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
+import { getGoogleClients } from "../googleSheets.js";
 import { runGovernedActivation } from "../governedActivationRunner.js";
 import {
   ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
   resolveActivationBootstrapConfig,
   validateActivationBootstrapConfig,
 } from "../activationBootstrapConfig.js";
-import { upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
+import { getTenantGptOAuthClientConfigStatus, upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 import {
   listPlatformCredentialClientConfigs,
   PLATFORM_CREDENTIAL_CLIENT_TYPES,
@@ -25,9 +23,72 @@ import {
   upsertGoogleAuthPlatformConfig,
 } from "../googleAuthPlatformConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
-import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
-import { DATA_SOURCE_MODE } from "../dataSource.js";
+import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHubAppConfig } from "../githubAppAuth.js";
+import { GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS } from "../githubRepositoryMainMovedWebhookProvisioning.js";
+import * as GitHubRepositoryMainMovedWebhookProvisioningRuntime from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
+import {
+  PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  catalogGovernedResources,
+  planGovernedResource,
+  resolveGovernedResource,
+  runGovernedResource,
+  executeRepositoryPrReconciliationReadOnlyForAdminReadiness,
+} from "../platformResourceRecipeCapability.js";
+import {
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+  TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  createRepositoryAuthorityBinding,
+  listRepositoryAuthorityBindings,
+  revokeRepositoryAuthorityBinding,
+  tenantRepositoryActionPlannerDryRun,
+  tenantRepositoryIntelligenceReport,
+  tenantRepositoryIntelligenceV2ReadinessSmoke,
+  tenantRepositoryIntelligenceV3V4ReadinessSmoke,
+  tenantRepositoryPrReconciliationSweep,
+} from "../repositoryTenantIntelligenceV2.js";
+import * as RepositoryTenantIntelligenceV2Runtime from "../repositoryTenantIntelligenceV2.js";
+import {
+  TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  tenantRepositoryAdvisoryCommentApply,
+  tenantRepositoryAdvisoryCommentPreview,
+  tenantRepositoryAdvisoryCommentReadback,
+  tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
+} from "../repositoryTenantAdvisoryCommentsV5.js";
+import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import {
+  TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+  createRepositoryMutationAuthorityBindingV6,
+  tenantRepositoryGovernanceV6ReadinessSmoke,
+  tenantRepositoryIntelligenceV6Report,
+  tenantRepositoryMutationApplyV6,
+  tenantRepositoryMutationPlanV6,
+  tenantRepositoryMutationReadbackV6,
+} from "../repositoryGovernanceV6.js";
+import * as RepositoryGovernanceV6Runtime from "../repositoryGovernanceV6.js";
+import {
+  TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  tenantEffectiveCapabilityPreview,
+  tenantEffectiveCapabilityReadinessSmoke,
+  tenantCapabilityShadowCompare,
+} from "../tenantEffectiveCapabilityResolver.js";
+import {
+  TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+  tenantCapabilityEnforcementPreview,
+  tenantCapabilityEnforcementReadinessSmoke,
+} from "../tenantCapabilityEnforcementKernel.js";
+import { GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS } from "../growthAuditEvidence.js";
+import * as GrowthAuditEvidenceRuntime from "../growthAuditEvidence.js";
+import { BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS } from "../brandWorkspaceContextResolver.js";
+import * as BrandWorkspaceContextRuntime from "../brandWorkspaceContextResolver.js";
+import { PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS } from "../platformResourceContextResolver.js";
+import * as PlatformResourceContextRuntime from "../platformResourceContextResolver.js";
+import {
+  CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+} from "../capabilityEnablementBroker.js";
+import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
+import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -50,6 +111,113 @@ const SYSTEM_LAYER_TOOLS = [
       },
       required: ["parent_action_key", "endpoint_key"],
     },
+  },
+  {
+    name: "runtime_endpoint_call",
+    description: "Admin-only kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        target_key: { type: "string" },
+        brand_key: { type: "string" },
+        brand_domain: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+        mutation_approval: { type: "object", additionalProperties: true },
+        dry_run: { type: "boolean" },
+        preflight_only: { type: "boolean" },
+        dry_run_preflight_completed: { type: "boolean" },
+        approved_preflight_dry_run_validated: { type: "boolean" },
+        live_execution_approved: { type: "boolean" },
+        readback: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "response_chunk_read",
+    description: "Read the next chunk of a cached oversized governed tool response. Use this whenever a system/admin/device/tool response returns response_chunked=true or page.has_more=true before switching to any fallback surface. Supports dynamic TTL via response_options.chunk_ttl_ms or response_options.chunk_ttl_minutes and extends cache retention after each successful read.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 30000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+      },
+      required: ["chunk_id"],
+    },
+  },
+  {
+    name: "google_drive_endpoint_catalog",
+    description: "Admin-only read-only catalog for Google Drive endpoint registry rows. Supports filtering by operation, method, readiness, and search text so large Drive operation surfaces are discoverable without raw SQL.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string", default: "google_drive_api" },
+        search: { type: "string" },
+        method: { type: "string" },
+        status: { type: "string" },
+        execution_readiness: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "google_drive_folder_inspect",
+    description: "Admin-only read-only Google Drive folder inspector. Lists folder metadata and direct children through runtime_endpoint_call using governed Drive endpoint registry, supports Shared Drives, and never returns file content or secrets.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        folder_id: { type: "string" },
+        folder_url: { type: "string" },
+        recursive: { type: "boolean", default: false },
+        max_depth: { type: "integer", minimum: 0, maximum: 3, default: 1 },
+        page_size: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"], default: "platform" },
+        connection_id: { type: "string" },
+        tenant_id: { type: "string" },
+        user_id: { type: "string" },
+        allow_platform_fallback: { type: "boolean", default: true },
+      },
+      required: [],
+    },
+  },
+  ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  // Descriptor-loaded Repository Intelligence system tools. New descriptor sources should
+  // be added to SYSTEM_LAYER_DESCRIPTOR_SOURCES below; list + dispatch wiring remains automatic.
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  ...TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+  ...GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+  ...BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+  ...PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+  {
+    name: "system_layer_descriptor_readiness",
+    description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "system_layer_descriptor_callability_audit",
+    description: "Admin-only fail-closed callability audit for all descriptor-backed system-layer sources. Verifies handlers and executes each source's governed no-secret readiness smoke through the public descriptor dispatcher without unauthorized mutations.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "connector_registry_list",
@@ -84,8 +252,14 @@ const SYSTEM_LAYER_TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "activation_bootstrap_config_read",
+    description: "Admin-only DB-native read of the Activation Bootstrap Config from backend runtime authority. Does not call Google Sheets; returns source=backend_runtime/db_runtime and sheets_required=false.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "activation_sheets_bootstrap_read",
-    description: "Admin-only Sheets-mirror parity check that reads the Activation Bootstrap Config row from the legacy workbook. Use to compare against /activation/bootstrap-config (the SQL authority) during recovery or migration verification. Sheets is an async mirror, not the runtime registry.",
+    description: "Deprecated compatibility alias for activation_bootstrap_config_read. Google Sheets is no longer a valid bootstrap source and is not called; use the DB-native bootstrap config read instead.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
@@ -105,7 +279,7 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "activation_provider_bootstrap_validate",
-    description: "Admin-only same-cycle Drive, Sheets mirror, and GitHub provider-connectivity validation chain. Proves all three providers are reachable; does NOT replace /activation/bootstrap-config (SQL runtime authority). Use for hard activation evidence.",
+    description: "Admin-only same-cycle Drive, DB bootstrap config, and GitHub validation chain. Google Sheets is deprecated and not called; SQL/backend runtime is the bootstrap authority.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
@@ -133,14 +307,21 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
+    name: "tenant_gpt_oauth_client_status",
+    description: "Read-only status for the Tenant GPT OAuth client secret reference. Never returns the secret value.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "tenant_gpt_oauth_client_upsert",
-    description: "Admin-only DB runtime upsert for the default Custom GPT Tenant OAuth client secret.",
+    description: "Admin-only upsert that stores the default Custom GPT Tenant OAuth client secret in platform_secrets and keeps only client_secret_ref in runtime config.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       properties: {
         client_id: { type: "string", default: "mad4b-tenant-gpt" },
         client_secret: { type: "string", description: "Optional explicit secret. If omitted, one is generated or the current one is retained." },
+        client_secret_ref: { type: "string", default: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET", description: "Governed platform secret reference. Inline runtime-config secret storage is not written." },
         callback_urls_to_allow: { type: "array", items: { type: "string" } },
         rotate: { type: "boolean", default: false },
         note: { type: "string" },
@@ -238,6 +419,8 @@ const SYSTEM_LAYER_TOOLS = [
       required: [],
     },
   },
+  ...CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+  ...GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
 ];
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
@@ -245,7 +428,322 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
+const TENANT_BLOCKED_SYSTEM_TOOL_NAMES = new Set([
+  "runtime_endpoint_call",
+  "github_api_mcp__create_or_update_file_contents",
+  "github_api_mcp__github_create_or_update_file",
+  "github_api_mcp__github_put_contents",
+  "github_api_mcp__github_delete_file",
+]);
 
+const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
+  {
+    source_key: "repository_tenant_intelligence_v2",
+    tools: TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+    handlers: RepositoryTenantIntelligenceV2Runtime,
+    readiness_tool: "tenant_repository_intelligence_v2_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "repository_tenant_advisory_comment_v5",
+    tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+    handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+    readiness_tool: "tenant_repository_advisory_comment_v5_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "repository_governance_v6",
+    tools: TENANT_REPOSITORY_GOVERNANCE_V6_SYSTEM_TOOLS,
+    handlers: RepositoryGovernanceV6Runtime,
+    readiness_tool: "tenant_repository_governance_v6_readiness_smoke",
+    readiness_args: { limit: 1 },
+  },
+  {
+    source_key: "tenant_effective_capability_resolver_v1",
+    tools: TENANT_EFFECTIVE_CAPABILITY_SYSTEM_TOOLS,
+    handlers: {
+      tenantEffectiveCapabilityPreview,
+      tenantEffectiveCapabilityReadinessSmoke,
+      tenantCapabilityShadowCompare,
+    },
+    readiness_tool: "tenant_effective_capability_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "tenant_capability_enforcement_kernel_v1",
+    tools: TENANT_CAPABILITY_ENFORCEMENT_SYSTEM_TOOLS,
+    handlers: {
+      tenantCapabilityEnforcementPreview,
+      tenantCapabilityEnforcementReadinessSmoke,
+    },
+    readiness_tool: "tenant_capability_enforcement_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "growth_audit_evidence_v1",
+    tools: GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS,
+    handlers: GrowthAuditEvidenceRuntime,
+    readiness_tool: "growth_audit_evidence_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "brand_workspace_context_v1",
+    tools: BRAND_WORKSPACE_CONTEXT_SYSTEM_TOOLS,
+    handlers: BrandWorkspaceContextRuntime,
+    readiness_tool: "brand_workspace_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "platform_resource_context_v1",
+    tools: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS,
+    handlers: PlatformResourceContextRuntime,
+    readiness_tool: "platform_resource_context_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "github_repository_main_moved_webhook_provisioning_v1",
+    tools: GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS,
+    handlers: GitHubRepositoryMainMovedWebhookProvisioningRuntime,
+    readiness_tool: "github_repository_main_moved_webhook_provisioning_readiness_smoke",
+    readiness_args: {},
+  },
+  {
+    source_key: "capability_enablement_broker_v1",
+    tools: CAPABILITY_ENABLEMENT_SYSTEM_TOOLS,
+    handlers: CapabilityEnablementBrokerRuntime,
+    readiness_tool: "capability_enablement_readiness_smoke",
+    readiness_args: {},
+  },
+];
+
+function snakeToolNameToCamelHandlerName(name = "") {
+  return String(name || "").replace(/_([a-z0-9])/g, (_, ch) => String(ch).toUpperCase());
+}
+
+function descriptorHandlerName(tool = {}) {
+  return String(
+    tool.handler
+    || tool.handler_name
+    || tool.runtime_handler
+    || tool.x_system_handler
+    || snakeToolNameToCamelHandlerName(tool.name)
+    || ""
+  ).trim();
+}
+
+function descriptorHandlerRegistry() {
+  const registry = new Map();
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const tools = Array.isArray(source.tools) ? source.tools : [];
+    for (const tool of tools) {
+      if (!tool?.name) continue;
+      const handlerName = descriptorHandlerName(tool);
+      const handler = source.handlers?.[handlerName];
+      registry.set(tool.name, {
+        source_key: source.source_key,
+        tool,
+        handler_name: handlerName,
+        handler: typeof handler === "function" ? handler : null,
+      });
+    }
+  }
+  return registry;
+}
+
+const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
+
+async function runRepositoryGovernanceV6ReadinessResource(args = {}) {
+  const recipeKey = String(args.recipe_key || "").trim();
+  const mode = String(args.mode || "").trim();
+  if (recipeKey !== REPOSITORY_PR_RECONCILE_RECIPE_KEY || mode !== "read_only") {
+    const err = new Error("Repository Governance V6 readiness only permits the read-only PR reconciliation recipe.");
+    err.status = 403;
+    err.code = "repository_governance_v6_readiness_scope_blocked";
+    throw err;
+  }
+  return runGovernedResource(args, {
+    executeGithubReadOnly: (operationKey, githubArgs = {}) =>
+      executeRepositoryPrReconciliationReadOnlyForAdminReadiness(operationKey, githubArgs, {
+        adminAuthorized: true,
+      }),
+  });
+}
+
+async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
+  if (!entry) return { handled: false };
+  if (typeof entry.handler !== "function") {
+    const err = new Error(`System-layer descriptor tool ${name} does not have a runtime handler ${entry.handler_name}.`);
+    err.status = 500;
+    err.code = "system_layer_descriptor_handler_missing";
+    err.details = { tool_name: name, source_key: entry.source_key, handler_name: entry.handler_name };
+    throw err;
+  }
+  const dispatchSystemTool = async (toolName, toolArgs = {}, toolAuth = auth) => {
+    const child = await callDescriptorSystemToolIfAvailable(toolName, toolArgs, toolAuth, deps);
+    if (!child.handled) {
+      const err = new Error(`System-layer descriptor tool ${toolName} is not registered.`);
+      err.status = 404;
+      err.code = "system_layer_descriptor_tool_not_registered";
+      throw err;
+    }
+    return child.result;
+  };
+  const readinessRunGovernedResource =
+    name === "tenant_repository_governance_v6_readiness_smoke" && isAdminPrincipal(auth)
+      ? runRepositoryGovernanceV6ReadinessResource
+      : null;
+  const result = await entry.handler(args, {
+    auth,
+    runGovernedResource,
+    readinessRunGovernedResource,
+    req: deps.req,
+    executionFacade: deps.executionFacade,
+    dispatchSystemTool,
+    descriptorReadiness: systemLayerDescriptorReadiness,
+  });
+  return { handled: true, result };
+}
+
+export function systemLayerDescriptorReadiness() {
+  return [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([tool_name, entry]) => ({
+    tool_name,
+    source_key: entry.source_key,
+    handler_name: entry.handler_name,
+    handler_present: typeof entry.handler === "function",
+    requires_admin: entry.tool?.requires_admin === true,
+    secrets_included: false,
+  }));
+}
+
+export async function runRepositoryIntelligenceV2DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_intelligence_v2_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Intelligence V2 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_intelligence_v2_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
+}
+
+export async function runRepositoryGovernanceV6DescriptorReadinessSmoke(args = {}) {
+  const auth = {
+    is_admin: true,
+    user_id: "system:release_readiness",
+    tenant_id: null,
+  };
+  const dispatched = await callDescriptorSystemToolIfAvailable(
+    "tenant_repository_governance_v6_readiness_smoke",
+    { limit: 1, ...args },
+    auth,
+    {}
+  );
+  if (!dispatched.handled) {
+    const err = new Error("Repository Governance V6 readiness descriptor is not registered.");
+    err.status = 500;
+    err.code = "repository_governance_v6_readiness_descriptor_missing";
+    throw err;
+  }
+  return dispatched.result;
+}
+
+export async function runSystemLayerDescriptorCallabilityAudit() {
+  const auth = {
+    is_admin: true,
+    user_id: "system:descriptor_callability_audit",
+    tenant_id: null,
+  };
+  const readiness = systemLayerDescriptorReadiness();
+  const missingHandlers = readiness.filter((row) => row.handler_present !== true);
+  const sourceResults = [];
+
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const sourceRows = readiness.filter((row) => row.source_key === source.source_key);
+    const missingSourceHandlers = sourceRows.filter((row) => row.handler_present !== true);
+    let smoke = null;
+    let error = null;
+    if (!source.readiness_tool) {
+      error = {
+        code: "descriptor_source_readiness_tool_missing",
+        message: `Descriptor source ${source.source_key} does not declare a readiness tool.`,
+      };
+    } else if (!missingSourceHandlers.length) {
+      try {
+        const dispatched = await callDescriptorSystemToolIfAvailable(
+          source.readiness_tool,
+          source.readiness_args || {},
+          auth,
+          {}
+        );
+        smoke = dispatched.handled ? dispatched.result : null;
+        if (!dispatched.handled) {
+          error = {
+            code: "descriptor_source_readiness_tool_not_registered",
+            message: `Readiness tool ${source.readiness_tool} is not registered.`,
+          };
+        }
+      } catch (err) {
+        error = {
+          code: err?.code || "descriptor_source_readiness_smoke_failed",
+          message: err?.message || "Descriptor source readiness smoke failed.",
+        };
+      }
+    }
+
+    const smokePass = smoke?.ok === true && smoke?.status === "pass";
+    const authorizationGated = !error
+      && smoke?.status === "authorization_gated"
+      && smoke?.reason_code === "repository_provider_binding_required"
+      && smoke?.mutations_executed === false
+      && smoke?.secrets_included === false;
+    sourceResults.push({
+      source_key: source.source_key,
+      descriptor_tool_count: sourceRows.length,
+      missing_handler_count: missingSourceHandlers.length,
+      readiness_tool: source.readiness_tool || null,
+      readiness_status: error ? "fail" : (smokePass ? "pass" : (authorizationGated ? "authorization_gated" : "fail")),
+      readiness_classification: smoke?.classification || null,
+      checks: Array.isArray(smoke?.checks) ? smoke.checks : [],
+      error,
+      apply_allowed: false,
+      mutations_executed: false,
+      secrets_included: false,
+    });
+  }
+
+  const failedSources = sourceResults.filter((row) => row.readiness_status === "fail");
+  const authorizationGatedSources = sourceResults.filter((row) => row.readiness_status === "authorization_gated");
+  const pass = missingHandlers.length === 0 && failedSources.length === 0;
+  return {
+    ok: pass,
+    tool: "system_layer_descriptor_callability_audit",
+    status: pass ? (authorizationGatedSources.length ? "authorization_gated" : "pass") : "fail",
+    classification: pass
+      ? (authorizationGatedSources.length ? "system_layer_descriptor_callability_authorization_gated" : "system_layer_descriptor_callability_ready")
+      : "system_layer_descriptor_callability_blocked",
+    descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+    descriptor_tool_count: readiness.length,
+    missing_handler_count: missingHandlers.length,
+    failed_source_count: failedSources.length,
+    authorization_gated_source_count: authorizationGatedSources.length,
+    sources: sourceResults,
+    handlers: readiness,
+    apply_allowed: false,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
 
 function safeParseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
@@ -339,6 +837,7 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
 
     return rows
       .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name))
       .map((row) => ({
         name: row.tool_name,
         description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
@@ -356,11 +855,76 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
   }
 }
 
+function isTenantRegistryToolAllowedInSystemFacade(tool = {}) {
+  const name = String(tool.name || "").trim();
+  if (!name || name.startsWith("system_tools_")) return false;
+  if (TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(name)) return false;
+  const pathValue = String(tool.path || "").trim();
+  if (pathValue === "/system/tools" || pathValue === "/system/tools/call") return false;
+  return true;
+}
+
+async function listTenantEndpointRegistryToolsForPrincipal(auth, existingNames = new Set()) {
+  if (isAdminPrincipal(auth)) return [];
+  try {
+    const tools = await fetchToolsForCaller("tenant");
+    return tools
+      .filter((tool) => isTenantRegistryToolAllowedInSystemFacade(tool))
+      .filter((tool) => !existingNames.has(tool.name))
+      .map((tool) => ({
+        ...tool,
+        source: "tenant_platform_endpoint_tools",
+      }));
+  } catch (err) {
+    console.error("[systemLayerTools] Failed to list tenant endpoint registry tools:", err?.message || err);
+    return [];
+  }
+}
+
 async function toolsForPrincipalWithPlatformEndpoints(auth) {
   const baseTools = toolsForPrincipal(auth);
   const existingNames = new Set(baseTools.map((tool) => tool.name));
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, existingNames);
+  for (const tool of tenantTools) existingNames.add(tool.name);
   const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
-  return [...baseTools, ...platformTools];
+  return [...baseTools, ...tenantTools, ...platformTools];
+}
+
+async function buildSystemToolsListResponse(auth, query = {}) {
+  const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
+  const { items, page } = paginateItems(allTools, query || {});
+  return {
+    ok: true,
+    protocol: "openapi-mcp-facade",
+    list_mode: "bounded_paginated_chunkable",
+    tools: items,
+    page,
+    total_available_tools: page.total_count,
+    continuation_contract: {
+      response_chunked_when_large: true,
+      required_tool: "response_chunk_read",
+      use_when: "response_chunked=true or page.has_more=true",
+      fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
+      dynamic_cache_ttl: true,
+      configurable_ttl_options: ["response_options.chunk_ttl_ms", "response_options.chunk_ttl_minutes"],
+      extends_cache_on_read: true,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
+async function chunkSystemLayerResponse(body, source = {}) {
+  const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
+  return await maybeChunkToolResponseBody(body, {
+    response_options: {
+      max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+      cursor: Number(responseOptions.cursor || source?.cursor || 0),
+      chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+      chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+    },
+    source_tool_key: source?.source_tool_key || "system_layer_response",
+  });
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
@@ -419,7 +983,7 @@ function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
       readback: args.readback || { required: false, mode: "none" },
     };
 
-    for (const optionalAuthField of ["user_id", "tenant_id", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
+    for (const optionalAuthField of ["user_id", "tenant_id", "target_key", "brand_key", "brand_domain", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
       if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
         payload[optionalAuthField] = args[optionalAuthField];
       }
@@ -441,7 +1005,179 @@ function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
   };
 }
 
+function assertRuntimePreviewObjectField(payload = {}, fieldName = "") {
+  if (!Object.prototype.hasOwnProperty.call(payload, fieldName) || payload[fieldName] == null) return;
+  const value = payload[fieldName];
+  if (typeof value === "object" && !Array.isArray(value)) return;
+  const err = new Error(`runtime_endpoint_preview ${fieldName} must be an object when provided.`);
+  err.status = 400;
+  err.code = "runtime_endpoint_preview_invalid_object_field";
+  err.details = { field: fieldName };
+  throw err;
+}
+
+function assertRuntimePreviewQueryIsStrict(query = {}) {
+  const blockedKeys = new Set(["url", "uri", "endpoint", "host", "hostname", "base_url", "base_uri"]);
+  for (const [rawKey, rawValue] of Object.entries(query || {})) {
+    const key = String(rawKey || "").trim().toLowerCase();
+    const value = String(rawValue || "").trim().toLowerCase();
+    if (blockedKeys.has(key) || /^https?:\/\//i.test(value) || value.includes("169.254.169.254") || value.includes("metadata.google.internal")) {
+      const err = new Error("runtime_endpoint_preview query contains an unsupported provider-target override.");
+      err.status = 400;
+      err.code = "runtime_endpoint_preview_query_not_allowed";
+      err.details = { key: rawKey };
+      throw err;
+    }
+  }
+}
+
+function assertRuntimePreviewProviderBody(payload = {}) {
+  const parentActionKey = String(payload.parent_action_key || "").trim();
+  const endpointKey = String(payload.endpoint_key || "").trim();
+  if (parentActionKey !== "github_api_mcp") return;
+  const body = payload.body && typeof payload.body === "object" && !Array.isArray(payload.body) ? payload.body : {};
+  if (/create_or_update|put_contents|file_contents/i.test(endpointKey) && !String(body.content || "").trim()) {
+    const err = new Error("GitHub content write preview requires body.content.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.content"] };
+    throw err;
+  }
+  if (/delete_file/i.test(endpointKey) && !String(body.sha || "").trim()) {
+    const err = new Error("GitHub delete file preview requires body.sha.");
+    err.status = 400;
+    err.code = "runtime_endpoint_preview_missing_required_body_field";
+    err.details = { parent_action_key: parentActionKey, endpoint_key: endpointKey, missing: ["body.sha"] };
+    throw err;
+  }
+}
+
+function assertRuntimeEndpointPreviewPayload(payload = {}) {
+  for (const fieldName of ["path_params", "query", "body", "headers", "auth_context"]) {
+    assertRuntimePreviewObjectField(payload, fieldName);
+  }
+  assertRuntimePreviewQueryIsStrict(payload.query || {});
+  assertRuntimePreviewProviderBody(payload);
+}
+
+function encodeGithubPathPart(value = "") {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+async function githubReadOnlyGet(pathname = "", token = "") {
+  const response = await fetch(`https://api.github.com${pathname}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "growth-intelligence-platform-resource-recipes",
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { parse_error: true, text: text.slice(0, 200) };
+  }
+  if (!response.ok) {
+    const err = new Error(body?.message || `GitHub read-only request failed with ${response.status}`);
+    err.status = response.status;
+    err.code = "github_read_only_request_failed";
+    err.details = { pathname, status: response.status, body };
+    throw err;
+  }
+  return body;
+}
+
+function liteGithubPullRequest(pr = {}) {
+  return {
+    number: pr.number,
+    title: pr.title || null,
+    state: pr.state || null,
+    url: pr.html_url || pr.url || null,
+    draft: Boolean(pr.draft),
+    mergeable: pr.mergeable ?? null,
+    merge_state_status: pr.mergeable_state || null,
+    author: pr.user?.login || null,
+    base: { ref: pr.base?.ref || null, sha: pr.base?.sha || null },
+    head: { ref: pr.head?.ref || null, sha: pr.head?.sha || null },
+    secrets_included: false,
+  };
+}
+
+async function executeGithubReadOnlyRecipe(operationKey = "", args = {}) {
+  if (operationKey !== "repo_pr_reconciliation_sweep") {
+    const err = new Error(`Unsupported GitHub read-only resource recipe operation: ${operationKey}`);
+    err.status = 400;
+    err.code = "unsupported_github_read_only_operation";
+    throw err;
+  }
+  const owner = String(args.owner || "").trim();
+  const repo = String(args.repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub read-only PR reconciliation requires owner and repo.");
+    err.status = 400;
+    err.code = "missing_github_owner_repo";
+    throw err;
+  }
+
+  const token = await getGitHubAppInstallationToken({});
+  const safeOwner = encodeGithubPathPart(owner);
+  const safeRepo = encodeGithubPathPart(repo);
+  const state = encodeURIComponent(String(args.state || "open"));
+  const limit = Math.min(Math.max(Number(args.limit || 50), 1), 100);
+  let providerCallsMade = 0;
+
+  const pulls = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls?state=${state}&per_page=${limit}`, token);
+  providerCallsMade += 1;
+  const pullRequests = [];
+  for (const pr of Array.isArray(pulls) ? pulls.slice(0, limit) : []) {
+    const lite = liteGithubPullRequest(pr);
+    if (args.include_changed_files !== false) {
+      const files = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls/${pr.number}/files?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.changed_files = Array.isArray(files) ? files.map((file) => ({
+        filename: file.filename || null,
+        status: file.status || null,
+        additions: Number(file.additions || 0),
+        deletions: Number(file.deletions || 0),
+      })) : [];
+    }
+    if (args.include_check_runs !== false && pr.head?.sha) {
+      const checks = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/commits/${encodeGithubPathPart(pr.head.sha)}/check-runs?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.check_runs = Array.isArray(checks?.check_runs) ? checks.check_runs.map((check) => ({
+        name: check.name || null,
+        status: check.status || null,
+        conclusion: check.conclusion || null,
+        url: check.html_url || check.details_url || null,
+      })) : [];
+    }
+    pullRequests.push(lite);
+  }
+
+  return {
+    ok: true,
+    operation_key: operationKey,
+    owner,
+    repo,
+    pull_requests: pullRequests,
+    provider_calls_made: providerCallsMade,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
+
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (!isAdminPrincipal(auth) && TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(String(name || "").trim())) {
+    const err = new Error("Tenant system tools cannot dispatch admin-only or state-changing platform routes.");
+    err.status = 403;
+    err.code = "tenant_system_tool_route_not_allowed";
+    throw err;
+  }
+
   const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
   const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
   const [rows] = await getPool().query(
@@ -481,6 +1217,30 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
   return { handled: true, result };
 }
 
+async function callTenantEndpointRegistryToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (isAdminPrincipal(auth)) return { handled: false };
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, new Set());
+  const tool = tenantTools.find((entry) => entry.name === name);
+  if (!tool) return { handled: false };
+
+  const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };
+  const dispatched = await dispatchToolForCaller("tenant", name, args, req);
+  const status = Number(dispatched?.status || 200);
+  const body = dispatched?.body || {};
+  if (status >= 400 || body?.ok === false) {
+    const err = new Error(body?.error?.message || `Tenant endpoint registry tool ${name} failed.`);
+    err.status = status || body?.error?.status || 500;
+    err.code = body?.error?.code || "tenant_endpoint_registry_tool_failed";
+    err.details = body?.error?.details || null;
+    throw err;
+  }
+
+  return {
+    handled: true,
+    result: Object.prototype.hasOwnProperty.call(body, "result") ? body.result : body,
+  };
+}
+
 function isAdminPrincipal(auth) {
   return auth?.is_admin === true;
 }
@@ -491,7 +1251,7 @@ function principalTenantId(auth) {
 
 function toolsForPrincipal(auth) {
   if (isAdminPrincipal(auth)) return SYSTEM_LAYER_TOOLS;
-  return SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin !== true);
+  return SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin !== true && !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(tool.name));
 }
 
 function assertAdminToolAccess(name, auth) {
@@ -675,7 +1435,7 @@ function withProbeTimeout(promise, label) {
 
 async function activationDriveProbe() {
   try {
-    const { drive } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
+    const { drive } = await getGoogleClients({ action_key: "google_drive_api" });
     const response = await withProbeTimeout(
       drive.files.list({
         pageSize: 1,
@@ -699,50 +1459,51 @@ async function activationDriveProbe() {
   }
 }
 
-async function activationSheetsBootstrapRead() {
-  try {
-    const { sheets, spreadsheetId } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
-    const metadata = await withProbeTimeout(
-      sheets.spreadsheets.get({
-        spreadsheetId,
-        fields: "spreadsheetId,properties.title,sheets.properties.title",
-      }),
-      "Sheets metadata"
-    );
-    const sheetExists = (metadata.data?.sheets || []).some(
-      (sheet) => String(sheet?.properties?.title || "").trim() === ACTIVATION_BOOTSTRAP_CONFIG_SHEET
-    );
-    if (!sheetExists) {
-      return {
-        ok: false,
-        provider: "google_sheets",
-        code: "activation_bootstrap_sheet_missing",
-        message: `Missing sheet ${ACTIVATION_BOOTSTRAP_CONFIG_SHEET}.`,
-        spreadsheet_id: spreadsheetId,
-      };
-    }
-
-    const values = await withProbeTimeout(
-      sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
-      }),
-      "Sheets values"
-    );
-    const row = bootstrapRowObject(values.data?.values || []);
+async function activationBootstrapConfigRead() {
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+  if (!runtimeBootstrap.ok) {
     return {
-      ok: true,
-      provider: "google_sheets",
-      attempted_binding: { parent_action_key: "google_sheets_api", endpoint_key: "getSheetValues" },
-      spreadsheet_id: spreadsheetId,
-      range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
-      workbook_title: metadata.data?.properties?.title || null,
-      bootstrap_row_read: Array.isArray(values.data?.values?.[0]),
-      bootstrap_row: row,
+      ok: false,
+      provider: "backend_runtime",
+      source: "unresolved",
+      sheets_required: false,
+      sheets_called: false,
+      code: runtimeBootstrap.error || "activation_bootstrap_config_unresolved",
+      db_error: runtimeBootstrap.db_error || null,
+      env_error: runtimeBootstrap.env_error || null,
+      secrets_included: false,
     };
-  } catch (err) {
-    return { provider: "google_sheets", ...providerProbeError(err) };
   }
+
+  const bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
+  return {
+    ok: true,
+    provider: "backend_runtime",
+    source: runtimeBootstrap.source || "db_runtime",
+    sheets_required: false,
+    sheets_called: false,
+    bootstrap_row_read: true,
+    bootstrap_row: bootstrapRow,
+    config: runtimeBootstrap.config,
+    secrets_included: false,
+  };
+}
+
+async function activationSheetsBootstrapRead() {
+  const replacement = await activationBootstrapConfigRead();
+  return {
+    ...replacement,
+    ok: replacement.ok,
+    status: "deprecated_not_required",
+    provider: "backend_runtime",
+    legacy_tool: "activation_sheets_bootstrap_read",
+    replacement_tool: "activation_bootstrap_config_read",
+    diagnostic_only: true,
+    sheets_required: false,
+    sheets_called: false,
+    google_sheets_called: false,
+    message: "Google Sheets bootstrap reads are deprecated; backend runtime DB bootstrap config is authoritative.",
+  };
 }
 
 function resolveGithubValidationTarget(args = {}, bootstrapRow = {}) {
@@ -837,6 +1598,7 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}, deps = {})
     const executionResult = await executeGovernedHttp({
       parent_action_key: parentActionKey,
       endpoint_key: endpointKey,
+      credential_scope: "platform",
       path_params: {
         owner: target.owner,
         repo: target.repo,
@@ -906,13 +1668,24 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
       return { ok: probe.ok, auth_failed: probe.auth_failed };
     },
     attemptSheets: async () => {
-      if (DATA_SOURCE_MODE === "sql") {
-        sheetsDiagnostic = { skipped: true, diagnostic_only: true, reason: "sql_mode" };
-        return { ok: true };
-      }
-      const probe = await activationSheetsBootstrapRead();
-      sheetsDiagnostic = probe;
-      return { ok: probe.ok, auth_failed: probe.auth_failed, rate_limited: probe.rate_limited };
+      sheetsDiagnostic = {
+        attempted: false,
+        ok: false,
+        skipped: true,
+        not_required: true,
+        diagnostic_only: true,
+        status: "deprecated_not_required",
+        reason: "db_runtime_bootstrap_authority",
+        replacement_tool: "activation_bootstrap_config_read",
+        source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+        sheets_called: false,
+      };
+      return {
+        ok: true,
+        skipped: true,
+        not_required: true,
+        reason: "db_runtime_bootstrap_authority",
+      };
     },
     getSpreadsheet: async () => {
       if (runtimeBootstrap.ok) {
@@ -951,13 +1724,20 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
     drive_diagnostic: driveDiagnostic || { attempted: false },
     sheets_diagnostic: sheetsDiagnostic
       ? {
-          attempted: true,
+          attempted: sheetsDiagnostic.attempted === true,
           ok: sheetsDiagnostic.ok === true,
+          skipped: sheetsDiagnostic.skipped === true,
+          not_required: sheetsDiagnostic.not_required === true,
           diagnostic_only: true,
+          status: sheetsDiagnostic.status || (sheetsDiagnostic.skipped ? "deprecated_not_required" : undefined),
+          reason: sheetsDiagnostic.reason || null,
+          replacement_tool: sheetsDiagnostic.replacement_tool || null,
+          source: sheetsDiagnostic.source || null,
+          sheets_called: sheetsDiagnostic.sheets_called === true,
           spreadsheet_id: sheetsDiagnostic.spreadsheet_id || null,
           range: sheetsDiagnostic.range || null,
         }
-      : { attempted: false, diagnostic_only: true },
+      : { attempted: false, diagnostic_only: true, sheets_called: false },
     ...result,
   };
 }
@@ -1091,8 +1871,216 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
   };
 }
 
+function clampDriveToolLimit(value, fallback = 100, max = 200) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.max(1, Math.floor(parsed)), max);
+}
+
+function parseGoogleDriveFolderId(args = {}) {
+  const direct = String(args.folder_id || args.file_id || "").trim();
+  if (direct) return direct;
+  const url = String(args.folder_url || args.url || "").trim();
+  if (!url) return "";
+  const folderMatch = url.match(/\/folders\/([A-Za-z0-9_-]+)/);
+  if (folderMatch?.[1]) return folderMatch[1];
+  const idMatch = url.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  return idMatch?.[1] || "";
+}
+
+function sanitizeDriveFileMetadata(file = {}) {
+  return {
+    id: file.id || null,
+    name: file.name || null,
+    mimeType: file.mimeType || null,
+    modifiedTime: file.modifiedTime || null,
+    createdTime: file.createdTime || null,
+    size: file.size || null,
+    driveId: file.driveId || null,
+    parents: Array.isArray(file.parents) ? file.parents : [],
+    webViewLink: file.webViewLink || null,
+    capabilities: file.capabilities || undefined,
+    is_folder: file.mimeType === "application/vnd.google-apps.folder",
+  };
+}
+
+function driveEndpointCatalogRow(row = {}) {
+  return {
+    endpoint_id: row.endpoint_id || null,
+    parent_action_key: row.parent_action_key || null,
+    endpoint_key: row.endpoint_key || null,
+    endpoint_operation: row.endpoint_operation || null,
+    openai_action_name: row.openai_action_name || null,
+    method: row.method || null,
+    endpoint_path_or_function: row.endpoint_path_or_function || null,
+    route_target: row.route_target || null,
+    module_binding: row.module_binding || null,
+    connector_family: row.connector_family || null,
+    status: row.status || null,
+    execution_readiness: row.execution_readiness || null,
+    endpoint_role: row.endpoint_role || null,
+    execution_mode: row.execution_mode || null,
+    transport_required: row.transport_required || null,
+    secrets_included: false,
+  };
+}
+
+async function listGoogleDriveEndpointCatalog(args = {}) {
+  const parentActionKey = String(args.parent_action_key || "google_drive_api").trim() || "google_drive_api";
+  const conditions = ["parent_action_key = ?"];
+  const params = [parentActionKey];
+  for (const [argKey, column] of [["method", "method"], ["status", "status"], ["execution_readiness", "execution_readiness"]]) {
+    if (args[argKey]) {
+      conditions.push(`${column} = ?`);
+      params.push(String(args[argKey]).trim());
+    }
+  }
+  const search = String(args.search || "").trim();
+  if (search) {
+    conditions.push("(endpoint_key LIKE ? OR endpoint_operation LIKE ? OR openai_action_name LIKE ? OR endpoint_path_or_function LIKE ? OR notes LIKE ?)");
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like);
+  }
+  const limit = clampDriveToolLimit(args.limit, 100, 200);
+  params.push(limit);
+  const [rows] = await getPool().query(
+    `SELECT endpoint_id, parent_action_key, endpoint_key, endpoint_operation, openai_action_name,
+            method, endpoint_path_or_function, route_target, module_binding, connector_family,
+            status, execution_readiness, endpoint_role, execution_mode, transport_required
+       FROM \`endpoints\`
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+        CASE WHEN execution_readiness = 'ready' THEN 0 ELSE 1 END,
+        endpoint_key ASC
+      LIMIT ?`,
+    params
+  );
+  return {
+    ok: true,
+    parent_action_key: parentActionKey,
+    filters: {
+      search: search || null,
+      method: args.method || null,
+      status: args.status || null,
+      execution_readiness: args.execution_readiness || null,
+      limit,
+    },
+    count: rows.length,
+    endpoints: rows.map(driveEndpointCatalogRow),
+    secrets_included: false,
+  };
+}
+
+function buildDriveRuntimePayload({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, dryRun = false }) {
+  const guarded = derivePrincipalExecutionContext({
+    parent_action_key: "google_drive_api",
+    endpoint_key: endpointKey,
+    path_params: pathParams,
+    query,
+    credential_scope: args.credential_scope || "platform",
+    connection_id: args.connection_id,
+    tenant_id: args.tenant_id,
+    user_id: args.user_id,
+    allow_platform_fallback: args.allow_platform_fallback !== false,
+    auth_context: args.auth_context,
+    timeout_seconds: Math.min(Number(args.timeout_seconds) || 60, 120),
+    dry_run: Boolean(dryRun),
+  }, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
+  };
+}
+
+async function callDriveRuntimeEndpoint({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, deps = {} }) {
+  return await callRuntimeEndpointViaFacade(buildDriveRuntimePayload({ endpointKey, pathParams, query, args, auth }), deps);
+}
+
+function runtimeEndpointData(response) {
+  return (response?.body || response || {}).data || {};
+}
+
+async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
+  const folderId = parseGoogleDriveFolderId(args);
+  if (!folderId) {
+    const err = new Error("folder_id or folder_url is required.");
+    err.status = 400;
+    err.code = "google_drive_folder_id_required";
+    throw err;
+  }
+  const maxDepth = clampDriveToolLimit(args.max_depth, 1, 3);
+  const pageSize = clampDriveToolLimit(args.page_size, 100, 200);
+  const recursive = Boolean(args.recursive);
+  const visited = new Set();
+
+  async function inspectOne(currentFolderId, depth = 0) {
+    if (visited.has(currentFolderId)) {
+      return { id: currentFolderId, skipped: true, skip_reason: "already_visited", children: [] };
+    }
+    visited.add(currentFolderId);
+    const metadata = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "getFileMetadata",
+      pathParams: { fileId: currentFolderId },
+      query: {
+        fields: "id,name,mimeType,driveId,parents,createdTime,modifiedTime,webViewLink,capabilities(canAddChildren,canEdit,canListChildren)",
+        supportsAllDrives: true,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const listData = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "listDriveFiles",
+      query: {
+        q: `'${currentFolderId}' in parents and trashed=false`,
+        fields: "files(id,name,mimeType,modifiedTime,size,parents,webViewLink),nextPageToken",
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        pageSize,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const children = Array.isArray(listData.files) ? listData.files.map(sanitizeDriveFileMetadata) : [];
+    const childFolders = children.filter((child) => child.is_folder);
+    const nested = [];
+    if (recursive && depth < maxDepth) {
+      for (const child of childFolders) nested.push(await inspectOne(child.id, depth + 1));
+    }
+    return {
+      folder: sanitizeDriveFileMetadata(metadata),
+      depth,
+      child_count: children.length,
+      folder_count: childFolders.length,
+      file_count: children.length - childFolders.length,
+      children,
+      nested,
+      next_page_token: listData.nextPageToken || null,
+      secrets_included: false,
+    };
+  }
+
+  const tree = await inspectOne(folderId, 0);
+  return {
+    ok: true,
+    adapter: "google-drive-folder-inspect-v1",
+    requested_folder_id: folderId,
+    recursive,
+    max_depth: maxDepth,
+    page_size: pageSize,
+    tree,
+    secrets_included: false,
+  };
+}
+
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
+    const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
+    if (tenantRegistryTool.handled) return tenantRegistryTool.result;
+
     let platformEndpointTool;
     try {
       platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);
@@ -1104,8 +2092,35 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   }
 
   assertAdminToolAccess(name, auth);
+
+  const descriptorSystemTool = await callDescriptorSystemToolIfAvailable(name, args, auth, deps);
+  if (descriptorSystemTool.handled) return descriptorSystemTool.result;
+
   switch (name) {
+    case "response_chunk_read":
+      return await readCachedToolResponseChunk(args);
+    case "system_layer_descriptor_readiness":
+      return {
+        ok: true,
+        tool: "system_layer_descriptor_readiness",
+        descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+        descriptor_tool_count: SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.size,
+        missing_handler_count: systemLayerDescriptorReadiness().filter((row) => !row.handler_present).length,
+        descriptors: systemLayerDescriptorReadiness(),
+        secrets_included: false,
+      };
+    case "system_layer_descriptor_callability_audit":
+      return runSystemLayerDescriptorCallabilityAudit();
+    case "runtime_endpoint_call": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
     case "runtime_endpoint_preview": {
+      assertRuntimeEndpointPreviewPayload(args || {});
       const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
       return await callRuntimeEndpointViaFacade({
         ...guarded.payload,
@@ -1114,12 +2129,68 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         _principal_context_guard: guarded.guard,
       }, deps);
     }
+    case "google_drive_endpoint_catalog":
+      return await listGoogleDriveEndpointCatalog(args);
+    case "google_drive_folder_inspect":
+      return await inspectGoogleDriveFolder(args, auth, deps);
+    case "platform_resource_authority_binding_create":
+      return await createRepositoryAuthorityBinding(args, { auth });
+    case "platform_resource_authority_binding_list":
+      return await listRepositoryAuthorityBindings(args, { auth });
+    case "platform_resource_authority_binding_revoke":
+      return await revokeRepositoryAuthorityBinding(args, { auth });
+    case "tenant_repo_pr_reconciliation_sweep":
+      return await tenantRepositoryPrReconciliationSweep(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v2_readiness_smoke":
+      return await tenantRepositoryIntelligenceV2ReadinessSmoke(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_report":
+      return await tenantRepositoryIntelligenceReport(args, { auth, runGovernedResource });
+    case "tenant_repository_action_planner_dry_run":
+      return await tenantRepositoryActionPlannerDryRun(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v3_v4_readiness_smoke":
+      return await tenantRepositoryIntelligenceV3V4ReadinessSmoke(args, { auth, runGovernedResource });
+    case "tenant_repository_advisory_comment_preview": return await tenantRepositoryAdvisoryCommentPreview(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_apply": return await tenantRepositoryAdvisoryCommentApply(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_readback": return await tenantRepositoryAdvisoryCommentReadback(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_v5_readiness_smoke": return await tenantRepositoryAdvisoryCommentV5ReadinessSmoke(args, { auth, runGovernedResource }); case "governed_resource_resolve":
+      return await resolveGovernedResource(args);
+    case "governed_resource_catalog":
+      return await catalogGovernedResources(args);
+    case "governed_resource_plan":
+      return await planGovernedResource(args);
+    case "governed_resource_run": {
+      const result = await runGovernedResource(args, {
+        executeInstalledTool: async (toolKey, toolArgs) => {
+          if (toolKey === "google_drive_folder_inspect") {
+            return await inspectGoogleDriveFolder(toolArgs, auth, deps);
+          }
+          const err = new Error(`Installed tool ${toolKey} is not allowlisted for resource recipe execution.`);
+          err.status = 403;
+          err.code = "resource_recipe_installed_tool_not_allowlisted";
+          throw err;
+        },
+        executeRuntimeEndpoint: async (payload) => {
+          return await callRuntimeEndpointViaFacade(payload, deps);
+        },
+      });
+      if (String(args?.mode || result?.mode || "").trim() === "apply") {
+        try {
+          result.audit_evidence = await writeResourceRecipeApplyEvidence({ args, result, auth });
+        } catch (err) {
+          result.audit_evidence = {
+            ok: false,
+            error: { code: err?.code || "resource_recipe_apply_evidence_failed", message: err?.message || "Resource recipe apply evidence write failed." },
+            secrets_included: false,
+          };
+        }
+      }
+      return result;
+    }
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
       return { connector: await getConnectorRegistrySystem(args.system_id, auth) };
     case "activation_drive_probe":
       return await activationDriveProbe(args);
+    case "activation_bootstrap_config_read":
+      return await activationBootstrapConfigRead(args);
     case "activation_sheets_bootstrap_read":
       return await activationSheetsBootstrapRead(args);
     case "activation_github_validate": {
@@ -1156,6 +2227,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await activationBootstrapConfigUpsert(args);
     case "tenant_gpt_oauth_client_upsert":
       return await upsertTenantGptOAuthClientConfig(args);
+    case "tenant_gpt_oauth_client_status":
+      return await getTenantGptOAuthClientConfigStatus();
     case "credential_client_config_upsert":
       return await upsertPlatformCredentialClientConfig(args);
     case "credential_client_config_list":
@@ -1190,21 +2263,21 @@ export function buildSystemLayerRoutes(deps) {
   const authenticated = [requireBackendApiKey];
 
   router.get("/system/tools", ...authenticated, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      principal: {
-        mode: req.auth?.mode || null,
-        is_admin: isAdminPrincipal(req.auth),
-        tenant_id: principalTenantId(req.auth),
-      },
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    body.principal = {
+      mode: req.auth?.mode || null,
+      is_admin: isAdminPrincipal(req.auth),
+      tenant_id: principalTenantId(req.auth),
+    };
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
     try {
-      const { name, arguments: args = {} } = req.body || {};
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
@@ -1218,10 +2291,10 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade }),
+        callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
-      return res.status(200).json({ ok: true, name, result });
+      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
@@ -1264,16 +2337,16 @@ export function buildSystemLayerRoutes(deps) {
   });
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
     try {
-      const { name, arguments: args = {} } = req.body || {};
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
@@ -1290,7 +2363,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade }),
         deadline
       ]);
-      return res.status(200).json({ ok: true, name, result });
+      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }

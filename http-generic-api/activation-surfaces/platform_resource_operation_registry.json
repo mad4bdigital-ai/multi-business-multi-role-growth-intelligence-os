@@ -1,0 +1,20 @@
+{
+  "surface_key": "platform_resource_operation_registry",
+  "display_name": "Platform Resource Operation Registry",
+  "description": "Admin-only resource operation contracts, actor scope, route identity, and readback requirements.",
+  "source_table": "platform_resource_operation_registry",
+  "covered_source_tables": ["platform_resource_operation_registry"],
+  "result_key_column": "operation_id",
+  "result_label_column": "operation_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["operation_id", "resource_key", "actor_scope", "operation_key", "http_method", "http_path", "implementation_status", "route_file", "tool_key", "readback_required", "permissions_required", "status", "created_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 200,
+  "sort_order": 331,
+  "status": "active",
+  "notes": "Contains route and tool identity only; no request payloads, credentials, or provider data."
+}

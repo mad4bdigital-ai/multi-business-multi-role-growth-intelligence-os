@@ -6,6 +6,25 @@
 //   api_base_url  — n8n instance base, e.g. https://your-n8n.com/api/v1
 //   webhook_url   — default webhook URL for trigger_webhook action
 
+function pickFirstString(values = []) {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function normalizeN8nCredentials(creds = {}, connection = {}) {
+  return {
+    ...creds,
+    api_key: pickFirstString([creds.api_key, creds.N8N_API_KEY, creds.n8n_api_key, creds.token, creds.bearer_token]),
+    username: pickFirstString([creds.username, creds.N8N_USERNAME]),
+    password: pickFirstString([creds.password, creds.N8N_PASSWORD]),
+    base_url: pickFirstString([connection.api_base_url, creds.N8N_BASE_URL, creds.N8N_LOCAL_BASE_URL]),
+    webhook_url: pickFirstString([connection.webhook_url, creds.N8N_WEBHOOK_BASE_URL]),
+  };
+}
+
 async function n8nReq(base, creds, path, { method = "GET", body } = {}) {
   const url = `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
   const headers = { "Content-Type": "application/json" };
@@ -46,13 +65,14 @@ export const n8nAdapter = {
   async refreshAccessToken() { return {}; },
 
   async testConnection(creds, connection) {
-    const base = connection.api_base_url;
+    const normalized = normalizeN8nCredentials(creds, connection);
+    const base = normalized.base_url;
     if (!base) return { ok: false, account_label: null, account_metadata: { error: "api_base_url not set" } };
-    if (!creds.api_key && !(creds.username && creds.password)) {
+    if (!normalized.api_key && !(normalized.username && normalized.password)) {
       return { ok: false, account_label: base, account_metadata: { error: "api_key or username/password required" } };
     }
     try {
-      const data = await n8nReq(base, creds, "/workflows?limit=1");
+      const data = await n8nReq(base, normalized, "/workflows?limit=1");
       return {
         ok: true,
         account_label: base,
@@ -64,13 +84,14 @@ export const n8nAdapter = {
   },
 
   async call(action_key, args, creds, connection) {
-    const base = connection.api_base_url;
+    const normalized = normalizeN8nCredentials(creds, connection);
+    const base = normalized.base_url;
 
     switch (action_key) {
 
       case "trigger_webhook": {
         // POST to an n8n webhook path — works without API key
-        const url = args.webhook_url || connection.webhook_url;
+        const url = args.webhook_url || normalized.webhook_url;
         if (!url) throw new Error("webhook_url required for trigger_webhook");
         const payload = args.payload || {};
         const res = await fetch(url, {
@@ -88,7 +109,7 @@ export const n8nAdapter = {
       case "list_workflows": {
         if (!base) throw new Error("api_base_url required");
         const limit = args.limit || 50;
-        const data = await n8nReq(base, creds, `/workflows?limit=${limit}`);
+        const data = await n8nReq(base, normalized, `/workflows?limit=${limit}`);
         return { ok: true, result: data.data || data };
       }
 
@@ -96,7 +117,7 @@ export const n8nAdapter = {
         if (!base) throw new Error("api_base_url required");
         const { workflow_id } = args;
         if (!workflow_id) throw new Error("workflow_id required");
-        const data = await n8nReq(base, creds, `/workflows/${workflow_id}`);
+        const data = await n8nReq(base, normalized, `/workflows/${workflow_id}`);
         return { ok: true, result: data };
       }
 
@@ -104,7 +125,7 @@ export const n8nAdapter = {
         if (!base) throw new Error("api_base_url required");
         const { workflow_id, run_data = {} } = args;
         if (!workflow_id) throw new Error("workflow_id required");
-        const data = await n8nReq(base, creds, `/workflows/${workflow_id}/run`, {
+        const data = await n8nReq(base, normalized, `/workflows/${workflow_id}/run`, {
           method: "POST",
           body: { runData: run_data },
         });
@@ -117,7 +138,7 @@ export const n8nAdapter = {
         let path = `/executions?limit=${limit}`;
         if (workflow_id) path += `&workflowId=${workflow_id}`;
         if (status)      path += `&status=${status}`;
-        const data = await n8nReq(base, creds, path);
+        const data = await n8nReq(base, normalized, path);
         return { ok: true, result: data.data || data };
       }
 

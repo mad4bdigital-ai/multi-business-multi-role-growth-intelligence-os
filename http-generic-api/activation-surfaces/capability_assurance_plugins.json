@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_plugins",
+  "display_name": "Capability Assurance Plugins",
+  "description": "Admin-only canonical plugin registry metadata used to verify capability ownership and lifecycle state.",
+  "source_table": "platform_plugins",
+  "covered_source_tables": ["platform_plugins"],
+  "result_key_column": "plugin_key",
+  "result_label_column": "display_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["plugin_key", "display_name", "plugin_family", "source_kind", "owner_scope", "trust_level", "status", "version", "source_table", "source_key", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 270,
+  "status": "active",
+  "notes": "Excludes manifest_json and policy configuration fields."
+}

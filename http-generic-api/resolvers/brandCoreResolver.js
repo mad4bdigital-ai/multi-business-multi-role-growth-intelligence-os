@@ -1,3 +1,9 @@
+import {
+  brandRowMatchesReference,
+  extractGoogleFileId,
+  resolveBrandReference,
+} from './brandReferenceResolver.js';
+
 function stringValue(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -18,25 +24,67 @@ function isFalseish(value) {
 
 function isActiveStatus(value) {
   const s = normalizeKey(value);
-  return s === 'active' || s === 'validated' || s === 'ready';
+  return s === 'active' || s === 'validated' || s === 'ready' || isTrueish(value);
 }
 
 function resolveBrandCoreStatus(coreRows, brandCoreRequired) {
   if (!brandCoreRequired) return 'not_required';
   if (coreRows.length === 0) return 'missing';
   const allActive = coreRows.every((row) =>
-    isActiveStatus(row.status || row.core_status || row.validation_status)
+    isActiveStatus(row.status || row.core_status || row.validation_status || row.active_status)
   );
   return allActive ? 'ready' : 'validating';
 }
 
+function rowDocKey(row = {}) {
+  return stringValue(
+    row.doc_key ||
+    row.core_doc_key ||
+    row.asset_key ||
+    row.asset_type ||
+    row.doc_type ||
+    row.document_name
+  );
+}
+
+function rowDocId(row = {}) {
+  return stringValue(
+    row.doc_id ||
+    row.file_id ||
+    row.google_doc_id ||
+    extractGoogleFileId(row.google_drive_link)
+  );
+}
+
 function buildBrandCoreDocs(coreRows) {
   return coreRows.reduce((acc, row) => {
-    const docKey = stringValue(row.doc_key || row.core_doc_key || row.asset_key || row.asset_type || row.doc_type);
-    const docId = stringValue(row.doc_id || row.file_id || row.google_doc_id);
+    const docKey = rowDocKey(row);
+    const docId = rowDocId(row);
     if (docKey && docId) acc[docKey] = docId;
     return acc;
   }, {});
+}
+
+function buildBrandCoreAssets(coreRows) {
+  return coreRows.map((row) => ({
+    asset_key: rowDocKey(row),
+    asset_type: stringValue(row.asset_type || row.doc_type),
+    document_name: stringValue(row.document_name),
+    doc_id: rowDocId(row),
+    google_drive_link: stringValue(row.google_drive_link),
+    status: stringValue(row.status || row.validation_status || row.active_status),
+    priority: stringValue(row.read_priority || row.priority),
+  }));
+}
+
+function coreRowMatchesBrand(row, brandKey, brandRow) {
+  const canonicalKey = stringValue(brandRow?.target_key || brandRow?.brand_key);
+  const canonicalName = stringValue(brandRow?.brand_name || brandRow?.normalized_brand_name);
+  return (
+    brandRowMatchesReference(row, brandKey) ||
+    (canonicalKey && brandRowMatchesReference(row, canonicalKey)) ||
+    (canonicalName && brandRowMatchesReference(row, canonicalName))
+  );
 }
 
 export function resolveBrandCore({ brandKey, brandRegistryRows, brandCoreRegistryRows = [] }) {
@@ -47,25 +95,22 @@ export function resolveBrandCore({ brandKey, brandRegistryRows, brandCoreRegistr
     throw new Error('brandRegistryRows must be an array');
   }
 
-  const targetKey = normalizeKey(brandKey);
-  const brandRow = brandRegistryRows.find(
-    (row) =>
-      normalizeKey(row.brand_key) === targetKey || normalizeKey(row.target_key) === targetKey
-  );
+  const brandResolution = resolveBrandReference({ reference: brandKey, rows: brandRegistryRows });
+  const brandRow = brandResolution.row;
 
   if (!brandRow) {
     return {
       brandKey,
-      resolutionStatus: 'not_found',
+      resolutionStatus: brandResolution.status,
+      candidateKeys: brandResolution.candidate_keys || [],
       brandCoreRequired: false,
       contentReady: false,
       strategyReady: false
     };
   }
 
-  const coreRows = brandCoreRegistryRows.filter(
-    (row) =>
-      normalizeKey(row.brand_key) === targetKey || normalizeKey(row.target_key) === targetKey
+  const coreRows = brandCoreRegistryRows.filter((row) =>
+    coreRowMatchesBrand(row, brandKey, brandRow)
   );
 
   const brandCoreRequiredRaw = brandRow.brand_core_required ?? brandRow.requires_brand_core ?? 'true';
@@ -75,6 +120,7 @@ export function resolveBrandCore({ brandKey, brandRegistryRows, brandCoreRegistr
 
   const brandCoreStatus = resolveBrandCoreStatus(coreRows, brandCoreRequired);
   const brandCoreDocs = buildBrandCoreDocs(coreRows);
+  const brandCoreAssets = buildBrandCoreAssets(coreRows);
 
   const contentReady = brandCoreStatus === 'ready' || !brandCoreRequired;
   const strategyReady = brandCoreStatus === 'ready' && isReadable;
@@ -86,9 +132,12 @@ export function resolveBrandCore({ brandKey, brandRegistryRows, brandCoreRegistr
     knowledgeProfileKey: stringValue(brandRow.knowledge_profile_key),
     targetKey: stringValue(brandRow.target_key),
     baseUrl: stringValue(brandRow.base_url || brandRow.site_url),
+    brandDomain: stringValue(brandRow.brand_domain),
+    matchedReference: brandResolution.reference,
     brandCoreRequired,
     brandCoreStatus,
     brandCoreDocs,
+    brandCoreAssets,
     coreRowCount: coreRows.length,
     isReadable,
     isWritable,

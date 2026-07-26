@@ -1,8 +1,10 @@
 import { Router } from "express";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getEffectiveCredentialStatus } from "../credentialResolver.js";
+import { maybeCreateCredentialIntakeRequirement } from "../credentialIntakeEnforcement.js";
 import { getPool } from "../db.js";
-import { encryptToken } from "../tokenEncryption.js";
+import { decryptCredentials, encryptToken } from "../tokenEncryption.js";
+import { promoteCredentialIntakePlatformSecrets } from "../services/platformSecretPromotionService.js";
 
 function str(value) {
   return String(value ?? "").trim();
@@ -29,19 +31,316 @@ function metadataJson(input = {}) {
   });
 }
 
+function upperEnvKey(value) {
+  return str(value).toUpperCase().replace(/[^A-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+}
+
+function roleCandidateField(role = "", authType = "") {
+  const normalizedRole = str(role).toLowerCase();
+  const normalizedAuth = str(authType).toLowerCase();
+  if (normalizedRole.includes("wordpress") || normalizedRole.includes("app_password")) return "application_password";
+  if (normalizedRole.includes("mcp")) return "mcp_token";
+  if (normalizedRole.includes("oauth_refresh")) return "refresh_token";
+  if (normalizedRole.includes("oauth_access")) return "access_token";
+  if (normalizedRole.includes("webhook")) return "webhook_secret";
+  if (normalizedRole.includes("api_key")) return "api_key";
+  if (normalizedAuth === "oauth2") return "access_token";
+  if (normalizedAuth === "mcp") return "mcp_token";
+  if (normalizedAuth === "bearer_token") return "bearer_token";
+  if (normalizedAuth === "basic_auth") return "password";
+  return "api_key";
+}
+
+function candidateEligibility(candidate = {}, context = {}) {
+  const reasons = [];
+  for (const [field, contextField, label] of [
+    ["user_id", "userId", "user_context_required"],
+    ["connection_id", "connectionId", "connection_context_required"],
+    ["system_id", "systemId", "system_context_required"],
+    ["installation_id", "installationId", "installation_context_required"],
+    ["action_key", "actionKey", "action_context_required"],
+    ["target_key", "targetKey", "target_context_required"],
+  ]) {
+    const requiredValue = str(candidate[field]);
+    const suppliedValue = str(context[contextField]);
+    if (requiredValue && !suppliedValue) reasons.push(label);
+    if (requiredValue && suppliedValue && requiredValue !== suppliedValue) reasons.push(`${label}_mismatch`);
+  }
+  if (candidate.owner_type === "connection" && str(candidate.user_id) && !str(context.userId)) {
+    reasons.push("private_connection_user_context_required");
+  }
+  return {
+    eligible_for_request: reasons.length === 0,
+    ineligibility_reasons: [...new Set(reasons)],
+  };
+}
+
+function sanitizeCredentialCandidate(candidate = {}, context = {}) {
+  const eligibility = candidateEligibility(candidate, context);
+  return {
+    source: candidate.source || "unknown",
+    owner_type: candidate.owner_type || null,
+    owner_id: candidate.owner_id || null,
+    binding_id: candidate.binding_id || null,
+    user_id: candidate.user_id || null,
+    connection_id: candidate.connection_id || null,
+    system_id: candidate.system_id || null,
+    installation_id: candidate.installation_id || null,
+    action_key: candidate.action_key || null,
+    target_key: candidate.target_key || null,
+    credential_role: candidate.credential_role || null,
+    credential_ref: candidate.credential_ref || null,
+    provider_family: candidate.provider_family || null,
+    connector_family: candidate.connector_family || null,
+    resolution_priority: candidate.resolution_priority ?? null,
+    status: candidate.status || null,
+    eligible_for_request: eligibility.eligible_for_request,
+    ineligibility_reasons: eligibility.ineligibility_reasons,
+    secret_value_included: false,
+  };
+}
+
+async function buildCredentialResolutionPlan(input = {}) {
+  const tenantId = str(input.tenant_id || input.tenantId);
+  const userId = str(input.user_id || input.userId);
+  const connectionId = str(input.connection_id || input.connectionId);
+  const actionKey = str(input.action_key || input.actionKey);
+  const targetKey = str(input.target_key || input.targetKey);
+  const credentialRole = str(input.credential_role || input.credentialRole || input.role);
+  const allowPlatformFallback = input.allow_platform_fallback !== false && input.allowPlatformFallback !== false;
+  const requestContext = { tenantId, userId, connectionId, actionKey, targetKey, credentialRole };
+  if (!tenantId) {
+    const err = new Error("tenant_id is required.");
+    err.status = 400;
+    err.code = "tenant_id_required";
+    throw err;
+  }
+  if (!credentialRole) {
+    const err = new Error("credential_role is required.");
+    err.status = 400;
+    err.code = "credential_role_required";
+    throw err;
+  }
+
+  const pool = getPool();
+  const [policies] = await pool.query(
+    `SELECT tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, status
+       FROM tenant_integration_policies
+      WHERE tenant_id = ? AND status = 'active'
+      ORDER BY app_key ASC`,
+    [tenantId]
+  ).catch(() => [[]]);
+
+  const [bindings] = await pool.query(
+    `SELECT binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id,
+            connection_id, action_key, target_key, credential_role, credential_ref,
+            provider_family, connector_family, resolution_priority, status, created_by,
+            created_at, updated_at
+       FROM credential_bindings
+      WHERE tenant_id = ?
+        AND credential_role = ?
+        AND status = 'active'
+      ORDER BY resolution_priority ASC, updated_at DESC
+      LIMIT 100`,
+    [tenantId, credentialRole]
+  );
+
+  const matchingBindings = bindings.filter((row) =>
+    (!row.user_id || !userId || row.user_id === userId) &&
+    (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
+    (!row.action_key || !actionKey || row.action_key === actionKey) &&
+    (!row.target_key || !targetKey || row.target_key === targetKey)
+  );
+
+  const fallbackCandidates = [];
+  if (connectionId) {
+    const [connections] = await pool.query(
+      `SELECT connection_id, user_id, tenant_id, app_key, auth_type, account_label, status, validation_status
+         FROM user_app_connections
+        WHERE connection_id = ? AND tenant_id = ?
+        LIMIT 1`,
+      [connectionId, tenantId]
+    ).catch(() => [[]]);
+    const connection = connections[0];
+    if (connection?.status === "active") {
+      fallbackCandidates.push({
+        source: "user_app_connections_fallback",
+        owner_type: "connection",
+        owner_id: connection.connection_id,
+        connection_id: connection.connection_id,
+        credential_role: credentialRole,
+        credential_ref: `user_app_connection:${connection.connection_id}:encrypted_credentials.${roleCandidateField(credentialRole, connection.auth_type)}`,
+        status: connection.status,
+        resolution_priority: 200,
+      });
+    }
+  }
+
+  if (actionKey && allowPlatformFallback) {
+    const [actions] = await pool.query(
+      `SELECT action_key, secret_store_ref, api_key_storage_mode, api_key_mode
+         FROM actions
+        WHERE action_key = ?
+        LIMIT 1`,
+      [actionKey]
+    ).catch(() => [[]]);
+    const action = actions[0];
+    if (action?.secret_store_ref) {
+      fallbackCandidates.push({
+        source: "actions.secret_store_ref",
+        owner_type: "platform",
+        owner_id: "action_default",
+        action_key: action.action_key,
+        credential_role: credentialRole,
+        credential_ref: action.secret_store_ref,
+        status: "active",
+        resolution_priority: 300,
+      });
+    }
+  }
+
+  if (credentialRole === "wordpress_app_password" && targetKey) {
+    fallbackCandidates.push({
+      source: "target_tenant_secret_convention",
+      owner_type: "tenant",
+      owner_id: tenantId,
+      target_key: targetKey,
+      credential_role: credentialRole,
+      credential_ref: `tenant_secret:${tenantId}:${upperEnvKey(targetKey)}_APP_PASSWORD`,
+      status: "expected",
+      resolution_priority: 400,
+    });
+  }
+
+  const candidates = [
+    ...matchingBindings.map((row) => ({ ...row, source: "credential_bindings" })),
+    ...fallbackCandidates,
+  ].map((candidate) => sanitizeCredentialCandidate(candidate, requestContext));
+  const effective = await getEffectiveCredentialStatus({
+    tenant_id: tenantId,
+    user_id: userId,
+    connection_id: connectionId,
+    action_key: actionKey,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    allow_platform_fallback: allowPlatformFallback,
+  });
+
+  return {
+    ok: true,
+    request: {
+      tenant_id: tenantId,
+      user_id: userId || null,
+      connection_id: connectionId || null,
+      action_key: actionKey || null,
+      target_key: targetKey || null,
+      credential_role: credentialRole,
+      allow_platform_fallback: allowPlatformFallback,
+    },
+    policy: {
+      tenant_integration_policies: policies,
+      platform_fallback_allowed_by_request: allowPlatformFallback,
+      credential_values_returned: false,
+      secret_values_returned: false,
+    },
+    resolution_order: ["credential_bindings", "user_app_connections_fallback", "actions.secret_store_ref", "target_tenant_secret_convention"],
+    candidates,
+    effective,
+    total: candidates.length,
+    secrets_included: false,
+  };
+}
+
+function fieldCountFromCredentialSchema(value) {
+  const parsed = typeof value === "object" ? value : (() => { try { return JSON.parse(value || "{}"); } catch { return {}; } })();
+  if (Array.isArray(parsed?.fields)) return parsed.fields.length;
+  if (parsed?.properties && typeof parsed.properties === "object") return Object.keys(parsed.properties).length;
+  return 0;
+}
+
+function intakePromotionSummary(connection = {}, intake = {}) {
+  const validationStatus = str(connection.validation_status);
+  const metadata = (() => { try { return JSON.parse(connection.account_metadata || "{}"); } catch { return {}; } })();
+  const promoted = validationStatus === "promoted_to_platform_secrets";
+  return {
+    status: intake?.status || null,
+    session_id: intake?.session_id || metadata.intake_session_id || null,
+    used_at: intake?.used_at || null,
+    expires_at: intake?.expires_at || null,
+    field_count: fieldCountFromCredentialSchema(intake?.credential_schema_json),
+    auto_promotion_status: promoted ? "completed" : validationStatus === "pending_validation" ? "pending_validation" : validationStatus || "unknown",
+    promoted_count: promoted ? fieldCountFromCredentialSchema(intake?.credential_schema_json) : 0,
+    secrets_included: false,
+  };
+}
+
+function safeJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizePromotionMappings(input = []) {
+  return (Array.isArray(input) ? input : [])
+    .map((mapping = {}) => ({
+      credential_field: str(mapping.credential_field || mapping.credentialField || mapping.field),
+      secret_key: str(mapping.secret_key || mapping.secretKey),
+      secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+    }))
+    .filter((mapping) => mapping.credential_field && mapping.secret_key)
+    .slice(0, 50);
+}
+
+function credentialValueToSecretString(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return JSON.stringify(value);
+}
+
+function safeCredentialFieldNames(credentials = {}) {
+  return Object.keys(credentials || {})
+    .map((field) => str(field))
+    .filter((field) => /^[A-Za-z0-9_\-.]{1,96}$/.test(field))
+    .sort()
+    .slice(0, 100);
+}
+
 export function buildCredentialRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+
   router.use(requireBackendApiKey);
 
   // Safe status-only resolver. Never returns secret values; used by admin/GPT,
   // /connect wrappers, and governance diagnostics.
   router.post("/credentials/effective/status", async (req, res) => {
     try {
-      const credential = await getEffectiveCredentialStatus(req.body || {});
-      res.json({ ok: true, credential });
+      const input = req.body || {};
+      const credential = await getEffectiveCredentialStatus(input);
+      const intake = await maybeCreateCredentialIntakeRequirement(input, credential, { req });
+      res.json({ ok: true, credential, ...(intake ? { intake } : {}) });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "credential_status_failed", message: err.message } });
+    }
+  });
+
+  // Credential resolution plan. This is a safe diagnostic/read model for
+  // governance and promotion design. It returns pointer metadata and ordering,
+  // never decrypted secret values.
+  router.post("/credentials/effective/plan", async (req, res) => {
+    try {
+      const input = req.body || {};
+      const plan = await buildCredentialResolutionPlan(input);
+      const intake = await maybeCreateCredentialIntakeRequirement(input, plan.effective || {}, { req });
+      res.json({ ...plan, ...(intake ? { intake } : {}) });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "credential_plan_failed", message: err.message }, secrets_included: false });
     }
   });
 
@@ -156,6 +455,371 @@ export function buildCredentialRoutes(deps) {
       });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "credential_secret_upsert_failed", message: err.message } });
+    }
+  });
+
+  // Promote a secure intake connection into platform_secrets. This route never
+  // accepts raw secret values and never returns decrypted values; it decrypts
+  // one active intake connection server-side and writes selected fields into
+  // platform-scoped DB-encrypted secret slots.
+  router.post("/credentials/intake/promote-platform-secrets", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const connectionId = str(body.connection_id || body.connectionId);
+      const requestedSystemId = str(body.system_id || body.systemId);
+      const requestedOwnerId = str(body.owner_id || body.ownerId);
+      const requestedProviderFamily = str(body.provider_family || body.providerFamily);
+      const requestedConnectorFamily = str(body.connector_family || body.connectorFamily);
+      const requestedTargetKey = str(body.target_key || body.targetKey);
+      const approved = body.promotion_approved === true || body.promotionApproved === true;
+      const promotionReason = str(body.promotion_reason || body.promotionReason);
+      const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
+      const requestedMappings = normalizePromotionMappings(body.secret_mappings || body.secretMappings);
+
+      if (!approved || promotionReason.length < 12) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and a promotion_reason of at least 12 characters are required." }, secrets_included: false });
+      }
+      if (!connectionId) {
+        return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, account_metadata, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ?
+          LIMIT 1`,
+        [connectionId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
+        return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
+      }
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const connectionMetadata = safeJsonObject(connection.account_metadata);
+      const metadataMappings = normalizePromotionMappings(connectionMetadata.platform_secret_mappings);
+      const normalizedMappings = requestedMappings.length ? requestedMappings : metadataMappings;
+      const systemId = requestedSystemId || str(connectionMetadata.system_id);
+      const ownerId = requestedOwnerId || str(connectionMetadata.owner_id) || "growth_intelligence_platform";
+      const providerFamily = requestedProviderFamily || str(connectionMetadata.provider_family) || str(connection.app_key) || "generic";
+      const connectorFamily = requestedConnectorFamily || str(connectionMetadata.connector_family) || str(connection.auth_type) || str(connection.app_key) || "generic";
+      const targetKey = requestedTargetKey || str(connectionMetadata.target_key) || `${str(connection.app_key) || "connection"}_${str(connection.auth_type) || "credentials"}_platform`;
+
+      if (!normalizedMappings.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "platform_secret_mappings_required",
+            message: "Provide secret_mappings in the request or connection.account_metadata.platform_secret_mappings. Dynamic promotion supports any encrypted connection auth_type, but mapped fields must be explicit.",
+          },
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
+          secrets_included: false,
+        });
+      }
+
+      const missingFields = normalizedMappings
+        .filter((mapping) => !credentialValueToSecretString(credentials[mapping.credential_field]))
+        .map((mapping) => mapping.credential_field);
+      if (missingFields.length) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "intake_secret_fields_missing", message: "The intake connection is missing one or more mapped fields." },
+          missing_fields: [...new Set(missingFields)],
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
+          secrets_included: false,
+        });
+      }
+
+      const promotionCredentials = Object.fromEntries(
+        normalizedMappings.map((mapping) => [
+          mapping.credential_field,
+          credentialValueToSecretString(credentials[mapping.credential_field]),
+        ])
+      );
+      const promotion = await promoteCredentialIntakePlatformSecrets({
+        session: {
+          user_id: connection.user_id,
+          tenant_id: connection.tenant_id,
+          auth_type: connection.auth_type,
+        },
+        credentials: promotionCredentials,
+        metadata: { created_by: createdBy },
+        mappings: normalizedMappings,
+        connectionId,
+        req,
+        context: {
+          systemId: systemId || null,
+          ownerId,
+          providerFamily,
+          connectorFamily,
+          targetKey,
+          promotionReason,
+          createMissingReference: true,
+          referenceTenantId: connection.tenant_id || "f2795a7f-8d06-4053-8bee-35ca9af8b460",
+          referenceDescription: `Platform secret promoted from ${connection.app_key}/${connection.auth_type} intake connection`,
+          metadataSource: "credential_intake_platform_secret_promotion",
+          auditAction: "credential_intake.platform_secrets_promoted",
+          actorType: "backend_admin",
+        },
+      });
+      const promoted = promotion.promoted || [];
+
+      return res.json({
+        ok: true,
+        owner_type: "platform",
+        owner_id: ownerId,
+        system_id: systemId,
+        target_key: targetKey,
+        connection_id: connectionId,
+        promoted_count: promoted.length,
+        promoted,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "platform_secret_promotion_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  // Promote an intake-created connection secret into the local connector registry.
+  // This is intentionally narrow: it only writes connector_local_api_key for one
+  // user/tenant/device config and never returns the decrypted secret.
+  router.post("/credentials/intake/promote-local-connector-key", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = str(body.tenant_id || body.tenantId);
+      const userId = str(body.user_id || body.userId);
+      const deviceId = str(body.device_id || body.deviceId);
+      const connectionId = str(body.connection_id || body.connectionId);
+      const credentialField = str(body.credential_field || body.credentialField || "api_key");
+      const targetField = str(body.target_field || body.targetField || "connector_local_api_key");
+      const createdBy = str(body.created_by || body.createdBy || "credential_intake_local_connector_key_promotion");
+
+      if (targetField !== "connector_local_api_key") {
+        return res.status(400).json({ ok: false, error: { code: "unsupported_target_field", message: "Only connector_local_api_key is supported." }, secrets_included: false });
+      }
+      if (!tenantId || !userId || !deviceId || !connectionId) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_fields_required", message: "tenant_id, user_id, device_id, and connection_id are required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ? AND user_id = ? AND tenant_id = ?
+          LIMIT 1`,
+        [connectionId, userId, tenantId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
+        return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
+      }
+
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const candidateFields = [credentialField, "connector_local_api_key", "api_key", "bearer_token", "token", "key"];
+      const value = candidateFields.map((field) => str(credentials[field])).find(Boolean);
+      if (!value) {
+        return res.status(400).json({ ok: false, error: { code: "intake_secret_field_missing", message: "No usable secret field was found on the intake connection." }, fields_checked: [...new Set(candidateFields)], secrets_included: false });
+      }
+
+      const hash = sha256(value);
+      const [updateResult] = await pool.query(
+        `UPDATE local_connector_user_configs
+            SET connector_local_api_key = ?, updated_at = NOW()
+          WHERE user_id = ?
+            AND tenant_id = ?
+            AND device_id = ?
+            AND is_enabled = 1
+          LIMIT 1`,
+        [value, userId, tenantId, deviceId]
+      );
+      if (!updateResult?.affectedRows) {
+        return res.status(404).json({ ok: false, error: { code: "active_local_connector_config_not_found", message: "No enabled local connector config matched the requested user/tenant/device." }, secrets_included: false });
+      }
+
+      await pool.query(
+        `UPDATE user_app_connections
+            SET validation_status = 'promoted_to_local_connector_registry', last_used_at = NOW()
+          WHERE connection_id = ?`,
+        [connectionId]
+      ).catch(() => {});
+
+      return res.json({
+        ok: true,
+        target: "local_connector_user_configs.connector_local_api_key",
+        user_id: userId,
+        tenant_id: tenantId,
+        device_id: deviceId,
+        connection_id: connectionId,
+        value_sha256: hash,
+        promoted_by: createdBy,
+        updated_rows: updateResult.affectedRows,
+        next_actions: ["repair_or_restart_local_connector_to_materialize_CONNECTOR_LOCAL_API_KEY", "validate_connector_policy_local_api_key_alias_enabled", "validate_direct_connector_fallback"],
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "local_connector_key_promotion_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  // Promote a private connection credential into a tenant-owned binding. This
+  // creates a pointer binding only; it never copies, decrypts, or returns secret
+  // values. V1 intentionally supports tenant-owned promotion only.
+  router.post("/credentials/bindings/promote", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = str(body.tenant_id || body.tenantId);
+      const connectionId = str(body.connection_id || body.connectionId);
+      const targetKey = str(body.target_key || body.targetKey);
+      const actionKey = str(body.action_key || body.actionKey);
+      const credentialRole = str(body.credential_role || body.credentialRole || body.role);
+      const providerFamily = str(body.provider_family || body.providerFamily || "wordpress");
+      const connectorFamily = str(body.connector_family || body.connectorFamily || "wordpress_rest");
+      const promotedOwnerType = str(body.promoted_owner_type || body.promotedOwnerType || "tenant");
+      const resolutionPriority = Number.parseInt(String(body.resolution_priority || body.resolutionPriority || 20), 10);
+      const promotionApproved = body.promotion_approved === true || body.promotionApproved === true;
+      const promotionReason = str(body.promotion_reason || body.promotionReason);
+      const createdBy = str(body.created_by || body.createdBy || "credential_binding_promotion_v1");
+
+      if (!promotionApproved || promotionReason.length < 8) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and promotion_reason of at least 8 characters are required." }, secrets_included: false });
+      }
+      if (promotedOwnerType !== "tenant") {
+        return res.status(400).json({ ok: false, error: { code: "unsupported_promotion_owner_type", message: "v1 supports promoted_owner_type=tenant only." }, secrets_included: false });
+      }
+      if (!tenantId || !connectionId || !credentialRole || (!targetKey && !actionKey)) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_fields_required", message: "tenant_id, connection_id, credential_role, and target_key or action_key are required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, account_label, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ? AND tenant_id = ?
+          LIMIT 1`,
+        [connectionId, tenantId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active") {
+        return res.status(400).json({ ok: false, error: { code: "active_connection_required", message: "An active user_app_connection in this tenant is required for promotion." }, secrets_included: false });
+      }
+
+      const preflight = await buildCredentialResolutionPlan({
+        tenant_id: tenantId,
+        user_id: connection.user_id,
+        connection_id: connectionId,
+        action_key: actionKey || undefined,
+        target_key: targetKey || undefined,
+        credential_role: credentialRole,
+        allow_platform_fallback: false,
+      });
+      if (preflight.effective?.status !== "resolved" || preflight.effective?.owner_type !== "connection" || preflight.effective?.connection_id !== connectionId) {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "promotion_source_not_resolved",
+            message: "Source connection credential must resolve with user+connection context before promotion.",
+            details: {
+              effective_status: preflight.effective?.status || null,
+              effective_owner_type: preflight.effective?.owner_type || null,
+              effective_connection_id: preflight.effective?.connection_id || null,
+            },
+          },
+          secrets_included: false,
+        });
+      }
+
+      const field = roleCandidateField(credentialRole, connection.auth_type);
+      const credentialRef = preflight.effective.credential_ref || `user_app_connection:${connection.connection_id}:encrypted_credentials.${field}`;
+      const [existing] = await pool.query(
+        `SELECT binding_id FROM credential_bindings
+          WHERE tenant_id = ?
+            AND owner_type = 'tenant'
+            AND owner_id = ?
+            AND credential_role = ?
+            AND credential_ref = ?
+            AND COALESCE(target_key, '') = COALESCE(?, '')
+            AND COALESCE(action_key, '') = COALESCE(?, '')
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+        [tenantId, tenantId, credentialRole, credentialRef, targetKey || null, actionKey || null]
+      );
+      const bindingId = existing[0]?.binding_id || randomUUID();
+
+      if (existing[0]?.binding_id) {
+        await pool.query(
+          `UPDATE credential_bindings
+              SET provider_family = ?, connector_family = ?, resolution_priority = ?, status = 'active', updated_at = NOW()
+            WHERE binding_id = ?`,
+          [providerFamily, connectorFamily, Number.isFinite(resolutionPriority) ? resolutionPriority : 20, bindingId]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO credential_bindings (
+             binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+             action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+             resolution_priority, status, created_by, created_at, updated_at
+           ) VALUES (?, ?, 'tenant', ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())`,
+          [
+            bindingId,
+            tenantId,
+            tenantId,
+            actionKey || null,
+            targetKey || null,
+            credentialRole,
+            credentialRef,
+            providerFamily,
+            connectorFamily,
+            Number.isFinite(resolutionPriority) ? resolutionPriority : 20,
+            createdBy,
+          ]
+        );
+      }
+
+      const plan = await buildCredentialResolutionPlan({
+        tenant_id: tenantId,
+        action_key: actionKey || undefined,
+        target_key: targetKey || undefined,
+        credential_role: credentialRole,
+        allow_platform_fallback: body.allow_platform_fallback !== false,
+      });
+
+      res.status(existing[0]?.binding_id ? 200 : 201).json({
+        ok: true,
+        binding_id: bindingId,
+        tenant_id: tenantId,
+        promoted_owner_type: "tenant",
+        credential_ref: credentialRef,
+        target_key: targetKey || null,
+        action_key: actionKey || null,
+        credential_role: credentialRole,
+        resolution_priority: Number.isFinite(resolutionPriority) ? resolutionPriority : 20,
+        promotion_policy: {
+          mode: "tenant_connection_binding_promotion_v1",
+          promotion_approved: true,
+          promotion_reason: promotionReason,
+          source_preflight_status: preflight.effective?.status || null,
+          source_connection_id: connectionId,
+          source_user_id: connection.user_id,
+          secret_copied: false,
+          token_returned: false,
+          secrets_included: false,
+          platform_wide_promotion_enabled: false,
+        },
+        readback: {
+          effective_status: plan.effective?.status || null,
+          effective_source: plan.effective?.source || null,
+          effective_binding_id: plan.effective?.binding_id || null,
+          candidate_count: plan.total,
+          secrets_included: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "credential_binding_promotion_failed", message: err.message }, secrets_included: false });
     }
   });
 

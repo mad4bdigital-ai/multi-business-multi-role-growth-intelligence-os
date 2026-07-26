@@ -4,6 +4,60 @@
 - row-audit surface compatibility
 - absence of deprecated label-based worksheet resolution in active execution paths
 
+### Tenant/Brand Growth Intelligence Value Path
+
+The first promoted value-producing path is:
+
+`tenant activation -> brand core resolution -> business activity resolution -> prompt routing -> module loading -> engine compatibility -> governed tool dispatch -> approval hold -> readback -> audit evidence`.
+
+Until a separately reviewed provider-capable release promotes wider authority, this path must:
+- operate in read-only analysis and dry-run planning mode
+- produce stable JSON and Markdown reports
+- attach evidence or mark an insight as an assumption
+- score and prioritize every action
+- hold all draft or controlled-apply actions for approval
+- record zero provider writes and zero external sends
+- return `secrets_included = false`
+
+The canonical first workflow key is `tenant_brand_growth_intelligence_pilot_v1`.
+Its report contract includes brand context, activity intelligence, SEO opportunity map,
+growth opportunities, prioritized backlog, approval queue view, readback, and audit evidence.
+This workflow does not authorize provider execution.
+
+The workflow defaults to `persistence_mode = none`. Explicit
+`persistence_mode = internal_registry` may persist the report, insights, dry-run
+actions, workflow evidence, and linked `approval_holds` in one transaction.
+Internal persistence is not provider execution authority.
+
+Approval decisions for Growth Intelligence actions must update the linked hold,
+action, report, and workflow state together. Fully approved reports move to
+`awaiting_review`; approval must never dispatch execution automatically.
+
+Product metrics must expose report volume, evidence coverage, stale insights,
+approval state, and the safety counters `provider_write_count`,
+`external_send_count`, and `secrets_included_count`.
+
+Persisted insights must use deterministic tenant/brand fingerprints. A newer
+matching insight supersedes the prior active record. Insight acceptance is
+explicit; evidence-backed status alone is insufficient for review readiness.
+
+Growth Intelligence readiness assessments must be immutable, hash-addressed
+evidence. `review_ready` requires approved report and actions, accepted and
+evidence-backed insights, scored actions, valid readback requirements, and zero
+safety flags. It must always preserve `execution_allowed = false`.
+
+### Sequential Plan Execution Authority
+
+Multi-step execution plans must compile into durable `execution_plan_steps`
+before sequential execution. The runtime must validate unique step keys,
+backward-only dependencies, bounded attempts, stable idempotency keys, approval
+policy, and success criteria before a plan becomes executable.
+
+The sequential orchestrator may claim only one ready step per tick. Claims,
+state transitions, approval stops, retries, and completion checkpoints must be
+recorded in append-only `execution_plan_events`. Approval may return a step to
+`ready`; it must not directly dispatch downstream execution.
+
 If `binding_integrity_review` fails for required surfaces:
 - execution must classify as `Degraded` or `Blocked`
 - repair-aware routing must remain available
@@ -399,3 +453,14 @@ Framework-health reasoning must cover:
 - scoring writeback verification
 - promotion confidence support
 - verification-loop coupling completeness
+# Agent Governance Authority
+
+- Research resolution is internal-first. External sources are eligible only when the resolved source policy explicitly permits them.
+- A governed research plan is bound to an immutable resolved-policy snapshot hash at compile time. Snapshot integrity must pass before any step is claimed.
+- The compiled research-step contract is independently hashed. Changes to source selection, ordering, dependencies, inputs, or success criteria invalidate execution.
+- Governed research completion requires readback-verified authoritative `execution_log` evidence correlated by plan ID. Source evidence and transition evidence remain in their specialized append-only ledgers.
+- The agent loop must receive the governed agent execution context before model invocation. Observe-only mode exposes route/workflow authority drift and writes bounded readback-verified `execution_log` evidence; enforce mode denies explicit disallowed route/workflow selections.
+- User requests remain user messages. They must not be copied into system prompts as implicit authority.
+- Response profiles govern presentation only and never grant execution, tool, policy, resource, or approval authority.
+- Cross-agent continuation uses opaque, expiring, audited handoff state; raw credentials and secret-bearing payloads are forbidden.
+- External prompt-like artifacts are quarantined with zero execution, tool, and policy authority until a separate governed promotion decision.

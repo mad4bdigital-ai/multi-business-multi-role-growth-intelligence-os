@@ -1,0 +1,8 @@
+-- Sprint 68: Extend release_session_archive_smoke admin tool schema with forced rollover diagnostics.
+-- Additive request fields only; default behavior remains unchanged.
+
+UPDATE `admin_platform_endpoint_tools`
+   SET `input_schema` = '{"type":"object","properties":{"tenant_id":{"type":"string","description":"Tenant id for the synthetic smoke session. Defaults to platform tenant."},"user_id":{"type":"string","description":"Synthetic user id for the smoke session. Defaults to a generated session_archive_smoke_* value."},"include_drive_readback":{"type":"boolean","default":true},"cleanup":{"type":"boolean","default":true},"smoke_subfolder":{"type":"string","default":"_smoke_archives"},"force_doc_rollover":{"type":"boolean","default":false,"description":"When true, intentionally lowers the transcript Google Doc rollover threshold after the first turn so the smoke verifies creation of a subsequent transcript part."},"doc_rollover_chars":{"type":"integer","minimum":100,"maximum":1000000,"description":"Optional forced rollover threshold in characters for diagnostic smoke runs."}},"additionalProperties":false}',
+       `tags` = 'release,session-archive,drive-writeback,activation-readback,smoke,rollover-smoke,read_write,admin,no_secrets,cleanup_default_true',
+       `description` = 'Run live GPT session archive/writeback smoke. Creates a synthetic GPT action session, writes user, assistant, and tool turns, verifies Drive doc/JSONL readback, SQL pointer-only rows, activation session-context readback, optional Google Doc rollover, and optional cleanup. Does not return raw secrets.'
+ WHERE `tool_key` = 'release_session_archive_smoke';

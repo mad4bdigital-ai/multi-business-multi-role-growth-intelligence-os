@@ -309,8 +309,8 @@ function localManagerAppPage() {
     <header>
       <section>
         <span class="badge">Public Local Manager</span>
-        <h1>Download, sign in, and link this device.</h1>
-        <p>Mad4B Local Manager is installed first. Authentication happens inside the installed app when the user signs in and chooses to link the current device.</p>
+        <h1>Download, sign in, link this device, and keep platform tools installed.</h1>
+        <p>Mad4B Local Manager is the local release owner for platform tools. It installs and upgrades the connector agent, Browser4 adapter, diagnostics probes, and future allowlisted local tools from the signed platform manifest.</p>
         <div class="actions">
           <a class="button" href="#download">Download Local Manager</a>
           <a class="button secondary" href="#how-it-works">How linking works</a>
@@ -325,7 +325,7 @@ function localManagerAppPage() {
     </header>
 
     <section id="download" class="grid">
-      <div class="card"><h2>Windows</h2><p>Download the Local Manager Windows app, then sign in after installation.</p><p><a class="button" href="/app/local-manager/download/windows">Download for Windows (.exe)</a></p><p>This app contains no device credentials and no platform secrets.</p></div>
+      <div class="card"><h2>Windows</h2><p>Download the Local Manager Windows app, then sign in after installation.</p><p><a class="button" href="/app/local-manager/download/windows">Download for Windows (.exe) · v${LOCAL_MANAGER_WINDOWS_LATEST_VERSION}</a></p><p>This app contains no device credentials and no platform secrets.</p></div>
       <div class="card"><h2>macOS</h2><p>Desktop packaging is planned after the Windows connector flow is completed.</p><p><button disabled>Planned</button></p></div>
       <div class="card"><h2>Linux</h2><p>Agent packaging is planned for server and workstation installs.</p><p><button disabled>Planned</button></p></div>
     </section>
@@ -336,7 +336,7 @@ function localManagerAppPage() {
         <div class="step"><div><strong>Install</strong><p>User downloads and installs Local Manager. No admin token is typed into this web page.</p></div></div>
         <div class="step"><div><strong>Sign in</strong><p>The installed app opens Mad4B login using OAuth, device-code login, or a one-time pairing code.</p></div></div>
         <div class="step"><div><strong>Link device</strong><p>The app asks the user to link the current machine. The backend creates scoped credentials for that device only.</p></div></div>
-        <div class="step"><div><strong>Manage</strong><p>The device appears in Local Manager with route health, backup probes, and recovery actions governed by the signed-in user role.</p></div></div>
+        <div class="step"><div><strong>Manage and upgrade tools</strong><p>The device appears in Local Manager with route health, backup probes, recovery actions, and manifest-driven local tool installation governed by the signed-in user role.</p></div></div>
       </div>
     </section>
 
@@ -390,8 +390,8 @@ function localManagerAdminPage() {
   <main>
     <header>
       <div>
-        <h1>Mad4B Local Manager</h1>
-        <p>Public app shell with platform-auth actions. No platform secrets are sent to the browser.</p>
+        <h1>Mad4B Local Manager Admin Tools</h1>
+        <p>Generate governed install/upgrade links for the Local Manager connector agent. The agent owns local platform tool releases through the signed manifest; no platform secrets are sent to the browser.</p>
       </div>
       <span class="pill">public app · auth required for actions</span>
     </header>
@@ -607,7 +607,8 @@ function setupGoogle(){
       } catch (err) { setOut({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
     }
   });
-  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with', locale:'en' });
+  // Allow GIS to localize from the Google Account or browser settings.
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with' });
 }
 async function loadPreview(){
   const code = normalizeCode($('deviceCode').value);
@@ -757,7 +758,8 @@ function setupGoogle(){
       } catch (err) { renderDevices({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
     }
   });
-  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with', locale:'en' });
+  // Allow GIS to localize from the Google Account or browser settings.
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with' });
 }
 $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
@@ -777,14 +779,25 @@ if(restoreUser()) loadDevices();
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.2";
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.25";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
-const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe";
-const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
+const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.25.exe";
+const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.25.exe.sha256.json";
 
 function normalizeVersion(value) {
   const raw = String(value || "").trim().replace(/^v/i, "");
   return raw.split(/[+-]/)[0] || raw;
+}
+
+function compareVersions(left, right) {
+  const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const maxLength = Math.max(leftParts.length, rightParts.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    const delta = (leftParts[i] || 0) - (rightParts[i] || 0);
+    if (delta !== 0) return delta > 0 ? 1 : -1;
+  }
+  return 0;
 }
 
 async function ensureLocalAppReleasesTable() {
@@ -871,7 +884,15 @@ async function latestLocalManagerWindowsRelease() {
         ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
         LIMIT 1`
     );
-    return rows[0] ? { ...rows[0], source: "db" } : localManagerFallbackReleaseRow();
+    const fallback = localManagerFallbackReleaseRow();
+    if (!rows[0]) return fallback;
+    const selected = { ...rows[0], source: "db" };
+    const fallbackVersion = normalizeVersion(fallback.version);
+    const selectedVersion = normalizeVersion(selected.version);
+    if (compareVersions(fallbackVersion, selectedVersion) > 0) {
+      return { ...fallback, source: "code_fallback_newer_than_db", stale_db_version: selected.version || null, stale_db_release_id: selected.release_id || null };
+    }
+    return selected;
   } catch {
     return localManagerFallbackReleaseRow();
   }
@@ -888,7 +909,7 @@ async function localManagerWindowsUpdateInfo(req) {
     app: "mad4b-local-manager",
     latest_version: latestVersion,
     current_version: currentVersion || null,
-    update_available: currentVersion ? currentVersion !== latestVersion : null,
+    update_available: currentVersion ? compareVersions(latestVersion, currentVersion) > 0 : null,
     required: Boolean(Number(release.update_required || 0)),
     minimum_supported_version: release.minimum_supported_version || null,
     release_channel: release.release_channel || "latest-prerelease",

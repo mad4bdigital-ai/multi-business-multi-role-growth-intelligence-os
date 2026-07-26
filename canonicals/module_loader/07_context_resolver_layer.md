@@ -32,3 +32,38 @@ If Brand Registry cannot be loaded:
 ## Completion Gate
 The loader may call resolveContext only after all required row collections are loaded.
 An empty row collection is valid input only when the corresponding key (business_type_key or brand_key) is absent from the request.
+## Growth Intelligence Pilot Dependencies
+
+Before loading `tenant_brand_growth_intelligence_pilot_v1`, the module loader must
+resolve tenant scope, Brand Core, Business Activity Type, compatible engines, and
+available evidence. Missing brand or activity authority blocks the workflow.
+
+The loader must preserve read-only/dry-run mode through all downstream modules and
+must not load provider-write or external-send capability for this workflow.
+
+## Sequential Plan Loader Dependencies
+
+Before a compiled step is marked ready, the loader must resolve the step workflow
+identity, dependency completion state, required execution context, approval
+policy, and compatible executor. Missing dependencies or ambiguous workflow
+identity block the step instead of skipping it.
+# Governed Agent Context
+
+Resolve response profile and memory scope after tenant/brand/role context, but treat both as non-authoritative context. Resolve research source policy before creating sequential research steps. Resolve handoff state by opaque ID with expiry and tenant checks.
+
+## Activation Awareness Loading Policy
+
+For hard activation, load validation evidence and complete surface manifests before detailed operational rows. The loader must preserve every authorized Dynamic Tab and Dashboard tile as a manifest even when its rows are deferred.
+
+The default `evidence` profile loads:
+- session and provider validation evidence
+- account/workspace/permission counts
+- Dynamic Tabs manifests
+- Dashboard tile manifests
+- attention-first summaries
+- freshness and completeness metadata
+- governed cursor references for deferred rows
+
+Detailed rows must use progressive hydration (`manifest_only` -> `summary_loaded` -> `detail_loaded`). Global or otherwise shared surfaces must be represented once and referenced from containers. Full or diagnostic loading must batch each section across visible containers and distribute rows in memory; a container-by-section query loop is forbidden.
+
+The loader must preserve snapshot id, registry version, data watermark, response budget, and explicit deferred-surface metadata. Response truncation without a governed detail reference is forbidden.

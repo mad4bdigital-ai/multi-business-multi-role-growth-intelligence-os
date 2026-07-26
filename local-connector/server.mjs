@@ -11,6 +11,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  buildBrowser4InspectionScript,
+  parseBrowser4AllowedHosts,
+  sanitizeBrowser4Checks,
+  validateBrowser4Url,
+} from './browser4-adapter.mjs';
+import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -44,7 +51,21 @@ loadEnv(path.join(__dirname, '.env'));
 // ---------------------------------------------------------------------------
 
 const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
-const API_KEY = process.env.BACKEND_API_KEY ?? '';
+const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
+const CONNECTOR_LOCAL_API_KEY = String(process.env.CONNECTOR_LOCAL_API_KEY ?? '').trim();
+const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
+const LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED = process.env.CONNECTOR_LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED === 'true';
+const CONNECTOR_AUTH_SECRETS = [
+  CONNECTOR_SECRET,
+  CONNECTOR_LOCAL_API_KEY,
+  LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED ? LEGACY_BACKEND_API_KEY : '',
+]
+  .map((value) => String(value || '').trim())
+  .filter(Boolean);
+const CONNECTOR_AUTH_SECRET = CONNECTOR_AUTH_SECRETS[0] || '';
+const CONNECTOR_POLICY_ENABLED = process.env.CONNECTOR_POLICY_ENABLED !== 'false';
+const CONNECTOR_POLICY_URL = String(process.env.CONNECTOR_POLICY_URL ?? 'https://auth.mad4b.com/connector-agent/policy').replace(/\/$/, '');
+const CONNECTOR_POLICY_TTL_MS = Math.min(Math.max(parseInt(process.env.CONNECTOR_POLICY_TTL_MS ?? '300000', 10) || 300000, 30000), 1800000);
 const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -53,8 +74,28 @@ const PS_ENABLED = process.env.CONNECTOR_POWERSHELL_ENABLED === 'true';
 const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
 const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
+const N8N_LOCAL_BASE = (process.env.N8N_LOCAL_BASE_URL ?? process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
-const N8N_COMMAND = process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n');
+function normalizeCommandPath(value) {
+  let raw = String(value ?? '').trim();
+  for (let i = 0; i < 3; i += 1) {
+    if (raw.length >= 4 && raw.startsWith('\\"') && raw.endsWith('\\"')) {
+      raw = raw.slice(2, -2).trim();
+      continue;
+    }
+    if (raw.length >= 2) {
+      const first = raw[0];
+      const last = raw[raw.length - 1];
+      if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+        raw = raw.slice(1, -1).trim();
+        continue;
+      }
+    }
+    break;
+  }
+  return raw.replace(/^\\"|\\"$/g, '');
+}
+const N8N_COMMAND = normalizeCommandPath(process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n'));
 const N8N_USER_FOLDER = process.env.N8N_USER_FOLDER ?? (process.platform === 'win32' ? 'D:\\n8n-data' : path.join(os.homedir(), '.n8n'));
 const N8N_PORT = String(process.env.N8N_PORT ?? '5678');
 const N8N_LISTEN_ADDRESS = process.env.N8N_LISTEN_ADDRESS ?? '127.0.0.1';
@@ -66,6 +107,19 @@ const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const CF_ZONE_ID = process.env.CF_ZONE_ID ?? '';
 const DEPENDENCIES_ENABLED = process.env.CONNECTOR_DEPENDENCIES_ENABLED === 'true';
 const APPS_ENABLED = process.env.CONNECTOR_APPS_ENABLED === 'true';
+const BROWSER4_ENABLED = process.env.CONNECTOR_BROWSER4_ENABLED === 'true';
+const BROWSER4_WORK_DIR = process.env.BROWSER4_WORK_DIR ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime-artifacts'
+  : path.join(os.homedir(), '.browser4-runtime-artifacts'));
+const BROWSER4_JAVA_HOME = process.env.BROWSER4_JAVA_HOME ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre'
+  : '');
+const BROWSER4_SERVER_URL = process.env.BROWSER4_SERVER_URL ?? 'http://localhost:8182';
+const BROWSER4_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.BROWSER4_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
+const AUTO_BROWSER_ENABLED = process.env.CONNECTOR_AUTO_BROWSER_ENABLED === 'true';
+const AUTO_BROWSER_BASE_URL = (process.env.AUTO_BROWSER_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
+const AUTO_BROWSER_HEALTH_PATH = process.env.AUTO_BROWSER_HEALTH_PATH ?? '/healthz';
+const AUTO_BROWSER_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.AUTO_BROWSER_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
 
 const DEFAULT_DEPENDENCY_ALLOWLIST = {
   gh: {
@@ -139,11 +193,110 @@ try {
 let APP_ALLOWLIST = DEFAULT_APP_ALLOWLIST;
 try {
   if (process.env.CONNECTOR_APP_ALLOWLIST) {
-    APP_ALLOWLIST = JSON.parse(process.env.CONNECTOR_APP_ALLOWLIST);
+    const configuredApps = JSON.parse(process.env.CONNECTOR_APP_ALLOWLIST);
+    APP_ALLOWLIST = { ...DEFAULT_APP_ALLOWLIST, ...(configuredApps && typeof configuredApps === 'object' ? configuredApps : {}) };
   }
 } catch (e) {
   console.error('[connector] Failed to parse CONNECTOR_APP_ALLOWLIST:', e.message);
 }
+
+const ENV_SHELL_ALLOWLIST = { ...SHELL_ALLOWLIST };
+let SHELL_POLICY_STATE = {
+  source: 'env',
+  loaded: false,
+  alias_count: Object.keys(SHELL_ALLOWLIST).length,
+  policy_url: CONNECTOR_POLICY_URL,
+  policy_version: null,
+  checksum: null,
+  last_pull_at: null,
+  last_error: null,
+};
+
+function normalizeRemoteShellAliases(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const aliases = {};
+  for (const [alias, entry] of Object.entries(value)) {
+    if (!isSafeAlias(alias) || !entry || typeof entry !== 'object') continue;
+    const command = String(entry.command || '').trim();
+    if (!command || /[\n\r<>]/.test(command)) continue;
+    const args = Array.isArray(entry.args)
+      ? entry.args.map((arg) => String(arg)).filter((arg) => !/[\n\r]/.test(arg)).slice(0, 40)
+      : [];
+    aliases[alias] = {
+      command,
+      args,
+      display_name: String(entry.display_name || alias).slice(0, 160),
+      allow_extra_args: entry.allow_extra_args === true,
+      max_extra_args: Math.min(Math.max(parseInt(entry.max_extra_args, 10) || 0, 0), 50),
+      timeout_ms: Math.min(Math.max(parseInt(entry.timeout_ms, 10) || DEFAULT_TIMEOUT_MS, 1000), MAX_TIMEOUT_MS),
+      risk_class: String(entry.risk_class || 'read_only').slice(0, 80),
+      source: String(entry.source || 'db').slice(0, 80),
+    };
+  }
+  return aliases;
+}
+
+async function refreshShellPolicy({ force = false } = {}) {
+  if (!CONNECTOR_POLICY_ENABLED || !CONNECTOR_AUTH_SECRET || !CONNECTOR_POLICY_URL) return SHELL_POLICY_STATE;
+  const now = Date.now();
+  if (!force && SHELL_POLICY_STATE.last_pull_at && now - Date.parse(SHELL_POLICY_STATE.last_pull_at) < CONNECTOR_POLICY_TTL_MS) return SHELL_POLICY_STATE;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const response = await fetch(CONNECTOR_POLICY_URL, {
+      headers: {
+        Authorization: `Bearer ${CONNECTOR_AUTH_SECRET}`,
+        Accept: 'application/json',
+        'X-Mad4B-Connector-Hostname': os.hostname(),
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.ok !== true) {
+      throw new Error(data?.error?.message || `policy_http_${response.status}`);
+    }
+    const aliases = normalizeRemoteShellAliases(data.shell_aliases);
+    if (Object.keys(aliases).length > 0) {
+      SHELL_ALLOWLIST = aliases;
+      SHELL_POLICY_STATE = {
+        source: 'db',
+        loaded: true,
+        alias_count: Object.keys(aliases).length,
+        policy_url: CONNECTOR_POLICY_URL,
+        policy_version: data.policy_version || null,
+        checksum: data.checksum || null,
+        last_pull_at: new Date().toISOString(),
+        last_error: null,
+      };
+    } else {
+      SHELL_ALLOWLIST = ENV_SHELL_ALLOWLIST;
+      SHELL_POLICY_STATE = {
+        ...SHELL_POLICY_STATE,
+        source: 'env_fallback_empty_db_policy',
+        loaded: false,
+        alias_count: Object.keys(SHELL_ALLOWLIST).length,
+        last_pull_at: new Date().toISOString(),
+        last_error: 'empty_db_policy',
+      };
+    }
+  } catch (e) {
+    SHELL_ALLOWLIST = Object.keys(SHELL_ALLOWLIST).length ? SHELL_ALLOWLIST : ENV_SHELL_ALLOWLIST;
+    SHELL_POLICY_STATE = {
+      ...SHELL_POLICY_STATE,
+      source: SHELL_POLICY_STATE.loaded ? SHELL_POLICY_STATE.source : 'env_fallback_policy_pull_failed',
+      alias_count: Object.keys(SHELL_ALLOWLIST).length,
+      last_pull_at: SHELL_POLICY_STATE.last_pull_at,
+      last_error: e.message,
+    };
+    console.error('[connector] Failed to refresh shell policy:', e.message);
+  }
+  return SHELL_POLICY_STATE;
+}
+
+refreshShellPolicy({ force: true }).catch((e) => {
+  console.error('[connector] Initial shell policy pull failed:', e.message);
+});
 
 /** @type {string[]} */
 const FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
@@ -326,7 +479,7 @@ function runCommand(command, args, timeoutMs) {
     const quoteForCmd = (value) => {
       const s = String(value);
       if (!s) return '""';
-      return `"${s.replace(/"/g, '\\"')}"`;
+      return `"${s.replace(/"/g, '""')}"`;
     };
 
     const spawnCommand = isWindowsCommandScript
@@ -334,7 +487,7 @@ function runCommand(command, args, timeoutMs) {
       : command;
 
     const spawnArgs = isWindowsCommandScript
-      ? ['/d', '/s', '/c', [quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
+      ? ['/d', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
       : args;
 
     const proc = spawn(spawnCommand, spawnArgs, { shell: false, windowsHide: true });
@@ -482,6 +635,69 @@ function err(res, status, code, message) {
   json(res, status, { ok: false, error: { code, message } });
 }
 
+const CLI_OUTPUT_LIMIT_CHARS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_CLI_OUTPUT_LIMIT_CHARS || 12000), 1000),
+  50000
+);
+
+function boundedCliText(value) {
+  const text = String(value || '');
+  return {
+    text: text.length > CLI_OUTPUT_LIMIT_CHARS ? text.slice(0, CLI_OUTPUT_LIMIT_CHARS) : text,
+    length: text.length,
+    truncated: text.length > CLI_OUTPUT_LIMIT_CHARS,
+  };
+}
+
+function classifyCliCredentialFailure(toolLabel, stdoutText = '', stderrText = '') {
+  if (String(toolLabel || '').toUpperCase() !== 'GH') return null;
+  const combined = `${stdoutText}\n${stderrText}`.toLowerCase();
+  const authMissing = [
+    'could not read username',
+    'terminal prompts have been disabled',
+    'authentication required',
+    'not logged in to any github hosts',
+    'gh auth login',
+    'github.com: permission denied',
+  ].some((needle) => combined.includes(needle));
+  if (!authMissing) return null;
+  return {
+    code: 'GH_AUTH_REQUIRED',
+    message: 'Local GitHub CLI is not authenticated. Use the auth-host GitHub App / DB-backed admin_control github route for normal repo work, or explicitly configure local gh auth for break-glass recovery.',
+    credential_boundary: 'local_device_cli_only',
+    recommended_route: 'auth_host_admin_control_github',
+    db_backed_route_available: true,
+    secrets_included: false,
+  };
+}
+
+function normalizeCliResult(result, toolLabel) {
+  const exitCode = Number(result?.exitCode ?? result?.exit_code ?? 0);
+  const stdout = boundedCliText(result?.stdout);
+  const stderr = boundedCliText(result?.stderr);
+  const credentialFailure = exitCode !== 0 ? classifyCliCredentialFailure(toolLabel, stdout.text, stderr.text) : null;
+  return {
+    ok: exitCode === 0,
+    command_ok: exitCode === 0,
+    stdout: stdout.text,
+    stderr: stderr.text,
+    stdout_length_chars: stdout.length,
+    stderr_length_chars: stderr.length,
+    stdout_truncated: stdout.truncated,
+    stderr_truncated: stderr.truncated,
+    output_limit_chars: CLI_OUTPUT_LIMIT_CHARS,
+    exitCode,
+    exit_code: exitCode,
+    ...(credentialFailure ? {
+      credential_failure: credentialFailure,
+      recommended_route: credentialFailure.recommended_route,
+    } : {}),
+    ...(exitCode !== 0
+      ? { error: credentialFailure || { code: `${toolLabel}_EXIT_NONZERO`, message: `${toolLabel} exited with code ${exitCode}` } }
+      : {}),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Auth middleware
 // ---------------------------------------------------------------------------
@@ -492,17 +708,22 @@ function err(res, status, code, message) {
  * @returns {boolean} true if authenticated
  */
 function requireAuth(req, res) {
-  if (!API_KEY) {
-    err(res, 500, 'NO_API_KEY', 'BACKEND_API_KEY is not configured on this connector');
+  if (!CONNECTOR_AUTH_SECRET) {
+    err(res, 503, 'CONNECTOR_SECRET_NOT_CONFIGURED', 'CONNECTOR_SECRET is not configured on this connector');
     return false;
   }
-  const header = req.headers['authorization'] ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (token !== API_KEY) {
-    err(res, 401, 'UNAUTHORIZED', 'Missing or invalid Bearer token');
-    return false;
+  const header = String(req.headers['authorization'] ?? '');
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const headerSecret = String(req.headers['x-connector-secret'] ?? '').trim();
+  const apiKeySecret = String(req.headers['x-api-key'] ?? '').trim();
+  const presentedSecrets = [bearer, headerSecret, apiKeySecret]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (presentedSecrets.some((value) => CONNECTOR_AUTH_SECRETS.includes(value))) {
+    return true;
   }
-  return true;
+  err(res, 401, 'UNAUTHORIZED', 'Missing or invalid connector credential');
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -528,12 +749,78 @@ function healthBody() {
   };
 }
 
+function policyBody() {
+  return {
+    ok: true,
+    service: 'local-connector',
+    principal_scope: 'platform_admin_break_glass_only',
+    hostname: os.hostname(),
+    platform: process.platform,
+    auth: {
+      credential: 'CONNECTOR_SECRET',
+      supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret', 'x-api-key'],
+      local_api_key_alias_enabled: Boolean(CONNECTOR_LOCAL_API_KEY),
+      connector_auth_secret_count: CONNECTOR_AUTH_SECRETS.length,
+      legacy_backend_api_key_fallback_enabled: LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED && Boolean(LEGACY_BACKEND_API_KEY),
+    },
+    shell: {
+      enabled: SHELL_ENABLED,
+      aliases: Object.entries(SHELL_ALLOWLIST).map(([alias, entry]) => ({
+        alias,
+        display_name: entry.display_name ?? alias,
+        allow_extra_args: entry.allow_extra_args === true,
+      })),
+      policy: SHELL_POLICY_STATE,
+    },
+    files: {
+      enabled: FILES_ENABLED,
+      allowed_paths: FILE_ALLOWLIST,
+    },
+    apps: {
+      enabled: APPS_ENABLED,
+      aliases: Object.keys(APP_ALLOWLIST),
+    },
+    n8n: {
+      enabled: N8N_ENABLED,
+      base_url: N8N_BASE,
+      local_base_url: N8N_LOCAL_BASE,
+      public_url: N8N_PUBLIC_URL,
+      command_configured: Boolean(N8N_COMMAND),
+      env_api_key_configured: Boolean(N8N_API_KEY),
+    },
+    restricted_ops: {
+      powershell_enabled: PS_ENABLED,
+      windows_control_enabled: WIN_ENABLED,
+      dependencies_enabled: DEPENDENCIES_ENABLED,
+      cloudflare_enabled: CF_ENABLED,
+      fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
+      browser4_enabled: BROWSER4_ENABLED,
+      browser4_allowed_hosts: BROWSER4_ALLOWED_HOSTS,
+      auto_browser_enabled: AUTO_BROWSER_ENABLED,
+      auto_browser_base_url: AUTO_BROWSER_ENABLED ? AUTO_BROWSER_BASE_URL : null,
+      auto_browser_allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
+    },
+    secrets_included: false,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // PowerShell helper
 // ---------------------------------------------------------------------------
 
+function addPowerShellNativeExitGuard(script) {
+  return [
+    script,
+    '',
+    'if ($global:LASTEXITCODE -is [int] -and $global:LASTEXITCODE -ne 0) {',
+    '  Write-Error ("Native command failed with exit code {0}" -f $global:LASTEXITCODE)',
+    '  exit $global:LASTEXITCODE',
+    '}',
+  ].join('\n');
+}
+
 function runPs(script, timeoutMs = 10000) {
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  const encoded = Buffer.from(addPowerShellNativeExitGuard(script), 'utf16le').toString('base64');
   return runCommand('powershell.exe', [
     '-NonInteractive', '-NoProfile', '-ExecutionPolicy', 'Bypass',
     '-EncodedCommand', encoded,
@@ -655,7 +942,7 @@ async function handleGitHub(req, res) {
 
   try {
     const result = await runCommand(windowsCommand('gh'), args, timeoutMs);
-    return ok(res, result);
+    return json(res, 200, normalizeCliResult(result, 'GH'));
   } catch (e) {
     return err(res, 500, 'EXEC_ERROR', e.message);
   }
@@ -751,6 +1038,7 @@ async function handleDependencies(req, res) {
 async function handleShell(req, res) {
   if (!SHELL_ENABLED) return err(res, 403, 'DISABLED', 'Shell endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
@@ -886,6 +1174,8 @@ async function handleApps(req, res) {
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status", "list", "launch", "status_app", or "close"');
 }
 
+const handleLocalAgentRuntime = createLocalAgentRuntimeHandler({ requireAuth, readBody, ok, err, audit });
+
 async function handleBrowser(req, res) {
   if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'Browser control endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
@@ -947,6 +1237,80 @@ $scaled.Save($m,[System.Drawing.Imaging.ImageFormat]::Jpeg)
   }
 
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "list", "open_url", or "screenshot"');
+}
+
+async function handleBrowser4(req, res) {
+  if (!BROWSER4_ENABLED) return err(res, 403, 'DISABLED', 'Browser4 endpoint is disabled on this connector');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  const { action, url, checks = ['snapshot'], inspection_key, timeout_ms } = body;
+  if (action === 'status') {
+    audit(req, { action: 'browser4:status' });
+    const timeoutMs = clampTimeout(timeout_ms, 30000);
+    const javaScript = BROWSER4_JAVA_HOME
+      ? `$env:JAVA_HOME=${JSON.stringify(BROWSER4_JAVA_HOME)};$env:PATH=(Join-Path $env:JAVA_HOME 'bin')+';'+$env:PATH; java -version 2>&1 | Select-Object -First 1`
+      : `java -version 2>&1 | Select-Object -First 1`;
+    const cliScript = `npx -y browser4-cli --version 2>&1 | Select-Object -First 1`;
+    try {
+      const java = await runPs(javaScript, timeoutMs);
+      const cli = await runPs(cliScript, timeoutMs);
+      return ok(res, { browser4_enabled: true, work_dir: BROWSER4_WORK_DIR, java_home: BROWSER4_JAVA_HOME || null, server_url: BROWSER4_SERVER_URL, allowed_hosts: BROWSER4_ALLOWED_HOSTS, java_version: String(java.stdout || java.stderr || '').trim().slice(0, 500), browser4_cli_version: String(cli.stdout || cli.stderr || '').trim().slice(0, 500), secrets_included: false });
+    } catch (e) { return err(res, 500, 'BROWSER4_STATUS_ERROR', e.message); }
+  }
+  if (action === 'inspect_site') {
+    let target; let sanitizedChecks;
+    try { target = validateBrowser4Url(url, BROWSER4_ALLOWED_HOSTS); sanitizedChecks = sanitizeBrowser4Checks(checks); }
+    catch (e) { return json(res, e.status || 400, { ok: false, error: { code: e.code || 'BROWSER4_VALIDATION_ERROR', message: e.message, details: e.details || null }, secrets_included: false }); }
+    const runKey = inspection_key || `browser4_${Date.now()}`;
+    const timeoutMs = clampTimeout(timeout_ms, 180000);
+    audit(req, { action: 'browser4:inspect_site', host: target.host, checks: sanitizedChecks, run_key: runKey });
+    const built = buildBrowser4InspectionScript({ url: target.url, checks: sanitizedChecks, runKey, workDir: BROWSER4_WORK_DIR, javaHome: BROWSER4_JAVA_HOME, serverUrl: BROWSER4_SERVER_URL });
+    try {
+      const result = await runPs(built.script, timeoutMs);
+      let statusJson = null;
+      try { statusJson = JSON.parse(fs.readFileSync(built.artifacts.status_path, 'utf8').replace(/^\uFEFF/, '')); } catch { statusJson = null; }
+      return ok(res, { action: 'inspect_site', run_key: built.run_key, target_host: target.host, checks: built.checks, exit_code: result.exitCode, status: result.exitCode === 0 ? 'completed' : 'failed', status_json: statusJson, artifacts: built.artifacts, stdout_preview: String(result.stdout || '').slice(0, 2000), stderr_preview: String(result.stderr || '').slice(0, 2000), secrets_included: false });
+    } catch (e) { return err(res, 500, 'BROWSER4_INSPECT_ERROR', e.message); }
+  }
+  return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status" or "inspect_site"');
+}
+
+async function handleAutoBrowser(req, res) {
+  if (!AUTO_BROWSER_ENABLED) return err(res, 403, 'DISABLED', 'Auto Browser endpoint is disabled — set CONNECTOR_AUTO_BROWSER_ENABLED=true after installing and validating Auto Browser');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  const { action = 'status', timeout_ms } = body;
+  if (action !== 'status') {
+    return err(res, 409, 'AUTO_BROWSER_ADAPTER_NOT_VALIDATED', 'Only action=status is enabled until the Auto Browser adapter PoC is validated.');
+  }
+  audit(req, { action: 'auto_browser:status' });
+  const timeoutMs = clampTimeout(timeout_ms, 15000);
+  let health = null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(`${AUTO_BROWSER_BASE_URL}${AUTO_BROWSER_HEALTH_PATH}`, { signal: controller.signal });
+    const text = await response.text().catch(() => '');
+    clearTimeout(timer);
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { body_preview: text.slice(0, 500) }; }
+    health = { reachable: response.ok, status: response.status, data };
+  } catch (e) {
+    health = { reachable: false, error: e.message };
+  }
+  return ok(res, {
+    auto_browser_enabled: true,
+    base_url: AUTO_BROWSER_BASE_URL,
+    health_path: AUTO_BROWSER_HEALTH_PATH,
+    allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
+    adapter_status: health.reachable ? 'service_reachable_status_only' : 'service_not_reachable_or_not_installed',
+    validated_actions: ['status'],
+    blocked_actions: ['visual_takeover', 'click', 'type', 'auth_profile_reuse', 'destructive_actions'],
+    health,
+    secrets_included: false,
+  });
 }
 
 async function handleFiles(req, res) {
@@ -1087,7 +1451,7 @@ async function handlePs(req, res) {
 
   try {
     const result = await runPs(script, timeoutMs);
-    return ok(res, result);
+    return json(res, 200, normalizeCliResult(result, 'POWERSHELL'));
   } catch (e) {
     return err(res, 500, 'EXEC_ERROR', e.message);
   }
@@ -1250,22 +1614,22 @@ Start-Sleep -Milliseconds 500;$n.Dispose()`;
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be: open_url, open_vscode, screenshot, process_list, process_kill, notify, service_list, service_action, disk_list, dir_list, file_search');
 }
 
-async function handleN8n(req, res) {
+async function handleN8n(req, res, preloadedBody = null) {
   if (!N8N_ENABLED) return err(res, 403, 'DISABLED', 'n8n endpoint is disabled — set CONNECTOR_N8N_ENABLED=true');
   if (!requireAuth(req, res)) return;
   let body;
-  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  try { body = preloadedBody ?? await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
   const { action } = body;
   if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
   audit(req, { action: `n8n:${action}` });
 
-  const n8nHeaders = { 'Content-Type': 'application/json', ...(N8N_API_KEY ? { 'X-N8N-API-KEY': N8N_API_KEY } : {}) };
+  const requestN8nApiKey = String(body._platform_n8n_api_key || '').trim(); const requestLocalBase = String(body._platform_n8n_local_base_url || '').trim().replace(/\/$/, ''); const requestPublicBase = String(body._platform_n8n_public_base_url || '').trim().replace(/\/$/, ''); const effectiveN8nApiKey = requestN8nApiKey || N8N_API_KEY; const effectiveN8nBase = requestLocalBase || N8N_LOCAL_BASE || requestPublicBase || N8N_BASE; const n8nHeaders = { 'Content-Type': 'application/json', ...(effectiveN8nApiKey ? { 'X-N8N-API-KEY': effectiveN8nApiKey } : {}) };
 
   const n8nFetch = async (method, path, data) => {
     const opts = { method, headers: n8nHeaders };
     if (data !== undefined) opts.body = JSON.stringify(data);
-    const r = await fetch(`${N8N_BASE}${path}`, opts);
+    const r = await fetch(`${effectiveN8nBase}${path}`, opts);
     return r.json();
   };
 
@@ -1340,7 +1704,7 @@ function spawnDetached(command, args = [], envPatch = {}) {
   };
   const spawnCommand = isWindowsCommandScript ? (process.env.ComSpec || 'cmd.exe') : command;
   const spawnArgs = isWindowsCommandScript
-    ? ['/d', '/s', '/c', [quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
+    ? ['/d', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
     : args;
   const child = spawn(spawnCommand, spawnArgs, {
     cwd: N8N_USER_FOLDER,
@@ -1420,7 +1784,11 @@ async function handleN8nV2(req, res) {
     if (action === 'status' || action === 'diagnose') {
       const [health, processStatus] = await Promise.all([n8nHealthProbe(), n8nProcessProbe()]);
       let version = null;
-      try { version = await runCommand(N8N_COMMAND, ['--version'], clampTimeout(timeout_ms, 15000)); } catch (e) { version = { error: e.message }; }
+      try {
+        version = process.platform === 'win32' && /\.(cmd|bat)$/i.test(N8N_COMMAND)
+          ? await runPs(`& '${N8N_COMMAND.replace(/'/g, "''")}' --version`, clampTimeout(timeout_ms, 15000))
+          : await runCommand(N8N_COMMAND, ['--version'], clampTimeout(timeout_ms, 15000));
+      } catch (e) { version = { error: e.message }; }
       return ok(res, { n8n: n8nRuntimeInfo({ health, process: processStatus, command_exists: n8nCommandExists(), version }) });
     }
 
@@ -1463,7 +1831,7 @@ async function handleN8nV2(req, res) {
     }
 
     // Fall through to the API-control implementation for workflow operations.
-    return await handleN8n(req, res);
+    return await handleN8n(req, res, body);
   } catch (e) {
     return err(res, 500, e.code || 'N8N_CONTROL_ERROR', e.message);
   }
@@ -1551,7 +1919,9 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, healthBody());
     }
 
-    if (method === 'GET' && url === '/schema') {
+    if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
+
+      if (method === 'GET' && url === '/schema') {
       const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');
       try {
         const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -1566,9 +1936,12 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/github') return await handleGitHub(req, res);
     if (method === 'POST' && url === '/gcloud') return await handleGCloud(req, res);
     if (method === 'POST' && url === '/dependencies') return await handleDependencies(req, res);
+    if (method === 'POST' && url === '/agent-runtime') return await handleLocalAgentRuntime(req, res);
     if (method === 'POST' && url === '/shell') return await handleShell(req, res);
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);
+    if (method === 'POST' && url === '/browser4') return await handleBrowser4(req, res);
+      if (method === 'POST' && url === '/auto-browser') return await handleAutoBrowser(req, res);
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);

@@ -1,0 +1,707 @@
+import { summarizePolicies } from "./runtimePolicyLoader.js";
+import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
+import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
+import { resolveDynamicResourceAuthority } from "./dynamicResourceAuthority.js";
+import { capabilityFamilyFromTags, resolveToolCapabilityFamilyAuthorization } from "./toolCapabilityFamilyAuthorization.js";
+
+function parseBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "block", "blocking"].includes(normalized)) return true;
+  if (["false", "0", "no", "warn", "advisory", "report_only"].includes(normalized)) return false;
+  return fallback;
+}
+
+function policyJson(policy) {
+  return policy?.policy_value?.json && typeof policy.policy_value.json === "object" && !Array.isArray(policy.policy_value.json)
+    ? policy.policy_value.json
+    : {};
+}
+
+function hasMeaningfulPolicy(policies = []) {
+  return Array.isArray(policies) && policies.length > 0;
+}
+
+const MUTATION_POLICY_TAGS = new Set([
+  "mutation", "state_changing", "read_write", "writeback", "provider_write", "external_write",
+]);
+const NON_MUTATION_POLICY_TAGS = new Set([
+  "read_only", "preview_only", "diagnostics", "no_mutation",
+]);
+const DECLARED_MUTATION_POLICY_TAGS = new Set([
+  "capability_envelope", "typed_confirmation", "approval_required", "readback",
+  "same_cycle_readback", "dry_run_default", "preview_required", "rollback_required",
+]);
+const READ_ONLY_FORWARDED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const STATE_CHANGING_FORWARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+export const MUTATION_POLICY_REQUIREMENT = Object.freeze({
+  REQUIRED: "mutation_policy_required",
+  NOT_REQUIRED: "mutation_policy_not_required",
+  UNCLASSIFIED: "mutation_policy_unclassified",
+});
+
+export function mutationPolicyRequirementFromBoolean(value) {
+  if (value === true) return MUTATION_POLICY_REQUIREMENT.REQUIRED;
+  if (value === false) return MUTATION_POLICY_REQUIREMENT.NOT_REQUIRED;
+  return MUTATION_POLICY_REQUIREMENT.UNCLASSIFIED;
+}
+
+function normalizedPolicyTags(tags = []) {
+  return new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+}
+
+function stripLeadingSqlComments(value = "") {
+  let text = String(value || "").trimStart();
+  while (text) {
+    const lineComment = text.match(/^(?:--[^\r\n]*(?:\r?\n|$)|#[^\r\n]*(?:\r?\n|$))/);
+    if (lineComment) {
+      text = text.slice(lineComment[0].length).trimStart();
+      continue;
+    }
+    const blockComment = text.match(/^\/\*[\s\S]*?\*\//);
+    if (blockComment) {
+      text = text.slice(blockComment[0].length).trimStart();
+      continue;
+    }
+    break;
+  }
+  return text.trim();
+}
+
+function classifyAdminControlMutationRequirement(args = {}) {
+  const tool = String(args.tool || "").trim().toLowerCase();
+  const action = String(args.action || "run").trim().toLowerCase();
+
+  if (tool === "db") {
+    return classifyAdminControlDbSql(args.sql).mutation_required;
+  }
+
+  if (tool === "hostinger" || tool === "cloudflare") {
+    const forwardedMethod = String(args.method || "GET").trim().toUpperCase();
+    if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
+    if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
+    return null;
+  }
+
+  if (tool === "env") {
+    if (["list", "get", "status"].includes(action)) return false;
+    if (["set", "unset"].includes(action)) return true;
+    return null;
+  }
+
+  if (tool === "shell") {
+    if (["list", "status"].includes(action)) return false;
+    if (action === "run") return true;
+    return null;
+  }
+
+  if (tool === "windows_app") {
+    if (["list", "status", "authorize"].includes(action)) return false;
+    if (action === "launch") return true;
+    return null;
+  }
+
+  return null;
+}
+
+function splitSqlStatementsForPolicy(sql = "") {
+  const statements = [];
+  let current = "";
+  let quote = null;
+  let lineComment = false;
+  let blockComment = false;
+  const source = String(sql || "");
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (char === "\n") { lineComment = false; current += " "; }
+      continue;
+    }
+    if (blockComment) {
+      if (char === "*" && next === "/") { blockComment = false; index += 1; current += " "; }
+      continue;
+    }
+    if (!quote && char === "-" && next === "-") { lineComment = true; index += 1; continue; }
+    if (!quote && char === "#") { lineComment = true; continue; }
+    if (!quote && char === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    if (quote) {
+      current += char;
+      if (char === "\\" && next) { current += next; index += 1; }
+      else if (char === quote) {
+        if (next === quote) { current += next; index += 1; }
+        else quote = null;
+      }
+      continue;
+    }
+    if (["'", "\"", "`"].includes(char)) { quote = char; current += char; continue; }
+    if (char === ";") { if (current.trim()) statements.push(current.trim()); current = ""; continue; }
+    current += char;
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
+export function classifyAdminControlDbSql(sql = "") {
+  const statements = splitSqlStatementsForPolicy(sql);
+  if (!statements.length) return { mutation_required: null, classification: "sql_missing", statement_count: 0 };
+  if (statements.length > 1) return { mutation_required: true, classification: "multi_statement_sql", statement_count: statements.length };
+  const statement = stripLeadingSqlComments(statements[0]);
+  const keyword = (statement.match(/^([A-Za-z]+)/)?.[1] || "").toUpperCase();
+  const reads = new Set(["SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"]);
+  const mutations = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "SET", "CALL", "DO", "LOAD", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "LOCK", "UNLOCK"]);
+  const statefulRead = /\bINTO\s+(?:OUTFILE|DUMPFILE)\b|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|:=|\bGET_LOCK\s*\(|\bRELEASE_LOCK\s*\(/i;
+  const stateful = statefulRead.test(statement);
+  if (reads.has(keyword)) {
+    return { mutation_required: stateful, classification: stateful ? "stateful_read_sql" : "single_statement_read_sql", statement_count: 1 };
+  }
+  if (keyword === "WITH") {
+    const normalized = statement.toUpperCase();
+    if (/\b(INSERT|UPDATE|DELETE|REPLACE|MERGE)\b/.test(normalized)) return { mutation_required: true, classification: "cte_mutation_sql", statement_count: 1 };
+    if (/\bSELECT\b/.test(normalized)) return { mutation_required: stateful, classification: stateful ? "cte_stateful_read_sql" : "cte_read_sql", statement_count: 1 };
+    return { mutation_required: null, classification: "cte_sql_unclassified", statement_count: 1 };
+  }
+  if (mutations.has(keyword)) return { mutation_required: true, classification: "single_statement_mutation_sql", statement_count: 1 };
+  return { mutation_required: null, classification: "sql_unclassified", statement_count: 1 };
+}
+
+export function resolveGptToolInvocationMutationRequirement({ toolKey = "", args = {}, method = "", tags = [] } = {}) {
+  const normalizedToolKey = String(toolKey || "").trim();
+  const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+  const normalizedMethod = String(method || "").trim().toUpperCase();
+  const normalizedTags = normalizedPolicyTags(tags);
+
+  if (["admin_cloudflare", "admin_hostinger"].includes(normalizedToolKey)) {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    const forwardedMethod = String(normalizedArgs.method || "GET").trim().toUpperCase();
+    if (READ_ONLY_FORWARDED_METHODS.has(forwardedMethod)) return false;
+    if (STATE_CHANGING_FORWARDED_METHODS.has(forwardedMethod)) return true;
+    return null;
+  }
+
+  if (normalizedToolKey === "admin_control") {
+    if (!["POST", "VIRTUAL"].includes(normalizedMethod)) return null;
+    return classifyAdminControlMutationRequirement(normalizedArgs);
+  }
+
+  if (normalizedToolKey === "cloudflare_tunnel_status") {
+    return ["POST", "VIRTUAL"].includes(normalizedMethod) ? false : null;
+  }
+
+  if (["POST", "VIRTUAL"].includes(normalizedMethod) && normalizedTags.has("dry_run_default_true")) {
+    const applyRequested = normalizedArgs.dry_run === false || normalizedArgs.apply === true || String(normalizedArgs.mode || "").trim().toLowerCase() === "apply";
+    return applyRequested;
+  }
+
+  const hasMutationTag = [...normalizedTags].some((tag) => MUTATION_POLICY_TAGS.has(tag));
+  if (["POST", "VIRTUAL"].includes(normalizedMethod) && !hasMutationTag && normalizedTags.has("dry_run") && normalizedTags.has("no_execution")) {
+    return false;
+  }
+
+  return null;
+}
+
+export function classifyMutationPolicyRequirement({ method = "", tags = [], mutationRequired = null } = {}) {
+  if (mutationRequired === true) return { required: true, classification: "explicit_mutation" };
+  if (mutationRequired === false) return { required: false, classification: "explicit_read_only" };
+
+  const normalizedTags = new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+  if ([...normalizedTags].some((tag) => MUTATION_POLICY_TAGS.has(tag))) {
+    return { required: true, classification: "mutation_tag" };
+  }
+
+  const normalizedMethod = String(method || "").trim().toUpperCase();
+  if (["PUT", "PATCH", "DELETE"].includes(normalizedMethod)) {
+    return { required: true, classification: "state_changing_http_method" };
+  }
+  if ([...normalizedTags].some((tag) => NON_MUTATION_POLICY_TAGS.has(tag))) {
+    return { required: false, classification: "read_only_tag" };
+  }
+  if (["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
+    return { required: false, classification: "read_only_http_method" };
+  }
+  if (["POST", "VIRTUAL"].includes(normalizedMethod)) {
+    return { required: true, classification: "conservative_state_changing_default" };
+  }
+  return { required: null, classification: "mutation_classification_missing" };
+}
+
+export function classifyMutationPolicyRequirementEnum(input = {}) {
+  const result = classifyMutationPolicyRequirement(input);
+  return {
+    ...result,
+    requirement: mutationPolicyRequirementFromBoolean(result.required),
+  };
+}
+
+export function hasDeclaredMutationPolicy({ tags = [], mutationPolicyDeclared = null } = {}) {
+  if (mutationPolicyDeclared === true) return true;
+  if (mutationPolicyDeclared === false) return false;
+  const normalizedTags = new Set((Array.isArray(tags) ? tags : String(tags || "").split(","))
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean));
+  return [...normalizedTags].some((tag) => DECLARED_MUTATION_POLICY_TAGS.has(tag));
+}
+function policySpecificallyTargetsAppAction(policy = {}, appKey = "", actionKey = "") {
+  const required = [appKey, actionKey]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  if (required.length !== 2) return false;
+  const scopeTokens = Array.isArray(policy.execution_scope_tokens)
+    ? policy.execution_scope_tokens
+    : String(policy.execution_scope || "")
+      .split(/[|,;]/)
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean);
+  return required.every((value) => scopeTokens.includes(value));
+}
+
+function policyAllowsBlocking(policy) {
+  const value = policyJson(policy);
+  const mode = String(value.enforcement_mode || value.mode || "").trim().toLowerCase();
+  if (["report_only", "advisory", "observe"].includes(mode)) return false;
+  return policy.blocking_bool && parseBoolean(value.blocking, policy.blocking_bool);
+}
+
+function makePreflightResult({ classification = "allow", policies = [], blockingPolicies = [], warnings = [], errors = [], evidence = {}, runtimePolicyResolution = null } = {}) {
+  const targetRules = runtimePolicyResolution?.target_rules || [];
+  return {
+    ok: classification !== "blocked",
+    classification,
+    policy_source: runtimePolicyResolution?.policy_source || "execution_policies",
+    enforcement_source: runtimePolicyResolution?.enforcement_source || "execution_policies",
+    target_rule_source: runtimePolicyResolution?.target_rule_source || null,
+    policies: summarizePolicies(policies),
+    target_rules: summarizePlatformPolicyRules(targetRules),
+    blocking_policies: summarizePolicies(blockingPolicies),
+    warnings,
+    errors,
+    evidence: { ...evidence, runtime_policy_resolution: runtimePolicyResolution?.evidence || null },
+    secrets_included: false,
+  };
+}
+
+function makeMutationPolicyBlock({ operation = "mutation", reason = "explicit_mutation_policy_not_configured", mutation = null, evidence = {}, runtimePolicyResolution = null } = {}) {
+  const errorCode = reason === "mutation_classification_missing"
+    ? "mutation_classification_required"
+    : "mutation_policy_required";
+  return makePreflightResult({
+    classification: "blocked",
+    errors: [errorCode],
+    evidence: {
+      operation,
+      reason,
+      mutation_policy_requirement: mutation || null,
+      ...evidence,
+    },
+    runtimePolicyResolution,
+  });
+}
+async function resolvePolicies(context = {}, deps = {}) {
+  const runtimePolicyResolution = await resolveRuntimePolicyContext(context, deps);
+  return { runtimePolicyResolution, policies: runtimePolicyResolution.policies || [] };
+}
+
+export async function governedExecutionPreflight(context = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await resolvePolicies(context, deps);
+  if (!hasMeaningfulPolicy(policies)) return makePreflightResult({ evidence: { reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
+  const blockingPolicies = policies.filter(policyAllowsBlocking);
+  return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_policies_require_specific_evaluation"] : [], evidence: { matching_policy_count: policies.length }, runtimePolicyResolution });
+}
+
+function statusBlocksMerge(status = "") {
+  return ["error", "failure", "timed_out", "cancelled"].includes(String(status || "").toLowerCase());
+}
+
+function parseArgValue(args = [], names = []) {
+  const nameSet = new Set(Array.isArray(names) ? names : [names]);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = String(args[i] || "");
+    if (nameSet.has(arg)) return String(args[i + 1] || "");
+    for (const name of nameSet) {
+      if (arg.startsWith(`${name}=`)) return arg.slice(String(name).length + 1);
+    }
+    if ((arg === "-f" || arg === "--field") && String(args[i + 1] || "").startsWith("confirm=")) {
+      return String(args[i + 1] || "").slice("confirm=".length);
+    }
+  }
+  return "";
+}
+
+function branchTypedConfirmation(prefix = "", branch = "") {
+  const slug = String(branch || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
+  return `${prefix}_${slug}`;
+}
+
+function unmergedSmokeBranchDeleteConfirmed({ args = [], branch = "", cfg = {} } = {}) {
+  if (!parseBoolean(cfg.allow_unmerged_smoke_branch_delete, false)) return false;
+  const prefixes = Array.isArray(cfg.unmerged_smoke_branch_delete_prefixes)
+    ? cfg.unmerged_smoke_branch_delete_prefixes.map((prefix) => String(prefix || "")).filter(Boolean)
+    : ["gpt/smoke-"];
+  const matchesPrefix = prefixes.some((prefix) => String(branch || "").startsWith(prefix));
+  if (!matchesPrefix) return false;
+  const expected = branchTypedConfirmation("DELETE_UNMERGED_SMOKE_BRANCH", branch);
+  const supplied = parseArgValue(args, ["--confirm", "--typed-confirmation"]);
+  return supplied === expected;
+}
+
+async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}) {
+  return resolvePolicies({ execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", "repo_patch_apply", operation].filter(Boolean), affects_layer: ["adminCliRoutes", "github_rest_fallback", "gptToolsRoutes", "repo_patch_apply", affectsLayer].filter(Boolean), policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard" }, deps);
+}
+
+export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
+  if (!policies.length) return makeMutationPolicyBlock({ operation, reason: "repository_mutation_policy_not_configured", mutation: { required: true, classification: "repository_mutation" }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = { operation, args_preview: args.slice(0, 4).map(String), repo: repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : null, pr_number: pr?.number || null, pr_head_ref: pr?.head?.ref || branch || null, pr_base_ref: pr?.base?.ref || null, pr_mergeable: pr?.mergeable ?? null, pr_mergeable_state: pr?.mergeable_state || null, pr_maintainer_can_modify: pr?.maintainer_can_modify ?? null, compare_status: compare?.status || null, compare_ahead_by: compare?.ahead_by ?? null, compare_behind_by: compare?.behind_by ?? null, compared_files: Array.isArray(compare?.files) ? compare.files.length : null };
+  for (const policy of policies) {
+    const cfg = policyJson(policy);
+    const blockingAllowed = policyAllowsBlocking(policy);
+    if (operation === "github_branch_delete") {
+      const protectedNames = new Set(["main", "master", "production", "prod"]);
+      if (protectedNames.has(String(branch || "").trim())) { errors.push("protected_branch_delete_blocked"); blockingPolicies.push(policy); continue; }
+      if (compare && Number(compare.ahead_by || 0) > 0 && parseBoolean(cfg.block_unmerged_branch_delete, true) && blockingAllowed) {
+        if (!unmergedSmokeBranchDeleteConfirmed({ args, branch, cfg })) {
+          errors.push("branch_has_unmerged_commits"); blockingPolicies.push(policy); continue;
+        }
+        warnings.push("unmerged_smoke_branch_delete_explicitly_confirmed");
+        evidence.unmerged_smoke_branch_delete_confirmed = true;
+        evidence.required_typed_confirmation = branchTypedConfirmation("DELETE_UNMERGED_SMOKE_BRANCH", branch);
+      }
+      if (compare && Number(compare.behind_by || 0) > 0) warnings.push("branch_is_behind_base_before_delete");
+    }
+    if (operation === "github_pr_merge") {
+      if (pr?.mergeable === false && blockingAllowed) { const mergeableState = String(pr?.mergeable_state || "").toLowerCase(); errors.push(mergeableState === "dirty" ? "pull_request_mergeable_state_dirty" : "pull_request_not_mergeable"); blockingPolicies.push(policy); continue; }
+      if (pr?.mergeable === null || pr?.mergeable === undefined) warnings.push("pull_request_mergeability_not_final");
+      if (compare && Number(compare.behind_by || 0) > 0) warnings.push("pull_request_head_behind_base");
+      const riskyFileStatuses = new Set(String(cfg.risky_file_statuses || "removed").split(/[|,;]/).map((x) => x.trim()).filter(Boolean));
+      const riskyFiles = Array.isArray(compare?.files) ? compare.files.filter((file) => riskyFileStatuses.has(file.status)) : [];
+      if (riskyFiles.length && parseBoolean(cfg.block_risky_file_statuses, true) && blockingAllowed) { errors.push("pull_request_contains_risky_file_statuses"); evidence.risky_files = riskyFiles.slice(0, 20).map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })); blockingPolicies.push(policy); continue; }
+      if (compare && String(compare.status || "").toLowerCase() === "diverged") warnings.push("pull_request_compare_is_diverged");
+    }
+    if (operation === "github_workflow_status") { const conclusion = String(compare?.conclusion || "").toLowerCase(); if (statusBlocksMerge(conclusion) && blockingAllowed) { errors.push("workflow_status_blocks_execution"); blockingPolicies.push(policy); } }
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, branch = "", defaultBranch = "main", branchExists = false, compare = null } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
+  if (!policies.length) return makeMutationPolicyBlock({ operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured", mutation: { required: true, classification: "repository_mutation" }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = { operation: "repo_patch_apply", repo: repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : null, branch, default_branch: defaultBranch, branch_exists: Boolean(branchExists), compare_status: compare?.status || null, compare_ahead_by: compare?.ahead_by ?? null, compare_behind_by: compare?.behind_by ?? null };
+  for (const policy of policies) {
+    const cfg = policyJson(policy);
+    const blockingAllowed = policyAllowsBlocking(policy);
+    const protectedNames = new Set(["main", "master", "production", "prod", String(defaultBranch || "main")]);
+    if (protectedNames.has(String(branch || "").trim()) && blockingAllowed) { errors.push("repo_patch_protected_branch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (branchExists && compare) {
+      const staleBranch = Number(compare.behind_by || 0) > 0 || String(compare.status || "").toLowerCase() === "diverged";
+      const staleBranchOverride = args.allow_stale_branch_patch === true && String(args.stale_branch_reason || "").trim().length >= 10;
+      if (staleBranch && !staleBranchOverride && parseBoolean(cfg.block_stale_branch_patch, true) && blockingAllowed) { errors.push("repo_patch_stale_branch_requires_explicit_override"); blockingPolicies.push(policy); continue; }
+      if (Number(compare.ahead_by || 0) > 0) warnings.push("repo_patch_existing_branch_has_unmerged_commits");
+    }
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+function containsSecretMarker(value = "") {
+  const text = String(value || "");
+  return /(password|passwd|api_key|apikey|credential|private_key|client_secret|refresh_token|access_token|authorization|bearer)\s*[:=]/i.test(text)
+    || /-----BEGIN (?:RSA |EC |OPENSSH |)?PRIVATE KEY-----/i.test(text)
+    || /\b(?:ghp_|github_pat_|ya29\.)[A-Za-z0-9_\-.]+\b/.test(text);
+}
+
+async function loadRepositoryPublishPolicies(operation, affectsLayer, deps = {}) {
+  return resolvePolicies({
+    execution_scope: ["repo_publish", "pull_request_create", "github_pr_create", "admin_control.github", "github_rest_fallback", operation].filter(Boolean),
+    affects_layer: ["adminCliRoutes", "admin_control.github", "github_rest_fallback", affectsLayer].filter(Boolean),
+  }, deps);
+}
+
+export async function evaluateRepositoryPublishPreflight({ operation = "github_pr_create", args = [], repo = {}, head = "", base = "main", title = "", body = "", compare = null, existingPulls = [] } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadRepositoryPublishPolicies(operation, "adminCliRoutes", deps);
+  if (!policies.length) return makePreflightResult({ evidence: { operation, reason: "no_matching_active_repository_publish_policy" }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = {
+    operation,
+    args_preview: Array.isArray(args) ? args.slice(0, 4).map(String) : [],
+    repo: repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : null,
+    head_ref: head || null,
+    base_ref: base || null,
+    compare_status: compare?.status || null,
+    compare_ahead_by: compare?.ahead_by ?? null,
+    compare_behind_by: compare?.behind_by ?? null,
+    existing_open_pull_count: Array.isArray(existingPulls) ? existingPulls.length : 0,
+  };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    if (group !== "Repository Publish Governance") { warnings.push(`matching_blocking_policy_requires_publish_evaluator:${key}`); continue; }
+    if (key === "github_pr_create_rest_fallback_v1") {
+      if (!head || !title) { errors.push("github_pr_create_requires_head_and_title"); blockingPolicies.push(policy); continue; }
+      if (containsSecretMarker(title) || containsSecretMarker(body)) { errors.push("github_pr_create_body_must_not_contain_secret_markers"); blockingPolicies.push(policy); continue; }
+      continue;
+    }
+    if (key === "repo_branch_freshness_before_pr_v1") {
+      if (!compare) { errors.push("pull_request_create_compare_required"); blockingPolicies.push(policy); continue; }
+      const stale = Number(compare.behind_by || 0) > 0 || String(compare.status || "").toLowerCase() === "diverged";
+      if (stale) { errors.push("pull_request_head_not_fresh"); blockingPolicies.push(policy); continue; }
+      if (Array.isArray(existingPulls) && existingPulls.length) { errors.push("pull_request_already_exists_for_branch"); blockingPolicies.push(policy); continue; }
+      continue;
+    }
+    warnings.push(`repository_publish_policy_loaded:${key}`);
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+async function loadSupportTicketExternalProviderGatePolicies(context = {}, deps = {}) {
+  return resolvePolicies({
+    execution_scope: ["support_ticket_external_delivery", "provider_gate", "adapter_contract_resolver", context.channel, context.send_mode].filter(Boolean),
+    affects_layer: ["supportTicketExternalSendProviderGateService", "supportTicketExternalProviderContractService", "external_delivery_provider_*"],
+    policy_group: "Support Ticket External Delivery Governance",
+    policy_key: "external_provider_gate_registry_resolver_policy_v1",
+  }, deps);
+}
+
+function providerGateLiveSendEvidenceComplete({ send_mode = "", provider_adapter = {}, external_send_performed = false, evidence = {} } = {}) {
+  const normalizedMode = String(send_mode || "").trim().toLowerCase();
+  if (normalizedMode !== "live_send") return false;
+  if (external_send_performed) return false;
+  if (evidence.secrets_included) return false;
+  return Boolean(
+    provider_adapter.source === "external_delivery_provider_adapter_contract_registry"
+    && provider_adapter.send_mode_allowed
+    && provider_adapter.dispatch_enabled
+    && provider_adapter.provider_dispatch_enabled
+    && provider_adapter.provider_adapter_implemented
+    && provider_adapter.external_send_supported
+    && evidence.approval_hold_id
+    && evidence.credential_ref
+    && evidence.idempotency_key
+    && evidence.recipient_allowlist_allowed
+  );
+}
+
+export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false, approval_hold_id = null, credential_ref = null, idempotency_key = null, recipient_allowlist_allowed = false } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadSupportTicketExternalProviderGatePolicies({ channel, send_mode }, deps);
+  if (!policies.length) return makePreflightResult({ evidence: { operation: "support_ticket_external_provider_gate", reason: "provider_gate_policy_not_configured", channel, send_mode }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = {
+    operation: "support_ticket_external_provider_gate",
+    channel,
+    send_mode,
+    adapter_key: provider_adapter.adapter_key || provider_adapter.provider_key || null,
+    adapter_source: provider_adapter.source || null,
+    dispatch_enabled: Boolean(provider_adapter.dispatch_enabled),
+    provider_dispatch_enabled: Boolean(provider_adapter.provider_dispatch_enabled),
+    external_send_supported: Boolean(provider_adapter.external_send_supported),
+    send_mode_allowed: Boolean(provider_adapter.send_mode_allowed),
+    external_send_performed: Boolean(external_send_performed || provider_adapter.external_send_performed),
+    secrets_included: Boolean(secrets_included || provider_adapter.secrets_included || provider_adapter.secret_value_included),
+    approval_hold_id: approval_hold_id || null,
+    credential_ref: credential_ref || null,
+    idempotency_key: idempotency_key || null,
+    recipient_allowlist_allowed: Boolean(recipient_allowlist_allowed),
+  };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const cfg = policyJson(policy);
+    const allowedModes = Array.isArray(cfg.allowed_modes) ? cfg.allowed_modes.map((mode) => String(mode).toLowerCase()) : [];
+    if (provider_adapter.source !== "external_delivery_provider_adapter_contract_registry") { errors.push("provider_gate_adapter_contract_registry_required"); blockingPolicies.push(policy); continue; }
+    if (allowedModes.length && !allowedModes.includes(String(send_mode || "").toLowerCase())) { errors.push("provider_gate_send_mode_not_allowed_by_policy"); blockingPolicies.push(policy); continue; }
+    if (!provider_adapter.send_mode_allowed) { errors.push("provider_gate_send_mode_policy_not_active"); blockingPolicies.push(policy); continue; }
+    const completeLiveSendEvidence = providerGateLiveSendEvidenceComplete({ send_mode, provider_adapter, external_send_performed, evidence });
+    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed) && !completeLiveSendEvidence) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled && !completeLiveSendEvidence) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (evidence.secrets_included) { errors.push("provider_gate_secrets_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {}, method = "", tags = [], mutationRequired = null, mutationPolicyDeclared = null, principal = {} } = {}, deps = {}) {
+  const invocationMutationRequired = mutationRequired === null
+    ? resolveGptToolInvocationMutationRequirement({ toolKey, args, method, tags })
+    : mutationRequired;
+  const expectedCapabilityFamily = capabilityFamilyFromTags(tags);
+  const capabilityFamilyAuthorization = await resolveToolCapabilityFamilyAuthorization({
+    pool: deps.pool,
+    callerType,
+    principal,
+    toolKey,
+    args,
+    expectedFamily: expectedCapabilityFamily,
+    requirePolicy: Boolean(expectedCapabilityFamily),
+  });
+  const dynamicResourceAuthority = deps.skipSurfaceAuthority === true
+    ? { ok: true, required: false, reason_code: "dynamic_resource_authority_test_bypass", mutation_policy_declared: false, secrets_included: false }
+    : await resolveDynamicResourceAuthority({ callerType, principal, toolKey, args, mutationRequired: invocationMutationRequired, pool: deps.pool });
+  const mutation = classifyMutationPolicyRequirement({ method, tags, mutationRequired: invocationMutationRequired });
+  const declaredMutationPolicy = hasDeclaredMutationPolicy({ tags, mutationPolicyDeclared })
+    || dynamicResourceAuthority.mutation_policy_declared === true
+    || capabilityFamilyAuthorization.mutation_policy_declared === true;
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
+    execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey, capabilityFamilyAuthorization.capability_family, capabilityFamilyAuthorization.operation].filter(Boolean),
+    affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
+  }, deps);
+  const evidence = { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, method: method || null, tags, invocation_mutation_required: invocationMutationRequired, mutation_policy_requirement: mutation, mutation_policy_declared: declaredMutationPolicy, dynamic_resource_authority: dynamicResourceAuthority, capability_family_authorization: capabilityFamilyAuthorization, matching_policy_count: policies.length };
+  if (capabilityFamilyAuthorization.applicable && !capabilityFamilyAuthorization.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [capabilityFamilyAuthorization.reason_code], evidence, runtimePolicyResolution });
+  }
+  if (!dynamicResourceAuthority.ok) {
+    return makePreflightResult({ classification: "blocked", policies, errors: [dynamicResourceAuthority.reason_code || "dynamic_resource_authority_denied"], evidence, runtimePolicyResolution });
+  }
+  if (mutation.required === null) return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "mutation_classification_missing", mutation, evidence, runtimePolicyResolution });
+  if (mutation.required && !declaredMutationPolicy) {
+    return makeMutationPolicyBlock({ operation: "gpt_tools_call", reason: "explicit_mutation_policy_not_configured", mutation, evidence, runtimePolicyResolution });
+  }
+  if (!policies.length) {
+    return makePreflightResult({ classification: mutation.required ? "allow_with_declared_mutation_policy" : "allow", evidence: { ...evidence, reason: mutation.required ? "descriptor_mutation_policy_declared" : "read_only_tool_without_execution_policy" }, runtimePolicyResolution });
+  }
+  const blockingPolicies = policies.filter((policy) => policyAllowsBlocking(policy)
+    && policy.policy_key !== capabilityFamilyAuthorization.policy_key);
+  if (capabilityFamilyAuthorization.applicable && capabilityFamilyAuthorization.ok && !blockingPolicies.length) {
+    return makePreflightResult({ classification: "allow_with_capability_family_authorization", policies, evidence, runtimePolicyResolution });
+  }
+  return makePreflightResult({ classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory", policies, warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [], evidence, runtimePolicyResolution });
+}
+
+export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {}, mutationRequired = null } = {}, deps = {}) {
+  const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
+  const resolvedActionKey = String(actionKey || "").trim();
+  const mutation = classifyMutationPolicyRequirement({ mutationRequired });
+  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["app_action", "external_app_action", resolvedAppKey, resolvedActionKey].filter(Boolean), affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean) }, deps);
+  if (mutation.required === null) return makeMutationPolicyBlock({ operation: "app_action", reason: "mutation_classification_missing", mutation, evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey }, runtimePolicyResolution });
+  const explicitMutationPolicies = mutation.required
+    ? policies.filter((policy) => policySpecificallyTargetsAppAction(policy, resolvedAppKey, resolvedActionKey))
+    : [];
+  const policyEvidence = {
+    operation: "app_action",
+    app_key: resolvedAppKey,
+    action_key: resolvedActionKey,
+    mutation_policy_requirement: mutation,
+    matching_policy_count: policies.length,
+    explicit_mutation_policy_count: explicitMutationPolicies.length,
+  };
+  if (mutation.required && !explicitMutationPolicies.length) {
+    return makeMutationPolicyBlock({ operation: "app_action", reason: "explicit_mutation_policy_not_configured", mutation, evidence: policyEvidence, runtimePolicyResolution });
+  }
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { ...policyEvidence, reason: "read_only_app_action_without_execution_policy" }, runtimePolicyResolution });
+  }
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = { ...policyEvidence, connection_id: connection?.connection_id || null };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    const cfg = policyJson(policy);
+    if (group === "External App Action Governance" && key === "n8n Workflow Execution Guard") {
+      if (resolvedAppKey !== "n8n" || resolvedActionKey !== "execute_workflow") continue;
+      const reason = String(args.n8n_execution_reason || args.execution_reason || "").trim();
+      const allowed = args.allow_n8n_workflow_execution === true && reason.length >= Number(cfg.min_reason_chars || 10);
+      evidence.workflow_id = args.workflow_id || null;
+      evidence.reason_supplied = Boolean(reason);
+      if (!allowed) { errors.push("n8n_workflow_execution_requires_explicit_reason"); enforcedBlockingPolicies.push(policy); }
+      continue;
+    }
+    genericBlockingPolicies.push(policy);
+  }
+  if (enforcedBlockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  if (genericBlockingPolicies.length) warnings.push("matching_blocking_app_action_policies_require_specific_evaluator");
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
+  const resolvedConnectorType = String(connectorType || "").trim();
+  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["connector_dispatch", "workflow_dispatch", resolvedConnectorType, plan.workflow_id, plan.workflow_key, plan.intent_key].filter(Boolean), affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean) }, deps);
+  if (!policies.length) {
+    const mutation = classifyMutationPolicyRequirement({ mutationRequired: Boolean(apply) });
+    if (apply) return makeMutationPolicyBlock({ operation: "connector_dispatch", reason: "explicit_mutation_policy_not_configured", mutation, evidence: { connector_type: resolvedConnectorType, apply: true }, runtimePolicyResolution });
+    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, apply: false, reason: "preview_connector_dispatch_without_execution_policy", mutation_policy_requirement: mutation }, runtimePolicyResolution });
+  }
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = { operation: "connector_dispatch", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, workflow_id: plan.workflow_id || workflowDef?.workflow_id || null, workflow_key: plan.workflow_key || workflowDef?.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, connector_type: resolvedConnectorType, workflow_execution_class: workflowDef?.execution_class || null, workflow_review_required: workflowDef?.review_required ?? null, apply: Boolean(apply), matching_policy_count: policies.length };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    if (group === "Connector Dispatch Governance" && key === "WordPress Apply Requires Explicit Reason") {
+      if (resolvedConnectorType !== "wordpress" || !apply) continue;
+      const reason = String(plan.apply_reason || plan.execution_reason || plan.reason || "").trim();
+      evidence.reason_supplied = Boolean(reason);
+      if (reason.length < 10) { errors.push("wordpress_apply_requires_explicit_reason"); enforcedBlockingPolicies.push(policy); }
+      continue;
+    }
+    genericBlockingPolicies.push(policy);
+  }
+  if (enforcedBlockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  if (genericBlockingPolicies.length) warnings.push("matching_blocking_connector_dispatch_policies_require_specific_evaluator");
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, logicKey = "", executionClass = "standard", toolCount = 0, context = {} } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["agent_loop", "model_tool_loop", "logic_execution", executionClass, workflow?.workflow_id, plan.workflow_id, workflow?.workflow_key, plan.workflow_key, plan.intent_key, logicKey].filter(Boolean), affects_layer: ["agentLoopRunner", "agentLoopRunner.js", executionClass].filter(Boolean) }, deps);
+  if (!policies.length) return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = { operation: "agent_loop", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, agent_id: plan.agent_id || null, workflow_id: plan.workflow_id || workflow?.workflow_id || null, workflow_key: plan.workflow_key || workflow?.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, logic_key: logicKey || null, execution_class: executionClass, tool_count: Number(toolCount || 0), review_required: workflow?.review_required ?? null, workspace_app_connection_count: context?.workspace_app_connection_count ?? null, matching_policy_count: policies.length };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    if (group === "Agent Loop Governance" && key === "Brand Writing Requires Brand Core") {
+      const writingLike = /write|content|seo|publish|strategy/i.test(String(plan.intent_key || plan.workflow_key || ""));
+      const hasBrandCoreEvidence = Boolean(context?.brand_core || context?.brand_core_resolved || context?.brandCore);
+      evidence.brand_core_evidence = hasBrandCoreEvidence;
+      if (writingLike && !hasBrandCoreEvidence) {
+        errors.push("brand_writing_requires_brand_core");
+        enforcedBlockingPolicies.push(policy);
+        const brandKey = plan.brand_key || plan.target_key || context?.brand_key || context?.target_key || "";
+        if (brandKey) {
+          try { evidence.repair_policy = await resolveBrandCoreRepairCandidates(brandKey, ["brand_writing_requires_brand_core"], deps); }
+          catch (repairError) { evidence.repair_policy = { ok: false, classification: "repair_policy_lookup_failed", error: repairError?.code || "repair_policy_lookup_failed", message: repairError?.message || "Unable to resolve Brand Core repair candidates.", secrets_included: false }; }
+        }
+      }
+      continue;
+    }
+    genericBlockingPolicies.push(policy);
+  }
+  if (enforcedBlockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  if (genericBlockingPolicies.length) warnings.push("matching_blocking_agent_loop_policies_require_specific_evaluator");
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+export function assertPreflightAllowed(preflight) {
+  if (preflight?.ok !== false) return preflight;
+  const err = new Error(`Governed execution preflight blocked operation: ${(preflight.errors || []).join(", ") || "policy_block"}`);
+  err.status = 403;
+  err.code = "governed_execution_preflight_blocked";
+  err.details = preflight;
+  throw err;
+}

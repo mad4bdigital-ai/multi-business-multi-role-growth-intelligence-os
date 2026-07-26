@@ -4,7 +4,7 @@ import { loadPathResolverRowsForRequest } from "../pathResolverRowsLoader.js";
 import { getPool } from "../db.js";
 import { TABLE_MAP, SHEET_COLUMNS } from "../sqlAdapter.js";
 import { resolvePlatformGraphContext } from "../services/platformKnowledgeGraphResolver.js";
-import { resolveGraphRelevantAssets } from "../services/platformGraphMemoryResolver.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 
 export function buildGovernanceRoutes(deps) {
   const {
@@ -253,26 +253,30 @@ export function buildGovernanceRoutes(deps) {
         };
       }
 
-      let graphRelevantAssets = {
+      let graphMemory = {
         requested: false,
         resolved: false,
         asset_count: 0,
         assets: [],
-        reason: "not_attempted"
+        reason: "not_attempted",
+        secrets_included: false
       };
       try {
-        graphRelevantAssets = await resolveGraphRelevantAssets({
-          ...requestPayload,
-          tenant_id: body.tenant_id || requestPayload.tenant_id,
-          user_id: body.user_id || requestPayload.user_id,
-          device_id: body.device_id || requestPayload.device_id,
-          asset_id: body.asset_id || requestPayload.asset_id,
-          graph_context: graphContext,
-          depth: 2,
+        graphMemory = await resolvePlatformGraphMemory({
+          input: {
+            ...requestPayload,
+            tenant_id: body.tenant_id || requestPayload.tenant_id,
+            user_id: body.user_id || requestPayload.user_id,
+            device_id: body.device_id || requestPayload.device_id,
+            asset_id: body.asset_id || requestPayload.asset_id,
+            depth: 2,
+            limit: 8
+          },
+          graphContext,
           limit: 8
         });
       } catch (memoryErr) {
-        graphRelevantAssets = {
+        graphMemory = {
           requested: true,
           resolved: false,
           asset_count: 0,
@@ -400,13 +404,23 @@ export function buildGovernanceRoutes(deps) {
             authority_summary: graphContext.authority_summary || {},
             error: graphContext.error || null
           },
+          graph_memory: {
+            requested: Boolean(graphMemory.requested),
+            resolved: Boolean(graphMemory.resolved),
+            asset_count: graphMemory.asset_count || 0,
+            graph_node_ids: graphMemory.graph_node_ids || [],
+            assets: graphMemory.assets || [],
+            selection_policy: graphMemory.selection_policy || {},
+            error: graphMemory.error || null,
+            secrets_included: false
+          },
           graph_relevant_assets: {
-            requested: Boolean(graphRelevantAssets.requested),
-            resolved: Boolean(graphRelevantAssets.resolved),
-            asset_count: graphRelevantAssets.asset_count || 0,
-            subject_node_ids: graphRelevantAssets.subject_node_ids || [],
-            assets: graphRelevantAssets.assets || [],
-            error: graphRelevantAssets.error || null,
+            requested: Boolean(graphMemory.requested),
+            resolved: Boolean(graphMemory.resolved),
+            asset_count: graphMemory.asset_count || 0,
+            subject_node_ids: graphMemory.graph_node_ids || [],
+            assets: graphMemory.assets || [],
+            error: graphMemory.error || null,
             secrets_included: false
           },
           execution_target: {

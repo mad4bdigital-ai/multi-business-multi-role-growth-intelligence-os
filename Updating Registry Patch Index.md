@@ -1,8 +1,320 @@
 # Updating Registry Patch Index
 
-Last updated: 2026-05-04 (live registry rows confirmed)
+> Dynamic Container read-only canary promotion closure: `20260715_dynamic_container_canary_promotion_tool.sql` registers `dynamic_container_canary_promotion_policy_v1`, the governed `dynamic_container_canary_promotion` Admin tool, and its app integration binding. Production ledger evidence is run `2b2015d2-73d0-40a2-af33-57678af0389a`, checksum `1c0327e8a8c5533683f92a4906d221af052ba633421464605a68488d3e5b665f`, four statements, and zero-risk preflight. Runtime apply remains limited to one active `read_only_canary` from global `shadow`, consumes a fresh plan-bound Capability Envelope transactionally, requires exact typed confirmation and same-cycle readback, and never changes global rollout policy or mutation enforcement. The migration and documentation perform no provider call, credential payload read, raw-secret access, external send/write, or secret inclusion; `secrets_included=false`.
+
+> Spec 007 virtual governed tool capability projection: `20260717_virtual_tool_capability_projection.sql` and `20260717_virtual_tool_readback_readiness.sql` additively project active `platform_tool_dispatch_bindings` into canonical capabilities, bindings, alias exports, provenance, shadow readback contracts, and persistent typed debt. Identity, scope, operation class, readback, and canonical-source conflicts fail closed; virtual Admin surfaces cannot project to Tenant. `platformVirtualToolCapabilityReconciler.js` maintains the projection inside the existing assurance transaction. All projected capabilities remain `apply_allowed=0` until separate certification and shadow/canary evidence pass.
+
+> Spec 007 corrective mutation classification: `20260718_virtual_tool_single_file_mutation_classification.sql` additively normalizes `single_file_mutation`, `atomic_change_set`, `compound_mutation`, and `transactional_guarded` into the `state_changing` operation family, then idempotently reconciles capabilities, bindings, exports, provenance, shadow readback contracts, and typed debt. The correction contains no tool-name special case, destructive SQL, provider call, credential payload read, external runtime write, or secret output; projected apply remains disabled. `registryTagParser.js` separately normalizes registry tags from arrays, JSON-array strings, or legacy CSV before preflight policy evaluation.
+
+> Spec 007 corrective export shadow alignment: `20260719_virtual_tool_export_shadow_alignment.sql` additively recreates `v_platform_virtual_tool_exports_current` with `export_status='shadow'` and reconciles existing virtual-tool capability-export aliases without touching Admin or Tenant tool catalogs, dispatch bindings, certification, or runtime activation. The migration contains no destructive SQL, provider call, credential payload read, external runtime write, or secret output.
+
+> Spec 007 GitHub file-patch shadow certification: `20260720_github_file_patch_shadow_certification_issue.sql` registers the Admin-only `github_file_patch_shadow_certification_issue` tool and its envelope-gated policy. The issuer verifies fixed consumed smoke envelopes and branch-scoped resource-authority bindings, activates only `repository_change_set_apply`, records acknowledgement and same-cycle verification evidence, and certifies the current readback contract. It does not promote target runtime dispatch/apply, active exports, Tenant authority, or protected-branch access and performs no provider call or external write during certification issuance.
+
+> Spec 007 runtime-authority preservation correction: `20260721_github_file_patch_runtime_authority_preservation_metadata.sql` updates only Admin tool, capability, apply-policy, and execution-policy metadata so the shadow-certification plan is explicitly bound to the pre-existing specialized runtime-certification snapshot and same-cycle readback proves that snapshot remains unchanged. It does not update `runtime_dispatch_certification_registry`, target capability exports, dispatch bindings, Tenant authority, or protected-branch authority and performs no provider call or external write.
+
+> Static and migration execution safety: the two migrations perform no provider call, credential payload read, raw-secret access, external send, external write, deployment, or runtime cutover and declare `secrets_included=false`. Repository merge or migration presence is not production apply authority. Completion requires governed migration preflight/apply, exact checksum and statement-count ledger evidence, schema/view readback, governance compiler visibility for `github_file_patch_apply`, Admin-only alias verification for `repo_patch_batch_apply`, absent Tenant projection, shadow readback readiness, and independent certification remaining gated.
+
+> Rollback and compatibility: the change is additive and retains existing compatibility views. Rollback is to stop using the governed combined views and focused reconciler, restore the previous readiness view definition, and mark projection-created rows inactive or resolved through a separately reviewed migration; no destructive table drop or provider rollback is required.
+
+
+> GitHub Actions diagnostics endpoint registry closure: `1031_sprint69_github_actions_diagnostics_endpoints_seed.sql` seeds read-only diagnostics surfaces for `/repos/{owner}/{repo}/actions/runs/{run_id}/jobs` and `/repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments`, plus a separately governed pending-deployment review endpoint. It is endpoint-registry-only, idempotent through `ON DUPLICATE KEY UPDATE`, and now includes explicit safety markers: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included_false`. OpenAPI path coverage is tracked in `http-generic-api/openapi/github-actions-diagnostics.yaml`; runtime binding readback target is `github_list_jobs_for_workflow_run`.
+
+> DB-backed Resource API surface registry closure: `20260709_resource_api_dynamic_db_surfaces.sql` additively seeds `platform_data_table_registry` with the compact Resource API surface set for endpoint/tool/registry/capability/user-grant readback. It is idempotent through `ON DUPLICATE KEY UPDATE`, performs no provider call, no credential payload read, no raw-secret access, no external send/write, and declares `secrets_included=false`. Production apply was executed through `governed_migration_execute` with checksum `51ae02ddb9d83305432dc3d997426c6bee6ba5048eb8c3bfec3e2cdc6a68b498`, one statement, zero-risk preflight, ledger run `ea0c2abf-b2d1-4660-8929-7229b1fcb851`, and same-cycle readback of ten active resource surfaces.
+
+> Hostinger deploy resource authority binding: `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` additively creates a temporary, target-bound `platform_resource_authority_bindings` row for `resource_type='remote_runtime_target'`, `resource_uri='hostinger://auth.mad4b.com/production'`, and `allowed_modes_json=['deploy']`. It is required because deploy-release envelope preflight now requires dynamic resource authority before actual deploy execution. The binding expires after two hours and performs no provider call, no credential payload read, no raw-secret access, no external send/write, no deploy, and declares `secrets_included=false`. Runtime deploy still requires dry-run `dispatch_ready=true`, a fresh approved deploy envelope, bounded execution, and post-deploy parity/readback.
+
+> DONA Brand Core readiness data repair: `1037_sprint69_dona_brand_core_readiness_data_repair.sql` is a narrowly scoped data-repair migration for `brand_key='donatours_wp'`, `brand_name='DONA Tours'`, and legacy row IDs 76-86. It backfills known Google Docs/Sheets/folder resource IDs from existing `google_drive_link` authority and marks those known rows active so `growth_audit_evidence_prepare` can classify Brand Core as ready. It creates no schema, tools, routes, providers, exports, external sends, browser actions, credential payload reads, raw-secret output, or Google file-read promotion; `files.object.read` remains `shadow`. Completion requires governed migration authorization, checksum-bound dry-run/apply, ledger readback, row-count/resource-ID/active-status readback, `growth_audit_evidence_readiness_smoke`, and a `growth_audit_evidence_prepare` readback for `donatours.com` with no `brand_core_strategy_not_ready` degraded surface.
+
+> GitHub Actions workflow-control dispatch: `1038_sprint69_github_actions_workflow_control_dispatch.sql` additively registers SQL-authoritative endpoints for `github_rerun_workflow_run`, `github_rerun_failed_jobs_for_workflow_run`, and `github_create_workflow_dispatch` under `github_api_mcp`. It also exports them through the governed admin endpoint dispatcher and records `missing_endpoint_registry_first_policy_v1`, which requires a deep scan of endpoint/tool/export/binding registries before runtime use and requires missing provider surfaces to be added to SQL authority instead of using raw URL/method fallback. The migration performs no GitHub call, workflow rerun, workflow dispatch, credential payload read, raw-secret access, external send/write, deployment, or runtime execution; `secrets_included=false`. Runtime use remains admin-only and must use registry-resolved method/path/schema with same-cycle readback.
+
+> GitHub Actions workflow-runs read dispatch: `1026_sprint69_github_actions_runs_read_dispatch.sql` additively registers the read-only SQL authority endpoint `github_list_workflow_runs_for_repo` for `GET /repos/{owner}/{repo}/actions/runs`, exposes it through `github_rest_endpoint_dispatch`, and adds bounded query filters including `head_sha`, `page`, and `per_page`. The scope is registry metadata only and replaces unsupported raw fallback inspection of `/actions/runs`; it performs no provider call during migration, credential payload read, raw-secret access, external send/write, deployment, or raw URL/method dispatch; `secrets_included=false`. Runtime completion requires governed migration authorization, checksum-bound dry-run/apply, endpoint/export/binding readback, binding-integrity audit with zero gaps, and a live read-only workflow-runs lookup for the PR head SHA.
+
+> GitHub direct ref dispatch persistence: `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` additively exposes the already-active SQL authority endpoints `github_get_git_ref_head` and `github_get_reference` through `github_rest_endpoint_dispatch`, adds `branch` and `ref` path-parameter schema entries, and seeds admin-scoped endpoint export plus dispatch-binding metadata. The migration is registry metadata only: no provider call, credential payload read, raw secret access, external send/write, deployment, or fallback raw URL/method behavior is introduced; `secrets_included=false`. Runtime completion requires governed migration authorization, checksum-bound dry-run/apply, catalog readback, `platform_tool_binding_integrity_audit` with zero gaps, and live read-only Git ref readback through `runtime_endpoint_call`.
+
+> Canonical capability domain closure: `1030_sprint69_canonical_capability_domain.sql` additively creates `canonical_capabilities`, `capability_aliases`, and `v_capability_alias_integrity`, then backfills aliases from the existing Admin and Tenant tool catalogs without changing the current dispatch authority. The migration is internal SQL only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains blocked until governed authorization bootstrap, exact checksum/statement-count dry-run, ledger evidence, registry/readback verification, and release-readiness review complete.
+
+> Platform Resource Context surface closure: `1029_sprint69_minimal_dynamic_brand_resolution.sql` additively registers the compatibility Brand/Workspace resolver, bounded Brand-reference interpretation policy, tool descriptor, and blocking execution policy; `1030_sprint69_generic_platform_resource_context.sql` additively registers resource-first Brand, Workspace, Asset, CMS Site, and Connection resolution plus catalog, exact-related-resource, diagnostic-handoff, and readiness helpers. Both migrations remain read-only/diagnose-only registry seeds with deterministic backend authority, signed-principal Tenant scope, no provider call, no credential payload read, no raw secrets, no external send, no external write, and `secrets_included=false`. Repository merge does not authorize SQL application; apply remains checksum-bound with governed preflight, ledger persistence, descriptor/tool/policy readback, and focused CI evidence.
+
+> Spec 007 source-link correction: `20260702_dynamic_capability_readback_source_link_fix.sql` deterministically registers `platform_capability_readback_contracts` under the existing canonical capability `platform_capability_governance_compile_persist`. It replaces the prior zero-row-prone `INSERT ... SELECT` behavior with an idempotent literal `VALUES ... ON DUPLICATE KEY UPDATE` statement. No provider call, credential payload read, external send/write, runtime cutover, or secret inclusion occurs.
+
+> Spec 007 capability-governance contracts: `20260630_dynamic_capability_governance_persistence.sql` additively persists immutable compilation runs, manifests, provenance links, and typed gap snapshots; `20260701_dynamic_capability_certification_readback.sql` additively introduces the versioned `platform_capability_readback_contracts` registry and readiness view while reusing `platform_resource_adapters`, `platform_capability_certifications`, `runtime_dispatch_certification_registry`, `platform_capability_source_links`, and `platform_evidence_events` as existing authorities. Neither migration performs provider calls, credential payload reads, raw-secret returns, external sends/writes, deployment, callable promotion, or runtime-authority cutover; `secrets_included=false`. Apply remains checksum-bound and separately governed.
+
+> GitHub create-reference 201 contract reconciliation: `1024_sprint69_github_create_reference_201_contract_reconciliation.sql` additively updates only `endpoints.schema_json.responses.201` for `ACT-GH-EP-011` / `github_create_branch_reference`. It registers no tools, exports, routes, dispatch bindings, credentials, or provider writes. Authorization and application remain separate governed migration steps; completion requires checksum-bound approval, zero-risk preflight, ledger/schema readback, and a matching create-ref certification. Safety markers prohibit provider calls, credential payload reads, raw secrets, external sends, and external writes; `secrets_included=false`.
+
+## 2026-06-22 OpenAPI Endpoint Inventory Synchronization
+
+`1024_sprint69_openapi_endpoint_inventory_sync.sql` adds an additive run ledger, governed runtime configuration, a non-callable `internal_platform_api` inventory action, and six curated Admin tool bindings for OpenAPI inventory status/sync plus Dynamic Container preview/readiness surfaces. Inventory rows remain `inventory_only` and `pending_governance_review`; `auto_promote=false`; no provider calls, credential payload reads, external sends/writes, deployment, or raw-secret output occur. Manual apply requires typed confirmation, a ready `platform_orchestration` capability envelope, advisory locking, a transaction, and same-cycle count readback. Removed operations are deprecated rather than deleted.
+
+
+> Governed branch cleanup sweep: `1019_sprint69_github_branch_cleanup_sweep.sql` registers a dry-run-first admin tool and policy for bounded deletion of disposable GitHub branches. Apply requires fresh base and branch SHA evidence, a reviewed candidate fingerprint, typed confirmation, a ready capability envelope, open-PR and unique-commit guards, pre-delete SHA readback, and same-cycle absence readback. It never force-deletes or retries unknown mutation outcomes, performs no credential payload reads or raw-secret returns, and declares `secrets_included=false`.
+
+> Dynamic Container Authority surface contract: `319_sprint69_dynamic_container_authority_foundation.sql` and `320_sprint69_dynamic_container_authority_runtime_contracts.sql` add SQL-primary container types, multi-parent relationships and closure, classifications, composable roles, exact resource bindings, immutable resolution/shadow evidence, explicit override governance, rollout-readiness views, and workspace/brand team-management authority. Both migrations are additive, leave enforcement disabled by default, perform no provider calls, credential payload reads, raw-secret returns, external sends/writes, or deployment, and declare `secrets_included=false`. Promotion requires governed migration preflight, migration-ledger and schema/readback verification, projection dry-run, shadow comparison, performance gates, and explicit enforcement approval.
+
+> 2026-06-17 Approval Hold identity root repair: `1013_sprint69_approval_hold_identity_collation_alignment.sql` aligns the ten `varchar(36)` Approval Hold identity keys to `utf8mb4_unicode_ci`, preserving lengths, nullability, defaults, and indexes while leaving 64/128-character contracts untouched. It repairs only expired pending requests whose temporary smoke/test hold was already cleaned up, records the previous reference in `decision_note`, and fails closed if any active orphan remains. Readback authority is `v_approval_hold_identity_collation_readiness`; blocking policy is `approval_hold_identity_collation_v1`; release readiness requires 10/10 present and ready columns, zero mismatches, zero orphans, and zero provider/credential/external/secret activity. The explicit runtime compatibility join remains until production readback is verified.
+
+> 2026-06-15 Dynamic Audit runtime closure: `314_sprint69_dynamic_audit_runtime_closure.sql` adds the scheduler run ledger, runtime configuration, pipeline count/quality/readiness views, and governed migration authorization. It is additive and idempotent; creates no MySQL triggers; performs no provider calls, credential payload reads, raw-secret returns, external sends, or deployment execution; stores no raw before/after bodies; never infers `deployed_commit_sha`; and declares `secrets_included=false`. Runtime verification requires fresh scheduler success, bounded backlog, repo/Drive/checkpoint evidence, DB semantic quality, duplicate-key checks, and no-secret evidence readback.
+
+> 2026-06-14 governed surface contract: `1004_sprint68_hostinger_ssh_executor_db_gate.sql`, `1004_sprint69_agent_governance_admin_tools.sql`, and `1005_sprint69_agent_skill_coverage_prompt_enrichment.sql` are additive registry/view migrations. The Hostinger executor gate defaults disabled and is target- and expiry-bound; actual SSH execution still requires same-cycle dry-run, approved capability envelope, exact commit SHA, path allowlist, bounded output, and post-deploy readback. The Agent Governance tools remain admin-authenticated and the skill-coverage change is read-only metadata/view enrichment. No migration performs provider calls, credential payload reads, raw-secret returns, external sends, or deployment execution; `secrets_included=false`.
+
+<!-- surface-contract-auto-remediation:start -->
+## Automated Surface Contract Attestations
+
+> Generated by `surface-contract-auto-remediator.mjs`. Each attestation is bound to the migration SHA-256 and becomes invalid automatically when SQL changes. This block documents static no-provider/no-secret/no-external-side-effect evidence only; it does not authorize execution, provider calls, credential access, database writes, deployment, or external sends.
+
+- `1003_sprint68_supervisor_chain_runtime_guards.sql` — SHA-256 `45a76d8242bcb32cdc278d7f2514cdca8e3970471606c751c6a9f44736dd2b2d`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1011_sprint69_governed_repository_engine_v6.sql` — SHA-256 `9660199415f17eaddd937c0ae72def3200ab0b3dfe64586afe8dd41e3e905a25`; surfaces: tools=23, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1012_sprint69_sql_only_runtime_auth_schema.sql` — SHA-256 `4b416fd2645cd3ae9afc9a9e49c493f25692a86dbfc6a6a5998ce8827288dc94`; surfaces: tools=1, views=2; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `1013_sprint69_approval_hold_identity_collation_alignment.sql` — SHA-256 `2b9fdfcdc14d3f33d3041bb41cf66b407092e4304f09db79e5cbc2f85381ae9a`; surfaces: tools=5, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding; evidence: human review by platform_admin:0e76b224-7671-47dd-ad68-014fb042df80.
+- `1013_sprint69_operational_alerting_control_plane.sql` — SHA-256 `5bf408260ea63fdd9a1e75b297218d931f3bf07683dc562da790e54930204b68`; surfaces: tools=8, views=4, routes=4; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `1014_sprint69_approval_hold_collation_reconciliation_rule.sql` — SHA-256 `83f1d284104650e0cd7609110027b2676d2e7706bb5783dbb8b379b9d7d72153`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1014_sprint69_github_branch_multi_parent_merge_commit_policy.sql` — SHA-256 `84ff6a7a767223389b3202b4bd3388d510c04e3b0e0074ab53cd8bcb3f1cdbe0`; surfaces: tools=6; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1016_sprint69_tenant_safe_tool_route_rebinding.sql` — SHA-256 `2f300c461d3ec97dbaf5e5bb93b996541c4caf0a08eaae7e0f6a4bfc5ff9280b`; surfaces: tools=3, routes=4; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1017_sprint69_hybrid_local_managed_agent_runtime.sql` — SHA-256 `1a15b603515d6319142e2a4bf1496fe6e48e6468e296f530fa5851723e6b4618`; surfaces: tools=4, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1019_sprint69_github_multi_parent_policy_record_only_authorization.sql` — SHA-256 `7231c44fea9a20930c5961932ec04875fff0e7039cb3b09f9bcc23d79daa6316`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — SHA-256 `aba1c04c229d1acd4d050df5f76654ca364bd4871039d6794f161f06875432ba`; surfaces: tools=5, views=2, routes=5; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `1022_sprint69_repository_close_superseded_positive_smoke_policy.sql` — SHA-256 `e4eb42f1e0fdb0e3710dfd166f6707c171461eda82dfa7b59d11dffdb789e6e4`; surfaces: tools=1, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1023_sprint69_github_rest_endpoint_dispatch_foundation.sql` — SHA-256 `44e13630c7a12aca402cc5649cea84f73d51b7276586a6cdadf4e77179437760`; surfaces: tools=20, routes=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1023_sprint69_resource_api_coverage_gate.sql` — SHA-256 `b21696d3e14b574a62e105d72cf658e1da66a4f8d56dd4e8f855674efad1e9c9`; surfaces: tools=11, views=5, policies=2, routes=26; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `1023_sprint69_sql_cache_runtime_policy.sql` — SHA-256 `7ee1213176aeed389d412448d9bd9f86cabb65953e862266dd3d4cce83307efc`; surfaces: policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness.
+- `1024_sprint69_github_issue_label_response_schema_alignment.sql` — SHA-256 `f621119403524d66e361f400706a913c9d2c7d56355ac7b6b3a65f79ca8910f1`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1025_sprint69_activation_archive_dynamic_control_authority.sql` — SHA-256 `38d2a37d1ba244231b06758d5988a994417ccb67491419dce5b6fab0bc9e7c63`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
+- `1025_sprint69_github_ref_dispatch_catalog_persistence.sql` — SHA-256 `cc460618033e19cf54ff7e0141f4e11d2ff375334d800f002d1d51347bfe3369`; surfaces: tools=10; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1025_sprint69_growth_audit_evidence_admin_tenant_support.sql` — SHA-256 `4699f2b2d5fe510704600d2f5a76f384b3b35e6aefafea9c8ee7b832ff4ac94b`; surfaces: tools=2, policies=1, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding; evidence: human review by platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4.
+- `1025_sprint69_platform_degradation_prevention.sql` — SHA-256 `905aea2084a7d93b09184f5106e771ac00a8790b5100ce176400e70fd84df8ca`; surfaces: tools=7; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1025_sprint69_resource_surface_policy_governance.sql` — SHA-256 `59b615774d0f9ff7ba43d646c8aa3cdcdd2eaa59cd9c5de5253768982b5c5493`; surfaces: tools=2, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1026_sprint69_github_actions_runs_read_dispatch.sql` — SHA-256 `911073a565b2aadc1c1a78bb9489c290b187a036b128cd1a986a5418577a53d9`; surfaces: tools=12, routes=1; static preflight: pass/0; runtime reviews: review_openapi_contract, verify_tool_registry_binding; evidence: human review by platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4.
+- `1026_sprint69_repository_reconciliation_automation.sql` — SHA-256 `288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2`; surfaces: tools=5, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding; evidence: human review by platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4.
+- `1028_sprint69_gpt_session_archive_actionable_ref_metrics.sql` — SHA-256 `5e133636df15f903cfa945b5e441c4a3547eaf97793f6a7cb8e78b87a5207941`; surfaces: views=3; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `1029_sprint69_minimal_dynamic_brand_resolution.sql` — SHA-256 `7c9ba638a41e4be16a78e406f519ff14c1c642e07cc5959c68de49dc9fb5d9cd`; surfaces: tools=3, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1029_sprint69_registry_export_schema_parity_gate.sql` — SHA-256 `3d074b6cbcb9662546b7e48a48bb20afbd7e214050e1821e0a6a10acda414d69`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `1030_sprint69_canonical_capability_domain.sql` — SHA-256 `d26b954de4bb7496cb77888cf445688a29f56059278854cdb97f2dd19dad3819`; surfaces: tools=3, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — SHA-256 `b24b6ff0110ea41964fd0ed68659ae5b481ae8bd98c3730bac2d06169209edd3`; surfaces: tools=33, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1030_sprint69_generic_platform_resource_context.sql` — SHA-256 `d3dc914451fa81d96b2d07dd7f44fa41a27d0beb03893ae4aae533a40a258a8a`; surfaces: tools=6, policies=2, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1031_sprint69_strict_platform_plugin_resolve_contract.sql` — SHA-256 `462a3da9bff92152d4bca2140f4a733ee127408e2b8120296a98d500e779707b`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1032_sprint69_cloudflare_mutation_policy_contract.sql` — SHA-256 `b1c1bae5836c40f489579dd19a3da8084ee9e3cad9535415792fe4a2ede1a6e7`; surfaces: tools=7, views=1, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `1033_sprint69_n8n_instance_mode_ownership_policy.sql` — SHA-256 `674ba2df11e5e20091c1a1b5bdd74b2f035fd6a8134c2ded4eb7a8b86c19b5c9`; surfaces: tools=4, views=1, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `1034_sprint69_repository_automation_control_plane.sql` — SHA-256 `2802bd37dfb3dafbf66ee35d05d040995ded44a39856e538ef3610901029777f`; surfaces: tools=4, routes=4; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1035_sprint69_capability_enablement_broker_ledgers.sql` — SHA-256 `0e087111ce1175725f6cde55b653ca76570a4687966936b7fba34315418ec3e3`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `1036_sprint69_capability_enablement_virtual_admin_tool_bridge.sql` — SHA-256 `87cc0d29d74d91a260d89e520a824e879837c159b9794adbd56783936c36f293`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1036_sprint69_governance_debt_cleanup.sql` — SHA-256 `9052c49ccd913f0cb60ba9775c4b35542f05d1ed355f0681a3d3b08c001f6181`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1036_sprint69_remote_runtime_deploy_dispatch_certification_renewal.sql` — SHA-256 `21ebeeb4aa3097b3ddee0c8535024c044abc383b4671209175c37f902475d89b`; surfaces: tools=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1037_sprint69_record_only_authorization_retirement.sql` — SHA-256 `4c980fea8b9f3f73ea7401fbea9cc21bde5be6cec6e85945e700123d273da53c`; surfaces: tools=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1037_sprint69_temporary_hostinger_ssh_executor_gate.sql` — SHA-256 `070833a7c07a2aaea36fc34d98702a5acf74b64fa5b21127a4fa51676d031ed1`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — SHA-256 `163085b3b9f80b1dc6a3339d8e43dfb5455c34a4cec3a371365a754d45016ef2`; surfaces: tools=17, policies=1, routes=3; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `1038_sprint69_hostinger_deploy_resource_authority_binding.sql` — SHA-256 `be45dacbadf79dc14e69c2898044df3a959bf96dc5e4badc9a2569debf746849`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1039_sprint69_disable_temporary_hostinger_deploy_gates.sql` — SHA-256 `18248ee2b544457dccde27063a6e8bcc03c78976a7cab48a5417717128b4bdc1`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1040_sprint69_capability_enablement_operational_dashboard.sql` — SHA-256 `2282274085d80d987d2117f22aa92cdb724209bf6a9c325d1ad16515f8897d77`; surfaces: tools=4, views=2; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `1041_sprint69_hard_disable_temporary_hostinger_executor_gate.sql` — SHA-256 `da692b27fd75232c3b344813652dadb10fc25edbe6f08166421d9b3579be9efc`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `1044_sprint69_dynamic_container_projection_apply_governance.sql` — SHA-256 `d1d44b50138a23b4881a9924a2bfca3db2fa19fef4cf30572dc51e41815bd650`; surfaces: tools=4, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `20260615_tenant_growth_dashboard_product.sql` — SHA-256 `c4a2a2d19c1d0cb1270597df810b03bce6f30e5800df782b627b25b2a5edba59`; surfaces: tools=6, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `20260625_repository_mutation_descriptor_policy_recovery.sql` — SHA-256 `9aa9b798a5f5d5f42f90f0f7f7f9b46a19599c81aaac5333393034667a0fc003`; surfaces: tools=7, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `20260627_activation_gateway_rollout_surface.sql` — SHA-256 `60febc2c4ec53e45a9ccc3bf40c52bd2e013b1b60ec1ce9a80c2ec0a7e500189`; surfaces: tools=15, views=4, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `20260629_authority_scope_shadow_readiness.sql` — SHA-256 `4c830fd95c20bdd81a813dab25f8fac980e34f7b72cf58a28e821b59657f4cfa`; surfaces: tools=1, views=3; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `20260629_sql_cache_admin_tool_export.sql` — SHA-256 `c503df8476680e4fbb67f4c0aeaa031bf8a94c8fcd2dbdaa2f683b406a8f6798`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260701_dynamic_capability_certification_readback.sql` — SHA-256 `420449ed7e2e5e8bc6f757b154be3ef3be2b31d11513174fb0754ea66f11dcce`; surfaces: tools=2, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `20260701_repository_operation_leases.sql` — SHA-256 `2d8380c6f6ac6dd893509329aa78cc32c98725345b2bc9afdfb7424ddf539c16`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260702_dynamic_capability_readback_source_link_fix.sql` — SHA-256 `c7a18fa6047b26448ff6e0033e02edd417fcd68b2b17fb469d05080f70f76a6b`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260702_session_archive_capability_family_authorization.sql` — SHA-256 `95ca55a48b6fbee795f3c360db48b2e95d94f385e9578387fe3bf4ad6c4140fa`; surfaces: tools=2; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260704_platform_resource_authority_grant_tool.sql` — SHA-256 `80e407bea72401c6e284cd3080fddbee144bd315ecc06694defcd7763a54a410`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260704_runtime_dispatch_certification_issuer.sql` — SHA-256 `c03c0c4551e1218699411daa9ac891a07b5f5cebeefd555bb849a2d85f8fdd08`; surfaces: tools=6; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260704_user_dashboard_dynamic_tabs_aliases.sql` — SHA-256 `567a5b10f5cfc00ce8714270a612a86cf8cbd0b72af664dca253cf465bd04cf0`; surfaces: tools=1, routes=7; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260705_governed_migration_ledger_capability_envelope_trace.sql` — SHA-256 `0151b0d4e06d2136daac2395bf3bf53f12f9ebd56543d3db68303005f1094e1c`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `20260705_session_archive_capture_gate_and_smoke_policy.sql` — SHA-256 `486d2d5c42ac0ae5db9da1ccac40d672544abd80fd4ad648b5d72c65ea919796`; surfaces: tools=9, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `20260706_session_archive_stale_closure_autosweep.sql` — SHA-256 `169d2f5ae00ff0890146c1a6e3aabcdecbf1fcf2cee24bb4c3d74d29d7275a32`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260709_tenant_resolution_registry_schema.sql` — SHA-256 `553d90eb41fdde473f73552ef28b6290a62ddd42cef252072a2df93614a236db`; surfaces: tools=18; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260710_repo_conflict_intelligence.sql` — SHA-256 `54f38805f95041d459ef8553dd2ee954973823e8a66a6f7abb5cd851ca5215f2`; surfaces: routes=5; static preflight: pass/0; runtime reviews: none.
+- `20260711_repo_conflict_intelligence_phase2.sql` — SHA-256 `809eebbfb345329def2dd03c17c707d56f4c229e3f44060c52a0cd56e5bfb828`; surfaces: routes=4; static preflight: pass/0; runtime reviews: none.
+- `20260711_repo_conflict_intelligence_tenant_readiness.sql` — SHA-256 `53e468ed631dfac4eed334966ada38501357f70f7b4d4bd27dd72f2f6e65887e`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260711_temporary_hostinger_probe_config_authority.sql` — SHA-256 `0f45a1811bcfd3a98911db41d78077611cec490f451d2742543574c94f17b4c9`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260711_transactional_outbox_shadow_sync_foundation.sql` — SHA-256 `7b721841e6c876ab2f03dedb8affca6ceb37d0c31172cd4706207eb528d1df05`; surfaces: routes=1; static preflight: pass/0; runtime reviews: none.
+- `20260712_local_manager_repair_connector_action.sql` — SHA-256 `e3e0db9a3114005c3aac7b093180389240c5762a507a35f14b02b11c5b1a8ed8`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260712_release_operation_ledger.sql` — SHA-256 `bdf9afedaa86c8ffe1ef90c3c5d299defe8425fc4c091f18f7bf8a919ec68040`; surfaces: tools=3, routes=6; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260713_dynamic_release_gate_manager.sql` — SHA-256 `d707147297156f84d9e16b08da241ee4c98b5727e90ba13ce4a66a0ed6cd03aa`; surfaces: tools=11, policies=1, routes=7; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `20260713_local_manager_desktop_command_mutation_policy.sql` — SHA-256 `be6348feef5adfdeada74ca12435f5afea4380455ff3a66fb97d89d104d89c92`; surfaces: tools=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20260713_release_operation_ledger_mutation_policy.sql` — SHA-256 `89abe9b2c586d9db2af0b44a42a3d6479630f43a167c913128e2b6933f98798d`; surfaces: tools=4, policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_tool_registry_binding.
+- `308_sprint69_activation_guidance_intelligence.sql` — SHA-256 `dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
+- `308_sprint69_dynamic_governed_migration_reconciliation.sql` — SHA-256 `0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `309_sprint69_activation_guidance_invocation_registry.sql` — SHA-256 `1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `310_sprint69_activation_awareness_completeness_control_plane.sql` — SHA-256 `65646875dd99fdbf99643fe84b75a52ca2055673f1f9cd7d0d2cbd0ae4595f33`; surfaces: views=4, routes=5; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `311_sprint69_platform_tool_dispatch_binding_integrity.sql` — SHA-256 `cd92ff1bfe26f8c1aa25a00ae022217d8d39f0c2d1be35d37c03e3f8a75c7feb`; surfaces: tools=19, views=1; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `311_sprint69_semantic_capability_effective_resolution.sql` — SHA-256 `4d7ac3faeffd686925d2416e7c9eab117446368fb8f29dd9bf0dd927fc86e133`; surfaces: tools=10, views=4; static preflight: pass/0; runtime reviews: verify_readback_view, verify_tool_registry_binding.
+- `311_sprint69_superseded_closed_pr_branch_cleanup.sql` — SHA-256 `d0aa47f17b4862018e5cb12e9c03a01566e26c606817a0e1618c324622dcb203`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `314_sprint69_capability_assurance_graph.sql` — SHA-256 `7c9b9e5e64cf30e6196dec0a3d25d54e44c9166a7703f9ea77b6c3f5a0a2ed30`; surfaces: tools=10, views=8, policies=1, routes=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness, verify_readback_view, verify_tool_registry_binding.
+- `315_sprint69_capability_vault_record_tool_export.sql` — SHA-256 `91d22441a35cab9e753a17a89a02d2dcb6931aff157a424efcbdbbfbbb3ab3b2`; surfaces: tools=11, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `316_sprint69_safe_branch_cleanup_support.sql` — SHA-256 `eafc937a5b0b1c37e84d26416cfb551a8aae3badbd5c08785a5012f4b6bf0cdb`; surfaces: tools=3; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `317_sprint69_superseded_orphan_branch_cleanup.sql` — SHA-256 `9572f0ff01ab6f5a713b3763fa51dbbc6197ea772cd492c63125b973ffc8ee1d`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+<!-- surface-contract-auto-remediation:end -->
+
+> 2026-06-14 Hostinger apply-policy safe-field contract: `965_sprint68_hostinger_apply_policy_safe_field_names.sql` preserves deny semantics while replacing sensitive-looking policy keys with safe field names. It performs no provider call, credential payload read, external send/write, deploy, or secret return. Readback authority is `v_hostinger_apply_policy_safe_field_readiness`; regression coverage is `test-hostinger-apply-policy-safe-field-names.mjs`.
+
+> 2026-06-12 System-layer ResponseTooLarge recovery: `/system/tools`, `/admin/system/tools`, `/system/tools/call`, and `/admin/system/tools/call` now return bounded/page-aware or chunked envelopes and expose `response_chunk_read` to tenant and admin principals. Chunk retention is size-aware, optionally controlled by `response_options.chunk_ttl_ms` or `response_options.chunk_ttl_minutes` (5–120 minutes), and refreshed after every successful read. Responses include non-secret cache TTL/expiry/read-count metadata, and fallback remains blocked until continuation is exhausted or unavailable.
+
+> 2026-06-12 Post-lock future surface remediation note: under `future_only_all_new_gaps`, the current future queue is remediated for `293_sprint68_system_layer_descriptor_auto_wiring.sql`, `307_sprint69_hostinger_deploy_restart_option_support.sql`, `963_sprint68_hostinger_deploy_restart_tool_exports.sql`, `964_sprint68_hostinger_stored_credential_apply_policy.sql`, `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql`, and `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`. The scope is registry/config/policy/readback/support metadata only: migration 964 permits stored credential binding references for Hostinger deploy/restart authorization while continuing to forbid credential payload reads, inline secrets, raw secret responses, freeform shell, provider calls, external sends/writes, registration-time deploy/restart, and secrets.
+
+> 2026-06-12 DR/Tool Bus future surface remediation note: `1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql` records metadata-only isolated restore certification summaries and a Tool Bus gated read-only pilot policy. It stores no backup material, no recovery-key payload, and no raw secret values; it allows no provider calls, credential payload reads, raw secrets, external sends, external writes, repository mutations, cutover, deploys, or secrets. The migration surfaces are runtime config metadata and blocking execution policies only.
+
+> 2026-06-12 Future surface remediation note: `292_sprint68_platform_health_scorecard_operationalization.sql` and `962_sprint68_smoke_branch_cleanup_gate.sql` were reviewed as post-closure future-surface items. Migration 292 operationalizes the Platform Health Scorecard with additive registry/readback tables, remediation metadata, snapshot history, tenant rollout readback, ledger hygiene, and admin tool registry rows. Migration 962 adds a governed smoke-branch cleanup gate for `gpt/smoke-*` branches only with exact typed confirmation; protected branches, direct-main writes, generic unmerged deletion, merge, provider calls, credential payload reads, raw secrets, external sends, external writes, deploys, and secrets remain blocked.
+
+> 2026-06-12 Legacy surface backlog full-closure note: `surface-contract-discovery.mjs` now applies `surface-contract-legacy-backlog-closure-v1` to the historical SQL-backed surface backlog. Closed ranges are `001-291`, `305-306`, `900-910`, `950-961`, `997-999`, plus `20260611_*` migration files. Closed migrations are treated as documented, their legacy route-like literals are classified as `legacy_closure_route_reviewed`, and historical missing safety markers are treated as reviewed closure evidence. Future migrations outside these explicit ranges/prefixes remain normally scored and can still open docs, OpenAPI, or safety gaps. Safety: no provider calls, no credential payload reads, no runtime mutation, no database writes, no external sends, no deploys, and no secrets.
+
+> 2026-06-12 Schema contract completion blocker remediation note: `286_sprint68_platform_schema_contract_completion_registry.sql` is now documented and classified as registry-only for route scoring. Its `/contacts` and `/platform/wordpress/blog-publish-recovery` literals live inside endpoint `schema_json` synthetic endpoint-native contracts, not newly declared Express routes. The classifier marks them `registry_only_surface`, so they remain visible as schema contract evidence without creating OpenAPI false positives. Safety: update-only registry completion, no provider calls, no credential payload reads, no external sends, no deploys, and no secrets.
+
+> 2026-06-12 Route classifier and Session Insight batch remediation note: `surface-contract-discovery.mjs` now classifies SQL route-like literals as `http_route`, `admin_tool_registry_route`, `tenant_tool_registry_route`, `system_tool_dispatch_route`, `registry_only_surface`, or `false_positive_route_like_string` before OpenAPI scoring. `955_sprint68_external_delivery_admin_control_surface.sql` admin control paths are `admin_tool_registry_route` and no longer count as OpenAPI gaps. Session Insight batch documentation covers exact migrations `273_sprint68_session_insight_capability_envelope_request_gate.sql`, `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`, `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql`, `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql`, `280_sprint68_session_insight_capability_envelope_approval_gate.sql`, `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql`, `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql`, `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql`, and `284_sprint68_session_insight_backlog_target_write_executor.sql`. Scope remains evidence-only: no provider calls, no credential payload reads, no runtime mutation outside governed migrations, no unreviewed DB writes, no external sends, no deploys, and no secrets.
+
+> 2026-06-12 Latest Surface Gap Remediation note: documents exact migration coverage for `954_sprint68_compact_operational_views_and_github_resource_coverage.sql`, `955_sprint68_external_delivery_admin_control_surface.sql`, and `956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql`. Migration 954 adds compact operational/resource readiness views and GitHub inspect resource coverage using existing governed inspection surfaces. Migration 955 adds External Delivery admin readback/control views, admin tool registry rows, and a blocking governance policy for no-secret/no-send controls. Migration 956 refreshes `v_external_delivery_recipient_allowlist_readiness` with `created_at`/`updated_at` for admin sorting, view-only/no secrets/no data mutation. Documentation remediation is evidence-only and does not authorize provider calls, credential payload reads, runtime mutation, database writes, external sends, deploys, or secrets.
+
+> 2026-06-12 Surface Governance Loop note: adds `surface-contract-gap-triage.mjs`, generated triage/baseline/dashboard/trend outputs, and a new-gaps-only gate. The loop consumes `surface-contract-gap-queue.json`, classifies immediate-review vs legacy backlog, baselines current known gaps, and fails only future high/critical gaps absent from the baseline. It also documents latest remediation targets `954_sprint68_compact_operational_views_and_github_resource_coverage.sql` and `955_sprint68_external_delivery_admin_control_surface.sql`: migration 954 adds compact operational readiness/resource views plus GitHub inspect resource coverage without new provider behavior; migration 955 adds External Delivery admin overview/recent-send/Gmail-connection readback views plus governed control tools and policy. Evidence-only automation remains no provider calls, no credential payload reads, no runtime mutation outside governed migrations, no unreviewed database writes, no external sends, no deploys, and no secrets.
+
+> 2026-06-12 Actionable surface contract gap queue note: upgrades `surface-contract-discovery.mjs` to `surface-contract-discovery-v3` and adds generated remediation outputs `docs/surface-contract-gap-queue.md` and `docs/surface-contract-gap-queue.json`. The queue ranks migration surface gaps by documentation coverage, OpenAPI route gaps, surface type, missing safety markers, and recency, then emits owner hints and remediation actions such as `document_surface_contract`, `review_openapi_contract`, `verify_tool_registry_binding`, `verify_policy_seed_readiness`, `verify_readback_view`, and `add_explicit_safety_markers`. Evidence-only automation remains no provider calls, no credential payload reads, no runtime mutation, no database writes, no external sends, no deploys, and no secrets.
+
+> 2026-06-11 Deep surface contract coverage note: upgrades `surface-contract-discovery.mjs` to `surface-contract-discovery-v2`, adds all-migration coverage metrics, machine-readable `docs/surface-contract-discovery-status.json`, high/medium/low documentation gap classification, SQL route/OpenAPI coverage scoring, per-doc-target gap counts, safety marker coverage counts, and tests against migrations 287, 910, and 954. Evidence-only automation remains no provider calls, no credential payload reads, no runtime mutation, no database writes, no external sends, no deploys, and no secrets.
+
+> 2026-06-11 Automatic surface contract discovery note: adds `http-generic-api/scripts/surface-contract-discovery.mjs`, generated report `docs/surface-contract-discovery-status.md`, workflow coverage for `http-generic-api/migrations/**`, and tests in `test-surface-contract-discovery.mjs`. `repo-maintenance-sync.mjs --write` now runs OpenAPI route autofill, repository maintenance docs, and SQL-backed surface discovery. The discovery layer scans migrations for routes, tools, views, policies, plugins, and safety markers, then opens reviewable auto-sync PRs through `.github/workflows/openapi-auto-sync.yml`. It is documentation evidence only: no provider calls, credential payload reads, raw secrets, runtime mutation, database writes, external sends, spend changes, deployment, or secrets.
+
+> 2026-06-11 External Delivery no-send orchestration graph note: PR #1363 adds migration `287_sprint68_external_delivery_orchestration_graph_plugin.sql` and test `test-external-delivery-orchestration-graph.mjs`. The migration registers `support_ticket_external_delivery_orchestrator` as a read-only/no-send orchestration graph plugin with seven stages and six edges over external delivery readiness, approval policy, credential candidate metadata, credential binding state, provider gate, execution plan record, and completion certification. It extends `v_platform_orchestration_graph_readiness`, adds `v_platform_orchestration_external_delivery_readiness`, and seeds blocking policy `support_ticket_external_delivery_orchestration_readback_policy_v1`. Apply evidence: governed ledger run `2e1a62ca-894d-4f22-92ca-7a3db2209812`, statement_count=6, preflight_status=pass, risk_count=0, secrets_included=0; readback status `ready_no_send_external_delivery_graph` with 7/7 stages and 6/6 edges. No provider calls, credential payload reads, raw secrets, external sends, external writes, spend changes, or secrets are enabled.
+
+> 2026-06-11 Session Insight capability binding hardening note: PR #1358 adds migration `910_sprint68_session_insight_capability_binding_hardening.sql`, removes `--explain` from Session Insight actual capability envelope creation, and adds regression coverage to prevent redacted policy explain fields from blocking approval gates. The migration persists app/action/tool graph rows for `session_insight`, including `session_insight_development_backlog_apply`, `session_insight_integration_backlog_apply`, and `session_insight_runtime_repair_backlog_apply`, all with `credential_source='none'` and `primary_executor='session_insight_backlog_target_write_execute'`. Tool bindings cover execute/list/rollback for the internal SQL backlog target write surface. Apply evidence: dry-run passed with 5 idempotent insert statements, destructive=0, risk_count=0; apply ledger `6e6745a1-94ce-4b5d-a43d-d030d0307508`; release readiness run `f5c1cba0-dd95-42d2-8fef-3ac6e512392e` passed 67/67. No provider credentials, credential payload reads, external writes, raw transcripts, or secrets are enabled.
+
+> 2026-06-11 Session Insight backlog target write executor note: migration `284_sprint68_session_insight_backlog_target_write_executor.sql` adds internal SQL target-write tables `session_insight_backlog_target_items` and `session_insight_backlog_target_writes`, readback/issue views, policy `session_insight_backlog_target_write_executor_policy_v1`, and tools `session_insight_backlog_target_write_execute`, `session_insight_backlog_target_write_list`, and `session_insight_backlog_target_write_rollback`. Execute requires typed confirm `EXECUTE_SESSION_INSIGHT_BACKLOG_TARGET_WRITE`; rollback requires `ROLLBACK_SESSION_INSIGHT_BACKLOG_TARGET_WRITE`. Scope is internal SQL backlog writes only after the capability-envelope chain completes. No provider calls, credential payload reads, external writes, raw transcripts, or secrets are enabled.
+
+> 2026-06-11 Session Insight capability-envelope release-readiness note: migrations `277` through `283` close the Session Insight capability-envelope roadmap as gated no-execution layers. The chain adds dispatch dry-run review, actual request preflight, actual envelope request ledger, approval gate, dispatch readback, adapter execution gate, and remaining scope completion. Admin tools registered include the `session_insight_capability_envelope_*` review/preflight/request/approval/readback/adapter gate surfaces plus `session_insight_remaining_scope_completion_*`. Typed confirmations are `REQUEST_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION`, `APPROVE_ACTUAL_CAPABILITY_ENVELOPE_NO_EXECUTION`, `OPEN_ADAPTER_EXECUTION_GATE_NO_APPLY`, and `COMPLETE_REMAINING_SCOPE_AS_GATED_NO_EXECUTION`. Release-readiness details live in `docs/session-insight-capability-envelope-release-readiness.md`. No adapter apply, runtime execution, `promotion_allowed`, `execution_allowed`, `target_write_allowed`, target write, raw transcript, credential payload read, or secrets are enabled by this chain.
+
+> 2026-06-09 ads provider governance snapshot record gate note: PR adds migration `264_sprint68_ads_governance_snapshot_record_gate.sql`, route `/platform/orchestration/ads-provider/snapshot-record`, admin tool `ads_provider_governance_snapshot_record`, OpenAPI operation `adsProviderGovernanceSnapshotRecord`, and test `test-ads-governance-snapshot-record-gate.mjs`. The route recomputes the proposal, verifies `candidate_sha256`, requires `idempotency_key`, `capability_envelope_id`, and `apply=true`, then records snapshot/recommendation rows idempotently. Default mode is dry-run. No provider calls, credential payload reads, spend changes, external writes, deploys, publishing, or secret return. Repo mutation used capability envelope `3cc59f04-bbff-453e-9e19-b58dce9f4a20`.
+
+> 2026-06-09 ads provider governance snapshot proposal note: PR adds migration `263_sprint68_ads_governance_snapshot_proposal.sql`, route `/platform/orchestration/ads-provider/snapshot-propose`, admin tool `ads_provider_governance_snapshot_propose`, OpenAPI operation `adsProviderGovernanceSnapshotPropose`, and test `test-ads-governance-snapshot-proposal.mjs`. The route produces `snapshot_candidate` and `recommendation_candidate` from governance metadata only and does not write `platform_orchestration_state_snapshots` or `platform_orchestration_recommendations`. No provider calls, credential payload reads, spend changes, external writes, deploys, publishing, or secret return. Repo mutation used capability envelope `51e534b6-109b-46c7-9514-99e71bab8c0b`.
+
+> 2026-06-09 orchestration readback surface note: PR adds migration `262_sprint68_orchestration_readback_surface.sql`, views `v_platform_orchestration_graph_readiness` and `v_platform_orchestration_ads_governance_readiness`, route `/platform/orchestration/readback`, admin tool `platform_orchestration_readback`, OpenAPI operation `platformOrchestrationReadback`, and test `test-orchestration-readback-surface.mjs`. This surface reads graph/stage/edge readiness plus latest snapshots/recommendations only. It performs no provider calls, credential payload reads, spend changes, external writes, deploys, publishing, or secret return. Repo mutation used capability envelope `082a8246-d1b3-4c44-a6ee-1c526327cd8a`.
+
+> 2026-06-09 orchestration intelligence foundation note: PR adds migration `261_sprint68_orchestration_intelligence_foundation.sql`, creating `platform_orchestration_plugins`, `platform_orchestration_stages`, `platform_orchestration_edges`, `platform_orchestration_state_snapshots`, and `platform_orchestration_recommendations`. It registers `orchestration_intelligence_engine`, `orchestration_intelligence_policy_v1`, six active policy rules, and seeds `ads_provider_governance_orchestrator` with seven stages and six edges. This is read-only/diagnose-only foundation: no provider call, no credential payload read, no spend change, no external write, no deploy, and `secrets_included=false`. Repo mutation used capability envelope `b4df7d64-946b-4c19-9369-50928fb8947c`.
+
+> 2026-06-09 platform development constitution enforcement note: PR #1107 adds migration `260_sprint68_platform_development_constitution_policies.sql`, seeds 20 blocking policies into `execution_policies` as the current runtime enforcement source, and extends `releaseReadiness.js` so those policies become required runtime policy seeds. The safety class is idempotent policy seed only: no destructive SQL, no provider calls, no credential reads, no deploy, and `secrets_included=false`. Repo mutation used capability envelope `5ffc2021-1c0d-4f8c-ae42-e1da5e71e12a`; branch drift was checked and classified `diverged_no_overlap` before continuing bounded docs/test-manifest changes.
+
+> 2026-06-09 ads provider preflight surface blueprint note: PR adds `ads_provider_preflight_surface_blueprint_policy_v1`, table `ads_provider_preflight_surface_blueprint_registry`, tool `ads_provider_preflight_surface_blueprint`, and migration `254_sprint67_ads_provider_preflight_surface_blueprint.sql`. The blueprint is design-only: it proposes names for future provider-specific preflight/readiness/execution surfaces after contract validation, but does not create tools, tables, credentials, adapters, provider calls, or spend surfaces.
+
+> 2026-06-09 ads provider preflight contract note: PR adds `ads_provider_preflight_contract_policy_v1`, table `ads_provider_preflight_contract_registry`, validator `ads_provider_preflight_contract_validate`, and migration `253_sprint67_ads_provider_preflight_contract.sql`. The validator checks provider profile metadata/governance before provider-specific preflight surfaces are designed. It does not create tools, credentials, adapters, provider calls, or spend surfaces. `execution_enabled_default=false` is required.
+
+> 2026-06-09 ads provider profile onboarding flow note: PR adds `ads_provider_profile_onboarding_flow_policy_v1`, table `ads_provider_profile_onboarding_requests`, tools `ads_provider_profile_request`, `ads_provider_profile_approve`, `ads_provider_profile_disable`, and migration `252_sprint67_ads_provider_profile_onboarding_flow.sql`. Approved providers start as `draft` profiles with `execution_enabled_default=false`; onboarding does not create provider-specific tools, credentials, adapters, or spend surfaces. No provider call, no spend change, no secrets.
+
+> 2026-06-09 ads provider capability profile registry note: PR adds `ads_provider_capability_profile_registry_policy_v1`, table `ads_provider_capability_profile_registry`, lookup tool `ads_provider_profile_lookup`, and migration `251_sprint67_ads_provider_capability_profile_registry.sql`. `google_ads` is seeded as the first active profile. Future ads providers must be onboarded as profiles with `execution_enabled_default=false`; profiles describe capability keys, meters, preflight/readiness ledgers, validators, execution adapter, and enablement family. No provider call, no spend change, no secrets.
+
+> 2026-06-09 Google Ads credential readiness ledger note: PR adds `google_ads_credential_readiness_ledger_policy_v1`, table `google_ads_credential_readiness_ledger`, and migration `250_sprint67_google_ads_credential_readiness_ledger.sql`. `google_ads_credential_readiness_gate` now records every result with `credential_readiness_id` and `readiness_sha256`. Future execution must require a ready ledger row before provider execution. No credential payload read, no provider call, no spend change, `secrets_included=false`.
+
+> 2026-06-09 execution enablement approval flow note: PR adds `execution_enablement_approval_flow_policy_v1`, table `execution_enablement_requests`, tools `execution_enablement_request`, `execution_enablement_approve`, `execution_enablement_revoke`, and migration `249_sprint67_execution_enablement_approval_flow.sql`. Enablement rows now have a governed lifecycle: request -> approval hold -> scoped expiring enablement row -> revoke. No provider call, no credential read, no spend change.
+
+> 2026-06-09 execution enablement registry note: PR adds `execution_enablement_registry_policy_v1`, table `execution_enablement_registry`, tool `execution_enablement_gate`, and migration `248_sprint67_execution_enablement_registry.sql`. Provider execution remains blocked unless an explicit active enablement row exists. Google Ads skeleton now calls the gate and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. No provider call, no spend change, `secrets_included=false`.
+
+> 2026-06-08 Google Ads credential readiness note: PR adds `google_ads_credential_readiness_gate_policy_v1`, tool `google_ads_credential_readiness_gate`, and migration `246_sprint67_google_ads_credential_readiness_gate.sql`. It checks active Google Ads connection and credential binding metadata only. It does not read encrypted credentials, decrypt tokens, call Google Ads, or mutate spend. Future execution requires this gate in addition to preflight validation and explicit enablement.
+
+> 2026-06-08 Google Ads execution adapter skeleton note: PR adds `google_ads_budget_execution_adapter_skeleton_policy_v1`, audit table `google_ads_budget_execution_gate_audit`, skeleton `google_ads_budget_change_execution_adapter`, and migration `245_sprint67_google_ads_execution_adapter_skeleton.sql`. The skeleton validates `preflight_id` through `requireValidatedPreflightForExecution`, records audit, then blocks provider execution. Admin endpoint remains disabled; no Google Ads call, no credential read, no spend mutation.
+
+> 2026-06-08 preflight execution gate helper note: PR adds `preflight_execution_gate_helper_policy_v1`, helper `preflightLedgerExecutionGate.js`, and migration `243_sprint67_preflight_execution_gate_helper.sql`. Future execution adapters must use `requireValidatedPreflightForExecution` before mutation. The helper wraps `preflight_ledger_validate`, enforces ready preflight rows, optional envelope match, hash/readback, and no-provider/no-spend/no-secret markers. No execution.
+
+> 2026-06-08 preflight ledger validator note: PR adds `preflight_ledger_validator_policy_v1`, table `preflight_ledger_validator_registry`, tool `preflight_ledger_validate`, and migration `242_sprint67_preflight_ledger_validator.sql`. Future execution adapters should validate `preflight_id` through this tool rather than reading family ledgers directly. The validator checks ready state, optional envelope match, no-provider/no-spend/no-secret markers, and payload hash. No execution.
+
+> 2026-06-08 Google Ads preflight ledger note: PR adds `google_ads_budget_preflight_ledger_policy_v1`, table `google_ads_budget_preflight_ledger`, and migration `241_sprint67_google_ads_budget_preflight_ledger.sql`. `google_ads_budget_change_preflight` now records every result with `preflight_id` and `preflight_sha256`; future Google Ads execution adapters must require a ready ledger row before mutation. No provider call, no credential read, no spend change, `secrets_included=false`.
+
+> 2026-06-08 Google Ads budget preflight note: PR adds `google_ads_budget_change_preflight_policy_v1`, tool `google_ads_budget_change_preflight`, and migration `238_sprint67_google_ads_budget_change_preflight.sql`. It requires a ready Google Ads capability envelope and `budget_quota_authority_dry_run=ready_for_dispatch` before any future budget mutation adapter. It is preflight only: no Google Ads provider call, no credential read, no spend change, `secrets_included=false`.
+
+> 2026-06-08 budget/quota authority note: PR adds `budget_quota_authority_registry_policy_v1`, table `budget_quota_authority_registry`, tool `budget_quota_authority_dry_run`, and migration `236_sprint67_budget_quota_authority_registry.sql`. It is dry-run only, blocks missing/exceeded spend authority, routes approval-required spend through envelope approval, and includes no provider spend or connector forwarding. `secrets_included=false`.
+
+> 2026-06-08 repo patch capability envelope note: PR adds `repo_patch_apply_capability_envelope_requirement_v1` and migration `234_sprint67_repo_patch_capability_envelope_requirement.sql`. `repo_patch_apply` requires `capability_envelope_id` before GitHub App token resolution; `repo_inspect` remains read-only and ungated. Runtime order: input/path validation, protected branch guard, capability envelope guard, GitHub App token resolution, stale/diverged branch preflight, then contents mutation. SQL safety: policy/runtime-config seed only, no destructive SQL, `secrets_included=false`.
+
+Last updated: 2026-06-07 (shared reconciliation continuation engine and scoped resume policy)
 
 ## Current Patch Set
+
+### 2026-06-08 — Admin Branch Reconcile Continuation Adapter
+
+- Status: PR pending; CI required before merge.
+- Branch: `gpt/admin-branch-reconcile-adapter-20260608`
+- Scope:
+  - Added virtual admin tool `admin_branch_reconcile` for non-protected repository work branches.
+  - Added branch classification: `clean`, `behind_only`, `ahead_only`, `diverged`, and `unknown`.
+  - Added no-secret shared reconciliation checkpoint evidence for stale/diverged branch states.
+  - Added safe apply path only for `behind_only` branches using GitHub ref update with `force:false` and explicit `FAST_FORWARD_<BRANCH_SLUG>` confirmation.
+  - Added migration `234_sprint68_admin_branch_reconcile_continuation_policy.sql` and tracked it in governed migration runner and release readiness.
+- Runtime behavior:
+  - `diagnose` and `dry_run` fetch base ref, branch ref, and compare state, then return continuation evidence.
+  - `apply` is blocked for `diverged`, `ahead_only`, `unknown`, protected/default branches, or missing confirmation.
+  - The adapter never force-pushes and must verify compare state after a fast-forward apply before reporting reconciliation.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-admin-branch-reconcile-adapter.mjs` asserts classification, confirmation, continuation evidence, no force-push, migration policy, runner allowlist, and release-readiness tracking.
+  - PR CI/manual CI evidence to be recorded before merge.
+
+### 2026-06-08 — Local Connector Tunnel Provisioning Continuation
+
+- Status: PR pending; CI required before merge.
+- Branch: `gpt/local-connector-no-token-continuation-20260608`
+- Scope:
+  - Added `connector_tunnel_provisioning_required` to the shared reconciliation interruption signals.
+  - Added `buildLocalConnectorTunnelProvisioningContinuationEvidence()` in `adminCliRoutes.js`.
+  - Changed `POST /admin/cli/local-connector/self-repair` so missing DB `cf_token` and missing `CLOUDFLARE_TUNNEL_TOKEN` return a resumable 409 handoff instead of a dead-end 404.
+  - Added migration `233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql` to register the blocking policy `Local Connector Tunnel Provisioning Continuation Contract`.
+  - Added migration 233 to the governed migration runner allowlist and release-readiness expected ledger coverage.
+- Runtime behavior:
+  - If connector recovery starts from HTTP 530/1033 and self-repair cannot find a tunnel token, the response includes `continuation.checkpoint`, `resume_plan`, `provisioning.required_next_action=provision_tunnel_token`, and `secrets_included=false`.
+  - Agents must provision the tunnel token through an authorized secret/config path, then retry self-repair and verify connector health in the same cycle before reporting recovery.
+  - The response and audit payload must not include `cf_token`, `connector_secret`, `CLOUDFLARE_TUNNEL_TOKEN`, or `BACKEND_API_KEY`.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-admin-control.mjs` asserts continuation evidence, no-secret handoff, policy migration, runner allowlist, and release-readiness tracking.
+  - `test-shared-reconciliation-engine.mjs` asserts `connector_tunnel_provisioning_required` is a generalized signal.
+  - PR CI/manual CI evidence to be recorded before merge.
+
+### 2026-06-08 — Chunked Tool Response Continuation Contract
+
+- Status: PR #868 opened; CI required before merge.
+- Branch: `gpt/chunk-read-generalized-fallback-20260608`
+- Scope:
+  - Added `CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT` in `http-generic-api/routes/gptToolsRoutes.js`.
+  - Chunked responses now include `continuation.required_tool=response_chunk_read`, `continuation.required_before_fallback`, and a `continuation.next_call` payload.
+  - Added migration `232_sprint68_chunked_tool_response_continuation_policy.sql` to register the blocking policy `Chunked Tool Response Continuation Contract`.
+  - Added migration 232 to the governed migration runner allowlist and release-readiness expected ledger coverage.
+  - Updated `AI_Agent_Knowledge_Guide.md` so agents must exhaust `response_chunk_read` before local slices, secondary search, connector reads, or external fallbacks.
+- Runtime behavior:
+  - Any governed tool response with `response_chunked=true`, `page.has_more=true`, or `page.next_cursor` must be continued through `response_chunk_read` until `has_more=false`.
+  - Alternative surfaces are allowed only after all chunks are read, the chunk cache expires and the original tool is retried, or `response_chunk_read` is unavailable/authorization-gated.
+  - Agents must not claim a file/result is fully read while the response page still has more chunks.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-gpt-tools-response-chunking.mjs` asserts runtime contract metadata, migration 232 content, runner allowlist, and release-readiness tracking.
+  - PR CI/manual CI evidence to be recorded before merge.
+
+### 2026-06-07 — Shared Reconciliation Continuation Engine
+
+- Status: PR #855 opened, CI success on branch before docs-agent note; targeted docs alignment added in PR.
+- Branch: `gpt/shared-reconciliation-continuation-20260607`
+- Scope:
+  - Added `http-generic-api/sharedReconciliationEngine.js` as the shared continuation/reconciliation contract for resumable governed operations.
+  - Added migration `231_sprint68_shared_reconciliation_continuation_policy.sql` to register the blocking policy `Shared Reconciliation Engine Continuation Contract`.
+  - Added `http-generic-api/docs/shared-reconciliation-continuation-runbook.md` for operations after tool timeout, session expiry, branch drift, deployment reload gaps, unsupported fallback, credential intake, or approval pauses.
+  - Added tests `test-shared-reconciliation-engine.mjs` and `test-shared-reconciliation-continuation-policy.mjs`, and added both to the test manifest.
+- Runtime behavior:
+  - Continuation checkpoints must include actor scope, resource scope, resource fingerprint, current stage, interruption signal, resume metadata, and `secrets_included=false`.
+  - Direct resume is allowed only when the current resource fingerprint still matches the checkpoint.
+  - Drifted resources require dry-run repair, verification, apply gate, audit, and then original-operation resume.
+  - The engine is shared across admin, tenant, user, and local/device flows, but authority remains scoped: tenant/user actors cannot reconcile platform or repository resources.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No `DROP`, `TRUNCATE`, broad `DELETE`, broad table conversion, or secret-payload mutation.
+- Evidence:
+  - `node test-shared-reconciliation-engine.mjs`: pass.
+  - `node test-shared-reconciliation-continuation-policy.mjs`: pass.
+  - `node scripts/run-test-manifest.mjs --grep shared-reconciliation`: pass.
+  - `node test-connection-capability-repair-before-fallback-policy.mjs`: pass.
+  - `node test-github-branch-maintenance-fallbacks.mjs`: pass.
+  - `node test-admin-workspace-authority-routes.mjs`: pass after local worktree dependency install.
+  - GitHub Actions on PR creation: CI success, Docs Agent success, PR Risk Labeler success for head `43c975fd`.
+- Operational note:
+  - Docs Agent added `docs/auto-docs-agent/pr-855.md` and requested this targeted ledger/checklist/governance update because the PR includes a policy migration.
+  - Local verification used a detached worktree and reported Node `v24.15.0` while the project engine requires `>=22 <23`; targeted tests still passed, and GitHub CI runs Node 22.
 
 ### 1. MySQL Registry Migration Baseline
 
@@ -1282,3 +1594,147 @@ Cloudflare/DNS export requires authenticated Cloudflare surface
 Full isolated DB import and isolated n8n boot test are recommended for full DR certification
 Automation intentionally disabled until off-device/key escrow are finalized
 ```
+
+---
+
+## Patch 26 — Tenant WordPress Validation Collation Repair and Documentation Alignment
+
+- Status: applied, codified, documented
+- Date: 2026-06-06
+- Production DB repair: applied narrowly to `user_app_connections.connection_id` and `user_app_connections.app_key`
+- Runtime code PRs: #684, #690
+- Schema codification PR: #699
+- Documentation PR: #702
+- Incident runbook: `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`
+
+### Scope
+
+A tenant WordPress CMS connection was `status: active` but remained `validation_status: pending_validation` because the credential-intake status route was blocked by a platform mixed-collation join error. This was a platform validation-path issue, not proof of bad tenant WordPress credentials.
+
+### Confirmed failing joins before repair
+
+```text
+user_app_connections.connection_id -> credential_intake_sessions.connection_id
+workspace_app_links.connection_id -> user_app_connections.connection_id
+app_integrations.app_key -> user_app_connections.app_key
+platform_plugin_smoke_certifications.connection_id -> user_app_connections.connection_id
+```
+
+The failure class was `ER_CANT_AGGREGATE_2COLLATIONS`.
+
+### Production repair
+
+```sql
+ALTER TABLE user_app_connections
+  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  MODIFY connection_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  MODIFY app_key VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;
+```
+
+No encrypted credential payload, token, JSON, secret, or user-entered credential field was modified.
+
+### Codified files
+
+```text
+http-generic-api/migrations/208_sprint67_user_app_connection_runtime_collation_repair.sql
+http-generic-api/test-runtime-collation-safe-joins.mjs
+http-generic-api/test-db-collation-guard.mjs
+http-generic-api/routes/tenantLifecycleRoutes.js
+http-generic-api/appConnectionResolver.js
+http-generic-api/platformPluginSmokeRecertification.js
+```
+
+### Documentation updates
+
+```text
+docs/tenant-wordpress-validation-collation-repair-2026-06-06.md
+docs/tenant-gpt-operating-guide.md
+GPT_Tenant_Connector_Knowledge.md
+deployment_parity_checklist.md
+docs/hostinger-node-deploy.md
+```
+
+### Verification
+
+```text
+previously failing raw joins now execute
+credential-intake status reads back the WordPress connection row
+release_readiness passed 66/66 after repair
+PR #699 CI green and merged
+PR #702 CI green and merged
+```
+
+### Remaining operational note
+
+Hostinger/LiteSpeed may continue serving an older `SERVICE_VERSION` until process reload. The DB hotfix cleared the live validation blocker immediately; merged code fixes become active after the next production process restart/redeploy.
+
+## Patch 27 - Support Ticket External Delivery Completion Certification
+
+### Scope
+
+Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery_completion_certification.sql`. The patch closes the Support Ticket External Delivery AM-1..AM-16 certification surface while keeping live provider dispatch gated.
+
+### Runtime/API surface
+
+- Route: `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification`.
+- Tool: `support_ticket_external_delivery_completion_certify`.
+- OpenAPI: `http-generic-api/openapi.yaml` documents request, responses, auth, no-send flags, and error envelopes.
+
+### Safety boundary
+
+- No SMTP or nodemailer implementation.
+- No webhook/fetch/axios external network call.
+- `sandbox` returns no-network mock provider evidence.
+- `live_send` remains disabled by default and blocked behind tenant enablement, approval, credential readiness, idempotency, and release readiness gates.
+- Responses must include `external_send_performed: false` and `secrets_included: false`.
+
+### Verification
+
+- CI passed on PR #1270 and on `main` after merge.
+- Guarded migration apply recorded `906_sprint68_ticket_external_delivery_completion_certification.sql` with 8 statements, preflight pass, zero risk, zero destructive statements, and no secrets.
+- This documentation alignment patch updates OpenAPI and the required documentation targets after Docs Agent identified missing contract docs.
+## Sprint 69 capability evidence surface contracts
+
+- `312_sprint69_platform_tool_dispatch_integrity_scope_fix.sql` narrows `v_platform_tool_dispatch_integrity` to the declared admin/tenant scope without provider calls, credential reads, external sends, or runtime mutation.
+- `314_sprint69_capability_authority_evidence_projection.sql` projects evidence only from active `platform_tool_dispatch_bindings` rows with a named readback policy, then rebuilds capability maturity/gap views without granting dispatch or apply authority.
+## Sprint 69 supervisor causal provider certification surface
+
+- `1008_sprint69_supervisor_causal_provider_certification_tool.sql` registers the bounded `supervisor_causal_provider_certification` admin tool. Migration execution itself performs no provider call, credential read, external send/write, or secret return. Runtime certification remains confirmation-gated, no-tool, no-repository-mutation, no-local-execution, bounded-cost, and readback/audit governed.
+## Sprint 69 explicit manual delegation surfaces
+
+- `1009_sprint69_optional_manual_agent_delegation_tools.sql` registers explicit, admin-governed manual delegation creation/dispatch/contract tools. Migration execution performs no provider call, credential read, external send/write, or secret return; runtime delegation remains opt-in and confirmation/authorization governed.
+- `1010_sprint69_disable_legacy_agent_chain_dispatch_tool.sql` disables the ambiguous legacy dispatch surface and directs callers to `agent_chain_event_dispatch_manual`. It is a guarded registry update only and performs no provider call, credential read, external send/write, or secret return.
+## Sprint 69 daily database lifecycle evidence snapshot runtime
+
+- `318_sprint69_database_lifecycle_daily_snapshot_runtime.sql` adds the `database_lifecycle_snapshot_daily` schedule at `0 3 * * *` UTC and an internal-runtime binding for evidence-only snapshot creation.
+- Snapshot persistence and the schedule fields `last_readiness_at` and `last_snapshot_id` are committed in one transaction. A same-cycle `FOR UPDATE` readback must match the written snapshot or the transaction rolls back with a stable error code.
+- The existing weekly schedule remains `0 3 * * 1` UTC and becomes human review-only. Daily runtime never executes retention actions, archive, delete, drop, truncate, compaction, provider calls, credential reads, external writes, or secret return; `secrets_included=false`.
+
+## Sprint 69 database lifecycle registry upsert Admin tool
+
+- `316_sprint69_database_lifecycle_registry_upsert_admin_tool.sql` registers the bounded `database_table_lifecycle_registry_upsert` Admin tool through `/admin/control` and persists its governed migration authorization metadata.
+- Runtime defaults to missing-only dry-run. Missing-only apply requires `APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT`; existing-row refresh additionally requires `--include-existing` and `APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_REFRESH_EXISTING`.
+- Apply is transactional and must pass same-cycle readback with `remaining_missing_count=0`. The change performs no provider call, credential payload read, raw-secret return, external send/write, table drop, truncate, delete, archive execution, or compaction; `secrets_included=false`.
+
+## Sprint 69 Capability Vault record-only tool export
+
+- `315_sprint69_capability_vault_record_tool_export.sql` exports the already implemented admin-only `/platform/capability-vault/repo-ingestion-record` route through `admin_platform_endpoint_tools` and binds it to `capability_vault_record_only_same_cycle_v1`. The tool remains confirmation-gated, transactional, audited, idempotent, no-execution, no-install, no-external-send, and no-secret.
+
+## Capability Assurance Graph ΓÇö Migration 314
+
+- http-generic-api/migrations/314_sprint69_capability_assurance_graph.sql adds the canonical capability graph, invocation evidence links, capability-specific resource bindings, generic certifications, provenance, debt, closure threads, and hash-only secret movement evidence.
+- Apply remains envelope-gated, additive, no-provider-call, and no-plaintext-secret.
+- Local connector recovery enforces `cloudflare_1033_retry_before_repair_v1`: three total bounded health attempts, early stop on pass or authorization-gated reachability, and installer generation only after retry exhaustion. Migration `1015_sprint69_local_connector_transient_retry_policy.sql` registers the blocking SQL policy and updates the governed tool description.
+
+## Durable governed response chunk persistence
+
+- `20260618_governed_tool_response_chunks.sql` adds the durable MySQL authority for oversized governed tool-response continuation while preserving the existing in-process cache as a hot cache.
+- `1018_sprint69_governed_response_chunk_schema_reconciliation.sql` aligns pre-existing tables to the durable contract, creates `v_governed_response_chunk_schema_readiness`, registers exact migration reconciliation rules and authorization, and enables the SQL-configured automatic scheduler. Surface-governance closure requires the exact markers `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`, plus explicit coverage in Docs Agent and change-governance documentation before production bootstrap.
+- `governedMigrationReconciliationRuntime.js` connects the existing reconciler to the Dynamic Audit startup/interval cycle under its MySQL advisory lock. It delegates only to `governed-migration-reconciler.mjs`; it never executes raw SQL.
+- Automatic apply remains deny-by-default: exact active rule, DB authorization, static preflight `pass`, typed runner confirmation, ledger evidence, and same-cycle schema readback are mandatory. Missing evidence produces blocked or skipped status.
+- Runtime rollout must prove schema readiness, record-only reconciliation of the original migration, idempotent second-cycle behavior, SQL persistence before `chunk_id`, cache-miss recovery, Unicode reconstruction, expiry handling, and no-secret enforcement.
+
+## Sprint 69 passive capability-resolution dry-run descriptor
+
+- `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
+- Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.

@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_override_requests",
+  "source_table": "container_override_requests",
+  "reason": "Excluded because it stores internal approval-gated override requests and consumption evidence. It is not a general activation discovery surface.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

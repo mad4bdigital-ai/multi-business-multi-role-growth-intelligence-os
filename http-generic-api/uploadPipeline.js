@@ -170,11 +170,38 @@ export async function uploadContentToDrive(content, filename, mimeType, userEmai
   };
 }
 
-export async function createGoogleDocInDrive(name, parentId, initialText = "") {
+export async function createGoogleDocFromTextInDrive(name, parentId, text = "") {
   if (!parentId) throw new Error("parentId is required to create a Google Doc");
   const drive = getDrive();
   const safeName = String(name || "Session Transcript").replace(/[^\w.\- ]/g, "_");
+  const created = await drive.files.create({
+    requestBody: {
+      name: safeName,
+      parents: [parentId],
+      mimeType: "application/vnd.google-apps.document",
+    },
+    media: {
+      mimeType: "text/plain",
+      body: Readable.from([text || ""]),
+    },
+    supportsAllDrives: true,
+    fields: "id,webViewLink,name,mimeType",
+  });
+  return {
+    drive_file_id: created.data.id,
+    drive_web_url: created.data.webViewLink || null,
+    name: created.data.name,
+  };
+}
 
+export async function createGoogleDocInDrive(name, parentId, initialText = "") {
+  if (!parentId) throw new Error("parentId is required to create a Google Doc");
+  if (initialText) {
+    return createGoogleDocFromTextInDrive(name, parentId, initialText);
+  }
+
+  const drive = getDrive();
+  const safeName = String(name || "Session Transcript").replace(/[^\w.\- ]/g, "_");
   const created = await drive.files.create({
     requestBody: {
       name: safeName,
@@ -185,10 +212,6 @@ export async function createGoogleDocInDrive(name, parentId, initialText = "") {
     fields: "id,webViewLink,name,mimeType",
   });
 
-  if (initialText) {
-    await appendTextToGoogleDoc(created.data.id, initialText);
-  }
-
   return {
     drive_file_id: created.data.id,
     drive_web_url: created.data.webViewLink || null,
@@ -196,10 +219,33 @@ export async function createGoogleDocInDrive(name, parentId, initialText = "") {
   };
 }
 
-export async function appendTextToGoogleDoc(documentId, text) {
-  if (!documentId) throw new Error("documentId is required");
-  if (!text) return { ok: true, skipped: true };
-  const docs = getDocs();
+function isRetryableGoogleDocAppendError(err) {
+  const message = String(err?.message || "").toLowerCase();
+  const status = Number(err?.code || err?.status || err?.response?.status || 0);
+  return status === 400 || status === 409 || message.includes("precondition") || message.includes("stale") || message.includes("conflict");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function appendTextToGoogleDocAtEndOfSegment(docs, documentId, text) {
+  await docs.documents.batchUpdate({
+    documentId,
+    requestBody: {
+      requests: [
+        {
+          insertText: {
+            endOfSegmentLocation: {},
+            text,
+          },
+        },
+      ],
+    },
+  });
+}
+
+async function appendTextToGoogleDocByIndex(docs, documentId, text) {
   const doc = await docs.documents.get({
     documentId,
     fields: "body(content(endIndex))",
@@ -219,7 +265,32 @@ export async function appendTextToGoogleDoc(documentId, text) {
       ],
     },
   });
-  return { ok: true };
+}
+
+export async function appendTextToGoogleDoc(documentId, text) {
+  if (!documentId) throw new Error("documentId is required");
+  if (!text) return { ok: true, skipped: true };
+  const docs = getDocs();
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await appendTextToGoogleDocAtEndOfSegment(docs, documentId, text);
+      return { ok: true, attempts: attempt, method: "end_of_segment" };
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxAttempts || !isRetryableGoogleDocAppendError(err)) break;
+      await sleep(150 * attempt);
+    }
+  }
+
+  try {
+    await appendTextToGoogleDocByIndex(docs, documentId, text);
+    return { ok: true, attempts: maxAttempts + 1, method: "index_fallback" };
+  } catch (fallbackErr) {
+    fallbackErr.message = `Google Doc append failed after end_of_segment and index fallback: ${fallbackErr.message || lastError?.message || "unknown error"}`;
+    throw fallbackErr;
+  }
 }
 
 export async function updateDriveFileContent(driveFileId, content, mimeType = "text/plain") {

@@ -58,6 +58,66 @@ function toolsToAnthropic(tools = []) {
   }));
 }
 
+function sanitizeUpstreamErrorBody(text = "") {
+  return String(text || "")
+    .replace(/(authorization\s*:\s*bearer\s+)[^\s\"'`]+/gi, "$1[REDACTED]")
+    .replace(/(x-api-key\s*:\s*)[^\s\"'`]+/gi, "$1[REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|token|password|secret|private[_-]?key)\s*[=:]\s*)[^\s,;\"'`]+/gi, "$1[REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|token|password|secret|private[_-]?key)\"\s*:\s*\")[^\"]+/gi, "$1[REDACTED]")
+    .slice(0, 500);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(headers, attempt, config = {}) {
+  const retryAfter = headers?.get?.("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, Math.min(seconds * 1000, 30_000));
+    const retryAt = Date.parse(retryAfter);
+    if (!Number.isNaN(retryAt)) return Math.max(0, Math.min(retryAt - Date.now(), 30_000));
+  }
+  const base = Math.max(250, Math.min(Number(config.retry_base_ms || process.env.MODEL_PROVIDER_RETRY_BASE_MS || 1000), 10_000));
+  return Math.min(base * (2 ** attempt), 30_000);
+}
+
+function shouldRetryModelStatus(status) {
+  return [429, 500, 502, 503, 504].includes(Number(status));
+}
+
+async function fetchModelJsonWithRetry({ provider, fetchFn, url, request, normalize, config = {} }) {
+  const maxRetries = Math.max(0, Math.min(Number(config.max_retries ?? process.env.MODEL_PROVIDER_MAX_RETRIES ?? 1), 5));
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const res = await fetchFn(url, request);
+    if (res.ok) return normalize(await res.json());
+
+    const body = sanitizeUpstreamErrorBody(await res.text().catch(() => ""));
+    lastError = new Error(`${provider} API ${res.status}: ${body}`);
+    lastError.status = res.status;
+
+    if (attempt < maxRetries && shouldRetryModelStatus(res.status)) {
+      const delayMs = parseRetryAfterMs(res.headers, attempt, config);
+      console.warn("[modelAdapter] retrying model provider request", {
+        provider: String(provider || "").toLowerCase(),
+        status: res.status,
+        attempt: attempt + 1,
+        max_retries: maxRetries,
+        delay_ms: delayMs,
+      });
+      await sleep(delayMs);
+      continue;
+    }
+
+    throw lastError;
+  }
+
+  throw lastError || new Error(`${provider} API request failed`);
+}
+
 async function callAnthropic(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
   const apiKey = config.api_key || process.env.ANTHROPIC_API_KEY;
@@ -95,10 +155,71 @@ async function callOpenAI(messages, tools, config = {}) {
   return normalizeOpenAIResponse(await res.json());
 }
 
+async function callOpenRouter(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const apiKey = config.api_key || process.env.OPENROUTER_API_KEY;
+  const model = config.model || "openrouter/free";
+
+  const body = { model, messages };
+  if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
+  if (config.max_tokens) body.max_tokens = config.max_tokens;
+
+  const headers = {
+    authorization: `Bearer ${apiKey}`,
+    "content-type": "application/json",
+  };
+  const siteUrl = config.site_url || process.env.OPENROUTER_SITE_URL;
+  const appName = config.app_name || process.env.OPENROUTER_APP_NAME;
+  if (siteUrl) headers["HTTP-Referer"] = siteUrl;
+  if (appName) headers["X-Title"] = appName;
+
+  const res = await _fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`OpenRouter API ${res.status}: ${await res.text()}`);
+  return normalizeOpenAIResponse(await res.json());
+}
+
+async function callOllama(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const model = config.model || process.env.OLLAMA_MODEL || "qwen3:8b";
+  const baseUrl = String(config.base_url || process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
+  const body = { model, messages, stream: false };
+  if (tools.length) body.tools = tools;
+  const res = await _fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Ollama API ${res.status}: ${sanitizeUpstreamErrorBody(await res.text())}`);
+  const raw = await res.json();
+  return {
+    content: raw.message?.content || "",
+    tool_calls: raw.message?.tool_calls || [],
+    tokens_used: Number(raw.prompt_eval_count || 0) + Number(raw.eval_count || 0),
+  };
+}
+
+async function callOpenAICompatible(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const model = config.model || process.env.LOCAL_OPENAI_COMPATIBLE_MODEL || "local-model";
+  const baseUrl = String(config.base_url || process.env.LOCAL_OPENAI_COMPATIBLE_BASE_URL || "http://127.0.0.1:8000/v1").replace(/\/$/, "");
+  const body = { model, messages };
+  if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
+  const headers = { "content-type": "application/json" };
+  const apiKey = config.api_key || process.env.LOCAL_OPENAI_COMPATIBLE_API_KEY;
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  const res = await _fetch(`${baseUrl}/chat/completions`, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`OpenAI-compatible API ${res.status}: ${sanitizeUpstreamErrorBody(await res.text())}`);
+  return normalizeOpenAIResponse(await res.json());
+}
+
 async function callGemini(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
-  const apiKey = config.api_key || process.env.GOOGLE_AI_API_KEY;
-  const model  = config.model  || "gemini-1.5-pro";
+  const apiKey = config.api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  const model  = config.model  || "gemini-3.5-flash";
   const system = messages.find(m => m.role === "system")?.content;
   const contents = messages
     .filter(m => m.role !== "system")
@@ -108,23 +229,37 @@ async function callGemini(messages, tools, config = {}) {
   if (system) body.systemInstruction = { parts: [{ text: system }] };
   if (tools.length) body.tools = [{ functionDeclarations: toolsToGemini(tools) }];
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const res = await _fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  return fetchModelJsonWithRetry({
+    provider: "Gemini",
+    fetchFn: _fetch,
+    url,
+    request: {
+      method: "POST",
+      headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    normalize: normalizeGeminiResponse,
+    config,
   });
-  if (!res.ok) throw new Error(`Gemini API ${res.status}: ${await res.text()}`);
-  return normalizeGeminiResponse(await res.json());
 }
 
-const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, gemini: callGemini };
+const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini, ollama: callOllama, openai_compatible: callOpenAICompatible };
 
 // Returns a callModel(messages, tools) function bound to the chosen provider.
-// provider: "anthropic" | "openai" | "gemini"  (default: anthropic)
+// provider: "anthropic" | "openai" | "openrouter" | "gemini"  (default: anthropic)
 export function buildCallModel(config = {}) {
   const provider = String(config.provider || process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
   const caller = PROVIDERS[provider];
-  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | gemini`);
-  return (messages, tools = []) => caller(messages, tools, config);
+  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini | ollama | openai_compatible`);
+  const modelKey = config.model || process.env.AGENT_MODEL || process.env.OPENROUTER_MODEL || process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.ANTHROPIC_MODEL || "unknown";
+  const callModel = async (messages, tools = []) => {
+    const response = await caller(messages, tools, config);
+    return { ...response, provider_key: provider, model_key: modelKey };
+  };
+  callModel.provider_key = provider;
+  callModel.providerKey = provider;
+  callModel.model_key = modelKey;
+  callModel.modelKey = modelKey;
+  return callModel;
 }

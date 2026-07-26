@@ -7,6 +7,8 @@ import {
   configureJobRunner,
   executeJobThroughHttpEndpoint
 } from "./jobRunner.js";
+import { DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE } from "./databaseTableLifecycle.js";
+import { HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE } from "./hostingerSshDeployExecutor.js";
 
 let passed = 0;
 let failed = 0;
@@ -105,7 +107,152 @@ section("jobRunner — enqueueJob");
   assert("enqueueJob preserves queue error message", result?.error?.message === "Redis unavailable", JSON.stringify(result));
 }
 
+section("jobRunner — Hostinger SSH probe job dispatch");
+
+{
+  const probeJob = {
+    job_id: "job_hostinger_probe_1",
+    job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: {
+      target_id: "target-hostinger",
+      app_key: "auth.mad4b.com",
+      app_path: "/home/u338416126/domains/auth.mad4b.com/nodejs",
+      expected_commit_sha: "8b86c9498b5d327ca51025dbe60a28c85c8dea39",
+      ssh_auth_mode: "password",
+      activate_on_success: true,
+      approval_reason: "approved read-only Hostinger SSH probe queue worker test",
+      timeout_ms: 120000,
+      secrets_included: false,
+    },
+    parent_action_key: "remote_runtime_hostinger_ssh_probe_worker",
+    endpoint_key: "remote_runtime_hostinger_ssh_probe",
+    target_key: "target-hostinger",
+    route_id: "remote_runtime_hostinger_ssh_probe_queue_worker",
+    target_module: "remote_runtime",
+    target_workflow: "wf_hostinger_ssh_target_probe_queue_worker",
+    brand_name: "",
+    execution_trace_id: "",
+  };
+  const calls = [];
+  const runner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(probeJob),
+      async executeSiteMigrationJob() { return { success: false, statusCode: 500, payload: { ok: false } }; },
+      async performUniversalServerWriteback(payload) { calls.push({ type: "writeback", payload }); },
+      async logRetryWriteback() {}
+    },
+    {
+      async runHostingerSshTargetProbeJob(payload) {
+        calls.push({ type: "probe", payload });
+        return { ok: true, probe: { ok: true }, execution: { executed: true, readonly_probe_only: true, target_activated: true }, secrets_included: false };
+      }
+    }
+  );
+  await runner.executeSingleQueuedJob(probeJob);
+  assert("Hostinger probe job invokes worker runner", calls.some(call => call.type === "probe"), JSON.stringify(calls));
+  assert("Hostinger probe job succeeds", probeJob.status === "succeeded", probeJob.status);
+  assert("Hostinger probe job returns no secrets", probeJob.result_payload?.secrets_included === false, JSON.stringify(probeJob.result_payload));
+}
+
+section("jobRunner — stuck Hostinger probe job times out and fails safely");
+
+{
+  const stuckProbeJob = {
+    job_id: "job_hostinger_probe_stuck",
+    job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: {
+      target_id: "target-hostinger",
+      app_key: "auth.mad4b.com",
+      app_path: "/home/u338416126/domains/auth.mad4b.com/nodejs",
+      expected_commit_sha: "8b86c9498b5d327ca51025dbe60a28c85c8dea39",
+      ssh_auth_mode: "password",
+      activate_on_success: true,
+      approval_reason: "approved read-only Hostinger SSH probe timeout guard test",
+      timeout_ms: 120000,
+      secrets_included: false,
+    },
+    parent_action_key: "remote_runtime_hostinger_ssh_probe_worker",
+    endpoint_key: "remote_runtime_hostinger_ssh_probe",
+    target_key: "target-hostinger",
+    route_id: "remote_runtime_hostinger_ssh_probe_queue_worker",
+    target_module: "remote_runtime",
+    target_workflow: "wf_hostinger_ssh_target_probe_queue_worker",
+    brand_name: "",
+    execution_trace_id: "",
+  };
+  const calls = [];
+  const runner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(stuckProbeJob),
+      async executeSiteMigrationJob() { return { success: false, statusCode: 500, payload: { ok: false } }; },
+      async performUniversalServerWriteback(payload) { calls.push({ type: "writeback", payload }); },
+      async logRetryWriteback() {}
+    },
+    {
+      jobExecutionTimeoutMs: 25,
+      async runHostingerSshTargetProbeJob() {
+        return await new Promise(() => {});
+      }
+    }
+  );
+  await runner.executeSingleQueuedJob(stuckProbeJob);
+  assert("stuck Hostinger probe job fails", stuckProbeJob.status === "failed", stuckProbeJob.status);
+  assert("stuck Hostinger probe job has stale timeout code", stuckProbeJob.error_payload?.error?.code === "job_execution_stale_timeout", JSON.stringify(stuckProbeJob.error_payload));
+  assert("stuck Hostinger probe job returns no secrets", stuckProbeJob.error_payload?.secrets_included === false, JSON.stringify(stuckProbeJob.error_payload));
+  assert("stuck Hostinger probe writes async failure evidence", calls.some(call => call.type === "writeback"), JSON.stringify(calls));
+}
+
 section("jobRunner — solver with null sheetsClient fails fast (no retries)");
+
+{
+  const lifecycleJob = {
+    job_id: "job_lifecycle_snapshot",
+    job_type: DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: { schedule_key: "database_lifecycle_retention_plan_weekly", summary_only: true },
+    parent_action_key: "database_lifecycle_scheduler",
+    endpoint_key: "database_lifecycle_report_snapshot",
+    target_key: "database_lifecycle_retention_plan_weekly",
+    route_id: "database_lifecycle_scheduler_snapshot_runner",
+    target_module: "database_lifecycle",
+    target_workflow: "wf_database_lifecycle_report_snapshot",
+    brand_name: "",
+    execution_trace_id: ""
+  };
+  const lifecycleCalls = [];
+  const lifecycleRunner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(lifecycleJob),
+      async executeSiteMigrationJob() {
+        return { success: false, statusCode: 500, payload: { ok: false } };
+      },
+      async performUniversalServerWriteback(payload) {
+        lifecycleCalls.push({ type: "writeback", payload });
+      },
+      async logRetryWriteback() {}
+    },
+    {
+      async runDatabaseLifecycleSchedulerSnapshot(payload) {
+        lifecycleCalls.push({ type: "runner", payload });
+        return { ok: true, mode: "dry_run", dry_run: true, will_write: false, secrets_included: false };
+      }
+    }
+  );
+  await lifecycleRunner.executeSingleQueuedJob(lifecycleJob);
+  assert("lifecycle snapshot job invokes governed runner", lifecycleCalls.some(call => call.type === "runner"), JSON.stringify(lifecycleCalls));
+  assert("lifecycle snapshot job succeeds", lifecycleJob.status === "succeeded", JSON.stringify(lifecycleJob));
+  assert("lifecycle snapshot job writes async evidence", lifecycleCalls.some(call => call.type === "writeback"), JSON.stringify(lifecycleCalls));
+}
+
+section("jobRunner - solver with null sheetsClient fails fast (no retries)");
 
 {
   const solverJob0 = {

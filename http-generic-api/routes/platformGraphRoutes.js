@@ -8,7 +8,7 @@ import {
   resolvePlatformGraphContext,
   validatePlatformKnowledgeGraph,
 } from "../services/platformKnowledgeGraphResolver.js";
-import { resolveGraphRelevantAssets } from "../services/platformGraphMemoryResolver.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
@@ -64,14 +64,29 @@ export function buildPlatformGraphRoutes({ requireBackendApiKey, requireAdminPri
 
   router.post("/platform/graph/memory", ...requireAdmin, async (req, res) => {
     try {
+      await ensurePlatformGraphTables();
       const input = req.body && typeof req.body === "object" ? req.body : {};
-      const result = await resolveGraphRelevantAssets({
+      const graphContext = await resolvePlatformGraphContext({
         ...input,
         depth: sanitizeInt(input.depth, 2, 0, 3),
-        limit: sanitizeInt(input.limit, 12, 1, 50),
+        limit: sanitizeInt(input.graph_limit || input.limit, 120, 1, 500),
       });
-      await logGraphQuery({ queryType: "memory", input, result });
-      return res.status(200).json(result);
+      const memory = await resolvePlatformGraphMemory({
+        input,
+        graphContext,
+        limit: sanitizeInt(input.memory_limit || input.limit, 8, 1, 25),
+      });
+      await logGraphQuery({
+        queryType: "memory",
+        input,
+        result: {
+          node_count: graphContext.node_count,
+          edge_count: graphContext.edge_count,
+          memory_asset_count: memory.asset_count,
+          validation_state: graphContext.validation_state,
+        },
+      });
+      return res.status(200).json({ ok: true, graph_context: graphContext, graph_memory: memory, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "platform_graph_memory_failed", message: err.message }, secrets_included: false });
     }

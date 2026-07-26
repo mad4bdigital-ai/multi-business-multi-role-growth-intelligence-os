@@ -317,6 +317,13 @@ export async function loadActionsRegistry(sheets) {
       openai_schema_file_id: r.openai_schema_file_id || "",
       oauth_config_file_id: r.oauth_config_file_id || "",
       oauth_config_file_name: r.oauth_config_file_name || "",
+      oauth_config_ref: r.oauth_config_ref || "",
+      oauth_client_id_ref: r.oauth_client_id_ref || "",
+      oauth_client_secret_ref: r.oauth_client_secret_ref || "",
+      oauth_secret_storage_type: r.oauth_secret_storage_type || "",
+      oauth_binding_status: r.oauth_binding_status || "",
+      runtime_binding_profile: r.runtime_binding_profile || "",
+      required_variable_contracts: r.required_variable_contracts || "",
       runtime_capability_class: r.runtime_capability_class || "",
       runtime_callable: r.runtime_callable || "",
       primary_executor: r.primary_executor || "",
@@ -1434,7 +1441,7 @@ export async function deleteActionsRegistryRow(input = {}) {
 }
 
 export async function fetchFromGoogleSheets() {
-  const { sheets, drive } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
   const [
     brandRows,
     hostingAccounts,
@@ -1460,7 +1467,6 @@ export async function fetchFromGoogleSheets() {
   ]);
 
   return {
-    drive,
     brandRows,
     hostingAccounts,
     actionRows,
@@ -1687,7 +1693,7 @@ export async function ensureSiteMigrationRouteWorkflowRows() {
     fallbackColumns: WORKFLOW_REGISTRY_CANONICAL_COLUMNS
   });
 
-  const { sheets } = await getGoogleClients();
+  const { sheets } = await getGoogleClients({ action_key: "google_sheets_api" });
 
   const taskRoutes = await loadTaskRoutesRegistry(sheets, {
     include_candidate_inspection: true

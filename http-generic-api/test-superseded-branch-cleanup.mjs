@@ -1,0 +1,454 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  GITHUB_SUPERSEDED_BRANCH_CLEANUP_VERSION,
+  buildSupersededBranchCleanupEvidence,
+  runGithubSupersededBranchCleanup,
+  supersededBranchCleanupConfirmation,
+  supersededBranchCleanupFingerprint,
+} from "./githubSupersededBranchCleanup.js";
+
+const owner = "mad4bdigital-ai";
+const repo = "multi-business-multi-role-growth-intelligence-os";
+const branch = "gpt/migration-245-collation-immutability-20260614";
+const orphanBranch = "gpt/safe-branch-cleanup-support-v2-20260616";
+const baseSha = "b".repeat(40);
+const branchSha = "a".repeat(40);
+const migrationCommit = "1".repeat(40);
+const testCommit = "2".repeat(40);
+const migrationFile = "http-generic-api/migrations/245_sprint68_agent_governance_runtime.sql";
+const testFile = "http-generic-api/test-agent-governance-runtime.mjs";
+const generatedFile = "docs/auto-docs-agent/pr-1579.md";
+const legacyDashboardMigrationFile = "http-generic-api/migrations/1039_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationFile = "http-generic-api/migrations/1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationName = "1040_sprint69_capability_enablement_operational_dashboard.sql";
+const appliedDashboardMigrationChecksum = "2282274085d80d987d2117f22aa92cdb724209bf6a9c325d1ad16515f8897d77";
+const appliedDashboardCommit = "7".repeat(40);
+const policy = {
+  allow_superseded_closed_pr_branch_delete: true,
+  superseded_branch_delete_requires_closed_pr: true,
+  superseded_branch_delete_requires_no_open_pr: true,
+  superseded_branch_delete_requires_main_ancestor_replacement: true,
+  superseded_branch_delete_requires_changed_file_coverage: true,
+  superseded_branch_delete_requires_fresh_sha_evidence: true,
+  superseded_branch_delete_requires_capability_envelope: true,
+  superseded_branch_delete_requires_same_cycle_readback: true,
+  allow_superseded_orphan_branch_delete: true,
+  superseded_orphan_branch_requires_no_matching_pr: true,
+  superseded_orphan_branch_requires_main_ancestor_replacement: true,
+  superseded_orphan_branch_requires_changed_file_coverage: true,
+  superseded_orphan_branch_requires_content_equivalence: true,
+  superseded_orphan_branch_requires_fresh_sha_evidence: true,
+  superseded_orphan_branch_requires_capability_envelope: true,
+  superseded_orphan_branch_requires_same_cycle_readback: true,
+  superseded_branch_delete_generated_path_prefixes: ["docs/auto-docs-agent/"],
+  superseded_branch_delete_required_label: "superseded",
+  superseded_branch_delete_max_ahead_commits: 20,
+  superseded_branch_delete_max_replacement_commits: 20,
+  superseded_branch_delete_max_changed_files: 100,
+};
+
+let deleted = false;
+let deleteCalls = 0;
+let auditCalls = 0;
+const auditActions = [];
+const response = (status, payload = {}) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  async json() { return payload; },
+});
+const fetchImpl = async (url, options = {}) => {
+  const parsed = new URL(url);
+  const apiPath = `${parsed.pathname}${parsed.search}`;
+  if (options.method === "DELETE" && apiPath.includes(`/git/refs/heads/${branch}`)) {
+    assert.equal(options.body, undefined, "DELETE ref request must not send a synthetic JSON body");
+    deleteCalls += 1;
+    deleted = true;
+    return response(204, {});
+  }
+  if (apiPath.includes("/git/ref/heads/main")) return response(200, { object: { sha: baseSha } });
+  if (apiPath.includes(`/git/ref/heads/${branch}`)) return deleted ? response(404, { message: "Not Found" }) : response(200, { object: { sha: branchSha } });
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 3,
+      behind_by: 70,
+      files: [{ filename: migrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  if (apiPath.includes("/pulls?")) {
+    return response(200, [{
+      number: 1579,
+      state: "closed",
+      head: { ref: branch, repo: { full_name: `${owner}/${repo}` } },
+      base: { ref: "main" },
+      labels: [{ name: "superseded" }],
+    }]);
+  }
+  if (apiPath.includes(`/commits/${migrationCommit}`)) return response(200, { sha: migrationCommit, files: [{ filename: migrationFile }] });
+  if (apiPath.includes(`/commits/${testCommit}`)) return response(200, { sha: testCommit, files: [{ filename: testFile }] });
+  if (apiPath.includes(`/compare/${migrationCommit}...main`) || apiPath.includes(`/compare/${testCommit}...main`)) {
+    return response(200, { status: "ahead", ahead_by: 5, behind_by: 0 });
+  }
+  throw new Error(`Unexpected GitHub request: ${options.method || "GET"} ${apiPath}`);
+};
+
+const args = {
+  owner,
+  repo,
+  branch,
+  default_branch: "main",
+  superseding_commits: [migrationCommit, testCommit],
+};
+const deps = {
+  token: "test-token",
+  policy,
+  fetchImpl,
+  async writeAuditLog(payload) {
+    auditCalls += 1;
+    auditActions.push(payload.action);
+    assert.equal(payload.execution_context_json.secrets_included, false);
+    assert.equal(payload.correlation_id.length, 64);
+    return `audit-${auditCalls}`;
+  },
+};
+
+const dryRun = await buildSupersededBranchCleanupEvidence(args, deps);
+assert.equal(dryRun.adapter, GITHUB_SUPERSEDED_BRANCH_CLEANUP_VERSION);
+assert.equal(dryRun.ready, true);
+assert.deepEqual(dryRun.blockers, []);
+assert.deepEqual(dryRun.pull_request_evidence.closed_pr_numbers, [1579]);
+assert.deepEqual(dryRun.pull_request_evidence.open_pr_numbers, []);
+assert.deepEqual(dryRun.pull_request_evidence.labeled_closed_pr_numbers, [1579]);
+assert.equal(dryRun.pull_request_evidence.required_label, "superseded");
+assert.deepEqual(dryRun.branch_evidence.uncovered_files, []);
+assert.deepEqual(dryRun.branch_evidence.generated_files, [generatedFile]);
+assert.equal(dryRun.applies_ref_delete, false);
+assert.equal(deleteCalls, 0);
+assert.equal(
+  dryRun.required_confirmation,
+  supersededBranchCleanupConfirmation(branch, dryRun.evidence_fingerprint)
+);
+assert.equal(dryRun.evidence_fingerprint.length, 64);
+assert.equal(supersededBranchCleanupFingerprint({ b: 1, a: 2 }), supersededBranchCleanupFingerprint({ a: 2, b: 1 }));
+
+const highAheadFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 53,
+      behind_by: 70,
+      files: [{ filename: migrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  return fetchImpl(url, options);
+};
+const fixedNow = Date.parse("2026-06-17T10:00:00.000Z");
+const validOverride = {
+  ...policy,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      max_ahead_commits: 60,
+      expected_branch_sha: branchSha,
+      expires_at: "2026-06-17T11:00:00.000Z",
+      reason: "One-time cleanup of a fully covered superseded branch.",
+    },
+  },
+};
+const highAheadAllowed = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: validOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadAllowed.ready, true);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.applied, true);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.global_max_ahead_commits, 20);
+assert.equal(highAheadAllowed.policy_evidence.branch_limit.effective_max_ahead_commits, 60);
+assert.deepEqual(highAheadAllowed.policy_evidence.branch_limit.validation_failures, []);
+
+const expiredOverride = {
+  ...validOverride,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      ...validOverride.superseded_branch_delete_branch_overrides[branch],
+      expires_at: "2026-06-17T09:00:00.000Z",
+    },
+  },
+};
+const highAheadExpired = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: expiredOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadExpired.ready, true);
+assert(!highAheadExpired.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadExpired.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
+assert(highAheadExpired.policy_evidence.branch_limit.validation_failures.includes("override_expired_or_invalid"));
+
+const mismatchedShaOverride = {
+  ...validOverride,
+  superseded_branch_delete_branch_overrides: {
+    [branch]: {
+      ...validOverride.superseded_branch_delete_branch_overrides[branch],
+      expected_branch_sha: "c".repeat(40),
+    },
+  },
+};
+const highAheadShaMismatch = await buildSupersededBranchCleanupEvidence(args, {
+  ...deps,
+  policy: mismatchedShaOverride,
+  fetchImpl: highAheadFetch,
+  now: fixedNow,
+});
+assert.equal(highAheadShaMismatch.ready, true);
+assert(!highAheadShaMismatch.blockers.includes("ahead_commit_limit_exceeded"));
+assert(highAheadShaMismatch.advisories.includes("ahead_commit_limit_exceeded_resolved_by_file_coverage"));
+assert(highAheadShaMismatch.policy_evidence.branch_limit.validation_failures.includes("override_branch_sha_mismatch"));
+
+await assert.rejects(
+  () => buildSupersededBranchCleanupEvidence({ ...args, branch: "main" }, deps),
+  (error) => error?.code === "admin_branch_reconcile_protected_branch"
+);
+
+const missingLabelFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes("/pulls?")) {
+    return response(200, [{
+      number: 1579,
+      state: "closed",
+      head: { ref: branch, repo: { full_name: `${owner}/${repo}` } },
+      base: { ref: "main" },
+      labels: [],
+    }]);
+  }
+  return fetchImpl(url, options);
+};
+const missingLabel = await buildSupersededBranchCleanupEvidence(args, { ...deps, fetchImpl: missingLabelFetch });
+assert.equal(missingLabel.ready, false);
+assert(missingLabel.blockers.includes("superseded_pull_request_label_required"));
+assert.equal(deleteCalls, 0);
+
+const incompleteCoverageFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/commits/${testCommit}`)) return response(200, { sha: testCommit, files: [] });
+  return fetchImpl(url, options);
+};
+const incompleteCoverage = await buildSupersededBranchCleanupEvidence(args, { ...deps, fetchImpl: incompleteCoverageFetch });
+assert.equal(incompleteCoverage.ready, false);
+assert(incompleteCoverage.blockers.includes("changed_file_coverage_incomplete"));
+assert.deepEqual(incompleteCoverage.branch_evidence.uncovered_files, [testFile]);
+assert.equal(deleteCalls, 0);
+
+const supersededMigrationFetch = async (url, options = {}) => {
+  const apiPath = `${new URL(url).pathname}${new URL(url).search}`;
+  if (apiPath.includes(`/compare/main...${encodeURIComponent(branch)}`)) {
+    return response(200, {
+      status: "diverged",
+      ahead_by: 3,
+      behind_by: 70,
+      files: [{ filename: legacyDashboardMigrationFile }, { filename: testFile }, { filename: generatedFile }],
+    });
+  }
+  if (apiPath.includes(`/commits/${appliedDashboardCommit}`)) return response(200, { sha: appliedDashboardCommit, files: [{ filename: appliedDashboardMigrationFile }] });
+  if (apiPath.includes(`/compare/${appliedDashboardCommit}...main`)) return response(200, { status: "ahead", ahead_by: 1, behind_by: 0 });
+  return fetchImpl(url, options);
+};
+const supersededMigrationArgs = {
+  ...args,
+  superseding_commits: [appliedDashboardCommit, testCommit],
+  coverage_resolutions: [{
+    file: legacyDashboardMigrationFile,
+    resolution_type: "migration_superseded_by_applied_migration",
+    superseded_by_file: appliedDashboardMigrationFile,
+    superseded_by_commit: appliedDashboardCommit,
+    expected_migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    expected_statement_count: 3,
+    reason: "Migration 1039 was intentionally not ported because migration 1040 superseded and applied the same operational dashboard intent.",
+  }],
+};
+const migrationLedger = {
+  [appliedDashboardMigrationName]: {
+    migration_file: appliedDashboardMigrationName,
+    mode: "apply",
+    migration_checksum_sha256: appliedDashboardMigrationChecksum,
+    statement_count: 3,
+    applied_at: "2026-07-07T20:58:00.000Z",
+  },
+};
+const supersededMigrationCovered = await buildSupersededBranchCleanupEvidence(supersededMigrationArgs, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
+assert.equal(supersededMigrationCovered.ready, true);
+assert.deepEqual(supersededMigrationCovered.blockers, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.uncovered_files, []);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.coverage_resolved_files, [legacyDashboardMigrationFile]);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].superseded_by_file, appliedDashboardMigrationFile);
+assert.equal(supersededMigrationCovered.branch_evidence.coverage_resolutions[0].migration_ledger_evidence.ledger_readback_found, true);
+assert.deepEqual(supersededMigrationCovered.branch_evidence.rejected_coverage_resolutions, []);
+
+const rejectedSupersededMigration = await buildSupersededBranchCleanupEvidence({
+  ...supersededMigrationArgs,
+  coverage_resolutions: [{
+    ...supersededMigrationArgs.coverage_resolutions[0],
+    superseded_by_file: "http-generic-api/migrations/9999_missing.sql",
+  }],
+}, { ...deps, fetchImpl: supersededMigrationFetch, migrationLedger });
+assert.equal(rejectedSupersededMigration.ready, false);
+assert(rejectedSupersededMigration.blockers.includes("coverage_resolution_rejected"));
+assert(rejectedSupersededMigration.blockers.includes("changed_file_coverage_incomplete"));
+assert.deepEqual(rejectedSupersededMigration.branch_evidence.uncovered_files, [legacyDashboardMigrationFile]);
+assert.equal(rejectedSupersededMigration.branch_evidence.rejected_coverage_resolutions[0].failures[0], "replacement_file_not_in_replacement_commit");
+
+const orphanMigrationBlob = "3".repeat(40);
+const orphanTestBlob = "4".repeat(40);
+function makeOrphanFetch({ withPr = false, mismatchFile = "" } = {}) {
+  return async (url, options = {}) => {
+    const parsed = new URL(url);
+    const apiPath = `${parsed.pathname}${parsed.search}`;
+    const decodedPath = decodeURIComponent(parsed.pathname);
+    if (apiPath.includes("/pulls?")) {
+      return response(200, withPr ? [{
+        number: 1700,
+        state: "closed",
+        head: { ref: orphanBranch, repo: { full_name: `${owner}/${repo}` } },
+        base: { ref: "main" },
+        labels: [{ name: "superseded" }],
+      }] : []);
+    }
+    if (decodedPath.includes("/git/ref/heads/main")) return response(200, { object: { sha: baseSha } });
+    if (decodedPath.includes(`/git/ref/heads/${orphanBranch}`)) return response(200, { object: { sha: branchSha } });
+    if (decodedPath.includes(`/compare/main...${orphanBranch}`)) {
+      return response(200, {
+        status: "diverged",
+        ahead_by: 2,
+        behind_by: 5,
+        files: [{ filename: migrationFile }, { filename: testFile }],
+      });
+    }
+    if (decodedPath.includes(`/contents/${migrationFile}`)) {
+      const isDefault = parsed.searchParams.get("ref") === baseSha;
+      return response(200, { type: "file", sha: isDefault && mismatchFile === migrationFile ? "5".repeat(40) : orphanMigrationBlob });
+    }
+    if (decodedPath.includes(`/contents/${testFile}`)) {
+      const isDefault = parsed.searchParams.get("ref") === baseSha;
+      return response(200, { type: "file", sha: isDefault && mismatchFile === testFile ? "6".repeat(40) : orphanTestBlob });
+    }
+    return fetchImpl(url, options);
+  };
+}
+const orphanArgs = { ...args, branch: orphanBranch, allow_orphan_branch: true };
+const orphanDryRun = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch() });
+assert.equal(orphanDryRun.ready, true);
+assert.equal(orphanDryRun.pull_request_evidence.lifecycle_mode, "orphan_branch");
+assert.equal(orphanDryRun.pull_request_evidence.matching_count, 0);
+assert.deepEqual(orphanDryRun.branch_evidence.content_mismatches, []);
+assert.equal(orphanDryRun.branch_evidence.content_equivalence_evidence.length, 2);
+assert(orphanDryRun.branch_evidence.content_equivalence_evidence.every((item) => item.content_equivalent));
+
+const orphanWithPr = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch({ withPr: true }) });
+assert.equal(orphanWithPr.ready, false);
+assert(orphanWithPr.blockers.includes("orphan_branch_requires_no_matching_pull_request"));
+
+const orphanMismatch = await buildSupersededBranchCleanupEvidence(orphanArgs, { ...deps, fetchImpl: makeOrphanFetch({ mismatchFile: testFile }) });
+assert.equal(orphanMismatch.ready, false);
+assert(orphanMismatch.blockers.includes("orphan_branch_content_not_equivalent_to_default"));
+assert.deepEqual(orphanMismatch.branch_evidence.content_mismatches, [testFile]);
+
+await assert.rejects(
+  () => runGithubSupersededBranchCleanup({
+    ...args,
+    mode: "apply",
+    expected_base_sha: dryRun.branch_evidence.base_ref_sha,
+    expected_branch_sha: dryRun.branch_evidence.branch_ref_sha,
+    expected_evidence_fingerprint: dryRun.evidence_fingerprint,
+    confirm: dryRun.required_confirmation,
+    reason: "Superseded by verified commits on main.",
+  }, deps),
+  (error) => error?.code === "github_superseded_branch_capability_envelope_required"
+);
+assert.equal(deleteCalls, 0);
+
+await assert.rejects(
+  () => runGithubSupersededBranchCleanup({
+    ...args,
+    mode: "apply",
+    expected_base_sha: baseSha,
+    expected_branch_sha: branchSha,
+    expected_evidence_fingerprint: "f".repeat(64),
+    confirm: dryRun.required_confirmation,
+    reason: "Superseded by verified commits on main.",
+    capability_envelope_id: "env-test",
+  }, deps),
+  (error) => error?.code === "github_superseded_branch_stale_evidence"
+);
+assert.equal(deleteCalls, 0);
+assert.equal(auditCalls, 0);
+
+const applied = await runGithubSupersededBranchCleanup({
+  ...args,
+  mode: "apply",
+  expected_base_sha: dryRun.branch_evidence.base_ref_sha,
+  expected_branch_sha: dryRun.branch_evidence.branch_ref_sha,
+  expected_evidence_fingerprint: dryRun.evidence_fingerprint,
+  confirm: dryRun.required_confirmation,
+  reason: "Superseded by verified commits already on main.",
+  capability_envelope_id: "env-test",
+}, deps);
+assert.equal(applied.deleted, true);
+assert.equal(applied.readback.branch_missing, true);
+assert.equal(applied.applies_ref_delete, true);
+assert.equal(deleteCalls, 1);
+assert.equal(auditCalls, 2);
+assert.deepEqual(auditActions, [
+  "github_superseded_branch_cleanup_intent",
+  "github_superseded_branch_cleanup_completed",
+]);
+assert.equal(applied.audit.intent_audit_id, "audit-1");
+assert.equal(applied.audit.completion_audit_id, "audit-2");
+assert.equal(applied.audit.completed, true);
+
+const routes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/311_sprint69_superseded_closed_pr_branch_cleanup.sql", import.meta.url), "utf8");
+const orphanMigration = readFileSync(new URL("./migrations/317_sprint69_superseded_orphan_branch_cleanup.sql", import.meta.url), "utf8");
+const pr1950OverrideMigration = readFileSync(new URL("./migrations/1032_sprint69_pr1950_superseded_branch_cleanup_override.sql", import.meta.url), "utf8");
+const pr1950OverrideRemovalMigration = readFileSync(new URL("./migrations/1033_sprint69_pr1950_cleanup_override_removal.sql", import.meta.url), "utf8");
+const governedMigrationRunner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+assert.equal((routes.match(/name: "github_superseded_branch_cleanup"/g) || []).length, 1);
+assert.match(routes, /requireGithubSupersededBranchCleanupEnvelope/);
+assert.match(routes, /acceptedIntents: \["github_superseded_branch_cleanup", "github_branch_delete", "branch_cleanup", "repo_mutation"\]/);
+assert.match(routes, /runGithubSupersededBranchCleanup/);
+assert.match(routes, /allow_orphan_branch/);
+assert.match(routes, /coverage_resolutions/);
+assert.match(routes, /migration_superseded_by_applied_migration/);
+assert.match(migration, /allow_superseded_closed_pr_branch_delete/);
+assert.match(migration, /superseded_branch_delete_requires_changed_file_coverage/);
+assert.match(migration, /superseded_branch_delete_requires_same_cycle_readback/);
+assert.match(migration, /superseded_branch_delete_required_label/);
+assert.match(migration, /superseded_branch_delete_max_ahead_commits/);
+assert.match(migration, /superseded_branch_delete_force_allowed', false/);
+assert.match(migration, /generic_fallback_allowed', false/);
+assert.match(migration, /311_sprint69_superseded_closed_pr_branch_cleanup\.sql/);
+assert.match(orphanMigration, /allow_superseded_orphan_branch_delete/);
+assert.match(orphanMigration, /superseded_orphan_branch_requires_no_matching_pr/);
+assert.match(orphanMigration, /superseded_orphan_branch_requires_content_equivalence/);
+assert.match(orphanMigration, /superseded_orphan_branch_force_allowed.*false/s);
+assert.match(orphanMigration, /317_sprint69_superseded_orphan_branch_cleanup\.sql/);
+assert.doesNotMatch(orphanMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(pr1950OverrideMigration, /JSON_SET/);
+assert.match(pr1950OverrideMigration, /gpt\/006-sql-cache-dynamic-safety-20260628/);
+assert.match(pr1950OverrideMigration, /'max_ahead_commits', 40/);
+assert.match(pr1950OverrideMigration, /fb3a6b6b6c48e0d1c8cc1658e482dbace20cbd97/);
+assert.match(pr1950OverrideMigration, /2026-07-02T23:59:59\.000Z/);
+assert.match(pr1950OverrideMigration, /Temporary SHA-bound cleanup authorization for merged PR 1950/);
+assert.doesNotMatch(pr1950OverrideMigration, /superseded_branch_delete_max_ahead_commits'\s*,\s*40/);
+assert.doesNotMatch(pr1950OverrideMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(pr1950OverrideRemovalMigration, /JSON_REMOVE/);
+assert.match(pr1950OverrideRemovalMigration, /gpt\/006-sql-cache-dynamic-safety-20260628/);
+assert.match(pr1950OverrideRemovalMigration, /JSON_EXTRACT/);
+assert.doesNotMatch(pr1950OverrideRemovalMigration, /superseded_branch_delete_max_ahead_commits/);
+assert.doesNotMatch(pr1950OverrideRemovalMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(governedMigrationRunner, /1032_sprint69_pr1950_superseded_branch_cleanup_override\.sql/);
+assert.match(governedMigrationRunner, /1033_sprint69_pr1950_cleanup_override_removal\.sql/);
+
+console.log("superseded branch cleanup tests passed");

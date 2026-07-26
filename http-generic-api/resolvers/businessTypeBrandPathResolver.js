@@ -1,3 +1,5 @@
+import { resolveBrandReference } from './brandReferenceResolver.js';
+
 const CANONICAL_BUSINESS_TYPE_ROOT =
   'Growth Intelligence OS - Knowledge Assets/Business Type Assets';
 
@@ -121,17 +123,34 @@ export function resolveBrandPath({ brandKey, brandPathRows, businessTypeResoluti
     throw new Error('brandPathRows must be an array');
   }
 
-  const targetKey = normalizeKey(brandKey);
-  const row = brandPathRows.find((candidate) => normalizeKey(candidate.brand_key) === targetKey);
+  const resolution = resolveBrandReference({ reference: brandKey, rows: brandPathRows });
+  const row = resolution.row;
 
   if (!row) {
     return {
       ...buildBrandFolderPath({ businessTypeResolution, brandKey }),
-      resolutionStatus: 'planned'
+      resolutionStatus: resolution.status === 'ambiguous' ? 'ambiguous' : 'planned',
+      candidateKeys: resolution.candidate_keys || [],
+      pathReady: false
     };
   }
 
   const brandFolderPath = stringValue(row.brand_folder_path);
+  if (!brandFolderPath) {
+    return {
+      brandKey: row.brand_key || row.target_key,
+      normalizedBrandName: row.normalized_brand_name,
+      businessTypeKey: row.business_type_key || businessTypeResolution.businessTypeKey,
+      knowledgeProfileKey: row.knowledge_profile_key || businessTypeResolution.knowledgeProfileKey,
+      brandFolderId: row.brand_folder_id,
+      brandFolderPath: '',
+      brandCoreDocsJson: row.brand_core_docs_json,
+      targetKey: row.target_key,
+      baseUrl: row.base_url,
+      resolutionStatus: 'validating',
+      pathReady: false
+    };
+  }
   if (!brandFolderPath.includes('/brands/')) {
     throw new Error(`Brand ${brandKey} is not stored under a business type brands folder`);
   }
@@ -149,7 +168,8 @@ export function resolveBrandPath({ brandKey, brandPathRows, businessTypeResoluti
     brandCoreDocsJson: row.brand_core_docs_json,
     targetKey: row.target_key,
     baseUrl: row.base_url,
-    resolutionStatus: row.status || 'resolved'
+    resolutionStatus: row.status || 'resolved',
+    pathReady: true
   };
 }
 

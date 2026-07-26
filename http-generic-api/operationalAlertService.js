@@ -1,0 +1,1559 @@
+import { createHash, randomUUID } from "node:crypto";
+import { getPool } from "./db.js";
+import { buildSqlCacheOperationalDiagnostics } from "./sqlCacheOperationalDiagnostics.js";
+
+const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|value_ciphertext|system_prompt|raw_prompt|payload_json)/i;
+const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
+const VERIFICATION_WEIGHT = Object.freeze({ verified: 4, observed: 3, unverified: 2, not_reproduced: 1 });
+const OPEN_LIFECYCLE_STATES = Object.freeze(["open", "acknowledged", "investigating"]);
+const ALLOWED_LIFECYCLE_STATES = new Set(["open", "acknowledged", "investigating", "resolved", "ignored"]);
+const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "blocked_with_choice_required", "success_with_warnings", "passed_with_follow_up"]);
+const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
+const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
+const SOURCE_ROW_CAPS = Object.freeze({
+  connected_systems: 500,
+  v_activation_pending_tasks: 500,
+  v_activation_agent_catalog: 500,
+  v_activation_agent_skill_grants: 1000,
+  activation_freshness_ledger: 500,
+  activation_signal_inbox: 500,
+  readiness_checks: 500,
+  telemetry_spans: 500,
+  operational_alerts: 2000,
+});
+const KNOWN_ISSUE_KEYS = Object.freeze([
+  "known.pr_checks_manual_dispatch",
+  "known.deploy_operation_intent_mismatch",
+  "known.db_update_result_serialization",
+  "known.capability_envelope_lifecycle_tool_gap",
+  "known.hostinger_restart_transient_503",
+  "known.main_sha_pin_race",
+  "known.process_local_feature_flag_scope",
+  "known.response_chunk_cache_expiry",
+  "known.transient_error_envelope_inconsistency",
+  "known.repo_patch_exact_match_fragility",
+  "known.github_rest_fallback_coverage_gap",
+]);
+
+function safeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function boundedInt(value, fallback, min, max) {
+  return Math.max(min, Math.min(max, Math.floor(safeNumber(value, fallback))));
+}
+
+function compactError(error, fallback = "operational_alert_source_failed") {
+  return {
+    code: error?.code || fallback,
+    message: error?.message || String(error || fallback),
+  };
+}
+
+function sanitizeEvidence(value, depth = 0) {
+  if (depth > 5) return "[truncated]";
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.slice(0, 50).map((item) => sanitizeEvidence(item, depth + 1));
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !SENSITIVE_KEY_PATTERN.test(key))
+        .slice(0, 80)
+        .map(([key, item]) => [key, sanitizeEvidence(item, depth + 1)])
+    );
+  }
+  if (typeof value === "string") return value.slice(0, 4000);
+  return value;
+}
+
+function isoValue(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+
+function sha256(value) {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function normalizeSha256(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(raw) ? raw : null;
+}
+
+function deterministicAlertKey(parts = []) {
+  return `alert.${sha256(parts.map((part) => String(part ?? "")).join("|"))}`;
+}
+
+function resolveSubject(sessionContext = {}, explicit = {}) {
+  const subject = sessionContext?.subject || {};
+  const principal = sessionContext?.platform_access?.principal || {};
+  const isAdmin = explicit.is_admin === true
+    || subject.is_admin === true
+    || principal.is_admin === true
+    || sessionContext?.platform_access?.access_scope === "platform_admin_all";
+  return {
+    is_admin: isAdmin,
+    tenant_id: explicit.tenant_id || subject.tenant_id || principal.tenant_id || null,
+    user_id: explicit.user_id || subject.user_id || principal.user_id || null,
+    auth_mode: explicit.auth_mode || principal.type || principal.auth_mode || null,
+  };
+}
+
+async function safeRows(source, sql, params = [], pool = getPool()) {
+  try {
+    const [rows] = await pool.query(sql, params);
+    return { source, ok: true, rows: Array.isArray(rows) ? rows : [] };
+  } catch (error) {
+    return { source, ok: false, rows: [], error: compactError(error) };
+  }
+}
+
+async function collectExecutionLogSource({ tenantExecution, boundedLookback, pool = getPool() } = {}) {
+  const tenantSuccessSql = String(tenantExecution.sql || "1 = 1").replace(/\be\./g, "s.");
+  const operationKeySql = `COALESCE(NULLIF(e.action_key, ''), NULLIF(e.endpoint_key, ''), NULLIF(e.tool_key, ''),
+                NULLIF(e.parent_action_key, ''), NULLIF(e.workflow_key, ''), NULLIF(e.workflow_id, ''),
+                NULLIF(e.app_key, ''), NULLIF(e.entry_type, ''), 'execution')`;
+  const successOperationKeySql = `COALESCE(NULLIF(s.action_key, ''), NULLIF(s.endpoint_key, ''), NULLIF(s.tool_key, ''),
+                NULLIF(s.parent_action_key, ''), NULLIF(s.workflow_key, ''), NULLIF(s.workflow_id, ''),
+                NULLIF(s.app_key, ''), NULLIF(s.entry_type, ''), 'execution')`;
+  try {
+    const [rows] = await pool.query(
+      `SELECT g.id, g.entry_type, g.execution_class, g.execution_status, g.recovery_status,
+              g.recovery_notes, g.route_status, g.execution_trace_id_writeback,
+              g.tenant_id, g.workspace_id, g.user_id, g.brand_key, g.app_key,
+              g.agent_key, g.skill_key, g.workflow_id, g.workflow_key,
+              g.engine_key, g.logic_key, g.parent_action_key, g.endpoint_key,
+              g.action_key, g.tool_key, g.resource_type, g.resource_id,
+              g.target_type, g.target_id, g.failure_reason, g.output_summary,
+              g.last_seen_at AS created_at, g.occurrence_count, g.first_seen_at,
+              g.last_seen_at, g.latest_id, g.operation_key
+         FROM (
+           SELECT MAX(e.id) AS id,
+                  MAX(e.entry_type) AS entry_type,
+                  MAX(e.execution_class) AS execution_class,
+                  LOWER(e.execution_status) AS execution_status,
+                  MAX(e.recovery_status) AS recovery_status,
+                  MAX(e.recovery_notes) AS recovery_notes,
+                  MAX(e.route_status) AS route_status,
+                  MAX(e.execution_trace_id_writeback) AS execution_trace_id_writeback,
+                  MAX(e.tenant_id) AS tenant_id,
+                  MAX(e.workspace_id) AS workspace_id,
+                  MAX(e.user_id) AS user_id,
+                  MAX(e.brand_key) AS brand_key,
+                  MAX(e.app_key) AS app_key,
+                  MAX(e.agent_key) AS agent_key,
+                  MAX(e.skill_key) AS skill_key,
+                  MAX(e.workflow_id) AS workflow_id,
+                  MAX(e.workflow_key) AS workflow_key,
+                  MAX(e.engine_key) AS engine_key,
+                  MAX(e.logic_key) AS logic_key,
+                  MAX(e.parent_action_key) AS parent_action_key,
+                  MAX(e.endpoint_key) AS endpoint_key,
+                  MAX(e.action_key) AS action_key,
+                  MAX(e.tool_key) AS tool_key,
+                  MAX(e.resource_type) AS resource_type,
+                  MAX(e.resource_id) AS resource_id,
+                  MAX(e.target_type) AS target_type,
+                  MAX(e.target_id) AS target_id,
+                  MAX(e.failure_reason) AS failure_reason,
+                  MAX(e.output_summary) AS output_summary,
+                  COUNT(*) AS occurrence_count,
+                  MIN(e.created_at) AS first_seen_at,
+                  MAX(e.created_at) AS last_seen_at,
+                  MAX(e.id) AS latest_id,
+                  ${operationKeySql} AS operation_key,
+                  COALESCE(e.tenant_id, 'global') AS recovery_tenant_key,
+                  COALESCE(e.workspace_id, 'no_workspace') AS recovery_workspace_key,
+                  COALESCE(e.entry_type, 'execution') AS recovery_entry_type,
+                  COALESCE(e.app_key, 'no_app') AS recovery_app_key,
+                  COALESCE(e.workflow_key, e.workflow_id, 'no_workflow') AS recovery_workflow_key,
+                  COALESCE(e.target_type, 'no_target_type') AS recovery_target_type,
+                  COALESCE(e.target_id, 'no_target') AS recovery_target_id,
+                  COALESCE(e.resource_type, 'no_resource_type') AS recovery_resource_type,
+                  COALESCE(e.resource_id, 'no_resource') AS recovery_resource_id
+             FROM execution_log e
+            WHERE ${tenantExecution.sql}
+              AND e.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+              AND e.execution_status IN ('failed','degraded','blocked','blocked_with_choice_required','success_with_warnings','passed_with_follow_up')
+              AND NOT (
+                ${operationKeySql} = 'unknown_endpoint_smoke'
+                AND LOWER(COALESCE(e.failure_reason, '')) IN ('parent_action_not_found','endpoint_not_found','invalid_request')
+              )
+            GROUP BY COALESCE(e.tenant_id, 'global'), COALESCE(e.workspace_id, 'no_workspace'),
+                     COALESCE(e.entry_type, 'execution'), COALESCE(e.app_key, 'no_app'),
+                     COALESCE(e.workflow_key, e.workflow_id, 'no_workflow'), ${operationKeySql},
+                     COALESCE(e.target_type, 'no_target_type'), COALESCE(e.target_id, 'no_target'),
+                     COALESCE(e.resource_type, 'no_resource_type'), COALESCE(e.resource_id, 'no_resource'),
+                     LOWER(e.execution_status), COALESCE(e.failure_reason, 'no_failure_reason'),
+                     COALESCE(e.route_status, 'no_route_status')
+         ) g
+        WHERE NOT EXISTS (
+          SELECT 1
+            FROM execution_log s
+           WHERE ${tenantSuccessSql}
+             AND s.created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+             AND s.execution_status IN ('success','succeeded','completed','pass','passed')
+             AND s.created_at > g.last_seen_at
+             AND COALESCE(s.tenant_id, 'global') = g.recovery_tenant_key
+             AND COALESCE(s.workspace_id, 'no_workspace') = g.recovery_workspace_key
+             AND COALESCE(s.entry_type, 'execution') = g.recovery_entry_type
+             AND COALESCE(s.app_key, 'no_app') = g.recovery_app_key
+             AND COALESCE(s.workflow_key, s.workflow_id, 'no_workflow') = g.recovery_workflow_key
+             AND ${successOperationKeySql} = g.operation_key
+             AND COALESCE(s.target_type, 'no_target_type') = g.recovery_target_type
+             AND COALESCE(s.target_id, 'no_target') = g.recovery_target_id
+             AND COALESCE(s.resource_type, 'no_resource_type') = g.recovery_resource_type
+             AND COALESCE(s.resource_id, 'no_resource') = g.recovery_resource_id
+          LIMIT 1
+        )
+        ORDER BY g.last_seen_at DESC`,
+      [...tenantExecution.params, boundedLookback, ...tenantExecution.params, boundedLookback]
+    );
+    return {
+      source: "execution_log",
+      ok: true,
+      rows: Array.isArray(rows) ? rows : [],
+      truncated: false,
+      authority: "sql_primary_execution_log_aggregate",
+      aggregation: "operation_resource_failure_groups",
+    };
+  } catch (error) {
+    return { source: "execution_log", ok: false, rows: [], truncated: false, error: compactError(error) };
+  }
+}
+
+async function collectSqlCacheRuntimeSource() {
+  try {
+    return {
+      source: "sql_cache_runtime",
+      ok: true,
+      rows: [buildSqlCacheOperationalDiagnostics()],
+    };
+  } catch (error) {
+    return {
+      source: "sql_cache_runtime",
+      ok: false,
+      rows: [],
+      error: compactError(error, "sql_cache_runtime_diagnostics_failed"),
+    };
+  }
+}
+
+function candidate({ 
+  alertKey = null,
+  sourceType,
+  sourceRef = null,
+  sourceRecordId = null,
+  tenantId = null,
+  userId = null,
+  workspaceId = null,
+  containerKey = null,
+  category = "operational",
+  severity = "medium",
+  title,
+  summary = null,
+  reasonCode,
+  lifecycleStatus = "open",
+  lifecycleUpdatedAt = null,
+  verificationState = "observed",
+  evidenceType = null,
+  evidenceRef = null,
+  evidence = null,
+  executionLogId = null,
+  traceId = null,
+  occurrenceCount = 1,
+  firstSeenAt = null,
+  lastSeenAt = null,
+  recommendedActionKey = null,
+  requiresConfirmation = false,
+  manualKnownIssue = false,
+  persisted = false,
+  alertId = null,
+  operationFingerprintSha256 = null,
+  resourceFingerprintSha256 = null,
+} = {}) {
+  const stableKey = alertKey || deterministicAlertKey([
+    sourceType,
+    tenantId || "global",
+    workspaceId || "no_workspace",
+    reasonCode,
+    sourceRecordId || title,
+  ]);
+  return {
+    alert_id: alertId,
+    alert_key: stableKey,
+    fingerprint_sha256: sha256(stableKey),
+    operation_fingerprint_sha256: normalizeSha256(operationFingerprintSha256),
+    resource_fingerprint_sha256: normalizeSha256(resourceFingerprintSha256),
+    source_type: sourceType,
+    source_ref: sourceRef,
+    source_record_id: sourceRecordId === null || sourceRecordId === undefined ? null : String(sourceRecordId),
+    tenant_id: tenantId,
+    user_id: userId,
+    workspace_id: workspaceId,
+    container_key: containerKey,
+    category,
+    severity: SEVERITY_WEIGHT[severity] ? severity : "medium",
+    title: String(title || reasonCode || "Operational issue").slice(0, 512),
+    summary: summary ? String(summary).slice(0, 4000) : null,
+    reason_code: reasonCode,
+    lifecycle_status: ALLOWED_LIFECYCLE_STATES.has(lifecycleStatus) ? lifecycleStatus : "open",
+    lifecycle_updated_at: isoValue(lifecycleUpdatedAt),
+    verification_state: VERIFICATION_WEIGHT[verificationState] ? verificationState : "observed",
+    evidence_type: evidenceType || sourceType,
+    evidence_ref: evidenceRef || sourceRef,
+    evidence: sanitizeEvidence(evidence || {}),
+    execution_log_id: executionLogId === null || executionLogId === undefined ? null : safeNumber(executionLogId),
+    trace_id: traceId || null,
+    occurrence_count: Math.max(safeNumber(occurrenceCount, 1), 1),
+    first_seen_at: isoValue(firstSeenAt || lastSeenAt || new Date()),
+    last_seen_at: isoValue(lastSeenAt || firstSeenAt || new Date()),
+    recommended_action_key: recommendedActionKey,
+    requires_confirmation: requiresConfirmation === true,
+    manual_known_issue: manualKnownIssue === true,
+    persisted: persisted === true,
+    secrets_included: false,
+  };
+}
+
+function tenantPredicate(subject, alias = "") {
+  const prefix = alias ? `${alias}.` : "";
+  return subject.is_admin
+    ? { sql: "1 = 1", params: [] }
+    : { sql: `${prefix}tenant_id = ?`, params: [subject.tenant_id || "__missing_tenant__"] };
+}
+
+function userTenantPredicate(subject, alias = "") {
+  const prefix = alias ? `${alias}.` : "";
+  return subject.is_admin
+    ? { sql: "1 = 1", params: [] }
+    : {
+        sql: `(${prefix}tenant_id = ? OR ${prefix}user_id = ?)`,
+        params: [subject.tenant_id || "__missing_tenant__", subject.user_id || "__missing_user__"],
+      };
+}
+
+function executionOperationKey(row = {}) {
+  const explicit = row.action_key || row.endpoint_key || row.tool_key || row.parent_action_key;
+  if (explicit) return String(explicit);
+  const summary = String(row.output_summary || "").trim();
+  const match = summary.match(/^([A-Za-z0-9_.:-]+)\s+(?:failed|completed|succeeded)\b/i);
+  return match?.[1]
+    || row.workflow_key
+    || row.workflow_id
+    || row.app_key
+    || row.entry_type
+    || "execution";
+}
+
+function executionResourceIdentity(row = {}) {
+  return [
+    row.target_type || "no_target_type",
+    row.target_id || "no_target",
+    row.resource_type || "no_resource_type",
+    row.resource_id || "no_resource",
+  ].join("|");
+}
+
+function executionOperationFingerprint(row = {}) {
+  return sha256([
+    row.entry_type || "execution",
+    row.app_key || "no_app",
+    row.workflow_key || row.workflow_id || "no_workflow",
+    executionOperationKey(row),
+  ].join("|"));
+}
+
+function executionResourceFingerprint(row = {}) {
+  return sha256(executionResourceIdentity(row));
+}
+
+function executionRecoveryKey(row = {}) {
+  return [
+    row.tenant_id || "global",
+    row.workspace_id || "no_workspace",
+    executionOperationFingerprint(row),
+    executionResourceFingerprint(row),
+  ].join("|");
+}
+
+function isExpectedNegativeExecution(row = {}) {
+  const operation = executionOperationKey(row).toLowerCase();
+  const failureReason = String(row.failure_reason || "").toLowerCase();
+  return operation === "unknown_endpoint_smoke"
+    && ["parent_action_not_found", "endpoint_not_found", "invalid_request"].includes(failureReason);
+}
+
+function groupExecutionRows(rows = []) {
+  const groups = new Map();
+  for (const row of rows) {
+    const status = String(row.execution_status || "unknown").toLowerCase();
+    if (!ALERT_EXECUTION_STATUSES.has(status) || isExpectedNegativeExecution(row)) continue;
+    const key = [
+      executionRecoveryKey(row),
+      status,
+      row.failure_reason || "no_failure_reason",
+      row.route_status || "no_route_status",
+    ].join("|");
+    const occurrenceCount = Math.max(safeNumber(row.occurrence_count, 1), 1);
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        ...row,
+        execution_status: status,
+        operation_key: executionOperationKey(row),
+        recovery_key: executionRecoveryKey(row),
+        occurrence_count: occurrenceCount,
+        first_seen_at: row.created_at,
+        last_seen_at: row.created_at,
+        latest_id: row.id,
+      });
+      continue;
+    }
+    existing.occurrence_count += occurrenceCount;
+    if (new Date(row.created_at) < new Date(existing.first_seen_at)) existing.first_seen_at = row.created_at;
+    if (new Date(row.created_at) >= new Date(existing.last_seen_at)) {
+      Object.assign(existing, row, {
+        execution_status: status,
+        operation_key: executionOperationKey(row),
+        recovery_key: executionRecoveryKey(row),
+        occurrence_count: existing.occurrence_count,
+        first_seen_at: existing.first_seen_at,
+        last_seen_at: row.created_at,
+        latest_id: row.id,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function executionSeverity(status, row = {}) {
+  const normalized = String(status || "").toLowerCase();
+  const recovered = row.route_status === "resolved"
+    || RECOVERY_STATUS_PATTERN.test(String(row.recovery_status || ""));
+  if (["failed", "blocked", "blocked_with_choice_required"].includes(normalized)) {
+    return recovered ? "high" : "critical";
+  }
+  if (["degraded", "success_with_warnings", "passed_with_follow_up"].includes(normalized)) return "high";
+  return "medium";
+}
+
+function mapExecutionAlerts(rows = []) {
+  const latestSuccessByKey = new Map();
+  for (const row of rows) {
+    const status = String(row.execution_status || "").toLowerCase();
+    if (!SUCCESS_EXECUTION_STATUSES.has(status)) continue;
+    const key = executionRecoveryKey(row);
+    const current = latestSuccessByKey.get(key);
+    if (!current || new Date(row.created_at) > new Date(current.created_at)) latestSuccessByKey.set(key, row);
+  }
+  return groupExecutionRows(rows)
+    .filter((row) => {
+      const laterSuccess = latestSuccessByKey.get(row.recovery_key);
+      return !laterSuccess || new Date(laterSuccess.created_at) <= new Date(row.last_seen_at);
+    })
+    .map((row) => {
+      const status = row.execution_status || "unknown";
+      const identity = row.operation_key || row.workflow_key || row.workflow_id || row.app_key || row.entry_type || "execution";
+      return candidate({
+        sourceType: "execution_log",
+        sourceRef: `execution-log://` + row.latest_id,
+        sourceRecordId: `execution:${sha256([row.recovery_key, status, row.failure_reason || "no_failure_reason", row.route_status || "no_route_status"].join("|"))}`,
+        tenantId: row.tenant_id,
+        userId: row.user_id,
+        workspaceId: row.workspace_id,
+        containerKey: row.workspace_id ? `workspace:` + row.workspace_id : null,
+        category: "execution",
+        severity: executionSeverity(status, row),
+        title: `${identity} execution is ${status}`,
+        summary: row.recovery_notes || row.failure_reason || `Observed ${row.occurrence_count} matching execution result(s) in the selected lookback window.`,
+        reasonCode: `execution_${status}`,
+        verificationState: "verified",
+        evidenceType: "execution_log",
+        evidenceRef: `execution-log://` + row.latest_id,
+        operationFingerprintSha256: executionOperationFingerprint(row),
+        resourceFingerprintSha256: executionResourceFingerprint(row),
+        executionLogId: row.latest_id,
+        traceId: row.execution_trace_id_writeback,
+        occurrenceCount: row.occurrence_count,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at,
+        recommendedActionKey: status === "blocked_with_choice_required" ? "execution.review_choice" : "execution.review_failure",
+        requiresConfirmation: status === "blocked_with_choice_required",
+        evidence: {
+          entry_type: row.entry_type,
+          operation_key: row.operation_key,
+          operation_fingerprint_sha256: executionOperationFingerprint(row),
+          resource_fingerprint_sha256: executionResourceFingerprint(row),
+          failure_reason: row.failure_reason,
+          execution_class: row.execution_class,
+          execution_status: status,
+          recovery_status: row.recovery_status,
+          route_status: row.route_status,
+          brand_key: row.brand_key,
+          app_key: row.app_key,
+          agent_key: row.agent_key,
+          skill_key: row.skill_key,
+          workflow_key: row.workflow_key,
+          engine_key: row.engine_key,
+          logic_key: row.logic_key,
+          target_type: row.target_type,
+          target_id: row.target_id,
+          resource_type: row.resource_type,
+          resource_id: row.resource_id,
+        },
+      });
+    });
+}
+
+function groupSkillApprovalRows(rows = []) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (!row.agent_id || !row.skill_id) continue;
+    const effectiveKey = [
+      row.tenant_id || "global",
+      row.brand_key || "global",
+      row.agent_id,
+      row.skill_id,
+    ].join("|");
+    const current = groups.get(effectiveKey);
+    if (!current) {
+      groups.set(effectiveKey, {
+        ...row,
+        effective_key: effectiveKey,
+        active_grant_count: 1,
+        grant_ids: row.grant_id ? [row.grant_id] : [],
+        first_granted_at: row.granted_at,
+        last_granted_at: row.granted_at,
+      });
+      continue;
+    }
+    current.active_grant_count += 1;
+    if (row.grant_id && current.grant_ids.length < 50) current.grant_ids.push(row.grant_id);
+    if (new Date(row.granted_at) < new Date(current.first_granted_at)) current.first_granted_at = row.granted_at;
+    if (new Date(row.granted_at) >= new Date(current.last_granted_at)) {
+      Object.assign(current, row, {
+        effective_key: effectiveKey,
+        active_grant_count: current.active_grant_count,
+        grant_ids: current.grant_ids,
+        first_granted_at: current.first_granted_at,
+        last_granted_at: row.granted_at,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function parseConfigJson(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch { return {}; }
+}
+
+function notificationEligible(item = {}) {
+  if (!["critical", "high"].includes(item.severity)) return false;
+  if (!OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)) return false;
+  if (item.verification_state !== "verified") return false;
+  if (!item.source_record_id) return false;
+  if (["source_data_quality", "task_state_inconsistent"].includes(item.reason_code)) return false;
+  return true;
+}
+
+function mapPersistedAlert(row) {
+  let evidence = row.evidence_json;
+  if (typeof evidence === "string") {
+    try { evidence = JSON.parse(evidence); } catch { evidence = {}; }
+  }
+  return candidate({
+    alertId: row.alert_id,
+    alertKey: row.alert_key,
+    sourceType: row.source_type,
+    sourceRef: row.source_ref,
+    sourceRecordId: row.source_record_id,
+    tenantId: row.tenant_id,
+    userId: row.user_id,
+    workspaceId: row.workspace_id,
+    containerKey: row.container_key,
+    category: row.category,
+    severity: row.severity,
+    title: row.title,
+    summary: row.summary,
+    reasonCode: row.reason_code,
+    lifecycleStatus: row.lifecycle_status,
+    lifecycleUpdatedAt: row.resolved_at || row.updated_at,
+    verificationState: row.verification_state,
+    evidenceType: row.evidence_type,
+    evidenceRef: row.evidence_ref,
+    operationFingerprintSha256: row.operation_fingerprint_sha256,
+    resourceFingerprintSha256: row.resource_fingerprint_sha256,
+    evidence,
+    executionLogId: row.execution_log_id,
+    traceId: row.trace_id,
+    occurrenceCount: row.occurrence_count,
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    recommendedActionKey: row.recommended_action_key,
+    requiresConfirmation: safeNumber(row.requires_confirmation) === 1,
+    manualKnownIssue: safeNumber(row.manual_known_issue) === 1,
+    persisted: true,
+  });
+}
+
+function mergeCandidates(items = []) {
+  const merged = new Map();
+  for (const item of items) {
+    const current = merged.get(item.alert_key);
+    if (!current) {
+      merged.set(item.alert_key, { ...item });
+      continue;
+    }
+    const persisted = current.persisted ? current : item.persisted ? item : null;
+    const live = !current.persisted ? current : !item.persisted ? item : null;
+    const latest = new Date(item.last_seen_at || 0) >= new Date(current.last_seen_at || 0) ? item : current;
+    const earliest = new Date(item.first_seen_at || Date.now()) <= new Date(current.first_seen_at || Date.now()) ? item : current;
+    const persistedLifecycleClosed = persisted && ["resolved", "ignored"].includes(persisted.lifecycle_status);
+    const persistedLifecycleAt = persisted?.lifecycle_updated_at ? new Date(persisted.lifecycle_updated_at) : null;
+    const liveLastSeenAt = live?.last_seen_at ? new Date(live.last_seen_at) : null;
+    const hasNewerLiveOccurrence = Boolean(
+      persistedLifecycleClosed
+      && persistedLifecycleAt
+      && liveLastSeenAt
+      && !Number.isNaN(persistedLifecycleAt.getTime())
+      && !Number.isNaN(liveLastSeenAt.getTime())
+      && liveLastSeenAt > persistedLifecycleAt
+    );
+    const lifecycleStatus = persistedLifecycleClosed
+      ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
+      : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
+    merged.set(item.alert_key, {
+      ...current,
+      ...latest,
+      alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
+      lifecycle_status: lifecycleStatus,
+      lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
+      verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
+        ? item.verification_state
+        : current.verification_state,
+      occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),
+      first_seen_at: earliest.first_seen_at,
+      last_seen_at: latest.last_seen_at,
+      manual_known_issue: current.manual_known_issue || item.manual_known_issue,
+      persisted: current.persisted || item.persisted,
+      evidence: sanitizeEvidence({ ...(current.evidence || {}), ...(item.evidence || {}) }),
+      secrets_included: false,
+    });
+  }
+  return [...merged.values()];
+}
+
+async function collectOperationalAlertCandidates({ subject, lookbackHours = 168, includePersisted = true } = {}) {
+  const tenant = tenantPredicate(subject);
+  const tenantExecution = tenantPredicate(subject, "e");
+  const userTenant = userTenantPredicate(subject);
+  const boundedLookback = boundedInt(lookbackHours, 168, 1, 24 * 90);
+
+  const queries = [
+    collectExecutionLogSource({ tenantExecution, boundedLookback }),
+    safeRows(
+      "connected_systems",
+      `SELECT system_id, tenant_id, system_key, display_name, provider_family,
+              connector_family, status, config_json, updated_at
+         FROM connected_systems
+        WHERE ${tenant.sql} AND status IN ('pending','error')
+        ORDER BY FIELD(status,'error','pending'), updated_at DESC
+        LIMIT 500`,
+      tenant.params
+    ),
+    safeRows(
+      "v_activation_pending_tasks",
+      `SELECT task_id, task_key, title, task_type, priority, task_status,
+              blocker_level, tenant_id, user_id, source_surface, due_at, updated_at
+         FROM v_activation_pending_tasks
+        WHERE ${userTenant.sql}
+          AND (task_status = 'blocked' OR blocker_level = 'hard' OR priority IN ('critical','high'))
+        ORDER BY FIELD(priority,'critical','high','medium','low'), updated_at DESC
+        LIMIT 500`,
+      userTenant.params
+    ),
+    safeRows(
+      "v_activation_agent_catalog",
+      `SELECT tenant_id, agent_id, agent_name, agent_display_name, health_status,
+              agent_status, execution_class, execution_layer, updated_at
+         FROM v_activation_agent_catalog
+        WHERE ${tenant.sql} AND health_status IN ('offline','degraded')
+        ORDER BY FIELD(health_status,'offline','degraded'), updated_at DESC
+        LIMIT 500`,
+      tenant.params
+    ),
+    safeRows(
+      "v_activation_agent_skill_grants",
+      `SELECT grant_id, tenant_id, brand_key, agent_id, agent_name, agent_display_name,
+              skill_id, skill_key, skill_display_name, skill_type, skill_scope,
+              requires_approval, grant_status, expires_at, granted_at
+         FROM v_activation_agent_skill_grants
+        WHERE ${tenant.sql} AND requires_approval = 1
+        ORDER BY granted_at DESC
+        LIMIT 1000`,
+      tenant.params
+    ),
+    safeRows(
+      "activation_freshness_ledger",
+      `SELECT ledger_id, tenant_id, user_id, container_key, surface_key,
+              provider_family, connector_family, source_ref, freshness_status,
+              last_checked_at, last_success_at, last_failure_at, updated_at
+         FROM activation_freshness_ledger
+        WHERE ${userTenant.sql} AND freshness_status IN ('stale','failed')
+        ORDER BY FIELD(freshness_status,'failed','stale'), updated_at DESC
+        LIMIT 500`,
+      userTenant.params
+    ),
+    safeRows(
+      "activation_signal_inbox",
+      `SELECT signal_id, tenant_id, user_id, container_key, provider_family,
+              connector_family, signal_type, severity, signal_status,
+              payload_summary_json, source_ref, received_at, processed_at
+         FROM activation_signal_inbox
+        WHERE ${userTenant.sql}
+          AND severity IN ('critical','high')
+          AND signal_status IN ('new','failed')
+        ORDER BY FIELD(severity,'critical','high'), received_at DESC
+        LIMIT 500`,
+      userTenant.params
+    ),
+    safeRows(
+      "readiness_checks",
+      `SELECT check_id, tenant_id, check_key, check_status, detail, checked_at
+         FROM readiness_checks
+        WHERE ${tenant.sql} AND check_status IN ('fail','warn','pending')
+        ORDER BY FIELD(check_status,'fail','warn','pending'), checked_at DESC
+        LIMIT 500`,
+      tenant.params
+    ),
+    safeRows(
+      "telemetry_spans",
+      `SELECT tenant_id, workspace_id, span_name, span_type, status,
+              COUNT(*) AS occurrence_count, MIN(started_at) AS first_seen_at,
+              MAX(started_at) AS last_seen_at, MAX(trace_id) AS trace_id,
+              MAX(error_message) AS error_message
+         FROM telemetry_spans
+        WHERE ${tenant.sql}
+          AND started_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+          AND status IN ('error','timeout')
+        GROUP BY tenant_id, workspace_id, span_name, span_type, status
+        ORDER BY FIELD(status,'timeout','error'), last_seen_at DESC
+        LIMIT 500`,
+      [...tenant.params, boundedLookback]
+    ),
+  ];
+
+  if (subject.is_admin) {
+    queries.push(collectSqlCacheRuntimeSource());
+  }
+
+  if (includePersisted) {
+    queries.push(safeRows(
+      "operational_alerts",
+      `SELECT alert_id, alert_key, operation_fingerprint_sha256, resource_fingerprint_sha256,
+              source_type, source_ref, source_record_id,
+              tenant_id, user_id, workspace_id, container_key, category, severity,
+              title, summary, reason_code, lifecycle_status, resolved_at, updated_at, verification_state,
+              evidence_type, evidence_ref, evidence_json, execution_log_id, trace_id,
+              occurrence_count, first_seen_at, last_seen_at, recommended_action_key,
+              requires_confirmation, manual_known_issue
+         FROM operational_alerts
+        WHERE ${subject.is_admin ? "1 = 1" : "tenant_id = ?"}
+        ORDER BY FIELD(severity,'critical','high','medium','low','info'), last_seen_at DESC
+        LIMIT 2000`,
+      subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"]
+    ));
+  }
+
+  const results = await Promise.all(queries);
+  const bySource = new Map(results.map((result) => [result.source, result]));
+  const alerts = [];
+
+  const sqlCacheDiagnostics = bySource.get("sql_cache_runtime")?.rows?.[0] || null;
+  for (const alert of sqlCacheDiagnostics?.alerts || []) {
+    alerts.push(candidate({
+      sourceType: "sql_cache_runtime",
+      sourceRef: "runtime://sql-cache",
+      sourceRecordId: alert.code,
+      category: "cache",
+      severity: alert.severity,
+      title: alert.title,
+      summary: alert.summary,
+      reasonCode: alert.code,
+      verificationState: "verified",
+      evidenceType: "runtime_diagnostics",
+      evidenceRef: "runtime://sql-cache",
+      evidence: alert.evidence,
+      firstSeenAt: sqlCacheDiagnostics.generated_at,
+      lastSeenAt: sqlCacheDiagnostics.generated_at,
+      recommendedActionKey: "sql_cache.review_runtime",
+    }));
+  }
+
+  alerts.push(...mapExecutionAlerts(bySource.get("execution_log")?.rows || []));
+
+  for (const row of bySource.get("connected_systems")?.rows || []) {
+    const config = parseConfigJson(row.config_json);
+    const executionReadiness = String(config.execution_readiness || "").toLowerCase();
+    if (row.status === "pending" && executionReadiness === "ready") continue;
+    const gated = row.status === "pending" && executionReadiness === "gated";
+    alerts.push(candidate({
+      sourceType: "connected_systems",
+      sourceRef: `connected-system://` + row.system_id,
+      sourceRecordId: row.system_id,
+      tenantId: row.tenant_id,
+      category: "connector",
+      severity: row.status === "error" ? "high" : "medium",
+      title: `${row.display_name || row.system_key} connector is ${gated ? "gated" : row.status}`,
+      reasonCode: row.status === "error" ? "connector_error" : gated ? "connector_gated" : "connector_pending",
+      verificationState: "verified",
+      evidence: { ...row, execution_readiness: executionReadiness || null },
+      firstSeenAt: row.updated_at,
+      lastSeenAt: row.updated_at,
+      recommendedActionKey: row.status === "error" ? "connector.reconnect_or_review" : gated ? "connector.review_gate" : "connector.complete_setup",
+      requiresConfirmation: row.status === "error",
+    }));
+  }
+
+  let malformedTaskCount = 0;
+  for (const row of bySource.get("v_activation_pending_tasks")?.rows || []) {
+    if (!row.task_id || !String(row.title || "").trim()) {
+      malformedTaskCount += 1;
+      continue;
+    }
+    const blocked = row.task_status === "blocked" || row.blocker_level === "hard";
+    const stateInconsistent = /\bcompleted\b/i.test(String(row.title || ""))
+      && !["completed", "resolved", "closed"].includes(String(row.task_status || "").toLowerCase());
+    alerts.push(candidate({
+      sourceType: "v_activation_pending_tasks",
+      sourceRef: `task://` + row.task_id,
+      sourceRecordId: row.task_id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      category: stateInconsistent ? "data_quality" : "task",
+      severity: stateInconsistent ? "medium" : blocked || row.priority === "critical" ? "critical" : "high",
+      title: row.title,
+      summary: stateInconsistent
+        ? "Task title indicates completion while the lifecycle row remains pending."
+        : blocked ? "Task is blocked and requires review." : "High-priority task requires attention.",
+      reasonCode: stateInconsistent ? "task_state_inconsistent" : blocked ? "task_blocked" : "high_priority_task",
+      verificationState: stateInconsistent ? "observed" : "verified",
+      evidence: row,
+      firstSeenAt: row.updated_at,
+      lastSeenAt: row.updated_at,
+      recommendedActionKey: stateInconsistent ? "task.reconcile_state" : blocked ? "task.review_blocker" : "task.review_priority",
+    }));
+  }
+  if (malformedTaskCount > 0) {
+    alerts.push(candidate({
+      sourceType: "source_data_quality",
+      sourceRef: "source://v_activation_pending_tasks",
+      sourceRecordId: "v_activation_pending_tasks:malformed_rows",
+      category: "data_quality",
+      severity: "medium",
+      title: "Pending task source contains malformed rows",
+      summary: `Omitted ${malformedTaskCount} row(s) without a stable task ID or title.`,
+      reasonCode: "source_data_quality",
+      verificationState: "observed",
+      evidence: { source: "v_activation_pending_tasks", malformed_row_count: malformedTaskCount },
+      recommendedActionKey: "source.repair_malformed_rows",
+    }));
+  }
+
+  for (const row of bySource.get("v_activation_agent_catalog")?.rows || []) {
+    alerts.push(candidate({
+      sourceType: "v_activation_agent_catalog",
+      sourceRef: `agent://${row.agent_id}`,
+      sourceRecordId: row.agent_id,
+      tenantId: row.tenant_id,
+      category: "agent",
+      severity: row.health_status === "offline" ? "critical" : "high",
+      title: `${row.agent_display_name || row.agent_name || row.agent_id} is ${row.health_status}`,
+      reasonCode: `agent_${row.health_status}`,
+      verificationState: "verified",
+      evidence: row,
+      firstSeenAt: row.updated_at,
+      lastSeenAt: row.updated_at,
+      recommendedActionKey: row.health_status === "offline" ? "agent.recover" : "agent.health_review",
+      requiresConfirmation: row.health_status === "offline",
+    }));
+  }
+
+  for (const row of groupSkillApprovalRows(bySource.get("v_activation_agent_skill_grants")?.rows || [])) {
+    alerts.push(candidate({
+      sourceType: "v_activation_agent_skill_grants",
+      sourceRef: `skill-approval://` + sha256(row.effective_key),
+      sourceRecordId: row.effective_key,
+      tenantId: row.tenant_id,
+      category: "skill_approval",
+      severity: "medium",
+      title: `${row.skill_display_name || row.skill_key || row.skill_id} requires approval`,
+      summary: `${row.agent_display_name || row.agent_name || row.agent_id} is waiting for one scoped skill approval decision.`,
+      reasonCode: "skill_requires_approval",
+      verificationState: "verified",
+      evidence: {
+        ...row,
+        duplicate_grant_count: Math.max(safeNumber(row.active_grant_count) - 1, 0),
+      },
+      firstSeenAt: row.first_granted_at,
+      lastSeenAt: row.last_granted_at,
+      recommendedActionKey: "skill.review_approval",
+      requiresConfirmation: true,
+    }));
+  }
+
+  for (const row of bySource.get("activation_freshness_ledger")?.rows || []) {
+    alerts.push(candidate({
+      sourceType: "activation_freshness_ledger",
+      sourceRef: row.source_ref || `freshness-ledger://${row.ledger_id}`,
+      sourceRecordId: row.ledger_id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      containerKey: row.container_key,
+      category: "freshness",
+      severity: row.freshness_status === "failed" ? "high" : "medium",
+      title: `${row.surface_key || row.provider_family || "Surface"} freshness is ${row.freshness_status}`,
+      reasonCode: `freshness_${row.freshness_status}`,
+      verificationState: "verified",
+      evidence: row,
+      firstSeenAt: row.last_failure_at || row.updated_at,
+      lastSeenAt: row.updated_at,
+      recommendedActionKey: "surface.refresh",
+    }));
+  }
+
+  for (const row of bySource.get("activation_signal_inbox")?.rows || []) {
+    alerts.push(candidate({
+      sourceType: "activation_signal_inbox",
+      sourceRef: row.source_ref || `activation-signal://${row.signal_id}`,
+      sourceRecordId: row.signal_id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      containerKey: row.container_key,
+      category: "external_signal",
+      severity: row.severity,
+      title: `${row.signal_type} signal is ${row.signal_status}`,
+      reasonCode: `${row.signal_type}_${row.signal_status}`,
+      verificationState: "verified",
+      evidence: row,
+      firstSeenAt: row.received_at,
+      lastSeenAt: row.processed_at || row.received_at,
+      recommendedActionKey: "signal.review",
+    }));
+  }
+
+  for (const row of bySource.get("readiness_checks")?.rows || []) {
+    alerts.push(candidate({
+      sourceType: "readiness_checks",
+      sourceRef: `readiness-check://${row.check_id}`,
+      sourceRecordId: row.check_id,
+      tenantId: row.tenant_id,
+      category: "readiness",
+      severity: row.check_status === "fail" ? "high" : "medium",
+      title: `${row.check_key} readiness is ${row.check_status}`,
+      summary: row.detail,
+      reasonCode: `readiness_${row.check_status}`,
+      verificationState: "verified",
+      evidence: row,
+      firstSeenAt: row.checked_at,
+      lastSeenAt: row.checked_at,
+      recommendedActionKey: "readiness.review",
+    }));
+  }
+
+  for (const row of bySource.get("telemetry_spans")?.rows || []) {
+    alerts.push(candidate({
+      sourceType: "telemetry_spans",
+      sourceRef: row.trace_id ? `trace://${row.trace_id}` : null,
+      sourceRecordId: [row.status, row.span_name, row.workspace_id].filter(Boolean).join(":"),
+      tenantId: row.tenant_id,
+      workspaceId: row.workspace_id,
+      containerKey: row.workspace_id ? `workspace:${row.workspace_id}` : null,
+      category: "telemetry",
+      severity: row.status === "timeout" ? "high" : "medium",
+      title: `${row.span_name || "Runtime span"} has ${row.status} telemetry`,
+      summary: row.error_message || `Observed ${row.occurrence_count} matching telemetry span(s).`,
+      reasonCode: `telemetry_${row.status}`,
+      verificationState: "verified",
+      evidence: row,
+      traceId: row.trace_id,
+      occurrenceCount: row.occurrence_count,
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      recommendedActionKey: "telemetry.review_trace",
+    }));
+  }
+
+  for (const row of bySource.get("operational_alerts")?.rows || []) alerts.push(mapPersistedAlert(row));
+
+  return {
+    subject,
+    alerts: mergeCandidates(alerts),
+    source_health: results.map((result) => {
+      const rowCap = result.row_cap ?? SOURCE_ROW_CAPS[result.source] ?? null;
+      return {
+        source: result.source,
+        ok: result.ok,
+        row_count: result.rows.length,
+        row_cap: rowCap,
+        truncated: Boolean(result.truncated ?? (result.ok && rowCap && result.rows.length >= rowCap)),
+        authority: result.authority || "sql_primary_runtime_table",
+        aggregation: result.aggregation || null,
+        error: result.error || null,
+      };
+    }),
+  };
+}
+
+function summarize(items = []) {
+  const bySeverity = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  const bySource = {};
+  const byLifecycle = {};
+  const byVerification = {};
+  let knownIssueCount = 0;
+  let currentDetectedCount = 0;
+  for (const item of items) {
+    bySeverity[item.severity] = safeNumber(bySeverity[item.severity]) + 1;
+    bySource[item.source_type] = safeNumber(bySource[item.source_type]) + 1;
+    byLifecycle[item.lifecycle_status] = safeNumber(byLifecycle[item.lifecycle_status]) + 1;
+    byVerification[item.verification_state] = safeNumber(byVerification[item.verification_state]) + 1;
+    if (item.manual_known_issue) knownIssueCount += 1;
+    else currentDetectedCount += 1;
+  }
+  return {
+    total_count: items.length,
+    open_count: items.filter((item) => OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)).length,
+    known_issue_count: knownIssueCount,
+    current_detected_count: currentDetectedCount,
+    by_severity: bySeverity,
+    by_source: bySource,
+    by_lifecycle: byLifecycle,
+    by_verification: byVerification,
+  };
+}
+
+export async function readOperationalAlerts({
+  sessionContext = null,
+  explicitSubject = {},
+  cursor = 0,
+  limit = 500,
+  lookbackHours = 168,
+  includeResolved = false,
+  severity = null,
+  sourceType = null,
+  lifecycleStatus = null,
+  q = null,
+} = {}) {
+  const subject = resolveSubject(sessionContext || {}, explicitSubject);
+  const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: true });
+  const allMerged = collected.alerts;
+  const expectedKnownIssueKeys = subject.is_admin ? KNOWN_ISSUE_KEYS : [];
+  const foundKnownIssueKeys = new Set(allMerged.filter((item) => item.manual_known_issue).map((item) => item.alert_key));
+  const missingKnownIssueKeys = expectedKnownIssueKeys.filter((key) => !foundKnownIssueKeys.has(key));
+  const normalizedSeverity = severity ? String(severity).toLowerCase() : null;
+  const normalizedSource = sourceType ? String(sourceType) : null;
+  const normalizedLifecycle = lifecycleStatus ? String(lifecycleStatus).toLowerCase() : null;
+  const normalizedQuery = q ? String(q).trim().toLowerCase() : null;
+  const filtered = allMerged.filter((item) => {
+    if (!includeResolved && !OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)) return false;
+    if (normalizedSeverity && item.severity !== normalizedSeverity) return false;
+    if (normalizedSource && item.source_type !== normalizedSource) return false;
+    if (normalizedLifecycle && item.lifecycle_status !== normalizedLifecycle) return false;
+    if (normalizedQuery) {
+      const haystack = [item.title, item.summary, item.reason_code, item.source_type, item.alert_key]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(normalizedQuery)) return false;
+    }
+    return true;
+  });
+  filtered.sort((a, b) => {
+    const severityDiff = safeNumber(SEVERITY_WEIGHT[b.severity]) - safeNumber(SEVERITY_WEIGHT[a.severity]);
+    if (severityDiff) return severityDiff;
+    return new Date(b.last_seen_at || 0) - new Date(a.last_seen_at || 0);
+  });
+  const normalizedCursor = boundedInt(cursor, 0, 0, 1000000);
+  const normalizedLimit = boundedInt(limit, 500, 1, 1000);
+  const items = filtered.slice(normalizedCursor, normalizedCursor + normalizedLimit);
+  const hasMore = normalizedCursor + items.length < filtered.length;
+  const degradedSources = collected.source_health.filter((source) => !source.ok);
+  const truncatedSources = collected.source_health.filter((source) => source.truncated);
+  const summary = summarize(filtered);
+  return {
+    attempted: true,
+    ok: degradedSources.length === 0 && truncatedSources.length === 0 && missingKnownIssueKeys.length === 0,
+    activation_layer: "operational_alerting_control_plane",
+    source_authority: "sql_primary_runtime_tables_plus_operational_alert_lifecycle",
+    subject,
+    summary: {
+      ...summary,
+      returned_count: items.length,
+      degraded_source_count: degradedSources.length,
+      truncated_source_count: truncatedSources.length,
+    },
+    final_result: items,
+    page: {
+      cursor: normalizedCursor,
+      limit: normalizedLimit,
+      returned_count: items.length,
+      total_count: filtered.length,
+      has_more: hasMore,
+      next_cursor: hasMore ? normalizedCursor + items.length : null,
+    },
+    completeness: {
+      all_known_issues_visible: missingKnownIssueKeys.length === 0,
+      expected_known_issue_count: expectedKnownIssueKeys.length,
+      visible_known_issue_count: expectedKnownIssueKeys.length - missingKnownIssueKeys.length,
+      missing_known_issue_keys: missingKnownIssueKeys,
+      all_matching_problems_returned_in_page: !hasMore,
+      details_omitted_silently: false,
+      degraded_sources: degradedSources,
+      all_sources_untruncated: truncatedSources.length === 0,
+      truncated_sources: truncatedSources,
+      final_result_complete: missingKnownIssueKeys.length === 0 && !hasMore && degradedSources.length === 0 && truncatedSources.length === 0,
+    },
+    source_health: collected.source_health,
+    policy: {
+      execution_log_is_evidence_not_alert_queue: true,
+      execution_log_uses_sql_primary_table_only: true,
+      sheets_recovery_not_used_for_operational_alerts: true,
+      known_issues_are_preserved_until_lifecycle_resolution: true,
+      dynamic_sources_are_read_live: true,
+      dedupe_uses_stable_alert_key: true,
+      tenant_scope_enforced: true,
+      secret_values_never_returned: true,
+    },
+    secrets_included: false,
+  };
+}
+
+function dbDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+async function upsertAlert(connection, item, syncRunId) {
+  const alertId = item.alert_id || randomUUID();
+  await connection.query(
+    `INSERT INTO operational_alerts
+      (alert_id, alert_key, fingerprint_sha256, operation_fingerprint_sha256, resource_fingerprint_sha256,
+       tenant_id, user_id, workspace_id, container_key,
+       source_type, source_ref, source_record_id, category, severity, title, summary, reason_code,
+       lifecycle_status, verification_state, evidence_type, evidence_ref, evidence_json,
+       execution_log_id, trace_id, occurrence_count, first_seen_at, last_seen_at, last_sync_run_id,
+       recommended_action_key, requires_confirmation, manual_known_issue, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+     ON DUPLICATE KEY UPDATE
+       operation_fingerprint_sha256 = VALUES(operation_fingerprint_sha256),
+       resource_fingerprint_sha256 = VALUES(resource_fingerprint_sha256),
+       tenant_id = VALUES(tenant_id), user_id = VALUES(user_id), workspace_id = VALUES(workspace_id),
+       container_key = VALUES(container_key), source_ref = VALUES(source_ref), source_record_id = VALUES(source_record_id),
+       category = VALUES(category), severity = VALUES(severity), title = VALUES(title), summary = VALUES(summary),
+       reason_code = VALUES(reason_code), verification_state = VALUES(verification_state),
+       evidence_type = VALUES(evidence_type), evidence_ref = VALUES(evidence_ref), evidence_json = VALUES(evidence_json),
+       execution_log_id = VALUES(execution_log_id), trace_id = VALUES(trace_id),
+       occurrence_count = VALUES(occurrence_count), first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),
+       last_seen_at = GREATEST(last_seen_at, VALUES(last_seen_at)), last_sync_run_id = VALUES(last_sync_run_id),
+       recommended_action_key = VALUES(recommended_action_key), requires_confirmation = VALUES(requires_confirmation),
+       lifecycle_status = IF(lifecycle_status IN ('resolved','ignored'), 'open', lifecycle_status),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      alertId,
+      item.alert_key,
+      item.fingerprint_sha256,
+      item.operation_fingerprint_sha256,
+      item.resource_fingerprint_sha256,
+      item.tenant_id,
+      item.user_id,
+      item.workspace_id,
+      item.container_key,
+      item.source_type,
+      item.source_ref,
+      item.source_record_id,
+      item.category,
+      item.severity,
+      item.title,
+      item.summary,
+      item.reason_code,
+      item.lifecycle_status,
+      item.verification_state,
+      item.evidence_type,
+      item.evidence_ref,
+      JSON.stringify(sanitizeEvidence(item.evidence || {})),
+      item.execution_log_id,
+      item.trace_id,
+      item.occurrence_count,
+      dbDate(item.first_seen_at),
+      dbDate(item.last_seen_at),
+      syncRunId,
+      item.recommended_action_key,
+      item.requires_confirmation ? 1 : 0,
+      item.manual_known_issue ? 1 : 0,
+    ]
+  );
+  const [rows] = await connection.query(
+    "SELECT alert_id, lifecycle_status FROM operational_alerts WHERE alert_key = ? LIMIT 1",
+    [item.alert_key]
+  );
+  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status };
+}
+
+export async function synchronizeOperationalAlerts({
+  sessionContext = null,
+  explicitSubject = {},
+  lookbackHours = 168,
+  requestedBy = "platform_admin",
+} = {}) {
+  const subject = resolveSubject(sessionContext || {}, explicitSubject);
+  const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: false });
+  const incompleteSources = collected.source_health.filter((source) => !source.ok || source.truncated);
+  const runId = randomUUID();
+  const connection = await getPool().getConnection();
+  const persistedCandidates = [];
+  let upserted = 0;
+  let queued = 0;
+  let resolved = 0;
+  let notificationsSkipped = 0;
+  let resolutionSkipped = false;
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      `INSERT INTO operational_alert_sync_runs
+        (sync_run_id, tenant_id, user_id, requested_by, sync_status, source_health_json,
+         candidate_count, started_at, secrets_included)
+       VALUES (?, ?, ?, ?, 'running', ?, ?, NOW(), 0)`,
+      [runId, subject.tenant_id, subject.user_id, requestedBy, JSON.stringify(collected.source_health), collected.alerts.length]
+    );
+    for (const item of collected.alerts) {
+      const row = await upsertAlert(connection, item, runId);
+      persistedCandidates.push({ item, row });
+      upserted += 1;
+    }
+    if (incompleteSources.length === 0) {
+      resolved = await autoResolveStaleAlerts(connection, { subject, runId, requestedBy });
+    } else {
+      resolutionSkipped = true;
+    }
+
+    const outboxScope = subject.is_admin ? "1 = 1" : "a.tenant_id = ?";
+    const outboxParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+    const [skipResult] = await connection.query(
+      `UPDATE operational_alert_notification_outbox o
+          JOIN operational_alerts a ON a.alert_id = o.alert_id
+          SET o.delivery_status = 'skipped',
+              o.error_code = 'alert_reconciled_before_delivery',
+              o.error_message = 'The alert was resolved, superseded, downgraded, or not re-emitted before delivery.',
+              o.updated_at = CURRENT_TIMESTAMP
+        WHERE o.delivery_status = 'pending'
+          AND ${outboxScope}
+          AND (
+            a.lifecycle_status NOT IN ('open','acknowledged','investigating')
+            OR a.severity NOT IN ('critical','high')
+            OR COALESCE(a.last_sync_run_id, '') <> ?
+            OR a.verification_state <> 'verified'
+            OR o.notification_key <> CONCAT(a.alert_key, ':', a.severity, ':open')
+          )`,
+      [...outboxParams, runId]
+    );
+    notificationsSkipped = safeNumber(skipResult?.affectedRows);
+
+    for (const { item, row } of persistedCandidates) {
+      if (!notificationEligible({ ...item, lifecycle_status: row.lifecycle_status })) continue;
+      const notificationKey = `${item.alert_key}:${item.severity}:open`;
+      const [result] = await connection.query(
+        `INSERT INTO operational_alert_notification_outbox
+          (notification_id, notification_key, alert_id, tenant_id, user_id, channel,
+           recipient_scope, delivery_status, payload_summary_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'in_app', 'authorized_subject', 'pending', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           alert_id = VALUES(alert_id), tenant_id = VALUES(tenant_id), user_id = VALUES(user_id),
+           payload_summary_json = VALUES(payload_summary_json),
+           delivery_status = IF(delivery_status IN ('skipped','failed'), 'pending', delivery_status),
+           error_code = NULL, error_message = NULL, updated_at = CURRENT_TIMESTAMP`,
+        [randomUUID(), notificationKey, row.alert_id, item.tenant_id, item.user_id, JSON.stringify({ title: item.title, severity: item.severity, reason_code: item.reason_code })]
+      );
+      if (safeNumber(result?.affectedRows) > 0) queued += 1;
+    }
+
+    await connection.query(
+      `UPDATE operational_alert_sync_runs
+          SET sync_status = ?, upserted_count = ?, resolved_count = ?, notification_queued_count = ?,
+              degraded_source_count = ?, completed_at = NOW()
+        WHERE sync_run_id = ?`,
+      [incompleteSources.length ? "completed_degraded" : "completed", upserted, resolved, queued, incompleteSources.length, runId]
+    );
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    try {
+      await getPool().query(
+        `UPDATE operational_alert_sync_runs
+            SET sync_status = 'failed', error_code = ?, error_message = ?, completed_at = NOW()
+          WHERE sync_run_id = ?`,
+        [error?.code || "operational_alert_sync_failed", String(error?.message || error).slice(0, 1000), runId]
+      );
+    } catch {
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+  const readback = await readOperationalAlerts({
+    sessionContext,
+    explicitSubject,
+    limit: 1000,
+    lookbackHours,
+    includeResolved: false,
+  });
+  return {
+    ok: readback.ok,
+    sync_run_id: runId,
+    sync_status: incompleteSources.length ? "completed_degraded" : "completed",
+    candidate_count: collected.alerts.length,
+    upserted_count: upserted,
+    resolved_count: resolved,
+    notification_queued_count: queued,
+    notification_skipped_count: notificationsSkipped,
+    degraded_sources: incompleteSources,
+    resolution_skipped_due_to_degraded_sources: resolutionSkipped,
+    readback,
+    secrets_included: false,
+  };
+}
+
+async function autoResolveStaleAlerts(connection, { subject, runId, requestedBy } = {}) {
+  const staleWhere = subject.is_admin ? "1 = 1" : "tenant_id = ?";
+  const staleParams = subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"];
+  const note = "Source no longer emitted the alert during the latest successful synchronization.";
+  const actorId = String(requestedBy || "operational_alert_sync").slice(0, 191);
+  const [rows] = await connection.query(
+    `SELECT alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+            lifecycle_status, lifecycle_revision, operation_fingerprint_sha256, resource_fingerprint_sha256
+       FROM operational_alerts
+      WHERE ${staleWhere}
+        AND manual_known_issue = 0
+        AND lifecycle_status IN ('open','acknowledged','investigating')
+        AND COALESCE(last_sync_run_id, '') <> ?
+      FOR UPDATE`,
+    [...staleParams, runId]
+  );
+  for (const row of rows) {
+    const fromStatus = row.lifecycle_status || null;
+    const nextRevision = safeNumber(row.lifecycle_revision) + 1;
+    const eventId = randomUUID();
+    const idempotencyKey = `sync:${runId}:auto_resolve:${row.alert_id}`.slice(0, 191);
+    await connection.query(
+      `UPDATE operational_alerts
+          SET lifecycle_status = 'resolved', lifecycle_revision = lifecycle_revision + 1,
+              lifecycle_actor = ?, lifecycle_note = ?, resolved_at = COALESCE(resolved_at, NOW()),
+              resolution_note = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE alert_id = ?`,
+      [actorId, note, note, row.alert_id]
+    );
+    await connection.query(
+      `INSERT INTO operational_alert_lifecycle_events
+        (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+         from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+         operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, secrets_included)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'resolved', ?, 'lifecycle_status_changed', ?, 'system_auto_resolution', ?, ?, ?, ?, ?, 0)`,
+      [
+        eventId,
+        row.alert_id,
+        row.alert_key,
+        row.tenant_id,
+        row.user_id,
+        row.workspace_id,
+        row.source_type,
+        row.source_record_id,
+        fromStatus,
+        nextRevision,
+        actorId,
+        note,
+        idempotencyKey,
+        row.operation_fingerprint_sha256,
+        row.resource_fingerprint_sha256,
+        JSON.stringify(sanitizeEvidence({
+          from_status: fromStatus,
+          to_status: "resolved",
+          sync_run_id: runId,
+          actor_type: "system_auto_resolution",
+          auto_resolution_reason: "source_no_longer_emitted",
+        })),
+      ]
+    );
+  }
+  return rows.length;
+}
+
+export async function updateOperationalAlertLifecycle({
+  sessionContext = null,
+  explicitSubject = {},
+  alertId,
+  lifecycleStatus,
+  actor = "platform_admin",
+  actorType = "platform_admin",
+  note = null,
+  idempotencyKey = null,
+} = {}) {
+  const subject = resolveSubject(sessionContext || {}, explicitSubject);
+  const normalizedStatus = String(lifecycleStatus || "").toLowerCase();
+  if (!ALLOWED_LIFECYCLE_STATES.has(normalizedStatus)) {
+    const error = new Error("Unsupported operational alert lifecycle status.");
+    error.code = "invalid_operational_alert_lifecycle_status";
+    error.status = 400;
+    throw error;
+  }
+  const where = ["alert_id = ?"];
+  const params = [alertId];
+  if (!subject.is_admin) {
+    where.push("tenant_id = ?");
+    params.push(subject.tenant_id || "__missing_tenant__");
+  }
+  const eventId = randomUUID();
+  const normalizedActorType = String(actorType || (subject.is_admin ? "platform_admin" : "tenant_user")).slice(0, 64);
+  const normalizedActor = String(actor || subject.user_id || "platform_admin").slice(0, 191);
+  const normalizedNote = note ? String(note).slice(0, 2000) : null;
+  const normalizedIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim().slice(0, 191) : null;
+  const resolvedAt = normalizedStatus === "resolved" ? new Date() : null;
+  const acknowledgedAt = ["acknowledged", "investigating"].includes(normalizedStatus) ? new Date() : null;
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [currentRows] = await connection.query(
+      `SELECT alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+              lifecycle_status, lifecycle_revision, operation_fingerprint_sha256, resource_fingerprint_sha256
+         FROM operational_alerts
+        WHERE ${where.join(" AND ")}
+        LIMIT 1
+        FOR UPDATE`,
+      params
+    );
+    const current = currentRows[0];
+    if (!current) {
+      const error = new Error("Operational alert was not found or is outside the caller scope.");
+      error.code = "operational_alert_not_found";
+      error.status = 404;
+      throw error;
+    }
+    const fromStatus = current.lifecycle_status || null;
+    const nextRevision = safeNumber(current.lifecycle_revision) + 1;
+    if (normalizedIdempotencyKey) {
+      const [existingEvents] = await connection.query(
+        `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+           FROM operational_alert_lifecycle_events
+          WHERE alert_id = ? AND idempotency_key = ?
+          LIMIT 1`,
+        [current.alert_id, normalizedIdempotencyKey]
+      );
+      if (existingEvents[0]) {
+        await connection.commit();
+        return {
+          ok: true,
+          idempotent_replay: true,
+          alert: sanitizeEvidence(current),
+          event: sanitizeEvidence(existingEvents[0]),
+          secrets_included: false,
+        };
+      }
+    }
+    const [result] = await connection.query(
+    `UPDATE operational_alerts
+        SET lifecycle_status = ?, lifecycle_revision = lifecycle_revision + 1,
+            lifecycle_actor = ?, lifecycle_note = ?,
+            acknowledged_at = COALESCE(?, acknowledged_at),
+            resolved_at = ?, resolution_note = CASE WHEN ? = 'resolved' THEN ? ELSE resolution_note END,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE ${where.join(" AND ")}`,
+    [normalizedStatus, normalizedActor, normalizedNote, acknowledgedAt, resolvedAt, normalizedStatus, normalizedNote, ...params]
+  );
+  if (!safeNumber(result?.affectedRows)) {
+    const error = new Error("Operational alert was not found or is outside the caller scope.");
+    error.code = "operational_alert_not_found";
+    error.status = 404;
+    throw error;
+  }
+  await connection.query(
+    `INSERT INTO operational_alert_lifecycle_events
+      (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+       from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+       operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lifecycle_status_changed', ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      eventId,
+      current.alert_id,
+      current.alert_key,
+      current.tenant_id,
+      current.user_id,
+      current.workspace_id,
+      current.source_type,
+      current.source_record_id,
+      fromStatus,
+      normalizedStatus,
+      nextRevision,
+      normalizedActor,
+      normalizedActorType,
+      normalizedNote,
+      normalizedIdempotencyKey,
+      current.operation_fingerprint_sha256,
+      current.resource_fingerprint_sha256,
+      JSON.stringify(sanitizeEvidence({ from_status: fromStatus, to_status: normalizedStatus, actor_type: normalizedActorType })),
+    ]
+  );
+
+  const [rows] = await connection.query(
+    `SELECT alert_id, alert_key, severity, title, lifecycle_status, lifecycle_revision, verification_state,
+            lifecycle_actor, lifecycle_note, acknowledged_at, resolved_at, updated_at
+       FROM operational_alerts
+      WHERE ${where.join(" AND ")}
+      LIMIT 1`,
+    params
+  );
+  const [eventRows] = await connection.query(
+    `SELECT event_id, alert_id, from_status, to_status, lifecycle_revision, actor_id, actor_type, note, idempotency_key, created_at
+       FROM operational_alert_lifecycle_events
+      WHERE event_id = ?
+      LIMIT 1`,
+    [eventId]
+  );
+  await connection.commit();
+  return {
+    ok: true,
+    idempotent_replay: false,
+    alert: sanitizeEvidence(rows[0] || {}),
+    event: sanitizeEvidence(eventRows[0] || {}),
+    secrets_included: false,
+  };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export const _testingOperationalAlerts = {
+  KNOWN_ISSUE_KEYS,
+  sanitizeEvidence,
+  deterministicAlertKey,
+  candidate,
+  mergeCandidates,
+  groupExecutionRows,
+  mapExecutionAlerts,
+  executionOperationKey,
+  executionResourceIdentity,
+  executionOperationFingerprint,
+  executionResourceFingerprint,
+  executionRecoveryKey,
+  groupSkillApprovalRows,
+  notificationEligible,
+  summarize,
+  executionSeverity,
+};

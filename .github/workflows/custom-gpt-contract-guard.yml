@@ -1,0 +1,276 @@
+name: Custom GPT Contract Guard
+
+on:
+  pull_request:
+    paths:
+      - "http-generic-api/openapi*.yaml"
+      - "http-generic-api/openapi/**/*.yaml"
+      - "canonicals/openapi/**/*.yaml"
+      - "edge/activation-gateway/**"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
+      - "http-generic-api/scripts/openapi-response-object-guard.mjs"
+      - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/test-openapi-response-object-guard.mjs"
+      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
+      - "http-generic-api/activationAwarenessService.js"
+      - "http-generic-api/routes/activationAwarenessRoutes.js"
+      - "http-generic-api/migrations/20260721_ci_guard_operational_alert_ingestion_slo.sql"
+      - "docs/openapi-response-object-guard-runbook.md"
+      - "docs/openapi-guard-failure-recovery-drill-report.md"
+      - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
+      - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
+      - "http-generic-api/test-custom-gpt-schemas.mjs"
+      - "http-generic-api/test-openapi-builder-schema-guard.mjs"
+      - "http-generic-api/test-tenant-activation-session-alias.mjs"
+      - "http-generic-api/test-activation-gateway.mjs"
+      - "http-generic-api/test-openapi-split-governance.mjs"
+      - "http-generic-api/test-openapi-split-regeneration-parity.mjs"
+      - "http-generic-api/activationGuidanceService.js"
+      - "http-generic-api/tenantActivationSnapshot.js"
+      - "http-generic-api/platformDegradationPolicy.js"
+      - "http-generic-api/routes/credentialIntakeRoutes.js"
+      - "http-generic-api/routes/gptToolsRoutes.js"
+      - "http-generic-api/routes/tenantActivationOverlayRoutes.js"
+      - "http-generic-api/routes/rootDiscoveryRoutes.js"
+      - "http-generic-api/tenantGptOAuthPreset.js"
+      - "http-generic-api/test-platform-routes.mjs"
+      - ".github/workflows/openapi-auto-sync.yml"
+      - ".github/workflows/custom-gpt-contract-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "http-generic-api/openapi*.yaml"
+      - "http-generic-api/openapi/**/*.yaml"
+      - "canonicals/openapi/**/*.yaml"
+      - "http-generic-api/package.json"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/openapi-builder-schema-guard.mjs"
+      - "http-generic-api/scripts/openapi-response-object-guard.mjs"
+      - "http-generic-api/scripts/openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/test-openapi-response-object-guard.mjs"
+      - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
+      - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
+      - "http-generic-api/activationAwarenessService.js"
+      - "http-generic-api/routes/activationAwarenessRoutes.js"
+      - "http-generic-api/migrations/20260721_ci_guard_operational_alert_ingestion_slo.sql"
+      - "docs/openapi-response-object-guard-runbook.md"
+      - "docs/openapi-guard-failure-recovery-drill-report.md"
+      - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.yaml"
+      - "specs/006-adaptive-authorization-execution-governance/contracts/authorization-execution.openapi.baseline.json"
+      - "http-generic-api/activationGuidanceService.js"
+      - "http-generic-api/tenantActivationSnapshot.js"
+      - "http-generic-api/platformDegradationPolicy.js"
+      - "http-generic-api/routes/credentialIntakeRoutes.js"
+      - "http-generic-api/routes/gptToolsRoutes.js"
+      - ".github/workflows/openapi-auto-sync.yml"
+      - ".github/workflows/custom-gpt-contract-guard.yml"
+  workflow_dispatch:
+    inputs:
+      drill_mode:
+        description: "Run a controlled post-validation failure drill without modifying repository files"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - "none"
+          - "fail"
+  schedule:
+    - cron: "41 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: custom-gpt-contract-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - run: npm ci
+      - name: Enforce canonical parity and Builder-safe schemas
+        run: npm run schemas:guard
+      - name: Verify split-schema governance and regeneration parity
+        run: |
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+      - name: Execute controlled failure drill
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.drill_mode == 'fail' }}
+        run: |
+          echo "::error::Controlled OpenAPI guard failure drill requested after all real validations passed."
+          exit 1
+
+  alert:
+    name: OpenAPI guard alert lifecycle
+    needs: guard
+    if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Ingest SQL operational signal
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          GUARD_RESULT: ${{ needs.guard.result }}
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+        with:
+          script: |
+            const apiKey = process.env.BACKEND_API_KEY || "";
+            if (!apiKey) {
+              core.warning("BACKEND_API_KEY is unavailable; SQL guard signal ingestion was skipped.");
+              return;
+            }
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const guardResult = process.env.GUARD_RESULT || "unknown";
+            const status = guardResult === "success"
+              ? "success"
+              : guardResult === "cancelled"
+                ? "cancelled"
+                : "failure";
+            const run = await github.rest.actions.getWorkflowRun({
+              owner,
+              repo,
+              run_id: context.runId,
+            });
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const observedAt = new Date().toISOString();
+            const payload = {
+              signal_key: "custom_gpt_contract_guard",
+              status,
+              idempotency_key: `custom-gpt-contract-guard:${context.runId}:${process.env.GITHUB_RUN_ATTEMPT || "1"}:${status}`,
+              workflow_name: "Custom GPT Contract Guard",
+              workflow_run_id: String(context.runId),
+              workflow_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+              job_name: "guard",
+              source_ref: runUrl,
+              commit_sha: context.sha,
+              ref_name: context.ref,
+              started_at: run.data.run_started_at || run.data.created_at || observedAt,
+              observed_at: observedAt,
+              severity: status === "success" ? "info" : "high",
+              title: status === "success"
+                ? "Custom GPT Contract Guard recovered"
+                : "Custom GPT Contract Guard failed",
+              summary: `Default-branch guard result: ${guardResult}.`,
+              evidence: {
+                event_name: context.eventName,
+                drill_mode: context.payload.inputs?.drill_mode || "none",
+                run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+              },
+            };
+            const response = await fetch(`${process.env.RUNTIME_BASE_URL}/activation/operational-attention/ci-signals`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const responseText = await response.text();
+            let result = {};
+            try { result = responseText ? JSON.parse(responseText) : {}; } catch { result = {}; }
+            if (!response.ok) {
+              throw new Error(`CI guard SQL ingestion failed with HTTP ${response.status}: ${result?.error?.code || "unknown_error"}`);
+            }
+            core.info(`SQL guard signal stored: event=${result?.event?.event_id || "unknown"}, alert=${result?.alert?.alert_id || "none"}, slo=${result?.slo?.overall_status || "unknown"}.`);
+
+      - name: Open, update, or resolve the OpenAPI guard incident
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          GUARD_RESULT: ${{ needs.guard.result }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const marker = "<!-- openapi-response-object-guard-alert -->";
+            const title = "[OpenAPI Guard] Custom GPT Contract Guard failing";
+            const guardResult = process.env.GUARD_RESULT || "unknown";
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const observedAt = new Date().toISOString();
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const matches = openIssues.filter((issue) =>
+              !issue.pull_request
+              && issue.title === title
+              && (issue.body || "").includes(marker),
+            );
+
+            if (guardResult === "success") {
+              for (const issue of matches) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `Recovered after a successful default-branch guard run: ${runUrl}`,
+                });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+              }
+              core.info(matches.length > 0
+                ? `Closed ${matches.length} OpenAPI guard alert issue(s).`
+                : "No open OpenAPI guard alert issue required resolution.");
+              return;
+            }
+
+            const body = `${marker}
+            ## OpenAPI Response Object guard alert
+
+            The default-branch **Custom GPT Contract Guard** did not succeed.
+
+            - Result: **${guardResult}**
+            - Observed: ${observedAt}
+            - Workflow run: ${runUrl}
+            - Ref: \`${context.ref}\`
+            - Commit: \`${context.sha}\`
+
+            Follow \`docs/openapi-response-object-guard-runbook.md\` before changing generated schemas.`;
+
+            if (matches.length > 0) {
+              const issue = matches[0];
+              await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `Failure observed again: ${runUrl}`,
+              });
+              core.warning(`Updated OpenAPI guard alert issue #${issue.number}.`);
+              return;
+            }
+
+            const created = await github.rest.issues.create({ owner, repo, title, body });
+            core.warning(`Created OpenAPI guard alert issue #${created.data.number}.`);

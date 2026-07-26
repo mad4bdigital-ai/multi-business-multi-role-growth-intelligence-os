@@ -1,0 +1,96 @@
+{
+  "template_version": 1,
+  "workflow_key": "classification",
+  "binding_key": "classification_v1",
+  "task_class": "classification",
+  "runtime_type": "n8n",
+  "credential": {
+    "type": "httpHeaderAuth",
+    "name": "Platform Classification Webhook Header Auth",
+    "header_name": "Authorization",
+    "value_env_var": "N8N_WEBHOOK_TOKEN"
+  },
+  "workflow": {
+    "name": "Platform Classification v1",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "platform-classification",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "headerAuth"
+        },
+        "id": "41e8f990-dc49-4ec0-873f-6cad79f0068e",
+        "name": "Platform Classification Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [0, 0],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "__N8N_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+            "name": "Platform Classification Webhook Header Auth"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $json.body || $json.input || $json;\nconst text = String(payload.input?.text || payload.text || '').toLowerCase();\nlet label = 'general';\nlet confidence = 0.65;\nif (text.includes('image') || text.includes('photo') || text.includes('edit') || text.includes('remove background') || text.includes('background') || text.includes('صورة') || text.includes('تعديل')) {\n  label = 'image_edit';\n  confidence = 0.95;\n} else if (text.includes('summary') || text.includes('summarize') || text.includes('session') || text.includes('ملخص') || text.includes('تلخيص')) {\n  label = 'summary';\n  confidence = 0.9;\n} else if (text.includes('classify') || text.includes('route') || text.includes('intent') || text.includes('تصنيف')) {\n  label = 'classification';\n  confidence = 0.88;\n}\nreturn [{ json: { label, confidence, source: 'n8n_classification_v1', text_length: text.length } }];"
+        },
+        "id": "59c9da4b-b19e-4977-a2a1-4897d76b412b",
+        "name": "Classify Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [280, 0]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { label: $json.label, confidence: $json.confidence, source: $json.source } }}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "ebb6b13a-280f-4c99-8d68-7b2aa4b79610",
+        "name": "Return Classification",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [560, 0]
+      }
+    ],
+    "connections": {
+      "Platform Classification Webhook": {
+        "main": [
+          [
+            {
+              "node": "Classify Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Classify Request": {
+        "main": [
+          [
+            {
+              "node": "Return Classification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  },
+  "security_assertions": {
+    "contains_secret_values": false,
+    "uses_native_header_auth": true,
+    "token_source": "N8N_WEBHOOK_TOKEN",
+    "code_node_uses_process_env": false,
+    "code_node_contains_bearer_literal": false
+  }
+}

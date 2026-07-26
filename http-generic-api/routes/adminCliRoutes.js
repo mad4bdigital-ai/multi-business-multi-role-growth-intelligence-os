@@ -1,8 +1,16 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { spawn } from "child_process";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
+import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
+import { finalizeCloudflareEnvelopeLifecycle } from "../cloudflareEnvelopeLifecycle.js";
 import { decryptCredentials } from "../tokenEncryption.js";
+import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
+import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
+import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
+import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
+import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
+import { classifyLocalConnectorCompositeHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -12,6 +20,16 @@ const LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV = "LOCAL_WINDOWS_APP_CONTROL_ENABLED
 const ADMIN_SHELL_ALLOWLIST_ENV = "ADMIN_SHELL_ALLOWLIST";
 const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
+const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
+const GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"]);
+const GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS = [
+  /^\.env(?:\.|$)/i,
+  /^credentials(?:\..*)?\.json$/i,
+  /^token(?:\..*)?\.json$/i,
+  /^service[-_]?account.*\.json$/i,
+  /^private[-_]?key.*\.(?:json|key|pem)$/i,
+  /\.(?:key|p12|pem|pfx)$/i,
+];
 const WINDOWS_PATH_ARG_KEYS = new Set([
   "--current-path",
   "--new-path",
@@ -22,6 +40,25 @@ const WINDOWS_PATH_ARG_KEYS = new Set([
 function isLocalProjectPathHelperAlias(alias = "") {
   return alias === "local_project_path_helper_dry_run" || alias === "local_project_path_helper_apply";
 }
+const DRY_RUN_ONLY_SHELL_ALIASES = new Set([
+  "session_archive_relink_repair_dry_run",
+  "local_project_path_helper_dry_run",
+  "backup_copy_governance_helper_dry_run",
+  "backup_executor_guard_dry_run",
+  "database_lifecycle_scheduler_approval_proof_dry_run",
+  "database_lifecycle_scheduler_snapshot_dry_run",
+  "migration_reconciliation_dry_run",
+]);
+const APPLY_ONLY_SHELL_ALIASES = new Set([
+  "session_archive_relink_repair_apply",
+  "local_project_path_helper_apply",
+  "backup_copy_governance_helper_apply",
+  "backup_executor_guard_apply",
+  "database_lifecycle_scheduler_approval_proof_apply",
+  "database_lifecycle_scheduler_snapshot_apply",
+  "migration_reconciliation_apply",
+  "governed_platform_automation_tick",
+]);
 function isSafeLocalProjectPathArg(arg = "") {
   const value = String(arg || "");
   const [key] = value.split("=", 1);
@@ -343,7 +380,34 @@ export async function executeSafe(cmd, args, options = {}) {
   });
 }
 
-async function executeDbControl(body = {}) {
+export function serializeDbControlQueryResult(result, fields = null) {
+  if (Array.isArray(result)) {
+    return {
+      statement_result_type: "rows",
+      rows: result,
+      fields: Array.isArray(fields)
+        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
+        : undefined,
+      secrets_included: false,
+    };
+  }
+
+  const header = result && typeof result === "object" ? result : {};
+  return {
+    statement_result_type: "mutation",
+    result: {
+      affectedRows: Number(header.affectedRows || 0),
+      changedRows: Number(header.changedRows || 0),
+      insertId: Number(header.insertId || 0),
+      warningStatus: Number(header.warningStatus || 0),
+      serverStatus: header.serverStatus === undefined ? undefined : Number(header.serverStatus || 0),
+      info: typeof header.info === "string" ? header.info : undefined,
+    },
+    secrets_included: false,
+  };
+}
+
+export async function executeDbControl(body = {}) {
   const action = String(body.action || "run").trim().toLowerCase();
   if (action !== "run") {
     const err = new Error("Unsupported db action. Use run.");
@@ -372,11 +436,8 @@ async function executeDbControl(body = {}) {
   if (statements.length === 1) {
     const [result, fields] = await getPool().query(statements[0], params);
     return {
-      rows: Array.isArray(result) ? result : undefined,
-      result: Array.isArray(result) ? undefined : result,
-      fields: Array.isArray(fields)
-        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
-        : undefined,
+      statement_count: 1,
+      ...serializeDbControlQueryResult(result, fields),
     };
   }
 
@@ -386,9 +447,11 @@ async function executeDbControl(body = {}) {
     const [result] = await getPool().query(stmt);
     results.push({
       statement: stmt.slice(0, 120),
-      affectedRows: result?.affectedRows,
-      insertId: result?.insertId,
-      warningStatus: result?.warningStatus,
+      affectedRows: Number(result?.affectedRows || 0),
+      changedRows: Number(result?.changedRows || 0),
+      insertId: Number(result?.insertId || 0),
+      warningStatus: Number(result?.warningStatus || 0),
+      secrets_included: false,
     });
   }
   return { statements_executed: results.length, results };
@@ -459,6 +522,1330 @@ async function linkSessionContinuity(body = {}) {
   };
 }
 
+function parseCliFlag(args, names) {
+  const set = new Set(Array.isArray(names) ? names : [names]);
+  for (let i = 0; i < args.length; i += 1) {
+    if (set.has(args[i])) return args[i + 1] || "";
+    for (const name of set) {
+      if (String(args[i]).startsWith(`${name}=`)) return String(args[i]).slice(name.length + 1);
+    }
+  }
+  return "";
+}
+
+function hasCliFlag(args, names) {
+  const set = new Set(Array.isArray(names) ? names : [names]);
+  return args.some((arg) => set.has(arg));
+}
+
+async function resolveGithubRepoFromArgs(args = []) {
+  const repoArg = parseCliFlag(args, ["--repo", "-R"]);
+  if (repoArg && repoArg.includes("/")) {
+    const [owner, repo] = repoArg.split("/", 2);
+    return { owner, repo };
+  }
+  const cfg = await resolveActivationBootstrapConfig({});
+  const owner = String(cfg?.config?.github_owner || "").trim();
+  const repo = String(cfg?.config?.github_repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub repo is required. Pass --repo owner/repo or configure activation bootstrap github_owner/github_repo.");
+    err.status = 400;
+    err.code = "github_repo_required";
+    throw err;
+  }
+  return { owner, repo };
+}
+
+function parseGithubJsonFields(args = []) {
+  const raw = parseCliFlag(args, "--json");
+  return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+}
+
+function parseGithubApiMethod(args = []) {
+  return String(parseCliFlag(args, ["-X", "--method"]) || "GET").trim().toUpperCase() || "GET";
+}
+
+function parseGithubFieldValues(args = []) {
+  const values = {};
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] !== "-f" && args[i] !== "--field") continue;
+    const raw = String(args[i + 1] || "");
+    if (!raw) continue;
+    let key;
+    let value;
+    if (raw.includes("=")) {
+      const idx = raw.indexOf("=");
+      key = raw.slice(0, idx);
+      value = raw.slice(idx + 1);
+    } else {
+      key = raw;
+      value = String(args[i + 2] || "");
+      i += 1;
+    }
+    if (!key) continue;
+    if (value === "true") values[key] = true;
+    else if (value === "false") values[key] = false;
+    else values[key] = value;
+    i += 1;
+  }
+  return values;
+}
+
+function mapGithubRunForGhJson(run, fields = []) {
+  const mapped = {
+    databaseId: run.id,
+    displayTitle: run.display_title,
+    headSha: run.head_sha,
+    conclusion: run.conclusion,
+    status: run.status,
+    workflowName: run.name,
+    createdAt: run.created_at,
+    updatedAt: run.updated_at,
+    url: run.html_url,
+    event: run.event,
+    branch: run.head_branch,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? run[field] ?? null]));
+}
+
+function mapGithubWorkflowForGhJson(workflow, fields = []) {
+  const mapped = {
+    id: workflow.id,
+    name: workflow.name,
+    path: workflow.path,
+    state: workflow.state,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? workflow[field] ?? null]));
+}
+
+function formatGithubWorkflowList(workflows = [], fields = []) {
+  if (fields.length) return JSON.stringify(workflows.map((workflow) => mapGithubWorkflowForGhJson(workflow, fields)), null, 2);
+  return `${workflows.map((workflow) => `${workflow.name}\t${workflow.state}\t${workflow.id}`).join("\n")}${workflows.length ? "\n" : ""}`;
+}
+
+function mapGithubPullForGhJson(pr, fields = []) {
+  const checkRuns = Array.isArray(pr._state_check_rollup) ? pr._state_check_rollup : [];
+  const mapped = {
+    number: pr.number,
+    url: pr.html_url,
+    title: pr.title,
+    body: pr.body,
+    state: pr.state,
+    isDraft: Boolean(pr.draft),
+    mergeable: pr.mergeable,
+    mergeStateStatus: pr.mergeable_state || null,
+    merged: pr.merged,
+    headRefName: pr.head?.ref || null,
+    headRefOid: pr.head?.sha || null,
+    headRepositoryOwner: pr.head?.repo?.owner?.login || null,
+    headRepository: pr.head?.repo?.full_name || null,
+    baseRefName: pr.base?.ref || null,
+    baseRefOid: pr.base?.sha || null,
+    author: pr.user?.login || null,
+    stateCheckRollup: checkRuns.map((run) => ({
+      name: run.name || run.context || run.check_suite?.app?.name || "unknown",
+      status: run.status || null,
+      conclusion: run.conclusion || null,
+      url: run.html_url || run.details_url || null,
+    })),
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
+}
+
+const GITHUB_FALLBACK_REPAIR_ATTEMPT_SEQUENCE = Object.freeze([
+  "classify_missing_capability",
+  "attempt_native_capability_expansion_or_mapping",
+  "run_targeted_regression_test",
+]);
+
+function buildGithubFallbackRepairAttempts({ args = [], mapped = false } = {}) {
+  const operation = args.slice(0, 2).join(" ").trim() || "unknown";
+  return GITHUB_FALLBACK_REPAIR_ATTEMPT_SEQUENCE.map((stage, index) => ({
+    attempt: index + 1,
+    stage,
+    operation,
+    outcome: mapped && index < 2 ? "mapped" : "checked",
+    fallback_signal: mapped ? "capability_mapped_to_rest" : "capability_gap_still_unmapped",
+    secrets_included: false,
+  }));
+}
+
+export function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
+  const operation = args.slice(0, 2).join(" ").trim() || "unknown";
+  const argsPreview = args.slice(0, 6);
+  const checkpointResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    ...(mapped ? { repair_attempt_count: 3 } : {}),
+  };
+  const currentResourceState = {
+    operation,
+    args_preview: argsPreview,
+    mapped,
+    repair_attempt_count: 3,
+  };
+  const pendingCheckpoint = createContinuationCheckpoint({
+    operation_key: `github_rest_fallback:${operation}`,
+    resource_type: "github_rest_fallback_operation",
+    actor_context: { actor_type: "admin" },
+    resource_scope: { scope_type: "repository", provider: "github", operation },
+    resource_state: checkpointResourceState,
+    interruption_signal: "fallback_unsupported_command",
+    stage: mapped ? "resume_original_operation" : "dry_run_repair",
+    metadata: { adapter: "github_rest_fallback", args_preview: argsPreview },
+  });
+  const plannedResume = planContinuationResume({
+    checkpoint: pendingCheckpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: pendingCheckpoint.resource_scope,
+    current_resource_state: currentResourceState,
+    dry_run_result: { ok: true, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped }) },
+    verify_result: { ok: mapped === true, mapped },
+    apply_requested: false,
+  });
+  if (!mapped) {
+    return { checkpoint: pendingCheckpoint, resume_plan: plannedResume, secrets_included: false };
+  }
+  const checkpoint = {
+    ...pendingCheckpoint,
+    current_stage: "completed",
+    status: "completed",
+    required_before_resume: [],
+    requires_reconciliation_before_resume: false,
+  };
+  const resume_plan = {
+    ...plannedResume,
+    risk: {
+      ...plannedResume.risk,
+      classification: "clean",
+      reason_code: "resource_fingerprint_unchanged",
+      resume_allowed: true,
+      requires_reconciliation_before_resume: false,
+    },
+    apply_requested: false,
+    apply_allowed: false,
+    resume_allowed: true,
+    operation_completed: true,
+    next_required_step: "none",
+  };
+  return { checkpoint, resume_plan, secrets_included: false };
+}
+
+function buildGithubCapabilityRepairAuditPayload({ args = [], result = null, error = null } = {}) {
+  const capabilityRepair = result?.capability_repair || error?.details || {};
+  const mapped = capabilityRepair.repaired === true || (Boolean(result?.fallback) && !error);
+  return {
+    policy: capabilityRepair.policy || "repair_missing_capability_before_fallback",
+    provider: "github",
+    fallback: result?.fallback || "github_rest",
+    operation: capabilityRepair.operation || args.slice(0, 2).join(" ").trim() || "unknown",
+    args_preview: args.slice(0, 6),
+    repaired: mapped,
+    unsupported: error?.code === "github_rest_fallback_unsupported_args",
+    max_repair_attempts_before_fallback: capabilityRepair.max_repair_attempts_before_fallback || 3,
+    repair_attempt_count: capabilityRepair.repair_attempt_count ?? (mapped ? 3 : null),
+    repair_attempts: capabilityRepair.repair_attempts || buildGithubFallbackRepairAttempts({ args, mapped }),
+    continuation: capabilityRepair.continuation || buildGithubFallbackContinuationEvidence({ args, mapped }),
+    fallback_reason: capabilityRepair.fallback_reason || null,
+    secrets_included: false,
+  };
+}
+
+function auditGithubFallbackCapabilityRepair({ args = [], result = null, error = null } = {}) {
+  writeAuditLogAsync({
+    actor_type: "service",
+    action: "connector.capability_repair_fallback",
+    resource_type: "github_rest_fallback",
+    resource_id: args.slice(0, 2).join(" ").trim() || "unknown",
+    service_mode: "admin_control",
+    metadata: buildGithubCapabilityRepairAuditPayload({ args, result, error }),
+    outcome: error ? "unsupported" : "completed",
+  });
+}
+
+export function buildLocalConnectorDeviceAliasCandidates(deviceId = "") {
+  const raw = String(deviceId || "").trim();
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const withoutPcSuffix = normalized.replace(/-pc$/i, "");
+  const candidates = new Set([raw, raw.toLowerCase(), normalized, withoutPcSuffix].filter(Boolean));
+  if (withoutPcSuffix && withoutPcSuffix !== normalized) candidates.add(withoutPcSuffix);
+  if (withoutPcSuffix && !normalized.endsWith("-pc")) candidates.add(`${withoutPcSuffix}-pc`);
+  return Array.from(candidates).filter(Boolean);
+}
+
+function localConnectorDeviceAliasLikePatterns(deviceId = "") {
+  return buildLocalConnectorDeviceAliasCandidates(deviceId)
+    .map((candidate) => `${candidate}%`)
+    .filter(Boolean);
+}
+
+function localConnectorConfigHasUsableToken(row = {}) {
+  return Boolean(String(row?.cf_token || "").trim());
+}
+
+export function buildLocalConnectorDeviceIdentityResolution({ requestedUserId = "", requestedDeviceId = "", row = null, matchSource = "direct" } = {}) {
+  if (!row) return null;
+  const resolvedUserId = String(row.user_id || "").trim();
+  const resolvedDeviceId = String(row.device_id || "").trim();
+  return {
+    status: matchSource === "db_alias" ? "resolved_via_alias" : "matched_directly",
+    match_source: matchSource,
+    requested_user_id: String(requestedUserId || "").trim() || null,
+    requested_device_id: String(requestedDeviceId || "").trim() || null,
+    resolved_user_id: resolvedUserId || null,
+    resolved_device_id: resolvedDeviceId || null,
+    config_id: row.config_id || null,
+    cf_tunnel_id: row.cf_tunnel_id || null,
+    cf_tunnel_name: row.cf_tunnel_name || null,
+    secrets_included: false,
+  };
+}
+
+export function buildLocalConnectorTunnelProvisioningContinuationEvidence({
+  userId = "",
+  deviceId = "",
+  tunnelStatus = null,
+  cfTunnelId = null,
+  tunnelUrl = null,
+  configSource = "missing",
+} = {}) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedDeviceId = String(deviceId || "").trim() || "unknown-device";
+  const resourceState = {
+    user_id: normalizedUserId || null,
+    device_id: normalizedDeviceId,
+    cf_tunnel_id: cfTunnelId || null,
+    tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+    tunnel_status: tunnelStatus || null,
+    config_source: configSource || "missing",
+    db_cf_token_present: false,
+    env_tunnel_token_present: false,
+    provisioning_required: true,
+    required_next_action: "provision_tunnel_token",
+    retry_after: "store_cf_token_or_set_CLOUDFLARE_TUNNEL_TOKEN_then_retry_self_repair",
+  };
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `local_connector_self_repair:${normalizedDeviceId}`,
+    resource_type: "local_connector_tunnel_provisioning",
+    actor_context: { actor_type: "admin" },
+    resource_scope: {
+      scope_type: "device",
+      provider: "cloudflare",
+      user_id: normalizedUserId || null,
+      device_id: normalizedDeviceId,
+    },
+    resource_state: resourceState,
+    interruption_signal: "connector_tunnel_provisioning_required",
+    stage: "dry_run_repair",
+    metadata: {
+      adapter: "local_connector_self_repair",
+      required_next_action: "provision_tunnel_token",
+      retry_route: "POST /admin/cli/local-connector/self-repair",
+      install_bundle_route: "GET /admin/cli/local-connector/install-bundle",
+      secrets_included: false,
+    },
+  });
+  const resumePlan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: { ...resourceState, resume_probe: "token_still_missing" },
+    dry_run_result: { ok: false, reason_code: "tunnel_token_not_provisioned" },
+    verify_result: { ok: false, reason_code: "connector_tunnel_token_missing" },
+    apply_requested: false,
+  });
+  return {
+    checkpoint,
+    resume_plan: {
+      ...resumePlan,
+      resume_allowed: false,
+      next_required_step: "provision_tunnel_token",
+      apply_allowed: false,
+    },
+    provisioning: {
+      required: true,
+      required_next_action: "provision_tunnel_token",
+      accepted_sources: ["local_connector_user_configs.cf_token", "CLOUDFLARE_TUNNEL_TOKEN"],
+      retry_after: "store_cf_token_or_set_CLOUDFLARE_TUNNEL_TOKEN_then_retry_self_repair",
+    },
+    secrets_included: false,
+  };
+}
+
+function buildGithubFallbackUnsupportedError(args = []) {
+  const err = new Error("gh CLI is missing and GitHub REST fallback does not yet support these arguments after governed capability repair checks.");
+  err.status = 501;
+  err.code = "github_rest_fallback_unsupported_args";
+  err.details = {
+    args,
+    policy: "repair_missing_capability_before_fallback",
+    trigger_signal: "fallback_unsupported_command",
+    max_repair_attempts_before_fallback: 3,
+    repair_attempt_count: 3,
+    repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: false }),
+    continuation: buildGithubFallbackContinuationEvidence({ args, mapped: false }),
+    fallback_allowed: true,
+    required_sequence: [
+      "classify_missing_capability",
+      "attempt_native_capability_expansion_or_mapping",
+      "run_targeted_regression_test",
+      "retry_original_operation",
+      "only_then_use_fallback_or_manual_route"
+    ],
+    fallback_reason: "capability_not_yet_mapped_after_three_governed_repair_attempts",
+    supported_operations: [
+      "api graphql read-only queries",
+      "pr list",
+      "pr diff <number> --name-only",
+      "pr edit <number> --add-label superseded",
+      "workflow list",
+      "workflow run <workflow> --ref <ref>",
+      "api <workflow-dispatch-path> -X POST -f ref=<ref>",
+      "run list",
+      "run view <id>",
+      "run view <id> --log-failed",
+      "pr create",
+      "pr merge <number|url>"
+    ]
+  };
+  return err;
+}
+
+function parseGithubPrNumber(value) {
+  const raw = String(value || "").trim();
+  if (/^\d+$/.test(raw)) return raw;
+  const match = raw.match(/\/pull\/(\d+)(?:$|[/?#])/i);
+  if (match) return match[1];
+  const err = new Error("Pull request number or URL is required.");
+  err.status = 400;
+  err.code = "github_pr_number_required";
+  throw err;
+}
+
+function assertGithubGovernedPrLabel(value = "") {
+  const label = String(value || "").trim().toLowerCase();
+  if (!GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST.has(label)) {
+    const err = new Error("GitHub PR label fallback only permits the governed superseded label.");
+    err.status = 403;
+    err.code = "github_pr_label_not_allowlisted";
+    err.details = { label: label || null, allowed_labels: [...GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST], secrets_included: false };
+    throw err;
+  }
+  return label;
+}
+
+export function parseGithubPrAddLabelArgs(args = []) {
+  const normalized = (Array.isArray(args) ? args : []).map((arg) => String(arg || ""));
+  if (normalized[0] !== "pr" || normalized[1] !== "edit") return null;
+  const prNumber = parseGithubPrNumber(normalized[2]);
+  let label = "";
+  let repoSeen = false;
+  for (let i = 3; i < normalized.length; i += 1) {
+    const arg = normalized[i];
+    if (arg === "--repo" || arg === "-R") {
+      if (repoSeen || !normalized[i + 1] || normalized[i + 1].startsWith("-")) {
+        const err = new Error("GitHub PR label fallback requires exactly one valid --repo value when supplied.");
+        err.status = 400;
+        err.code = "github_pr_label_repo_invalid";
+        throw err;
+      }
+      repoSeen = true;
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--repo=") || arg.startsWith("-R=")) {
+      if (repoSeen || !arg.slice(arg.indexOf("=") + 1).includes("/")) {
+        const err = new Error("GitHub PR label fallback requires exactly one valid --repo value when supplied.");
+        err.status = 400;
+        err.code = "github_pr_label_repo_invalid";
+        throw err;
+      }
+      repoSeen = true;
+      continue;
+    }
+    if (arg === "--add-label") {
+      if (label || !normalized[i + 1] || normalized[i + 1].startsWith("-")) {
+        const err = new Error("GitHub PR label fallback requires exactly one --add-label value.");
+        err.status = 400;
+        err.code = "github_pr_label_value_invalid";
+        throw err;
+      }
+      label = normalized[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--add-label=")) {
+      if (label) {
+        const err = new Error("GitHub PR label fallback accepts exactly one label.");
+        err.status = 400;
+        err.code = "github_pr_label_multiple_values";
+        throw err;
+      }
+      label = arg.slice("--add-label=".length);
+      continue;
+    }
+    const err = new Error(`Unsupported gh pr edit argument: ${arg || "<empty>"}.`);
+    err.status = 400;
+    err.code = "github_pr_label_unsupported_arg";
+    err.details = { argument: arg || null, secrets_included: false };
+    throw err;
+  }
+  if (!label) {
+    const err = new Error("gh pr edit fallback requires --add-label superseded.");
+    err.status = 400;
+    err.code = "github_pr_label_required";
+    throw err;
+  }
+  return { pr_number: prNumber, label: assertGithubGovernedPrLabel(label), secrets_included: false };
+}
+
+function firstGithubPositional(args = [], startIndex = 0) {
+  for (let i = startIndex; i < args.length; i += 1) {
+    const arg = String(args[i] || "");
+    if (arg && !arg.startsWith("-")) return arg;
+  }
+  return "";
+}
+
+function encodeGithubRefPath(refName) {
+  return String(refName || "").split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
+function decodeGithubApiPathSegment(value = "") {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
+}
+
+function githubContentsPathFromApiTarget(apiTarget = "") {
+  const normalized = String(apiTarget || "");
+  const marker = "/contents/";
+  if (!normalized.startsWith(marker)) return "";
+  return normalized
+    .slice(marker.length)
+    .split("/")
+    .filter(Boolean)
+    .map(decodeGithubApiPathSegment)
+    .join("/");
+}
+
+function assertGithubContentsWritePathAllowed(apiTarget = "") {
+  const filePath = githubContentsPathFromApiTarget(apiTarget);
+  if (!filePath) {
+    const err = new Error("GitHub contents write fallback requires /contents/{path}.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_required";
+    throw err;
+  }
+  const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.some((part) => part === "..")) {
+    const err = new Error("GitHub contents write fallback blocks parent directory references.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_traversal";
+    throw err;
+  }
+  if (parts.some((part) => GITHUB_CONTENTS_WRITE_DENY_SEGMENTS.has(part.toLowerCase()))) {
+    const err = new Error("GitHub contents write fallback blocks this repository segment.");
+    err.status = 403;
+    err.code = "github_rest_contents_path_blocked";
+    throw err;
+  }
+  if (filePath.toLowerCase().startsWith(".github/workflows/")) {
+    const err = new Error("GitHub contents write fallback blocks workflow file mutation.");
+    err.status = 403;
+    err.code = "github_rest_contents_workflow_blocked";
+    throw err;
+  }
+  const baseName = parts[parts.length - 1] || "";
+  if (GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS.some((pattern) => pattern.test(baseName))) {
+    const err = new Error("GitHub contents write fallback blocks this file name.");
+    err.status = 403;
+    err.code = "github_rest_contents_file_blocked";
+    throw err;
+  }
+  return filePath;
+}
+
+function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
+  // The REST fallback is intended for governed content writes only. Destructive
+  // deletes must use a separate approval-gated route, not this fallback path.
+  return String(method || "").toUpperCase() === "PUT" && String(apiTarget || "").startsWith("/contents/");
+}
+
+function githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {
+  return String(method || "").toUpperCase() === "PATCH" && String(apiTarget || "").startsWith("/git/refs/heads/");
+}
+
+function githubPullCloseAllowed(apiTarget = "", method = "GET") {
+  return String(method || "").toUpperCase() === "PATCH" && /^\/pulls\/\d+$/.test(String(apiTarget || ""));
+}
+
+function assertGithubPullCloseAllowed(apiTarget = "", fieldValues = {}) {
+  const match = String(apiTarget || "").match(/^\/pulls\/(\d+)$/);
+  const keys = Object.keys(fieldValues || {}).sort();
+  if (!match || keys.length !== 1 || keys[0] !== "state" || fieldValues.state !== "closed") {
+    const err = new Error("GitHub PR close fallback only accepts PATCH /pulls/{number} with the sole field state=closed.");
+    err.status = 400;
+    err.code = "github_rest_pr_close_payload_invalid";
+    err.details = { apiTarget, allowed_fields: ["state"], required_state: "closed" };
+    throw err;
+  }
+  return { pullNumber: match[1], body: { state: "closed" } };
+}
+
+function githubRefUpdateConfirmation(branchName = "") {
+  return `RESET_BRANCH_REF_${String(branchName || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase()}`;
+}
+
+function assertGithubBranchRefUpdateAllowed(apiTarget = "", fieldValues = {}) {
+  const marker = "/git/refs/heads/";
+  const branchName = String(apiTarget || "").slice(String(apiTarget || "").indexOf(marker) + marker.length);
+  const decodedBranch = decodeGithubApiPathSegment(branchName);
+  const protectedBranches = new Set(["main", "master", "production", "prod", "staging", "release"]);
+  if (!decodedBranch || protectedBranches.has(decodedBranch)) {
+    const err = new Error("Refusing to update a protected/default branch through GitHub REST fallback.");
+    err.status = 403;
+    err.code = "github_rest_ref_update_protected_branch";
+    throw err;
+  }
+  if (!/^(gpt|chore|fix|feature|docs|hotfix)\//.test(decodedBranch)) {
+    const err = new Error("GitHub branch ref update fallback only allows governed non-production branch prefixes.");
+    err.status = 403;
+    err.code = "github_rest_ref_update_branch_prefix_blocked";
+    err.details = { branch: decodedBranch, allowed_prefixes: ["gpt/", "chore/", "fix/", "feature/", "docs/", "hotfix/"] };
+    throw err;
+  }
+  const sha = String(fieldValues.sha || "").trim();
+  if (!/^[0-9a-f]{40}$/i.test(sha)) {
+    const err = new Error("sha must be a 40-character Git commit SHA for branch ref update fallback.");
+    err.status = 400;
+    err.code = "github_rest_ref_update_invalid_sha";
+    throw err;
+  }
+  if (fieldValues.force !== true) {
+    const err = new Error("Branch ref update fallback requires force=true so destructive intent is explicit.");
+    err.status = 400;
+    err.code = "github_rest_ref_update_force_required";
+    throw err;
+  }
+  const expectedConfirm = githubRefUpdateConfirmation(decodedBranch);
+  if (String(fieldValues.confirm || "") !== expectedConfirm) {
+    const err = new Error(`Branch ref update fallback requires confirm=${expectedConfirm}.`);
+    err.status = 400;
+    err.code = "github_rest_ref_update_confirmation_required";
+    err.details = { branch: decodedBranch, expected_confirm: expectedConfirm };
+    throw err;
+  }
+  return { branch: decodedBranch, body: { sha, force: true } };
+}
+
+async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
+  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    method,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+      ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(payload?.message || `GitHub REST request failed with HTTP ${response.status}.`);
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 409
+      ? "github_rest_conflict"
+      : response.status === 422
+        ? "github_rest_validation_failed"
+        : "github_rest_failed";
+    err.details = { status: response.status, apiPath, github_error: payload || null };
+    throw err;
+  }
+  return payload;
+}
+
+async function githubRestText({ owner, repo, apiPath, token }) {
+  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+    },
+  });
+  const text = await response.text().catch(() => "");
+  if (!response.ok) {
+    const err = new Error(text || `GitHub REST text request failed with HTTP ${response.status}.`);
+    err.status = 502;
+    err.code = "github_rest_failed";
+    err.details = { status: response.status, apiPath };
+    throw err;
+  }
+  return text;
+}
+
+function assertGithubGraphqlReadOnly(query = "") {
+  const compact = String(query || "").replace(/#[^\n\r]*/g, " ").trim();
+  if (!compact) {
+    const err = new Error("GraphQL fallback requires a query field.");
+    err.status = 400;
+    err.code = "github_rest_graphql_query_required";
+    throw err;
+  }
+  if (/\b(?:mutation|subscription)\b/i.test(compact)) {
+    const err = new Error("GitHub GraphQL fallback supports read-only query operations only.");
+    err.status = 403;
+    err.code = "github_rest_graphql_mutation_blocked";
+    throw err;
+  }
+  return compact;
+}
+
+async function githubGraphqlJson({ token, body }) {
+  const response = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.errors) {
+    const err = new Error(payload?.message || payload?.errors?.[0]?.message || `GitHub GraphQL request failed with HTTP ${response.status}.`);
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 422 ? "github_graphql_validation_failed" : "github_graphql_failed";
+    err.details = { status: response.status, github_error: payload || null };
+    throw err;
+  }
+  return payload;
+}
+
+function encodeCompareRef(refName) {
+  return encodeURIComponent(String(refName || "").trim());
+}
+
+async function loadGithubCompareForRefs({ owner, repo, token, baseRef, headRef }) {
+  if (!baseRef || !headRef) return null;
+  try {
+    return await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/compare/${encodeCompareRef(baseRef)}...${encodeCompareRef(headRef)}`,
+      token,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function preflightGithubMutationArgs(args = []) {
+  const [resource, command] = args;
+  if (resource !== "pr" && resource !== "api") return null;
+  const isPrCreate = resource === "pr" && command === "create";
+  const isPrMerge = resource === "pr" && command === "merge";
+  const isPrEditLabel = resource === "pr" && command === "edit";
+  const isBranchDelete = resource === "api" && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE";
+  if (!isPrCreate && !isPrMerge && !isPrEditLabel && !isBranchDelete) return null;
+
+  const { owner, repo } = await resolveGithubRepoFromArgs(args);
+  const token = await getGitHubAppInstallationToken({});
+
+  if (isPrCreate) {
+    const head = parseCliFlag(args, "--head");
+    const base = parseCliFlag(args, "--base") || "main";
+    const title = parseCliFlag(args, ["--title", "-t"]);
+    const body = parseCliFlag(args, ["--body", "-b"]);
+    const query = new URLSearchParams({ per_page: "10", state: "open", base, head: head?.includes(":") ? head : `${owner}:${head}` });
+    const existingPulls = head ? await githubRestJson({ owner, repo, apiPath: `/pulls?${query}`, token }) : [];
+    const compare = head ? await loadGithubCompareForRefs({ owner, repo, token, baseRef: base, headRef: head }) : null;
+    const preflight = await evaluateRepositoryPublishPreflight({
+      operation: "github_pr_create",
+      args,
+      repo: { owner, repo },
+      head,
+      base,
+      title,
+      body,
+      compare,
+      existingPulls: Array.isArray(existingPulls) ? existingPulls : [],
+    });
+    return assertPreflightAllowed(preflight);
+  }
+
+  if (isPrEditLabel) {
+    const parsed = parseGithubPrAddLabelArgs(args);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(parsed.pr_number)}`, token });
+    if (String(pr?.state || "").toLowerCase() !== "closed") {
+      const err = new Error("The governed superseded label may only be added to a closed pull request.");
+      err.status = 409;
+      err.code = "github_pr_label_requires_closed_pr";
+      err.details = { pr_number: Number(parsed.pr_number), state: pr?.state || null, label: parsed.label, secrets_included: false };
+      throw err;
+    }
+    return { allowed: true, operation: "github_pr_add_superseded_label", pr_number: Number(parsed.pr_number), label: parsed.label, secrets_included: false };
+  }
+
+  if (isPrMerge) {
+    const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
+      ? pr?.head?.ref
+      : pr?.head?.repo?.owner?.login && pr?.head?.ref
+        ? `${pr.head.repo.owner.login}:${pr.head.ref}`
+        : pr?.head?.ref;
+    const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: pr?.base?.ref || "main", headRef });
+    const preflight = await evaluateRepositoryMutationPreflight({
+      operation: "github_pr_merge",
+      args,
+      repo: { owner, repo },
+      pr,
+      compare,
+    });
+    return assertPreflightAllowed(preflight);
+  }
+
+  if (resource === "api" && command) {
+    const refMarker = "/git/refs/heads/";
+    const apiTarget = String(command);
+    if (!apiTarget.includes(refMarker)) return null;
+    const branchName = apiTarget.slice(apiTarget.indexOf(refMarker) + refMarker.length);
+    const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: "main", headRef: branchName });
+    const preflight = await evaluateRepositoryMutationPreflight({
+      operation: "github_branch_delete",
+      args,
+      repo: { owner, repo },
+      branch: branchName,
+      compare,
+    });
+    return assertPreflightAllowed(preflight);
+  }
+  return null;
+}
+
+async function executeGitHubRestFallbackCore(args = []) {
+  const [resource, command, maybeId] = args;
+  const { owner, repo } = await resolveGithubRepoFromArgs(args);
+  const token = await getGitHubAppInstallationToken({});
+  const fields = parseGithubJsonFields(args);
+
+  if (resource === "api" && command === "graphql") {
+    const fieldValues = parseGithubFieldValues(args);
+    const query = assertGithubGraphqlReadOnly(fieldValues.query);
+    const variables = { ...fieldValues };
+    delete variables.query;
+    delete variables.operationName;
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query,
+        ...(fieldValues.operationName ? { operationName: fieldValues.operationName } : {}),
+        variables: { owner, repo, ...variables },
+      },
+    });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used read-only GitHub GraphQL REST fallback.\n", exit_code: 0, fallback: "github_graphql" };
+  }
+
+  if (resource === "pr" && command === "diff" && maybeId && hasCliFlag(args, "--name-only")) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}/files?per_page=100`, token });
+    const filenames = (payload || []).map((file) => file.filename).filter(Boolean);
+    return { stdout: `${filenames.join("\n")}${filenames.length ? "\n" : ""}`, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "ready" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.draft !== true) {
+      return {
+        stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, already_ready: true }, null, 2),
+        stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+        exit_code: 0,
+        fallback: "github_graphql",
+      };
+    }
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query: "mutation($pullRequestId: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) { pullRequest { number isDraft } } }",
+        variables: { pullRequestId: pr.node_id },
+      },
+    });
+    const readback = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (readback?.draft === true) {
+      const err = new Error("GitHub PR ready fallback did not clear draft state on readback.");
+      err.status = 409;
+      err.code = "github_pr_ready_readback_failed";
+      err.details = { pr_number: Number(prNumber), secrets_included: false };
+      throw err;
+    }
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), isDraft: false, mutation: payload?.data?.markPullRequestReadyForReview || null }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub GraphQL fallback.\n",
+      exit_code: 0,
+      fallback: "github_graphql",
+    };
+  }
+  if (resource === "api" && command && String(command).includes("/branches")) {
+    const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "api" && command && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE") {
+    const apiTarget = String(command);
+    const refMarker = "/git/refs/heads/";
+    if (!apiTarget.includes(refMarker)) {
+      const err = new Error("GitHub REST delete fallback only supports deleting branch refs.");
+      err.status = 501;
+      err.code = "github_rest_delete_unsupported_path";
+      throw err;
+    }
+    const branchName = apiTarget.slice(apiTarget.indexOf(refMarker) + refMarker.length);
+    if (!branchName || ["main", "master", "production", "prod"].includes(branchName)) {
+      const err = new Error("Refusing to delete a protected/default branch through GitHub REST fallback.");
+      err.status = 403;
+      err.code = "github_rest_delete_protected_branch";
+      throw err;
+    }
+    await githubRestJson({ owner, repo, apiPath: `/git/refs/heads/${branchName.split("/").map(encodeURIComponent).join("/")}`, token, method: "DELETE" });
+    return { stdout: JSON.stringify({ deleted: true, branch: branchName }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "api" && command) {
+    let apiTarget = String(command);
+    const repoPrefix = `repos/${owner}/${repo}`;
+    if (apiTarget.startsWith(`/${repoPrefix}`)) apiTarget = apiTarget.slice(repoPrefix.length + 1);
+    if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
+    if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
+    const method = parseGithubApiMethod(args);
+    const fieldValues = parseGithubFieldValues(args);
+    const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
+    const allowedCheckRunAnnotationsRead = method === "GET" && /^\/check-runs\/\d+\/annotations(?:\?.*)?$/.test(apiTarget); const allowedReleaseMetadataRead = method === "GET" && /^\/releases\/tags\/[^/?#]+(?:\?.*)?$/.test(apiTarget); const allowedWorkflowRunArtifactsRead = method === "GET" && /^\/actions\/runs\/\d+\/artifacts(?:\?.*)?$/.test(apiTarget); if (allowedReleaseMetadataRead || allowedWorkflowRunArtifactsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only release/artifact metadata.\n", exit_code: 0, fallback: "github_rest", }; } if (allowedCheckRunAnnotationsRead) { const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token, method }); return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback for read-only check-run annotations.\n", exit_code: 0, fallback: "github_rest", }; }
+      const allowedRead = method === "GET" && (
+        apiTarget.startsWith("/compare/") ||
+        apiTarget.startsWith("/pulls") ||
+        apiTarget.startsWith("/commits/") ||
+        allowedContentsRead ||
+        allowedReleaseMetadataRead ||
+        allowedWorkflowRunArtifactsRead
+      );
+    const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
+    const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
+    const allowedPullClose = githubPullCloseAllowed(apiTarget, method);
+    if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
+    const pullClose = allowedPullClose ? assertGithubPullCloseAllowed(apiTarget, fieldValues) : null;
+    const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
+      (method === "POST" && apiTarget === "/pulls")
+      || /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
+      || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || allowedPullClose
+      || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
+      || apiTarget === "/merges"
+      || allowedContentsMutation
+      || allowedBranchRefUpdate
+    );
+    if (!allowedRead && !allowedMutation) {
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits/contents/release/artifact reads plus guarded PR close, PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
+      err.status = 501;
+      err.code = "github_rest_api_unsupported_path";
+      err.details = { apiTarget, method };
+      throw err;
+    }
+    const payload = await githubRestJson({
+      owner,
+      repo,
+      apiPath: apiTarget,
+      token,
+      method,
+      body: pullClose ? pullClose.body : allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
+    });
+    let pullCloseReadback = null;
+    if (pullClose) {
+      pullCloseReadback = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(pullClose.pullNumber)}`, token });
+      if (pullCloseReadback?.state !== "closed") {
+        const err = new Error("GitHub PR close fallback readback did not confirm state=closed.");
+        err.status = 502;
+        err.code = "github_rest_pr_close_readback_failed";
+        err.details = { pull_number: pullClose.pullNumber, observed_state: pullCloseReadback?.state || null };
+        throw err;
+      }
+    }
+    const output = pullClose
+      ? {
+          pull_number: Number(pullClose.pullNumber),
+          state: pullCloseReadback.state,
+          closed: true,
+          merged: Boolean(pullCloseReadback.merged),
+          head_sha: pullCloseReadback.head?.sha || null,
+          readback_verified: true,
+          secrets_included: false,
+        }
+      : apiTarget.startsWith("/compare/")
+      ? {
+          url: payload.url,
+          html_url: payload.html_url,
+          status: payload.status,
+          ahead_by: payload.ahead_by,
+          behind_by: payload.behind_by,
+          total_commits: payload.total_commits,
+          files: (payload.files || []).map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })),
+        }
+      : allowedBranchRefUpdate
+        ? {
+            ref_updated: true,
+            branch: branchRefUpdate.branch,
+            ref: payload.ref || null,
+            sha: payload.object?.sha || null,
+            force: true,
+            secrets_included: false,
+          }
+        : payload;
+    return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "edit" && maybeId) {
+    const parsed = parseGithubPrAddLabelArgs(args);
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/issues/${encodeURIComponent(parsed.pr_number)}/labels`,
+      token,
+      method: "POST",
+      body: { labels: [parsed.label] },
+    });
+    const readback = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/issues/${encodeURIComponent(parsed.pr_number)}/labels?per_page=100`,
+      token,
+    });
+    const labels = (Array.isArray(readback) ? readback : []).map((entry) => String(entry?.name || "").trim().toLowerCase()).filter(Boolean);
+    if (!labels.includes(parsed.label)) {
+      const err = new Error("GitHub PR label mutation completed without same-cycle label readback.");
+      err.status = 502;
+      err.code = "github_pr_label_readback_failed";
+      err.details = { pr_number: Number(parsed.pr_number), label: parsed.label, labels, secrets_included: false };
+      throw err;
+    }
+    return {
+      stdout: JSON.stringify({ number: Number(parsed.pr_number), label_added: parsed.label, labels, readback_verified: true, secrets_included: false }, null, 2),
+      stderr: "gh CLI is not installed on host; used governed GitHub REST fallback for PR label mutation.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
+  if (resource === "pr" && command === "list") {
+    const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 30)));
+    const state = String(parseCliFlag(args, "--state") || "open").trim().toLowerCase();
+    const base = parseCliFlag(args, "--base");
+    const head = parseCliFlag(args, "--head");
+    const query = new URLSearchParams({ per_page: String(limit), state: ["open", "closed", "all"].includes(state) ? state : "open" });
+    if (base) query.set("base", base);
+    if (head) query.set("head", head.includes(":") ? head : `${owner}:${head}`);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/pulls?${query}`, token });
+    const pulls = (payload || []).map((pr) => mapGithubPullForGhJson(pr, fields));
+    return { stdout: JSON.stringify(pulls, null, 2), stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for pr list.\n", exit_code: 0, fallback: "github_rest", capability_repair: { policy: "repair_missing_capability_before_fallback", repaired: true, operation: "pr list", max_repair_attempts_before_fallback: 3, repair_attempt_count: 3, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: true }), continuation: buildGithubFallbackContinuationEvidence({ args, mapped: true }) } };
+  }
+
+  if (resource === "pr" && command === "view" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    let checks = [];
+    try {
+      const ref = pr?.head?.sha || pr?.head?.ref || "";
+      if (ref) {
+        const payload = await githubRestJson({ owner, repo, apiPath: `/commits/${encodeURIComponent(ref)}/check-runs?per_page=100`, token });
+        checks = payload.check_runs || [];
+      }
+    } catch { /* best-effort diagnostics only */ }
+    const output = mapGithubPullForGhJson({ ...pr, _state_check_rollup: checks }, fields);
+    return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "update-branch" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const expectedHeadSha = parseCliFlag(args, "--expected-head-sha");
+    const body = expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {};
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${encodeURIComponent(prNumber)}/update-branch`,
+      token,
+      method: "PUT",
+      body,
+    });
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), update_branch_requested: true }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
+  if (resource === "pr" && command === "close" && maybeId) {
+    const result = await closeGithubPullRequest({
+      owner,
+      repo,
+      token,
+      pull_number: maybeId,
+      comment: parseCliFlag(args, "--comment"),
+      delete_branch: hasCliFlag(args, "--delete-branch"),
+      expected_head_sha: parseCliFlag(args, "--expected-head-sha") || undefined,
+      confirm: parseCliFlag(args, "--confirm") || undefined,
+    });
+    return {
+      stdout: JSON.stringify(result, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: result.ok ? 0 : 2,
+      fallback: "github_rest",
+    };
+  }
+
+  if (resource === "workflow" && ["list", "ls"].includes(command)) {
+    if (hasCliFlag(args, ["--jq", "-q", "--template", "-t"])) {
+      const err = new Error("workflow list REST fallback does not support --jq or --template formatting. Use --json id,name,path,state or the default tabular output.");
+      err.status = 501;
+      err.code = "github_workflow_list_format_unsupported";
+      throw err;
+    }
+    const limit = Math.max(1, Math.min(1000, Number(parseCliFlag(args, ["--limit", "-L"]) || 50)));
+    const includeDisabled = hasCliFlag(args, ["--all", "-a"]);
+    const workflows = [];
+    let page = 1;
+    let totalCount = null;
+    while (workflows.length < limit) {
+      const payload = await githubRestJson({ owner, repo, apiPath: `/actions/workflows?per_page=100&page=${page}`, token });
+      const pageRows = Array.isArray(payload?.workflows) ? payload.workflows : [];
+      if (totalCount === null) totalCount = Number(payload?.total_count || pageRows.length);
+      for (const workflow of pageRows) {
+        if (includeDisabled || workflow.state === "active") workflows.push(workflow);
+        if (workflows.length >= limit) break;
+      }
+      if (!pageRows.length || pageRows.length < 100 || page * 100 >= totalCount) break;
+      page += 1;
+    }
+    const selected = workflows.slice(0, limit);
+    return {
+      stdout: formatGithubWorkflowList(selected, fields),
+      stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for workflow list.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+      capability_repair: {
+        policy: "repair_missing_capability_before_fallback",
+        repaired: true,
+        operation: "workflow list",
+        max_repair_attempts_before_fallback: 3,
+        repair_attempt_count: 3,
+        repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: true }),
+        continuation: buildGithubFallbackContinuationEvidence({ args, mapped: true }),
+      },
+    };
+  }
+
+  if (resource === "workflow" && command === "run") {
+    const workflowId = firstGithubPositional(args, 2);
+    const ref = parseCliFlag(args, "--ref") || "main";
+    const inputs = parseGithubFieldValues(args);
+    if (!workflowId) {
+      const err = new Error("workflow run fallback requires a workflow file name or workflow id.");
+      err.status = 400;
+      err.code = "github_workflow_run_args_required";
+      throw err;
+    }
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/actions/workflows/${encodeURIComponent(workflowId)}/dispatches`,
+      token,
+      method: "POST",
+      body: { ref, ...(Object.keys(inputs).length ? { inputs } : {}) },
+    });
+    return {
+      stdout: JSON.stringify({ workflow: workflowId, ref, dispatched: true, inputs_count: Object.keys(inputs).length }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
+  if (resource === "run" && command === "list") {
+    const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
+    const branch = parseCliFlag(args, "--branch");
+    const query = new URLSearchParams({ per_page: String(limit) });
+    if (branch) query.set("branch", branch);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/actions/runs?${query}`, token });
+    const runs = (payload.workflow_runs || []).map((run) => mapGithubRunForGhJson(run, fields));
+    return { stdout: JSON.stringify(runs, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "run" && command === "view" && maybeId) {
+    const runId = encodeURIComponent(String(maybeId));
+    if (hasCliFlag(args, "--log-failed")) {
+      const jobs = await githubRestJson({ owner, repo, apiPath: `/actions/runs/${runId}/jobs?per_page=100`, token });
+      const failedJobs = (jobs.jobs || []).filter((job) => ["failure", "timed_out", "cancelled"].includes(job.conclusion));
+      const chunks = [];
+      for (const job of failedJobs) {
+        const logText = await githubRestText({ owner, repo, apiPath: `/actions/jobs/${encodeURIComponent(job.id)}/logs`, token });
+        chunks.push(`===== ${job.name} (${job.conclusion}) =====\n${logText}`);
+      }
+      return { stdout: chunks.join("\n\n") || "No failed job logs found.\n", stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+    }
+    const run = await githubRestJson({ owner, repo, apiPath: `/actions/runs/${runId}`, token });
+    return { stdout: JSON.stringify(mapGithubRunForGhJson(run, fields), null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "create") {
+    const head = parseCliFlag(args, "--head");
+    const base = parseCliFlag(args, "--base") || "main";
+    const title = parseCliFlag(args, ["--title", "-t"]);
+    const body = parseCliFlag(args, ["--body", "-b"]);
+    if (!head || !title) {
+      const err = new Error("pr create fallback requires --head and --title.");
+      err.status = 400;
+      err.code = "github_pr_create_args_required";
+      throw err;
+    }
+    const pr = await githubRestJson({
+      owner,
+      repo,
+      apiPath: "/pulls",
+      token,
+      method: "POST",
+      body: { head, base, title, body, draft: hasCliFlag(args, "--draft") },
+    });
+    const stdout = fields.length ? JSON.stringify(mapGithubPullForGhJson(pr, fields), null, 2) : `${pr.html_url}\n`;
+    return { stdout, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "merge") {
+    if (hasCliFlag(args, "--auto")) {
+      const err = new Error("pr merge --auto is not supported by the GitHub REST fallback. Run after checks pass or use an explicit merge method.");
+      err.status = 501;
+      err.code = "github_rest_pr_auto_merge_unsupported";
+      throw err;
+    }
+    const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
+    const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.mergeable === false || String(pr?.mergeable_state || "").toLowerCase() === "dirty") {
+      const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
+        ? pr?.head?.ref
+        : pr?.head?.repo?.owner?.login && pr?.head?.ref
+          ? `${pr.head.repo.owner.login}:${pr.head.ref}`
+          : pr?.head?.ref;
+      const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: pr?.base?.ref || "main", headRef });
+      const err = new Error("Pull request is not mergeable. Resolve conflicts or recreate the branch from the current base before merging.");
+      err.status = 409;
+      err.code = "github_pr_not_mergeable_dirty";
+      err.details = {
+        number: Number(prNumber),
+        mergeable: pr?.mergeable ?? null,
+        mergeable_state: pr?.mergeable_state || null,
+        head_ref: pr?.head?.ref || null,
+        head_sha: pr?.head?.sha || null,
+        base_ref: pr?.base?.ref || null,
+        base_sha: pr?.base?.sha || null,
+        compare_status: compare?.status || null,
+        ahead_by: compare?.ahead_by ?? null,
+        behind_by: compare?.behind_by ?? null,
+        files: Array.isArray(compare?.files)
+          ? compare.files.map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })).slice(0, 100)
+          : [],
+      };
+      throw err;
+    }
+    const mergeResult = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${encodeURIComponent(prNumber)}/merge`,
+      token,
+      method: "PUT",
+      body: {
+        merge_method: mergeMethod,
+        commit_title: parseCliFlag(args, ["--subject", "--title"]) || undefined,
+        commit_message: parseCliFlag(args, ["--body", "-b"]) || undefined,
+      },
+    });
+    let branchCleanup = { requested: hasCliFlag(args, "--delete-branch"), deleted: false, verified_absent: false };
+    if (branchCleanup.requested) {
+      if (!pr?.head?.ref || !pr?.head?.sha || pr?.head?.repo?.full_name !== `${owner}/${repo}`) {
+        branchCleanup = {
+          requested: true,
+          deleted: false,
+          verified_absent: false,
+          error: { code: "github_branch_cleanup_unavailable", message: "Pull request merged, but the head branch is external or missing ref metadata." },
+        };
+      } else {
+        try {
+          branchCleanup = await deleteGithubBranchRef({
+            owner,
+            repo,
+            token,
+            branch: pr.head.ref,
+            expected_head_sha: pr.head.sha,
+            confirm: githubBranchDeleteConfirmation(pr.head.ref),
+          });
+        } catch (error) {
+          branchCleanup = {
+            requested: true,
+            branch: pr.head.ref,
+            expected_head_sha: pr.head.sha,
+            deleted: false,
+            verified_absent: false,
+            error: { code: error.code || "github_branch_cleanup_failed", message: error.message, details: error.details || null },
+          };
+        }
+      }
+    }
+    const completed = !branchCleanup.requested || branchCleanup.verified_absent === true;
+    return {
+      stdout: JSON.stringify({
+        ok: completed,
+        status: completed ? "completed" : "partial_success",
+        number: Number(prNumber),
+        merged: true,
+        merge_method: mergeMethod,
+        sha: mergeResult.sha || null,
+        message: mergeResult.message || "Pull Request successfully merged",
+        branch_cleanup: branchCleanup,
+        secrets_included: false,
+      }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: completed ? 0 : 2,
+      fallback: "github_rest",
+    };
+  }
+
+  throw buildGithubFallbackUnsupportedError(args);
+}
+
+async function executeGitHubRestFallback(args = []) {
+  try {
+    const result = await executeGitHubRestFallbackCore(args);
+    if (result?.fallback) auditGithubFallbackCapabilityRepair({ args, result });
+    return result;
+  } catch (error) {
+    if (error?.code === "github_rest_fallback_unsupported_args") auditGithubFallbackCapabilityRepair({ args, error });
+    throw error;
+  }
+}
+
 async function executeCliTool(tool, body = {}) {
   const args = parseArgs(body.args);
 
@@ -469,8 +1856,18 @@ async function executeCliTool(tool, body = {}) {
     throw err;
   }
 
+  if (tool === "github") {
+    await preflightGithubMutationArgs(args);
+  }
+
   const command = tool === "github" ? "gh" : "gcloud";
-  return executeSafe(command, args, { timeout_ms: body.timeout_ms });
+  try {
+    return await executeSafe(command, args, { timeout_ms: body.timeout_ms });
+  } catch (err) {
+    const missingBinary = err?.code === "ENOENT" || /spawn\s+gh\s+ENOENT/i.test(String(err?.message || ""));
+    if (tool === "github" && missingBinary) return executeGitHubRestFallback(args);
+    throw err;
+  }
 }
 
 function loadShellAllowlist(env = process.env) {
@@ -569,7 +1966,7 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
-    db_backup_export_cleanup: {
+    platform_outbox_worker: { command: process.execPath, args: ["http-generic-api/scripts/platform-outbox-worker.mjs"], display_name: "Transactional outbox shadow sync worker", allow_extra_args: true, max_extra_args: 8, timeout_ms: 600000, built_in: true }, auth_email_outbox_worker: { command: process.execPath, args: ["http-generic-api/scripts/auth-email-outbox-worker.mjs"], display_name: "Auth email outbox Gmail worker", allow_extra_args: true, max_extra_args: 8, timeout_ms: 600000, built_in: true }, db_backup_export_cleanup: {
       command: process.execPath,
       args: ["http-generic-api/scripts/db-backup-export-cleanup.mjs"],
       display_name: "Temporary DB backup export cleanup",
@@ -594,6 +1991,177 @@ function builtInShellAllowlist() {
       allow_extra_args: true,
       max_extra_args: 4,
       timeout_ms: 120000,
+      built_in: true
+    },
+    runtime_surface_coverage_audit: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/runtime-surface-coverage-audit.mjs"],
+      display_name: "Runtime surface coverage audit",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 120000,
+      built_in: true
+    },
+    runtime_surface_coverage_audit_fast: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/runtime-surface-coverage-audit.mjs", "--json", "--code-only", "--no-samples"],
+      display_name: "Runtime surface coverage audit fast code-only",
+      allow_extra_args: false,
+      max_extra_args: 0,
+      timeout_ms: 120000,
+      built_in: true
+    },
+    migration_apply_guarded_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--dry-run"],
+      display_name: "Governed migration runner dry-run",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    migration_apply_guarded_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--apply"],
+      display_name: "Governed migration runner apply",
+      allow_extra_args: true,
+      max_extra_args: 6,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    migration_reconciliation_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--dry-run"],
+      display_name: "Dynamic governed migration reconciliation dry-run",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    migration_reconciliation_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--apply"],
+      display_name: "Dynamic governed migration reconciliation apply",
+      allow_extra_args: true,
+      max_extra_args: 6,
+      timeout_ms: 900000,
+      built_in: true
+    },
+    workflow_execution_identity_readback: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/workflow-execution-identity-readback.mjs"],
+      display_name: "Workflow execution identity live readback",
+      allow_extra_args: false,
+      max_extra_args: 0,
+      timeout_ms: 120000,
+      built_in: true
+    },
+    tenant_ssh_dedicated_worker_smoke: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/tenant-ssh-dedicated-worker-smoke.mjs"],
+      display_name: "Tenant SSH dedicated worker smoke",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 180000,
+      built_in: true
+    },
+    webhook_delivery_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/webhook-delivery-dispatcher.mjs"], display_name: "Webhook delivery dispatcher", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
+    database_table_lifecycle_registry_upsert: { command: process.execPath, args: ["http-generic-api/scripts/database-table-lifecycle-registry-upsert.mjs"], display_name: "Database table lifecycle registry upsert", allow_extra_args: true, max_extra_args: 6, timeout_ms: 180000, built_in: true },
+    openrouter_provider_smoke: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-provider-smoke.mjs"], display_name: "OpenRouter provider live smoke", allow_extra_args: true, max_extra_args: 8, timeout_ms: 180000, built_in: true },
+    supervisor_causal_provider_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-causal-provider-certification.mjs"], display_name: "Supervisor causal provider certification", allow_extra_args: true, max_extra_args: 3, timeout_ms: 180000, built_in: true }, supervisor_runtime_readiness: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-runtime-readiness.mjs"], display_name: "Supervisor runtime readiness", allow_extra_args: true, max_extra_args: 1, timeout_ms: 180000, built_in: true }, supervisor_behavioral_certification: { command: process.execPath, args: ["http-generic-api/scripts/supervisor-behavioral-certification.mjs"], display_name: "Supervisor behavioral certification", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
+    openrouter_model_policy: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-model-policy.mjs"], display_name: "OpenRouter model policy control", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true },
+    tool_bus_descriptor_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-descriptor-dry-run.mjs"], display_name: "Tool Bus descriptor dry-run", allow_extra_args: true, max_extra_args: 6, timeout_ms: 120000, built_in: true },
+    tool_bus_collision_audit: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-collision-audit.mjs"], display_name: "Tool Bus collision classification audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    tool_bus_preview: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-preview.mjs"], display_name: "Tool Bus preview", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    dr_certification_evidence_readback: { command: process.execPath, args: ["http-generic-api/scripts/dr-certification-evidence-readback.mjs"], display_name: "DR certification evidence readback", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    tool_bus_gated_read_only_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-gated-read-only-dispatch.mjs"], display_name: "Tool Bus gated read-only dispatch", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    capability_resolution_simulation_suite: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-simulation-suite.mjs"], display_name: "Dynamic capability resolution simulation suite", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
+    platform_capability_assurance_reconcile: { command: process.execPath, args: ["http-generic-api/scripts/platform-capability-assurance-reconcile.mjs"], display_name: "Reconcile platform capability assurance graph", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_approve: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    capability_resolution_envelope_lifecycle: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-lifecycle.mjs"], display_name: "Transition capability resolution envelope lifecycle", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_apply_authorize: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs"], display_name: "Apply-authorize capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    budget_quota_authority_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/budget-quota-authority-dry-run.mjs"], display_name: "Budget and quota authority dry-run", allow_extra_args: true, max_extra_args: 24, timeout_ms: 120000, built_in: true },
+    google_ads_budget_change_preflight: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-preflight.mjs"], display_name: "Google Ads budget change preflight", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
+    google_ads_budget_change_execution_adapter: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-execution-adapter.mjs"], display_name: "Google Ads budget change execution adapter skeleton", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
+    google_ads_credential_readiness_gate: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-credential-readiness-gate.mjs"], display_name: "Google Ads credential readiness gate", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
+    execution_enablement_gate: { command: process.execPath, args: ["http-generic-api/scripts/execution-enablement-gate.mjs"], display_name: "Execution enablement gate", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
+    ads_provider_profile_lookup: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-profile-lookup.mjs"], display_name: "Ads provider profile lookup", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    ads_provider_preflight_contract_validate: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-preflight-contract-validate.mjs"], display_name: "Ads provider preflight contract validate", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    ads_provider_preflight_surface_blueprint: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-preflight-surface-blueprint.mjs"], display_name: "Ads provider preflight surface blueprint", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    ads_provider_profile_request: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-profile-request.mjs"], display_name: "Request ads provider profile", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true },
+    ads_provider_profile_approve: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-profile-approve.mjs"], display_name: "Approve ads provider profile", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    ads_provider_profile_disable: { command: process.execPath, args: ["http-generic-api/scripts/ads-provider-profile-disable.mjs"], display_name: "Disable ads provider profile", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    execution_enablement_request: { command: process.execPath, args: ["http-generic-api/scripts/execution-enablement-request.mjs"], display_name: "Request execution enablement", allow_extra_args: true, max_extra_args: 20, timeout_ms: 120000, built_in: true },
+    execution_enablement_approve: { command: process.execPath, args: ["http-generic-api/scripts/execution-enablement-approve.mjs"], display_name: "Approve execution enablement", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    execution_enablement_revoke: { command: process.execPath, args: ["http-generic-api/scripts/execution-enablement-revoke.mjs"], display_name: "Revoke execution enablement", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    preflight_ledger_validate: { command: process.execPath, args: ["http-generic-api/scripts/preflight-ledger-validate.mjs"], display_name: "Validate preflight ledger row", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
+    live_checkout_cleanup: { command: process.execPath, args: ["http-generic-api/scripts/live-checkout-cleanup.mjs"], display_name: "Live checkout cleanup dry-run/apply", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
+    hostinger_ssh_dependency_diagnostic: { command: process.execPath, args: ["http-generic-api/scripts/hostinger-ssh-dependency-diagnostic.mjs"], display_name: "Hostinger SSH dependency diagnostic", allow_extra_args: true, max_extra_args: 4, timeout_ms: 30000, built_in: true },
+    hostinger_sshpass_dependency_install: { command: process.execPath, args: ["http-generic-api/scripts/hostinger-sshpass-dependency-install.mjs"], display_name: "Hostinger sshpass dependency install", allow_extra_args: true, max_extra_args: 6, timeout_ms: 600000, built_in: true },
+    audit_log_event_bus_bridge: { command: process.execPath, args: ["http-generic-api/scripts/audit-log-event-bus-bridge.mjs"], display_name: "Audit log to event bus bridge", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    audit_log_event_bus_bridge_tick: { command: process.execPath, args: ["http-generic-api/scripts/audit-log-event-bus-bridge.mjs", "--apply", "--confirm", "APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE", "--limit", "1000"], display_name: "Audit log to event bus bridge scheduled tick", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    audit_event_rollup_builder: { command: process.execPath, args: ["http-generic-api/scripts/audit-event-rollup-builder.mjs"], display_name: "Dynamic audit event rollup builder", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    audit_event_rollup_builder_tick: { command: process.execPath, args: ["http-generic-api/scripts/audit-event-rollup-builder.mjs", "--apply", "--confirm", "APPLY_AUDIT_EVENT_ROLLUP_BUILDER", "--limit", "1000"], display_name: "Dynamic audit event rollup builder scheduled tick", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    governed_platform_automation_tick: { command: process.execPath, args: ["http-generic-api/scripts/governed-platform-automation-tick.mjs", "--apply", "--confirm", "APPLY_GOVERNED_PLATFORM_AUTOMATION_TICK"], display_name: "Governed migration reconciliation and dynamic audit scheduled tick", allow_extra_args: true, max_extra_args: 4, timeout_ms: 600000, built_in: true },
+    agent_runtime_ledger_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-ledger-smoke.mjs"], display_name: "Agent runtime ledger smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    agent_runtime_live_trace_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs"], display_name: "Agent runtime live trace smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 180000, built_in: true },
+    execution_log_runtime_evidence_smoke: { command: process.execPath, args: ["http-generic-api/scripts/execution-log-runtime-evidence-smoke.mjs"], display_name: "Execution log runtime evidence smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+  activation_authorized_access_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-smoke.mjs"], display_name: "Activation authorized access smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true }, 
+    activation_authorized_surface_registry_sync: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-surface-registry-sync.mjs"], display_name: "Activation authorized surface registry sync", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
+    activation_source_table_coverage_audit: { command: process.execPath, args: ["http-generic-api/scripts/activation-surface-db-coverage-audit.mjs"], display_name: "Activation source table coverage audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    migration_ledger_record_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
+      display_name: "Governed migration ledger record-only dry-run",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    migration_ledger_record_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--apply"],
+      display_name: "Governed migration ledger record-only apply",
+      allow_extra_args: true,
+      max_extra_args: 6,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_approval_proof_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-approval-proof.mjs"],
+      display_name: "Database lifecycle scheduler approval proof dry-run",
+      allow_extra_args: true,
+      max_extra_args: 12,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_approval_proof_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-approval-proof.mjs", "--apply"],
+      display_name: "Database lifecycle scheduler approval proof apply",
+      allow_extra_args: true,
+      max_extra_args: 14,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_snapshot_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs"],
+      display_name: "Database lifecycle scheduler snapshot runner dry-run",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_snapshot_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs", "--apply"],
+      display_name: "Database lifecycle scheduler snapshot runner apply",
+      allow_extra_args: true,
+      max_extra_args: 10,
+      timeout_ms: 600000,
       built_in: true
     },
     local_gateway_hostinger_proxy: {
@@ -641,7 +2209,7 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
-    dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
+    dev_governed_migration_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client.mjs"], display_name: "Dev-only governed migration client", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_governed_migration_client_apply: { command: process.execPath, args: ["http-generic-api/scripts/dev-governed-migration-client-apply.mjs"], display_name: "Dev-only governed migration client with process-local apply gate", allow_extra_args: true, max_extra_args: 40, timeout_ms: 300000, built_in: true }, dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
       display_name: "Backup artifact URL smoke diagnostic",
@@ -726,38 +2294,14 @@ async function executeShellControl(body = {}) {
       if (!entry.allow_extra_args) {
         const e = new Error(`extra_args not permitted for alias '${alias}'.`); e.status = 400; e.code = "extra_args_not_allowed"; throw e;
       }
-      if (alias === "session_archive_relink_repair_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run relink alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      if (DRY_RUN_ONLY_SHELL_ALIASES.has(alias) && extraArgs.includes("--apply")) {
+        const e = new Error(`dry-run alias '${alias}' must not receive --apply in extra_args.`); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
-      if (alias === "session_archive_relink_repair_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply relink alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      if (APPLY_ONLY_SHELL_ALIASES.has(alias) && extraArgs.includes("--dry-run")) {
+        const e = new Error(`apply alias '${alias}' must not receive --dry-run in extra_args.`); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
       if (extraArgs.length > entry.max_extra_args) {
         const e = new Error(`Too many extra_args (max ${entry.max_extra_args}).`); e.status = 400; e.code = "too_many_extra_args"; throw e;
-      }
-      if (alias === "session_archive_relink_repair_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run relink alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "session_archive_relink_repair_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply relink alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "local_project_path_helper_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run local project path alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "local_project_path_helper_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply local project path alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_copy_governance_helper_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run backup governance alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_copy_governance_helper_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply backup governance alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_executor_guard_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run backup executor guard alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_executor_guard_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply backup executor guard alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
       for (const arg of extraArgs) {
         if (isLocalProjectPathHelperAlias(alias) && isSafeLocalProjectPathArg(arg)) continue;
@@ -1140,7 +2684,22 @@ export function buildAdminCliRoutes(deps) {
         payload: { method: body.method || "GET", path: body.path },
       });
       const result = await executeCloudflareControl(body);
-      return res.status(200).json({ ok: true, result });
+      const envelopeLifecycle = await finalizeCloudflareEnvelopeLifecycle({
+        body,
+        mutationResult: result,
+        executeReadback: executeCloudflareControl,
+        consumeEnvelope: ({ envelopeId, executionRef, reason }) => transitionCapabilityEnvelopeLifecycle({
+          pool: getPool(),
+          envelopeId,
+          action: "consume",
+          executionRef,
+          reason,
+        }),
+      });
+      return res.status(200).json({
+        ok: true,
+        result: { ...result, envelope_lifecycle: envelopeLifecycle },
+      });
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
@@ -1162,6 +2721,25 @@ export function buildAdminCliRoutes(deps) {
       const format   = String(req.query.format || "json").toLowerCase();
       const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
       const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
+
+      if (format !== "bat") {
+        return res.status(200).json({
+          ok: true,
+          artifact_delivery: "authenticated_direct_download_only",
+          script_content_omitted: true,
+          script_content_reason: "installer contains live tunnel and backend credentials",
+          credential_materialized: false,
+          public_storage_allowed: false,
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: { user_id: userId, device_id: deviceId, format: "bat" },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
+        });
+      }
 
       // 1. Look up device config from DB
       let tunnelToken    = "";
@@ -1216,70 +2794,23 @@ export function buildAdminCliRoutes(deps) {
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
 
-      if (format === "bat") {
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        return res.send(batContent);
-      }
-
-      // Upload to Drive so GPT can share a link
-      let driveResult = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[install-bundle] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
-
       writeAuditLogAsync({
         action: "admin_cli.local_connector_install_bundle",
         resource_type: "install_bundle",
         resource_id: filename,
         payload: {
-          drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus,
+          delivery_mode: "authenticated_direct_download",
+          public_storage_allowed: false,
           config_source: configSource,
           device_id: resolvedDevice,
-          user_id: userId
+          user_id: userId,
+          secrets_included: false
         },
       });
 
-      return res.status(200).json({
-        ok: true,
-        filename,
-        config_source: configSource,
-        device_id: resolvedDevice,
-        instructions: driveResult
-          ? "Download the generated installer from drive.drive_link and run it as Administrator from the repo root. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot."
-          : "Drive upload was unavailable. Use the direct admin-only format=bat download path outside Custom GPT to retrieve the installer, then run it as Administrator from the repo root.",
-        script_content_omitted: true,
-        script_content_reason: "installer contains live tunnel and backend credentials",
-        drive_upload_status: driveUploadStatus,
-        drive_error: driveError,
-        drive: driveResult,
-      });
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(batContent);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
@@ -1292,9 +2823,9 @@ export function buildAdminCliRoutes(deps) {
   // Single-shot self-repair for the admin's local connector.
   // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
   // 2. Checks CF tunnel health via Cloudflare API.
-  // 3. Generates and uploads install bundle.
-  // 4. Returns diagnosis + Drive download link so GPT can hand it directly to user.
-  // GPT should call this whenever connector.mad4b.com returns 1033.
+  // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
+  // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
+  // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
@@ -1304,20 +2835,54 @@ export function buildAdminCliRoutes(deps) {
       let tunnelToken  = "";
       let backendKey   = "";
       let cfTunnelId   = null;
+      let cfTunnelName = null;
       let tunnelUrl    = null;
       let configSource = "env";
+      let resolvedUserId = userId;
+      let resolvedDeviceId = deviceId;
+      let deviceIdentityResolution = null;
       try {
         const pool = getPool();
         const [[row]] = await pool.query(
-          "SELECT cf_token, connector_secret, cf_tunnel_id, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          "SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
           [userId, deviceId]
         );
-        if (row) {
-          tunnelToken  = row.cf_token || "";
-          backendKey   = row.connector_secret || "";
-          cfTunnelId   = row.cf_tunnel_id || null;
-          tunnelUrl    = row.tunnel_url || null;
-          configSource = tunnelToken ? "db" : "env_fallback";
+        let selectedRow = row || null;
+        let matchSource = "direct";
+        if (!localConnectorConfigHasUsableToken(selectedRow)) {
+          const aliasPatterns = localConnectorDeviceAliasLikePatterns(deviceId);
+          if (aliasPatterns.length) {
+            const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
+            const [aliasRows] = await pool.query(
+              `SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
+                 FROM \`local_connector_user_configs\`
+                WHERE is_enabled = 1
+                  AND COALESCE(NULLIF(cf_token,''),'') <> ''
+                  AND (${aliasWhere})
+                ORDER BY
+                  CASE WHEN user_id = ? THEN 0 ELSE 1 END,
+                  CASE WHEN last_health_at IS NULL THEN 1 ELSE 0 END,
+                  last_health_at DESC,
+                  updated_at DESC
+                LIMIT 5`,
+              [...aliasPatterns, userId]
+            );
+            if (aliasRows.length === 1) {
+              selectedRow = aliasRows[0];
+              matchSource = "db_alias";
+            }
+          }
+        }
+        if (selectedRow) {
+          tunnelToken  = selectedRow.cf_token || "";
+          backendKey   = selectedRow.connector_secret || "";
+          cfTunnelId   = selectedRow.cf_tunnel_id || null;
+          cfTunnelName = selectedRow.cf_tunnel_name || null;
+          tunnelUrl    = selectedRow.tunnel_url || null;
+          resolvedUserId = selectedRow.user_id || userId;
+          resolvedDeviceId = selectedRow.device_id || deviceId;
+          configSource = tunnelToken ? matchSource === "db_alias" ? "db_alias" : "db" : "env_fallback";
+          deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({ requestedUserId: userId, requestedDeviceId: deviceId, row: selectedRow, matchSource });
         }
       } catch (dbErr) {
         console.warn("[self-repair] DB lookup failed:", dbErr.message);
@@ -1358,49 +2923,119 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      // 3. Generate install bundle
+      const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
+        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        timeoutMs: 8000,
+      });
+      const compositeHealth = classifyLocalConnectorCompositeHealth({
+        tunnelStatus,
+        publicProbe: publicHealthProbe,
+      });
+      if (["active", "authorization_gated"].includes(compositeHealth.status)) {
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.not_required",
+          resource_type: "local_connector_health",
+          resource_id: resolvedDeviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            tunnel_status: tunnelStatus,
+            public_probe_status: publicHealthProbe.status,
+            retry_evidence: publicHealthProbe.retry_evidence || null,
+            composite_status: compositeHealth.status,
+            repair_required: false,
+            config_source: configSource,
+            alias_resolution_applied: configSource === "db_alias",
+            secrets_included: false,
+          },
+        });
+        return res.status(200).json({
+          ok: true,
+          diagnosis: {
+            device_id: resolvedDeviceId,
+            requested_device_id: deviceId,
+            requested_user_id: userId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            device_identity_resolution: deviceIdentityResolution,
+            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            cf_tunnel_id: cfTunnelId,
+            cf_tunnel_name: cfTunnelName,
+            cf_tunnel_status: tunnelStatus,
+            public_health_probe: publicHealthProbe,
+            composite_health: compositeHealth,
+            config_source: configSource,
+            likely_cause: compositeHealth.likely_cause,
+            repair_required: false,
+            secrets_included: false,
+          },
+          repair: {
+            required: false,
+            action: compositeHealth.status === "authorization_gated"
+              ? "Connector transport is reachable. Validate the connector authorization binding before reinstalling services."
+              : "No repair action is required; same-cycle public connector health passed.",
+            installer_generated: false,
+            secrets_included: false,
+          },
+        });
+      }
+      // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
-        return res.status(404).json({
+        const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
+          userId,
+          deviceId,
+          tunnelStatus,
+          cfTunnelId,
+          tunnelUrl,
+          configSource,
+        });
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.provisioning_required",
+          resource_type: "local_connector_tunnel_provisioning",
+          resource_id: deviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            config_source: configSource,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+            continuation,
+            secrets_included: false,
+          },
+        });
+        return res.status(409).json({
           ok: false,
-          diagnosis: { error: "no_tunnel_token", tunnel_status: tunnelStatus },
+          diagnosis: {
+            error: "no_tunnel_token",
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            cf_tunnel_name: cfTunnelName,
+            config_source: configSource,
+            requested_user_id: userId,
+            requested_device_id: deviceId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            device_identity_resolution: deviceIdentityResolution,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+          },
+          continuation,
           error: {
-            code: "config_not_found",
-            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Run POST /local-connector/install to provision the device first.`,
-          }
+            code: "connector_tunnel_provisioning_required",
+            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Provision the tunnel token, then retry POST /admin/cli/local-connector/self-repair.`,
+          },
+          secrets_included: false,
         });
       }
 
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${deviceId}-${new Date().toISOString().slice(0,10)}.bat`;
-      let driveResult  = null;
-      let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
-      let driveError = null;
-      if (typeof deps.getGoogleClients === "function") {
-        try {
-          const { drive } = await deps.getGoogleClients();
-          const created = await drive.files.create({
-            requestBody: { name: filename, mimeType: "application/octet-stream" },
-            media: { mimeType: "application/octet-stream", body: batContent },
-            fields: "id,webViewLink",
-          });
-          if (created?.data?.id) {
-            await drive.permissions.create({
-              fileId: created.data.id,
-              requestBody: { role: "reader", type: "anyone" },
-            });
-            driveResult = {
-              drive_file_id: created.data.id,
-              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
-              view_link: created.data.webViewLink,
-            };
-          }
-        } catch (driveErr) {
-          driveUploadStatus = "failed";
-          driveError = sanitizeDriveUploadError(driveErr);
-          console.warn("[self-repair] Drive upload failed:", driveErr.message);
-        }
-      }
-      if (driveResult) driveUploadStatus = "uploaded";
+      const filename = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const driveResult = null;
+      const driveUploadStatus = "blocked_secret_bearing_artifact";
+      const driveError = null;
 
       writeAuditLogAsync({
         action: "admin_cli.local_connector_self_repair",
@@ -1409,31 +3044,67 @@ export function buildAdminCliRoutes(deps) {
         payload: {
           user_id: userId,
           device_id: deviceId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
+          public_probe_status: publicHealthProbe.status,
+          retry_evidence: publicHealthProbe.retry_evidence || null,
+          composite_status: compositeHealth.status,
+          repair_required: compositeHealth.repair_required,
           config_source: configSource,
+          alias_resolution_applied: configSource === "db_alias",
           drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus
+          drive_upload_status: driveUploadStatus,
+          secrets_included: false
         },
       });
 
       return res.status(200).json({
         ok: true,
         diagnosis: {
-          device_id: deviceId,
+          device_id: resolvedDeviceId,
+          requested_device_id: deviceId,
+          requested_user_id: userId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_url: tunnelUrl || "https://connector.mad4b.com",
           cf_tunnel_id: cfTunnelId,
+          cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          likely_cause: "cloudflared or node connector service not running on the local device",
+          alias_resolution_applied: configSource === "db_alias",
+          public_health_probe: publicHealthProbe,
+          composite_health: compositeHealth,
+          repair_required: compositeHealth.repair_required,
+          likely_cause: compositeHealth.likely_cause,
+          secrets_included: false,
         },
         repair: {
-          action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
+          required: true,
+          installer_generated: false,
+          artifact_delivery: "authenticated_direct_download_only",
+          action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
+          public_storage_allowed: false,
           drive: driveResult,
           drive_upload_status: driveUploadStatus,
           drive_error: driveError,
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
+          secure_download: {
+            method: "GET",
+            path: "/admin/cli/local-connector/install-bundle",
+            query: {
+              user_id: resolvedUserId,
+              device_id: resolvedDeviceId,
+              format: "bat"
+            },
+            requires_backend_api_key: true,
+            requires_admin_principal: true
+          },
+          secrets_included: false
         },
       });
     } catch (err) {
@@ -1513,16 +3184,6 @@ export function buildAdminCliRoutes(deps) {
   });
 
   return router;
-}
-
-function sanitizeDriveUploadError(err) {
-  const status = err?.response?.status || err?.status || err?.code || null;
-  const message = String(err?.message || "Drive upload failed").slice(0, 300);
-  return {
-    code: "drive_upload_failed",
-    ...(status ? { status } : {}),
-    message,
-  };
 }
 
 function generateConnectorInstallerBat(tunnelToken, backendKey) {

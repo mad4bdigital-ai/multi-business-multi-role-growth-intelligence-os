@@ -1,0 +1,20 @@
+{
+  "surface_key": "platform_resource_surface_policy_registry",
+  "display_name": "Platform Resource Surface Policy Registry",
+  "description": "Admin-only Resource API exposure decisions and declared descriptor, operation, archive, and version requirements.",
+  "source_table": "platform_resource_surface_policy_registry",
+  "covered_source_tables": ["platform_resource_surface_policy_registry"],
+  "result_key_column": "surface_ref",
+  "result_label_column": "exposure_class",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["surface_kind", "surface_ref", "exposure_class", "resource_key", "descriptor_requirement", "operation_requirement", "archive_requirement", "version_requirement", "source_policy_key", "status", "created_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 250,
+  "sort_order": 334,
+  "status": "active",
+  "notes": "Excludes free-text rationale and never exposes SQL, credentials, provider payloads, secrets, or tenant data."
+}

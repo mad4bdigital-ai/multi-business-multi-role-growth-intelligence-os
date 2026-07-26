@@ -1,7 +1,12 @@
 import * as authService from './authService.js';
+import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
+import { reconcileRuntimeParityOnStartup } from "./runtimeParityStartupReconciler.js";
+import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
+import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
 import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 import { DATA_SOURCE_MODE } from "./dataSource.js";
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
 import express from "express";
 import * as sqlAdapter from "./sqlAdapter.js";
@@ -324,12 +329,19 @@ import { createExecutionFacade } from "./executionFacade.js";
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
 import { createGovernanceValidationEngine } from "./services/governanceValidationEngine.js";
+import { getAgentDeps, getCallModelForClass, getCallModelForClassAsync, getCallModelForTaskAsync, resolveAgentModelProvider, resolveAgentModelProviderAsync } from "./agentRuntime.js";
 import {
   formatIntentMaturationForPrompt,
   resolveAiIntentMaturation
 } from "./services/intentMaturationResolver.js";
 
 const { isOAuthConfigured, inferAuthMode, normalizeAuthContract, findHostingAccountByKey, resolveAccountKeyFromBrand, resolveAccountKey, resolveSecretFromReference, isGoogleApiHost, getAdditionalStaticAuthHeaders, enforceSupportedAuthMode, pathTemplateToRegex, ensureMethodAndPathMatchEndpoint, fetchSchemaContract, resolveSchemaOperation, validateByJsonSchema, validateParameters, validateRequestBody, classifySchemaDrift, buildResolvedAuthHeaders, injectAuthIntoQuery, injectAuthIntoHeaders, injectAuthForSchemaValidation, ensureWritePermissions } = authService;
+
+try {
+  generateDeploymentManifest();
+} catch (err) {
+  console.warn(`[startup] deployment manifest generation failed: ${err.message}`);
+}
 
 // --- Runtime Guards Initialization ---
 const debugLog = createDebugLog(process.env);
@@ -343,7 +355,15 @@ function requireEnv(name) {
 
 
 const app = express();
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.json({
+  limit: JSON_BODY_LIMIT,
+  verify: (req, _res, buffer) => {
+    const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0];
+    if (req.method === "POST" && requestPath === "/webhooks/github/repository-main-moved") {
+      req.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 
 
 
@@ -1853,8 +1873,10 @@ async function logRetryWriteback(input = {}) {
 function headerMap(headerRow, sheetName) { return headerMapUtil(headerRow, sheetName); }
 function getCell(row, map, key) { return getCellUtil(row, map, key); }
 
-async function getGoogleClients() { return getGoogleClientsBase(); }
-async function getGoogleClientsForSpreadsheet(id) { return getGoogleClientsForSpreadsheetBase(id); }
+async function getGoogleClients(options = {}) { return getGoogleClientsBase(options); }
+async function getGoogleClientsForSpreadsheet(id, options = {}) {
+  return getGoogleClientsForSpreadsheetBase(id, options);
+}
 async function assertSheetExistsInSpreadsheet(spreadsheetId, sheetName) { return assertSheetExistsInSpreadsheetBase(spreadsheetId, sheetName); }
 
 async function assertGovernedSinkSheetsExist() {
@@ -2786,7 +2808,10 @@ async function executeUpstreamAttempt({
 
   const upstream = providerFetchResult.upstream;
 
-  const contentType = upstream.headers.get("content-type") || "";
+  const upstreamContentType = upstream.headers.get("content-type") || "";
+  const contentType = isRawTextResponseRequest(requestPayload, upstreamContentType)
+    ? "text/plain"
+    : upstreamContentType;
   let data;
   let responseText = "";
 
@@ -3135,6 +3160,8 @@ const executionFacade = createExecutionFacade({
 registerRoutes(app, {
   // --- health ---
   jobRepository,
+  executeSingleQueuedJob,
+  toJobSummary,
   normalizeJobStatus,
   getWaitingCountSafe,
   getRedisRuntimeStatus,
@@ -3169,6 +3196,13 @@ registerRoutes(app, {
   resolveAiIntentMaturation,
   formatIntentMaturationForPrompt,
   resolveRequestedBy,
+  getAgentDeps,
+  getCallModelForClass,
+  getCallModelForClassAsync,
+  getCallModelForTaskAsync,
+  resolveAgentModelProvider,
+  resolveAgentModelProviderAsync,
+  callModel: getAgentDeps().callModel,
   localConnectorOrchestrator,
 });
 
@@ -3207,4 +3241,60 @@ if (!isBackendApiKeyEnabled(process.env)) {
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
+  const configuredParityDelay = Number(process.env.RUNTIME_PARITY_STARTUP_RECONCILE_DELAY_MS || 5000);
+  const parityDelayMs = Number.isFinite(configuredParityDelay)
+    ? Math.max(0, configuredParityDelay)
+    : 5000;
+  const parityReconcileTimer = setTimeout(() => {
+    reconcileRuntimeParityOnStartup({ env: process.env })
+      .then((result) => {
+        console.log(JSON.stringify({
+          event: "runtime_parity_startup_reconcile",
+          ...result,
+          secrets_included: false,
+        }));
+      })
+      .catch((error) => {
+        console.error(JSON.stringify({
+          event: "runtime_parity_startup_reconcile",
+          ok: false,
+          status: "degraded",
+          error_code: error?.code || "runtime_parity_startup_reconciliation_failed",
+          secrets_included: false,
+        }));
+      });
+  }, parityDelayMs);
+  parityReconcileTimer.unref?.();
+  startDynamicAuditScheduler()
+    .then((result) => {
+      console.log(JSON.stringify({
+        event: "dynamic_audit_scheduler_start",
+        ...result,
+        secrets_included: false,
+      }));
+    })
+    .catch((error) => {
+      console.error(JSON.stringify({
+        event: "dynamic_audit_scheduler_start_failed",
+        code: error?.code || "dynamic_audit_scheduler_start_failed",
+        message: String(error?.message || error).slice(0, 500),
+        secrets_included: false,
+      }));
+    });
+  startOpenApiEndpointInventorySync()
+    .then((result) => {
+      console.log(JSON.stringify({
+        event: "openapi_endpoint_inventory_sync_start",
+        ...result,
+        secrets_included: false,
+      }));
+    })
+    .catch((error) => {
+      console.error(JSON.stringify({
+        event: "openapi_endpoint_inventory_sync_start_failed",
+        code: error?.code || "openapi_endpoint_inventory_sync_start_failed",
+        message: String(error?.message || error).slice(0, 500),
+        secrets_included: false,
+      }));
+    });
 });

@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
+import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { writeAuthorityBridgeDriftEvidence } from "./authorityBridgeEvidence.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
@@ -73,12 +77,70 @@ async function writeReviewStepRun(run_id, tenant_id, reviewResult) {
   } catch { /* non-blocking */ }
 }
 
-async function loadWorkflow(workflow_key) {
+async function loadBrandCoreEvidence(brand_key) {
+  if (!brand_key) return null;
+  const surfaceAuthority = await resolveSurfaceAuthority(SURFACE_KEYS.BRAND_CORE_REGISTRY, { requireExecution: true });
+  const surfaceEvidence = {
+    ok: surfaceAuthority.ok,
+    resolved_surface_key: surfaceAuthority.resolved_surface_key,
+    classification: surfaceAuthority.classification,
+    code: surfaceAuthority.code,
+    authority_status: surfaceAuthority.surface?.authority_status || null,
+    required_for_execution: surfaceAuthority.surface?.required_for_execution || null,
+    backend_type: surfaceAuthority.surface?.backend_type || null,
+    backend_adapter: surfaceAuthority.surface?.backend_adapter || null,
+    secrets_included: false,
+  };
+  if (!surfaceAuthority.ok) {
+    return {
+      ready: false,
+      brand_key,
+      document_count: 0,
+      active_document_count: 0,
+      valid_document_count: 0,
+      surface_authority: surfaceEvidence,
+      resolution_error: surfaceAuthority.code || "brand_core_surface_authority_failed",
+      secrets_included: false,
+    };
+  }
   const [rows] = await getPool().query(
-    "SELECT * FROM `workflows` WHERE workflow_key = ? AND (active = 1 OR active = '1' OR active = 'TRUE') LIMIT 1",
-    [workflow_key]
-  );
-  return rows[0] || null;
+    `SELECT brand_key, brand_name, asset_key, asset_type, core_function,
+            status, active_status, validation_status, priority, updated_at
+       FROM \`brand_core\`
+      WHERE brand_key = ?
+        AND COALESCE(active_status, status, 'active') NOT IN ('archived','inactive','disabled','archived_placeholder')
+      ORDER BY CAST(COALESCE(NULLIF(priority,''), '0') AS UNSIGNED) DESC, updated_at DESC
+      LIMIT 25`,
+    [brand_key]
+  ).catch(() => [[]]);
+  if (!rows.length) {
+    return {
+      ready: false,
+      brand_key,
+      document_count: 0,
+      active_document_count: 0,
+      valid_document_count: 0,
+      surface_authority: surfaceEvidence,
+      resolution_error: "brand_core_rows_not_found",
+      secrets_included: false,
+    };
+  }
+  const activeRows = rows.filter(row => isTruthy(row.active_status) || isTruthy(row.status) || ['active', 'valid', 'validated'].includes(String(row.active_status || row.status || '').toLowerCase()));
+  const validRows = rows.filter(row => ['active', 'valid', 'validated'].includes(String(row.validation_status || '').toLowerCase()));
+  return {
+    ready: true,
+    brand_key,
+    brand_name: rows[0]?.brand_name || null,
+    document_count: rows.length,
+    active_document_count: activeRows.length || rows.length,
+    valid_document_count: validRows.length,
+    validation_statuses: [...new Set(rows.map(row => String(row.validation_status || '').trim()).filter(Boolean))].slice(0, 8),
+    asset_types: [...new Set(rows.map(row => String(row.asset_type || '').trim()).filter(Boolean))].slice(0, 12),
+    core_functions: [...new Set(rows.map(row => String(row.core_function || '').trim()).filter(Boolean))].slice(0, 12),
+    latest_updated_at: rows[0]?.updated_at || null,
+    surface_authority: surfaceEvidence,
+    secrets_included: false,
+  };
 }
 
 async function loadLogicDefinition(logic_key) {
@@ -161,10 +223,20 @@ async function writeRunResult(run_id, result, tenant_id) {
 export async function runAgentLoop(plan, deps = {}) {
   const run_id = plan.run_id || randomUUID();
 
-  const workflow = await loadWorkflow(plan.workflow_key);
-  if (!workflow) {
-    return { ok: false, error: "workflow_not_found", workflow_key: plan.workflow_key };
+  const workflowResolution = await resolveRuntimeWorkflow({
+    workflow_id: plan.workflow_id,
+    workflow_key: plan.workflow_key,
+  });
+  if (!workflowResolution.ok) {
+    return {
+      ok: false,
+      error: workflowResolution.resolution.code,
+      workflow_id: plan.workflow_id || null,
+      workflow_key: plan.workflow_key || null,
+      resolution: workflowResolution.resolution,
+    };
   }
+  const workflow = workflowResolution.workflow;
 
   const logicDef = await loadLogicDefinition(workflow.target_module);
   const logicBody = logicDef?.body_json || {};
@@ -173,12 +245,55 @@ export async function runAgentLoop(plan, deps = {}) {
   const context = deps.buildGovernedContext
     ? await deps.buildGovernedContext(plan)
     : { plan_id: plan.plan_id, brand_key: plan.brand_key, workflow_key: plan.workflow_key };
+  context.run_id = run_id;
+  context.decision_run_id = plan.decision_run_id || plan.plan_id || run_id;
+  context.plan_id = plan.plan_id || context.plan_id || null;
+  context.tenant_id = plan.tenant_id || context.tenant_id || null;
+  context.user_id = plan.user_id || context.user_id || null;
+  context.agent_id = plan.agent_id || context.agent_id || null;
+  context.workspace_id = plan.workspace_id || context.workspace_id || null;
+  context.workspace_key = plan.workspace_key || context.workspace_key || null;
+  context.brand_key = plan.brand_key || plan.target_key || context.brand_key || null;
+  context.actor_role = plan.actor_role || plan.role_key || context.actor_role || null;
+  context.governance_level = plan.governance_level || workflow.execution_class || context.governance_level || null;
+  if (context.authority_bridge?.blocker_count > 0) {
+    context.authority_bridge.drift_evidence = await writeAuthorityBridgeDriftEvidence(
+      { ...plan, run_id },
+      context.authority_bridge,
+      { pool: deps.pool, writeExecutionEvidence: deps.writeExecutionEvidence }
+    );
+  }
+  if (context.authority_bridge?.allowed === false) {
+    return {
+      ok: false,
+      error: "governed_agent_execution_authority_denied",
+      plan_id: plan.plan_id || null,
+      authority_bridge: context.authority_bridge,
+      secrets_included: false,
+    };
+  }
 
   const pathRows = deps.loadPathResolverRows
     ? await deps.loadPathResolverRows(plan).catch(() => null)
     : null;
 
   if (pathRows) context.path_resolver_rows = pathRows;
+
+  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch((error) => ({
+    ready: false,
+    brand_key: plan.brand_key || plan.target_key || null,
+    resolution_error: error?.code || "brand_core_evidence_lookup_failed",
+    secrets_included: false,
+  }));
+  context.brand_core_lookup = brandCoreEvidence;
+  if (brandCoreEvidence?.ready) {
+    context.brand_core = brandCoreEvidence;
+    context.brand_core_resolved = true;
+  } else {
+    context.brand_core_surface_authority = brandCoreEvidence?.surface_authority || null;
+    context.brand_core_resolution_error = brandCoreEvidence?.resolution_error || "brand_core_evidence_not_resolved";
+    context.brand_core_resolved = false;
+  }
 
   // Inject workspace app-connection context when a workspace_key is present.
   // connected_apps lists metadata + allowed_actions per connection — no tokens.
@@ -190,17 +305,93 @@ export async function runAgentLoop(plan, deps = {}) {
     context.workspace_app_connection_count = appCtx.connected_apps.length;
   }
 
-  const tools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const candidateTools = buildToolsFromEngines(workflow.mapped_engines || "");
+  const toolExposure = typeof deps.filterAuthorizedTools === "function"
+    ? await deps.filterAuthorizedTools(candidateTools, context)
+    : {
+        tools: [],
+        decisions: candidateTools.map((tool) => ({
+          allowed: false,
+          status: "denied",
+          code: "agent_tool_authorization_filter_unavailable",
+          tool_key: tool?.function?.name || null,
+          blockers: ["agent_tool_authorization_filter_unavailable"],
+          secrets_included: false,
+        })),
+        candidate_count: candidateTools.length,
+        authorized_count: 0,
+        denied_count: candidateTools.length,
+        secrets_included: false,
+      };
+  const tools = toolExposure.tools;
+  context.authorized_tool_manifest = {
+    candidate_count: toolExposure.candidate_count,
+    authorized_count: toolExposure.authorized_count,
+    denied_count: toolExposure.denied_count,
+    decisions: toolExposure.decisions.map((decision) => ({
+      tool_key: decision.tool_key || null,
+      allowed: decision.allowed === true,
+      code: decision.code || null,
+      consequence_class: decision.classification?.consequence_class || null,
+      action_key: decision.action?.action_key || null,
+      matched_skill_key: decision.skill?.matched_skill_key || null,
+      blocker_codes: decision.blockers || [],
+      secrets_included: false,
+    })),
+    secrets_included: false,
+  };
+
+  const execution_class = workflow.execution_class || "standard";
+  assertPreflightAllowed(await evaluateAgentLoopPreflight({
+    plan,
+    workflow,
+    logicKey: logic_key,
+    executionClass: execution_class,
+    toolCount: tools.length,
+    context,
+  }));
 
   const engineRegistry = deps.engineExecutorRegistry;
 
-  async function dispatchTool(toolName, args, ctx) {
-    if (engineRegistry?.dispatch) return engineRegistry.dispatch(toolName, args, ctx);
-    return { ok: false, error: "no_engine_registry" };
+  async function dispatchTool(toolName, args, ctx = {}) {
+    const existingAuthorization = ctx?.tool_authorization;
+    const authorization = existingAuthorization?.allowed === true && existingAuthorization?.tool_key === toolName
+      ? existingAuthorization
+      : typeof deps.authorizeToolCall === "function"
+        ? await deps.authorizeToolCall({ tool_name: toolName, args, context: ctx, phase: "dispatch" })
+        : {
+            allowed: false,
+            status: "denied",
+            code: "agent_tool_authorization_gate_unavailable",
+            tool_key: toolName,
+            blockers: ["agent_tool_authorization_gate_unavailable"],
+            secrets_included: false,
+          };
+    if (!authorization.allowed) {
+      return {
+        ok: false,
+        error: {
+          code: authorization.code || "agent_tool_authorization_denied",
+          message: "The governed agent tool authorization gate denied this call.",
+        },
+        authorization: {
+          status: "denied",
+          blocker_codes: authorization.blockers || [],
+          consequence_class: authorization.classification?.consequence_class || null,
+          action_key: authorization.action?.action_key || null,
+          secrets_included: false,
+        },
+        external_send_performed: false,
+        secrets_included: false,
+      };
+    }
+    if (engineRegistry?.dispatch) {
+      return engineRegistry.dispatch(toolName, args, { ...ctx, tool_authorization: authorization });
+    }
+    return { ok: false, error: { code: "no_engine_registry", message: "No engine registry is available." }, secrets_included: false };
   }
 
   // Use class-aware callModel when available; fall back to deps.callModel.
-  const execution_class = workflow.execution_class || "standard";
 
   // rule_based: bypass LLM entirely — dispatch directly to engineExecutorRegistry.
   // Loads the agent's bound pack definitions so the engine receives the full rule set,
@@ -239,13 +430,40 @@ export async function runAgentLoop(plan, deps = {}) {
     };
   }
 
+  const promptContext = typeof deps.resolveAgentPromptContext === "function"
+    ? await deps.resolveAgentPromptContext({
+        agent_id: plan.agent_id || context.agent_id || null,
+        mapped_engines: workflow.mapped_engines || "",
+        task_class: plan.task_class || logicBody.action_class || workflow.target_module || plan.intent_key || "",
+      }, { pool: deps.pool })
+    : {
+        agent_system_prompt: "",
+        engine_skill_prompts: [],
+        resolution: {
+          agent_id: plan.agent_id || context.agent_id || null,
+          resolver_status: "unavailable",
+          selected_skill_prompt_count: 0,
+          secrets_included: false,
+        },
+        secrets_included: false,
+      };
+  context.prompt_resolution = promptContext.resolution;
+
   const callModel = deps.getCallModelForClass
     ? deps.getCallModelForClass(execution_class)
     : deps.callModel;
 
   const modelResult = await deps.runLogicWithModel(
-    { logic_key, logic_body: logicBody, user_input: plan.intent_key || "", context, tools },
-    { callModel, dispatchTool }
+    {
+      logic_key,
+      logic_body: logicBody,
+      user_input: plan.intent_key || "",
+      context,
+      agent_system_prompt: promptContext.agent_system_prompt,
+      engine_skill_prompts: promptContext.engine_skill_prompts,
+      tools,
+    },
+    { callModel, dispatchTool, authorizeToolCall: deps.authorizeToolCall }
   );
 
   await writeRunResult(run_id, modelResult, plan.tenant_id);

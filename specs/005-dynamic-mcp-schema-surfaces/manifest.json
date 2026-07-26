@@ -1,0 +1,47 @@
+{
+  "spec_key": "005-dynamic-mcp-schema-surfaces",
+  "title": "Dynamic MCP Schema Surfaces",
+  "status": "implementation_review_pending_rollout",
+  "created_at": "2026-06-25",
+  "authority_model": {
+    "transport_topology": "git",
+    "dynamic_mcp_capabilities": "mysql",
+    "edge_routing": "signed_projection",
+    "runtime_execution": "mysql_revalidated"
+  },
+  "verified_baseline": {
+    "admin_tool_catalog_count": 480,
+    "system_tool_catalog_count_for_admin_principal": 117,
+    "actions": 39,
+    "endpoints": 4141,
+    "execution_policies": 1225,
+    "tool_dispatch_bindings_healthy": 24,
+    "tool_dispatch_binding_gaps": 0,
+    "database_tables_observed": 469,
+    "tenant_principal_catalog_count": null
+  },
+  "known_blockers": [
+    "tenant_principal_catalog_count_not_yet_measured",
+    "selected_registry_tables_runtime_unclassified",
+    "read_only_sql_tool_bus_misclassified",
+    "tenant_core_warning_operation_budget_exceeded_28_of_30",
+    "deployment_attestation_publisher_not_yet_implemented",
+    "activation_gateway_not_deployed",
+    "temporary_domain_dns_tls_dual_run_and_rollback_not_yet_validated"
+  ],
+  "updated_at": "2026-06-26",
+  "implementation_evidence": {
+    "admin_core_operations": 20,
+    "activation_admin_operations": 9,
+    "tenant_core_operations": 28,
+    "tenant_activation_operations": 4,
+    "local_connector_operations": 15,
+    "generated_artifact_count": 6,
+    "activation_gateway_policy_routes": 13,
+    "full_test_manifest": "536/536 passed",
+    "schema_guard": "passed",
+    "architecture_validation": "passed",
+    "canonical_build_check": "passed",
+    "production_deployment_performed": false
+  }
+}

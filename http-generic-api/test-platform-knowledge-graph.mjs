@@ -1,4 +1,9 @@
 import { readFileSync } from "node:fs";
+import {
+  addOptionalGraphEdgeWithExistingTarget,
+  inspectPlatformGraphEdgeEndpoints,
+  writePlatformGraphProjectionAtomically,
+} from "./services/platformKnowledgeGraphResolver.js";
 
 let passed = 0;
 let failed = 0;
@@ -12,12 +17,18 @@ function assert(name, condition) {
   }
 }
 
+function countOccurrences(text, needle) {
+  return String(text || "").split(needle).length - 1;
+}
+
 const service = readFileSync("services/platformKnowledgeGraphResolver.js", "utf8");
 const routes = readFileSync("routes/platformGraphRoutes.js", "utf8");
 const memoryService = readFileSync("services/platformGraphMemoryResolver.js", "utf8");
 const index = readFileSync("routes/index.js", "utf8");
 const governance = readFileSync("routes/governanceRoutes.js", "utf8");
+const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const migration = readFileSync("migrations/105_sprint62p_platform_knowledge_graph_runtime.sql", "utf8");
+const rankRulesMigration = readFileSync("migrations/108_sprint62s_platform_graph_memory_rank_rules.sql", "utf8");
 const parentOpenapi = readFileSync("openapi.yaml", "utf8");
 const childOpenapi = readFileSync("schemas/http-generic-api/http-generic-api.yaml", "utf8");
 
@@ -54,7 +65,68 @@ assert("graph service projects all first-slice source tables",
     "platform_contract_nodes",
     "platform_contract_relationships",
     "execution_log",
+    "brands",
+    "brand_core",
+    "brand_paths",
+    "business_activity_types",
+    "logic_definitions",
+    "logic_packs",
+    "agents",
+    "agent_skills",
+    "agent_skill_grants",
+    "agent_workflow_bindings",
+    "app_integrations",
+    "app_integration_action_bindings",
+    "admin_platform_endpoint_tools",
+    "app_integration_tool_bindings",
+    "tenant_integration_policies",
+    "user_app_connections",
+    "app_action_grants",
+    "app_action_requests",
   ].every((table) => service.includes(table)));
+
+assert("graph service projects expanded execution authority node types",
+  [
+    'node_type: "brand"',
+    'node_type: "brand_core_asset"',
+    'node_type: "business_activity"',
+    'node_type: "logic"',
+    'node_type: "logic_pack"',
+    'node_type: "agent"',
+    'node_type: "skill"',
+    'node_type: "plugin"',
+    'node_type: "tool"',
+    'node_type: "connection"',
+    'node_type: "tenant_policy"',
+    'node_type: "action_grant"',
+    'node_type: "action_request"',
+  ].every((needle) => service.includes(needle)));
+
+assert("graph service projects expanded execution authority edge types",
+  [
+    'edge_type: "has_brand_core"',
+    'edge_type: "has_business_type"',
+    'edge_type: "has_business_activity"',
+    'edge_type: "requires_brand_core"',
+    'edge_type: "uses_logic"',
+    'edge_type: "grants_skill"',
+    'edge_type: "bound_to_workflow"',
+    'edge_type: "binds_action"',
+    'edge_type: "binds_tool"',
+    'edge_type: "allows_plugin"',
+    'edge_type: "connects_plugin"',
+    'edge_type: "grants_action"',
+    'edge_type: "requests_action"',
+  ].every((needle) => service.includes(needle)));
+
+assert("expanded execution authority graph taxonomy migration is present",
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.brand") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.business_activity") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.skill") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.plugin") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("edge_type.binds_action") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("edge_type.grants_skill") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("ON DUPLICATE KEY UPDATE"));
 
 assert("graph service has projection, validation, neighborhood, and resolver exports",
   service.includes("export async function projectPlatformKnowledgeGraph") &&
@@ -78,13 +150,36 @@ assert("graph service forbids raw secret terms and avoids raw secret columns",
   !service.includes("SELECT password_hash"));
 
 assert("graph memory service resolves scoped assets through graph attachments",
+  memoryService.includes("export async function resolvePlatformGraphMemory") &&
   memoryService.includes("export async function resolveGraphRelevantAssets") &&
   memoryService.includes("resolvePlatformGraphContext") &&
-  memoryService.includes("platform_graph_edges e") &&
+  memoryService.includes("platform_graph_edges") &&
   memoryService.includes("json_asset_subject_links") &&
   memoryService.includes("payload_summary") &&
-  memoryService.includes("redactSecrets") &&
+  memoryService.includes("summary_only") &&
+  memoryService.includes("FORBIDDEN_SECRET_TERMS") &&
+  memoryService.includes("raw_secret_values_included: false") &&
   memoryService.includes("secrets_included: false"));
+
+assert("graph memory ranking can be tuned from DB with code fallback",
+  memoryService.includes("DEFAULT_RANK_WEIGHTS") &&
+  memoryService.includes("loadGraphMemoryRankWeights") &&
+  memoryService.includes("platform_graph_memory_rank_rules") &&
+  memoryService.includes("fallback_code_defaults") &&
+  memoryService.includes("db_rank_rules") &&
+  memoryService.includes("rank_weights_source") &&
+  memoryService.includes("rank_weights") &&
+  memoryService.includes("direct_asset_match") &&
+  memoryService.includes("attached_scope_match"));
+
+assert("rank rules migration seeds graph memory ranking weights",
+  rankRulesMigration.includes("CREATE TABLE IF NOT EXISTS `platform_graph_memory_rank_rules`") &&
+  rankRulesMigration.includes("direct_asset_match") &&
+  rankRulesMigration.includes("asset_graph_node_match") &&
+  rankRulesMigration.includes("attached_scope_match") &&
+  rankRulesMigration.includes("validated_asset") &&
+  rankRulesMigration.includes("knowledge_asset_type") &&
+  rankRulesMigration.includes("ON DUPLICATE KEY UPDATE"));
 
 assert("graph service uses MariaDB-compatible JSON writes",
   !service.includes("CAST(? AS JSON)") &&
@@ -102,16 +197,30 @@ assert("routes expose admin-protected graph runtime endpoints",
   routes.includes("requireBackendApiKey") &&
   routes.includes("requireAdminPrincipal"));
 
+assert("graph memory route is registered exactly once",
+  countOccurrences(routes, "router.post(\"/platform/graph/memory\"") === 1 &&
+  countOccurrences(routes, "platform_graph_memory_failed") === 1);
+
 assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
 
-assert("governance diagnostic includes graph_context and graph_relevant_assets",
+assert("governance diagnostic includes graph_context, graph_memory, and graph_relevant_assets compatibility alias",
   governance.includes("resolvePlatformGraphContext") &&
-  governance.includes("resolveGraphRelevantAssets") &&
+  governance.includes("resolvePlatformGraphMemory") &&
   governance.includes("graph_context") &&
+  governance.includes("graph_memory") &&
   governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
+
+assert("release readiness includes non-blocking graph memory diagnostics",
+  releaseReadiness.includes("resolvePlatformGraphMemory") &&
+  releaseReadiness.includes("checkGraphMemoryDiagnostics") &&
+  releaseReadiness.includes("graph_memory_diagnostics") &&
+  releaseReadiness.includes("graph_memory_resolved") &&
+  releaseReadiness.includes("graph_memory_asset_count") &&
+  releaseReadiness.includes("release_readiness") &&
+  releaseReadiness.includes("secrets_included: false"));
 
 assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
   [parentOpenapi, childOpenapi].every((schema) =>
@@ -128,6 +237,158 @@ assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
     schema.includes("/platform/graph/neighborhood:") &&
     schema.includes("/platform/graph/status:")
   ));
+
+assert("parent and child OpenAPI define graph memory path and schema exactly once",
+  [parentOpenapi, childOpenapi].every((schema) =>
+    countOccurrences(schema, "/platform/graph/memory:") === 1 &&
+    countOccurrences(schema, "PlatformGraphMemoryResponse:") === 1
+  ));
+
+{
+  const nodes = new Map([["agent.agent-1", { node_id: "agent.agent-1" }]]);
+  const edges = new Map();
+  const warnings = [];
+  const missingResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.activation_smoke_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-1",
+    },
+    warning: {
+      reason: "brand_target_not_in_desired_node_set",
+      brand_key: "activation_smoke_brand",
+      grant_id: "grant-1",
+    },
+  });
+  assert("missing optional brand target is held as a warning without an edge",
+    missingResult === null &&
+    edges.size === 0 &&
+    warnings.length === 1 &&
+    warnings[0].code === "optional_graph_edge_target_missing" &&
+    warnings[0].target_node_id === "brand.activation_smoke_brand");
+
+  nodes.set("brand.valid_brand", { node_id: "brand.valid_brand" });
+  const validResult = addOptionalGraphEdgeWithExistingTarget({
+    nodes,
+    edges,
+    warnings,
+    input: {
+      source_node_id: "agent.agent-1",
+      edge_type: "linked_to",
+      target_node_id: "brand.valid_brand",
+      source_table: "agent_skill_grants",
+      source_pk: "grant-2",
+    },
+  });
+  assert("existing optional brand target creates the graph edge",
+    typeof validResult === "string" &&
+    edges.size === 1 &&
+    [...edges.values()][0].target_node_id === "brand.valid_brand" &&
+    warnings.length === 1);
+}
+
+{
+  const nodes = new Map([["node-1", { node_id: "node-1" }]]);
+  const edges = new Map([["edge-1", {
+    edge_id: "edge-1",
+    source_node_id: "node-1",
+    target_node_id: "missing-node",
+  }]]);
+  const inspection = inspectPlatformGraphEdgeEndpoints(nodes, edges);
+  assert("graph endpoint inspection reports a missing target", !inspection.ok &&
+    inspection.missing_edge_count === 1 &&
+    inspection.missing_target_node_ids.includes("missing-node"));
+
+  let connectionRequested = false;
+  let rejectedBeforeConnection = false;
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { connectionRequested = true; throw new Error("connection should not be requested"); } },
+      nodes,
+      edges,
+    });
+  } catch (error) {
+    rejectedBeforeConnection = error.code === "platform_graph_projection_missing_edge_endpoints";
+  }
+  assert("missing graph endpoint fails before opening a transaction", rejectedBeforeConnection && !connectionRequested);
+}
+
+function atomicTestConnection(calls) {
+  return {
+    async beginTransaction() { calls.push("begin"); },
+    async commit() { calls.push("commit"); },
+    async rollback() { calls.push("rollback"); },
+    release() { calls.push("release"); },
+  };
+}
+
+const atomicNodes = new Map([
+  ["node-1", { node_id: "node-1" }],
+  ["node-2", { node_id: "node-2" }],
+]);
+const atomicEdges = new Map([["edge-1", {
+  edge_id: "edge-1",
+  source_node_id: "node-1",
+  target_node_id: "node-2",
+}]]);
+
+{
+  const calls = [];
+  let errorCode = "";
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { return atomicTestConnection(calls); } },
+      nodes: atomicNodes,
+      edges: atomicEdges,
+      upsertNodesFn: async () => { calls.push("nodes"); },
+      upsertEdgesFn: async () => { calls.push("edges"); },
+      findMissingIdsFn: async (_connection, table) => table === "platform_graph_nodes" ? ["node-2"] : [],
+    });
+  } catch (error) {
+    errorCode = error.code;
+  }
+  assert("node readback failure rolls back before edge writes", errorCode === "platform_graph_projection_node_readback_failed" &&
+    calls.join(",") === "begin,nodes,rollback,release");
+}
+
+{
+  const calls = [];
+  let errorCode = "";
+  try {
+    await writePlatformGraphProjectionAtomically({
+      pool: { async getConnection() { return atomicTestConnection(calls); } },
+      nodes: atomicNodes,
+      edges: atomicEdges,
+      upsertNodesFn: async () => { calls.push("nodes"); },
+      upsertEdgesFn: async () => { calls.push("edges"); const error = new Error("edge write failed"); error.code = "edge_write_failed"; throw error; },
+      findMissingIdsFn: async () => [],
+    });
+  } catch (error) {
+    errorCode = error.code;
+  }
+  assert("edge write failure rolls back the node batch", errorCode === "edge_write_failed" &&
+    calls.join(",") === "begin,nodes,edges,rollback,release");
+}
+
+{
+  const calls = [];
+  const result = await writePlatformGraphProjectionAtomically({
+    pool: { async getConnection() { return atomicTestConnection(calls); } },
+    nodes: atomicNodes,
+    edges: atomicEdges,
+    upsertNodesFn: async () => { calls.push("nodes"); },
+    upsertEdgesFn: async () => { calls.push("edges"); },
+    findMissingIdsFn: async () => [],
+  });
+  assert("successful graph projection commits after same-cycle readback", result.ok === true &&
+    result.same_cycle_readback_verified === true &&
+    calls.join(",") === "begin,nodes,edges,commit,release");
+}
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

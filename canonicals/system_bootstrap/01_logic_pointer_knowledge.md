@@ -159,6 +159,33 @@ Patch Deployment Parity Verification Orchestration Rule
   - authoritative_runtime_evidence_source
   - runtime_confirmation_evidence_class
 
+Hostinger Auto-Deploy Authority Rule
+
+- system_bootstrap must treat GitHub branch `main` as the normal deployment source for Hostinger production `auth.mad4b.com`
+- the normal production update sequence is:
+  1. merge the governed change into `main`
+  2. allow Hostinger Auto Deploy to complete
+  3. read production Git HEAD
+  4. compare it with GitHub `main`
+  5. validate `/health` and required runtime dependencies
+  6. record deployment and parity evidence
+- a temporary mismatch between GitHub `main` and production Git HEAD must first be treated as possible Auto Deploy propagation delay
+- before any manual deployment fallback, system_bootstrap must re-read production Git HEAD and health in the same cycle
+- routine Hostinger repository updates, fast-forwards, restarts, or deployment-parity corrections must not use SSH
+- SSH is break-glass only and remains blocked unless:
+  - Hostinger Auto Deploy is demonstrably unavailable or failed
+  - the hosting plan and network path are confirmed to permit SSH
+  - a user explicitly approves the exception
+  - a fresh capability envelope is ready for dispatch
+  - a same-cycle dry-run and bounded post-action readback are available
+- SQL runtime policy authority is `platform_runtime_config.hostinger_deployment_policy`
+- the canonical policy must preserve:
+  - `deployment_strategy = github_main_auto_deploy`
+  - `normal_update_path = merge_to_main_then_verify_production_head`
+  - `ssh_normal_updates_allowed = false`
+  - `ssh_break_glass_only = true`
+- successful Hostinger Auto Deploy is proven by production Git HEAD parity plus healthy runtime readback; it must not be inferred from GitHub merge status alone
+
 Governed Brand Onboarding Orchestration Rule
 
 - system_bootstrap must orchestrate governed brand onboarding as a staged three-layer execution and must not directly promote a new brand into active state

@@ -2,6 +2,36 @@
 
 Policy-enforced HTTP executor with governed agent execution runtime.
 
+## Growth Intelligence pilot
+
+`POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot` runs the first
+value-producing Tenant/Brand workflow. It returns stable JSON and Markdown reports,
+prioritized opportunities, an approval-held dry-run backlog, readback, and audit evidence.
+The route is backend-authenticated and performs no provider writes or external sends.
+With explicit `persistence_mode=internal_registry`, it writes only the internal Growth
+Intelligence product registries, workflow evidence, and linked approval holds. Approval
+decisions never dispatch execution. Read APIs expose report detail and product/safety metrics.
+Insight decisions, deterministic supersession, derived quality rates, and immutable
+no-execution readiness assessments complete the governed review lifecycle.
+
+## Sequential plan orchestrator
+
+Planner plans may be compiled into `execution_plan_steps` and executed through
+bounded `tick` or `run` calls. Each step has dependencies, idempotency, retry and
+approval policies. `execution_plan_events` preserves the append-only timeline;
+approval decisions resume readiness without directly executing downstream work.
+
+Supervisor-agent authority and chain prerequisites can be checked without provider execution:
+
+```bash
+npm run supervisor:readiness
+npm run supervisor:readiness:live
+npm run supervisor:certify
+npm run supervisor:certify:live
+```
+
+The readiness live command verifies required schema, active route-derived `logic.evaluate_pack` grant coverage, and configured fallback-agent health. The certification live command verifies controlled dispatcher behavior inside a database transaction, rolls all fixtures back, and makes no provider calls. Neither command processes historical pending chain events. See `../docs/supervisor-agent-runtime-readiness.md`.
+
 ## Key behavior
 - Resolves `parent_action_key`, `endpoint_key`, and brand target from registry sheets
 - Resolves `action_key.openai_schema_file_id` and validates request against the schema before transport execution
@@ -30,12 +60,15 @@ Policy-enforced HTTP executor with governed agent execution runtime.
 - `wordpress/` — 16 phase modules (A–P) for governed site migration
 
 **Agent execution runtime:**
-- `agentRuntime.js` — singleton composing `callModel` + `runLogicWithModel` + `engineExecutorRegistry` + `getCallModelForClass`; model tier routing via `execution_class` (standard→Haiku, complex→Sonnet, authority→Opus)
+- `agentRuntime.js` — singleton composing `callModel` + `runLogicWithModel` + `engineExecutorRegistry` + sync/async `getCallModelForClass`; async model routing uses governed provider fallback chains
+- `agentModelRuntimeSettings.js` — validates `platform_runtime_config.agent_model_runtime`; default routing is Gemini primary with OpenRouter fallback and task-specific profiles for `summary`, `classification`, and `image_edit`
 - `agentLoopRunner.js` — `runAgentLoop(plan, deps)`: loads workflow + logic definition, runs ReAct loop, verify pass (when `review_required=1`), writes results to DB
-- `modelAdapterRouter.js` — `buildCallModel`: normalizes Anthropic / OpenAI / Gemini shapes
+- `modelAdapterRouter.js` — `buildCallModel`: normalizes Anthropic / OpenAI / OpenRouter / Gemini / local Ollama / generic OpenAI-compatible shapes
+- `POST /connector/{device_id}/agent-runtime` — proxies provider discovery, capability inspection, model recommendation, safe persisted settings, approved provider/model installation, and explicitly approved local multi-agent jobs
 - `modelAdapter.js` — `runLogicWithModel`: ReAct tool-calling loop with iteration cap
 - `engineExecutorRegistry.js` — routes tool dispatch to MCP / HTTP action / logic-as-engine
 - `connectorExecutor.js` — `dispatchContentWorkflow` injects `getAgentDeps()`; also handles WordPress and MCP connector dispatch
+- `n8nWorkflowRuntime.js` — governed n8n runtime adapter; loads `workflow_runtime_bindings`, validates input/output schemas, calls n8n webhooks, records `workflow_runs`, and keeps secrets in env/vault
 - `skillInstaller.mjs` — CLI: install/list/enable/disable skills from GitHub (`skill.json` → `logic_definitions` + `skill_packages`)
 - `skillManifest.js` — manifest normalizer for skill installation
 
@@ -62,6 +95,8 @@ When `DATA_SOURCE=sql`, the following are no-ops and will not block activation o
 - `writeExecutionLogUnifiedRow`
 - `persistOversizedArtifactImpl`
 
+Sheets support is retained for legacy, bootstrap, and recovery workflows. Do not treat Sheets mode as the production default on Hostinger.
+
 ## Running migrations
 
 ```bash
@@ -78,10 +113,14 @@ node migrate-platform-tables.mjs --dry-run
 ## Required env
 - `REGISTRY_SPREADSHEET_ID`
 - **Agent execution:**
-  - `AGENT_MODEL_PROVIDER` — `anthropic` (default) / `openai` / `gemini`
-  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
+  - `AGENT_MODEL_PROVIDER` — optional hard override: `gemini` / `openrouter` / `openai` / `anthropic`
+  - `GEMINI_API_KEY` — Google AI Studio Gemini key; primary for default session-summary routing
+  - `GOOGLE_AI_API_KEY` — legacy Gemini key alias, still supported as fallback
+  - `OPENROUTER_API_KEY` — OpenRouter key; default fallback provider after Gemini
+  - `OPENROUTER_SITE_URL` — optional OpenRouter `HTTP-Referer` metadata
+  - `OPENROUTER_APP_NAME` — optional OpenRouter `X-Title` metadata
   - `OPENAI_API_KEY` — required when provider is `openai`
-  - `GOOGLE_AI_API_KEY` — required when provider is `gemini`
+  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
   - `AGENT_MODEL` — override: forces a specific model string, bypasses class routing
 - **Google auth (for Sheets, Drive, Analytics):**
   - Default production path: Cloud Run Application Default Credentials from the managed service account.
@@ -245,3 +284,10 @@ Get final result:
   }
 }
 ```
+## Agent Governance Runtime
+
+Admin-only `/platform/agent-governance/*` endpoints resolve response profiles and research policies, issue audited opaque handoffs, quarantine external prompt artifacts, and report skill runtime coverage. Governed research plans persist canonical policy-snapshot and compiled-step-contract hashes and reject execution if either integrity check fails. `node test-agent-governance-runtime.mjs` proves the internal-source-to-evidence-to-citation completion path. See `../docs/agent-governance-runtime-architecture.md`.
+
+Every governed research run writes authoritative high-level evidence to SQL `execution_log` through the surface-authority-gated `writeExecutionEvidence` helper and requires trace-ID readback. Detailed evidence remains correlated in `research_source_execution_log` and `execution_plan_events`.
+
+The agent loop now receives `governedAgentExecutionContext`, which composes task-route/workflow authority with response, research, and memory contracts. The bridge defaults to observe-only and supports fail-closed route/workflow enforcement through `AGENT_AUTHORITY_BRIDGE_MODE=enforce`. `agentPromptAssembler` keeps user input out of the system prompt.

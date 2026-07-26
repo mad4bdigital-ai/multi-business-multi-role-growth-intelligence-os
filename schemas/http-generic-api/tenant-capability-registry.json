@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/tenant-capability-registry.json",
+  "title": "Tenant Capability Registry",
+  "version": "2026-06-06",
+  "purpose": "Tenant-safe capability map for Tenant GPT guidance. This is read-only guidance and does not grant permissions.",
+  "secrets_included": false,
+  "capabilities": [
+    {
+      "key": "tenant_activation",
+      "status": "active",
+      "primary_tools": [
+        "activateSession",
+        "listTools",
+        "connect_status",
+        "connect_activate"
+      ],
+      "guidance": "Use at session start. Managed mode is the default unless the tenant asks for dedicated infrastructure."
+    },
+    {
+      "key": "tenant_operating_guides",
+      "status": "active",
+      "primary_tools": [
+        "tenant_docs_catalog",
+        "tenant_gpt_operating_guide_read",
+        "tenant_capability_registry_read"
+      ],
+      "guidance": "Read once per session when available so the GPT can guide proactively from live tenant-safe docs."
+    },
+    {
+      "key": "workspace_and_members",
+      "status": "active",
+      "primary_tools": [
+        "me_get",
+        "me_workspaces_list",
+        "workspace_members_list",
+        "workspace_invitations_list"
+      ],
+      "state_changing_tools": [
+        "workspace_invitation_create",
+        "workspace_member_update",
+        "workspace_member_remove",
+        "workspace_ownership_transfer"
+      ],
+      "guidance": "Use read-only workspace tools before member or invitation mutations. Owner/admin role may be required."
+    },
+    {
+      "key": "app_connections",
+      "status": "active",
+      "primary_tools": [
+        "connect_app_integrations_list",
+        "connect_app_connections_list",
+        "credential_intake_connection_status"
+      ],
+      "state_changing_tools": [
+        "connect_credential_intake_create",
+        "connect_app_connection_revoke",
+        "connect_integration_policy_update"
+      ],
+      "guidance": "Use secure intake links for credentials. Never ask for secrets in chat."
+    },
+    {
+      "key": "local_manager",
+      "status": "active",
+      "primary_tools": [
+        "local_connector_devices",
+        "local_connector_health",
+        "local_gateway_tools_list"
+      ],
+      "state_changing_tools": [
+        "connect_device_install",
+        "local_gateway_tools_call"
+      ],
+      "guidance": "Check connect_status first. Do not reinstall when an enabled registered device already exists unless the user asks."
+    },
+    {
+      "key": "ssh_readiness",
+      "status": "active",
+      "primary_tools": [
+        "tenant_ssh_connection_status",
+        "tenant_ssh_preflight",
+        "tenant_ssh_probe"
+      ],
+      "state_changing_tools": [
+        "tenant_ssh_cli_approval_request_create",
+        "tenant_ssh_cli_approval_request_decide"
+      ],
+      "gated_tools": [
+        "tenant_ssh_cli_allowlisted_execute"
+      ],
+      "guidance": "Status/preflight/probe are safe read-only checks. Command execution must be allowlisted and approval-gated."
+    },
+    {
+      "key": "database_readiness",
+      "status": "active",
+      "primary_tools": [
+        "tenant_database_connection_status",
+        "tenant_database_preflight",
+        "tenant_database_schema_read"
+      ],
+      "gated_tools": [
+        "tenant_database_query_readonly"
+      ],
+      "guidance": "Prefer schema read before read-only queries. Never run broad or secret-bearing queries."
+    },
+    {
+      "key": "wordpress_cms_claims",
+      "status": "foundation",
+      "primary_tools": [
+        "connect_app_connections_list",
+        "credential_intake_connection_status"
+      ],
+      "related_routes": [
+        "/connect/api/cms/claims"
+      ],
+      "guidance": "Use available tenant-safe CMS/status tools when discovered. If status tools fail with platform schema/collation errors, classify validation as platform-gated rather than credential failure."
+    },
+    {
+      "key": "tenant_evolution",
+      "status": "active",
+      "primary_tools": [
+        "tenant_evolution_activation_card",
+        "tenant_evolution_thread_map",
+        "tenant_evolution_open_evidence",
+        "tenant_evolution_switch_options"
+      ],
+      "state_changing_tools": [
+        "tenant_evolution_checkpoint_create"
+      ],
+      "guidance": "Use for guided checkpointing and user-facing progress maps when available."
+    }
+  ],
+  "status_semantics": {
+    "status_active": "Connection record exists and tenant-scoped credentials are present.",
+    "validation_pending": "Live verification is incomplete, blocked, or not yet promoted.",
+    "fully_validated": "Only claim after same-cycle tenant-safe live validation or explicit platform validation status update."
+  },
+  "default_next_best_actions": [
+    "Run the safest read-only status or preflight tool.",
+    "Explain what is proven and what remains blocked.",
+    "Suggest one business-relevant next step."
+  ]
+}

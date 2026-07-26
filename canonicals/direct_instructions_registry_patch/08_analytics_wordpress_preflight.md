@@ -87,6 +87,24 @@ Endpoint inventory rows must support metadata validation for:
 
 Missing metadata in API Actions Endpoint Registry must degrade endpoint readiness and review status, but must not be interpreted as proof that the underlying GPT action does not exist when runtime access is already known.
 
+#### OpenAPI Endpoint Inventory Synchronization Rule
+
+Committed OpenAPI operations may be synchronized into the SQL `endpoints` registry only as non-callable inventory evidence.
+
+The synchronization contract must:
+- resolve local YAML references only within the OpenAPI root and reject remote references or path traversal
+- require globally unique `operationId` values
+- write rows with inventory-only status and pending governance review
+- keep `runtime_callable=false`, `client_allowed=false`, and tool-export counts unchanged
+- use an advisory lock, transaction, same-cycle readback, and immutable run evidence
+- deprecate operations removed from OpenAPI rather than deleting registry history
+- require typed confirmation and a valid capability envelope for manual apply
+- remain disableable through governed runtime configuration and an emergency environment kill switch
+
+OpenAPI metadata such as `x-registry-exposure` and `x-registry-tool-key` is discovery evidence only. It must never auto-promote an operation into `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`, `platform_endpoint_tool_exports`, or runtime execution authority.
+
+Callable promotion must remain a separate governed migration or approval flow with explicit authentication, authorization, risk, idempotency, audit, and readback policy.
+
 ---
 
 ### Analytics Warehouse Schema Governance Rule

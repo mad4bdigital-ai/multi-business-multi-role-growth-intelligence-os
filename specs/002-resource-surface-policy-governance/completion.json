@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "feature_key": "002-resource-surface-policy-governance",
+  "title": "Policy-Driven Resource Surface Governance",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": null
+  },
+  "evidence": {},
+  "secrets_included": false
+}

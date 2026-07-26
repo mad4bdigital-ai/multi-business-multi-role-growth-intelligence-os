@@ -1,0 +1,7 @@
+{
+  "surface_key": "local_connector_device_aliases",
+  "source_table": "local_connector_device_aliases",
+  "reason": "Excluded because PR 2417 creates Local Connector alias persistence only. Tenant-visible activation cards, alias APIs, and object-level authorization are intentionally deferred to later runtime PRs.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

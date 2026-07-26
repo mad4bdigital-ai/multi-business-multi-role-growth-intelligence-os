@@ -7,7 +7,6 @@
  */
 import { Router } from "express";
 import { randomUUID, createHash, randomBytes } from "node:crypto";
-import jwt from "jsonwebtoken";
 import {
   assessHybridIntegrationReadiness,
   hybridIntegrationCatalog,
@@ -19,29 +18,8 @@ import {
   createWordPressAccountClaim,
   toErrorEnvelope,
 } from "../cmsAccountClaimResolver.js";
-
-function verifyUserJwt(authorization) {
-  if (!authorization || !authorization.startsWith("Bearer ")) return null;
-  try {
-    const token = authorization.slice(7);
-    return jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "user_jwt_required", message: "Sign in required." },
-    });
-  }
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
+import { buildTenantConnectionSelfRepairRoutes } from "./tenantConnectionSelfRepairRoutes.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
@@ -90,6 +68,20 @@ function defaultCredentialSchema(authType) {
     { name: "header_value", label: "Header value", type: "password", target: "credentials", required: true, secret: true },
     { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
   ] };
+  if (authType === "ssh_key_pair") return { fields: [
+    { name: "ssh_host", label: "SSH_HOST", type: "text", target: "credentials", required: true, secret: false },
+    { name: "ssh_port", label: "SSH_PORT", type: "number", target: "credentials", required: true, secret: false },
+    { name: "ssh_user", label: "SSH_USER", type: "text", target: "credentials", required: true, secret: false },
+    { name: "ssh_private_key", label: "SSH_PRIVATE_KEY (optional)", type: "textarea", target: "credentials", required: false, secret: true },
+    { name: "ssh_password", label: "SSH_PASSWORD (Hostinger password, optional)", type: "password", target: "credentials", required: false, secret: true },
+  ], credential_rule: "provide ssh_private_key or ssh_password" };
+  if (authType === "remote_database") return { fields: [
+    { name: "db_host", label: "DB_HOST", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_port", label: "DB_PORT", type: "number", target: "credentials", required: true, secret: false },
+    { name: "db_name", label: "DB_NAME", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_user", label: "DB_USER", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_password", label: "DB_PASSWORD", type: "password", target: "credentials", required: true, secret: true },
+  ] };
   return { fields: [] };
 }
 
@@ -98,13 +90,40 @@ function normalizeCredentialSchema(authType, requestedSchema) {
   return defaultCredentialSchema(authType);
 }
 
+async function resolveActiveTenantId(pool, userId) {
+  if (!userId) return null;
+  const [rows] = await pool.query(
+    `SELECT tenant_id
+       FROM \`memberships\`
+      WHERE user_id = ? AND status = 'active'
+      ORDER BY granted_at ASC
+      LIMIT 1`,
+    [userId]
+  );
+  return rows?.[0]?.tenant_id || null;
+}
+
 export function buildConnectApiRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
   const encrypt = deps.encryptCredentials || encryptCredentials;
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
 
-  router.use("/connect/api", requireUserJwt);
+  async function hydrateActiveTenant(req, _res, next) {
+    try {
+      if (!req.auth?.tenant_id && req.auth?.user_id) {
+        req.auth.tenant_id = await resolveActiveTenantId(pool, req.auth.user_id);
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  router.use("/connect/api", requireUserJwt, hydrateActiveTenant);
+  router.use("/me/connections", requireUserJwt, hydrateActiveTenant);
+  router.use(buildTenantConnectionSelfRepairRoutes({ pool }));
 
   // GET /connect/api/app-integrations — discover apps the user can connect.
   router.get("/connect/api/app-integrations", async (_req, res, next) => {
@@ -112,10 +131,16 @@ export function buildConnectApiRoutes(deps = {}) {
       const [rows] = await pool.query(
         `SELECT app_key, display_name, category, auth_type, status
            FROM \`app_integrations\`
-          WHERE status = 'active'
+          WHERE status IN ('active','beta')
           ORDER BY display_name ASC`
       );
-      res.json({ ok: true, items: rows || [] });
+      res.json({
+        ok: true,
+        items: rows || [],
+        beta_included: true,
+        infrastructure_auth_types: ['ssh_key_pair', 'remote_database'],
+        secrets_included: false,
+      });
     } catch (err) {
       next(err);
     }
@@ -124,14 +149,24 @@ export function buildConnectApiRoutes(deps = {}) {
   // GET /connect/api/connections — list user's own connections (no secrets).
   router.get("/connect/api/connections", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.json({
+          ok: true,
+          items: [],
+          workspace_required: true,
+          next_actions: ["connect_workspace_create", "connect_escalate"],
+        });
+      }
       const [rows] = await pool.query(
         `SELECT connection_id, app_key, auth_type, display_label, status,
-                validation_status, last_validated_at, created_at, updated_at
+                validation_status, last_validated_at,
+                connected_at AS created_at,
+                COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at
            FROM \`user_app_connections\`
           WHERE user_id = ?
             AND tenant_id = ?
-            AND status <> 'deleted'
-          ORDER BY updated_at DESC`,
+            AND status <> 'revoked'
+          ORDER BY COALESCE(last_used_at, last_validated_at, connected_at) DESC`,
         [req.auth.user_id, req.auth.tenant_id]
       );
       res.json({ ok: true, items: rows || [] });
@@ -142,6 +177,7 @@ export function buildConnectApiRoutes(deps = {}) {
 
   // POST /connect/api/integration-policy — update per-app managed/dedicated source modes.
   router.post("/connect/api/integration-policy", async (req, res, next) => {
+    let tx = null;
     try {
       const integrationModes = req.body?.integration_modes || {};
       if (!integrationModes || typeof integrationModes !== "object" || Array.isArray(integrationModes) || !Object.keys(integrationModes).length) {
@@ -154,32 +190,52 @@ export function buildConnectApiRoutes(deps = {}) {
         });
       }
 
+      tx = typeof pool.getConnection === "function" ? await pool.getConnection() : null;
+      if (tx) await tx.beginTransaction();
+      const db = tx || pool;
+      const [connectionRows] = await db.query(
+        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
+        [req.auth.tenant_id]
+      );
       const result = await upsertTenantIntegrationPolicies({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
         integrationModes,
         source: "connect_api_policy_update",
+        db,
       });
-      const [connectionRows] = await pool.query(
-        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
-        [req.auth.tenant_id]
-      );
-      const readiness = await assessHybridIntegrationReadiness({
-        tenantId: req.auth.tenant_id,
-        userId: req.auth.user_id,
-        connection: connectionRows?.[0] || null,
-      });
+      if (tx) await tx.commit();
+
+      let readiness = null;
+      let readinessError = null;
+      try {
+        readiness = await assessHybridIntegrationReadiness({
+          tenantId: req.auth.tenant_id,
+          userId: req.auth.user_id,
+          connection: connectionRows?.[0] || null,
+        });
+      } catch (err) {
+        readinessError = {
+          code: err?.code || "hybrid_integration_readiness_unavailable",
+          message: err?.message || "Hybrid integration readiness is unavailable after policy update.",
+        };
+      }
       return res.json({
         ok: true,
         update: result,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: readiness,
+        readiness_unavailable: readinessError,
       });
     } catch (err) {
+      if (tx) {
+        try { await tx.rollback(); } catch {}
+      }
       next(err);
+    } finally {
+      if (tx) tx.release();
     }
   });
-
   // POST /connect/api/credential-intake/sessions — create a short-lived secure secret-entry link.
   router.post("/connect/api/credential-intake/sessions", async (req, res, next) => {
     try {
@@ -257,7 +313,56 @@ export function buildConnectApiRoutes(deps = {}) {
         app_key,
         auth_type,
         secret_exposed: false,
+        intake_url_user_visible: true,
+        intake_url_redaction_policy: "show_to_requesting_user_temporary_secret_entry_link",
+        secret_fields_redaction_policy: "redact_submitted_credential_values_only",
         next_action: "open_intake_url_and_submit_credentials",
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // GET /connect/api/credential-intake/sessions/:session_id/wait — long-poll completion without exposing secrets.
+  router.get("/connect/api/credential-intake/sessions/:session_id/wait", async (req, res, next) => {
+    try {
+      const sessionId = String(req.params.session_id || "").trim();
+      if (!sessionId) return res.status(400).json({ ok: false, error: { code: "session_id_required", message: "session_id is required." }, secrets_included: false });
+      const timeoutMs = Math.min(Math.max(Number.parseInt(req.query.timeout_ms || "15000", 10) || 15000, 1000), 60000);
+      const intervalMs = Math.min(Math.max(Number.parseInt(req.query.interval_ms || "1000", 10) || 1000, 250), 5000);
+      const deadline = Date.now() + timeoutMs;
+      let row = null;
+      do {
+        const [rows] = await pool.query(
+          `SELECT session_id, user_id, tenant_id, app_key, auth_type, status, expires_at, used_at, connection_id, credential_schema_json
+             FROM credential_intake_sessions
+            WHERE session_id = ? AND user_id = ? AND tenant_id = ?
+            LIMIT 1`,
+          [sessionId, req.auth.user_id, req.auth.tenant_id]
+        );
+        row = rows?.[0] || null;
+        if (!row) return res.status(404).json({ ok: false, error: { code: "intake_session_not_found", message: "Credential intake session was not found for this caller." }, secrets_included: false });
+        if (row.status !== "pending" || new Date(row.expires_at).getTime() <= Date.now()) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
+      } while (Date.now() < deadline);
+
+      const completed = row.status === "used" && Boolean(row.connection_id);
+      return res.status(completed ? 200 : 202).json({
+        ok: true,
+        session_id: row.session_id,
+        app_key: row.app_key,
+        auth_type: row.auth_type,
+        status: row.status,
+        completed,
+        connection_id: row.connection_id || null,
+        used_at: row.used_at || null,
+        expires_at: row.expires_at || null,
+        timed_out: !completed && row.status === "pending" && Date.now() >= deadline,
+        next_tools: completed && row.auth_type === "ssh_key_pair"
+          ? ["tenant_ssh_connection_status", "tenant_ssh_probe", "tenant_ssh_cli_allowlisted_dry_run", "tenant_ssh_cli_approval_request_create", "tenant_ssh_cli_allowlisted_execute", "tenant_ssh_cli_execute_job_result"]
+          : [],
+        webhook_safe_event: completed ? "credential_intake.completed" : "credential_intake.pending",
+        secrets_included: false,
       });
     } catch (err) {
       next(err);
@@ -321,6 +426,17 @@ export function buildConnectApiRoutes(deps = {}) {
   // POST /connect/api/cms/claims/:claim_id/approve — owner/admin approves sharing.
   router.post("/connect/api/cms/claims/:claim_id/approve", async (req, res, next) => {
     try {
+      const [claims] = await pool.query(
+        `SELECT claim_id, tenant_id, user_id, connection_id, matched_target_key, normalized_domain, requested_scope, verification_status
+           FROM \`cms_account_claims\`
+          WHERE claim_id = ?
+            AND tenant_id = ?
+          LIMIT 1`,
+        [req.params.claim_id, req.auth.tenant_id]
+      );
+      const claim = claims?.[0];
+      if (!claim) return res.status(404).json({ ok: false, error: { code: "cms_claim_not_found", message: "CMS claim was not found." }, secrets_included: false });
+
       const [result] = await pool.query(
         `UPDATE \`cms_account_claims\`
             SET verification_status = 'approved',
@@ -332,7 +448,99 @@ export function buildConnectApiRoutes(deps = {}) {
             AND verification_status IN ('verified', 'pending')`,
         [req.auth.user_id, req.params.claim_id, req.auth.tenant_id]
       );
-      res.json({ ok: true, status: result?.affectedRows ? "approved" : "not_modified" });
+
+      let grantPromotion = null;
+      if (result?.affectedRows) {
+        const [grantRows] = await pool.query(
+          `SELECT grant_id, site_id, scope, status
+             FROM \`cms_site_access_grants\`
+            WHERE claim_id = ?
+              AND tenant_id = ?
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [req.params.claim_id, req.auth.tenant_id]
+        );
+        const grant = grantRows?.[0] || null;
+        if (grant) {
+          await pool.query(
+            `UPDATE \`cms_site_access_grants\`
+                SET status = 'active',
+                    approved_by = ?,
+                    approved_at = NOW(),
+                    updated_at = NOW()
+              WHERE grant_id = ?
+                AND tenant_id = ?`,
+            [req.auth.user_id, grant.grant_id, req.auth.tenant_id]
+          );
+          grantPromotion = {
+            grant_id: grant.grant_id,
+            site_id: grant.site_id,
+            scope: grant.scope,
+            status: "active",
+            secrets_included: false,
+          };
+        }
+      }
+
+      let promotion = null;
+      if (result?.affectedRows && claim.connection_id) {
+        const targetKey = claim.matched_target_key || claim.normalized_domain;
+        const credentialRef = `user_app_connection:${claim.connection_id}:encrypted_credentials.application_password`;
+        const [existing] = await pool.query(
+          `SELECT binding_id
+             FROM \`credential_bindings\`
+            WHERE tenant_id = ?
+              AND owner_type = 'tenant'
+              AND owner_id = ?
+              AND user_id IS NULL
+              AND connection_id IS NULL
+              AND target_key = ?
+              AND credential_role = 'wordpress_app_password'
+              AND credential_ref = ?
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [claim.tenant_id, claim.tenant_id, targetKey, credentialRef]
+        );
+        const bindingId = existing?.[0]?.binding_id || randomUUID();
+        if (existing?.[0]?.binding_id) {
+          await pool.query(
+            `UPDATE \`credential_bindings\`
+                SET provider_family = 'wordpress',
+                    connector_family = 'wordpress_rest',
+                    resolution_priority = 20,
+                    status = 'active',
+                    updated_at = NOW()
+              WHERE binding_id = ?`,
+            [bindingId]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO \`credential_bindings\` (
+               binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+               action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+               resolution_priority, status, created_by, created_at, updated_at
+             ) VALUES (?, ?, 'tenant', ?, NULL, NULL, NULL, NULL, NULL, ?, 'wordpress_app_password', ?, 'wordpress', 'wordpress_rest', 20, 'active', ?, NOW(), NOW())`,
+            [bindingId, claim.tenant_id, claim.tenant_id, targetKey, credentialRef, `cms_claim_approval:${req.auth.user_id}`]
+          );
+        }
+        promotion = {
+          binding_id: bindingId,
+          target_key: targetKey,
+          credential_role: "wordpress_app_password",
+          credential_ref: credentialRef,
+          secret_copied: false,
+          token_returned: false,
+          secrets_included: false,
+        };
+      }
+
+      res.json({
+        ok: true,
+        status: result?.affectedRows ? "approved" : "not_modified",
+        promotion,
+        grant_promotion: grantPromotion,
+        secrets_included: false,
+      });
     } catch (err) {
       next(err);
     }
@@ -361,11 +569,17 @@ export function buildConnectApiRoutes(deps = {}) {
   // DELETE /connect/api/connections/:connection_id — revoke and zero credentials.
   router.delete("/connect/api/connections/:connection_id", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.status(409).json({
+          ok: false,
+          error: { code: "workspace_required", message: "Create or select a workspace before revoking app connections." },
+        });
+      }
       await pool.query(
         `UPDATE \`user_app_connections\`
             SET status = 'revoked',
                 encrypted_credentials = NULL,
-                updated_at = NOW()
+                last_used_at = NOW()
           WHERE connection_id = ?
             AND user_id = ?
             AND tenant_id = ?`,
@@ -396,6 +610,19 @@ export function buildConnectApiRoutes(deps = {}) {
     } catch (err) {
       next(err);
     }
+  });
+
+  router.use("/connect/api", (err, _req, res, _next) => {
+    const status = Number(err?.status || err?.statusCode || 500);
+    return res.status(status >= 400 && status < 600 ? status : 500).json({
+      ok: false,
+      error: {
+        code: err?.code || "connect_api_failed",
+        message: err?.message || "Connect API request failed.",
+        sql_state: err?.sqlState || undefined,
+      },
+      secrets_included: false,
+    });
   });
 
   return router;

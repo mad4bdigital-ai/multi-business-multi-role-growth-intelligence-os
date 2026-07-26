@@ -1,3 +1,5 @@
+import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
+
 function isEffectivelyRuntimeCallable(action = {}, endpoint = {}, deps = {}) {
   const boolFromSheet = deps.boolFromSheet || (value => {
     if (value === true || value === false) return value;
@@ -48,7 +50,8 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     execution_trace_id,
     sync_execution_started_at,
     resolvedMethodPath,
-    policies
+    policies,
+    graphMemoryContext = null
   } = context;
 
   const {
@@ -63,6 +66,17 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
   let responseSchemaAlignmentStatus = "not_declared";
   const registryRuntimeCallable = boolFromSheet(action.runtime_callable);
   const effectiveRuntimeCallable = isEffectivelyRuntimeCallable(action, endpoint, deps);
+  const safeGraphMemoryContext = graphMemoryContext ? {
+    requested: Boolean(graphMemoryContext.requested),
+    resolved: Boolean(graphMemoryContext.resolved),
+    source: graphMemoryContext.source || "platform_graph_memory",
+    usage: graphMemoryContext.usage || "execution_context_advisory",
+    applied_to_transport: Boolean(graphMemoryContext.applied_to_transport),
+    asset_count: Number(graphMemoryContext.asset_count || 0),
+    assets: Array.isArray(graphMemoryContext.assets) ? graphMemoryContext.assets : [],
+    selection_policy: graphMemoryContext.selection_policy || {},
+    secrets_included: false,
+  } : null;
 
   const responseSchemaEnforcementEnabled = String(
     policyValue(
@@ -80,6 +94,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
   ).map(v => v.toLowerCase());
 
   const currentContentType = String(contentType || "").toLowerCase();
+  const rawTextResponse = isRawTextResponseRequest(requestPayload, currentContentType);
 
   const responseContent =
     schemaOperationInfo.operation?.responses?.[String(upstream.status)]?.content ||
@@ -91,9 +106,13 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     responseContent["application/problem+json"]?.schema ||
     null;
 
-  const contentTypeEligible = enforcedContentTypes.length
-    ? enforcedContentTypes.some(ct => currentContentType.includes(ct))
-    : currentContentType.includes("application/json");
+  const contentTypeEligible = !rawTextResponse && (
+    enforcedContentTypes.length
+      ? enforcedContentTypes.some(ct => currentContentType.includes(ct))
+      : currentContentType.includes("application/json")
+  );
+
+  if (rawTextResponse) responseSchemaAlignmentStatus = "not_applicable_raw_text";
 
   if (responseSchemaEnforcementEnabled && contentTypeEligible) {
     if (!responseJsonSchema) {
@@ -224,6 +243,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
         resilience_applied: resilienceApplies,
         final_query: finalAttemptQuery,
         request_url: effectiveRequestUrl,
+        graph_memory_context: safeGraphMemoryContext,
         post_id: data.id,
         status: data.status,
         link: data.link || ""
@@ -281,6 +301,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
       resilience_applied: resilienceApplies,
       final_query: finalAttemptQuery,
       request_url: effectiveRequestUrl,
+      graph_memory_context: safeGraphMemoryContext,
       error: {
         code: "wordpress_request_failed",
         message: "WordPress did not confirm post creation.",
@@ -343,6 +364,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     resilience_applied: resilienceApplies,
     final_query: finalAttemptQuery,
     request_url: effectiveRequestUrl,
+    graph_memory_context: safeGraphMemoryContext,
     response_headers: responseHeaders,
     data
   };

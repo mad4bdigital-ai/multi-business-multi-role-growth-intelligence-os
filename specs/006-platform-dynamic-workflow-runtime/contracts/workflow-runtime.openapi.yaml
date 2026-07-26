@@ -1,0 +1,409 @@
+openapi: 3.1.0
+info:
+  title: Platform Dynamic Workflow Runtime API
+  version: 0.1.0
+  description: Design contract for Spec Kit 006.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+paths:
+  /v1/workflow-definitions:
+    post:
+      operationId: createWorkflowDefinition
+      tags: [Workflow Definitions]
+      summary: Create a draft workflow definition
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowDefinitionRequest'
+      responses:
+        '201':
+          description: Definition created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDefinition'
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/workflow-definitions/{workflowDefinitionId}/versions:
+    post:
+      operationId: createWorkflowVersion
+      tags: [Workflow Versions]
+      summary: Create an immutable draft version
+      parameters:
+        - $ref: '#/components/parameters/WorkflowDefinitionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowVersionRequest'
+      responses:
+        '201':
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersion'
+        '400': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/workflow-versions/{workflowVersionId}/validate:
+    post:
+      operationId: validateWorkflowVersion
+      tags: [Workflow Versions]
+      summary: Compile and validate a draft workflow version
+      parameters:
+        - $ref: '#/components/parameters/WorkflowVersionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/workflow-settings/resolve:
+    post:
+      operationId: resolveWorkflowSettings
+      tags: [Settings]
+      summary: Resolve and optionally persist an immutable settings snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveSettingsRequest'
+      responses:
+        '200':
+          description: Resolved settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsSnapshot'
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/runtime-adapters/resolve:
+    post:
+      operationId: resolveRuntimeAdapter
+      tags: [Runtime Adapters]
+      summary: Resolve a certified compatible runtime adapter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workflowVersionId, targetContainerId]
+              properties:
+                workflowVersionId: {type: string}
+                targetContainerId: {type: string}
+                preferredAdapterKey: {type: string}
+      responses:
+        '200':
+          description: Adapter decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdapterDecision'
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /v1/workflow-runs:
+    post:
+      operationId: createWorkflowRun
+      tags: [Workflow Runs]
+      summary: Create a workflow run from an active version
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRunRequest'
+      responses:
+        '201':
+          description: Run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/workflow-runs/{workflowRunId}:
+    get:
+      operationId: getWorkflowRun
+      tags: [Workflow Runs]
+      summary: Read a workflow run and evidence summary
+      parameters:
+        - $ref: '#/components/parameters/WorkflowRunId'
+      responses:
+        '200':
+          description: Workflow run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/workflow-runs/{workflowRunId}/transitions:
+    post:
+      operationId: transitionWorkflowRun
+      tags: [Workflow Runs]
+      summary: Apply a compare-and-set run transition
+      parameters:
+        - $ref: '#/components/parameters/WorkflowRunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRunRequest'
+      responses:
+        '200':
+          description: Transition applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/workflow-callbacks/{callbackToken}:
+    post:
+      operationId: receiveWorkflowCallback
+      tags: [Callbacks]
+      summary: Receive a signed idempotent runtime callback
+      security: []
+      parameters:
+        - in: path
+          name: callbackToken
+          required: true
+          schema: {type: string}
+        - in: header
+          name: X-Callback-Signature
+          required: true
+          schema: {type: string}
+        - in: header
+          name: X-Callback-Nonce
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '202':
+          description: Callback accepted for verification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, requestId]
+                properties:
+                  accepted: {type: boolean, const: true}
+                  requestId: {type: string}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: {type: string, minLength: 8, maxLength: 180}
+    WorkflowDefinitionId:
+      in: path
+      name: workflowDefinitionId
+      required: true
+      schema: {type: string}
+    WorkflowVersionId:
+      in: path
+      name: workflowVersionId
+      required: true
+      schema: {type: string}
+    WorkflowRunId:
+      in: path
+      name: workflowRunId
+      required: true
+      schema: {type: string}
+  schemas:
+    CreateWorkflowDefinitionRequest:
+      type: object
+      additionalProperties: false
+      required: [key, displayName, ownerContainerId]
+      properties:
+        key: {type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,159}$'}
+        displayName: {type: string, minLength: 1, maxLength: 200}
+        description: {type: string, maxLength: 4000}
+        ownerContainerId: {type: string}
+        assetVisibility:
+          type: string
+          enum: [private, platform_internal, tenant_available, tenant_default, mandatory_policy]
+    CreateWorkflowVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [semanticVersion, steps, edges]
+      properties:
+        semanticVersion: {type: string}
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowEdge'
+        customizationPolicy: {type: object, additionalProperties: true}
+    WorkflowStep:
+      type: object
+      additionalProperties: false
+      required: [key, type]
+      properties:
+        key: {type: string}
+        type:
+          type: string
+          enum: [action, workflow, agent, decision, condition, parallel, join, approval, wait, callback, checkpoint, transform, verification, compensation, stop]
+        config: {type: object, additionalProperties: true}
+    WorkflowEdge:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from: {type: string}
+        to: {type: string}
+        condition: {type: object, additionalProperties: true}
+    WorkflowDefinition:
+      type: object
+      required: [id, key, ownerContainerId, status, createdAt]
+      properties:
+        id: {type: string}
+        key: {type: string}
+        ownerContainerId: {type: string}
+        status: {type: string}
+        createdAt: {type: string, format: date-time}
+    WorkflowVersion:
+      type: object
+      required: [id, workflowDefinitionId, semanticVersion, status, contentHash]
+      properties:
+        id: {type: string}
+        workflowDefinitionId: {type: string}
+        semanticVersion: {type: string}
+        status:
+          type: string
+          enum: [draft, compiled, validated, awaiting_approval, active, deprecated, retired]
+        contentHash: {type: string}
+    ValidationResult:
+      type: object
+      required: [valid, checks]
+      properties:
+        valid: {type: boolean}
+        checks:
+          type: array
+          items: {type: object, additionalProperties: true}
+    ResolveSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [workflowVersionId, targetContainerId]
+      properties:
+        workflowVersionId: {type: string}
+        targetContainerId: {type: string}
+        workflowStepKey: {type: string}
+        taskOrSessionId: {type: string}
+        persistSnapshot: {type: boolean, default: true}
+    SettingsSnapshot:
+      type: object
+      required: [id, hash, resolvedValues, lineage]
+      properties:
+        id: {type: string}
+        hash: {type: string}
+        resolvedValues: {type: object, additionalProperties: true}
+        lineage:
+          type: array
+          items: {type: object, additionalProperties: true}
+    AdapterDecision:
+      type: object
+      required: [status, adapterKey, evidence]
+      properties:
+        status:
+          type: string
+          enum: [ready, ready_requires_approval, degraded, blocked, unsupported]
+        adapterKey: {type: string}
+        evidence: {type: object, additionalProperties: true}
+    CreateWorkflowRunRequest:
+      type: object
+      additionalProperties: false
+      required: [workflowVersionId, targetContainerId, input]
+      properties:
+        workflowVersionId: {type: string}
+        targetContainerId: {type: string}
+        input: {type: object, additionalProperties: true}
+        preferredAdapterKey: {type: string}
+        approvalHoldId: {type: string}
+    WorkflowRun:
+      type: object
+      required: [id, workflowVersionId, state, version, settingsSnapshotId, createdAt]
+      properties:
+        id: {type: string}
+        workflowVersionId: {type: string}
+        state: {type: string}
+        version: {type: integer, minimum: 1}
+        settingsSnapshotId: {type: string}
+        adapterKey: {type: string}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    TransitionRunRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedState, expectedVersion, targetState, reason]
+      properties:
+        expectedState: {type: string}
+        expectedVersion: {type: integer, minimum: 1}
+        targetState: {type: string}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        evidenceRef: {type: string}
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details:
+              type: array
+              items: {type: object, additionalProperties: true}
+            requestId: {type: string}
+  responses:
+    Error:
+      description: Structured error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

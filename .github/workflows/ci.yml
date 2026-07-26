@@ -16,10 +16,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Guard schema/docs coverage for runtime changes
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+
+      - name: Guard governed migration seed placement
+        run: node http-generic-api/scripts/migration-placement-guard.mjs
 
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+
+      - name: Guard centralized fail-closed user JWT auth
+        working-directory: http-generic-api
+        run: node scripts/user-jwt-auth-governance.mjs
+
+      - name: Guard merge and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
 
       - name: Validate canonical source structure
         run: node validate-canonical-sources.mjs
@@ -29,6 +45,19 @@ jobs:
 
       - name: Check canonical domain finder
         run: node --check find-canonical-domain.mjs
+
+      - name: Block uncovered resource feature surfaces
+        working-directory: http-generic-api
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
+
+      - name: Validate resource API architecture and application service
+        working-directory: http-generic-api
+        run: |
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+
+      - name: Enforce Spec Kit completion governance
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
 
       - name: Validate memory schema refs
         run: node validate-memory-schema.mjs
@@ -51,6 +80,8 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -62,9 +93,47 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Validate Connect auth, secret boundary, and atomic bootstrap
+        working-directory: http-generic-api
+        run: |
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
+
+      - name: Guard dependency and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
+
       - name: Run tests
         working-directory: http-generic-api
         run: npm test
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run explicit governance contract checks
+        working-directory: http-generic-api
+        run: |
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-operation-projection-foundation.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+          node test-local-connector-capability-installer-grants.mjs
+
+      - name: Reject stale readiness evidence
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
   execution-resolver-gate:
     name: Execution Resolver Gate

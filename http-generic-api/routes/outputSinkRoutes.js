@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { routeOutput } from "../outputSinkRouter.js";
+import { createExplicitChainEvents, routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
+import { dispatchPlan } from "../connectorExecutor.js";
+import { diagnoseWordpressAuthContext } from "../wordpressBlogPublishOrchestrator.js";
+import { diagnoseWordpressPublishAuthority } from "../wordpressBlogPublishOrchestrator.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -65,15 +68,27 @@ export function buildOutputSinkRoutes(deps) {
 
   // ── POST /agent-chain-events/dispatch-pending — batch sweep ───────────────
   // Must be before /:id/dispatch so Express doesn't match "dispatch-pending" as an :id.
-  // Picks up all pending chain events (up to limit) and dispatches them in order.
-  // Safe to call from a cron/job runner — each event is atomically claimed before dispatch.
+  // Explicit operator API only. Do not schedule as an automatic cron/job sweep.
   router.post("/agent-chain-events/dispatch-pending", async (req, res) => {
     try {
-      const { tenant_id, limit = 20 } = req.body || {};
-      const result = await dispatchPendingChainEvents({ tenant_id, limit });
+      const { tenant_id, limit = 20, delegation_approved, delegation_mode, delegation_reason, allow_fallback_agent = false } = req.body || {};
+      const result = await dispatchPendingChainEvents(
+        { tenant_id, limit },
+        { delegationRequest: { delegation_approved, delegation_mode, delegation_reason, allow_fallback_agent } }
+      );
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_dispatch_failed", message: err.message, details: err.details } });
+    }
+  });
+
+  // ── POST /agent-chain-events — explicitly create optional sub-agent work ──
+  router.post("/agent-chain-events", async (req, res) => {
+    try {
+      const result = await createExplicitChainEvents(req.body || {});
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_event_create_failed", message: err.message, details: err.details } });
     }
   });
 
@@ -81,13 +96,78 @@ export function buildOutputSinkRoutes(deps) {
   // Atomically claims the event, creates a child execution_plan, and dispatches it.
   router.post("/agent-chain-events/:id/dispatch", async (req, res) => {
     try {
-      const result = await dispatchChainEvent(req.params.id);
+      const result = await dispatchChainEvent(req.params.id, { delegationRequest: req.body || {} });
       if (result.error && !result.skipped) {
         return res.status(result.error === "event_not_found" ? 404 : 422).json(result);
       }
       res.json(result);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: { code: err.code || "agent_chain_dispatch_failed", message: err.message, details: err.details } });
+    }
+  });
+
+  // ── POST /wordpress/publish-authority/diagnose — safe WordPress publish authority diagnostic ──
+  router.post("/wordpress/publish-authority/diagnose", async (req, res) => {
+    try {
+      const { tenant_id, user_id, connection_id, brand_key, target_key, title, content, status = "draft", publish_status } = req.body || {};
+      if (!tenant_id || !user_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, and brand_key or target_key are required." }, secrets_included: false });
+      }
+      const result = await diagnoseWordpressPublishAuthority({
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key: brand_key || target_key,
+        target_key: target_key || brand_key,
+        title: title || "Authority diagnostic draft title",
+        content: content || "<p>Authority diagnostic content. No WordPress request is sent.</p>",
+        status: publish_status || status,
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+      });
+      res.status(result.ok ? 200 : 422).json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "wordpress_publish_authority_diagnostic_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  // ── POST /wordpress/auth-context/diagnose — safe WordPress REST auth diagnostic ──
+  router.post("/wordpress/auth-context/diagnose", async (req, res) => {
+    try {
+      const { tenant_id, user_id, connection_id, brand_key, target_key } = req.body || {};
+      if (!tenant_id || !user_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, and brand_key or target_key are required." } });
+      }
+      const result = await diagnoseWordpressAuthContext({
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key: brand_key || target_key,
+        target_key: target_key || brand_key,
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+      });
+      res.status(result.ok ? 200 : 422).json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "wordpress_auth_context_diagnostic_failed", message: err.message } });
+    }
+  });
+
+  // ── POST /execution-plans/:id/dispatch — execute a validated/approved plan ──
+  router.post("/execution-plans/:id/dispatch", async (req, res) => {
+    try {
+      const { apply = false, publish_status = "draft", post_types = ["post"], actor_id = "admin:gpt" } = req.body || {};
+      if (apply !== false && apply !== true) {
+        return res.status(400).json({ error: { code: "invalid_apply", message: "apply must be boolean." } });
+      }
+      if (!["draft", "publish"].includes(String(publish_status))) {
+        return res.status(400).json({ error: { code: "invalid_publish_status", message: "publish_status must be draft or publish." } });
+      }
+      const result = await dispatchPlan(req.params.id, { apply, publish_status, post_types, actor_id });
+      if (!result.ok) {
+        return res.status(422).json(result);
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: { code: "execution_plan_dispatch_failed", message: err.message } });
     }
   });
 

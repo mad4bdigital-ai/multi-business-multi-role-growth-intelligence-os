@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
-import jwt from "jsonwebtoken";
 import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
 import {
   activationModeCatalog,
@@ -20,12 +19,69 @@ import {
   hybridIntegrationCatalog,
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
+import { agentSurfaceCatalog } from "../agentSurfacePolicy.js";
+import {
+  assessTenantAgentSurfaceReadiness,
+  upsertAgentSurfaceDeploymentsFromActivation,
+} from "../agentSurfaceRuntimeService.js";
+import { resolveActivationGraphContext } from "../activationGraphContext.js";
+import { createOrAppendSupportTicket } from "../supportTicketService.js";
+import { orchestrateTenantConnectBootstrap } from "../tenantConnectBootstrapService.js";
+import { executeTenantConnectBootstrapTransaction } from "../tenantConnectBootstrapTransaction.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
+import {
+  findSensitiveRequestPaths,
+  sanitizeMetadataPayload,
+  SECRET_KEY_SUBSTRINGS,
+} from "../requestSecretBoundary.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+
+const LOCAL_MANAGER_ACTIVATION_BINDING = {
+  app_key: "mad4b-local-manager",
+  role: "local_tool_release_owner",
+  public_app_url: "/app/local-manager",
+  download_url: "/app/local-manager#download",
+  download_page_url: "https://auth.mad4b.com/app/local-manager#download",
+  new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download",
+  new_device_pairing_note: "Use the released Local Manager download page when no paired device exists or a new device must be added.",
+  admin_tools_url: "/app/local-manager/admin",
+  device_link_url: "/app/local-manager/link-device",
+  devices_url: "/app/local-manager/devices",
+  manifest_url: "/connector-agent/manifest.json",
+  installer_download_link_endpoint: "/local-connector/install/download-link",
+  connector_agent_version_endpoint: "/connector-agent/version",
+  release_model: "manifest_driven_allowlisted_tools",
+  install_scope: "per_user_device",
+  managed_tools: ["browser4"],
+  security_model: {
+    no_browser_backend_key: true,
+    no_raw_secret_display: true,
+    device_scoped_credentials: true,
+    manifest_sha256_verification: true,
+    governed_tool_allowlist_required: true,
+  },
+};
+
+function localManagerActivationBinding() {
+  return {
+    ...LOCAL_MANAGER_ACTIVATION_BINDING,
+    urls: {
+      public_app: LOCAL_MANAGER_ACTIVATION_BINDING.public_app_url,
+      download: LOCAL_MANAGER_ACTIVATION_BINDING.download_url,
+      download_page: LOCAL_MANAGER_ACTIVATION_BINDING.download_page_url,
+      new_device_pairing: LOCAL_MANAGER_ACTIVATION_BINDING.new_device_pairing_url,
+      admin_tools: LOCAL_MANAGER_ACTIVATION_BINDING.admin_tools_url,
+      device_link: LOCAL_MANAGER_ACTIVATION_BINDING.device_link_url,
+      devices: LOCAL_MANAGER_ACTIVATION_BINDING.devices_url,
+      manifest: LOCAL_MANAGER_ACTIVATION_BINDING.manifest_url,
+      installer_download_link: LOCAL_MANAGER_ACTIVATION_BINDING.installer_download_link_endpoint,
+    },
+  };
+}
 
 // Fields accepted by POST /connect/preferences. Anything outside this list is
 // dropped server-side, so a frontend regression cannot start saving arbitrary
@@ -43,37 +99,7 @@ const BUSINESS_PROFILE_FIELD_ALLOWLIST = new Set([
   "locations", "products", "socials", "cms", "cmsUrl", "analytics",
 ]);
 
-const SECRET_KEY_SUBSTRINGS = [
-  "password", "passwd", "secret", "token", "credential", "private_key",
-  "api_key", "apikey", "auth_key", "authkey", "cmskey", "appkey", "app_key",
-  "client_secret", "access_token", "refresh_token", "encrypted",
-];
-
 const PROFILE_MAX_BYTES = 65536; // 64 KiB upper bound for metadata_json payloads
-
-function isSensitiveKey(key) {
-  const lower = String(key || "").toLowerCase();
-  return SECRET_KEY_SUBSTRINGS.some((s) => lower.includes(s));
-}
-
-// Drop tenant_id (auth-derived only) plus any key matching the sensitive
-// pattern, then restrict to the allowlist if one is supplied. Returns the
-// sanitized object and a list of dropped/forbidden keys so the route can
-// echo a clear notice without exposing the raw values.
-function sanitizeMetadataPayload(rawBody, allowlist = null) {
-  const source = (rawBody && typeof rawBody === "object" && !Array.isArray(rawBody)) ? rawBody : {};
-  const sanitized = {};
-  const dropped = [];
-
-  for (const [key, value] of Object.entries(source)) {
-    if (key === "tenant_id" || key === "user_id") { dropped.push(key); continue; }
-    if (isSensitiveKey(key)) { dropped.push(key); continue; }
-    if (allowlist && !allowlist.has(key)) { dropped.push(key); continue; }
-    sanitized[key] = value;
-  }
-
-  return { sanitized, dropped };
-}
 
 export function _testingSanitizeMetadataPayload(rawBody, allowlist) {
   return sanitizeMetadataPayload(rawBody, allowlist);
@@ -84,27 +110,6 @@ export const _testingAllowlists = {
   SECRET_KEY_SUBSTRINGS,
   PROFILE_MAX_BYTES,
 };
-
-// ── Auth helpers ──────────────────────────────────────────────────────────────
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." } });
-  }
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
 
 // ── DB query helpers ──────────────────────────────────────────────────────────
 
@@ -144,9 +149,33 @@ async function fetchUserDevices(userId, tenantId) {
   return rows;
 }
 
+async function assessAgentSurfacesSafe({ tenantId, userId }) {
+  try {
+    return await assessTenantAgentSurfaceReadiness({ tenantId, userId });
+  } catch (error) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(error?.code)) {
+      return {
+        tenant_id: tenantId,
+        user_id: userId,
+        status: "schema_pending",
+        configured_count: 0,
+        ready_count: 0,
+        items: [],
+        blockers: ["agent_surface_schema_pending"],
+        secrets_included: false,
+      };
+    }
+    throw error;
+  }
+}
+
 async function fetchActiveMemberships(userId) {
   const [rows] = await getPool().query(
-    `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+    `SELECT m.tenant_id,
+            m.role,
+            m.status,
+            t.status AS tenant_status,
+            t.display_name AS tenant_display_name
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.status = 'active'
@@ -191,6 +220,24 @@ function buildOnboardingState({ resolvedTenantId, connection, devices = [] }) {
   };
 }
 
+function buildTenantGptActivationGuidance({ onboarding, devices = [] } = {}) {
+  const registeredDevices = Array.isArray(devices) ? devices : [];
+  const hasRegisteredDevice = registeredDevices.length > 0;
+  return {
+    status: hasRegisteredDevice ? "existing_device_registered" : "device_install_available",
+    should_call_connect_device_install: !hasRegisteredDevice,
+    connect_device_install_call_policy: hasRegisteredDevice
+      ? "Do not call connect_device_install automatically after connect_status when a registered device already exists. Only call it if the user explicitly asks to add, replace, or reinstall a device."
+      : "connect_device_install may be called when the user is activating a workspace that has no registered device, or explicitly asks to add a new device.",
+    next_recommended_action: hasRegisteredDevice
+      ? "Report the healthy workspace/device state and offer the released Local Manager page for optional device management."
+      : "Ask for a lowercase device_id or continue with the requested activation/install flow.",
+    local_manager_download_url: LOCAL_MANAGER_ACTIVATION_BINDING.download_page_url,
+    local_manager_new_device_pairing_url: LOCAL_MANAGER_ACTIVATION_BINDING.new_device_pairing_url,
+    onboarding_state: onboarding?.state || null,
+  };
+}
+
 async function resolveConnectState(userId, jwtTenantId = null) {
   const [user, memberships] = await Promise.all([
     fetchUser(userId),
@@ -212,6 +259,21 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const hybridIntegrationReadiness = resolvedTenantId
     ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const agentSurfaceReadiness = resolvedTenantId
+    ? await assessAgentSurfacesSafe({ tenantId: resolvedTenantId, userId })
+    : null;
+  const onboarding = buildOnboardingState({ resolvedTenantId, connection, devices });
+  const activationGraphContext = await resolveActivationGraphContext({
+    user,
+    tenantId: resolvedTenantId,
+    membership: activeMembership,
+    connection,
+    devices,
+    dedicatedIntegrationReadiness,
+    hybridIntegrationReadiness,
+    onboarding,
+    surface: "connect_status",
+  });
   return {
     user,
     memberships,
@@ -221,7 +283,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     devices,
     dedicatedIntegrationReadiness,
     hybridIntegrationReadiness,
-    onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+    agentSurfaceReadiness,
+    activationGraphContext,
+    onboarding,
   };
 }
 
@@ -243,17 +307,33 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
     }
 
     const [existing] = await connection.query(
-      `SELECT m.tenant_id, m.role, t.display_name AS tenant_display_name
+      `SELECT m.tenant_id,
+              m.role,
+              m.status AS membership_status,
+              t.status AS tenant_status,
+              t.display_name AS tenant_display_name
          FROM memberships m
-         JOIN tenants t ON t.tenant_id = m.tenant_id
-        WHERE m.user_id = ? AND m.status = 'active'
-        ORDER BY m.granted_at ASC
-        LIMIT 1`,
+         LEFT JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ?
+        ORDER BY m.granted_at ASC`,
       [userId]
     );
-    if (existing[0]) {
+    const activeMembership = existing.find((row) => row.membership_status === "active" && row.tenant_status === "active");
+    if (activeMembership) {
       await connection.commit();
-      return { created: false, user, tenant_id: existing[0].tenant_id, display_name: existing[0].tenant_display_name, role: existing[0].role };
+      return { created: false, user, tenant_id: activeMembership.tenant_id, display_name: activeMembership.tenant_display_name, role: activeMembership.role };
+    }
+    if (existing.some((row) => row.membership_status !== "active")) {
+      const err = new Error("The existing workspace membership is not active.");
+      err.status = 403;
+      err.code = "membership_revoked";
+      throw err;
+    }
+    if (existing.some((row) => row.tenant_status !== "active")) {
+      const err = new Error("The existing workspace is not active.");
+      err.status = 403;
+      err.code = "tenant_suspended";
+      throw err;
     }
 
     const tenantId = randomUUID();
@@ -284,6 +364,12 @@ async function createWorkspaceForUser({ userId, displayName = null, source = "co
   }
 }
 
+// Stable domain adapter retained for route/test compatibility. The implementation
+// is the principal-locked, single-transaction bootstrap executor.
+async function activateManagedConnectionForTenant(input, dependencies) {
+  return executeTenantConnectBootstrapTransaction(input, dependencies);
+}
+
 function cleanEscalationPriority(value) {
   const normalized = String(value || "urgent").trim().toLowerCase();
   return ["low", "normal", "high", "urgent"].includes(normalized) ? normalized : "urgent";
@@ -298,16 +384,45 @@ async function createOnboardingEscalation({ user, tenantId = null, title, body, 
   const escalationId = randomUUID();
   const finalTitle = String(title || "Tenant onboarding escalation").trim().slice(0, 512);
   const finalPriority = cleanEscalationPriority(priority);
-  const meta = JSON.stringify({ ...safeMetadata(metadata), onboarding_source: source });
+  const safeMeta = safeMetadata(metadata);
+  const meta = JSON.stringify({ ...safeMeta, onboarding_source: source });
   let ticketId = null;
 
   if (tenantId) {
-    ticketId = randomUUID();
-    await getPool().query(
-      `INSERT INTO \`tickets\` (ticket_id, tenant_id, title, category, priority, service_mode, metadata_json)
-       VALUES (?, ?, ?, 'escalation', ?, 'managed', ?)`,
-      [ticketId, tenantId, finalTitle, finalPriority, JSON.stringify({ body: body || null, source, metadata: safeMetadata(metadata) })]
-    );
+    const ticketResult = await createOrAppendSupportTicket({
+      tenant_id: tenantId,
+      user_id: user?.user_id || null,
+      actor_id: user?.user_id || null,
+      actor_type: "tenant_user",
+      source_layer: "tenant_connect",
+      source_tool: "connect_escalate",
+      source_event: safeMeta?.source_event || "tenant_onboarding_issue",
+      ticket_type: safeMeta?.ticket_type || "tenant_onboarding_issue",
+      title: finalTitle,
+      customer_message: safeMeta?.customer_message || "Support has been notified to review this request.",
+      internal_summary: body || "Tenant onboarding escalation created through connect_escalate.",
+      category: "escalation",
+      priority: finalPriority,
+      severity: safeMeta?.severity || "sev3",
+      service_mode: "managed",
+      resource: safeMeta?.resource || { type: safeMeta?.resource_type || "tenant", ref: tenantId },
+      authority: {
+        source: "connect_escalate",
+        decision: "active_signed_in_user_requested_escalation",
+        requested_action: "connect_escalate",
+        role_at_creation: safeMeta?.role_at_creation || null,
+      },
+      metadata_json: {
+        ...safeMeta,
+        body: body || null,
+        source,
+        onboarding_source: source,
+        customer_safe: true,
+        secrets_included: false,
+      },
+      dedupe_key: safeMeta?.dedupe_key || null,
+    });
+    ticketId = ticketResult.ticket?.ticket_id || null;
   }
 
   await getPool().query(
@@ -364,8 +479,9 @@ function buildConnectHtml(googleClientId) {
 
 // ── Route builder ─────────────────────────────────────────────────────────────
 
-export function buildConnectRoutes(deps) {
+export function buildConnectRoutes(deps = {}) {
   const { requireBackendApiKey } = deps;
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
   const router = Router();
 
   // Serve connect page static assets
@@ -429,7 +545,8 @@ export function buildConnectRoutes(deps) {
       activation_mode_catalog: activationModeCatalog(),
       dedicated_integration_catalog: dedicatedIntegrationCatalog(),
       hybrid_integration_catalog: hybridIntegrationCatalog(),
-      hybrid_integration_catalog: hybridIntegrationCatalog(),
+      agent_surface_catalog: agentSurfaceCatalog(),
+      local_manager_activation_binding: localManagerActivationBinding(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
@@ -438,6 +555,7 @@ export function buildConnectRoutes(deps) {
         "   OR: direct user to https://auth.mad4b.com/connect for Google Sign-In",
         "3. GET /connect/status — verify tenant connection with user JWT",
         "4. If not connected: POST /connect/activate with mode managed or dedicated",
+        "5. Use local_manager_activation_binding to open /app/local-manager or /app/local-manager/admin for device install and local tool releases",
       ],
     });
   });
@@ -470,6 +588,11 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_readiness: state.agentSurfaceReadiness,
+        local_manager_activation_binding: localManagerActivationBinding(),
+        gpt_activation_guidance: buildTenantGptActivationGuidance({ onboarding: state.onboarding, devices: state.devices }),
+        activation_graph_context: state.activationGraphContext,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
@@ -501,6 +624,32 @@ export function buildConnectRoutes(deps) {
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "onboarding_state_failed", message: err.message } });
+    }
+  });
+
+  // POST /connect/bootstrap — idempotently provision a workspace, activate Managed mode, and verify readback.
+  router.post("/connect/bootstrap", requireUserJwt, async (req, res) => {
+    try {
+      const result = await orchestrateTenantConnectBootstrap({
+        user_id: req.auth.user_id,
+        jwt_tenant_id: req.auth.tenant_id || null,
+        workspace_name: req.body?.workspace_name || req.body?.display_name || null,
+        mode: req.body?.mode || "managed",
+      }, {
+        resolveState: resolveConnectState,
+        applyManagedBootstrap: activateManagedConnectionForTenant,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "connect_bootstrap_failed",
+          message: err.message,
+          ...(err.details ? { details: err.details } : {}),
+          requestId: req.requestId || req.id || null,
+        },
+      });
     }
   });
 
@@ -610,6 +759,10 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_readiness: state.agentSurfaceReadiness,
+        local_manager_activation_binding: localManagerActivationBinding(),
+        activation_graph_context: state.activationGraphContext,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
@@ -620,7 +773,22 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/activate", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
+      const sensitivePaths = findSensitiveRequestPaths(req.body);
+      if (sensitivePaths.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "raw_credentials_not_accepted",
+            message: "Activation accepts policy and connection references only. Submit secrets through the secure credential-intake flow.",
+            details: {
+              rejected_field_count: sensitivePaths.length,
+              rejected_fields_redacted: true,
+              credential_intake_endpoint: "/connect/api/credential-intake/sessions",
+            },
+          },
+          secrets_included: false,
+        });
+      }
       let modePolicy;
       try {
         modePolicy = resolveActivationModePolicy(req.body || {});
@@ -643,18 +811,6 @@ export function buildConnectRoutes(deps) {
       }
 
       const pool = getPool();
-
-      // If dedicated + CF token provided: register in connected_systems (token not stored)
-      if (mode === "dedicated" && cf_api_token) {
-        const systemId = randomUUID();
-        const configJson = JSON.stringify({ cf_account_id: cf_account_id || null, note: "CF API token must be set as CLOUDFLARE_API_TOKEN env var; not stored here." });
-        await pool.query(
-          `INSERT INTO \`connected_systems\` (system_id, tenant_id, system_key, display_name, provider_family, auth_type, service_mode, config_json, status)
-           VALUES (?, ?, 'cloudflare_connector', 'Cloudflare (Dedicated)', 'cloudflare', 'api_token', 'self_serve', ?, 'active')
-           ON DUPLICATE KEY UPDATE config_json = VALUES(config_json), status = 'active', updated_at = NOW()`,
-          [systemId, resolvedTenantId, configJson]
-        );
-      }
 
       // Upsert tenant_backend_connections
       const connectionId = randomUUID();
@@ -681,6 +837,15 @@ export function buildConnectRoutes(deps) {
         integrationModes: req.body?.integration_modes || {},
         source: "connect_activate",
       });
+      const requestedAgentSurfaceModes = req.body?.agent_surface_modes;
+      const agentSurfaceDeployments = requestedAgentSurfaceModes
+        ? await upsertAgentSurfaceDeploymentsFromActivation({
+            tenantId: resolvedTenantId,
+            userId: user_id,
+            modes: requestedAgentSurfaceModes,
+            source: "connect_activate",
+          })
+        : [];
       const connection = await fetchTenantConnection(resolvedTenantId);
       const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
         tenantId: resolvedTenantId,
@@ -692,6 +857,26 @@ export function buildConnectRoutes(deps) {
         userId: user_id,
         connection,
       });
+      const agentSurfaceReadiness = await assessAgentSurfacesSafe({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+      });
+      const [user, devices] = await Promise.all([
+        fetchUser(user_id),
+        fetchUserDevices(user_id, resolvedTenantId),
+      ]);
+      const activationGraphContext = await resolveActivationGraphContext({
+        user,
+        tenantId: resolvedTenantId,
+        membership,
+        connection,
+        devices,
+        modePolicy,
+        dedicatedIntegrationReadiness,
+        hybridIntegrationReadiness,
+        onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+        surface: "connect_activate",
+      });
       return res.json({
         ok: true,
         mode_policy: modePolicy,
@@ -699,9 +884,14 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        agent_surface_catalog: agentSurfaceCatalog(),
+        agent_surface_deployments: agentSurfaceDeployments,
+        agent_surface_readiness: agentSurfaceReadiness,
+        local_manager_activation_binding: localManagerActivationBinding(),
+        activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false
           ? hybridIntegrationReadiness.next_actions
-          : ["connect_device_install"],
+          : ["open_local_manager", "connect_device_install"],
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
@@ -711,7 +901,6 @@ export function buildConnectRoutes(deps) {
           device_count: connection.device_count,
           activated_at: connection.activated_at,
         },
-        ...(mode === "dedicated" && cf_api_token ? { notice: "CF API token received but not stored in DB. Set it as CLOUDFLARE_API_TOKEN env var on your Cloud Run service." } : {}),
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "activate_failed", message: err.message } });

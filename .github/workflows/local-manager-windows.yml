@@ -7,10 +7,14 @@ on:
       - main
     paths:
       - 'apps/local-manager-windows/**'
+      - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
   pull_request:
     paths:
       - 'apps/local-manager-windows/**'
+      - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
 
 permissions:
@@ -47,34 +51,81 @@ jobs:
         shell: pwsh
         run: |
           $source = 'dist/local-manager-windows/Mad4B-Local-Manager.exe'
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
           $target = 'dist/Mad4B-Local-Manager-Setup.exe'
+          $versionedTarget = "dist/Mad4B-Local-Manager-Setup-$version.exe"
           if (!(Test-Path $source)) { throw "Expected EXE not found: $source" }
           Copy-Item -LiteralPath $source -Destination $target -Force
+          Copy-Item -LiteralPath $source -Destination $versionedTarget -Force
           Get-FileHash -Algorithm SHA256 -LiteralPath $target | ConvertTo-Json | Out-File -Encoding utf8 'dist/Mad4B-Local-Manager-Setup.exe.sha256.json'
+          Get-FileHash -Algorithm SHA256 -LiteralPath $versionedTarget | ConvertTo-Json | Out-File -Encoding utf8 "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json"
+
+      - name: Validate update metadata matches EXE version
+        shell: pwsh
+        run: |
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          $routePath = 'http-generic-api/routes/localManagerBetaRoutes.js'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
+          $route = Get-Content -Raw -LiteralPath $routePath
+          if ($route -notmatch "LOCAL_MANAGER_WINDOWS_LATEST_VERSION = `"$([regex]::Escape($version))`"") { throw "Update route does not advertise Local Manager Windows version $version" }
+          if ($route -notmatch "Mad4B-Local-Manager-Setup-$([regex]::Escape($version))\.exe") { throw "Update route EXE URL does not point at the versioned $version asset" }
+          if ($route -notmatch "Mad4B-Local-Manager-Setup-$([regex]::Escape($version))\.exe\.sha256\.json") { throw "Update route SHA256 URL does not point at the versioned $version checksum asset" }
+          foreach ($path in @("dist/Mad4B-Local-Manager-Setup.exe", "dist/Mad4B-Local-Manager-Setup.exe.sha256.json", "dist/Mad4B-Local-Manager-Setup-$version.exe", "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json")) {
+            if (!(Test-Path -LiteralPath $path)) { throw "Expected Local Manager release artifact missing: $path" }
+          }
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v6
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: |
-            dist/Mad4B-Local-Manager-Setup.exe
-            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+            dist/Mad4B-Local-Manager-Setup*.exe
+            dist/Mad4B-Local-Manager-Setup*.sha256.json
           if-no-files-found: error
 
       - name: Publish public latest EXE release asset
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: local-manager-windows-latest
-          name: Mad4B Local Manager Windows Latest
-          body: |
-            Public Windows Local Manager launcher.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
+          $tag = 'local-manager-windows-latest'
+          $title = "Mad4B Local Manager Windows Latest ($version)"
+          $notes = @'
+          Public Windows Local Manager launcher.
 
-            This unsigned early bootstrap EXE contains no backend key, platform token, or device credential.
-            Users install it, open Local Manager, sign in, and link the device through the platform flow.
-          draft: false
-          prerelease: true
-          make_latest: false
-          files: |
-            dist/Mad4B-Local-Manager-Setup.exe
-            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+          This unsigned early bootstrap EXE contains no backend key, platform token, or device credential.
+          Users install it, open Local Manager, sign in, and link the device through the platform flow.
+          '@.Trim()
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --title $title --notes $notes --prerelease --latest=false
+            gh release upload $tag `
+              'dist/Mad4B-Local-Manager-Setup.exe' `
+              'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe" `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json" `
+              --repo $env:GITHUB_REPOSITORY `
+              --clobber
+          } else {
+            gh release create $tag `
+              'dist/Mad4B-Local-Manager-Setup.exe' `
+              'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe" `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json" `
+              --repo $env:GITHUB_REPOSITORY `
+              --title $title `
+              --notes $notes `
+              --prerelease `
+              --latest=false
+          }

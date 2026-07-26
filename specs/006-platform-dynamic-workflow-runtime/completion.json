@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "feature_key": "006-platform-dynamic-workflow-runtime",
+  "title": "Platform Dynamic Workflow Runtime",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-07-24T13:46:00Z",
+  "current_increment": {
+    "phase": "task_reconciliation_baseline_complete_batch_1_planned",
+    "branch": "gpt/006-task-reconciliation-audit",
+    "dynamic_container_implementation_merged": true,
+    "dynamic_container_migrations_executed": true,
+    "projection_validation_passed": true,
+    "read_only_canary_completed": true,
+    "canary_closed_to_shadow": true,
+    "task_reconciliation_baseline_completed": true,
+    "next_batch": "epic_a_hardening_and_operations",
+    "global_enforcement_enabled": false
+  },
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [
+      {"number": 1929, "role": "design_and_planning", "status": "merged", "merge_sha": "8c5e50c131b1b21f0b915b7b01a97f17b1c823a5"},
+      {"number": 1941, "role": "authority_scope_foundation", "status": "merged", "merge_sha": "b315af10713268919be2f5c734103fcee944508e"},
+      {"number": 1945, "role": "shadow_integration", "status": "merged", "merge_sha": "71ef9dea87472babe07d150bceb07316826d85e6"},
+      {"number": 1949, "role": "shadow_evidence", "status": "merged", "merge_sha": "520416ba7da14fccd2782867aa33ccc9f8be94b1"},
+      {"number": 1955, "role": "shadow_readiness", "status": "merged", "merge_sha": "d4cd8210aa706cd85125bd0550a7324b649f9636"},
+      {"number": 2930, "role": "shadow_closeout", "status": "merged", "merge_sha": "bfda4c3dabbf3e4ec0ba0fcdbf6f3d48808c3e0a"},
+      {"number": 2963, "role": "tenant_brand_projection_fallback", "status": "merged", "merge_sha": "7ea86a7007d48a1c7fd63192fa7ef8913c48ed4e"},
+      {"number": 2997, "role": "tenant_brand_fk_fix", "status": "merged", "merge_sha": "f0f0659e7b7d2bb8b171345bf8a4812f24813b5b"},
+      {"number": 3008, "role": "data_hold_documentation", "status": "merged", "merge_sha": "3003583c8071833c453b0991264c1780bc51bd85"},
+      {"number": 3037, "role": "wovacation_brand_link", "status": "merged", "merge_sha": "a9330bf69540336c66f15457d7a675fe21b005e5"},
+      {"number": 3047, "role": "wovacation_predicate_fix", "status": "merged", "merge_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4"},
+      {"number": 3061, "role": "default_workspace_classification_repair", "status": "merged", "merge_sha": "f351e2d6bd5329271953a63604f89d1dcc2e8e4b"},
+      {"number": 3080, "role": "dynamic_container_closeout_and_read_only_canary", "status": "merged", "merge_sha": "2a20e8c986cb361416d9cea073a75a56f92f3886"}
+    ],
+    "task_reconciliation": {
+      "branch": "gpt/006-task-reconciliation-audit",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "status": "baseline_complete_pending_pr"
+    }
+  },
+  "evidence": {
+    "dynamic_container_ci": {"status": "pass", "checks_passed": 4, "checks_total": 4},
+    "migrations": {
+      "status": "applied",
+      "ledger_run_ids": [
+        "9c3efe4d-3e11-4413-b46c-463be48d14d0",
+        "3cebd87d-5da4-457a-9f1a-3261eb5eb2cc",
+        "afeac58e-73c1-47ee-a34c-e583403755a3"
+      ],
+      "same_cycle_readback_verified": true
+    },
+    "projection": {
+      "status": "pass",
+      "projected_container_count": 89,
+      "projected_relationship_count": 72,
+      "projected_role_assignment_count": 38,
+      "projected_resource_binding_count": 65,
+      "held_issue_count": 0,
+      "high_risk_issue_count": 0
+    },
+    "rollout_readiness": {
+      "status": "ready_for_review",
+      "rollout_mode": "shadow",
+      "comparison_sample_count": 100,
+      "mismatch_count": 0,
+      "critical_mismatch_count": 0,
+      "p95_latency_ms": 15.972,
+      "p99_latency_ms": 19.583,
+      "audit_coverage_percent": 100,
+      "enforcement_requested": 0
+    },
+    "read_only_canary": {
+      "status": "accepted_closed_to_shadow",
+      "target_canary_key": "container_authority_rollout_readiness_v1",
+      "promotion_envelope_id": "33ea55e5-d145-4e91-981d-6c62c6d03fc4",
+      "probe_run_id": "a45bbfbd-d24f-4519-9968-10ce9eec3a73",
+      "sample_count": 100,
+      "success_count": 100,
+      "failure_count": 0,
+      "average_latency_ms": 11.355,
+      "maximum_latency_ms": 15.698,
+      "monitoring_p95_latency_ms": 15.075,
+      "audit_coverage_percent": 100,
+      "closeout_envelope_id": "4a961cc2-3928-41d7-9e7c-595e8bfc191a",
+      "final_rollout_mode": "shadow",
+      "global_enforcement_enabled": false
+    },
+    "task_reconciliation": {
+      "status": "baseline_complete",
+      "report": "task-reconciliation-baseline-20260724.md",
+      "total_task_count": 70,
+      "implemented_count": 7,
+      "partial_count": 25,
+      "no_direct_evidence_count": 38,
+      "checkboxes_changed": 0,
+      "next_batch": "epic_a_hardening_and_operations"
+    },
+    "safety": {
+      "provider_calls_made": false,
+      "credential_payloads_read": false,
+      "external_writes_made": false,
+      "production_activation_authorized": false,
+      "global_enforcement_enabled": false,
+      "secrets_included": false
+    }
+  },
+  "secrets_included": false
+}

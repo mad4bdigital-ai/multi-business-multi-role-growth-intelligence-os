@@ -1,0 +1,746 @@
+{
+  "schema_version": "frontend-surface-policy-v1",
+  "policy_key": "frontend_surface_policy_v1",
+  "default_decision": "requires_review",
+  "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
+  "rules": [
+    {
+      "rule_id": "platform-shell-public",
+      "family_key": "platform-frontend",
+      "scope": "public",
+      "decision": "unified_ui",
+      "owner": "frontend-platform",
+      "rationale": "The dependency-light public platform shell and browser-safe catalog are the governed entrypoint for the unified frontend.",
+      "evidence_refs": ["routes/platformFrontendRoutes.js", "public/platform", "test-platform-frontend-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-public-metadata",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "scope": "public",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "The host-scoped root handler returns public discovery metadata for every registered method and is consumed as API bootstrap data, not as a standalone product surface.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "connect-assets-compatibility",
+      "path_prefix": "/connect/assets",
+      "decision": "embedded_ui",
+      "owner": "frontend-platform",
+      "rationale": "Existing Connect assets remain a compatibility surface while the unified shell is introduced.",
+      "evidence_refs": ["routes/connectRoutes.js", "public/connect"]
+    },
+    {
+      "rule_id": "local-manager-compatibility",
+      "path_prefix": "/local-manager",
+      "decision": "legacy_compatibility",
+      "owner": "local-manager",
+      "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity.",
+      "evidence_refs": ["routes/localManagerBetaRoutes.js", "routes/localManagerDesktopCommandRoutes.js", "specs/010-unified-platform-frontend/plan.md"]
+    },
+    {
+      "rule_id": "health-component-data",
+      "path_prefix": "/health",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Health contracts feed status components but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/healthRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "status-component-data",
+      "path_prefix": "/status",
+      "decision": "api_only",
+      "owner": "runtime-operations",
+      "rationale": "Status contracts feed operational views but are not standalone navigation destinations.",
+      "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "tenant-activation-session-api-surface",
+      "source_file": "routes/tenantActivationOverlayRoutes.js",
+      "decision": "api_only",
+      "owner": "activation-platform",
+      "rationale": "The overlay exposes JWT-scoped Activation session context and safe session metadata as OAuth API responses consumed by the Tenant Activation GPT; it does not render a standalone browser surface.",
+      "evidence_refs": ["routes/tenantActivationOverlayRoutes.js", "test-tenant-activation-session-alias.mjs", "openapi/openapi.tenant-gpt.activation.yaml"]
+    },
+    {
+      "rule_id": "gpt-session-archive-api-surface",
+      "source_file": "routes/gptSessionRoutes.js",
+      "decision": "api_only",
+      "owner": "session-archive",
+      "rationale": "Session reference, turn, and closure handlers are authenticated archive APIs consumed by governed GPT and Activation clients; they are not independent navigation or embedded UI surfaces.",
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-gpt-session-turn-batch-capture.mjs", "test-tenant-activation-session-alias.mjs"]
+    }
+  ],
+  "auth_rules": [
+    {
+      "rule_id": "github-repository-main-moved-webhook-auth",
+      "operation": "POST /webhooks/github/repository-main-moved",
+      "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
+      "profile": "github_webhook_hmac",
+      "owner": "repository-automation",
+      "rationale": "The webhook verifies X-Hub-Signature-256 against the preserved raw request body before ingestion. This policy exposes that inline HMAC guarantee to route inventory without changing runtime behavior.",
+      "evidence_refs": [
+        "routes/repositoryMainMovedTriggerRoutes.js",
+        "githubRepositoryMainMovedWebhookService.js",
+        "openapi/github-repository-main-moved-webhook.yaml",
+        "test-github-repository-main-moved-webhook.mjs"
+      ]
+    },
+    {
+      "rule_id": "public-root-discovery-auth",
+      "operations": [
+        "GET /",
+        "POST /",
+        "PUT /",
+        "PATCH /",
+        "DELETE /"
+      ],
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The root discovery handler has no authentication middleware and returns only host-scoped route metadata for every Express router.all method.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "public-status-root-auth",
+      "operation": "GET /",
+      "source_file": "routes/statusRoutes.js",
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The legacy status root handler is mounted without authentication and returns public service metadata.",
+      "evidence_refs": ["routes/statusRoutes.js"]
+    },
+    {
+      "rule_id": "public-runtime-metadata-auth",
+      "operations": [
+        "GET /deployment-info",
+        "GET /deployment-manifest",
+        "GET /version",
+        "GET /health"
+      ],
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "Deployment identity, version, and aggregate health are intentionally unauthenticated readiness metadata and return no credentials.",
+      "evidence_refs": ["routes/deploymentInfoRoutes.js", "routes/healthRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-connector-artifacts-auth",
+      "operations": [
+        "GET /connector-agent/version",
+        "GET /connector-agent/manifest.json",
+        "GET /connector-agent/files/{fileName}"
+      ],
+      "profile": "public",
+      "owner": "local-connector",
+      "rationale": "The version, checksum manifest, and allowlisted agent release files are public bootstrap artifacts; credential-bearing installers use separate signed links.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "signed-artifact-download-auth",
+      "operations": [
+        "GET /connector-agent/installer.ps1",
+        "GET /local-connector/install/download",
+        "GET /backup-artifacts/export/{exportId}/{fileName}"
+      ],
+      "profile": "signed_query_token",
+      "owner": "runtime-operations",
+      "rationale": "Each download verifies a short-lived signed or hashed token from the token query parameter before returning credential-bearing or private artifacts.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "routes/localConnectorInstallRoutes.js", "routes/backupArtifactRoutes.js"]
+    },
+    {
+      "rule_id": "connector-heartbeat-bearer-auth",
+      "operation": "POST /connector-agent/heartbeat",
+      "profile": "connector_bearer",
+      "owner": "local-connector",
+      "rationale": "Heartbeat resolution accepts the backend bearer value or the registered connector secret/local API key and rejects requests without a bearer token.",
+      "evidence_refs": ["routes/connectorAgentRoutes.js", "connectorSchemaCompatibility.js"]
+    },
+    {
+      "rule_id": "local-manager-public-shell-auth",
+      "operations": [
+        "GET /app/local-manager",
+        "GET /app/local-manager/update/windows",
+        "GET /app/local-manager/download/windows",
+        "GET /app/local-manager/sign-in",
+        "GET /app/local-manager/sign-up",
+        "GET /app/local-manager/link-device",
+        "GET /app/local-manager/devices",
+        "GET /app/local-manager/routes",
+        "GET /app/local-manager/backups",
+        "GET /app/local-manager/settings",
+        "GET /app/local-manager/admin"
+      ],
+      "profile": "public",
+      "owner": "local-manager",
+      "rationale": "These browser shell, bootstrap, and navigation documents are public entrypoints; their data calls enforce user or device authentication separately.",
+      "evidence_refs": ["routes/localManagerBetaRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "device-link-bootstrap-public-auth",
+      "operations": [
+        "POST /local-manager/device-link/start",
+        "GET /local-manager/device-link/preview",
+        "POST /local-manager/device-link/poll"
+      ],
+      "profile": "public",
+      "owner": "local-manager",
+      "rationale": "Pairing initiation is public by design; preview and polling require the short-lived device code and polling secret defined in their request contracts.",
+      "evidence_refs": ["services/localManagerDeviceLinkService.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "local-manager-bearer-auth",
+      "operations": [
+        "POST /local-manager/device-link/approve",
+        "GET /local-manager/device-link/devices",
+        "GET /local-manager/device/session",
+        "GET /local-manager/device/controls",
+        "POST /local-manager/device/agent-runtime",
+        "POST /local-connector/install/device-download-link"
+      ],
+      "profile": "local_manager",
+      "owner": "local-manager",
+      "rationale": "The imported service handlers validate either the signed-in Local Manager user JWT or a scoped Local Manager device bearer before accessing linked-device state.",
+      "evidence_refs": ["services/localManagerDeviceLinkService.js", "routes/connectorProxyRoutes.js", "routes/localConnectorInstallRoutes.js"]
+    },
+    {
+      "rule_id": "credential-intake-capability-auth",
+      "operations": [
+        "GET /credential-intake/{token}/schema",
+        "GET /credential-intake/{token}",
+        "POST /credential-intake/{token}"
+      ],
+      "profile": "public",
+      "owner": "connections-platform",
+      "rationale": "These transport-level public endpoints validate a short-lived, single-use capability token embedded in the path before reading or consuming an intake session.",
+      "evidence_refs": ["routes/credentialIntakeRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-connect-policy-auth",
+      "operation": "GET /policy",
+      "profile": "public",
+      "owner": "frontend-platform",
+      "rationale": "The Connect policy document is public browser bootstrap metadata and contains no credentials or tenant records.",
+      "evidence_refs": ["routes/connectRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-tenant-gpt-oauth-metadata-auth",
+      "operations": [
+        "GET /.well-known/oauth-authorization-server",
+        "GET /.well-known/oauth-protected-resource"
+      ],
+      "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "OAuth authorization-server and protected-resource discovery documents must be reachable before a bearer token exists and expose only standards-based endpoint, scope, and resource metadata.",
+      "evidence_refs": [
+        "routes/tenantGptOAuthMetadataRoutes.js",
+        "test-auth-oauth-routes.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
+      "rule_id": "public-auth-flow-auth",
+      "operations": [
+        "GET /auth/oauth/authorize",
+        "POST /auth/oauth/code",
+        "POST /auth/oauth/token",
+        "POST /auth/register",
+        "POST /auth/login",
+        "POST /auth/password/forgot",
+        "GET /auth/password/reset",
+        "POST /auth/password/reset"
+      ],
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "Identity initiation and credential exchange must be reachable before a platform bearer exists; each operation validates its OAuth, password, reset-token, or client-credential inputs.",
+      "evidence_refs": ["routes/authRoutes.js"]
+    },
+    {
+      "rule_id": "public-status-auth",
+      "operations": [
+        "GET /status.html",
+        "GET /status",
+        "GET /status/incidents"
+      ],
+      "profile": "public",
+      "owner": "runtime-operations",
+      "rationale": "The status page and incident summary are deliberately public operational transparency surfaces.",
+      "evidence_refs": ["routes/statusRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "public-smoke-provider-auth",
+      "operations": [
+        "GET /platform/mock-providers",
+        "GET /platform/mock-providers/{provider}/{resource}",
+        "GET /platform/mock-crm/contacts"
+      ],
+      "profile": "public",
+      "owner": "frontend-platform",
+      "rationale": "The deterministic smoke-provider registry and fixtures are intentionally public, non-secret demo data used by the platform shell.",
+      "evidence_refs": ["routes/platformSmokeRoutes.js", "openapi.yaml"]
+    }
+  ],
+  "operation_rules": [
+    {
+      "rule_id": "root-discovery-post-read-action",
+      "operation": "POST /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for POST and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-put-read-action",
+      "operation": "PUT /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PUT and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-patch-read-action",
+      "operation": "PATCH /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for PATCH and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "root-discovery-delete-read-action",
+      "operation": "DELETE /",
+      "source_file": "routes/rootDiscoveryRoutes.js",
+      "classification": "read_action",
+      "owner": "runtime-operations",
+      "rationale": "Express router.all returns the same host-scoped discovery JSON for DELETE and performs no state or external write.",
+      "evidence_refs": ["routes/rootDiscoveryRoutes.js", "test-platform-routes.mjs"]
+    },
+    {
+      "rule_id": "capability-vault-repo-plan-read-action",
+      "operation": "POST /platform/capability-vault/repo-ingestion-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a pinned dry-run plan and does not install or execute repository content.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-install-plan-read-action",
+      "operation": "POST /platform/capability-vault/install-request-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint plans an install request without writing installation state or enabling dispatch.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-merge-plan-read-action",
+      "operation": "POST /platform/capability-vault/variant-merge-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint previews variant conflict handling without applying patches.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-mirror-plan-read-action",
+      "operation": "POST /platform/capability-vault/mirror-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint builds an immutable mirror plan in memory and neither clones nor writes repository content.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-package-plan-read-action",
+      "operation": "POST /platform/capability-vault/package-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a sanitized package-intake plan without persisting or installing the package.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-reinstall-diff-read-action",
+      "operation": "POST /platform/capability-vault/reinstall-diff-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint calculates an idempotent reinstall or upgrade diff and does not apply filesystem changes.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-variant-plan-read-action",
+      "operation": "POST /platform/capability-vault/variant-plan",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint calculates scoped variant patches without writing or merging them.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-runtime-resolve-read-action",
+      "operation": "POST /platform/capability-vault/runtime-resolve",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint resolves the effective runtime layer from supplied inputs and performs no runtime activation.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "capability-vault-google-file-resolve-read-action",
+      "operation": "POST /platform/capability-vault/google-file-read/resolve",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint returns a Google file-read strategy decision without contacting Google or mutating provider state.",
+      "evidence_refs": ["routes/platformPrivateCapabilityVaultRoutes.js", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-contract-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-contracts/list",
+      "source_file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return dry-run adapter contracts and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionAdapterContractService.js", "test-session-insight-adapter-contract-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-adapter-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-adapters/list",
+      "source_file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return the skeleton adapter registry and apply-request mappings; it performs no insert, update, provider call, or external write.",
+      "evidence_refs": ["sessionInsightPromotionTargetAdapterRegistryService.js", "test-session-insight-target-adapter-registry-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-adapter-readiness-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/adapter-apply-readiness/list",
+      "source_file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads readiness, summary, and issue views with SELECT queries only and cannot approve, execute, or write an adapter operation.",
+      "evidence_refs": ["sessionInsightAdapterApplyReadinessGateService.js", "test-session-insight-adapter-apply-readiness-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-promotion-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/review/list",
+      "source_file": "routes/sessionInsightPromotionReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return promotion proposals and aggregate review status; it cannot approve, reject, promote, or assign an executor.",
+      "evidence_refs": ["sessionInsightPromotionReviewService.js", "test-session-insight-promotion-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-payload-preview-review-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/payload-preview/review/list",
+      "source_file": "routes/sessionInsightPayloadPreviewReviewRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint runs two secret-filtered SELECT queries to return payload-preview review rows and aggregates; it cannot decide a review, enable execution, or write a target surface.",
+      "evidence_refs": ["sessionInsightPayloadPreviewReviewService.js", "test-session-insight-payload-preview-review-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-plan-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-plans/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope plan rows, aggregates, and issue views with SELECT queries only; it cannot create or request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopePlanService.js", "test-session-insight-capability-envelope-plan-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-request-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-request-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads request-gate rows, review-state aggregates, and issue views with SELECT queries only; it cannot create or review a gate, request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeRequestGateService.js", "test-session-insight-capability-envelope-request-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-dry-run-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads dispatch dry-run rows, aggregates, and issue views with SELECT queries only; it cannot generate or review a dry-run, call capability resolution, request an envelope, execute an adapter, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchDryRunService.js", "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-preflight-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual-request preflight rows, aggregates, and issue views with SELECT queries only; it cannot create a preflight, call capability resolution, request an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestPreflightService.js", "test-session-insight-capability-envelope-actual-request-preflight-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-actual-request-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads actual capability-envelope request rows, aggregates, and issue views with SELECT queries only; it cannot request an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeActualRequestService.js", "test-session-insight-capability-envelope-actual-request-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-approval-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-approvals/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope approval decisions, aggregates, and issue views with SELECT queries only; it cannot approve an envelope, create an approval hold, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeApprovalService.js", "test-session-insight-capability-envelope-approval-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-dispatch-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope dispatch readbacks, aggregates, and issue views with SELECT queries only; it cannot create a readback or execution gate, dispatch an envelope, execute an adapter, or enable target writes.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeDispatchReadbackService.js", "test-session-insight-capability-envelope-dispatch-readback-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-capability-envelope-adapter-execution-gate-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list",
+      "source_file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads capability-envelope adapter execution gates, aggregates, and issue views with SELECT queries only; it cannot create a gate, request or execute an adapter apply, enable execution or promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightCapabilityEnvelopeAdapterExecutionGateService.js", "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-backlog-target-write-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/backlog-target-writes/list",
+      "source_file": "routes/sessionInsightBacklogTargetWriteRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads the internal SQL backlog target-write ledger and issue view with SELECT queries only; execute and rollback are separate operations, so this endpoint cannot create, modify, roll back, or externally dispatch a target write.",
+      "evidence_refs": ["sessionInsightBacklogTargetWriteService.js", "test-session-insight-backlog-target-write-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "session-insight-target-write-readback-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/target-write-readbacks/list",
+      "source_file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads target-write readback evidence and issue views with SELECT queries only; it cannot create readback evidence, modify a target item, execute rollback, call a provider, or perform an external write.",
+      "evidence_refs": ["sessionInsightTargetWriteReadbackService.js", "test-session-insight-target-write-readback-service.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "session-insight-remaining-scope-completion-list-read-action",
+      "operation": "POST /platform/session-insight-promotions/remaining-scope-completions/list",
+      "source_file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-intelligence",
+      "rationale": "The endpoint reads remaining-scope completion rows, aggregates, and issue views with SELECT queries only; it cannot create a completion, request or execute an adapter apply, enable promotion, or write a target surface.",
+      "evidence_refs": ["sessionInsightRemainingScopeCompletionService.js", "test-session-insight-remaining-scope-completion-service.mjs", "openapi/session-insight-promotion-read-models.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-certification-status-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/status",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-certification ledger, filters secrets_included = 0 in SQL, and omits free-form notes and metadata_json from its safe projection; it cannot certify a smoke run, recertify a plugin, update policy, or dispatch a provider request.",
+      "evidence_refs": ["platformPluginSmokeCertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-resolve-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/resolve",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT to resolve the most specific active smoke-recertification policy, omits free-form notes and metadata_json, and falls back in memory to a static default; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-list-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/list",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes one bounded SELECT over the smoke-recertification policy registry and omits free-form notes and metadata_json from its normalized safe projection; it cannot upsert, roll back, or audit a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicy.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-action-manifest-resolve-read-action",
+      "operation": "POST /platform/action-manifest/resolve",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint resolves the action, endpoint, and tool authority manifest and evaluates the dispatch guard as an in-memory preview. Its response fixes will_execute=false and it neither dispatches a tool nor persists a decision.",
+      "evidence_refs": ["actionManifestDiagnostic.js", "test-action-endpoint-tool-manifest-resolver.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-execution-readiness-dry-run-read-action",
+      "operation": "POST /platform/execution-readiness/dry-run",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint performs bounded registry and graph SELECT reads, combines them with the manifest guard preview, and always returns will_execute=false. It cannot dispatch a tool, call a provider, or mutate readiness state.",
+      "evidence_refs": ["executionReadinessDryRun.js", "test-action-endpoint-tool-manifest-resolver.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-orchestration-readback-read-action",
+      "operation": "POST /platform/orchestration/readback",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads bounded orchestration graph, readiness, snapshot, and recommendation views. Its contract explicitly forbids provider calls, credential payload reads, spend changes, external writes, deploys, and publishing.",
+      "evidence_refs": ["platformOrchestrationReadback.js", "test-orchestration-readback-surface.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-read-action",
+      "operation": "POST /platform/health/scorecard",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the aggregate platform health scorecard view and optional component rows with SELECT statements only. Snapshot recording is exposed as a separate operation.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-remediation-plan-read-action",
+      "operation": "POST /platform/health/scorecard/remediation-plan",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the bounded remediation-plan view and returns recommendation-only safety evidence. It does not record a scorecard snapshot or execute remediation.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-tenant-rollout-read-action",
+      "operation": "POST /platform/health/scorecard/tenant-rollout",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads tenant rollout-readiness rows and summarizes eligibility in memory. It cannot enable a tenant rollout, change policy, or perform an external write.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-health-scorecard-ledger-hygiene-read-action",
+      "operation": "POST /platform/health/scorecard/ledger-hygiene",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads the ledger-hygiene view and returns bounded diagnostics only. It does not delete, rewrite, compact, or repair ledger rows.",
+      "evidence_refs": ["platformHealthScorecard.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "ads-provider-governance-snapshot-proposal-read-action",
+      "operation": "POST /platform/orchestration/ads-provider/snapshot-propose",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint uses bounded SELECT queries to build snapshot and recommendation candidates, reports writes_database=false, and cannot call a provider, read credential payloads, change spend, record a snapshot, deploy, or publish.",
+      "evidence_refs": ["adsProviderGovernanceSnapshotProposal.js", "test-ads-governance-snapshot-proposal.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "support-ticket-lifecycle-snapshot-proposal-read-action",
+      "operation": "POST /platform/orchestration/support-ticket/snapshot-propose",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-runtime",
+      "rationale": "The endpoint reads ticket lifecycle and linked workflow evidence to build proposal objects, reports writes_database=false, and cannot mutate the ticket, dispatch a workflow, decide approval, send externally, record a snapshot, deploy, or publish.",
+      "evidence_refs": ["supportTicketLifecycleSnapshotProposal.js", "test-support-ticket-lifecycle-snapshot-proposal.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-history-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/history",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint executes a bounded SELECT over execution-log audit rows, projects sanitized before and after policy summaries, and filters them in memory. It cannot upsert or roll back a policy.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicyHistory.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-policy-rollback-preview-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads one sanitized audit snapshot and the current policy, computes changed fields in memory, and explicitly does not replay notes content. Applying rollback is a separate consequential operation.",
+      "evidence_refs": ["platformPluginSmokeRecertificationPolicyHistory.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-smoke-recertification-queue-read-action",
+      "operation": "POST /platform/plugins/smoke-certifications/recertification-queue",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads bounded certification, endpoint, connection-metadata, and policy rows and classifies recertification needs in memory. Recertification dispatch and certification updates are confined to the separate batch operation.",
+      "evidence_refs": ["platformPluginSmokeRecertification.js", "test-platform-plugin-public-rest-dispatch.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "remote-runtime-target-catalog-read-action",
+      "operation": "POST /platform/remote-runtime/targets/catalog",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "remote-runtime",
+      "rationale": "The endpoint performs bounded SELECT queries over remote-runtime targets and command allowlists and returns safe public projections. It cannot validate, probe, execute, deploy, or update a target.",
+      "evidence_refs": ["remoteRuntime.js", "test-remote-runtime-catalog-probe.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "platform-plugin-private-contribution-resolve-read-action",
+      "operation": "POST /platform/plugins/contributions/resolve-private",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "platform-plugins",
+      "rationale": "The endpoint reads one safe contribution projection and evaluates owner scope, action binding, status, and credential-scope policy in memory. It cannot activate, promote, certify, dispatch, or mutate the platform base.",
+      "evidence_refs": ["platformPluginContribution.js", "test-platform-plugin-private-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "agent-model-run-plan-read-action",
+      "operation": "POST /ai/model-runs",
+      "source_file": "routes/agentIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-runtime",
+      "rationale": "The endpoint builds a canonical model-run plan entirely in memory and returns dry_run_only=true. The plan fixes will_call_model=false and keeps model execution and tool execution disabled.",
+      "evidence_refs": ["agentIntelligenceRuntime.js", "test-agent-intelligence-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "agent-tool-search-read-action",
+      "operation": "POST /ai/tool-search",
+      "source_file": "routes/agentIntelligenceRoutes.js",
+      "classification": "read_action",
+      "owner": "agent-runtime",
+      "rationale": "The endpoint filters a supplied tool list or reads the derived tool index with SELECT queries and returns normalized metadata only. It does not expose the raw catalog, execute a tool, call a model, or mutate registry state.",
+      "evidence_refs": ["agentIntelligenceRuntime.js", "test-agent-intelligence-runtime.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "repository-automation-plan-read-action",
+      "operation": "POST /admin/repository-automation/plan",
+      "source_file": "routes/repositoryAutomationRoutes.js",
+      "classification": "read_action",
+      "owner": "repository-automation",
+      "rationale": "The endpoint deterministically builds and hashes an automation plan in memory. It does not persist a run, dispatch a repository tool, update a branch, execute CI, deploy, or clean up resources.",
+      "evidence_refs": ["repositoryAutomationControlPlane.js", "test-repository-automation-control-plane.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "gpt-session-turn-batch-capability-governance",
+      "operation": "POST /gpt/sessions/{id}/turns",
+      "source_file": "routes/gptSessionRoutes.js",
+      "classification": "external_effect",
+      "owner": "session-archive",
+      "rationale": "The bounded batch appends transcript turns to the governed SQL and Drive archive only after session_archive_write capability-family authorization enforces the caller, exact tenant and user scope, active session, and a 20-item maximum; each appended turn returns same-cycle archive identifiers and status.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "rollback": { "mode": "not_required", "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns." },
+      "parameter_bindings": { "session_id": "path.id", "turns": "request.body.turns", "turn_ids": "response.turns[].turn_id" },
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-gpt-session-turn-batch-capture.mjs", "test-session-archive-capability-family-policy.mjs", "openapi.yaml"]
+    },
+    {
+      "rule_id": "tenant-activation-session-turn-batch-capability-governance",
+      "operation": "POST /tenant/activation/sessions/{id}/turns",
+      "source_file": "routes/gptSessionRoutes.js",
+      "classification": "external_effect",
+      "owner": "session-archive",
+      "rationale": "The Activation alias additionally requires a signed non-admin tenant JWT, then reuses the same bounded session_archive_write capability-family authorization, exact tenant and user scope, active-session check, append pipeline, and per-turn archive readback as the canonical writer.",
+      "preflight": { "mode": "inline_capability_check" },
+      "approval": { "mode": "runtime_authorization" },
+      "readback": { "mode": "inline_post_commit", "same_cycle": true },
+      "rollback": { "mode": "not_required", "rationale": "Transcript turns are immutable append-only audit records. Destructive removal would corrupt the archive trail; partial provider outcomes are retained with archive_status and corrected by additive turns." },
+      "parameter_bindings": { "session_id": "path.id", "turns": "request.body.turns", "turn_ids": "response.turns[].turn_id" },
+      "evidence_refs": ["routes/gptSessionRoutes.js", "test-tenant-activation-session-alias.mjs", "test-session-archive-capability-family-policy.mjs", "openapi.yaml"]
+    }
+  ],
+  "secrets_included": false
+}

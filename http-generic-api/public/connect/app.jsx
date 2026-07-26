@@ -89,7 +89,8 @@ function App() {
         },
       });
       const container = document.getElementById('gsi-btn-container');
-      if (container) window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 320, text: 'signin_with', locale: 'en' });
+      // Let GIS choose the locale from the signed-in Google Account or browser.
+      if (container) window.google.accounts.id.renderButton(container, { theme: 'outline', size: 'large', width: 320, text: 'signin_with' });
     };
     setup();
   }, [step]);

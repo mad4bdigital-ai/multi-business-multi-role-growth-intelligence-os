@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/spec-011/durable-operation.schema.json",
+  "title": "Spec 011 Durable Operation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation_id", "principal", "intent", "resource_uri", "approval_mode", "idempotency_key", "state", "completed_steps", "blocking_gaps", "next_action", "evidence_refs", "secrets_included"],
+  "properties": {
+    "schema_version": { "const": "spec011-operation-v1" },
+    "operation_id": { "type": "string", "format": "uuid" },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal_type", "principal_id"],
+      "properties": {
+        "principal_type": { "type": "string", "enum": ["user", "admin", "service", "agent"] },
+        "principal_id": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "tenant_id": { "type": ["string", "null"], "maxLength": 64 },
+        "workspace_id": { "type": ["string", "null"], "maxLength": 64 }
+      }
+    },
+    "intent": { "type": "string", "minLength": 1, "maxLength": 191 },
+    "mode": { "type": ["string", "null"], "maxLength": 64 },
+    "plan_id": { "type": ["string", "null"], "format": "uuid" },
+    "plan_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "resource_uri": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "resource_snapshot_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "approval_mode": { "type": "string", "enum": ["user_approval_only", "agent_recommend_only", "agent_queue_for_approval", "delegated_low_risk", "delegated_plan_bound", "human_on_exception", "multi_agent_approval", "break_glass"] },
+    "delegation_grant_id": { "type": ["string", "null"], "format": "uuid" },
+    "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 191 },
+    "state": { "type": "string", "enum": ["requested", "context_loading", "preflight", "awaiting_approval", "ready", "executing", "reconciling", "verifying", "completed", "failed_recoverable", "failed_terminal", "cancel_requested", "cancelled", "compensation_required", "compensating"] },
+    "risk_tier": { "type": "string", "enum": ["read_only", "low", "medium", "high", "critical"] },
+    "completed_steps": { "type": "array", "items": { "type": "string", "maxLength": 191 }, "uniqueItems": true },
+    "blocking_gaps": { "type": "array", "items": { "type": "object" } },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reason_code"],
+      "properties": {
+        "action": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "reason_code": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "required_input": { "type": ["string", "null"], "maxLength": 500 }
+      }
+    },
+    "evidence_refs": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "uniqueItems": true },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": ["string", "null"], "format": "date-time" },
+    "secrets_included": { "const": false }
+  }
+}

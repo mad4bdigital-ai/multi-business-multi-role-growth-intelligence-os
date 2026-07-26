@@ -47,11 +47,28 @@ export async function dispatchPreparedExecution(input = {}, deps = {}) {
   );
 
   const transportBody = finalizeTransportBody(body);
+  const endpointKey = String(requestPayload.endpoint_key || "").trim();
+  const requestContentType = String(finalHeaders?.["Content-Type"] || finalHeaders?.["content-type"] || "").trim().toLowerCase();
+  const rawMultipartBodyAllowed =
+    String(requestPayload.raw_body_mode || "").trim() === "multipart_related" &&
+    String(parent_action_key || "").trim() === "google_drive_api" &&
+    ["uploadNewFile", "upload_new_file_media"].includes(endpointKey) &&
+    typeof transportBody === "string" &&
+    requestContentType.startsWith("multipart/related;");
+
+  let upstreamBody;
+  if (transportBody === undefined) {
+    upstreamBody = undefined;
+  } else if (rawMultipartBodyAllowed) {
+    upstreamBody = transportBody;
+  } else {
+    upstreamBody = JSON.stringify(transportBody);
+  }
 
   const upstreamRequest = {
     method: resolvedMethodPath.method,
     headers: finalHeaders,
-    body: transportBody === undefined ? undefined : JSON.stringify(transportBody),
+    body: upstreamBody,
     redirect: "follow"
   };
 

@@ -1,0 +1,58 @@
+{
+  "notes": "Explicit OpenAPI operation-presence exemptions. The staged guard still checks critical route files, while frontend-surface-dispatch reports full-repository canonical, generated-index, exemption, detail-gap, and auth-parity counts. Prefer reviewed canonical contracts; never use this file to hide unresolved authentication or schema detail debt.",
+  "required_files": [
+    "routes/platformPluginRoutes.js",
+    "routes/tenantPlatformPluginRoutes.js",
+    "routes/platformGraphRoutes.js",
+    "routes/schemaImportRoutes.js",
+    "routes/gptToolsRoutes.js",
+    "routes/systemLayerRoutes.js",
+    "routes/connectorTaxonomyRoutes.js",
+    "routes/credentialRoutes.js",
+    "routes/credentialIntakeRoutes.js",
+    "routes/appIntegrationRoutes.js",
+    "routes/connectRoutes.js",
+    "routes/connectApiRoutes.js",
+    "routes/connectorProxyRoutes.js",
+    "routes/connectorAgentRoutes.js",
+    "routes/resourceApiRoutes.js"
+  ],
+  "exact": [
+    "GET /",
+    "GET /healthz",
+    "GET /readyz",
+    "GET /favicon.ico",
+    "GET /robots.txt",
+    "POST /browser-runtime/visual-takeover/run",
+    "POST /browser-runtime/persistent-session/run",
+    "POST /browser-runtime/cloud-extract/run",
+    "POST /browser-runtime/stealth-extract/run",
+    "POST /connector/{device_id}/auto-browser",
+    "POST /platform/remote-runtime/hosting/ssh-probe",
+    "GET /connector-agent/policy",
+    "POST /admin/schema-import/action-ref"
+  ],
+  "prefixes": [
+    "/oauth",
+    "/auth/google",
+    "/auth/callback",
+    "/uploads",
+    "/assets",
+    "/static",
+    "/api/internal",
+    "/internal",
+    "/debug",
+    "/dev-only",
+    "/connect/oauth",
+    "/connect/assets",
+    "/local-manager",
+    "/local-gateway"
+  ],
+  "files": [
+    "routes/rootDiscoveryRoutes.js",
+    "routes/legalRoutes.js",
+    "routes/mcpRoutes.js",
+    "routes/executeRoutes.js",
+    "routes/onboardingRoutes.js"
+  ]
+}

@@ -1,3 +1,13 @@
+SQL Cache Operational Observability
+
+The MySQL-primary SQL cache runtime must expose bounded Admin diagnostics derived from process-lifetime counters and the active runtime policy. Required evidence includes hits, misses, stores, errors, bypasses, unavailable skips, circuit-open skips, oversized-value skips, single-flight joins, in-flight count, active cooldown count, policy freshness, and circuit state.
+
+Derived metrics must include hit ratio, miss ratio, and error rate with explicit sample counts and thresholds. Critical or high states such as enabled-but-unavailable, open circuit, stale policy, or high error rate must be projected into the Admin operational-alert control plane. Tenant surfaces must not receive platform-wide SQL cache runtime evidence.
+
+Controlled SQL cache load tests must run in isolated process memory, must not touch production Redis or MySQL, and must verify both single-flight reduction and the immutable `endpoints` security denylist fallback. Synthetic benchmark results are regression evidence only and must not be represented as production capacity evidence.
+
+Governed migration child-process failures must return bounded redacted diagnostics including exit code, signal, detected provider/database error code, and sanitized stderr/stdout summaries. Credential-like assignments, bearer values, URL credentials, raw secrets, and unbounded logs are forbidden.
+
 - derived_surfaces_expected_to_refresh
 - observability_validation_state
 - observability_issues when applicable
@@ -683,7 +693,7 @@ It is forbidden to:
 - simulate transport validation
 - classify activation as `active`, `validated`, or `authorization_gated` without machine-verifiable transport attempt evidence
 
-Session-context failures classify the session-context surface as `degraded` or `authorization_gated` without replacing Drive, Sheets bootstrap, or GitHub validation. Raw transcript dumps are allowed only when explicitly requested and bounded by pagination and `raw_max_chars`; user-authenticated session-context reads must remain same-user scoped unless admin/service authority is present.
+Session-context failures classify the session-context surface as `degraded` or `authorization_gated` without replacing Drive, DB-native bootstrap config, or GitHub validation. Raw transcript dumps are allowed only when explicitly requested and bounded by pagination and `raw_max_chars`; user-authenticated session-context reads must remain same-user scoped unless admin/service authority is present.
 
 Direct Governed HTTP Activation Transport Enforcement Rule
 
@@ -930,3 +940,80 @@ Starter signals must include:
 Growth loop may:
 - recommend better starter
 - adjust starter_priority
+Superseded And Orphan Branch Cleanup Verification Rule
+
+When a closed pull-request branch or an explicit orphan branch has been replaced by later commits on the default branch, system_bootstrap may expose `github_superseded_branch_cleanup` as a separate evidence-bound cleanup recipe. The general unmerged-branch deletion guard must remain active. Orphan mode is opt-in only and requires zero matching pull requests.
+
+Before apply, closed-PR mode must verify closed state, the `superseded` label, and absence of an open PR. Orphan mode must verify `allow_orphan_branch=true`, zero matching PRs in any state, and byte-equivalent Git blobs for every non-generated changed file against the current default branch. Both modes must verify default-branch ancestry for every replacement commit, complete changed-file coverage, policy limits, fresh base/branch SHAs, a matching evidence fingerprint, capability-envelope approval, typed confirmation, and an explicit reason. Before deleting the named Git ref, the recipe must write a synchronous no-secret intent audit. After the provider result it must write completion or failure audit evidence; successful completion also requires same-cycle missing-ref readback and returns `secrets_included=false`. Any stale, incomplete, protected, force, or fallback condition must remain blocked.
+
+## Existing Git Blob Commit Repair Rule
+
+`repo_existing_blob_commit_apply` may repair a governed non-protected work branch by reusing one or more Git blob SHAs that already exist in the same repository. It must require an approved GitHub capability envelope, an exact `expected_head_sha`, unique validated repository paths, valid blob SHAs, and an existing work branch. The recipe must create a new tree and single-parent commit from the verified branch head, re-read the branch head before updating the ref, use `force=false`, and verify both the resulting branch head and each committed path-to-blob mapping in the new tree. It must never upload or download blob content, target a protected/default branch, create a missing branch, or report success without same-cycle readback.
+
+## Operational Alerting Control Plane
+
+`system_bootstrap` must expose a unified alert readback that combines persisted alert lifecycle rows with live SQL evidence from execution, connector, task, agent, skill-approval, freshness, signal, readiness, and telemetry surfaces.
+
+Required behavior:
+
+- use stable alert keys for deduplication across repeated observations
+- keep severity, verification, and lifecycle as separate dimensions
+- preserve Known Issues until an explicit governed lifecycle decision resolves or ignores them
+- auto-resolve only non-manual alerts that disappear after a successful synchronization
+- deduplicate skill-approval evidence by `agent_id + skill_id + effective tenant/brand scope`, never by `grant_id`
+- fingerprint execution failures by operation, normalized failure reason, resource/target identity, and tenant/workspace scope
+- suppress or resolve a failure only when a later success matches the same recovery fingerprint
+- downgrade fallback-backed or route-resolved failures from critical severity while preserving the degraded evidence
+- classify malformed source rows as bounded data-quality findings rather than verified critical operational failures
+- reconcile pending outbox rows after lifecycle resolution and before queuing current high/critical notifications
+- queue high and critical notifications through `operational_alert_notification_outbox`; external delivery remains separately governed
+- preserve tenant isolation and keep platform Known Issues admin-only
+- support cursor/offset pagination with explicit `has_more` and `next_cursor`
+- never silently omit matching problems; when a page is incomplete, `all_matching_problems_returned_in_page` and `final_result_complete` must be false
+- return source-health evidence and keep `final_result_complete = false` while a required source is degraded
+- expose acknowledge, investigate, resolve, ignore, and reopen transitions through a governed lifecycle endpoint
+
+Activation summaries must derive attention totals and previews from this unified surface rather than recomputing a competing problem list.
+
+## Governed GitHub Branch Cleanup Sweep
+
+`github_branch_cleanup_sweep` is the bounded repository-maintenance orchestrator for stale disposable branches. Planning must default to read-only, resolve the actual GitHub default branch and base SHA, exclude open-PR and protected branches, prove zero unique commits, apply a minimum-age threshold, cap scan and delete counts, and return a deterministic evidence fingerprint plus typed confirmation. Apply must require fresh base/fingerprint evidence and a capability envelope, rerun the plan before mutation, delegate each candidate to `deleteGithubBranchRef`, stop on the first branch-level failure, and require same-cycle missing-ref readback. Force deletion, unbounded scanning, generic fallback deletion, and automatic retry after an unknown provider outcome are forbidden.
+
+## Repository Automation Control Plane Rule
+
+When repository delivery, migration release, operational closeout, branch cleanup, Spec lifecycle, or recurring hygiene is coordinated through the Repository Automation Control Plane, `system_bootstrap` must preserve compound-run authority separately from action authority.
+
+Required behavior:
+
+- planning and hygiene scans remain read-only
+- apply requires a fresh outer `platform_orchestration` capability envelope
+- the outer envelope authorizes orchestration only and never replaces nested tool envelopes, approvals, typed confirmations, SHA/checksum pins, ledgers, or readbacks
+- missing nested mutation authority must produce `awaiting_input` with a resumable checkpoint
+- auto-approval and auto-generation of typed confirmations are forbidden
+- force push, direct provider credential injection, and freeform mutation SQL are forbidden
+- PR delivery must stabilize automated documentation commits before pinning the final head SHA
+- CI auto-recovery may dispatch only after missing-check evidence and separate mutation approval
+- deployment parity must use GitHub `main` plus the production checkout readback; routine SSH fallback is forbidden
+- migration release must bind authorization, dry-run, apply, ledger, and business-state readback to the published checksum and statement count
+- active governed delivery remains under `specs/<feature>/`; implemented or superseded reference material belongs under `docs/history/<topic>/`
+- scheduled hygiene remains read-only and disabled until a governed Admin job or n8n runner is separately certified
+
+Unknown mutation outcomes:
+
+- 502, 503, and 504 responses must not trigger immediate replay
+- the orchestrator must perform action-specific readback first
+- a proved completion must create or update a no-secret mutation receipt and suppress replay
+- if readback does not prove completion, at most one bounded retry is allowed
+- each request must use a stable request hash and idempotency key
+- all required response chunks must be consumed before alternative-surface fallback
+
+Required orchestration evidence includes:
+
+- automation key and deterministic plan hash
+- current stage and resumable status
+- step attempt counts
+- request hashes and idempotency keys
+- provider or internal receipt summaries
+- readback result and recovery classification
+- final completed, awaiting_input, blocked, failed, or cancelled status
+- `secrets_included = false`

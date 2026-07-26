@@ -12,6 +12,24 @@ When `parent_action_key = wordpress_api`, module_loader MUST prepare:
 - publish stage gate resolver
 - JSON asset dedupe resolver
 
+## Blog publish credential recovery loading rule
+
+When routed execution selects `wordpress_blog_publish_or_recover_credentials`, module_loader must prepare a resume-aware platform-native execution contract.
+
+The loaded context must include:
+
+- resolved brand and `target_key`
+- publish preflight readiness
+- credential resolver inputs for `wordpress_rest`
+- secure credential-intake session creation inputs when credentials are missing
+- original publish request envelope without raw secrets
+- WordPress create inputs
+- readback verification requirements
+- `wordpress_blog_publish_recovery_state` persistence fields
+- repair/resume handoff when readback fails
+
+n8n must not be loaded as the authoritative WordPress publish runtime unless a governed `workflow_runtime_bindings` row explicitly authorizes an auxiliary side-effect branch. Even then, platform-native credential resolution, WordPress publish contract, readback, and execution logging remain mandatory.
+
 ## runtime sink contract object
 
 Return this runtime contract object to execution context:

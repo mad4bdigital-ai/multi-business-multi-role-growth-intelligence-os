@@ -1,0 +1,35 @@
+{
+  "package": "tenant-gpt-pipeline-continuity-spec-kit",
+  "feature_branch": "gpt/002-tenant-gpt-pipeline-continuity-20260623",
+  "pull_request": 1891,
+  "prepared": "2026-06-23",
+  "status": "merge_ready",
+  "production_mutation_authorized": false,
+  "provider_writes_allowed": false,
+  "approved_runtime_files": [
+    "http-generic-api/tenantGrowthDashboardService.js",
+    "http-generic-api/activationAwarenessService.js",
+    "http-generic-api/test-tenant-growth-dashboard.mjs",
+    "http-generic-api/test-activation-awareness-completeness.mjs"
+  ],
+  "required_checks": [
+    "Syntax Check",
+    "Unit & Integration Tests",
+    "Execution Resolver Gate",
+    "Architecture Drift Detection"
+  ],
+  "files": [
+    "README.md",
+    "spec.md",
+    "plan.md",
+    "research.md",
+    "data-model.md",
+    "acceptance-matrix.md",
+    "tasks.md",
+    "traceability.md",
+    "rollout.md",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/release-readiness.md"
+  ]
+}

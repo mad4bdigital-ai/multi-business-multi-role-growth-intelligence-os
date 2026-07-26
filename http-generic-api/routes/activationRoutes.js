@@ -1,19 +1,40 @@
-import { randomUUID } from "crypto";
+﻿import { randomUUID } from "crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { ensureSessionArchive } from "../sessionArchiveService.js";
+import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
+import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
+import {
+  buildActivationOperationalDashboardEvidence,
+  buildDynamicToolCatalogEvidence,
+  buildRepoCanonicalRuntimeEvidence,
+} from "../activationDynamicEvidence.js";
+import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
+import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
+import {
+  resolveActivationSessionLifecycle,
+  acknowledgeActivationRun,
+  markActivationRunDelivered,
+} from "../activationSessionLifecycleService.js";
+import {
+  buildProfiledHardActivationResponse,
+  recordPreparedActivationResponse,
+  normalizeActivationResponseProfile,
+} from "../activationHardResponseService.js";
+import { readActivationDynamicTabDetail } from "../activationAwarenessService.js";
+import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
+import { loadTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
-  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   REGISTRY_CACHE_TTL_SECONDS,
   ACTIVATION_WORKBOOK_CACHE_TTL_SECONDS,
   ACTIVATION_BOOTSTRAP_ROW_CACHE_TTL_SECONDS,
 } from "../config.js";
-
 export function capLimit(value, fallback = 50, max = 200) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -46,6 +67,19 @@ function truncateText(value, maxLength = 2000) {
 function asBoolean(value) {
   if (value === true) return true;
   return String(value || "").trim().toLowerCase() === "true";
+}
+
+function queryStringValue(value) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "").trim();
+}
+
+function queryContextValue(query = {}, keys = []) {
+  for (const key of keys) {
+    const value = queryStringValue(query?.[key]);
+    if (value) return value;
+  }
+  return null;
 }
 
 function asCount(value) {
@@ -149,7 +183,8 @@ async function countQuery(surface, sql, params = [], queryFn = safeQuery) {
 
 export async function buildActivationPlatformAccess(req, deps = {}) {
   const queryFn = deps.query || safeQuery;
-  const isAdmin = req.auth?.is_admin === true;
+  const subject = deps.subject || resolveSessionContextSubject(req);
+  const isAdmin = subject.is_admin === true;
   const principalType = req.auth?.mode || (isAdmin ? "backend_api_key" : "unknown");
 
   const [
@@ -261,8 +296,12 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
     principal: {
       type: principalType,
       is_admin: isAdmin,
-      user_id: req.auth?.user_id || null,
-      tenant_id: req.auth?.tenant_id || null
+      user_id: subject.user_id || null,
+      tenant_id: subject.tenant_id || null,
+      workspace_id: subject.workspace_id || null,
+      workspace_key: subject.workspace_key || null,
+      brand_key: subject.brand_key || null,
+      context_source: subject.context_source || null,
     },
     access_scope: isAdmin ? "platform_admin_all" : "user_scoped",
     access: {
@@ -286,11 +325,434 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
   };
 }
 
-export function resolveSessionContextSubject(req) {
-  const requestedUserId = String(req.query.user_id || "").trim();
-  const authUserId = String(req.auth?.user_id || "").trim();
-  const isAdmin = req.auth?.is_admin === true;
-  const userId = requestedUserId || authUserId;
+function hasTruthyRuntimeFlag(value) {
+  return ["1", "true", "yes", "y", "active", "enabled", "callable"].includes(String(value || "").trim().toLowerCase());
+}
+
+function compactDelimitedList(value, max = 20) {
+  return splitRegistryList(value).slice(0, max);
+}
+
+function rowsOrEmpty(result) {
+  return result?.ok ? result.rows : [];
+}
+
+function surfaceError(surface, result) {
+  return result?.ok ? null : { surface, error: result?.error || { code: "unknown", message: "Unknown authorization surface error" } };
+}
+
+const ACTIVATION_SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+const ACTIVATION_BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json)/i;
+
+function quoteActivationIdentifier(value) {
+  const text = String(value || "").trim();
+  if (!ACTIVATION_SAFE_IDENTIFIER.test(text)) {
+    const err = new Error(`Unsafe activation surface identifier: ${text}`);
+    err.code = "unsafe_activation_surface_identifier";
+    throw err;
+  }
+  return `\`${text}\``;
+}
+
+function safeActivationColumns(value) {
+  const columns = Array.isArray(value) ? value : parseJsonSafe(value) || [];
+  return columns
+    .map((column) => String(column || "").trim())
+    .filter((column) => ACTIVATION_SAFE_IDENTIFIER.test(column))
+    .filter((column) => !ACTIVATION_BLOCKED_COLUMN_PATTERN.test(column))
+    .slice(0, 40);
+}
+
+function stripSensitiveActivationFields(row = {}) {
+  return Object.fromEntries(
+    Object.entries(row).filter(([key]) => !ACTIVATION_BLOCKED_COLUMN_PATTERN.test(key))
+  );
+}
+
+function normalizedActivationSet(values = []) {
+  return new Set(values.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean));
+}
+
+function actionPermissionCandidates(row = {}) {
+  const actionKey = String(row.action_key || "").trim();
+  const connectorFamily = String(row.connector_family || "").trim();
+  const capabilityClass = String(row.runtime_capability_class || "").trim();
+  const values = [];
+  for (const value of [actionKey, connectorFamily, capabilityClass]) {
+    if (!value) continue;
+    values.push(value, `${value}:execute`, `${value}:read`, `${value}:write`, `${value}:*`);
+  }
+  if (actionKey) values.push(`action:${actionKey}`, `action:${actionKey}:execute`);
+  if (connectorFamily && actionKey) values.push(`${connectorFamily}:${actionKey}`, `${connectorFamily}:${actionKey}:execute`);
+  return values;
+}
+
+function isRuntimeActionAuthorizedForSubject(row = {}, context = {}) {
+  if (context.isAdmin === true) return true;
+  const permissionSet = normalizedActivationSet(context.permissionKeys || []);
+  const connectorSet = normalizedActivationSet(context.connectorFamilies || []);
+  const connectorFamily = String(row.connector_family || "").trim().toLowerCase();
+  const connectorEvidenceOk = !connectorFamily || connectorSet.has(connectorFamily);
+  const permissionEvidenceOk = actionPermissionCandidates(row).some((candidate) => permissionSet.has(String(candidate || "").toLowerCase()));
+  return connectorEvidenceOk && permissionEvidenceOk;
+}
+
+async function loadActivationRegisteredSurfaces(req, subject, deps = {}) {
+  const queryFn = deps.query || safeQuery;
+  const isAdmin = subject.is_admin === true;
+  const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
+  const userId = subject.user_id || req.auth?.user_id || null;
+  const baseLimit = capLimit(req.query?.authorized_surface_limit, 10, 50);
+
+  const registry = await queryFn(
+    `SELECT surface_key, display_name, description, source_table, result_key_column, result_label_column,
+            tenant_column, user_column, status_column, active_status_values_json, result_columns_json,
+            include_for_admin, include_for_tenant, max_rows, sort_order, status
+       FROM \`activation_authorized_surface_registry\`
+      WHERE status = 'active'
+        AND (? = 1 OR include_for_tenant = 1)
+        AND (? = 0 OR include_for_admin = 1)
+      ORDER BY sort_order ASC, surface_key ASC
+      LIMIT 50`,
+    [isAdmin ? 1 : 0, isAdmin ? 1 : 0]
+  );
+
+  if (!registry.ok) {
+    const missing = /doesn't exist|ER_NO_SUCH_TABLE/i.test(String(registry.error?.message || ""));
+    return {
+      ok: missing,
+      source: "activation_authorized_surface_registry",
+      registered_surface_count: 0,
+      surfaces: [],
+      skipped: missing,
+      reason: missing ? "activation_authorized_surface_registry_not_installed" : null,
+      degraded_surfaces: missing ? [] : [{ surface: "activation_authorized_surface_registry", error: registry.error }],
+      secrets_included: false,
+    };
+  }
+
+  const surfaces = [];
+  const degraded = [];
+
+  for (const row of registry.rows || []) {
+    try {
+      const sourceTable = quoteActivationIdentifier(row.source_table);
+      const tenantColumn = row.tenant_column ? quoteActivationIdentifier(row.tenant_column) : null;
+      const userColumn = row.user_column ? quoteActivationIdentifier(row.user_column) : null;
+      const statusColumn = row.status_column ? quoteActivationIdentifier(row.status_column) : null;
+      const columns = safeActivationColumns(row.result_columns_json);
+      if (!columns.length) {
+        degraded.push({ surface: row.surface_key, error: { code: "no_safe_result_columns", message: "No safe result columns registered." } });
+        continue;
+      }
+      if (!isAdmin && !tenantColumn && !userColumn) {
+        degraded.push({ surface: row.surface_key, error: { code: "tenant_surface_requires_scope_column", message: "Tenant activation surface requires tenant_column or user_column." } });
+        continue;
+      }
+
+      const selectSql = columns.map(quoteActivationIdentifier).join(", ");
+      const where = [];
+      const params = [];
+      if (isAdmin) {
+        if (tenantColumn && tenantId) {
+          where.push(`${tenantColumn} = ?`);
+          params.push(tenantId);
+        }
+        if (userColumn && userId) {
+          where.push(`${userColumn} = ?`);
+          params.push(userId);
+        }
+      } else {
+        if (tenantColumn && tenantId) {
+          where.push(`${tenantColumn} = ?`);
+          params.push(tenantId);
+        } else if (userColumn && userId) {
+          where.push(`${userColumn} = ?`);
+          params.push(userId);
+        } else {
+          where.push("1 = 0");
+        }
+      }
+
+      const activeStatuses = parseJsonSafe(row.active_status_values_json) || [];
+      if (statusColumn && Array.isArray(activeStatuses) && activeStatuses.length) {
+        where.push(`${statusColumn} IN (?)`);
+        params.push(activeStatuses.map((item) => String(item)));
+      }
+
+      const maxRows = Math.min(Math.max(Number(row.max_rows || baseLimit) || baseLimit, 1), baseLimit);
+      const result = await queryFn(
+        `SELECT ${selectSql}
+           FROM ${sourceTable}
+          WHERE ${where.length ? where.join(" AND ") : "1 = 1"}
+          LIMIT ${maxRows}`,
+        params
+      );
+      if (!result.ok) {
+        degraded.push({ surface: row.surface_key, error: result.error });
+        continue;
+      }
+      surfaces.push({
+        surface_key: row.surface_key,
+        display_name: row.display_name,
+        source_table: row.source_table,
+        row_count: result.rows.length,
+        rows: result.rows.map(stripSensitiveActivationFields),
+        secrets_included: false,
+      });
+    } catch (err) {
+      degraded.push({ surface: row.surface_key, error: { code: err.code || "activation_registered_surface_failed", message: err.message } });
+    }
+  }
+
+  return {
+    ok: degraded.length === 0,
+    source: "activation_authorized_surface_registry",
+    registered_surface_count: registry.rows.length,
+    surfaces,
+    degraded_surfaces: degraded,
+    secrets_included: false,
+  };
+}
+
+export async function buildActivationAuthorizedAccess(req, subject = resolveSessionContextSubject(req), deps = {}) {
+  const queryFn = deps.query || safeQuery;
+  const isAdmin = subject.is_admin === true;
+  const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
+  const userId = subject.user_id || req.auth?.user_id || null;
+  const accessJti = req.auth?.claims?.jti || req.auth?.jti || null;
+  const limit = capLimit(req.query?.authorized_access_limit, 25, 100);
+  const tenantFilter = isAdmin ? "(? IS NULL OR tenant_id = ?)" : "tenant_id = ?";
+  const tenantParams = isAdmin ? [tenantId, tenantId] : [tenantId];
+
+  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools, registeredSurfaces, activationContext] = await Promise.all([
+    userId
+      ? queryFn(
+          `SELECT tenant_id, role, status, granted_at, updated_at
+             FROM \`memberships\`
+            WHERE user_id = ?
+              AND (? IS NULL OR tenant_id = ?)
+              AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT ${limit}`,
+          [userId, tenantId, tenantId]
+        )
+      : { ok: true, rows: [], skipped: true, reason: "no_user_subject" },
+    userId
+      ? queryFn(
+          `SELECT tenant_id, role, status, granted_at, expires_at
+             FROM \`role_assignments\`
+            WHERE user_id = ?
+              AND (? IS NULL OR tenant_id = ?)
+              AND status = 'active'
+              AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+            ORDER BY granted_at DESC
+            LIMIT ${limit}`,
+          [userId, tenantId, tenantId]
+        )
+      : { ok: true, rows: [], skipped: true, reason: "no_user_subject" },
+    queryFn(
+      `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type,
+              bootstrap_status, linked_brand_key, linked_system_ids, created_by, updated_at
+         FROM \`workspace_registry\`
+        WHERE ${tenantFilter}
+          AND bootstrap_status IN ('ready','in_progress','degraded')
+        ORDER BY FIELD(bootstrap_status, 'ready', 'in_progress', 'degraded'), updated_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT system_id, tenant_id, system_key, display_name, provider_family,
+              connector_family, auth_type, service_mode, status, updated_at
+         FROM \`connected_systems\`
+        WHERE ${tenantFilter}
+          AND status <> 'archived'
+        ORDER BY FIELD(status, 'active', 'pending', 'error'), updated_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT installation_id, system_id, tenant_id, scope, status, installed_at, expires_at
+         FROM \`installations\`
+        WHERE ${tenantFilter}
+          AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+        ORDER BY installed_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT permission_key, tenant_id, installation_id, granted, granted_at
+         FROM \`permission_grants\`
+        WHERE ${tenantFilter}
+          AND granted = 1
+        ORDER BY granted_at DESC
+        LIMIT ${limit * 2}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT action_key, action_title, action_class, connector_family,
+              runtime_capability_class, runtime_callable, admin_only,
+              client_allowed, team_allowed, allowed_actor_roles, allowed_governance_levels
+         FROM \`actions\`
+        WHERE LOWER(TRIM(COALESCE(runtime_callable, ''))) IN ('1','true','yes','y','active','enabled','callable')
+          AND (? = 1 OR LOWER(TRIM(COALESCE(admin_only, ''))) NOT IN ('1','true','yes','y'))
+        ORDER BY action_key ASC
+        LIMIT ${isAdmin ? limit : Math.min(limit * 20, 500)}`,
+      [isAdmin ? 1 : 0]
+    ),
+    isAdmin
+      ? queryFn(
+          `SELECT tool_key, display_name, http_method, http_path, tags, is_enabled, sort_order
+             FROM \`admin_platform_endpoint_tools\`
+            WHERE is_enabled = 1
+            ORDER BY sort_order ASC, tool_key ASC
+            LIMIT ${limit}`,
+          []
+        )
+      : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" },
+    loadActivationRegisteredSurfaces(req, subject, { query: queryFn }),
+    loadTenantGptActivationContext({ query: queryFn, access_jti: accessJti, user_id: userId, tenant_id: tenantId })
+  ]);
+
+  const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
+  const roleKeys = [...new Set([...rowsOrEmpty(memberships), ...rowsOrEmpty(roles)].map((row) => row.role).filter(Boolean))].sort();
+  const connectorFamilies = [...new Set(rowsOrEmpty(systems).map((row) => row.connector_family || row.provider_family).filter(Boolean))].sort();
+  const filteredRuntimeActions = rowsOrEmpty(runtimeActions)
+    .filter((row) => isRuntimeActionAuthorizedForSubject(row, { isAdmin, permissionKeys, connectorFamilies }))
+    .slice(0, limit);
+  const actionRows = filteredRuntimeActions.map((row) => ({
+    action_key: row.action_key,
+    action_title: row.action_title || null,
+    action_class: row.action_class || null,
+    connector_family: row.connector_family || null,
+    runtime_capability_class: row.runtime_capability_class || null,
+    admin_only: hasTruthyRuntimeFlag(row.admin_only),
+    actor_roles: compactDelimitedList(row.allowed_actor_roles),
+    governance_levels: compactDelimitedList(row.allowed_governance_levels),
+  }));
+
+  const degraded = [
+    surfaceError("memberships", memberships),
+    surfaceError("role_assignments", roles),
+    surfaceError("workspace_registry", workspaces),
+    surfaceError("connected_systems", systems),
+    surfaceError("installations", installations),
+    surfaceError("permission_grants", grants),
+    surfaceError("actions", runtimeActions),
+    surfaceError("admin_platform_endpoint_tools", adminTools),
+  ].filter(Boolean);
+
+  const authGaps = [];
+  if (!isAdmin && !tenantId) authGaps.push("missing_tenant_id");
+  if (!isAdmin && !userId) authGaps.push("missing_user_id");
+  if (!isAdmin && rowsOrEmpty(memberships).length === 0) authGaps.push("no_active_membership_for_subject");
+  const hasVisibleConnectedAppConnections = (registeredSurfaces.surfaces || []).some(
+    (surface) => surface.surface_key === "connected_app_connections" && Number(surface.row_count || 0) > 0
+  );
+  if (rowsOrEmpty(systems).length === 0 && !hasVisibleConnectedAppConnections) authGaps.push("no_visible_connected_systems");
+  if (!isAdmin && rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
+
+  return {
+    source: "activation_dynamic_authorization_envelope",
+    principal: {
+      is_admin: isAdmin,
+      user_id: userId,
+      tenant_id: tenantId,
+      workspace_id: subject.workspace_id || null,
+      workspace_key: subject.workspace_key || null,
+      brand_key: subject.brand_key || null,
+      context_source: subject.context_source || null,
+      auth_mode: req.auth?.mode || null,
+    },
+    scope_resolution: isAdmin ? "platform_admin_all_with_optional_subject_filter" : "tenant_user_authorized_only",
+    counts: {
+      memberships: rowsOrEmpty(memberships).length,
+      roles: rowsOrEmpty(roles).length,
+      workspaces: rowsOrEmpty(workspaces).length,
+      connected_systems: rowsOrEmpty(systems).length,
+      active_installations: rowsOrEmpty(installations).length,
+      permission_grants: permissionKeys.length,
+      runtime_actions: actionRows.length,
+      admin_tools: rowsOrEmpty(adminTools).length,
+      registered_surfaces: registeredSurfaces.surfaces?.length || 0,
+    },
+    authorized: {
+      roles: roleKeys,
+      permission_keys: permissionKeys.slice(0, 100),
+      connector_families: connectorFamilies,
+      workspaces: rowsOrEmpty(workspaces).map((row) => ({
+        workspace_id: row.workspace_id,
+        tenant_id: row.tenant_id,
+        workspace_key: row.workspace_key,
+        display_name: row.display_name,
+        workspace_type: row.workspace_type,
+        bootstrap_status: row.bootstrap_status,
+        linked_brand_key: row.linked_brand_key || null,
+        linked_system_ids: compactDelimitedList(row.linked_system_ids),
+      })),
+      connected_systems: rowsOrEmpty(systems).map((row) => ({
+        system_id: row.system_id,
+        tenant_id: row.tenant_id,
+        system_key: row.system_key,
+        display_name: row.display_name,
+        provider_family: row.provider_family,
+        connector_family: row.connector_family || null,
+        auth_type: row.auth_type || null,
+        service_mode: row.service_mode,
+        status: row.status,
+      })),
+      installations: rowsOrEmpty(installations).map((row) => ({
+        installation_id: row.installation_id,
+        system_id: row.system_id,
+        tenant_id: row.tenant_id,
+        status: row.status,
+        scopes: compactDelimitedList(row.scope, 50),
+        expires_at: row.expires_at || null,
+      })),
+      runtime_actions: actionRows,
+      admin_tools: rowsOrEmpty(adminTools).map((row) => ({
+        tool_key: row.tool_key,
+        display_name: row.display_name,
+        http_method: row.http_method,
+        http_path: row.http_path,
+        tags: compactDelimitedList(row.tags),
+      })),
+      registered_surfaces: registeredSurfaces.surfaces || [],
+      activation_context: activationContext,
+    },
+    activation_policy: {
+      use_authorized_access_for_context_selection: true,
+      do_not_infer_access_from_global_counts: true,
+      do_not_return_secret_values: true,
+      secrets_included: false,
+    },
+    readiness: degraded.length || registeredSurfaces.degraded_surfaces?.length ? "degraded" : "active",
+    auth_gaps: authGaps,
+    degraded_surfaces: [...degraded, ...(registeredSurfaces.degraded_surfaces || [])],
+    secrets_included: false,
+  };
+}
+
+export function resolveSessionContextSubject(req = {}) {
+  const query = req.query || {};
+  const auth = req.auth || {};
+  const requestedUserId = queryStringValue(query.user_id);
+  const requestedTenantId = queryStringValue(query.tenant_id);
+  const requestedWorkspaceId = queryContextValue(query, ["workspace_id"]);
+  const requestedWorkspaceKey = queryContextValue(query, ["workspace_key", "workspace_ref"]);
+  const requestedBrandKey = queryContextValue(query, ["brand_key", "target_key", "brand_ref", "evolution_brand_key"]);
+  const authUserId = queryStringValue(auth.user_id);
+  const authTenantId = queryStringValue(auth.tenant_id);
+  const authWorkspaceId = queryStringValue(auth.workspace_id);
+  const authWorkspaceKey = queryStringValue(auth.workspace_key);
+  const authBrandKey = queryStringValue(auth.brand_key || auth.target_key);
+  const isAdmin = auth.is_admin === true;
+  const userId = requestedUserId || authUserId || (isAdmin ? "platform_admin_service" : null);
+  const tenantId = requestedTenantId || authTenantId || (isAdmin ? PLATFORM_TENANT_ID : null);
+  const workspaceId = requestedWorkspaceId || authWorkspaceId || null;
+  const workspaceKey = requestedWorkspaceKey || authWorkspaceKey || (isAdmin ? "platform_repo_governance_zero" : null);
+  const brandKey = requestedBrandKey || authBrandKey || (isAdmin ? PLATFORM_EVOLUTION_BRAND_KEY : null);
 
   if (!isAdmin && requestedUserId && requestedUserId !== authUserId) {
     const err = new Error("User JWT cannot inspect another user's activation session context.");
@@ -299,14 +761,167 @@ export function resolveSessionContextSubject(req) {
     throw err;
   }
 
+  if (!isAdmin && requestedTenantId && requestedTenantId !== authTenantId) {
+    const err = new Error("User JWT cannot inspect another tenant's activation session context.");
+    err.status = 403;
+    err.code = "session_context_tenant_scope_forbidden";
+    throw err;
+  }
+
   return {
     user_id: userId || null,
-    tenant_id: String(req.query.tenant_id || "").trim() || null,
+    tenant_id: tenantId || null,
+    workspace_id: workspaceId || null,
+    workspace_key: workspaceKey || null,
+    brand_key: brandKey || null,
+    context_source: isAdmin && (!requestedUserId || !requestedTenantId || !requestedWorkspaceKey || !requestedBrandKey)
+      ? "admin_platform_default_context"
+      : "request_or_auth_context",
     is_admin: isAdmin
   };
 }
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const PLATFORM_EVOLUTION_BRAND_KEY = "growth_intelligence_platform";
+const PLATFORM_EVOLUTION_TENANT_ID = "00000000-0000-4000-a000-000000000010";
+const PLATFORM_EVOLUTION_SCOPE_KEY = `brand:${PLATFORM_EVOLUTION_BRAND_KEY}|tenant:${PLATFORM_EVOLUTION_TENANT_ID}`;
+
+export function resolveRequestedEvolutionScope(query = {}, subject = {}) {
+  const explicitScope = String(query.evolution_scope_key || query.scope_key || "").trim();
+  if (explicitScope) return explicitScope;
+
+  const brandKey = String(query.evolution_brand_key || query.brand_key || "").trim();
+  const tenantId = String(query.evolution_tenant_id || query.tenant_id || subject.tenant_id || "").trim();
+  if (brandKey && tenantId) return `brand:${brandKey}|tenant:${tenantId}`;
+
+  if (subject.is_admin) return PLATFORM_EVOLUTION_SCOPE_KEY;
+  return null;
+}
+
+async function loadPlatformEvolutionCheckpointContext(subject = {}, query = {}) {
+  const requestedScopeKey = resolveRequestedEvolutionScope(query, subject);
+  if (!requestedScopeKey) {
+    return {
+      ok: true,
+      requested: false,
+      available: false,
+      scope_key: null,
+      access_state: "not_requested",
+      card: null,
+      secrets_included: false,
+    };
+  }
+
+  try {
+    if (!subject.is_admin) {
+      const access = await safeQuery(
+        `SELECT scope_key, access_state
+           FROM \`v_platform_evolution_scope_access\`
+          WHERE scope_key = ?
+            AND (? IS NULL OR tenant_id = ?)
+            AND (? IS NULL OR user_id = ?)
+            AND access_state = 'allowed'
+          LIMIT 1`,
+        [requestedScopeKey, subject.tenant_id, subject.tenant_id, subject.user_id, subject.user_id]
+      );
+      if (!access.ok) {
+        return {
+          ok: false,
+          requested: true,
+          available: false,
+          scope_key: requestedScopeKey,
+          access_state: "validation_error",
+          card: null,
+          error: access.error,
+          secrets_included: false,
+        };
+      }
+      if (!access.rows.length) {
+        return {
+          ok: true,
+          requested: true,
+          available: false,
+          scope_key: requestedScopeKey,
+          access_state: "not_granted",
+          card: null,
+          secrets_included: false,
+        };
+      }
+    }
+
+    const card = await safeQuery(
+      `SELECT *
+         FROM \`v_platform_evolution_activation_card\`
+        WHERE scope_key = ?
+        LIMIT 1`,
+      [requestedScopeKey]
+    );
+    if (!card.ok) {
+      return {
+        ok: false,
+        requested: true,
+        available: false,
+        scope_key: requestedScopeKey,
+        access_state: subject.is_admin ? "admin_allowed" : "allowed",
+        card: null,
+        error: card.error,
+        secrets_included: false,
+      };
+    }
+
+    return {
+      ok: true,
+      requested: true,
+      available: card.rows.length > 0,
+      scope_key: requestedScopeKey,
+      access_state: subject.is_admin ? "admin_allowed" : "allowed",
+      card: card.rows[0] || null,
+      source: "v_platform_evolution_activation_card",
+      next_action: card.rows[0]
+        ? "Use platform_evolution_thread_map and platform_evolution_open_evidence for detailed checkpoint drilldown."
+        : "Create a platform_evolution checkpoint for this scope.",
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      requested: true,
+      available: false,
+      scope_key: requestedScopeKey,
+      access_state: "error",
+      card: null,
+      error: { code: err.code || "platform_evolution_context_failed", message: err.message },
+      secrets_included: false,
+    };
+  }
+}
+
+async function getPlatformPendingTaskColumnFlags() {
+  const result = await safeQuery(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'platform_pending_tasks'
+        AND COLUMN_NAME IN ('brief', 'activation_prompt', 'conversation_context_ref')`,
+    []
+  );
+
+  if (!result.ok) {
+    console.warn("[activation] failed to inspect platform_pending_tasks columns", result.error);
+  }
+
+  const columns = new Set(
+    result.rows
+      .map((row) => row.COLUMN_NAME || row.column_name)
+      .filter(Boolean)
+  );
+
+  return {
+    hasBrief: columns.has("brief"),
+    hasActivationPrompt: columns.has("activation_prompt"),
+    hasConversationContextRef: columns.has("conversation_context_ref")
+  };
+}
 
 async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
   const limit = Math.min(Math.max(Number(maxLimit) || 20, 1), 50);
@@ -331,11 +946,20 @@ async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
     scopeWhere = `AND (${scopeParts.join(" OR ")})`;
   }
 
+  const pendingTaskColumns = await getPlatformPendingTaskColumnFlags();
+  const briefSelect = pendingTaskColumns.hasBrief ? "brief" : "NULL AS brief";
+  const activationPromptSelect = pendingTaskColumns.hasActivationPrompt
+    ? "activation_prompt"
+    : "NULL AS activation_prompt";
+  const conversationContextRefSelect = pendingTaskColumns.hasConversationContextRef
+    ? "conversation_context_ref"
+    : "NULL AS conversation_context_ref";
+
   const result = await safeQuery(
-    `SELECT task_id, task_key, title, description, brief, activation_prompt,
+    `SELECT task_id, task_key, title, description, ${briefSelect}, ${activationPromptSelect},
             task_type, priority, status, blocker_level, owner_scope,
             tenant_id, user_id, device_id, source_surface, source_ref,
-            conversation_context_ref, activation_visibility, context_json,
+            ${conversationContextRefSelect}, activation_visibility, context_json,
             due_at, completed_at, created_at, updated_at
        FROM \`platform_pending_tasks\`
       WHERE activation_visibility = 1
@@ -358,51 +982,448 @@ async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
   };
 }
 
-async function autoOpenGptSession(pool, subject) {
+function parseConversationContextRefs(value = "") {
+  const refs = [];
+  const text = String(value || "");
+  for (const part of text.split(/[;,\n]/)) {
+    const trimmed = part.trim();
+    const match = trimmed.match(/^(?:(?<label>[a-z0-9_-]+):)?gpt_session_turns:(?<sessionId>[a-f0-9-]{36})$/i);
+    if (match?.groups?.sessionId) {
+      refs.push({
+        label: match.groups.label || "session",
+        source: "gpt_session_turns",
+        session_id: match.groups.sessionId,
+      });
+    }
+  }
+  return refs;
+}
+
+function compactSummary(row = {}) {
+  return {
+    summary_id: row.summary_id,
+    session_id: row.session_id,
+    tenant_id: row.tenant_id,
+    user_id: row.user_id,
+    workspace_key: row.workspace_key,
+    brand_key: row.brand_key || null,
+    summary_preview: truncateText(row.summary_text, 1200),
+    tags: {
+      tasks_completed: truncateText(row.tasks_completed, 500),
+      blockers: truncateText(row.blockers, 500),
+      feature_requests: truncateText(row.feature_requests, 500),
+      integration_needs: truncateText(row.integration_needs, 500),
+      complexity: row.complexity || null,
+    },
+    turn_count: asCount(row.turn_count),
+    created_at: row.created_at,
+  };
+}
+
+function compactTurn(row = {}, rawMaxChars = 1200) {
+  return {
+    session_id: row.session_id,
+    turn_id: row.turn_id,
+    turn_index: asCount(row.turn_index),
+    role: row.role,
+    action_key: row.action_key,
+    content_preview: truncateText(row.content_preview || row.content, rawMaxChars),
+    content_sha256: row.content_sha256 || null,
+    storage_mode: row.storage_mode || null,
+    drive_doc_id: row.drive_doc_id || null,
+    drive_anchor: row.drive_anchor || null,
+    created_at: row.created_at,
+  };
+}
+
+async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const userId = subject.user_id || null;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
+  const limit = capLimit(options.limit, 10, 25);
+  const includeTurns = options.include_turns === true;
+  const turnsLimit = capLimit(options.turns_limit, includeTurns ? 20 : 0, 100);
+  const rawMaxChars = capLimit(options.raw_max_chars, 1200, 6000);
+  const pendingTasks = Array.isArray(options.pending_tasks) ? options.pending_tasks : [];
+  const gptSessions = Array.isArray(options.gpt_sessions) ? options.gpt_sessions : [];
+  const gptSessionIds = gptSessions.map((row) => row.session_id).filter(Boolean);
+
+  let summaryMemory = {
+    ok: false,
+    count: 0,
+    items: [],
+    source: "session_summary_graph_memory",
+    fallback_used: false,
+    error: null,
+    secrets_included: false,
+  };
+  let summaries = { ok: true, rows: [], source: "session_summary_graph_memory" };
+  try {
+    summaryMemory = await loadSessionSummaryGraphMemory({
+      pool,
+      tenant_id: tenantId,
+      user_id: userId,
+      workspace_key: workspaceKey,
+      brand_key: brandKey,
+      limit,
+    });
+    summaries = {
+      ok: summaryMemory.ok !== false,
+      rows: (summaryMemory.items || []).map((item) => ({
+        summary_id: item.summary_id,
+        session_id: item.session_id,
+        tenant_id: item.tenant_id,
+        user_id: item.user_id,
+        workspace_key: item.workspace_key,
+        brand_key: item.brand_key || null,
+        summary_text: item.summary_text,
+        tasks_completed: JSON.stringify(item.tasks_completed || []),
+        blockers: JSON.stringify(item.blockers || []),
+        feature_requests: JSON.stringify(item.feature_requests || []),
+        integration_needs: JSON.stringify(item.integration_needs || []),
+        complexity: item.complexity || null,
+        turn_count: item.turn_count || 0,
+        created_at: item.created_at,
+        graph_edge_id: item.graph_edge_id || null,
+        graph_topology_present: item.graph_topology_present === true,
+      })),
+      source: "session_summary_graph_memory",
+      graph_memory: summaryMemory,
+    };
+  } catch (err) {
+    summaryMemory = {
+      ok: false,
+      count: 0,
+      items: [],
+      source: "session_summary_graph_memory",
+      fallback_used: true,
+      error: { code: err.code || "session_summary_graph_memory_failed", message: err.message },
+      secrets_included: false,
+    };
+    summaries = await safeQuery(
+      `SELECT ss.summary_id, ss.session_id, ss.tenant_id, ss.user_id, ss.workspace_key,
+              COALESCE(
+                (SELECT gst.brand_key
+                   FROM \`gpt_session_turns\` gst
+                  WHERE gst.session_id = ss.session_id
+                    AND gst.brand_key IS NOT NULL
+                  ORDER BY gst.created_at DESC
+                  LIMIT 1),
+                cs.brand_key
+              ) AS brand_key,
+              ss.summary_text, ss.tasks_completed, ss.blockers, ss.feature_requests, ss.integration_needs,
+              ss.complexity, ss.turn_count, ss.created_at
+         FROM \`session_summaries\` ss
+         LEFT JOIN \`customer_sessions\` cs ON cs.session_id = ss.session_id
+        WHERE ss.tenant_id = ?
+          AND (? IS NULL OR ss.user_id = ?)
+          AND (
+            ? IS NULL
+            OR ss.workspace_key = ?
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.workspace_key = ?
+               LIMIT 1
+            )
+          )
+          AND (
+            ? IS NULL
+            OR EXISTS (
+              SELECT 1 FROM \`gpt_session_turns\` gst
+               WHERE gst.session_id = ss.session_id
+                 AND gst.brand_key = ?
+               LIMIT 1
+            )
+          )
+        ORDER BY ss.created_at DESC
+        LIMIT ${limit}`,
+      [tenantId, userId, userId, workspaceKey, workspaceKey, workspaceKey, brandKey, brandKey]
+    );
+    summaries.source = "session_summaries_sql_fallback";
+    summaries.fallback_used = true;
+    summaries.fallback_reason = summaryMemory.error;
+  }
+
+  const referencedRefs = [];
+  for (const task of pendingTasks) {
+    const refs = parseConversationContextRefs(task.conversation_context_ref || task.context_json?.conversation_context_ref || "");
+    for (const ref of refs) {
+      referencedRefs.push({
+        ...ref,
+        task_key: task.task_key,
+        task_title: task.title,
+      });
+    }
+  }
+  const referencedSessionIds = [...new Set(referencedRefs.map((ref) => ref.session_id))];
+  const allRelevantSessionIds = [...new Set([...gptSessionIds, ...referencedSessionIds])].slice(0, 50);
+
+  const turnStats = allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT COUNT(*) AS turn_count,
+                COUNT(DISTINCT session_id) AS session_count,
+                MAX(created_at) AS last_turn_at
+           FROM \`gpt_session_turns\`
+          WHERE session_id IN (?)`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [{ turn_count: 0, session_count: 0, last_turn_at: null }] };
+
+  const storedTurnPreviews = includeTurns && allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT session_id, turn_id, turn_index, role, content, content_preview,
+                content_sha256, storage_mode, action_key, drive_doc_id, drive_anchor, created_at
+           FROM \`gpt_session_turns\`
+          WHERE session_id IN (?)
+          ORDER BY created_at DESC, turn_index DESC
+          LIMIT ${turnsLimit}`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [], skipped: true, reason: "include_turns=false" };
+
+  const conversationRefs = allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                share_id, share_url, source, captured_by, status, updated_at
+           FROM \`gpt_session_conversation_refs\`
+          WHERE session_id IN (?)
+            AND status = 'active'
+          ORDER BY updated_at DESC
+          LIMIT 50`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [], skipped: true, reason: "no_relevant_sessions" };
+
+  let graphMemory = {
+    requested: false,
+    resolved: false,
+    asset_count: 0,
+    assets: [],
+    selection_policy: {},
+    reason: "not_requested",
+    secrets_included: false,
+  };
+  try {
+    graphMemory = await resolvePlatformGraphMemory({
+      input: {
+        request_type: "activation_session_context",
+        diagnostic_surface: "conversation_memory_context",
+        node_id: "platform.global",
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
+        depth: 1,
+        memory_limit: 5,
+      },
+      limit: 5,
+    });
+  } catch (err) {
+    graphMemory = {
+      requested: true,
+      resolved: false,
+      asset_count: 0,
+      assets: [],
+      error: { code: err.code || "session_context_graph_memory_failed", message: err.message },
+      selection_policy: {},
+      secrets_included: false,
+    };
+  }
+
+  const statsRow = turnStats.rows[0] || {};
+  return {
+    status: {
+      session_context_reachable: true,
+      new_session_opened: true,
+      parallel_sessions_allowed: true,
+      native_chatgpt_history_available: false,
+      platform_stored_sessions_available: gptSessions.length > 0,
+      stored_turns_available: asCount(statsRow.turn_count) > 0,
+      turn_content_loaded: includeTurns,
+      summary_strategy: "prefer_graph_backed_session_summary_memory_then_sql_fallback",
+      graph_assisted_lookup: Boolean(graphMemory.requested),
+      graph_backed_session_summaries: summaries.source === "session_summary_graph_memory",
+      session_summary_fallback_used: summaries.fallback_used === true,
+      sources_checked: [
+        "customer_sessions",
+        "gpt_session_turns",
+        "gpt_session_conversation_refs",
+        "session_summaries",
+        "platform_pending_tasks.conversation_context_ref",
+        "platform_graph_memory",
+      ],
+    },
+    turn_availability: {
+      stored_turn_count: asCount(statsRow.turn_count),
+      stored_session_count: asCount(statsRow.session_count),
+      last_turn_at: statsRow.last_turn_at || null,
+      include_turns: includeTurns,
+      turns_limit: includeTurns ? turnsLimit : 0,
+    },
+    recent_session_summaries: summaries.rows.map(compactSummary),
+    session_summary_memory: {
+      source: summaries.source || "unknown",
+      graph_backed: summaries.source === "session_summary_graph_memory",
+      fallback_used: summaries.fallback_used === true,
+      fallback_reason: summaries.fallback_reason || null,
+      count: summaries.rows.length,
+      surface_authority: summaryMemory.surface_authority || null,
+      secrets_included: false,
+    },
+    referenced_contexts: referencedRefs.slice(0, 50),
+    chatgpt_conversation_refs: {
+      ok: conversationRefs.ok !== false,
+      count: conversationRefs.rows.length,
+      rows: conversationRefs.rows,
+      note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs are optional shareable references.",
+      secrets_included: false,
+      error: conversationRefs.error || null,
+    },
+    stored_turn_previews: storedTurnPreviews.rows.map((row) => compactTurn(row, rawMaxChars)),
+    graph_memory: {
+      requested: Boolean(graphMemory.requested),
+      resolved: Boolean(graphMemory.resolved),
+      asset_count: Number(graphMemory.asset_count || 0),
+      asset_keys: Array.isArray(graphMemory.assets) ? graphMemory.assets.map((asset) => asset.asset_key).filter(Boolean) : [],
+      selection_policy: graphMemory.selection_policy || {},
+      error: graphMemory.error || null,
+      secrets_included: false,
+    },
+    degraded_surfaces: [
+      ["session_summaries", summaries],
+      ["gpt_session_turns", turnStats],
+      ["gpt_session_turn_previews", storedTurnPreviews],
+    ]
+      .filter(([, result]) => !result.ok)
+      .map(([surface, result]) => ({ surface, error: result.error })),
+  };
+}
+
+async function autoOpenGptSession(pool, subject, options = {}) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
+  const closePreviousSessions = options.close_previous_sessions === true;
 
-  const [closeResult] = await pool.query(
-    `UPDATE \`customer_sessions\`
-     SET session_status = 'closed', ended_at = NOW()
-     WHERE originator = 'gpt_action'
-       AND tenant_id = ?
-       AND (? IS NULL OR user_id = ?)
-       AND session_status NOT IN ('completed', 'closed')`,
+  const [[activeBeforeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
     [tenantId, userId, userId]
   );
 
-  const sessionId = randomUUID();
-  const startedAt = new Date();
-  await pool.query(
-    `INSERT INTO \`customer_sessions\`
-       (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action', 'open', ?)`,
-    [sessionId, tenantId, userId, startedAt]
-  );
-
-  // Best-effort: allocate the Drive archive structure now so future turn writes
-  // (manual writeSessionTurn or auto-recorded tool dispatches) flow into a
-  // ready folder without lazy-allocating on first turn. Fail-open: activation
-  // must still succeed if Drive auth is unavailable.
-  let archiveStatus = "not_attempted";
-  try {
-    const archiveResult = await ensureSessionArchive(pool, {
-      session_id: sessionId,
-      tenant_id: tenantId,
-      user_id: userId,
-      started_at: startedAt,
-    });
-    archiveStatus = archiveResult?.configured ? "ready" : "not_configured";
-  } catch (err) {
-    archiveStatus = "deferred";
-    console.warn(`[activation] ensureSessionArchive failed for ${sessionId}, will lazy-allocate on first turn: ${err.message}`);
+  let closeResult = { affectedRows: 0 };
+  if (closePreviousSessions) {
+    [closeResult] = await pool.query(
+      `UPDATE \`customer_sessions\`
+       SET session_status = 'completed', ended_at = COALESCE(ended_at, NOW())
+       WHERE originator = 'gpt_action'
+         AND tenant_id = ?
+         AND (? IS NULL OR user_id = ?)
+         AND session_status IN ('pending', 'active')`,
+      [tenantId, userId, userId]
+    );
   }
 
+  const sessionId = randomUUID();
+  const startedAt = new Date();
+  const archiveStatus = "deferred_until_first_turn";
+  await pool.query(
+    `INSERT INTO \`customer_sessions\`
+       (session_id, tenant_id, user_id, workspace_key, brand_key, originator, session_status, started_at, archive_status)
+     VALUES (?, ?, ?, ?, ?, 'gpt_action', 'active', ?, ?)`,
+    [sessionId, tenantId, userId, workspaceKey, brandKey, startedAt, archiveStatus]
+  );
+
+  // Do not create Drive files during activation/session-context open. The archive
+  // is allocated lazily by recordGptSessionTurn() on the first real user,
+  // assistant, or tool turn. This prevents repeated diagnostics or accidental
+  // same-chat session-context calls from producing duplicate Google Docs by the
+  // platform service account before there is transcript content to preserve.
+  const activeBefore = asCount(activeBeforeRow?.active_count);
   return {
     session_id: sessionId,
     closed_sessions: closeResult.affectedRows || 0,
     archive_status: archiveStatus,
+    session_management: {
+      mode: "open_new_session",
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: closePreviousSessions,
+      active_sessions_before_open: activeBefore,
+      active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
+      status_written: "active",
+      archive_allocation: "lazy_on_first_turn",
+      context_written: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: workspaceKey,
+        brand_key: brandKey,
+      },
+    },
+  };
+}
+
+export function shouldOpenActivationSession(query = {}) {
+  return !(
+    asBoolean(query.no_open_session) ||
+    asBoolean(query.read_only) ||
+    asBoolean(query.context_only)
+  );
+}
+
+async function readOnlyGptSessionContext(pool, subject) {
+  const userId = subject.user_id || null;
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const workspaceKey = subject.workspace_key || null;
+  const brandKey = subject.brand_key || null;
+  const [[activeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
+    [tenantId, userId, userId]
+  );
+  const [latestRows] = await pool.query(
+    `SELECT session_id, archive_status, workspace_key, brand_key
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')
+      ORDER BY started_at DESC
+      LIMIT 1`,
+    [tenantId, userId, userId]
+  );
+  const latest = latestRows[0] || null;
+  const activeCount = asCount(activeRow?.active_count);
+  return {
+    session_id: latest?.session_id || null,
+    closed_sessions: 0,
+    archive_status: latest?.archive_status || "not_opened",
+    session_management: {
+      mode: "read_only_existing_session",
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: false,
+      active_sessions_before_open: activeCount,
+      active_sessions_after_open: activeCount,
+      status_written: null,
+      context_read: {
+        tenant_id: tenantId,
+        user_id: userId,
+        workspace_key: latest?.workspace_key || workspaceKey,
+        brand_key: latest?.brand_key || brandKey,
+      },
+      note: "Session Context read-only mode can inspect context without minting a fresh session id; use it before ChatGPT conversation ref capture diagnostics.",
+    },
   };
 }
 
@@ -410,7 +1431,26 @@ export async function buildActivationSessionContext(req) {
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 
-  const { session_id: newSessionId, closed_sessions } = await autoOpenGptSession(pool, subject);
+  // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
+  // Read-only callers can inspect context without minting a fresh session id, which prevents accidental ChatGPT URL ref relinking during diagnostics.
+  const lifecycleOptions = {
+    read_only: !shouldOpenActivationSession(req.query),
+    session_policy: queryStringValue(req.query.session_policy) || (shouldOpenActivationSession(req.query) ? "reuse_or_create" : "read_only"),
+    idempotency_key: queryStringValue(req.query.idempotency_key) || null,
+    conversation_ref: queryStringValue(req.query.conversation_ref) || null,
+    response_profile: normalizeActivationResponseProfile(req.query.response_profile),
+    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+    reuse_window_hours: req.query.reuse_window_hours,
+  };
+  const sessionOpen = await resolveActivationSessionLifecycle({
+    pool,
+    subject,
+    options: lifecycleOptions,
+    openSession: () => autoOpenGptSession(pool, subject, {
+      close_previous_sessions: lifecycleOptions.close_previous_sessions,
+    }),
+  });
+  const { session_id: newSessionId, run_id: activationRunId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
   const offset = normalizeOffset(req.query.offset);
@@ -495,7 +1535,23 @@ export async function buildActivationSessionContext(req) {
         ok: true,
         rows: [],
         skipped: true,
+        reason_code: "execution_log_not_user_scoped",
         reason: "execution_log transcript is not user-scoped; user JWT callers receive request_envelope transcripts only."
+      };
+  const transcriptSourceStatus = executionTranscript.skipped
+    ? {
+        source: "execution_log",
+        status: "skipped",
+        tenant_safe: true,
+        reason_code: executionTranscript.reason_code || "not_available",
+        fallback_source: "request_envelopes"
+      }
+    : {
+        source: "execution_log",
+        status: executionTranscript.ok ? "available" : "degraded",
+        tenant_safe: Boolean(subject.is_admin),
+        event_count: executionTranscript.rows.length,
+        reason_code: executionTranscript.ok ? null : "execution_log_query_failed"
       };
 
   const scopeSet = new Set();
@@ -516,11 +1572,15 @@ export async function buildActivationSessionContext(req) {
     }
   }
   const gptSessionsTenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const includeSmokeSessions = asBoolean(req.query.include_smoke_sessions);
+  const gptOriginatorWhere = includeSmokeSessions
+    ? "originator IN ('gpt_action', 'gpt_action_smoke')"
+    : "originator = 'gpt_action'";
   const gptSessions = await safeQuery(
     `SELECT session_id, tenant_id, user_id, session_status, turn_count,
             started_at, ended_at, drive_export_url
      FROM \`customer_sessions\`
-     WHERE originator = 'gpt_action'
+     WHERE ${gptOriginatorWhere}
        AND tenant_id = ?
        AND (? IS NULL OR user_id = ?)
      ORDER BY started_at DESC
@@ -529,6 +1589,7 @@ export async function buildActivationSessionContext(req) {
   );
 
   const platformAccess = await buildActivationPlatformAccess(req);
+  const authorizedAccess = await buildActivationAuthorizedAccess(req, subject);
   const pendingTasks = await loadActivationPendingTasks(subject, 25);
   const pendingTaskRows = pendingTasks.rows || [];
   const pendingTaskSummary = {
@@ -545,9 +1606,25 @@ export async function buildActivationSessionContext(req) {
     }, {})
   };
 
+  const conversationMemory = await loadConversationMemoryContext(pool, subject, {
+    limit,
+    include_turns: asBoolean(req.query.include_turns),
+    turns_limit: capLimit(req.query.turns_limit, 20, 100),
+    raw_max_chars: rawMaxChars,
+    gpt_sessions: gptSessions.rows,
+    pending_tasks: pendingTaskRows,
+  });
+
+  const platformEvolution = await loadPlatformEvolutionCheckpointContext(subject, req.query || {});
+
   return {
     session_id: newSessionId,
+    run_id: activationRunId || sessionOpen.run_id || null,
+    idempotency_key: sessionOpen.idempotency_key || null,
+    session_policy: sessionOpen.session_policy || lifecycleOptions.session_policy,
+    session_reused: sessionOpen.reused === true,
     closed_sessions,
+    session_management: sessionOpen.session_management,
     subject,
     pagination: {
       limit,
@@ -586,13 +1663,43 @@ export async function buildActivationSessionContext(req) {
           }
         } : {})
       })),
-      transcript_events_note: executionTranscript.skipped ? executionTranscript.reason : undefined,
+      transcript_source_status: transcriptSourceStatus,
       developer_apps: developerApps.rows.map((row) => ({ ...row, scopes: parseScopes(row.scopes) })),
       api_credentials: apiCredentials.rows.map((row) => ({ ...row, scopes: parseScopes(row.scopes) })),
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))
     },
     gpt_sessions: gptSessions.rows,
+    turn_capture_policy: {
+      status: "required_for_full_transcript",
+      write_tool: "gpt_session_turns_write_batch",
+      write_path: `/gpt/sessions/${newSessionId}/turns`,
+      intended_use: "After each conversational exchange, write the user prompt and assistant reply together so Drive archives contain non-tool transcript turns.",
+      sql_content_mode: "preview_hash_only",
+      full_content_storage: "drive_doc_and_jsonl",
+      current_session_id: newSessionId,
+      secrets_included: false,
+    },
+    conversation_ref_capture_policy: {
+      status: "required_when_chatgpt_url_available",
+      source_of_truth: "activation_session_context.current_session_id",
+      current_session_id: newSessionId,
+      primary_tool: "gpt_session_conversation_ref_mark_primary",
+      capture_current_tool: "gpt_session_conversation_ref_capture_current",
+      upsert_tool: "gpt_session_conversation_ref_upsert",
+      primary_path: `/gpt/sessions/${newSessionId}/conversation-ref/mark-primary`,
+      capture_current_path: `/gpt/sessions/${newSessionId}/conversation-ref/capture-current`,
+      supported_sources: ["manual_user_supplied", "browser_connector", "browser_extension"],
+      intended_use: "When a personal ChatGPT conversation URL or share URL is available, attach it to current_session_id and mark it primary; never infer the session from recency, tenant/admin status, or tool activity.",
+      accepted_url_kinds: ["personal_conversation_url", "share_url"],
+      supported_interfaces: ["admin_custom_gpt", "tenant_custom_gpt"],
+      personal_urls_are_owner_private: true,
+      supersede_policy: "Older refs for the same ChatGPT conversation/share id are retained and marked superseded_by_ref_id.",
+      secrets_included: false,
+    },
+    conversation_memory: conversationMemory,
     platform_access: platformAccess,
+    authorized_access: authorizedAccess,
+    platform_evolution: platformEvolution,
     pending_tasks: {
       summary: pendingTaskSummary,
       items: pendingTaskRows
@@ -606,7 +1713,9 @@ export async function buildActivationSessionContext(req) {
       ["execution_log", executionTranscript],
       ["gpt_sessions", gptSessions],
       ["pending_tasks", pendingTasks],
-      ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }]
+      ["conversation_memory", { ok: conversationMemory.degraded_surfaces.length === 0, error: { code: "conversation_memory_degraded", details: conversationMemory.degraded_surfaces } }],
+      ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }],
+      ["platform_evolution", { ok: platformEvolution.ok !== false, error: platformEvolution.error || { code: "platform_evolution_degraded" } }]
     ]
       .filter(([, result]) => !result.ok)
       .map(([surface, result]) => ({ surface, error: result.error }))
@@ -635,7 +1744,9 @@ export function buildActivationRoutes(deps) {
       bootstrap: {
         registry_spreadsheet_id: REGISTRY_SPREADSHEET_ID,
         activity_spreadsheet_id: ACTIVITY_SPREADSHEET_ID,
-        activation_bootstrap_spreadsheet_id: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+        activation_google_workspace_probe_spreadsheet_id: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
+        legacy_activation_bootstrap_spreadsheet_id_alias: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
+        activation_bootstrap_authority: "db_runtime",
         activation_bootstrap_config_sheet: ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
         activation_bootstrap_config_range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
       },
@@ -751,14 +1862,119 @@ export function buildActivationRoutes(deps) {
     }
   });
 
-  router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
+  router.post("/activation/hard-run/legacy-full", requireBackendApiKey, async (req, res) => {
+    let sessionContext = null;
+    let providerBootstrap = null;
     try {
-      const context = await buildActivationSessionContext(req);
+      const sessionReq = {
+        ...req,
+        query: {
+          ...(req.query || {}),
+          ...(req.body?.tenant_id ? { tenant_id: req.body.tenant_id } : {}),
+          ...(req.body?.user_id ? { user_id: req.body.user_id } : {}),
+          ...(req.body?.limit ? { limit: req.body.limit } : {}),
+          ...(req.body?.include_raw !== undefined ? { include_raw: req.body.include_raw } : {}),
+          ...(req.body?.close_previous_sessions !== undefined ? { close_previous_sessions: req.body.close_previous_sessions } : {}),
+        },
+      };
+      const context = await buildActivationSessionContext(sessionReq);
+      sessionContext = { ok: true, activation_layer: "session_context", ...context };
+    } catch (err) {
+      sessionContext = { ok: false, activation_layer: "session_context", error: { code: err.code || "session_context_failed", message: err.message } };
+    }
+
+    try {
+      const internalBase = process.env.INTERNAL_BASE_URL || `http://localhost:${process.env.PORT || 8080}`;
+      const response = await fetch(`${internalBase}/admin/system/tools/call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: process.env.BACKEND_API_KEY ? `Bearer ${process.env.BACKEND_API_KEY}` : (req.headers.authorization || ""),
+        },
+        body: JSON.stringify({ name: "activation_provider_bootstrap_validate", arguments: req.body?.provider_arguments || {} }),
+        signal: AbortSignal.timeout(300000),
+      });
+      const payload = await response.json().catch(() => ({}));
+      providerBootstrap = payload?.result || payload;
+      if (payload?.ok === false && providerBootstrap?.ok !== false) {
+        providerBootstrap = { ok: false, activation_layer: "provider_bootstrap_system_tool", error: payload.error };
+      }
+    } catch (err) {
+      providerBootstrap = { ok: false, activation_layer: "provider_bootstrap_system_tool", error: { code: err.code || "provider_bootstrap_failed", message: err.message } };
+    }
+
+    const hard = buildHardActivationEvidenceMatrix({
+      sessionContext,
+      providerBootstrap,
+      repoCanonicals: await buildRepoCanonicalRuntimeEvidence(),
+      toolCatalog: buildDynamicToolCatalogEvidence({ platformAccess: sessionContext?.platform_access || null, authorizedAccess: sessionContext?.authorized_access || null }),
+    });
+
+    return res.status(hard.activation_complete ? 200 : 424).json({
+      ok: hard.activation_complete,
+      activation_layer: "hard_activation_orchestrator",
+      activation_complete: hard.activation_complete,
+      runtime_classification: {
+        activation_status: hard.activation_status,
+        status_authority: hard.status_authority,
+        reason_code: hard.reason_code,
+      },
+      evidence_matrix: hard.evidence_matrix,
+      dynamic_tabs: await buildActivationDynamicTabsEvidence({ sessionContext }), operational_intelligence: await buildActivationOperationalIntelligenceEvidence({ sessionContext }), operational_dashboard: await buildActivationOperationalDashboardEvidence({ sessionContext }), session_context_evidence: hard.evidence_matrix.session_context,
+      provider_bootstrap_evidence: hard.evidence_matrix.provider_bootstrap,
+      provider_bootstrap: providerBootstrap,
+      degraded_surfaces: hard.degraded_surfaces,
+      report_policy: {
+        may_report_session_context_loaded: hard.evidence_matrix.session_context.ok === true,
+        may_report_activation_complete: hard.activation_complete === true,
+        session_context_claim_requires: "getActivationSessionContext evidence with activation_layer=session_context and session_id",
+      },
+      secrets_included: false,
+    });
+  });
+
+  router.get("/activation/session-context/read-only", requireBackendApiKey, async (req, res) => {
+    try {
+      const context = await buildActivationSessionContext({
+        ...req,
+        query: {
+          ...req.query,
+          read_only: "true",
+        },
+      });
       return res.status(200).json({
         ok: true,
         activation_layer: "session_context",
+        read_only: true,
         ...context
       });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "activation_session_context_read_only_failed",
+          message: err.message
+        }
+      });
+    }
+  });
+
+  router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
+    try {
+      const context = await buildActivationSessionContext(req);
+      const responseBody = {
+        ok: true,
+        activation_layer: "session_context",
+        ...context
+      };
+      const transportBody = await maybeChunkToolResponseBody(responseBody, {
+        response_options: {
+          max_response_chars: req.query.max_response_chars,
+          chunk_ttl_minutes: req.query.chunk_ttl_minutes,
+        },
+        source_tool_key: "activation_session_context_read_api",
+      });
+      return res.status(200).json(transportBody);
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,

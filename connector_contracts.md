@@ -109,11 +109,20 @@ All intermediate evidence construction and status-string normalization are priva
   2. Platform Google identity using service account ADC / `GOOGLE_APPLICATION_CREDENTIALS` / `GOOGLE_SA_JSON`.
   3. Platform refresh-token credentials via `GOOGLE_REFRESH_TOKEN` + `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`.
 - **Fallback rule:** If caller requests user/tenant auth and `allow_platform_fallback=false`, missing scoped credentials must throw a scoped auth error rather than using platform identity.
-- **Cache:** 55-minute TTL keyed by action plus effective OAuth ref.
+- **Cache identity:** 55-minute TTL keyed by action key, credential scope, user, tenant, connection, app key, and effective OAuth ref. Different principals or connections must never share token entries.
+- **Inflight behavior:** `runGoogleTokenResolutionOnce()` deduplicates only requests with the same complete context key and removes the inflight promise after completion; different context keys resolve independently.
 - **Returns:** access token string, or `""` only when no allowed credential path is configured.
 
+#### `buildGoogleTokenCacheKey(options)`
+- **Purpose:** Produce the no-secret token cache identity from governed action and principal/connection context.
+- **Security:** The key contains identifiers and references only, never raw tokens, client secrets, refresh tokens, or credential payloads.
+
+#### `runGoogleTokenResolutionOnce(key, resolver)`
+- **Purpose:** Share one inflight token-resolution promise for an identical governed context.
+- **Boundary:** It is not a global lock; requests for different users, tenants, connections, actions, or OAuth refs execute independently.
+
 ### Internal (not exported)
-Global token fetch, member-scoped token fetch, OAuth ref parsing, and cache helpers.
+Global token fetch, member-scoped token fetch, and OAuth ref parsing helpers.
 
 ---
 
@@ -139,6 +148,63 @@ Global token fetch, member-scoped token fetch, OAuth ref parsing, and cache help
 AES-GCM decryption helpers, credential field extraction, scope matching, and last-used telemetry helpers.
 
 ---
+
+## Local connector installer routes
+
+### `/local-connector/install/device-download-link` and `/local-connector/install/download`
+
+- **Purpose:** Issue and download short-lived, signed connector repair/capability installer bootstraps for the linked Local Manager device.
+- **Caller:** Local Manager Windows app using a DPAPI-protected `local_manager.device` token.
+- **App-managed mode:** `app_managed=true` and `suppress_pause=true` make the generated BAT exit with `exit /b 0` or `exit /b 1` instead of pausing. Manual downloads retain `pause`.
+- **Payload authority:** `capabilities` and `permission_grants` are signed into the installer token. The route must normalize and preserve requested capabilities, app grants, allowed paths, and helper shell aliases.
+- **Security:** UAC/local Administrator approval is still required. Installer JSON responses and app diagnostics must not expose connector secrets or signed token values.
+
+### `/connector-agent/installer.ps1`
+
+- **Purpose:** Generate the PowerShell installer that downloads manifest-verified connector agent files, writes the effective local `.env`, configures cloudflared/NSSM, and restarts the `local-connector` service.
+- **Caller:** The BAT wrapper returned by `/local-connector/install/download`.
+- **Capability contract:** This route is the final `.env` writer and must render signed opt-in values into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`.
+- **Regression guard:** Do not declare capability install recovered from Settings refresh alone. Validate live connector behavior: `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`.
+
+## GitHub REST endpoint dispatch
+
+GitHub REST operations resolve through the SQL-primary registry chain rather than caller-supplied transport details:
+
+```text
+actions.github_api_mcp
+  -> endpoints
+  -> platform_endpoint_tool_exports
+  -> platform_tool_dispatch_bindings
+  -> runtime_endpoint_call
+  -> http_generic_api
+```
+
+The Admin tool `github_rest_endpoint_dispatch` forwards a nested `tool_args` object to the existing `runtime_endpoint_call` system-layer dispatcher. Callers may select only reviewed endpoint keys and bounded path, query, body, approval, and readback fields. The HTTP method, endpoint path, provider domain, authentication, and transport action are loaded from the active canonical `endpoints` row.
+
+Executable rows must have a non-null canonical endpoint identity, `status=active`, `execution_readiness=ready`, and `transport_action_key=http_generic_api`. Imported or historical inventory rows without that evidence remain non-authoritative.
+
+The initial projection covers pull-request metadata updates plus issue-label list, add, replace, and remove operations. Provider mutations remain subject to runtime authority, preflight or dry-run requirements, approval, audit, and same-cycle readback. The projection does not itself authorize writes and never accepts raw URLs, methods, or authorization headers.
+
+See `docs/github-rest-endpoint-dispatch.md`.
+
+### Credential-binding evidence
+
+Connector transport metadata and credential-binding evidence are separate contracts. `selected_source.credential_source_candidates` describes candidate resolution paths such as `platform_managed`, `tenant_connection`, or `none`; it does not prove that a credential payload was selected, decrypted, or materialized. `selected_source.active_credential_binding_count` is the bounded authority for whether an apply envelope is credential-backed.
+
+Apply authorization must therefore remain count-driven: zero active bindings may use an explicitly allowed no-credential path, a positive count must be blocked when credential-backed execution is forbidden, and a zero count must be blocked when policy requires a binding. Candidate metadata must not create authority or weaken capability-envelope, provider, approval, audit, readback, or no-secret guarantees.
+
+## Dynamic Container projection source loader
+
+The Dynamic Container projection source loader is an internal runtime contract, not a connector transport. It reads the SQL authority tables used by `dynamic_container_projection_dry_run` and `container-authority/projections`.
+
+- Public caller: `dynamicContainerProjectionService.buildLegacyContainerProjectionPlan()`.
+- Route surfaces: `/admin/container-authority/projection-preview` and `/container-authority/projections`.
+- Behavior: source queries execute sequentially to stay within bounded database pool limits and produce deterministic dependency diagnosis.
+- Error contract: a source read failure throws `container_projection_source_load_failed` with HTTP `503`, `stage=load_projection_sources`, and a bounded source name.
+- Safety: no provider call, credential payload read, external write, enforcement, promotion, secret return, raw SQL echo, or stack trace exposure.
+- Testing: regression coverage asserts maximum source-query concurrency of one and verifies the structured source failure envelope.
+
+This loader must remain an application/infrastructure boundary helper. Route handlers map its structured errors into the shared API envelope; they must not embed source-loading business logic or perform ad hoc database reads for projection planning.
 
 ## Dispatch entrypoint
 

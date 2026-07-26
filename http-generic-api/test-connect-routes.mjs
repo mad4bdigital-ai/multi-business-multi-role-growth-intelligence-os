@@ -7,12 +7,15 @@
  * Run: node test-connect-routes.mjs
  */
 
+// frontend-surface-operation: POST /connect/bootstrap
+
 import express from "express";
 import { readFileSync } from "node:fs";
-import yaml from "js-yaml";
+import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildConnectApiRoutes } from "./routes/connectApiRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
+await import("./test-tenant-connect-bootstrap-service.mjs");
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -30,7 +33,9 @@ function assert(label, condition, detail = "") {
     console.log(`  [PASS] ${label}`);
     passed++;
   } else {
-    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
+    const message = `${label}${detail ? ` - ${detail}` : ""}`;
+    console.error(`  [FAIL] ${message}`);
+    console.error(`::error title=Connect route assertion failed::${message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`);
     failed++;
   }
 }
@@ -122,12 +127,13 @@ try {
   section("auth openapi contract");
 
   {
-    // MCP-style tenant schema: five meta-operations replace all explicit paths.
-    // Connect/system operations are now accessed via callTool (discovered through listTools).
-    const doc = yaml.load(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
+    // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
+    // Connect/system operations are still accessed via callTool (discovered through listTools).
+    const doc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8"));
+    const activationDoc = YAML.parse(readFileSync("openapi/openapi.tenant-gpt.activation.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
-    const callToolSchema = doc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+    const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
       return Object.entries(pathItem)
@@ -153,17 +159,32 @@ try {
     assert("tenant GPT schema preset carries scope links", TENANT_SCOPE_LINKS.every((scope) => doc["x-gpt-action-auth-preset"]?.scope_links?.includes(scope)), JSON.stringify(doc["x-gpt-action-auth-preset"]));
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
 
-    // MCP meta-operations (connect/system tools are now accessible via callTool)
-    assert("tenant GPT schema exposes activateSession", exposedPaths.includes("/activation/session-context"), exposedPaths.join(", "));
-    assert("tenant GPT schema exposes listTools", exposedPaths.includes("/gpt/tools"), exposedPaths.join(", "));
-    assert("tenant GPT schema exposes callTool", exposedPaths.includes("/gpt/tools/call"), exposedPaths.join(", "));
+    // MCP meta-operations (connect/system tools are accessible through system-layer callTool)
+    assert("tenant Activation schema exposes activateSession", Boolean(activationDoc.paths?.["/tenant/activation/session-context"]?.get), Object.keys(activationDoc.paths || {}).join(", "));
+    assert("tenant Core schema excludes Activation paths", !exposedPaths.some((path) => path.startsWith("/activation") || path.startsWith("/tenant/activation")), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes listTools", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes callTool", exposedPaths.includes("/system/tools/call"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes writeSessionTurn", exposedPaths.includes("/gpt/sessions/{id}/turn"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes endSession", exposedPaths.includes("/gpt/sessions/{id}/end"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin catalog", exposedPaths.includes("/tenant/platform/plugins/catalog"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin install", exposedPaths.includes("/tenant/platform/plugins/install"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin resolve", exposedPaths.includes("/tenant/platform/plugins/resolve"), exposedPaths.join(", "));
 
     assert("tenant GPT callTool body requires name", Array.isArray(callToolSchema?.required) && callToolSchema.required.includes("name"));
-    assert("tenant GPT all POST operations are non-consequential",
-      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false),
-      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false).map(({ pathKey }) => pathKey).join(", "));
+    const consequentialTenantOperations = new Set([
+      "tenantPlatformPluginInstall",
+      "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "decideTenantSkillApproval",
+      "postMeWorkspacesTenantIdResourcesResourceKey",
+      "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
+    ]);
+    assert("tenant GPT POST operations are non-consequential except explicit consent and resource mutations",
+      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false || consequentialTenantOperations.has(operation.operationId)),
+      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false && !consequentialTenantOperations.has(operation.operationId)).map(({ pathKey }) => pathKey).join(", "));
+    for (const operationId of consequentialTenantOperations) {
+      const operation = postOps.find((entry) => entry.operation.operationId === operationId)?.operation;
+      assert(`tenant GPT ${operationId} remains consequential`, operation?.["x-openai-isConsequential"] === true);
+    }
     assert("tenant GPT schema does not expose admin provider-bootstrap paths", !exposedPaths.some((p) => p.startsWith("/admin/")), exposedPaths.join(", "));
   }
 
@@ -263,6 +284,49 @@ try {
       migrationSource.includes("connect_integration_policy_update"));
   }
 
+  {
+    const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
+    const activationGraphSource = readFileSync("activationGraphContext.js", "utf8");
+    const telemetrySource = readFileSync("graphMemoryTelemetry.js", "utf8");
+    const activationGraphMigration = readFileSync("migrations/109_sprint62t_activation_graph_docs_telemetry.sql", "utf8");
+    const parentOpenapi = readFileSync("openapi.yaml", "utf8");
+    assert("connect status/capabilities/activate return activation graph context",
+      routeSource.includes("resolveActivationGraphContext") &&
+      routeSource.includes("activation_graph_context: state.activationGraphContext") &&
+      routeSource.includes("activation_graph_context: activationGraphContext") &&
+      routeSource.includes('surface: "connect_activate"'));
+    assert("activation graph context is advisory and secret-free",
+      activationGraphSource.includes("activation_resolver_advisory") &&
+      activationGraphSource.includes("applied_to_authority: false") &&
+      activationGraphSource.includes("resolvePlatformGraphMemory") &&
+      activationGraphSource.includes("policy_asset_keys") &&
+      activationGraphSource.includes("mode_hints") &&
+      activationGraphSource.includes("integration_summary") &&
+      activationGraphSource.includes("secrets_included: false"));
+    assert("activation graph context emits non-blocking telemetry",
+      activationGraphSource.includes("logGraphMemoryUsage") &&
+      activationGraphSource.includes("activation_graph_resolved") &&
+      activationGraphSource.includes("activation_graph_empty") &&
+      telemetrySource.includes("graph_memory_usage_events") &&
+      telemetrySource.includes("Telemetry must never block activation or execution flows"));
+    assert("activation graph migration seeds doctrine assets and telemetry table",
+      activationGraphMigration.includes("CREATE TABLE IF NOT EXISTS `graph_memory_usage_events`") &&
+      activationGraphMigration.includes("activation_managed_flow_doctrine") &&
+      activationGraphMigration.includes("activation_dedicated_flow_doctrine") &&
+      activationGraphMigration.includes("activation_hybrid_integration_policy_doctrine") &&
+      activationGraphMigration.includes("activation_device_install_prerequisites_doctrine") &&
+      activationGraphMigration.includes("activation_graph_context_boundary_doctrine") &&
+      activationGraphMigration.includes("secrets_included"));
+    assert("parent OpenAPI documents graph and activation context envelopes",
+      parentOpenapi.includes("GraphMemorySelectionPolicy") &&
+      parentOpenapi.includes("GraphMemoryExecutionContext") &&
+      parentOpenapi.includes("ActivationGraphContext") &&
+      parentOpenapi.includes("activation_resolver_advisory") &&
+      parentOpenapi.includes("applied_to_authority") &&
+      parentOpenapi.includes("applied_to_transport") &&
+      parentOpenapi.includes("graph_memory_context"));
+  }
+
   section("connect tenantless onboarding recovery");
 
   {
@@ -273,10 +337,21 @@ try {
     const indexSource = readFileSync("routes/index.js", "utf8");
     assert("connect exposes explicit onboarding-state route",
       routeSource.includes('router.get("/connect/onboarding-state"') && routeSource.includes('workspace_required'));
-    assert("connect exposes tenantless-safe workspace creation and escalation routes",
+    assert("connect exposes tenantless-safe workspace creation, bootstrap, and escalation routes",
+      routeSource.includes('router.post("/connect/bootstrap"') &&
+      routeSource.includes('orchestrateTenantConnectBootstrap') &&
+      routeSource.includes('activateManagedConnectionForTenant') &&
       routeSource.includes('router.post("/connect/workspace"') &&
       routeSource.includes('router.post("/connect/escalate"') &&
       routeSource.includes('onboarding_escalations'));
+    const bootstrapMigration = readFileSync("migrations/20260718_tenant_connect_bootstrap_tool.sql", "utf8");
+    assert("tenant tool registry migration exposes connect_bootstrap with managed-only idempotent readback contract",
+      bootstrapMigration.includes("'connect_bootstrap'") &&
+      bootstrapMigration.includes("'/connect/bootstrap'") &&
+      bootstrapMigration.includes("'managed'") &&
+      bootstrapMigration.includes("idempotent") &&
+      bootstrapMigration.includes("same_cycle_readback") &&
+      bootstrapMigration.includes("no_secrets"));
     assert("connect exposes minimal /me workspace/capability control-plane",
       routeSource.includes('router.get("/me"') &&
       routeSource.includes('router.get("/me/workspaces"') &&
@@ -330,6 +405,296 @@ section("connect api auth scope");
     assert("connect api still requires user JWT", connectResponse.status === 401, JSON.stringify(connectBody));
     assert("connect api missing JWT code is stable", connectBody?.error?.code === "user_jwt_required", JSON.stringify(connectBody));
 
+    const apiSource = readFileSync("routes/connectApiRoutes.js", "utf8");
+    assert("connect app connections list uses live user_app_connections timestamp columns",
+      apiSource.includes("connected_at AS created_at") &&
+      apiSource.includes("COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at") &&
+      !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
+    const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
+    const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
+    const repairPolicyRouterSource = readFileSync("repairPolicyRouter.js", "utf8");
+    const executionEvidenceLoggerSource = readFileSync("executionEvidenceLogger.js", "utf8");
+    const pluginPolicySource = readFileSync("platformPluginPolicy.js", "utf8");
+    const pluginInstallSource = readFileSync("platformPluginInstall.js", "utf8");
+    const pluginContributionSource = readFileSync("platformPluginContribution.js", "utf8");
+    const pluginPromotionSource = readFileSync("platformPluginPromotion.js", "utf8");
+    const pluginPrivateRestDispatchSource = readFileSync("platformPluginPrivateRestDispatch.js", "utf8");
+    const sessionSummarySource = readFileSync("sessionSummaryService.js", "utf8");
+    const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
+    const agentLoopRunnerSource = readFileSync("agentLoopRunner.js", "utf8");
+    const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
+    const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
+    const connectorDispatchPolicyMigrationSource = readFileSync("migrations/126_sprint64_connector_dispatch_preflight.sql", "utf8");
+    const agentLoopPolicyMigrationSource = readFileSync("migrations/127_sprint64_agent_loop_preflight.sql", "utf8");
+    const brandCoreAgentLoopGuardMigrationSource = readFileSync("migrations/128_sprint64_brand_core_agent_loop_guard.sql", "utf8");
+    assert("successful app connection use self-heals validation status",
+      appAdapterSource.includes("validation_status = 'validated'") &&
+      appAdapterSource.includes("last_validated_at = NOW()") &&
+      appAdapterSource.includes("if (result?.ok)") &&
+      appAdapterSource.includes("UPDATE `user_app_connections` SET last_used_at = NOW()"));
+    assert("app actions call governed policy preflight before adapter execution",
+      appAdapterSource.includes("evaluateAppActionPreflight") &&
+      appAdapterSource.includes("assertPreflightAllowed") &&
+      appAdapterSource.indexOf("evaluateAppActionPreflight") < appAdapterSource.indexOf("adapter.call(action_key") &&
+      appActionPolicyMigrationSource.includes("External App Action Governance") &&
+      appActionPolicyMigrationSource.includes("External App Action Preflight Visibility") &&
+      appActionPolicyMigrationSource.includes("blocking`, `notes") &&
+      appActionPolicyMigrationSource.includes("'FALSE'"));
+    assert("n8n execute_workflow has a blocking app action policy guard",
+      governedPreflightSource.includes("n8n Workflow Execution Guard") &&
+      governedPreflightSource.includes("allow_n8n_workflow_execution") &&
+      governedPreflightSource.includes("n8n_execution_reason") &&
+      governedPreflightSource.includes("n8n_workflow_execution_requires_explicit_reason") &&
+      n8nWorkflowGuardMigrationSource.includes("n8n Workflow Execution Guard") &&
+      n8nWorkflowGuardMigrationSource.includes("execute_workflow") &&
+      n8nWorkflowGuardMigrationSource.includes("'TRUE'") &&
+      n8nWorkflowGuardMigrationSource.includes("min_reason_chars"));
+    assert("connector dispatch calls governed policy preflight before execution state changes",
+      governedPreflightSource.includes("evaluateConnectorDispatchPreflight") &&
+      governedPreflightSource.includes("Connector Dispatch Governance") &&
+      governedPreflightSource.includes("WordPress Apply Requires Explicit Reason") &&
+      connectorExecutorSource.includes("evaluateConnectorDispatchPreflight") &&
+      connectorExecutorSource.indexOf("evaluateConnectorDispatchPreflight") < connectorExecutorSource.indexOf("await createWorkflowRun") &&
+      connectorDispatchPolicyMigrationSource.includes("Connector Dispatch Preflight Visibility") &&
+      connectorDispatchPolicyMigrationSource.includes("connector_dispatch|workflow_dispatch") &&
+      connectorDispatchPolicyMigrationSource.includes("'FALSE'"));
+    assert("agent loop calls governed policy preflight before model or engine execution",
+      governedPreflightSource.includes("evaluateAgentLoopPreflight") &&
+      governedPreflightSource.includes("Agent Loop Governance") &&
+      governedPreflightSource.includes("Brand Writing Requires Brand Core") &&
+      agentLoopRunnerSource.includes("evaluateAgentLoopPreflight") &&
+      agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight") < agentLoopRunnerSource.indexOf("if (execution_class === \"rule_based\")") &&
+      agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight") < agentLoopRunnerSource.indexOf("deps.runLogicWithModel") &&
+      agentLoopPolicyMigrationSource.includes("Agent Loop Preflight Visibility") &&
+      agentLoopPolicyMigrationSource.includes("agent_loop|model_tool_loop") &&
+      agentLoopPolicyMigrationSource.includes("'FALSE'"));
+    assert("Brand Core is loaded before agent-loop writing governance is enforced",
+      agentLoopRunnerSource.includes("loadBrandCoreEvidence") &&
+      agentLoopRunnerSource.includes("context.brand_core") &&
+      agentLoopRunnerSource.includes("context.brand_core_resolved") &&
+      agentLoopRunnerSource.indexOf("const brandCoreEvidence = await loadBrandCoreEvidence") < agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight({") &&
+      governedPreflightSource.includes("brand_writing_requires_brand_core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("Brand Writing Requires Brand Core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("blocking`, `notes") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("'TRUE'"));
+    assert("Brand Core evidence requires registry surface authority before being marked resolved",
+      agentLoopRunnerSource.includes("resolveSurfaceAuthority") &&
+      agentLoopRunnerSource.includes("SURFACE_KEYS.BRAND_CORE_REGISTRY") &&
+      agentLoopRunnerSource.includes("surface_authority") &&
+      agentLoopRunnerSource.includes("ready: true") &&
+      agentLoopRunnerSource.includes("ready: false") &&
+      agentLoopRunnerSource.includes("context.brand_core_lookup") &&
+      agentLoopRunnerSource.includes("context.brand_core_surface_authority") &&
+      agentLoopRunnerSource.includes("brand_core_resolution_error") &&
+      agentLoopRunnerSource.indexOf("resolveSurfaceAuthority(SURFACE_KEYS.BRAND_CORE_REGISTRY") < agentLoopRunnerSource.indexOf("brand_core") &&
+      agentLoopRunnerSource.indexOf("brandCoreEvidence?.ready") < agentLoopRunnerSource.indexOf("context.brand_core_resolved = true"));
+    assert("validation_repair routes Brand Core policy blocks to repair candidates",
+      repairPolicyRouterSource.includes("resolveRepairCandidates") &&
+      repairPolicyRouterSource.includes("resolveBrandCoreRepairCandidates") &&
+      repairPolicyRouterSource.includes("SURFACE_KEYS.VALIDATION_REPAIR_REGISTRY") &&
+      repairPolicyRouterSource.includes("validation_repair") &&
+      repairPolicyRouterSource.includes("add_brand_core_assets") &&
+      repairPolicyRouterSource.includes("secrets_included: false") &&
+      governedPreflightSource.includes("resolveBrandCoreRepairCandidates") &&
+      governedPreflightSource.includes("evidence.repair_policy") &&
+      governedPreflightSource.includes("repair_policy_lookup_failed"));
+    assert("execution_log writes use surface-gated execution evidence logger",
+      executionEvidenceLoggerSource.includes("writeExecutionEvidence") &&
+      executionEvidenceLoggerSource.includes("SURFACE_KEYS.EXECUTION_LOG") &&
+      executionEvidenceLoggerSource.includes("assertSurfaceAuthority") &&
+      executionEvidenceLoggerSource.indexOf("assertSurfaceAuthority") < executionEvidenceLoggerSource.indexOf("INSERT INTO execution_log") &&
+      executionEvidenceLoggerSource.includes("execution_trace_id_writeback") &&
+      executionEvidenceLoggerSource.includes("secrets_included: false") &&
+      pluginPolicySource.includes("writeExecutionEvidence") &&
+      pluginPolicySource.includes("writePolicyExecutionLog") &&
+      !pluginPolicySource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginInstallSource.includes("writeExecutionEvidence") &&
+      pluginInstallSource.includes("writeInstallExecutionLog") &&
+      !pluginInstallSource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginContributionSource.includes("writeExecutionEvidence") &&
+      pluginContributionSource.includes("writeContributionExecutionLog") &&
+      !pluginContributionSource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginPromotionSource.includes("writeExecutionEvidence") &&
+      pluginPromotionSource.includes("writeExecutionLog") &&
+      !pluginPromotionSource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginPrivateRestDispatchSource.includes("writeExecutionEvidence") &&
+      pluginPrivateRestDispatchSource.includes("writeExecutionLog") &&
+      !pluginPrivateRestDispatchSource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      sessionSummarySource.includes("writeExecutionEvidence") &&
+      sessionSummarySource.includes("writeSessionSummaryExecutionLog") &&
+      !sessionSummarySource.includes("await pool.query(\n    `INSERT INTO `execution_log`") &&
+      !sessionSummarySource.includes("INSERT INTO `execution_log`"));
+    assert("session summary JSON asset writes require registry surface authority",
+      sessionSummarySource.includes("assertSurfaceAuthority") &&
+      sessionSummarySource.includes("SURFACE_KEYS.JSON_ASSET_REGISTRY") &&
+      sessionSummarySource.includes("surface_authority") &&
+      sessionSummarySource.indexOf("assertSurfaceAuthority") < sessionSummarySource.indexOf("json_assets") &&
+      sessionSummarySource.includes("requireExecution: true"));
+    assert("JSON Asset Registry is promoted to a required execution surface",
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("surface.json_asset_registry_sheet") &&
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("required_for_execution` = 'TRUE'") &&
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("legacy_alias"));
+    assert("Platform Graph memory writes require registry surface authority",
+      sessionSummarySource.includes("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") &&
+      sessionSummarySource.includes("platform_graph_memory") &&
+      sessionSummarySource.includes("platformGraphSurfaceAuthority") &&
+      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platformGraphSurfaceAuthority.ok") &&
+      readFileSync("surfaceAuthorityResolver.js", "utf8").includes("PLATFORM_GRAPH_MEMORY") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("surface.platform_graph_memory") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("'TRUE'"));
+    assert("session summary verification reads back Platform Graph topology",
+      sessionSummarySource.includes("graph_conversation_node_present") &&
+      sessionSummarySource.includes("graph_asset_node_present") &&
+      sessionSummarySource.includes("graph_edge_present") &&
+      sessionSummarySource.includes("graph_topology_present") &&
+      sessionSummarySource.includes("summary_graph_topology_missing") &&
+      sessionSummarySource.includes("platform_graph_nodes") &&
+      sessionSummarySource.includes("platform_graph_edges") &&
+      sessionSummarySource.indexOf("platform_graph_nodes") < sessionSummarySource.indexOf("graph_topology_present"));
+    assert("Session Summary Memory is a required execution surface",
+      (() => {
+        const writeIndex = sessionSummarySource.indexOf("export async function writeSessionSummary");
+        const keyIndex = sessionSummarySource.indexOf("SURFACE_KEYS.SESSION_SUMMARY_MEMORY", writeIndex);
+        const summaryIdIndex = sessionSummarySource.indexOf("const summaryId = randomUUID()", writeIndex);
+        return sessionSummarySource.includes("loadSessionSummaryGraphMemory") &&
+          sessionSummarySource.includes("session_summary_memory") &&
+          writeIndex >= 0 && keyIndex > writeIndex && keyIndex < summaryIdIndex &&
+          readFileSync("surfaceAuthorityResolver.js", "utf8").includes("SESSION_SUMMARY_MEMORY") &&
+          readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("surface.session_summary_memory") &&
+          readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("session_summaries") &&
+          readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("required_for_execution") &&
+          readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("'TRUE'");
+      })());
+    assert("activation session context uses graph-backed session summary memory",
+      (() => {
+        const activationSource = readFileSync("routes/activationRoutes.js", "utf8");
+        const contextIndex = activationSource.indexOf("async function loadConversationMemoryContext");
+        const resolverIndex = activationSource.indexOf("loadSessionSummaryGraphMemory", contextIndex);
+        const fallbackIndex = activationSource.indexOf("session_summaries_sql_fallback", contextIndex);
+        return activationSource.includes("import { loadSessionSummaryGraphMemory }") &&
+          contextIndex >= 0 && resolverIndex > contextIndex && fallbackIndex > resolverIndex &&
+          activationSource.includes("prefer_graph_backed_session_summary_memory_then_sql_fallback") &&
+          activationSource.includes("session_summary_memory") &&
+          activationSource.includes("graph_backed_session_summaries") &&
+          activationSource.includes("session_summary_fallback_used") &&
+          activationSource.includes("secrets_included: false");
+      })());
+    assert("shared task route resolver is registry-driven and customization-aware",
+      (() => {
+        const source = readFileSync("taskRouteAuthorityResolver.js", "utf8");
+        const packageSource = readFileSync("scripts/test-manifest.mjs", "utf8");
+        return source.includes("resolveTaskRouteCandidates") &&
+          source.includes("SURFACE_KEYS.TASK_ROUTES") &&
+          source.includes("assertSurfaceAuthority") &&
+          source.includes("brand_specialization") &&
+          source.includes("client_specialization") &&
+          source.includes("team_specialization") &&
+          source.includes("supported_model_providers") &&
+          source.includes("supported_languages") &&
+          source.includes("registry_row_layered_customization") &&
+          source.includes("future_override_layers") &&
+          source.includes("secrets_included: false") &&
+          packageSource.includes("test-task-route-authority-resolver.mjs");
+      })());
+    assert("shared workflow registry resolver is registry-driven and customization-aware",
+      (() => {
+        const source = readFileSync("workflowRegistryAuthorityResolver.js", "utf8");
+        const packageSource = readFileSync("scripts/test-manifest.mjs", "utf8");
+        return source.includes("resolveWorkflowCandidates") &&
+          source.includes("SURFACE_KEYS.WORKFLOW_REGISTRY") &&
+          source.includes("assertSurfaceAuthority") &&
+          source.includes("brand_or_activity_specialization") &&
+          source.includes("client_specialization") &&
+          source.includes("team_specialization") &&
+          source.includes("model_capability_specialization") &&
+          source.includes("governance_requirement_specialization") &&
+          source.includes("engine_order") &&
+          source.includes("registry_row_layered_customization") &&
+          source.includes("future_override_layers") &&
+          source.includes("secrets_included: false") &&
+          packageSource.includes("test-workflow-registry-authority-resolver.mjs");
+      })());
+    const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
+    assert("n8n adapter accepts stored N8N_* credential aliases",
+      n8nAdapterSource.includes("normalizeN8nCredentials") &&
+      n8nAdapterSource.includes("creds.N8N_API_KEY") &&
+      n8nAdapterSource.includes("creds.N8N_BASE_URL") &&
+      n8nAdapterSource.includes("creds.N8N_LOCAL_BASE_URL") &&
+      n8nAdapterSource.includes("normalized.webhook_url") &&
+      n8nAdapterSource.includes("n8nReq(base, normalized"));
+    const credentialDiagnosticsSource = readFileSync("scripts/credential-diagnostics.mjs", "utf8");
+    assert("credential diagnostics recognizes uppercase credential aliases",
+      credentialDiagnosticsSource.includes("creds.N8N_API_KEY") &&
+      credentialDiagnosticsSource.includes("creds.HOSTINGER_API_KEY"));
+    const runtimeCoverageAuditSource = readFileSync("scripts/runtime-surface-coverage-audit.mjs", "utf8");
+    const adminCliSource = readFileSync("routes/adminCliRoutes.js", "utf8");
+    assert("runtime surface coverage audit maps legacy registry tables to governed runtime recovery services",
+      runtimeCoverageAuditSource.includes("execution_policies") &&
+      runtimeCoverageAuditSource.includes("registry_surfaces_catalog") &&
+      runtimeCoverageAuditSource.includes("validation_repair") &&
+      runtimeCoverageAuditSource.includes("Governed Canonical Agent Runtime") &&
+      runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
+      runtimeCoverageAuditSource.includes("governedToolUseLoop"));
+    const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
+    const surfaceAuthorityResolverSource = readFileSync("surfaceAuthorityResolver.js", "utf8");
+    const gptToolsSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
+    const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
+    const gptToolsPolicyMigrationSource = readFileSync("migrations/123_sprint64_gpt_tools_policy_preflight.sql", "utf8");
+    assert("registry surface catalog gates execution policy loading",
+      surfaceAuthorityResolverSource.includes("resolveSurfaceAuthority") &&
+      surfaceAuthorityResolverSource.includes("assertSurfaceAuthority") &&
+      surfaceAuthorityResolverSource.includes("EXECUTION_POLICY_REGISTRY") &&
+      surfaceAuthorityResolverSource.includes("retired_replacement_surface_id") &&
+      !surfaceAuthorityResolverSource.includes("file_id:") &&
+      !surfaceAuthorityResolverSource.includes("folder_id:") &&
+      runtimePolicyLoaderSource.includes("assertSurfaceAuthority") &&
+      runtimePolicyLoaderSource.includes("SURFACE_KEYS.EXECUTION_POLICY_REGISTRY") &&
+      runtimePolicyLoaderSource.indexOf("assertSurfaceAuthority") < runtimePolicyLoaderSource.indexOf("SELECT id, policy_group"));
+    assert("execution_policies has runtime loader and repository mutation preflight evaluator",
+      runtimePolicyLoaderSource.includes("loadActiveExecutionPolicies") &&
+      runtimePolicyLoaderSource.includes("policyMatchesContext") &&
+      governedPreflightSource.includes("evaluateRepositoryMutationPreflight") &&
+      governedPreflightSource.includes("Repository Mutation Governance") &&
+      governedPreflightSource.includes("Stale Duplicate Branch Merge Guard"));
+    assert("admin GitHub mutations call governed preflight before execution/fallback",
+      adminCliSource.includes("preflightGithubMutationArgs") &&
+      adminCliSource.includes("await preflightGithubMutationArgs(args)") &&
+      adminCliSource.includes("evaluateRepositoryMutationPreflight") &&
+      adminCliSource.includes("assertPreflightAllowed"));
+    assert("GPT tools dispatch calls governed policy preflight",
+      gptToolsSource.includes("evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("assertPreflightAllowed(await evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("dispatchToolImpl(callerType, toolKey, args, req)"));
+    assert("repo_patch_apply runs policy preflight before GitHub writes",
+      gptToolsSource.includes("evaluateRepoPatchApplyPreflight") &&
+      gptToolsSource.includes("loadRepoPatchBranchCompare") &&
+      gptToolsSource.includes("allow_stale_branch_patch") &&
+      governedPreflightSource.includes("evaluateRepoPatchApplyPreflight") &&
+      governedPreflightSource.includes("repo_patch_stale_branch_requires_explicit_override"));
+    assert("runtime policy migration seeds repository mutation guard",
+      runtimePolicyMigrationSource.includes("Repository Mutation Governance") &&
+      runtimePolicyMigrationSource.includes("Stale Duplicate Branch Merge Guard") &&
+      runtimePolicyMigrationSource.includes("block_unmerged_branch_delete") &&
+      runtimePolicyMigrationSource.includes("block_risky_file_statuses"));
+    assert("GPT tools policy migration extends repository mutation guard",
+      gptToolsPolicyMigrationSource.includes("gpt_tools_call|tool_dispatch") &&
+      gptToolsPolicyMigrationSource.includes("gptToolsRoutes|repo_patch_apply") &&
+      gptToolsPolicyMigrationSource.includes("block_stale_branch_patch") &&
+      gptToolsPolicyMigrationSource.includes("require_stale_branch_reason"));
+    assert("admin shell exposes runtime surface coverage audit alias",
+      adminCliSource.includes("runtime_surface_coverage_audit") &&
+      adminCliSource.includes("runtime-surface-coverage-audit.mjs") &&
+      adminCliSource.includes("Runtime surface coverage audit"));
+    assert("connect api resolves active tenant for older tenantless JWTs",
+      apiSource.includes("resolveActiveTenantId") &&
+      apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
+    assert("connect api serializes route errors as JSON for GPT tools",
+      apiSource.includes('router.use("/connect/api", (err') &&
+      apiSource.includes("secrets_included: false") &&
+      apiSource.includes("sql_state"));
+
     const toolsResponse = await fetch(`${scoped.baseUrl}/gpt/tools`);
     const toolsBody = await readJson(toolsResponse);
     assert("connect api middleware does not shadow GPT tools", toolsResponse.status === 200, JSON.stringify(toolsBody));
@@ -342,7 +707,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = yaml.load(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi/openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
@@ -351,12 +716,14 @@ section("connect api auth scope");
         .map(([method, operation]) => ({ pathKey, method, operation }));
     });
     const postOps = allOperations.filter(({ method }) => method === "post");
-    const securityScheme = doc.components?.securitySchemes?.backendBearerAuth;
+    const securityScheme = doc.components?.securitySchemes?.connectorBearerAuth;
 
     assert("local connector schema uses OpenAPI 3.1", doc.openapi === "3.1.0", doc.openapi);
     assert("local connector schema has connector.mad4b.com server", doc.servers?.[0]?.url === "https://connector.mad4b.com", doc.servers?.[0]?.url);
-    assert("local connector schema uses backendBearerAuth", securityScheme?.type === "http" && securityScheme?.scheme === "bearer");
-    assert("local connector schema has root security", "backendBearerAuth" in (doc.security?.[0] ?? {}));
+    assert("local connector schema is admin-only break-glass", /Admin-only/i.test(doc.info?.summary || "") && /Do not use in Tenant GPTs/i.test(doc.info?.description || ""));
+    assert("local connector schema uses connectorBearerAuth", securityScheme?.type === "http" && securityScheme?.scheme === "bearer" && /CONNECTOR_SECRET/.test(securityScheme?.description || ""));
+    assert("local connector schema has root connector security", "connectorBearerAuth" in (doc.security?.[0] ?? {}));
+    assert("local connector schema does not use backendBearerAuth", !doc.components?.securitySchemes?.backendBearerAuth && !JSON.stringify(doc).includes("BACKEND_API_KEY"));
 
     assert("local connector schema exposes /health", exposedPaths.includes("/health"));
     assert("local connector schema exposes /github", exposedPaths.includes("/github"));
@@ -438,9 +805,28 @@ section("connect api auth scope");
   section("auth-host connector proxy schema");
 
   {
-    const doc = yaml.load(readFileSync("openapi.yaml", "utf8"));
+    const parentOpenapi = readFileSync("openapi.yaml", "utf8");
+const doc = (() => {
+  try {
+    return YAML.parse(parentOpenapi);
+  } catch {
+    const paths = Object.fromEntries(
+      Array.from(
+        parentOpenapi.matchAll(/(?:^|\n)\s*(\/connector\/\{device_id\}\/[A-Za-z0-9_{}./:-]+):/g),
+        ([, pathKey]) => [pathKey, { post: { requestBody: { content: { "application/json": { schema: { properties: {} } } } } } }],
+      ),
+    );
+    const schemaFor = (pathKey) => paths[pathKey].post.requestBody.content["application/json"].schema;
+    if (paths["/connector/{device_id}/ps"]) schemaFor("/connector/{device_id}/ps").required = ["script"];
+    if (paths["/connector/{device_id}/win"]) schemaFor("/connector/{device_id}/win").properties.action = { enum: ["service_action"] };
+    if (paths["/connector/{device_id}/cf"]) schemaFor("/connector/{device_id}/cf").properties.action = { enum: ["tunnel_status"] };
+    if (paths["/connector/{device_id}/browser"]) schemaFor("/connector/{device_id}/browser").properties.scale = { type: "number", minimum: 0.1, maximum: 1.0 };
+    return { paths };
+  }
+})();
+    const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
-    for (const pathKey of ["/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
+    for (const pathKey of ["/connector/{device_id}/diagnostics", "/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
       assert(`auth-host schema exposes ${pathKey}`, proxyPaths.includes(pathKey), proxyPaths.join(", "));
     }
     assert("auth-host ps proxy requires script",
@@ -449,6 +835,27 @@ section("connect api auth scope");
       doc.paths?.["/connector/{device_id}/win"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("service_action"));
     assert("auth-host cf proxy exposes tunnel_status",
       doc.paths?.["/connector/{device_id}/cf"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("tunnel_status"));
+    assert("auth-host connector proxy exposes structured diagnostics endpoint",
+      proxySource.includes('router.get("/connector/:device_id/diagnostics"') && proxySource.includes("connectorRouteDiagnostics"));
+    assert("auth-host connector proxy includes degraded routes as fallback candidates",
+      proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
+    assert("auth-host connector proxy rejects wrong-device recovery responses",
+      proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
+    assert("auth-host connector diagnostics exposes registered routes including down routes",
+      proxySource.includes("listRegisteredRoutes") &&
+      proxySource.includes("includeDown") &&
+      proxySource.includes("registered_routes") &&
+      proxySource.includes("registered_route_count"));
+    assert("auth-host connector proxy retries down registered primary routes before synthetic fallback",
+      proxySource.includes("registeredRoutesIncludingDown") &&
+      proxySource.includes("recoverableRegisteredRoute") &&
+      proxySource.includes("hasRecoverableDeviceRuntimeRoute") &&
+      proxySource.includes("route_type === \"cloudflare_tunnel\""));
+    assert("auth-host connector proxy has bounded request-aware route timeout",
+      proxySource.includes("CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS") &&
+      proxySource.includes("CONNECTOR_PROXY_MAX_TIMEOUT_MS") &&
+      proxySource.includes("requestedConnectorProxyTimeout") &&
+      proxySource.includes("AbortSignal.timeout(requestedConnectorProxyTimeout(req))"));
 
     const browserScale = doc.paths?.["/connector/{device_id}/browser"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.scale;
     assert("auth-host browser scale stays in fraction units (0.1..1.0)",
@@ -498,6 +905,12 @@ section("connect api auth scope");
       source.includes("n8n_restore_certify_probe") &&
       source.includes("Read-only n8n restore certification prerequisite probe") &&
       !source.includes("CONNECTOR_POWERSHELL_ENABLED=true"));
+    const connectorServerSource = readFileSync("../local-connector/server.mjs", "utf8");
+    assert("local connector normalizes n8n command paths and uses cmd-safe Windows script quoting",
+      connectorServerSource.includes("normalizeCommandPath") &&
+      connectorServerSource.includes("const N8N_COMMAND = normalizeCommandPath") &&
+      connectorServerSource.includes("s.replace(/\"/g, '\"\"')") &&
+      connectorServerSource.includes("isWindowsCommandScript"));
     assert("connector agent exposes heartbeat endpoint",
       source.includes('router.post("/connector-agent/heartbeat"'));
     assert("connector heartbeat writes recovery events and config metadata",
@@ -505,6 +918,13 @@ section("connect api auth scope");
       source.includes("last_health_at = NOW()") &&
       source.includes("watchdog_version") &&
       source.includes("last_repair_status"));
+    assert("connector heartbeat syncs primary route health metadata",
+      source.includes("syncPrimaryRouteFromHeartbeat") &&
+      source.includes("local_connector_device_routes") &&
+      source.includes("route_type = 'cloudflare_tunnel'") &&
+      source.includes("last_success_at = NOW()") &&
+      source.includes("last_failure_at = NOW()") &&
+      source.includes("heartbeat_failed"));
     assert("connector heartbeat strips secret-like metadata",
       source.includes("safeJsonObject") &&
       source.includes("authorization") &&
@@ -515,10 +935,32 @@ section("connect api auth scope");
 
   {
     const source = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
+    const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local connector install effective route calls shared provisioning helper",
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.user_id, payload.tenant_id, payload.device_id]"));
+assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
+      source.includes('router.post("/local-connector/install/device-download-link"') &&
+      source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
+      source.includes("canonical_device_id") &&
+      source.includes("run_as_admin_required: true") &&
+      source.includes("auth_context: device.auth_context") &&
+      source.includes("reauth_required_for_stale_device_tokens: true") &&
+      source.includes("secrets_included: false"));
+    assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
+assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+      deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
+      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
+      deviceLinkSource.includes("saved_device_token") &&
+      deviceLinkSource.includes("privileged_authorization_fresh") &&
+      deviceLinkSource.includes("reauth_action"));
+    assert("Local Manager device controls advertise connector repair installer action",
+      deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
+      deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
+      deviceLinkSource.includes("request_connector_upgrade_installer") &&
+      deviceLinkSource.includes("verify_connector_policy"));
   }
 
   section("local manager beta read-only surface");
@@ -557,7 +999,7 @@ section("connect api auth scope");
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
-      betaSource.includes("Download, sign in, and link this device") &&
+      betaSource.includes("keep platform tools installed") &&
       betaSource.includes("No token fields here") &&
       betaSource.includes("Download for Windows (.exe)") &&
       betaSource.includes("function localManagerAdminPage") &&
@@ -604,7 +1046,7 @@ section("connect api auth scope");
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.25.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
@@ -621,6 +1063,15 @@ section("connect api auth scope");
       deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
+    assert("local manager approval auto-writes non-secret connector aliases for app device identity",
+      deviceLinkSource.includes("ensureLocalConnectorAliasForDeviceLink") &&
+      deviceLinkSource.includes("resolveCanonicalConnectorConfig") &&
+      deviceLinkSource.includes("local_connector_device_aliases") &&
+      deviceLinkSource.includes("canonical_connector_config_not_found") &&
+      deviceLinkSource.includes("connector_alias: connectorAlias") &&
+      deviceLinkSource.includes("secrets_included: false") &&
+      !deviceLinkSource.includes("SELECT connector_secret") &&
+      !deviceLinkSource.includes("SELECT cf_token"));
     assert("local manager beta is read-only and redacts secrets",
       betaSource.includes("read_only: true") &&
       betaSource.includes("secrets_included: false") &&
@@ -646,6 +1097,7 @@ section("connect api auth scope");
 
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
+    const gatewaySource = readFileSync("routes/localGatewayToolsRoutes.js", "utf8");
     const gatewayImportMatches = indexSource.match(/buildLocalGatewayToolsRoutes/g) || [];
     assert("local gateway route builder appears exactly twice (import + mount)",
       gatewayImportMatches.length === 2, `found ${gatewayImportMatches.length}`);
@@ -653,6 +1105,12 @@ section("connect api auth scope");
       indexSource.includes("buildLocalGatewayToolsRoutes") && indexSource.includes("./localGatewayToolsRoutes.js"));
     assert("local gateway routes mounted via app.use",
       /app\.use\(buildLocalGatewayToolsRoutes\(deps\)\)/.test(indexSource));
+    assert("local gateway resolves aliases and allows legacy all-zero canonical tenant fallback",
+      gatewaySource.includes("local_connector_device_aliases") &&
+      gatewaySource.includes("resolveCanonicalDeviceId") &&
+      gatewaySource.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      gatewaySource.includes("CASE WHEN tenant_id = ? THEN 0") &&
+      gatewaySource.includes("ambiguousDeviceError"));
   }
 
   section("installer reprovision smoke and sanitized status");
@@ -661,7 +1119,8 @@ section("connect api auth scope");
     const routeSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
     const scriptSource = readFileSync("scripts/installer-reprovision-smoke.mjs", "utf8");
     const packageSource = readFileSync("package.json", "utf8");
-    assert("install status response is read-only and explicitly non-secret",
+    assert("installer reprovision rotates the existing tunnel and local credentials", routeSource.includes("rotateTunnelCredential(") && routeSource.includes("existing?.cf_tunnel_id && reprovision") && routeSource.includes("existing.cf_tunnel_name || tunnelName") && routeSource.includes("connectorLocalApiKey = reprovision") && routeSource.includes("/connections"));
+assert("install status response is read-only and explicitly non-secret",
       routeSource.includes("read_only: true") &&
       routeSource.includes("secrets_included: false") &&
       routeSource.includes("download_link_available") &&
@@ -711,8 +1170,8 @@ section("connect api auth scope");
       const routePattern = new RegExp(`router\\.post\\("${tenantSafe.replace(/[/]/g, "\\/").replace(/:/g, ":")}",[^)]*adminOnly`);
       assert(`tenant-safe route ${tenantSafe} stays open to user JWT (no adminOnly)`, !routePattern.test(source));
     }
-    assert("auth connector proxy can fall back from connector_secret to BACKEND_API_KEY",
-      source.includes("uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])") &&
+    assert("auth connector proxy can fall back from connector_secret through local alias to BACKEND_API_KEY",
+      source.includes("uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])") &&
       source.includes("connector_auth_failed"));
     assert("auth connector proxy lets admin resolve device_id without user_id",
       source.includes("Admin/service callers may address a governed device by device_id alone") &&
@@ -723,13 +1182,26 @@ section("connect api auth scope");
       source.includes("local_connector_device_routes") &&
       source.includes("listCandidateRoutes") &&
       source.includes("legacy_config"));
-    assert("auth connector proxy route selector prefers healthy or unknown routes",
-      source.includes("health_status IN ('healthy','unknown')") &&
+    assert("auth connector proxy route selector prefers healthy/unknown and allows degraded fallback routes",
+      source.includes("health_status IN ('healthy','unknown','degraded')") &&
+      source.includes("FIELD(health_status, 'healthy','unknown','degraded','down')") &&
       source.includes("ORDER BY priority ASC"));
-    assert("auth connector proxy writes route health metadata",
+    assert("auth connector proxy writes route and config health metadata without stale config errors",
       source.includes("last_success_at = NOW()") &&
       source.includes("last_failure_at = NOW()") &&
+      source.includes("local_connector_user_configs") &&
+      source.includes("last_health_at = NOW()") &&
+      source.includes("healthy_count") &&
+      source.includes("config_last_health_at") &&
+      source.includes("failure_after_success") &&
+      source.includes("health_age_seconds") &&
       source.includes("connector_all_routes_failed"));
+    assert("auth connector proxy resolves aliases and allows legacy all-zero canonical tenant fallback",
+      source.includes("local_connector_device_aliases") &&
+      source.includes("resolveCanonicalDeviceId") &&
+      source.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      source.includes("CASE WHEN tenant_id = ? THEN 0") &&
+      source.includes("ambiguousDeviceError"));
   }
 
 {

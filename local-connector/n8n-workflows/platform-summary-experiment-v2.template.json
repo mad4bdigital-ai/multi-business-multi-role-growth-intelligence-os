@@ -1,0 +1,110 @@
+{
+  "template_version": 1,
+  "workflow_key": "summary_experiment_v2",
+  "binding_key": "summary_n8n_experiment_v2",
+  "task_class": "summary",
+  "runtime_type": "n8n",
+  "credential": {
+    "type": "httpHeaderAuth",
+    "name": "Platform Classification Webhook Header Auth",
+    "header_name": "Authorization",
+    "value_env_var": "N8N_WEBHOOK_TOKEN"
+  },
+  "workflow": {
+    "name": "Platform Summary Experiment v2",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "platform-summary-experiment-v2",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "headerAuth"
+        },
+        "id": "7b1e1822-38bf-4dbf-8b4e-64b809ff2e10",
+        "name": "Platform Summary Experiment v2 Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [0, 0],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "__N8N_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+            "name": "Platform Classification Webhook Header Auth"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $json.body || $json.input || $json;\nconst input = payload.input || payload;\nconst raw = String(input.text || payload.text || payload.content || '').trim();\nconst maxBullets = Math.max(3, Math.min(Number(input.max_bullets || payload.max_bullets || 6), 10));\nconst maxChars = Math.max(280, Math.min(Number(input.max_chars || payload.max_chars || 1200), 2200));\nconst cleaned = raw.replace(/\\s+/g, ' ').trim();\nconst hasArabic = /[\\u0600-\\u06ff]/.test(cleaned);\nconst language = hasArabic ? 'ar' : 'en';\nconst splitPattern = /(?<=[.!?؟])\\s+/;\nconst sentences = cleaned.split(splitPattern).map((s) => s.trim()).filter(Boolean);\nconst candidates = sentences.length ? sentences : cleaned.split(/[,;،؛]\\s+/).map((s) => s.trim()).filter(Boolean);\nfunction uniqueLimited(items, limit = 5) {\n  const out = [];\n  const seen = new Set();\n  for (const item of items) {\n    const value = String(item || '').trim();\n    const normalized = value.toLowerCase().replace(/[^a-z0-9\\u0600-\\u06ff]+/g, ' ').trim();\n    if (!normalized || seen.has(normalized)) continue;\n    seen.add(normalized);\n    out.push(value.length > 220 ? value.slice(0, 217).trim() + '...' : value);\n    if (out.length >= limit) break;\n  }\n  return out;\n}\nconst decisionRe = /(decision|decided|agreed|approved|keep|use|recommend|default|قرر|اتفق|القرار|اعتماد|نوصي|استخدم)/i;\nconst blockerRe = /(blocker|blocked|issue|problem|risk|cannot|can't|weak|missing|fail|ضعف|مشكلة|عائق|خطر|لا يمكن|ناقص|فشل)/i;\nconst actionRe = /(next|todo|action|should|add|collect|run|compare|monitor|improve|restore|backup|المطلوب|الخطوة|التالي|أضف|شغل|قارن|راقب|حسن|سيتم|سن)/i;\nconst decisions = uniqueLimited(candidates.filter((s) => decisionRe.test(s)), 5);\nconst blockers = uniqueLimited(candidates.filter((s) => blockerRe.test(s)), 5);\nconst next_actions = uniqueLimited(candidates.filter((s) => actionRe.test(s)), 6);\nconst bullets = uniqueLimited([...decisions, ...blockers, ...next_actions, ...candidates], maxBullets);\nlet summaryParts = [];\nif (decisions.length) summaryParts.push(decisions[0]);\nif (blockers.length) summaryParts.push(blockers[0]);\nif (next_actions.length) summaryParts.push(next_actions[0]);\nif (!summaryParts.length) summaryParts = bullets.slice(0, 3);\nlet summary = uniqueLimited(summaryParts, 4).join(' ');\nif (!summary && cleaned) summary = cleaned.slice(0, maxChars);\nif (summary.length > maxChars) summary = summary.slice(0, maxChars - 3).trim() + '...';\nreturn [{ json: { summary, bullets, decisions, blockers, next_actions, language, source: 'n8n_summary_experiment_v2', method: 'deterministic_structured_extractive', input_length: raw.length, bullet_count: bullets.length, experimental: true } }];"
+        },
+        "id": "a68f6599-05a9-4d59-9481-c984842f7d28",
+        "name": "Summarize Request v2",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [280, 0]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { summary: $json.summary, bullets: $json.bullets, decisions: $json.decisions, blockers: $json.blockers, next_actions: $json.next_actions, language: $json.language, source: $json.source, method: $json.method, experimental: $json.experimental } }}",
+          "options": { "responseCode": 200 }
+        },
+        "id": "899f8bdb-a655-4ae1-a850-ea2528742c9c",
+        "name": "Return Summary v2",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [560, 0]
+      }
+    ],
+    "connections": {
+      "Platform Summary Experiment v2 Webhook": { "main": [[{ "node": "Summarize Request v2", "type": "main", "index": 0 }]] },
+      "Summarize Request v2": { "main": [[{ "node": "Return Summary v2", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" }
+  },
+  "runtime_binding": {
+    "input_schema_json": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "max_bullets": { "type": "number" },
+        "max_chars": { "type": "number" },
+        "tenant_id": { "type": "string" },
+        "use_case": { "type": "string" }
+      }
+    },
+    "output_schema_json": {
+      "type": "object",
+      "required": ["summary", "source"],
+      "properties": {
+        "summary": { "type": "string" },
+        "bullets": { "type": "array", "items": { "type": "string" } },
+        "decisions": { "type": "array", "items": { "type": "string" } },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "next_actions": { "type": "array", "items": { "type": "string" } },
+        "language": { "type": "string" },
+        "source": { "type": "string" },
+        "method": { "type": "string" },
+        "experimental": { "type": "boolean" }
+      }
+    },
+    "experiment_policy": {
+      "enabled": true,
+      "enforcement_mode": "block_explicit_denied_use_cases",
+      "allowed_use_cases": ["quick_preview", "fallback_candidate", "arabic_quick_preview", "evaluation_note", "v2_evaluation"],
+      "blocked_use_cases": ["production_session_memory", "canonical_summary_write", "session_summary_autosweep", "graph_memory_write", "durable_session_memory"],
+      "default_use_case": "quick_preview",
+      "promotion_status": "not_promoted"
+    }
+  },
+  "security_assertions": {
+    "contains_secret_values": false,
+    "uses_native_header_auth": true,
+    "token_source": "N8N_WEBHOOK_TOKEN",
+    "code_node_uses_process_env": false,
+    "code_node_contains_bearer_literal": false,
+    "production_replacement": false,
+    "canonical_summary_write_allowed": false
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "spec_kit": "006-platform-dynamic-workflow-runtime",
+  "version": "0.3.0",
+  "status": "ready_for_architecture_security_api_review",
+  "created_at": "2026-06-27",
+  "deepened_at": "2026-06-28",
+  "base_commit": "a58da2b2dbd48272bdf3d83747c78d58c0d32166",
+  "branch": "gpt/006-platform-dynamic-workflow-runtime",
+  "pull_request": 1929,
+  "deep_design_complete": true,
+  "dependencies": [
+    {
+      "spec": "004-shared-assets-scope-inheritance",
+      "pull_request": 1898,
+      "head_sha": "24ce7f5a29e30d9b091e73dcf9557f0a0add84a5",
+      "merge_assumed": false
+    },
+    {
+      "spec": "005-dynamic-tool-schema-surfaces-activation-gateway",
+      "pull_request": 1917,
+      "head_sha": "1f41bae8d95fb9e84cd188e0956b6891637b62be",
+      "merge_assumed": false
+    }
+  ],
+  "documents": [
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "spec.md",
+    "architecture.md",
+    "data-model.md",
+    "asset-publication-and-tenancy.md",
+    "authority-and-policy-resolution.md",
+    "settings-resolution.md",
+    "runtime-and-state-machine.md",
+    "threat-model.md",
+    "observability-and-slos.md",
+    "migration-and-compatibility.md",
+    "plan.md",
+    "tasks.md",
+    "acceptance-matrix.md",
+    "traceability.md",
+    "checklists/production-readiness.md",
+    "state-transition-matrix.md",
+    "runtime-adapter-certification.md",
+    "testing-strategy.md",
+    "contracts/error-catalog.md"
+  ],
+  "contracts": [
+    "contracts/workflow-runtime.openapi.yaml",
+    "contracts/asset-catalog.openapi.yaml",
+    "contracts/error-catalog.md"
+  ],
+  "design_invariants": [
+    "containment_is_not_authority",
+    "authority_is_not_configuration_inheritance",
+    "execution_class_grants_no_authority",
+    "platform_canonical_assets_are_immutable",
+    "tenant_customization_cannot_widen_authority",
+    "external_success_requires_readback_before_completion",
+    "run_resolution_snapshots_are_immutable"
+  ],
+  "implementation_epics": [
+    "container_authority_foundation",
+    "asset_catalog_tenancy",
+    "workflow_compiler",
+    "settings_resolver",
+    "runtime_core",
+    "runtime_adapters",
+    "api_client_surfaces",
+    "operations_rollout"
+  ],
+  "production_mutation_authorized": false,
+  "provider_execution_authorized": false,
+  "database_migration_included": false,
+  "required_reviews": [
+    "architecture",
+    "security",
+    "api-contract",
+    "database",
+    "runtime-operations"
+  ],
+  "contract_summary": {
+    "openapi_version": "3.1.0",
+    "workflow_runtime_paths": 9,
+    "asset_catalog_paths": 13,
+    "stable_error_catalog": true
+  },
+  "verification_complete": {
+    "json_manifest_parse": true,
+    "workflow_openapi_parse": true,
+    "asset_catalog_openapi_parse": true,
+    "github_readback": true
+  }
+}

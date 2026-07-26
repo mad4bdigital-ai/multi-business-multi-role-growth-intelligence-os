@@ -6,9 +6,10 @@
 # Run as Administrator.
 
 param(
-    [string]$TunnelToken  = $env:CLOUDFLARE_TUNNEL_TOKEN,
-    [string]$BackendKey   = $env:BACKEND_API_KEY,
-    [string]$ConnectorDir = (Split-Path -Parent $MyInvocation.MyCommand.Definition),
+    [string]$TunnelToken     = $env:CLOUDFLARE_TUNNEL_TOKEN,
+    [string]$ConnectorSecret = $env:CONNECTOR_SECRET,
+    [string]$BackendKey      = $env:BACKEND_API_KEY, # legacy fallback for older devices only
+    [string]$ConnectorDir    = (Split-Path -Parent $MyInvocation.MyCommand.Definition),
     [switch]$Uninstall,
     [switch]$SkipNode      # skip Node service setup (cloudflared only)
 )
@@ -141,12 +142,13 @@ if ($SkipNode) {
         if (-not (Test-Path $serverScript)) {
             Write-Warn "server.mjs not found at $serverScript — skipping Node service."
         } else {
-            # Write .env if BackendKey supplied and .env missing
+            # Write .env if a connector credential is supplied and .env is missing.
             $envFile = Join-Path $ConnectorSrvDir ".env"
-            if ($BackendKey -and -not (Test-Path $envFile)) {
+            $effectiveConnectorSecret = if ($ConnectorSecret) { $ConnectorSecret } else { $BackendKey }
+            if ($effectiveConnectorSecret -and -not (Test-Path $envFile)) {
                 Write-Step "Writing .env..."
                 @"
-BACKEND_API_KEY=$BackendKey
+CONNECTOR_SECRET=$effectiveConnectorSecret
 CONNECTOR_PORT=7070
 CONNECTOR_SHELL_ENABLED=true
 "@ | Out-File -FilePath $envFile -Encoding utf8

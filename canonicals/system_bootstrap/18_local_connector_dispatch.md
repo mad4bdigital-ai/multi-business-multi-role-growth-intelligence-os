@@ -83,6 +83,29 @@ Provisioning is idempotent — re-calling without `reprovision=true` returns the
 After provisioning, `CONNECTOR_LOCAL_API_KEY` on Cloud Run must be updated to the new
 `connector_secret` if Cloud Run proxies requests through the platform-side orchestrator.
 
+## Local Manager Capability Installer Invariants
+
+Local Manager-owned connector repair and capability flows must request short-lived signed installers through `POST /local-connector/install/device-download-link` using the DPAPI-protected device token. App-owned flows must set `app_managed=true` and `suppress_pause=true`, launch the signed BAT through Windows UAC, handle cancellation, wait for completion when possible, and then verify the live connector.
+
+The BAT wrapper is not the final authority for capability application. It downloads and runs `/connector-agent/installer.ps1`, which writes the effective local connector `.env`. Both paths must preserve the signed capability and permission-grant payload. The PowerShell installer must render opt-in capability flags and dynamic grants into:
+
+- `CONNECTOR_POWERSHELL_ENABLED`
+- `CONNECTOR_WIN_ENABLED`
+- `CONNECTOR_FILE_PATHS`
+- `CONNECTOR_APP_ALLOWLIST`
+- `CONNECTOR_SHELL_ALLOWLIST`
+
+`section=settings` control refresh is not proof of activation. A capability installer is validated only when live connector checks confirm the requested surfaces: PowerShell returns a version, Windows control returns process data, file grants appear in `allowed_paths`, and dynamic app grants appear in `connector_apps list`.
+
+High-risk capabilities remain explicit local-consent surfaces. They must not be present in the base connector environment and must remain UAC-gated, signed-token-gated, and secret-safe.
+
+If MAD4B Local Desktop embeds a Hermes Surface workspace, these invariants
+remain owned by a native MAD4B sidecar. The Hermes renderer and Hermes runtime
+must not receive the DPAPI-protected device token, connector secret, or signed
+installer URL. Workspace requests must use a narrow typed IPC contract, and the
+sidecar must re-evaluate action-specific approvals before installer download,
+UAC launch, capability mutation, or local runtime dispatch.
+
 ## Shell and File Execution Invariants
 
 For governed shell execution via local connector:
@@ -114,3 +137,16 @@ directly dispatched. Registering a module without backend validation logic is fo
 - `api_key_ref` selects between `HOSTINGER_CLOUD_PLAN_01_API_KEY` and `HOSTINGER_SHARED_MANAGER_01_API_KEY`
 - `DELETE` on DNS records is a destructive operation — requires explicit intent
 - all DNS operations require admin principal auth (`is_admin = true`)
+## Cloudflare 1033 Retry-Before-Repair Rule
+
+Cloudflare error `1033` and HTTP `530` are transient-retry candidates, not immediate proof that the local connector requires reinstall or tunnel reprovisioning.
+
+- perform three total public health attempts: the initial attempt plus two retries
+- use short exponential backoff bounded by the runtime policy
+- stop immediately when health passes or when the endpoint is reachable but authorization-gated
+- call or continue `local_connector_self_repair` only after retryable evidence is exhausted
+- the self-repair route must repeat the bounded attempts internally before generating installer assets
+- return and audit no-secret `retry_evidence` with attempt count, statuses, delays, recovery-on-retry, and exhaustion state
+- recovered classification requires same-cycle passing health evidence; installer generation is forbidden when a retry succeeds
+
+The SQL runtime authority is `execution_policies` row `Local Connector Recovery Governance / Cloudflare 1033 Retry Before Repair`, registered by `1015_sprint69_local_connector_transient_retry_policy.sql`.

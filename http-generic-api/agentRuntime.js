@@ -10,12 +10,23 @@
 import { buildCallModel } from "./modelAdapterRouter.js";
 import { runLogicWithModel } from "./modelAdapter.js";
 import { buildEngineExecutorRegistry } from "./engineExecutorRegistry.js";
+import { buildGovernedAgentExecutionContext } from "./governedAgentExecutionContext.js";
+import { authorizeAgentToolCall, filterAuthorizedAgentTools } from "./agentToolAuthorizationGate.js";
+import { resolveAgentPromptContext } from "./agentPromptContextResolver.js";
+import {
+  DEFAULT_AGENT_MODEL_RUNTIME_CONFIG,
+  loadAgentModelRuntimeSettings,
+  resolveAgentModelCandidateChain,
+  resolveAgentModelSelection,
+} from "./agentModelRuntimeSettings.js";
 
 function buildAgentDeps(config = {}) {
   const callModel = buildCallModel({
     provider: config.provider,
     model:    config.model,
     api_key:  config.api_key,
+    site_url: config.site_url,
+    app_name: config.app_name,
   });
 
   function boundRunLogic(input, extraDeps = {}) {
@@ -35,39 +46,134 @@ function buildAgentDeps(config = {}) {
     callModel,
     runLogicWithModel: boundRunLogic,
     engineExecutorRegistry,
+    buildGovernedContext: config.buildGovernedContext || buildGovernedAgentExecutionContext,
+    resolveAgentPromptContext: config.resolveAgentPromptContext || resolveAgentPromptContext,
+    authorizeToolCall: config.authorizeToolCall || authorizeAgentToolCall,
+    filterAuthorizedTools: config.filterAuthorizedTools || filterAuthorizedAgentTools,
   };
 }
 
-// Models per execution_class per provider.
+// Legacy env-only fallback models. Governed runtime selection should use
+// platform_runtime_config.agent_model_runtime through getCallModelForClassAsync.
 const CLASS_MODELS = {
-  standard:  { anthropic: "claude-haiku-4-5-20251001", openai: "gpt-4o-mini",  gemini: "gemini-1.5-flash" },
-  complex:   { anthropic: "claude-sonnet-4-6",          openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
-  authority: { anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
+  standard:  { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o-mini", anthropic: "claude-haiku-4-5-20251001" },
+  complex:   { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o",      anthropic: "claude-sonnet-4-6" },
+  authority: { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o",      anthropic: "claude-opus-4-7" },
 };
+
+function apiKeyByProvider(env = process.env) {
+  return {
+    gemini:    env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY,
+    openrouter: env.OPENROUTER_API_KEY,
+    openai:    env.OPENAI_API_KEY,
+    anthropic: env.ANTHROPIC_API_KEY,
+  };
+}
+
+function openRouterOptionalConfig(env = process.env) {
+  return {
+    site_url: env.OPENROUTER_SITE_URL,
+    app_name: env.OPENROUTER_APP_NAME,
+  };
+}
+
+function isRetryableModelProviderError(error) {
+  const message = String(error?.message || error || "");
+  return /\b(401|403|408|409|425|429|500|502|503|504)\b/.test(message) ||
+    /rate|quota|timeout|temporar|unavailable|invalid\s+(api key|x-api-key|credential)/i.test(message);
+}
+
+function buildProviderCallModel(candidate, env = process.env) {
+  const keys = apiKeyByProvider(env);
+  return buildCallModel({
+    provider: candidate.provider,
+    model: candidate.model,
+    api_key: keys[candidate.provider],
+    ...openRouterOptionalConfig(env),
+  });
+}
+
+function buildFallbackCallModel(candidates = [], env = process.env) {
+  const usable = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+  if (!usable.length) return null;
+  return async function callModelWithProviderFallback(messages, tools = []) {
+    const failures = [];
+    for (const candidate of usable) {
+      try {
+        const callModel = buildProviderCallModel(candidate, env);
+        const response = await callModel(messages, tools);
+        return {
+          ...response,
+          model_provider: candidate.provider,
+          model_used: candidate.model,
+          fallback_attempts: failures,
+        };
+      } catch (err) {
+        failures.push({
+          provider: candidate.provider,
+          model: candidate.model,
+          message: String(err?.message || err || "model_call_failed").replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240),
+        });
+        if (!isRetryableModelProviderError(err)) throw err;
+      }
+    }
+    const finalError = new Error(`all_model_providers_failed: ${failures.map(f => `${f.provider}:${f.message}`).join(" | ")}`);
+    finalError.code = "all_model_providers_failed";
+    finalError.failures = failures;
+    throw finalError;
+  };
+}
+
+export function resolveAgentModelProvider(env = process.env) {
+  const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  if (env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY) return "gemini";
+  if (env.OPENROUTER_API_KEY) return "openrouter";
+  if (env.OPENAI_API_KEY) return "openai";
+  if (env.ANTHROPIC_API_KEY) return "anthropic";
+  return "anthropic";
+}
+
+export async function resolveAgentModelProviderAsync(execution_class = "standard", env = process.env, task_class = null) {
+  const settings = await loadAgentModelRuntimeSettings();
+  return resolveAgentModelSelection({ execution_class, task_class, env, config: settings.config });
+}
 
 let _classCache = {};
 
 export function getCallModelForClass(execution_class) {
   const cls = execution_class || "standard";
-  if (_classCache[cls]) return _classCache[cls];
-
-  // AGENT_MODEL env var opts out of class routing for all classes.
-  if (process.env.AGENT_MODEL) {
-    _classCache[cls] = getAgentDeps().callModel;
-    return _classCache[cls];
-  }
-
-  const provider = (process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
-  const apiKeyByProvider = {
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    openai:    process.env.OPENAI_API_KEY,
-    gemini:    process.env.GOOGLE_AI_API_KEY,
-  };
+  const provider = resolveAgentModelProvider(process.env);
   const table = CLASS_MODELS[cls] || CLASS_MODELS.standard;
-  const model = table[provider] || table.anthropic;
+  const model = process.env.AGENT_MODEL || table[provider] || table.anthropic;
+  const cacheKey = `${cls}:${provider}:${model}:sync`;
+  if (_classCache[cacheKey]) return _classCache[cacheKey];
 
-  _classCache[cls] = buildCallModel({ provider, model, api_key: apiKeyByProvider[provider] });
-  return _classCache[cls];
+  const keys = apiKeyByProvider(process.env);
+  _classCache[cacheKey] = buildCallModel({
+    provider,
+    model,
+    api_key: keys[provider],
+    ...openRouterOptionalConfig(process.env),
+  });
+  return _classCache[cacheKey];
+}
+
+export async function getCallModelForClassAsync(execution_class = "standard") {
+  return getCallModelForTaskAsync(null, execution_class);
+}
+
+export async function getCallModelForTaskAsync(task_class = null, execution_class = "standard") {
+  const settings = await loadAgentModelRuntimeSettings();
+  const config = settings.config || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG;
+  const candidates = resolveAgentModelCandidateChain({ execution_class, task_class, env: process.env, config });
+  const selection = candidates[0] || resolveAgentModelSelection({ execution_class, task_class, env: process.env, config });
+  const taskKey = selection.task_class || task_class || "class";
+  const cacheKey = `${taskKey}:${selection.execution_class}:${candidates.map(c => `${c.provider}:${c.model}`).join(">") || `${selection.provider}:${selection.model}`}:async`;
+  if (_classCache[cacheKey]) return _classCache[cacheKey];
+
+  _classCache[cacheKey] = buildFallbackCallModel(candidates.length ? candidates : [selection], process.env);
+  return _classCache[cacheKey];
 }
 
 let _singleton = null;
@@ -75,22 +181,23 @@ let _singleton = null;
 export function getAgentDeps() {
   if (_singleton) return _singleton;
 
-  // Provider resolution order: AGENT_MODEL_PROVIDER → "anthropic"
-  // API key resolution: whichever key matches the chosen provider.
-  const provider = process.env.AGENT_MODEL_PROVIDER || "anthropic";
-  const apiKeyByProvider = {
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    openai:    process.env.OPENAI_API_KEY,
-    gemini:    process.env.GOOGLE_AI_API_KEY,
-  };
+  const provider = resolveAgentModelProvider(process.env);
+  const table = CLASS_MODELS.standard;
+  const model = process.env.AGENT_MODEL || table[provider] || table.anthropic;
+  const keys = apiKeyByProvider(process.env);
 
   _singleton = {
     ...buildAgentDeps({
       provider,
-      model:   process.env.AGENT_MODEL,
-      api_key: apiKeyByProvider[provider],
+      model,
+      api_key: keys[provider],
+      ...openRouterOptionalConfig(process.env),
     }),
     getCallModelForClass,
+    getCallModelForClassAsync,
+    getCallModelForTaskAsync,
+    resolveAgentModelProvider,
+    resolveAgentModelProviderAsync,
   };
 
   return _singleton;

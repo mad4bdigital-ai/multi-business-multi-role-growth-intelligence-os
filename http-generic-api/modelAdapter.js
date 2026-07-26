@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
-
-function buildSystemPrompt(logicBody = {}, userInput = "") {
-  const parts = [];
-  if (logicBody.trigger_phrase) parts.push(`Trigger: ${logicBody.trigger_phrase}`);
-  if (logicBody.action_class) parts.push(`Action class: ${logicBody.action_class}`);
-  if (logicBody.execution_layer) parts.push(`Execution layer: ${logicBody.execution_layer}`);
-  if (logicBody.module_binding) parts.push(`Module: ${logicBody.module_binding}`);
-  if (logicBody.system_prompt) parts.push(logicBody.system_prompt);
-  return parts.join("\n") + (userInput ? `\n\nUser request: ${userInput}` : "");
-}
+import {
+  recordAgentModelRunCompleted,
+  recordAgentModelRunFailed,
+  recordAgentModelRunStarted,
+  recordAgentToolCallAuthorization,
+  recordAgentToolCallCompleted,
+  recordAgentToolCallFailed,
+  recordAgentToolCallStarted,
+} from "./agentRuntimeLedger.js";
+import { assembleAgentSystemPrompt } from "./agentPromptAssembler.js";
 
 function extractContent(response = {}) {
   if (typeof response.content === "string") return response.content;
@@ -21,15 +21,53 @@ function extractContent(response = {}) {
   return "";
 }
 
-async function runToolCalls(toolCalls = [], context, deps) {
+async function runToolCalls(toolCalls = [], context, deps, modelRunId = null) {
   const results = [];
   for (const tc of toolCalls) {
     const name = tc.function?.name || tc.name;
     const args = tc.function?.arguments
       ? (typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments)
       : (tc.arguments || {});
-    const result = await deps.dispatchTool(name, args, context);
-    results.push({ tool_call_id: tc.id, tool_name: name, args, result });
+    const ledgerToolCallId = await recordAgentToolCallStarted({ context, modelRunId, toolKey: name, args });
+    try {
+      const authorization = typeof deps.authorizeToolCall === "function"
+        ? await deps.authorizeToolCall({ tool_name: name, args, context, phase: "dispatch" })
+        : {
+            allowed: false,
+            status: "denied",
+            code: "agent_tool_authorization_gate_unavailable",
+            blockers: ["agent_tool_authorization_gate_unavailable"],
+            secrets_included: false,
+          };
+      await recordAgentToolCallAuthorization({ toolCallId: ledgerToolCallId, decision: authorization });
+      if (!authorization.allowed) {
+        const deniedResult = {
+          ok: false,
+          error: {
+            code: authorization.code || "agent_tool_authorization_denied",
+            message: "The governed agent tool authorization gate denied this call.",
+          },
+          authorization: {
+            status: "denied",
+            blocker_codes: authorization.blockers || [],
+            consequence_class: authorization.classification?.consequence_class || null,
+            action_key: authorization.action?.action_key || null,
+            secrets_included: false,
+          },
+          external_send_performed: false,
+          secrets_included: false,
+        };
+        await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result: deniedResult, status: "denied" });
+        results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result: deniedResult });
+        continue;
+      }
+      const result = await deps.dispatchTool(name, args, { ...context, tool_authorization: authorization });
+      await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result, status: result?.ok === false ? "failed" : "authorized" });
+      results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result });
+    } catch (error) {
+      await recordAgentToolCallFailed({ toolCallId: ledgerToolCallId, error });
+      throw error;
+    }
   }
   return results;
 }
@@ -48,13 +86,20 @@ export async function runLogicWithModel(input = {}, deps = {}) {
     logic_body = {},
     user_input = "",
     context = {},
+    agent_system_prompt = "",
+    engine_skill_prompts = [],
     tools = [],
     conversation = [],
     max_iterations = 5,
   } = input;
 
   const execution_trace_id = randomUUID();
-  const systemPrompt = buildSystemPrompt(logic_body, user_input);
+  const systemPrompt = assembleAgentSystemPrompt({
+    logicBody: logic_body,
+    context,
+    agentSystemPrompt: agent_system_prompt,
+    engineSkillPrompts: engine_skill_prompts,
+  });
 
   let messages = [
     { role: "system", content: systemPrompt },
@@ -69,7 +114,22 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
   while (iteration_count < max_iterations) {
     iteration_count++;
-    const response = await deps.callModel(messages, tools);
+    const modelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: iteration_count, execution_trace_id },
+      messages,
+      tools,
+      providerKey: deps.provider_key || deps.providerKey || deps.callModel?.provider_key || deps.callModel?.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || deps.callModel?.model_key || deps.callModel?.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    let response;
+    try {
+      response = await deps.callModel(messages, tools);
+      await recordAgentModelRunCompleted({ modelRunId, response, status: "completed" });
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId, error });
+      throw error;
+    }
     tokens_used += response.tokens_used || 0;
 
     const hasCalls = Array.isArray(response.tool_calls) && response.tool_calls.length > 0;
@@ -81,13 +141,28 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
     messages.push({ role: "assistant", content: response.content || null, tool_calls: response.tool_calls });
 
-    const results = await runToolCalls(response.tool_calls, context, deps);
-    tool_calls_made.push(...results.map(r => ({ tool_name: r.tool_name, args: r.args, result: r.result })));
+    const results = await runToolCalls(response.tool_calls, { ...context, execution_trace_id }, deps, modelRunId);
+    tool_calls_made.push(...results.map(r => ({ tool_name: r.tool_name, args: r.args, result: r.result, ledger_tool_call_id: r.ledger_tool_call_id })));
     messages.push(...toolResultMessages(results));
   }
 
   if (!output) {
-    output = extractContent(await deps.callModel(messages, []));
+    const finalModelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: "final", execution_trace_id },
+      messages,
+      tools: [],
+      providerKey: deps.provider_key || deps.providerKey || deps.callModel?.provider_key || deps.callModel?.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || deps.callModel?.model_key || deps.callModel?.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    try {
+      const finalResponse = await deps.callModel(messages, []);
+      await recordAgentModelRunCompleted({ modelRunId: finalModelRunId, response: finalResponse, status: "completed" });
+      output = extractContent(finalResponse);
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId: finalModelRunId, error });
+      throw error;
+    }
   }
 
   return {

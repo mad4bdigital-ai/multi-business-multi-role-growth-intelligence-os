@@ -1,20 +1,25 @@
 # Tenant GPT OAuth Preset
 
-Tenant Custom GPT assistants must use the Mad4B tenant OAuth client preset for all `/connect/*`, tenant `/system/*`, app-connection, and local-connector provisioning calls. The preset is source-owned in `http-generic-api/openapi.yaml` under `x-tenant-gpt-auth.action_auth_preset`, generated into `http-generic-api/openapi.tenant-gpt.auth.yaml` as `x-gpt-action-auth-preset`, and exposed live at `https://auth.mad4b.com/tenant-gpt/oauth-preset`.
+Tenant Custom GPT assistants use one governed Mad4B OAuth client across two separate Action schemas: Tenant Core on `auth.mad4b.com` and Tenant Activation on `activation.mad4b.com`. The preset is source-owned in `http-generic-api/openapi.yaml` under `x-tenant-gpt-auth.action_auth_preset`, generated into both tenant schemas as `x-gpt-action-auth-preset`, and exposed live at `https://auth.mad4b.com/tenant-gpt/oauth-preset`.
 
 The canonical Tenant GPT Action configuration is:
 
 | GPT Builder field | Value |
 |---|---|
 | Authentication Type | `OAuth` |
-| Schema URL | `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml` |
+| Tenant Core Schema URL | `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml` |
+| Tenant Activation Schema URL | `https://activation.mad4b.com/tenant-gpt/activation-openapi` |
 | Preset URL | `https://auth.mad4b.com/tenant-gpt/oauth-preset` |
 | Client ID | `mad4b-tenant-gpt` |
 | Client Secret | Use the DB-backed default stored under `platform_runtime_config.config_key = tenant_gpt.oauth.client` |
-| Authorization URL | `https://auth.mad4b.com/auth/oauth/authorize` |
-| Token URL | `https://auth.mad4b.com/auth/oauth/token` |
+| Tenant Core Authorization URL | `https://auth.mad4b.com/auth/oauth/authorize` |
+| Tenant Core Token URL | `https://auth.mad4b.com/auth/oauth/token` |
+| Tenant Activation Authorization URL | `https://activation.mad4b.com/auth/oauth/authorize` |
+| Tenant Activation Token URL | `https://activation.mad4b.com/auth/oauth/token` |
 | Token Exchange Method | `Default (POST request)` |
 | Allowed Callback URL | `https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback` |
+
+Configure both Action connections with the same Client ID, Client Secret, scopes, and callback allowlist, but use the host-specific authorization and token URLs shown above. The schemas remain separate because GPT Builder requires distinct public servers and the surfaces have different operation budgets. On Hostinger Cloud deployments, Cloudflare is DNS/proxy configuration only: `activation.mad4b.com` resolves to the same Node application and the in-app Activation Host Gateway allows Activation routes, Activation schemas, and only `GET /auth/oauth/authorize`, `POST /auth/oauth/code`, and `POST /auth/oauth/token`. Those exact handoffs reuse the shared `authRoutes` logic. `/auth/login`, `/auth/register`, `/auth/google`, wildcard OAuth paths, admin auth, and unrelated core routes remain blocked on the activation host. The normal production promotion path is merge to `main`; Hostinger Cloud auto-deploys the application after the merge. Do not use SSH deploy/restart or Cloudflare Worker rollout as the normal path for this surface.
 
 Scopes:
 
@@ -31,6 +36,22 @@ If the GPT Builder presents a single Scope input, use the same links as one spac
 OpenAI GPT Actions require the OAuth fields to be configured in the GPT Builder authentication panel. The OpenAPI schema can declare the OAuth security scheme and carry the preset as extension metadata, but it does not replace saving the Builder authentication fields. The public preset endpoint intentionally redacts the raw client secret; platform admins seed or rotate the DB source of truth, including default allowed callback URLs, with the admin-only `tenant_gpt_oauth_client_upsert` system tool or `node scripts/upsert-tenant-gpt-oauth-client.mjs`. If the Tenant GPT calls `/connect/status` without a bearer token and receives `user_jwt_required`, treat the action as not signed in or not configured with OAuth.
 
 The popup may use Google as upstream identity proof, but `/auth/oauth/token` must mint a fresh Mad4B-signed tenant JWT for ChatGPT. ChatGPT then sends that JWT as `Authorization: Bearer <token>` on tenant action calls. The Tenant GPT must not ask users for passwords, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or registration credentials in chat.
+
+## JIT onboarding and activation contract
+
+Tenant account creation, password sign-in, and Google sign-in stay inside the ChatGPT OAuth popup. Normal onboarding must not redirect to `/connect`; that surface remains optional for support, administration, and device recovery only.
+
+Google JIT identity requires a stable subject plus `email_verified=true`, and email values are normalized before lookup or persistence. Duplicate signup races must recover the canonical active user and workspace without creating replacement resources for inactive accounts, revoked memberships, or suspended tenants.
+
+OAuth authorization-code replay protection is durable across processes and restarts. Store only hashes and bounded binding metadata, bind each code to its client and redirect URI, enforce expiry, and consume it atomically once. A replay or binding mismatch returns `invalid_grant` without exposing raw code material.
+
+Tenant onboarding should prefer `connect_bootstrap`. It derives user and tenant identity from the signed JWT, supports Managed mode by default, creates one eligible workspace only when needed, refuses ambiguous or blocked workspace states, activates Managed mode idempotently, and performs final state readback. Activation is successful only when readback confirms `connection_mode=managed` and `status=active`; responses must include no secrets.
+
+## Google Sign-In localization
+
+Google Identity Services localization must remain account/browser-driven by default. Do not hardcode or dynamically inject `locale` into `google.accounts.id.renderButton`, and do not append `hl` to the `gsi/client` script URL for the standard Tenant GPT, Connect, or Local Manager sign-in surfaces. Omitting both lets Google select the language from the signed-in Google Account or browser settings and avoids conflicting locale state across the button, account chooser, and consent flow.
+
+If an explicit language override is introduced later, it must be a validated BCP 47 tag, use the same canonical value for the client-library `hl` parameter and button `locale`, preserve a safe fallback, and include regression tests for supported, regional, and invalid values.
 
 ## Platform Credential Clients
 

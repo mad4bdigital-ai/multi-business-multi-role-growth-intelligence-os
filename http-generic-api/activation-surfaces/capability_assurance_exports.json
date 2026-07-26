@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_exports",
+  "display_name": "Capability Assurance Exports",
+  "description": "Admin-only capability export registry for route and tool exposure readback.",
+  "source_table": "platform_plugin_capability_exports",
+  "covered_source_tables": ["platform_plugin_capability_exports"],
+  "result_key_column": "export_key",
+  "result_label_column": "capability_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "export_status",
+  "active_status_values": ["active"],
+  "result_columns": ["export_key", "capability_key", "export_surface", "source_table", "source_key", "export_status", "exposure_scope", "http_method", "http_path", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 273,
+  "status": "active",
+  "notes": "Excludes free-form notes and request or response payloads."
+}

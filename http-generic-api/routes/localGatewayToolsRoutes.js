@@ -5,6 +5,12 @@ import {
   resolveCallerTypeForRequest,
   dispatchToolForCaller,
 } from "./gptToolsRoutes.js";
+import {
+  buildLocalGatewayApprovalBinding,
+  localGatewayApprovalConsumptionState,
+  localGatewayConsentStatus,
+  validateLocalGatewayApprovalBinding,
+} from "../localGatewayApprovalPolicy.js";
 
 const SENSITIVE_ARG_SUBSTRINGS = [
   "password", "secret", "token", "api_key", "apikey",
@@ -178,12 +184,12 @@ async function resolveDeviceConfig({ req, args, isAdmin }) {
     const tenantId = req.auth?.tenant_id;
     if (!userId || !tenantId) return null;
     const [rows] = await getPool().query(
-      `${selectSql} AND tenant_id = ? AND user_id = ? AND device_id = ?
-        ORDER BY updated_at DESC
+      `${selectSql} AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000') AND user_id = ? AND device_id = ?
+        ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC
         LIMIT 2`,
-      [tenantId, userId, deviceId]
+      [tenantId, userId, deviceId, tenantId]
     );
-    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+    if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
     return rows[0] || null;
   }
 
@@ -192,24 +198,30 @@ async function resolveDeviceConfig({ req, args, isAdmin }) {
     const params = [requestedUserId, deviceId];
     let sql = `${selectSql} AND user_id = ? AND device_id = ?`;
     if (requestedTenantId) {
-      sql += " AND tenant_id = ?";
+      sql += " AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')";
       params.push(requestedTenantId);
+      sql += " ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC LIMIT 2";
+      params.push(requestedTenantId);
+    } else {
+      sql += " ORDER BY updated_at DESC LIMIT 2";
     }
-    sql += " ORDER BY updated_at DESC LIMIT 2";
     const [rows] = await getPool().query(sql, params);
-    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+    if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
     if (rows[0]) return rows[0];
   }
 
   const params = [deviceId];
   let sql = `${selectSql} AND device_id = ?`;
   if (requestedTenantId) {
-    sql += " AND tenant_id = ?";
+    sql += " AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')";
     params.push(requestedTenantId);
+    sql += " ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC LIMIT 2";
+    params.push(requestedTenantId);
+  } else {
+    sql += " ORDER BY updated_at DESC LIMIT 2";
   }
-  sql += " ORDER BY updated_at DESC LIMIT 2";
   const [rows] = await getPool().query(sql, params);
-  if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+  if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
   return rows[0] || null;
 }
 
@@ -248,8 +260,7 @@ function serviceModeAllowed(row, serviceMode) {
 }
 
 function consentStatusFor(row, args = {}) {
-  if (!row.consent_required) return "not_required";
-  return args.consent_accepted === true || args.consent_accepted === "true" ? "accepted" : "missing";
+  return localGatewayConsentStatus(row, args);
 }
 
 async function tenantHasEntitlement(tenantId, entitlementKey) {
@@ -267,11 +278,11 @@ async function tenantHasEntitlement(tenantId, entitlementKey) {
   return Boolean(rows[0]);
 }
 
-async function getApprovedApprovalHold({ holdId, tenantId, row }) {
+async function getApprovedApprovalHold({ holdId, tenantId, row, approvalBinding }) {
   const normalized = String(holdId || "").trim();
-  if (!normalized) return null;
+  if (!normalized) return { ok: false, hold: null, code: "approval_hold_not_approved" };
   const [rows] = await getPool().query(
-    `SELECT hold_id, tenant_id, hold_type, requested_by, required_role, status, expires_at
+    `SELECT hold_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, execution_context_json
        FROM \`approval_holds\`
       WHERE hold_id = ?
         AND tenant_id = ?
@@ -281,20 +292,102 @@ async function getApprovedApprovalHold({ holdId, tenantId, row }) {
       LIMIT 1`,
     [normalized, tenantId, row.approval_hold_type || "review"]
   );
-  return rows[0] || null;
+  const hold = rows[0] || null;
+  if (!hold) return { ok: false, hold: null, code: "approval_hold_not_approved" };
+  const context = parseJson(hold.execution_context_json, {});
+  const consumptionDecision = localGatewayApprovalConsumptionState(context);
+  if (!consumptionDecision.ok) {
+    return {
+      ok: false,
+      hold,
+      code: consumptionDecision.code,
+      consumptionDecision,
+    };
+  }
+  const bindingDecision = validateLocalGatewayApprovalBinding(context?.approval_binding, approvalBinding);
+  return bindingDecision.ok
+    ? { ok: true, hold, code: bindingDecision.code }
+    : { ok: false, hold, code: bindingDecision.code, bindingDecision };
 }
 
-async function createApprovalHold({ callId, req, row, tenantId }) {
+async function claimApprovedApprovalHold({ holdId, tenantId, callId, approvalBinding }) {
+  const requestDigest = String(approvalBinding?.request_digest || "").trim();
+  if (!holdId || !tenantId || !callId || !requestDigest) {
+    return { ok: false, code: "approval_hold_claim_context_invalid", readback_verified: false };
+  }
+  const pool = getPool();
+  const [result] = await pool.query(
+    `UPDATE \`approval_holds\`
+        SET execution_context_json = JSON_SET(
+          COALESCE(execution_context_json, JSON_OBJECT()),
+          '$.approval_consumed_at', UTC_TIMESTAMP(),
+          '$.approval_consumed_call_id', ?,
+          '$.approval_consumed_request_digest', ?,
+          '$.secrets_included', FALSE
+        )
+      WHERE hold_id = ?
+        AND tenant_id = ?
+        AND status = 'approved'
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND JSON_EXTRACT(COALESCE(execution_context_json, JSON_OBJECT()), '$.approval_consumed_at') IS NULL
+        AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_binding.request_digest')) = ?`,
+    [callId, requestDigest, holdId, tenantId, requestDigest]
+  );
+  if (Number(result?.affectedRows || 0) !== 1) {
+    return { ok: false, code: "approval_hold_already_consumed", readback_verified: false };
+  }
+
+  const [rows] = await pool.query(
+    `SELECT
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_call_id')) AS consumed_call_id,
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_request_digest')) AS consumed_request_digest,
+       JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_consumed_at')) AS consumed_at
+       FROM \`approval_holds\`
+      WHERE hold_id = ?
+        AND tenant_id = ?
+      LIMIT 1`,
+    [holdId, tenantId]
+  );
+  const readback = rows[0] || null;
+  const verified = Boolean(readback)
+    && String(readback.consumed_call_id || "") === callId
+    && String(readback.consumed_request_digest || "") === requestDigest
+    && Boolean(readback.consumed_at);
+  return {
+    ok: verified,
+    code: verified ? "approval_hold_consumed" : "approval_hold_consumption_readback_failed",
+    readback_verified: verified,
+    consumed_at: readback?.consumed_at || null,
+    secrets_included: false,
+  };
+}
+
+async function createApprovalHold({ callId, req, row, tenantId, approvalBinding }) {
   const holdId = crypto.randomUUID();
   const ttlMinutes = Math.max(15, Math.min(10080, Number(row.approval_ttl_minutes || 1440)));
+  const requestId = req.headers?.["x-request-id"] || callId;
   await getPool().query(
     `INSERT INTO \`approval_holds\`
-       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
+       (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
+        request_id, correlation_id, execution_context_json,
+        hold_type, requested_by, required_role, status, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
     [
       holdId,
       callId,
       tenantId,
+      req.auth?.user_id || null,
+      req.auth?.user_id || null,
+      req.auth?.user_id ? "user" : "system",
+      requestId,
+      requestId,
+      JSON.stringify({
+        source: "local_gateway_tools_routes",
+        call_id: callId,
+        approval_hold_id: holdId,
+        approval_binding: approvalBinding,
+        secrets_included: false,
+      }),
       row.approval_hold_type || "review",
       req.auth?.user_id || null,
       row.approval_required_role || null,
@@ -306,21 +399,41 @@ async function createApprovalHold({ callId, req, row, tenantId }) {
 
 async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost, serviceMode = null, entitlementKey = null, consentStatus = "not_required", approvalHoldId = null }) {
   const redactedArgs = redactArgs(args || {});
+  const userId = deviceConfig?.user_id || req.auth?.user_id || args.user_id || null;
+  const tenantId = deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null;
+  const requestId = req.headers?.["x-request-id"] || args.request_id || callId;
   await getPool().query(
     `INSERT INTO \`local_gateway_tool_call_log\`
        (call_id, tool_key, dispatch_tool_key, public_host, public_path,
-        user_id, tenant_id, device_id, config_id, approval_hold_id, auth_mode, caller_type,
+        user_id, tenant_id, workspace_id, workspace_key, actor_id, actor_type,
+        brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+        app_key, action_key, resource_type, resource_id,
+        device_id, config_id, approval_hold_id, auth_mode, caller_type,
         service_mode, entitlement_key, request_args_hash, request_args_json,
-        redaction_status, consent_status, status, trace_id, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'redacted', ?, 'started', ?, NOW())`,
+        redaction_status, consent_status, status, trace_id, execution_context_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'redacted', ?, 'started', ?, ?, NOW())`,
     [
       callId,
       tool.tool_key,
       tool.dispatch_tool_key,
       publicHost,
       tool.public_path,
-      deviceConfig?.user_id || req.auth?.user_id || args.user_id || null,
-      deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null,
+      userId,
+      tenantId,
+      args.workspace_id || null,
+      args.workspace_key || null,
+      userId,
+      userId ? "user" : "system",
+      args.brand_id || null,
+      args.brand_key || null,
+      requestId,
+      args.session_id || null,
+      args.conversation_id || null,
+      requestId,
+      "local_gateway",
+      tool.dispatch_tool_key || tool.tool_key,
+      "local_gateway_tool_call",
+      callId,
       args.device_id || null,
       deviceConfig?.config_id || null,
       approvalHoldId,
@@ -331,7 +444,8 @@ async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost
       hashArgs(redactedArgs),
       JSON.stringify(redactedArgs),
       consentStatus,
-      req.headers?.["x-request-id"] || null,
+      req.headers?.["x-request-id"] || requestId,
+      JSON.stringify({ source: "local_gateway_tools_routes", call_id: callId, tool_key: tool.tool_key, secrets_included: false }),
     ]
   );
 }
@@ -422,6 +536,13 @@ export function buildLocalGatewayToolsRoutes(deps) {
       const entitlementKey = row.required_entitlement_key || null;
       const consentStatus = consentStatusFor(row, args);
       const approvalHoldId = String(args.approval_hold_id || "").trim() || null;
+      const approvalBinding = buildLocalGatewayApprovalBinding({
+        toolKey: row.tool_key,
+        tenantId: deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null,
+        userId: deviceConfig?.user_id || req.auth?.user_id || args.user_id || null,
+        deviceId: args.device_id || deviceConfig?.device_id || null,
+        args,
+      });
       const publicHost = publicHostForRequest(req);
       await insertCallLog({
         tool: row,
@@ -477,22 +598,50 @@ export function buildLocalGatewayToolsRoutes(deps) {
         }
 
         if (row.requires_approval) {
-          const approvedHold = approvalHoldId ? await getApprovedApprovalHold({ holdId: approvalHoldId, tenantId: req.auth?.tenant_id, row }) : null;
-          if (approvalHoldId && !approvedHold) {
-            await completeCallLog({ callId, status: "denied", httpStatus: 403, errorCode: "approval_hold_not_approved", errorMessage: `Approval hold '${approvalHoldId}' is not approved for '${toolKey}'.`, startedAt });
+          const approvalDecision = approvalHoldId
+            ? await getApprovedApprovalHold({
+                holdId: approvalHoldId,
+                tenantId: req.auth?.tenant_id,
+                row,
+                approvalBinding,
+              })
+            : null;
+          if (approvalHoldId && !approvalDecision?.ok) {
+            const errorCode = approvalDecision?.code || "approval_hold_not_approved";
+            const bindingMismatch = Boolean(approvalDecision?.hold);
+            await completeCallLog({
+              callId,
+              status: "denied",
+              httpStatus: 403,
+              errorCode,
+              errorMessage: `Approval hold '${approvalHoldId}' is not valid for '${toolKey}'.`,
+              startedAt,
+            });
             return res.status(403).json({
               ok: false,
               error: {
-                code: "approval_hold_not_approved",
-                message: "The supplied approval hold is missing, expired, rejected, or not approved for this tool.",
-                details: { approval_hold_id: approvalHoldId, required_hold_type: row.approval_hold_type || "review" },
+                code: errorCode,
+                message: bindingMismatch
+                  ? "The supplied approval hold is approved but is bound to a different tool, principal, device, or request."
+                  : "The supplied approval hold is missing, expired, rejected, or not approved for this tool.",
+                details: {
+                  approval_hold_id: approvalHoldId,
+                  required_hold_type: row.approval_hold_type || "review",
+                  mismatch_field: approvalDecision?.bindingDecision?.mismatch_field || null,
+                },
               },
               local_gateway: { call_id: callId, tool_key: row.tool_key, approval_hold_id: approvalHoldId },
             });
           }
 
-          if (!approvedHold) {
-            const createdHoldId = await createApprovalHold({ callId, req, row, tenantId: req.auth?.tenant_id });
+          if (!approvalDecision?.ok) {
+            const createdHoldId = await createApprovalHold({
+              callId,
+              req,
+              row,
+              tenantId: req.auth?.tenant_id,
+              approvalBinding,
+            });
             await getPool().query(
               "UPDATE `local_gateway_tool_call_log` SET approval_hold_id = ? WHERE call_id = ?",
               [createdHoldId, callId]
@@ -513,6 +662,44 @@ export function buildLocalGatewayToolsRoutes(deps) {
                 },
               },
               local_gateway: { call_id: callId, tool_key: row.tool_key, approval_hold_id: createdHoldId, status: "approval_pending" },
+            });
+          }
+
+          const approvalClaim = await claimApprovedApprovalHold({
+            holdId: approvalHoldId,
+            tenantId: req.auth?.tenant_id,
+            callId,
+            approvalBinding,
+          });
+          if (!approvalClaim.ok) {
+            const claimStatus = approvalClaim.code === "approval_hold_consumption_readback_failed" ? 502 : 409;
+            await completeCallLog({
+              callId,
+              status: "denied",
+              httpStatus: claimStatus,
+              errorCode: approvalClaim.code,
+              errorMessage: `Approval hold '${approvalHoldId}' could not be consumed with verified readback.`,
+              startedAt,
+            });
+            return res.status(claimStatus).json({
+              ok: false,
+              error: {
+                code: approvalClaim.code,
+                message: approvalClaim.code === "approval_hold_consumption_readback_failed"
+                  ? "The approval hold was claimed but same-cycle readback could not be verified. Dispatch was blocked."
+                  : "The supplied approval hold has already been consumed. Create and approve a new hold before retrying.",
+                details: {
+                  approval_hold_id: approvalHoldId,
+                  readback_verified: approvalClaim.readback_verified === true,
+                },
+              },
+              local_gateway: {
+                call_id: callId,
+                tool_key: row.tool_key,
+                approval_hold_id: approvalHoldId,
+                approval_consumed: false,
+                approval_consumption_readback_verified: approvalClaim.readback_verified === true,
+              },
             });
           }
         }

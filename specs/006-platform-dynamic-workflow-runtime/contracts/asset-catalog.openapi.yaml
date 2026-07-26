@@ -1,0 +1,575 @@
+openapi: 3.1.0
+info:
+  title: Platform Asset Catalog and Tenant Customization API
+  version: 0.1.0
+  description: Design contract for publishing platform assets and tenant install, override, extend, fork, upgrade, and authoring flows.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+paths:
+  /v1/platform-assets:
+    get:
+      operationId: listPlatformAssets
+      tags: [Platform Assets]
+      summary: List platform assets visible to the authenticated tenant or administrator
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - in : query
+          name: assetType
+          schema:
+            $ref: '#/components/schemas/AssetType'
+        - in: query
+          name: businessActivityType
+          schema:
+            type: string
+        - in : query
+          name: compatibilityStatus
+          schema:
+            type: string
+            enum: [compatible, requires_configuration, blocked]
+      responses:
+        '200':
+          description: Visible platform assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetPage'
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /v1/platform-assets/{assetId}:
+    get:
+      operationId: getPlatformAsset
+      tags: [Platform Assets]
+      summary: Read one visible platform asset and its publication policy
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: Platform asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAsset'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/platform-assets/{assetId}/versions/{assetVersionId}:
+    get:
+      operationId: getPlatformAssetVersion
+      tags: [Platform Assets]
+      summary: Read one immutable visible platform asset version
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: '#/components/parameters/AssetVersionId'
+      responses:
+        '200':
+          description: Asset version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetVersion'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/asset-publications:
+    post:
+      operationId: publishPlatformAssetVersion
+      tags: [Asset Publication]
+      summary: Publish an approved platform asset version to an explicit audience
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishAssetRequest'
+      responses:
+        '201':
+          description: Publication created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetPublication'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations:
+    post:
+      operationId: installPlatformAsset
+      tags: [Tenant Asset Installations]
+      summary: Install a visible platform asset version by reference
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallAssetRequest'
+      responses:
+        '201':
+          description: Asset installation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetInstallation'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}:
+    get:
+      operationId: getAssetInstallation
+      tags: [Tenant Asset Installations]
+      summary: Read one tenant-scoped installation
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+      responses:
+        '200':
+          description: Installation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetInstallation'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: uninstallAsset
+      tags: [Tenant Asset Installations]
+      summary: Disable future use while preserving historical evidence
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Installation disabled
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}/overrides:
+    put:
+      operationId: replaceAssetOverrides
+      tags: [Tenant Customization]
+      summary: Replace sparse bounded overrides after policy validation
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceOverridesRequest'
+      responses:
+        '200':
+          description: Validated overrides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideSet'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}/extensions:
+    post:
+      operationId: addAssetExtension
+      tags: [Tenant Customization]
+      summary: Add tenant-owned steps at a declared extension point
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddExtensionRequest'
+      responses:
+        '201':
+          description: Extension created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetExtension'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}/forks:
+    post:
+      operationId: forkInstalledAsset
+      tags: [Tenant Customization]
+      summary: Create a tenant-owned governed fork with immutable origin lineage
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateForkRequest'
+      responses:
+        '201':
+          description: Governed fork created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantAsset'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}/upgrade-previews:
+    post:
+      operationId: previewAssetUpgrade
+      tags: [Asset Upgrades]
+      summary: Produce compatibility, policy, and customization impact before upgrade
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetAssetVersionId]
+              properties:
+                targetAssetVersionId: {type: string}
+      responses:
+        '200':
+          description: Upgrade preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradePreview'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/asset-installations/{installationId}/upgrades:
+    post:
+      operationId: applyAssetUpgrade
+      tags: [Asset Upgrades]
+      summary: Apply the exact approved compatible upgrade preview
+      parameters:
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [upgradePreviewId, previewHash, expectedInstallationVersion]
+              properties:
+                upgradePreviewId: {type: string}
+                previewHash: {type: string}
+                expectedInstallationVersion: {type: integer, minimum: 1}
+                approvalHoldId: {type: string}
+      responses:
+        '200':
+          description: Installation upgraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetInstallation'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/tenant-assets:
+    post:
+      operationId: createTenantAsset
+      tags: [Tenant Assets]
+      summary: Create a tenant-owned draft asset
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantAssetRequest'
+      responses:
+        '201':
+          description: Tenant asset draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantAsset'
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/tenant-assets/{tenantAssetId}/origin-compatibility:
+    post:
+      operationId: compareForkWithOrigin
+      tags: [Tenant Assets]
+      summary: Three-way compare origin-at-fork, latest platform version, and current tenant fork
+      parameters:
+        - $ref: '#/components/parameters/TenantAssetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Fork compatibility report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForkCompatibilityReport'
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      in : header
+      name: Idempotency-Key
+      required: true
+      schema: {type: string, minLength: 8, maxLength: 180}
+    Limit:
+      in: query
+      name: limit
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+    Cursor:
+      in : query
+      name: cursor
+      schema: {type: string}
+    AssetId:
+      in : path
+      name: assetId
+      required: true
+      schema: {type: string}
+    AssetVersionId:
+      in: path
+      name: assetVersionId
+      required: true
+      schema: {type: string}
+    InstallationId:
+      in: path
+      name: installationId
+      required: true
+      schema: {type: string}
+    TenantAssetId:
+      in: path
+      name: tenantAssetId
+      required: true
+      schema: {type: string}
+  schemas:
+    AssetType:
+      type: string
+      enum: [ia_agent, workflow, skill, prompt, knowledge_package, output_template, runtime_profile]
+    PublicationVisibility:
+      type: string
+      enum: [private, platform_internal, tenant_available, tenant_default, mandatory_policy, deprecated, retired]
+    VersionPolicy:
+      type: string
+      enum: [auto_upgrade, approval_required, version_pinned]
+    CustomizationMode:
+      type: string
+      enum: [install, override, extend, fork, tenant_authored]
+    PlatformAsset:
+      type: object
+      required: [id, key, assetType, ownerContainerId, visibility, latestVersion, customizationModes]
+      properties:
+        id: {type: string}
+        key: {type: string}
+        displayName: {type: string}
+        assetType: {$ref: '#/components/schemas/AssetType'}
+        ownerContainerId: {type: string}
+        visibility: {$ref: '#/components/schemas/PublicationVisibility'}
+        latestVersion: {$ref: '#/components/schemas/AssetVersionSummary'}
+        customizationModes:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CustomizationMode'}
+        publicationPolicy: {type: object, additionalProperties: true}
+        compatibility: {type: object, additionalProperties: true}
+    AssetVersionSummary:
+      type: object
+      required: [id, semanticVersion, contentHash, status]
+      properties:
+        id: {type: string}
+        semanticVersion: {type: string}
+        contentHash: {type: string}
+        status: {type: string, enum: [draft, validated, approved, active, deprecated, retired]}
+    AssetVersion:
+      allOf:
+        - $ref: '#/components/schemas/AssetVersionSummary'
+        - type: object
+          required: [assetId, schemaVersion, payload]
+          properties:
+            assetId: {type: string}
+            schemaVersion: {type: string}
+            payload: {type: object, additionalProperties: true}
+            certification: {type: object, additionalProperties: true}
+    AssetPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/PlatformAsset'}
+        page:
+          type: object
+          required: [hasMore]
+          properties:
+            nextCursor: {type: [string, 'null']}
+            hasMore: {type: boolean}
+    PublishAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [assetVersionId, visibility, audience, customizationModes, versionPolicies]
+      properties:
+        assetVersionId: {type: string}
+        visibility: {$ref: '#/components/schemas/PublicationVisibility'}
+        audience: {type: object, additionalProperties: true}
+        customizationModes:
+          type: array
+          items: {$ref: '#/components/schemas/CustomizationMode'}
+        versionPolicies:
+          type: array
+          items: {$ref: '#/components/schemas/VersionPolicy'}
+        mandatoryConstraints: {type: object, additionalProperties: true}
+        approvalHoldId: {type: string}
+    AssetPublication:
+      type: object
+      required: [id, assetVersionId, visibility, policyHash, status]
+      properties:
+        id: {type: string}
+        assetVersionId: {type: string}
+        visibility: {$ref: '#/components/schemas/PublicationVisibility'}
+        policyHash: {type: string}
+        status: {type: string}
+    InstallAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [assetVersionId, targetContainerId, versionPolicy]
+      properties:
+        assetVersionId: {type: string}
+        targetContainerId: {type: string}
+        versionPolicy: {$ref: '#/components/schemas/VersionPolicy'}
+        bindings: {type: array, items: {type: object, additionalProperties: true}}
+        initialOverrides: {type: object, additionalProperties: true}
+    AssetInstallation:
+      type: object
+      required: [id, assetId, assetVersionId, ownerContainerId, versionPolicy, version, status]
+      properties:
+        id: {type: string}
+        assetId: {type: string}
+        assetVersionId: {type: string}
+        ownerContainerId: {type: string}
+        versionPolicy: {$ref: '#/components/schemas/VersionPolicy'}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [draft, active, suspended, deprecated, uninstalled]}
+        effectivePolicyHash: {type: string}
+    ReplaceOverridesRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedInstallationVersion, overrides]
+      properties:
+        expectedInstallationVersion: {type: integer, minimum: 1}
+        overrides: {type: object, additionalProperties: true}
+    OverrideSet:
+      type: object
+      required: [installationId, installationVersion, values, validation]
+      properties:
+        installationId: {type: string}
+        installationVersion: {type: integer}
+        values: {type: object, additionalProperties: true}
+        validation: {type: object, additionalProperties: true}
+    AddExtensionRequest:
+      type: object
+      additionalProperties: false
+      required: [extensionPoint, steps, expectedInstallationVersion]
+      properties:
+        extensionPoint: {type: string}
+        steps: {type: array, minItems: 1, items: {type: object, additionalProperties: true}}
+        expectedInstallationVersion: {type: integer, minimum: 1}
+    AssetExtension:
+      type: object
+      required: [id, installationId, extensionPoint, contentHash, status]
+      properties:
+        id: {type: string}
+        installationId: {type: string}
+        extensionPoint: {type: string}
+        contentHash: {type: string}
+        status: {type: string}
+    CreateForkRequest:
+      type: object
+      additionalProperties: false
+      required: [key, displayName, reason, expectedInstallationVersion]
+      properties:
+        key: {type: string}
+        displayName: {type: string}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        expectedInstallationVersion: {type: integer, minimum: 1}
+    CreateTenantAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [key, displayName, assetType, ownerContainerId, payload]
+      properties:
+        key: {type: string}
+        displayName: {type: string}
+        assetType: {$ref: '#/components/schemas/AssetType'}
+        ownerContainerId: {type: string}
+        payload: {type: object, additionalProperties: true}
+    TenantAsset:
+      type: object
+      required: [id, key, assetType, ownerContainerId, currentVersionId, status]
+      properties:
+        id: {type: string}
+        key: {type: string}
+        assetType: {$ref: '#/components/schemas/AssetType'}
+        ownerContainerId: {type: string}
+        currentVersionId: {type: string}
+        origin:
+          type: [object, 'null']
+          additionalProperties: true
+        status: {type: string}
+    UpgradePreview:
+      type: object
+      required: [id, installationId, sourceVersionId, targetVersionId, status, previewHash, impacts]
+      properties:
+        id: {type: string}
+        installationId: {type: string}
+        sourceVersionId: {type: string}
+        targetVersionId: {type: string}
+        status: {type: string, enum: [compatible, approval_required, blocked]}
+        previewHash: {type: string}
+        impacts: {type: object, additionalProperties: true}
+        blockers: {type: array, items: {type: object, additionalProperties: true}}
+    ForkCompatibilityReport:
+      type: object
+      required: [tenantAssetId, originVersionId, latestPlatformVersionId, forkVersionId, status]
+      properties:
+        tenantAssetId: {type: string}
+        originVersionId: {type: string}
+        latestPlatformVersionId: {type: string}
+        forkVersionId: {type: string}
+        status:
+          type: string
+          enum: [clean_rebase_candidate, manual_merge_required, policy_conflict, capability_conflict, schema_conflict, security_upgrade_required, no_longer_supported]
+        differences: {type: array, items: {type: object, additionalProperties: true}}
+        requiredActions: {type: array, items: {type: object, additionalProperties: true}}
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details: {type: array, items: {type: object, additionalProperties: true}}
+            requestId: {type: string}
+  responses:
+    Error:
+      description: Structured actionable error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

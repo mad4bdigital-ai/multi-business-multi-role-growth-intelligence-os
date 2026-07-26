@@ -1,0 +1,382 @@
+-- Sprint 68: Platform Resource Recipe Capability foundation.
+--
+-- This migration adds a registry-driven recipe layer for governed platform resources.
+-- It deliberately does NOT create resource_graph_* tables and does NOT duplicate
+-- platform_plugin_* lifecycle tables. Relationships project into the existing
+-- platform_graph_* surfaces, and write/mutation authority remains governed by
+-- platform_resource_authority_requirements plus capability_resolution_envelope_ledger.
+--
+-- V1 is registry/readiness only:
+--   - no provider calls
+--   - no raw endpoint executor
+--   - no Drive/GitHub/Cloudflare writes
+--   - no delete/move/apply path
+--   - no secrets returned
+
+CREATE TABLE IF NOT EXISTS `platform_resource_types` (
+  `resource_type` varchar(128) NOT NULL,
+  `resource_family` varchar(128) NOT NULL,
+  `provider_key` varchar(128) NULL,
+  `display_name` varchar(255) NOT NULL,
+  `source_table` varchar(120) NULL,
+  `source_pk_column` varchar(120) NULL,
+  `default_identity_pattern` varchar(255) NULL,
+  `default_inspect_recipe_key` varchar(191) NULL,
+  `default_reconcile_recipe_key` varchar(191) NULL,
+  `supports_children` tinyint(1) NOT NULL DEFAULT 0,
+  `supports_versions` tinyint(1) NOT NULL DEFAULT 0,
+  `supports_content` tinyint(1) NOT NULL DEFAULT 0,
+  `supports_mutation` tinyint(1) NOT NULL DEFAULT 0,
+  `graph_node_type` varchar(120) NULL,
+  `status` enum('planned','active','disabled') NOT NULL DEFAULT 'active',
+  `metadata_json` json NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`resource_type`),
+  KEY `idx_platform_resource_types_family_status` (`resource_family`, `status`),
+  KEY `idx_platform_resource_types_provider_status` (`provider_key`, `status`),
+  KEY `idx_platform_resource_types_source` (`source_table`, `source_pk_column`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `platform_resource_adapters` (
+  `adapter_key` varchar(191) NOT NULL,
+  `resource_type` varchar(128) NOT NULL,
+  `provider_key` varchar(128) NULL,
+  `adapter_kind` enum('installed_tool','endpoint_recipe','db_adapter','graph_adapter','composite') NOT NULL,
+  `installed_tool_key` varchar(191) NULL,
+  `identity_resolver_key` varchar(191) NULL,
+  `metadata_normalizer_key` varchar(191) NULL,
+  `children_normalizer_key` varchar(191) NULL,
+  `content_policy` varchar(128) NOT NULL DEFAULT 'metadata_only',
+  `supports_plan` tinyint(1) NOT NULL DEFAULT 1,
+  `supports_read` tinyint(1) NOT NULL DEFAULT 1,
+  `supports_write` tinyint(1) NOT NULL DEFAULT 0,
+  `status` enum('planned','active','disabled') NOT NULL DEFAULT 'active',
+  `metadata_json` json NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`adapter_key`),
+  KEY `idx_platform_resource_adapters_type_status` (`resource_type`, `status`),
+  KEY `idx_platform_resource_adapters_provider_status` (`provider_key`, `status`),
+  KEY `idx_platform_resource_adapters_tool` (`installed_tool_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `platform_resource_recipes` (
+  `recipe_key` varchar(191) NOT NULL,
+  `resource_type` varchar(128) NOT NULL,
+  `operation_key` varchar(128) NOT NULL,
+  `adapter_key` varchar(191) NOT NULL,
+  `risk_class` enum('read_only','diagnostic','write','mutation','destructive') NOT NULL DEFAULT 'read_only',
+  `mode` enum('catalog','inspect','traverse','compare','reconcile','plan','apply') NOT NULL,
+  `read_only` tinyint(1) NOT NULL DEFAULT 1,
+  `requires_dry_run` tinyint(1) NOT NULL DEFAULT 1,
+  `requires_capability_envelope` tinyint(1) NOT NULL DEFAULT 0,
+  `requires_typed_confirmation` tinyint(1) NOT NULL DEFAULT 0,
+  `requires_same_cycle_readback` tinyint(1) NOT NULL DEFAULT 0,
+  `authority_requirement_key` varchar(191) NULL,
+  `input_schema_json` json NULL,
+  `output_schema_json` json NULL,
+  `policy_json` json NULL,
+  `graph_write_policy` enum('none','summary_node','resource_node_edges','full_projection') NOT NULL DEFAULT 'summary_node',
+  `engine_key` varchar(191) NOT NULL DEFAULT 'resource_authority_engine',
+  `status` enum('planned','active','disabled') NOT NULL DEFAULT 'active',
+  `notes` text NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`recipe_key`),
+  KEY `idx_platform_resource_recipes_type_status` (`resource_type`, `status`),
+  KEY `idx_platform_resource_recipes_adapter_status` (`adapter_key`, `status`),
+  KEY `idx_platform_resource_recipes_operation` (`operation_key`, `mode`, `status`),
+  KEY `idx_platform_resource_recipes_authority` (`authority_requirement_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `platform_resource_recipe_steps` (
+  `step_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `recipe_key` varchar(191) NOT NULL,
+  `step_order` int NOT NULL,
+  `step_key` varchar(128) NOT NULL,
+  `step_kind` enum('endpoint_call','installed_tool_call','db_read','graph_read','classify','project_graph','emit_evidence') NOT NULL,
+  `parent_action_key` varchar(191) NULL,
+  `endpoint_key` varchar(191) NULL,
+  `tool_key` varchar(191) NULL,
+  `source_table` varchar(120) NULL,
+  `source_pk_template_json` json NULL,
+  `query_template_json` json NULL,
+  `body_template_json` json NULL,
+  `response_projection_json` json NULL,
+  `required` tinyint(1) NOT NULL DEFAULT 1,
+  `on_error_policy` enum('fail','skip','classify_degraded') NOT NULL DEFAULT 'fail',
+  `status` enum('planned','active','disabled') NOT NULL DEFAULT 'active',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`step_id`),
+  UNIQUE KEY `uq_platform_resource_recipe_step` (`recipe_key`, `step_order`, `step_key`),
+  KEY `idx_platform_resource_recipe_steps_recipe` (`recipe_key`, `status`),
+  KEY `idx_platform_resource_recipe_steps_endpoint` (`parent_action_key`, `endpoint_key`),
+  KEY `idx_platform_resource_recipe_steps_tool` (`tool_key`),
+  KEY `idx_platform_resource_recipe_steps_source` (`source_table`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `platform_resource_types`
+  (`resource_type`, `resource_family`, `provider_key`, `display_name`, `source_table`, `source_pk_column`,
+   `default_identity_pattern`, `default_inspect_recipe_key`, `default_reconcile_recipe_key`,
+   `supports_children`, `supports_versions`, `supports_content`, `supports_mutation`, `graph_node_type`, `status`, `metadata_json`)
+VALUES
+  ('drive_folder', 'google_drive', 'google_drive_api', 'Google Drive Folder', NULL, NULL,
+   'gdrive://folder/{id}', 'google_drive.folder.inspect_tree', NULL,
+   1, 0, 0, 0, 'resource.drive_folder', 'active',
+   JSON_OBJECT('v1_policy','metadata_only','content_default','blocked')),
+  ('drive_file', 'google_drive', 'google_drive_api', 'Google Drive File', NULL, NULL,
+   'gdrive://file/{id}', NULL, NULL,
+   0, 1, 0, 0, 'resource.drive_file', 'planned',
+   JSON_OBJECT('v1_policy','metadata_only','content_default','blocked')),
+  ('session_archive_folder', 'session_archive', 'google_drive_api', 'GPT Session Archive Folder', 'customer_sessions', 'session_id',
+   'session-archive://{session_id}', 'google_drive.folder.inspect_tree', 'google_drive.session_folder.reconcile_artifacts_exports',
+   1, 1, 0, 0, 'resource.session_archive_folder', 'active',
+   JSON_OBJECT('source_tables', JSON_ARRAY('customer_sessions','gpt_session_turns','session_events','session_drive_artifacts','output_artifacts'))),
+  ('session_artifacts_folder', 'session_archive', 'google_drive_api', 'GPT Session Artifacts Folder', 'session_drive_artifacts', 'artifact_id',
+   'session-artifacts://{session_id}', 'google_drive.folder.inspect_tree', 'google_drive.session_folder.reconcile_artifacts_exports',
+   1, 1, 0, 0, 'resource.session_artifacts_folder', 'active',
+   JSON_OBJECT('write_policy','not_enabled_v1')),
+  ('session_exports_folder', 'session_archive', 'google_drive_api', 'GPT Session Exports Folder', 'customer_sessions', 'drive_exports_folder_id',
+   'session-exports://{session_id}', 'google_drive.folder.inspect_tree', 'google_drive.session_folder.reconcile_artifacts_exports',
+   1, 1, 0, 0, 'resource.session_exports_folder', 'active',
+   JSON_OBJECT('write_policy','not_enabled_v1')),
+  ('github_branch', 'github_repo', 'github_api_mcp', 'GitHub Branch', NULL, NULL,
+   'github://{owner}/{repo}/branch/{branch}', NULL, 'github.branch.reconcile_with_base',
+   0, 1, 0, 0, 'resource.github_branch', 'active',
+   JSON_OBJECT('installed_adapter','admin_branch_reconcile','apply_default','blocked')),
+  ('platform_plugin_contribution', 'platform_plugin', 'platform_plugin_runtime', 'Platform Plugin Contribution', 'platform_plugin_contributions', 'contribution_id',
+   'platform-plugin-contribution://{contribution_id}', 'platform_plugin.contribution.inspect_runtime_readiness', NULL,
+   0, 1, 0, 0, 'resource.platform_plugin_contribution', 'active',
+   JSON_OBJECT('lifecycle_table','platform_plugin_contributions','duplicate_table_policy','do_not_create_platform_plugin_resource_tables')),
+  ('platform_plugin_smoke_certification', 'platform_plugin', 'platform_plugin_runtime', 'Platform Plugin Smoke Certification', 'platform_plugin_smoke_certifications', 'certification_id',
+   'platform-plugin-smoke-certification://{certification_id}', 'platform_plugin.smoke_certification.inspect_status', NULL,
+   0, 1, 0, 0, 'resource.platform_plugin_smoke_certification', 'active',
+   JSON_OBJECT('lifecycle_table','platform_plugin_smoke_certifications')),
+  ('execution_log_row', 'platform_runtime', NULL, 'Execution Log Row', 'execution_log', 'id',
+   'execution-log://{id}', NULL, NULL,
+   0, 0, 0, 0, 'resource.execution_log_row', 'active',
+   JSON_OBJECT('high_volume_source', true, 'write_policy','existing_execution_log_only')),
+  ('ticket', 'support', NULL, 'Support Ticket', 'tickets', 'ticket_id',
+   'ticket://{ticket_id}', NULL, NULL,
+   0, 1, 0, 0, 'resource.ticket', 'active',
+   JSON_OBJECT('link_table','ticket_resource_links'))
+ON DUPLICATE KEY UPDATE
+  `resource_family` = VALUES(`resource_family`),
+  `provider_key` = VALUES(`provider_key`),
+  `display_name` = VALUES(`display_name`),
+  `source_table` = VALUES(`source_table`),
+  `source_pk_column` = VALUES(`source_pk_column`),
+  `default_identity_pattern` = VALUES(`default_identity_pattern`),
+  `default_inspect_recipe_key` = VALUES(`default_inspect_recipe_key`),
+  `default_reconcile_recipe_key` = VALUES(`default_reconcile_recipe_key`),
+  `supports_children` = VALUES(`supports_children`),
+  `supports_versions` = VALUES(`supports_versions`),
+  `supports_content` = VALUES(`supports_content`),
+  `supports_mutation` = VALUES(`supports_mutation`),
+  `graph_node_type` = VALUES(`graph_node_type`),
+  `status` = VALUES(`status`),
+  `metadata_json` = VALUES(`metadata_json`),
+  `updated_at` = CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_resource_adapters`
+  (`adapter_key`, `resource_type`, `provider_key`, `adapter_kind`, `installed_tool_key`,
+   `identity_resolver_key`, `metadata_normalizer_key`, `children_normalizer_key`,
+   `content_policy`, `supports_plan`, `supports_read`, `supports_write`, `status`, `metadata_json`)
+VALUES
+  ('google_drive.folder.adapter', 'drive_folder', 'google_drive_api', 'installed_tool', 'google_drive_folder_inspect',
+   'parse_google_drive_folder_ref', 'normalize_drive_file_metadata', 'normalize_drive_children',
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('supports_shared_drives', true, 'file_content_allowed', false, 'secrets_allowed', false)),
+  ('google_drive.session_folder.adapter', 'session_archive_folder', 'google_drive_api', 'composite', NULL,
+   'resolve_session_archive_folder', 'normalize_session_archive_metadata', 'normalize_session_archive_children',
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('delegates_to', JSON_ARRAY('google_drive.folder.adapter'), 'apply_supported', false)),
+  ('github.branch.reconcile.adapter', 'github_branch', 'github_api_mcp', 'installed_tool', 'admin_branch_reconcile',
+   'parse_github_branch_ref', 'normalize_admin_branch_reconcile_state', NULL,
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('installed_adapter_verified', true, 'apply_default', 'blocked', 'force_push_allowed', false)),
+  ('platform_plugin.contribution.adapter', 'platform_plugin_contribution', 'platform_plugin_runtime', 'db_adapter', NULL,
+   'resolve_platform_plugin_contribution_ref', 'normalize_platform_plugin_contribution', NULL,
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('source_table','platform_plugin_contributions','no_runtime_dispatch', true)),
+  ('platform_plugin.smoke_certification.adapter', 'platform_plugin_smoke_certification', 'platform_plugin_runtime', 'db_adapter', NULL,
+   'resolve_platform_plugin_smoke_certification_ref', 'normalize_platform_plugin_smoke_certification', NULL,
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('source_table','platform_plugin_smoke_certifications','secrets_included_required', false)),
+  ('platform_runtime.execution_log.adapter', 'execution_log_row', NULL, 'db_adapter', NULL,
+   'resolve_execution_log_row_ref', 'normalize_execution_log_row', NULL,
+   'metadata_only', 1, 1, 0, 'active',
+   JSON_OBJECT('source_table','execution_log','high_volume_source', true))
+ON DUPLICATE KEY UPDATE
+  `resource_type` = VALUES(`resource_type`),
+  `provider_key` = VALUES(`provider_key`),
+  `adapter_kind` = VALUES(`adapter_kind`),
+  `installed_tool_key` = VALUES(`installed_tool_key`),
+  `identity_resolver_key` = VALUES(`identity_resolver_key`),
+  `metadata_normalizer_key` = VALUES(`metadata_normalizer_key`),
+  `children_normalizer_key` = VALUES(`children_normalizer_key`),
+  `content_policy` = VALUES(`content_policy`),
+  `supports_plan` = VALUES(`supports_plan`),
+  `supports_read` = VALUES(`supports_read`),
+  `supports_write` = VALUES(`supports_write`),
+  `status` = VALUES(`status`),
+  `metadata_json` = VALUES(`metadata_json`),
+  `updated_at` = CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_resource_recipes`
+  (`recipe_key`, `resource_type`, `operation_key`, `adapter_key`, `risk_class`, `mode`,
+   `read_only`, `requires_dry_run`, `requires_capability_envelope`, `requires_typed_confirmation`,
+   `requires_same_cycle_readback`, `authority_requirement_key`, `input_schema_json`, `output_schema_json`,
+   `policy_json`, `graph_write_policy`, `engine_key`, `status`, `notes`)
+VALUES
+  ('google_drive.folder.inspect_tree', 'drive_folder', 'inspect_tree', 'google_drive.folder.adapter', 'read_only', 'inspect',
+   1, 0, 0, 0, 0, NULL,
+   JSON_OBJECT('type','object','properties', JSON_OBJECT('folder_id', JSON_OBJECT('type','string'), 'folder_url', JSON_OBJECT('type','string'), 'max_depth', JSON_OBJECT('type','integer','minimum',0,'maximum',3))),
+   JSON_OBJECT('type','object','required', JSON_ARRAY('classification','secrets_included')),
+   JSON_OBJECT('max_depth',3,'max_items',500,'file_content_allowed',false,'secrets_allowed',false,'raw_endpoint_executor_allowed',false),
+   'resource_node_edges', 'resource_authority_engine', 'active',
+   'Read-only wrapper around the installed google_drive_folder_inspect system-layer tool.'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 'session_archive_folder', 'reconcile_artifacts_exports', 'google_drive.session_folder.adapter', 'diagnostic', 'reconcile',
+   1, 1, 0, 0, 0, NULL,
+   JSON_OBJECT('type','object','properties', JSON_OBJECT('session_id', JSON_OBJECT('type','string'), 'folder_id', JSON_OBJECT('type','string'), 'folder_url', JSON_OBJECT('type','string'))),
+   JSON_OBJECT('type','object','required', JSON_ARRAY('classification','findings','recommended_next_operations','secrets_included')),
+   JSON_OBJECT('required_child_folders', JSON_ARRAY('Artifacts','Exports'), 'detect_empty_files', true, 'detect_duplicate_names', true, 'detect_orphan_exports', true, 'detect_missing_exports', true, 'apply_supported', false),
+   'resource_node_edges', 'resource_authority_engine', 'active',
+   'Read-only artifact/export reconciliation recipe for GPT session archive folders.'),
+  ('github.branch.reconcile_with_base', 'github_branch', 'reconcile_with_base', 'github.branch.reconcile.adapter', 'diagnostic', 'reconcile',
+   1, 1, 0, 0, 0, NULL,
+   JSON_OBJECT('type','object','required', JSON_ARRAY('branch'), 'properties', JSON_OBJECT('branch', JSON_OBJECT('type','string'), 'default_branch', JSON_OBJECT('type','string','default','main'))),
+   JSON_OBJECT('type','object','required', JSON_ARRAY('classification','checkpoint','secrets_included')),
+   JSON_OBJECT('delegates_to_installed_tool','admin_branch_reconcile','force_push_allowed',false,'protected_branches_blocked',true,'apply_default','blocked'),
+   'summary_node', 'resource_authority_engine', 'active',
+   'Compatibility recipe that delegates to the installed admin_branch_reconcile adapter.'),
+  ('platform_plugin.contribution.inspect_runtime_readiness', 'platform_plugin_contribution', 'inspect_runtime_readiness', 'platform_plugin.contribution.adapter', 'diagnostic', 'inspect',
+   1, 1, 0, 0, 0, NULL,
+   JSON_OBJECT('type','object','properties', JSON_OBJECT('contribution_id', JSON_OBJECT('type','string'), 'plugin_key', JSON_OBJECT('type','string'))),
+   JSON_OBJECT('type','object','required', JSON_ARRAY('classification','findings','secrets_included')),
+   JSON_OBJECT('source_tables', JSON_ARRAY('platform_plugin_contributions','platform_plugin_smoke_certifications','platform_plugin_smoke_recertification_policies'), 'runtime_dispatch_allowed', false),
+   'resource_node_edges', 'resource_authority_engine', 'active',
+   'Read-only readiness recipe for Platform Plugin contribution lifecycle state.'),
+  ('platform_plugin.smoke_certification.inspect_status', 'platform_plugin_smoke_certification', 'inspect_status', 'platform_plugin.smoke_certification.adapter', 'read_only', 'inspect',
+   1, 0, 0, 0, 0, NULL,
+   JSON_OBJECT('type','object','properties', JSON_OBJECT('certification_id', JSON_OBJECT('type','string'), 'plugin_key', JSON_OBJECT('type','string'))),
+   JSON_OBJECT('type','object','required', JSON_ARRAY('classification','certification_status','secrets_included')),
+   JSON_OBJECT('source_tables', JSON_ARRAY('platform_plugin_smoke_certifications','platform_plugin_smoke_recertification_policies'), 'secrets_allowed', false),
+   'summary_node', 'resource_authority_engine', 'active',
+   'Read-only smoke certification status recipe for Platform Plugin surfaces.')
+ON DUPLICATE KEY UPDATE
+  `resource_type` = VALUES(`resource_type`),
+  `operation_key` = VALUES(`operation_key`),
+  `adapter_key` = VALUES(`adapter_key`),
+  `risk_class` = VALUES(`risk_class`),
+  `mode` = VALUES(`mode`),
+  `read_only` = VALUES(`read_only`),
+  `requires_dry_run` = VALUES(`requires_dry_run`),
+  `requires_capability_envelope` = VALUES(`requires_capability_envelope`),
+  `requires_typed_confirmation` = VALUES(`requires_typed_confirmation`),
+  `requires_same_cycle_readback` = VALUES(`requires_same_cycle_readback`),
+  `authority_requirement_key` = VALUES(`authority_requirement_key`),
+  `input_schema_json` = VALUES(`input_schema_json`),
+  `output_schema_json` = VALUES(`output_schema_json`),
+  `policy_json` = VALUES(`policy_json`),
+  `graph_write_policy` = VALUES(`graph_write_policy`),
+  `engine_key` = VALUES(`engine_key`),
+  `status` = VALUES(`status`),
+  `notes` = VALUES(`notes`),
+  `updated_at` = CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_resource_recipe_steps`
+  (`recipe_key`, `step_order`, `step_key`, `step_kind`, `parent_action_key`, `endpoint_key`, `tool_key`,
+   `source_table`, `source_pk_template_json`, `query_template_json`, `body_template_json`, `response_projection_json`,
+   `required`, `on_error_policy`, `status`)
+VALUES
+  ('google_drive.folder.inspect_tree', 10, 'inspect_folder_metadata_and_children', 'installed_tool_call', NULL, NULL, 'google_drive_folder_inspect',
+   NULL, NULL, NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('metadata','children','classification'), 'exclude', JSON_ARRAY('file_content','secrets')), 1, 'fail', 'active'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 10, 'inspect_session_root', 'installed_tool_call', NULL, NULL, 'google_drive_folder_inspect',
+   NULL, NULL, NULL, NULL, JSON_OBJECT('required_child_folders', JSON_ARRAY('Artifacts','Exports')), 1, 'fail', 'active'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 20, 'read_session_archive_pointers', 'db_read', NULL, NULL, NULL,
+   'customer_sessions', JSON_OBJECT('session_id','${resource_ref.session_id}'), NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('drive_folder_id','drive_exports_folder_id','drive_doc_id','drive_jsonl_id')), 0, 'classify_degraded', 'active'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 30, 'read_session_drive_artifacts', 'db_read', NULL, NULL, NULL,
+   'session_drive_artifacts', JSON_OBJECT('session_id','${resource_ref.session_id}'), NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('artifact_id','drive_file_id','drive_file_name','artifact_type','byte_size','sha256')), 0, 'classify_degraded', 'active'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 40, 'classify_artifacts_exports_state', 'classify', NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, JSON_OBJECT('classifications', JSON_ARRAY('healthy','artifacts_and_exports_empty','exports_empty','missing_required_child','duplicate_resource','orphan_resource','permission_gap','credential_gap')), 1, 'fail', 'active'),
+  ('google_drive.session_folder.reconcile_artifacts_exports', 50, 'emit_no_secret_evidence', 'emit_evidence', NULL, NULL, NULL,
+   'audit_payload_evidence', NULL, NULL, NULL, JSON_OBJECT('secrets_included', false), 1, 'classify_degraded', 'active'),
+  ('github.branch.reconcile_with_base', 10, 'delegate_admin_branch_reconcile', 'installed_tool_call', NULL, NULL, 'admin_branch_reconcile',
+   NULL, NULL, NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('classification','checkpoint','branch_state'), 'exclude', JSON_ARRAY('secrets','tokens')), 1, 'fail', 'active'),
+  ('github.branch.reconcile_with_base', 20, 'emit_branch_reconcile_evidence', 'emit_evidence', NULL, NULL, NULL,
+   'audit_payload_evidence', NULL, NULL, NULL, JSON_OBJECT('secrets_included', false), 1, 'classify_degraded', 'active'),
+  ('platform_plugin.contribution.inspect_runtime_readiness', 10, 'read_plugin_contribution', 'db_read', NULL, NULL, NULL,
+   'platform_plugin_contributions', JSON_OBJECT('contribution_id','${resource_ref.contribution_id}'), NULL, NULL, JSON_OBJECT('exclude', JSON_ARRAY('credential_values')), 1, 'fail', 'active'),
+  ('platform_plugin.contribution.inspect_runtime_readiness', 20, 'read_plugin_smoke_certifications', 'db_read', NULL, NULL, NULL,
+   'platform_plugin_smoke_certifications', JSON_OBJECT('plugin_key','${resource.plugin_key}'), NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('certification_status','last_smoke_status','secrets_included')), 0, 'classify_degraded', 'active'),
+  ('platform_plugin.contribution.inspect_runtime_readiness', 30, 'classify_plugin_runtime_readiness', 'classify', NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, JSON_OBJECT('classifications', JSON_ARRAY('certified_private_runtime_ready','draft_only','validation_failed','smoke_missing','credential_gap','policy_blocked')), 1, 'fail', 'active'),
+  ('platform_plugin.smoke_certification.inspect_status', 10, 'read_smoke_certification', 'db_read', NULL, NULL, NULL,
+   'platform_plugin_smoke_certifications', JSON_OBJECT('certification_id','${resource_ref.certification_id}'), NULL, NULL, JSON_OBJECT('include', JSON_ARRAY('certification_status','last_smoke_status','last_response_ok','secrets_included')), 1, 'fail', 'active'),
+  ('platform_plugin.smoke_certification.inspect_status', 20, 'classify_smoke_certification_status', 'classify', NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, JSON_OBJECT('classifications', JSON_ARRAY('certified','expired','recertification_required','failed','unknown')), 1, 'fail', 'active')
+ON DUPLICATE KEY UPDATE
+  `step_kind` = VALUES(`step_kind`),
+  `parent_action_key` = VALUES(`parent_action_key`),
+  `endpoint_key` = VALUES(`endpoint_key`),
+  `tool_key` = VALUES(`tool_key`),
+  `source_table` = VALUES(`source_table`),
+  `source_pk_template_json` = VALUES(`source_pk_template_json`),
+  `query_template_json` = VALUES(`query_template_json`),
+  `body_template_json` = VALUES(`body_template_json`),
+  `response_projection_json` = VALUES(`response_projection_json`),
+  `required` = VALUES(`required`),
+  `on_error_policy` = VALUES(`on_error_policy`),
+  `status` = VALUES(`status`),
+  `updated_at` = CURRENT_TIMESTAMP;
+
+INSERT INTO `platform_graph_taxonomy`
+  (`taxonomy_key`, `taxonomy_type`, `taxonomy_value`, `description`, `runtime_enforced`, `validation_rule_json`, `status`)
+VALUES
+  ('node_type.resource.drive_folder', 'node_type', 'resource.drive_folder', 'Resource node for Google Drive folders inspected by governed resource recipes.', 0, JSON_OBJECT('source','platform_resource_types'), 'active'),
+  ('node_type.resource.session_archive_folder', 'node_type', 'resource.session_archive_folder', 'Resource node for GPT session archive folders and artifact/export reconciliation.', 0, JSON_OBJECT('source','platform_resource_types'), 'active'),
+  ('node_type.resource.github_branch', 'node_type', 'resource.github_branch', 'Resource node for GitHub branches reconciled through admin_branch_reconcile.', 0, JSON_OBJECT('source','platform_resource_types'), 'active'),
+  ('node_type.resource.platform_plugin_contribution', 'node_type', 'resource.platform_plugin_contribution', 'Resource node for platform_plugin_contributions lifecycle state.', 0, JSON_OBJECT('source','platform_plugin_contributions'), 'active'),
+  ('node_type.resource.platform_plugin_smoke_certification', 'node_type', 'resource.platform_plugin_smoke_certification', 'Resource node for Platform Plugin smoke certification state.', 0, JSON_OBJECT('source','platform_plugin_smoke_certifications'), 'active'),
+  ('edge_type.has_recipe', 'edge_type', 'has_recipe', 'Connects a resource node to the governed recipe selected for it.', 0, JSON_OBJECT('source','platform_resource_recipes'), 'active'),
+  ('edge_type.executed_by_adapter', 'edge_type', 'executed_by_adapter', 'Connects a recipe node to an installed tool, endpoint, DB, or composite adapter.', 0, JSON_OBJECT('source','platform_resource_adapters'), 'active'),
+  ('edge_type.requires_authority', 'edge_type', 'requires_authority', 'Connects a mutating resource recipe to platform_resource_authority_requirements.', 0, JSON_OBJECT('source','platform_resource_authority_requirements'), 'active'),
+  ('edge_type.validated_by', 'edge_type', 'validated_by', 'Connects resource state to validation or smoke certification evidence.', 0, JSON_OBJECT('source','audit_payload_evidence'), 'active'),
+  ('edge_type.has_artifact', 'edge_type', 'has_artifact', 'Connects a session archive resource to artifact records.', 0, JSON_OBJECT('source','session_drive_artifacts'), 'active'),
+  ('edge_type.has_export', 'edge_type', 'has_export', 'Connects a session archive resource to export folder or export records.', 0, JSON_OBJECT('source','customer_sessions'), 'active')
+ON DUPLICATE KEY UPDATE
+  `taxonomy_type` = VALUES(`taxonomy_type`),
+  `taxonomy_value` = VALUES(`taxonomy_value`),
+  `description` = VALUES(`description`),
+  `runtime_enforced` = VALUES(`runtime_enforced`),
+  `validation_rule_json` = VALUES(`validation_rule_json`),
+  `status` = VALUES(`status`),
+  `updated_at` = CURRENT_TIMESTAMP;
+
+INSERT INTO `execution_policies`
+  (`policy_group`, `policy_key`, `policy_value`, `active`, `execution_scope`, `notes`)
+VALUES
+  ('Resource Recipe Governance', 'Platform Resource Recipe Capability V1',
+   JSON_OBJECT(
+     'status','active',
+     'new_tables', JSON_ARRAY('platform_resource_types','platform_resource_adapters','platform_resource_recipes','platform_resource_recipe_steps'),
+     'reuse_tables', JSON_ARRAY('platform_graph_nodes','platform_graph_edges','platform_graph_edge_evidence','platform_resource_authority_requirements','capability_resolution_envelope_ledger','platform_engine_execution_runs','execution_log','audit_payload_evidence','platform_plugin_contributions','platform_plugin_smoke_certifications'),
+     'forbidden_tables', JSON_ARRAY('resource_graph_nodes','resource_graph_edges','platform_plugin_resource_recipes','platform_plugin_operation_runs','resource_operation_runs'),
+     'raw_endpoint_executor_allowed', false,
+     'v1_read_only_or_diagnostic_only', true,
+     'writes_require_capability_envelope', true,
+     'secrets_included', false
+   ),
+   'TRUE',
+   'platform_resource_recipe_capability,governed_resource_resolve,governed_resource_catalog,governed_resource_plan,governed_resource_run',
+   'V1 creates a recipe registry only. It reuses platform_graph and platform_plugin tables and forbids raw endpoint execution.'
+  )
+ON DUPLICATE KEY UPDATE
+  `policy_value` = VALUES(`policy_value`),
+  `active` = VALUES(`active`),
+  `execution_scope` = VALUES(`execution_scope`),
+  `notes` = VALUES(`notes`),
+  `updated_at` = CURRENT_TIMESTAMP;

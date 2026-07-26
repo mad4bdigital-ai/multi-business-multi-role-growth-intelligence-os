@@ -1,8 +1,8 @@
 # prompt_router.clean-v1
 
-Clean-room staging overlay for prompt and intent routing.
+Consolidated reference overlay for prompt and intent routing.
 
-This file is not runtime authority yet. It defines the desired routing behavior after recomposition.
+This file is not runtime authority. Use it to review desired routing behavior against active canonical sources, SQL route rows, and runtime code.
 
 ## 1. Router purpose
 
@@ -45,7 +45,7 @@ Required route fields:
 
 Changing a live `intent_key` is forbidden. Deprecate old routes and add a new route instead.
 
-## 4. Degraded and blocked behavior
+## 5. Degraded and blocked behavior
 
 The router must return structured states instead of guessing.
 
@@ -63,13 +63,13 @@ The router must return structured states instead of guessing.
 | agent skill missing | `blocked.skill_not_granted` |
 | local intent missing device_id | `blocked.missing_device_id` |
 
-## 5. AI execution routing
+## 6. AI execution routing
 
 AI execution must route through `runAgentLoop -> getAgentDeps()`.
 
 The router may not call model adapters directly.
 
-## 6. Local connector routing
+## 7. Local connector routing
 
 Local connector intents must use `/dispatch`:
 
@@ -81,7 +81,7 @@ Local connector intents must use `/dispatch`:
 
 All require `device_id` and SQL-resolved local connector config.
 
-## 7. Review routing
+## 8. Review routing
 
 `review_required` is enforced when a workflow writes governed content or public-facing output.
 
@@ -93,7 +93,7 @@ Recommended policy:
 - `rule_based`: review optional, validation/readback required.
 - `tool_orchestrated`: schema/readback required; review depends on output type.
 
-## 8. Sink routing
+## 9. Sink routing
 
 For successful governed execution:
 
@@ -103,11 +103,11 @@ For successful governed execution:
 4. route linked workflows to `agent_chain_events`;
 5. write `sink_dispatch_log` for every sink attempt.
 
-## 9. Workbook-aware routing
+## 10. Workbook-aware routing
 
 Workbook reads are allowed only for explicit recovery/parity operations. Runtime routing must use SQL tables and registered Drive/Sheets evidence as diagnostic context.
 
-## 10. Promotion targets
+## 11. Review targets
 
 - `prompt_router` canonical source files
 - `governedContextResolution.js`

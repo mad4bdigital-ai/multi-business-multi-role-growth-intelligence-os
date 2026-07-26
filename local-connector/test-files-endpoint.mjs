@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = await mkdtemp(path.join(tmpdir(), 'mad4b-connector-files-'));
 const port = 17170 + Math.floor(Math.random() * 1000);
 const apiKey = 'test-secret';
+const localApiKey = 'local-api-key-secret';
 const childPath = path.join(root, 'nested', 'hello.txt');
 const projectPath = path.join(root, 'repos', 'growth-os');
 const connectorDir = path.dirname(fileURLToPath(import.meta.url));
@@ -22,11 +23,17 @@ const server = spawn(process.execPath, ['server.mjs'], {
   cwd: connectorDir,
   env: {
     ...process.env,
-    BACKEND_API_KEY: apiKey,
+    CONNECTOR_SECRET: apiKey,
+    CONNECTOR_LOCAL_API_KEY: localApiKey,
     CONNECTOR_PORT: String(port),
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
+    CONNECTOR_DEPENDENCIES_ENABLED: 'false',
+    CONNECTOR_APPS_ENABLED: 'false',
     CONNECTOR_SHELL_ENABLED: 'false',
+    CONNECTOR_DEPENDENCIES_ENABLED: 'false',
+    CONNECTOR_APPS_ENABLED: 'false',
+    CONNECTOR_BROWSER_ENABLED: 'false',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -83,9 +90,46 @@ try {
   await waitForServer();
 
   {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-connector-secret': apiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+    assert.equal(body.auth?.credential, 'CONNECTOR_SECRET');
+  }
+
+  {
     const result = await callFiles({ action: 'list' });
     assert.equal(result.status, 200);
     assert.deepEqual(result.body.allowed_paths, [root]);
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-connector-secret': localApiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-api-key': localApiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-api-key': 'wrong-secret' },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error.code, 'UNAUTHORIZED');
   }
 
   {

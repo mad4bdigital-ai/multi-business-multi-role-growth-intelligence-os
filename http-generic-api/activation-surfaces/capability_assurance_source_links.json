@@ -1,0 +1,20 @@
+{
+  "surface_key": "capability_assurance_source_links",
+  "display_name": "Capability Assurance Source Links",
+  "description": "Admin-only provenance resolution summary for canonical capabilities.",
+  "source_table": "platform_capability_source_links",
+  "covered_source_tables": ["platform_capability_source_links"],
+  "result_key_column": "link_id",
+  "result_label_column": "capability_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "resolution_status",
+  "active_status_values": ["resolved"],
+  "result_columns": ["link_id", "capability_key", "source_kind", "resolution_status", "confidence", "observed_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 274,
+  "status": "active",
+  "notes": "Excludes source_ref, source_sha, evidence pointers, and metadata_json."
+}

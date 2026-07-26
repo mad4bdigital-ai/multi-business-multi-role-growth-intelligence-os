@@ -228,17 +228,16 @@ Owns:
 
 Activation readiness spans transport, provider bootstrap, registry authority, and canonical guidance. Health and status routes are diagnostics only.
 
-Required provider bootstrap evidence:
-- Drive probe through `http_generic_api` with `parent_action_key=google_drive_api`
-- Sheets probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, and `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`
-- readback of `query.range=Activation Bootstrap Config!A2:J2`
-- GitHub validation only after bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
+Required provider/bootstrap evidence:
+- Drive probe through governed `http_generic_api` / system-layer transport
+- DB-native activation bootstrap config read through `/activation/bootstrap-config` or `activation_bootstrap_config_read`
+- GitHub validation only after DB bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
 
 Boundary rules:
 - `hard_activation_wrapper` and `system_auto_bootstrap` are routing labels, not provider action keys
-- `/health`, `/status`, release readiness, tenant listing, brand counts, and action counts must not replace provider bootstrap evidence
-- if Drive or Sheets is skipped while activation tooling is available, activation remains degraded with `missing_required_provider_bootstrap_attempt`
-- platform-owned bootstrap files use managed service account ADC; user-owned Drive/Sheets input sources use refresh-token auth
+- `/health`, `/status`, release readiness, tenant listing, brand counts, and action counts must not replace provider/bootstrap evidence
+- if Drive or DB bootstrap validation is skipped while activation tooling is available, activation remains degraded with `missing_required_provider_bootstrap_attempt`
+- `activation_sheets_bootstrap_read` is a deprecated compatibility alias and must not call Google Sheets; user-owned Drive/Sheets input sources still use refresh-token auth when required
 
 ### Google client boundary
 
@@ -432,6 +431,27 @@ Owns:
 - auth-mode and scope resolution
 - required policy checks for execution readiness
 
+### Local Manager and connector installer boundary
+
+- [`apps/local-manager-windows/Program.cs`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/apps/local-manager-windows/Program.cs>)
+- [`http-generic-api/routes/localConnectorInstallRoutes.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/routes/localConnectorInstallRoutes.js>)
+- [`http-generic-api/routes/connectorAgentRoutes.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/routes/connectorAgentRoutes.js>)
+- [`http-generic-api/services/localManagerDeviceLinkService.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/services/localManagerDeviceLinkService.js>)
+
+Owns:
+- Local Manager device token storage and device-control UI flows
+- app-managed connector repair/capability installer requests
+- signed installer token generation and download handoff
+- BAT bootstrap generation with no-pause app-managed mode
+- connector-agent PowerShell installer generation and effective `.env` rendering
+- capability and dynamic grant propagation into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`
+
+Boundary rules:
+- the Windows app may launch installers through UAC but must not bypass UAC
+- `/local-connector/install/download` and `/connector-agent/installer.ps1` must both preserve signed capability/grant intent
+- Settings refresh is only control-surface evidence; behavior validation must use live connector probes
+- high-risk capabilities are opt-in only and must not appear in base connector env
+
 ### GitHub connector boundary
 
 - [`http-generic-api/github.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/github.js>)
@@ -570,6 +590,19 @@ The next highest-value decomposition opportunities are:
 - Keep connector entrypoints narrow and explicit.
 - Do not move canonical authority into runtime helper files.
 - Prefer shared normalization contracts over route-local literal handling.
+
+## Supervisor agent execution boundary
+
+Admin GPT and Tenant GPT can coordinate governed plans, but the runtime boundary is not an unrestricted parallel master-agent contract.
+
+- `connectorExecutor.dispatchPlan` atomically claims each executable plan before workflow-run creation.
+- failed workflow-run creation transitions the claimed plan to `failed` instead of leaving it stuck in `executing`.
+- planner and chain routing select only healthy agents with deterministic ordering.
+- connector skill grants fail closed before execution-plan claim.
+- chain dispatch permits one configured healthy fallback attempt and persists lineage, depth, and cycle-rejection evidence.
+- shared dispatch requires capability envelopes before claim for MCP execution and WordPress `apply=true`; specialized mutation paths retain narrower guards.
+
+Use `http-generic-api/scripts/supervisor-runtime-readiness.mjs` as the repeatable static boundary check. Add `--live` for a read-only configured-schema check. Canonical status and remaining blockers are documented in `docs/supervisor-agent-runtime-readiness.md`.
 
 ---
 **Documentation Integrity:** This architectural map must remain aligned with the [Canonical Sources](canonicals/) and the [Agent Knowledge Guide](AI_Agent_Knowledge_Guide.md). Any structural changes must be propagated across all three layers as defined in the [README Documentation Architecture](README.md#documentation-integrity-architecture).

@@ -223,9 +223,13 @@
             "not_scored"
           ]
         },
-        "source_sheet": {
+        "source_registry_table": {
           "type": "string",
-          "default": "Business Intelligence Scoreboard"
+          "default": "business_intelligence_scoreboard"
+        },
+        "source_connector_key": {
+          "type": "string",
+          "default": ""
         },
         "last_read_at": {
           "type": "string",

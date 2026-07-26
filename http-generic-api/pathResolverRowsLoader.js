@@ -398,10 +398,11 @@ export async function loadPathResolverRowsForRequest(requestPayload = {}, deps =
   const dataSourceMode = lower(firstNonEmpty(
     deps.DATA_SOURCE,
     deps.runtimeAuthority,
-    envDataSource
+    envDataSource,
+    "sql"
   ));
 
-  if (["sql", "db", "mysql"].includes(dataSourceMode)) {
+  if (!["sheets", "google_sheets"].includes(dataSourceMode)) {
     const { loadPathResolverRowsFromDb } = await import('./pathResolverDbLoader.js');
     return loadPathResolverRowsFromDb(loadRequest);
   }

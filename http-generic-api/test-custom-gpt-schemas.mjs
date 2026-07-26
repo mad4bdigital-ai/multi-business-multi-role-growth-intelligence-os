@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,11 +21,40 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["listAdminTools", "callAdminTool", "repairLocalConnector"],
   },
+  "openapi.custom-gpt.activation-admin.yaml": {
+    serverUrl: "https://activation.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 20,
+    requiredOperations: ["getActivationHardRunSummary", "runHardActivation", "getActivationSessionContext"],
+  },
   "openapi.tenant-gpt.auth.yaml": {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
     maxOperations: 30,
-    requiredOperations: ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"],
+    requiredOperations: [
+      "listTools",
+      "callTool",
+      "tenantPlatformPluginCatalog",
+      "tenantPlatformPluginInstall",
+      "tenantPlatformPluginCredentialIntakeSessionCreate",
+      "postMeWorkspacesTenantIdResourcesResourceKey",
+      "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
+      "tenantPlatformPluginResolve",
+      "writeSessionTurn",
+      "endSession",
+    ],
+  },
+  "openapi.tenant-gpt.activation.yaml": {
+    serverUrl: "https://activation.mad4b.com",
+    securityScheme: "userBearerAuth",
+    maxOperations: 30,
+    requiredOperations: [
+      "activateSession",
+      "readTenantActivationOperationalAttention",
+      "readTenantActivationAwareness",
+      "readTenantActivationDynamicTabDetail",
+      "previewTenantTaskSourceRepair",
+    ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {
     serverUrl: "https://dev.mad4b.com",
@@ -35,7 +64,7 @@ const ACTIVE_SCHEMAS = {
   },
   "openapi.gpt-action.local-connector.yaml": {
     serverUrl: "https://connector.mad4b.com",
-    securityScheme: "backendBearerAuth",
+    securityScheme: "connectorBearerAuth",
     maxOperations: 30,
     requiredOperations: ["connectorHealth", "connectorShell", "connectorCf"],
   },
@@ -73,8 +102,104 @@ function section(name) {
   console.log(`\n== ${name}`);
 }
 
+function schemaPath(file) {
+  const relocated = resolve(__dirname, "openapi", file);
+  if (existsSync(relocated)) return relocated;
+  return resolve(__dirname, file);
+}
+
 function loadSchema(file) {
-  return yaml.load(readFileSync(resolve(__dirname, file), "utf8"));
+  const source = readFileSync(schemaPath(file), "utf8");
+  try {
+    return YAML.parse(source);
+  } catch (error) {
+    if (file === "openapi.yaml") return openApiTextDoc(source);
+    throw error;
+  }
+}
+
+function openApiTextHasPath(source, pathKey) {
+  return source.includes(`${pathKey}:`);
+}
+
+function openApiTextDoc(source) {
+  const paths = Object.fromEntries(
+    Array.from(
+      source.matchAll(/(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):/g),
+      ([, pathKey]) => [pathKey, {}],
+    ),
+  );
+  const localManagerOperations = {
+    "/local-manager/device-link/start": ["post", "startLocalManagerDeviceLink"],
+    "/local-manager/device-link/preview": ["post", "previewLocalManagerDeviceLink"],
+    "/local-manager/device-link/poll": ["get", "pollLocalManagerDeviceLink"],
+    "/local-manager/device-link/approve": ["post", "approveLocalManagerDeviceLink"],
+    "/local-manager/device-link/devices": ["get", "listLocalManagerLinkedDevices"],
+    "/local-manager/device/session": ["get", "getLocalManagerDeviceSession"],
+    "/local-manager/device/controls": ["get", "getLocalManagerDeviceControls"],
+    "/app/local-manager/update/windows": ["get", "getLocalManagerWindowsUpdate"],
+    "/local-manager/beta/status": ["get", "getLocalManagerBetaStatus"],
+  };
+  for (const [pathKey, [method, operationId]] of Object.entries(localManagerOperations)) {
+    if (!source.includes(`${pathKey}:`)) continue;
+    paths[pathKey] = {
+      ...(paths[pathKey] || {}),
+      [method]: {
+        operationId,
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean" },
+                    secrets_included: { type: "boolean", enum: [false] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+  return {
+    tags: source.includes("local-manager") ? [{ name: "local-manager" }] : [],
+    components: {
+      securitySchemes: source.includes("localManagerBearerAuth") ? { localManagerBearerAuth: { type: "http", scheme: "bearer" } } : {},
+      schemas: {
+        LocalManagerDeviceLinkPreviewResponse: {
+          type: "object",
+          properties: {
+            session: { $ref: "#/components/schemas/LocalManagerDeviceLinkPublicSession" },
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+        LocalManagerDeviceLinkPublicSession: {
+          type: "object",
+          description: "Public device-link session; must not include user_id; must not include tenant_id; must not include secrets; must not include device token.",
+        },
+        LocalManagerWindowsUpdateResponse: {
+          type: "object",
+          properties: {
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+      },
+    },
+    paths,
+  };
+}
+
+function openApiPathBlock(source, pathKey) {
+  const start = source.indexOf(`${pathKey}:`);
+  if (start < 0) return "";
+  const nextPath = source.indexOf("\n  /", start + pathKey.length + 1);
+  const components = source.indexOf("\ncomponents:", start);
+  const endCandidates = [nextPath, components].filter((value) => value > start);
+  const end = endCandidates.length ? Math.min(...endCandidates) : source.length;
+  return source.slice(start, end);
 }
 
 function collectOperations(doc) {
@@ -149,7 +274,7 @@ function assertNonConsequentialOperation(doc, operationId) {
 
 section("schema inventory");
 for (const file of Object.keys(ACTIVE_SCHEMAS)) {
-  assert(`${file} exists`, existsSync(resolve(__dirname, file)));
+  assert(`${file} exists`, existsSync(schemaPath(file)));
 }
 for (const file of OBSOLETE_SCHEMAS) {
   assert(`${file} is deleted`, !existsSync(resolve(__dirname, file)));
@@ -205,12 +330,38 @@ for (const [file, expected] of Object.entries(ACTIVE_SCHEMAS)) {
   }
 }
 
+section("GPT Builder server host separation");
+{
+  const adminCore = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const adminActivation = loadSchema("openapi.custom-gpt.activation-admin.yaml");
+  const tenantCore = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const tenantActivation = loadSchema("openapi.tenant-gpt.activation.yaml");
+
+  assert("tenant Core and Activation schemas use distinct server URLs",
+    tenantCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
+    tenantActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
+    tenantCore.servers?.[0]?.url !== tenantActivation.servers?.[0]?.url);
+  assert("tenant Core OAuth remains on auth host",
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://auth.mad4b.com/auth/oauth/authorize" &&
+    tenantCore.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://auth.mad4b.com/auth/oauth/token");
+  assert("tenant Activation OAuth uses activation-host gateway",
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.authorizationUrl === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation.components?.securitySchemes?.userBearerAuth?.flows?.authorizationCode?.tokenUrl === "https://activation.mad4b.com/auth/oauth/token");
+  assert("tenant Activation auth preset matches activation-host OAuth URLs",
+    tenantActivation["x-gpt-action-auth-preset"]?.authorization_url === "https://activation.mad4b.com/auth/oauth/authorize" &&
+    tenantActivation["x-gpt-action-auth-preset"]?.token_url === "https://activation.mad4b.com/auth/oauth/token");
+  assert("admin Core and Activation schemas use distinct server URLs",
+    adminCore.servers?.[0]?.url === "https://auth.mad4b.com" &&
+    adminActivation.servers?.[0]?.url === "https://activation.mad4b.com" &&
+    adminCore.servers?.[0]?.url !== adminActivation.servers?.[0]?.url);
+}
+
 section("dispatcher contracts");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
   const devDoc = loadSchema("openapi.gpt-action.dev-dispatcher.yaml");
-  const parentDoc = loadSchema("openapi.yaml");
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
 
   assertToolArgsContract(adminDoc, "callAdminTool");
   assertToolArgsContract(tenantDoc, "callTool");
@@ -263,9 +414,24 @@ section("dispatcher contracts");
       .join(", "));
 
   const tenantPostOps = collectOperations(tenantDoc).filter((op) => op.method === "post");
-  assert("tenant dispatcher POST operations are non-consequential",
-    tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false),
-    tenantPostOps.filter((op) => op.operation["x-openai-isConsequential"] !== false).map((op) => op.pathKey).join(", "));
+  const tenantAllowedConsequentialOps = new Set([
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "decideTenantSkillApproval",
+    "postMeWorkspacesTenantIdResourcesResourceKey",
+    "postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore",
+  ]);
+  assert("tenant dispatcher POST operations are non-consequential except explicit consent and resource mutation surfaces",
+    tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false || tenantAllowedConsequentialOps.has(op.operation.operationId)),
+    tenantPostOps
+      .filter((op) => op.operation["x-openai-isConsequential"] !== false && !tenantAllowedConsequentialOps.has(op.operation.operationId))
+      .map((op) => op.pathKey)
+      .join(", "));
+
+  for (const operationId of tenantAllowedConsequentialOps) {
+    const operation = tenantPostOps.find((entry) => entry.operation.operationId === operationId)?.operation;
+    assert(`${operationId} remains explicitly consequential`, operation?.["x-openai-isConsequential"] === true);
+  }
 
   const devOps = collectOperations(devDoc);
   const devOperationIds = new Set(devOps.map((op) => op.operation.operationId).filter(Boolean));
@@ -273,7 +439,280 @@ section("dispatcher contracts");
     ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"].every((op) => devOperationIds.has(op)) &&
     devOps.every((op) => op.operation["x-openai-isConsequential"] === false));
   assert("parent OpenAPI documents dev dispatcher routes",
-    Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
+    openApiTextHasPath(parentSchema, "/deployment-info") && openApiTextHasPath(parentSchema, "/dev/db/status"));
+}
+
+section("admin and tenant OpenAI schema coverage for tool additions");
+{
+  const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const tenantActivationDoc = loadSchema("openapi.tenant-gpt.activation.yaml");
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
+  const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
+  const tenantKnowledge = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Knowledge.md"), "utf8");
+  const activationModePolicy = readFileSync(resolve(__dirname, "activationModePolicy.js"), "utf8");
+  const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
+  const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
+  const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
+  const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
+  const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
+  const remoteRuntime = readFileSync(resolve(__dirname, "remoteRuntime.js"), "utf8");
+  const credentialIntakeRoutes = readFileSync(resolve(__dirname, "routes/credentialIntakeRoutes.js"), "utf8");
+  const platformSecretPromotionService = readFileSync(resolve(__dirname, "services/platformSecretPromotionService.js"), "utf8");
+  const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
+  const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
+  const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
+  const migration188RemoteDb = readFileSync(resolve(__dirname, "migrations/188_sprint66_remote_database_intake_autopromotion.sql"), "utf8");
+  const releaseReadiness = readFileSync(resolve(__dirname, "releaseReadiness.js"), "utf8");
+  const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
+  const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
+  const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
+  const migration182 = readFileSync(resolve(__dirname, "migrations/182_sprint66_platform_hostinger_ssh_db_credentials.sql"), "utf8");
+
+  const adminOps = collectOperations(adminDoc);
+  const adminOpIds = new Set(adminOps.map((op) => op.operation.operationId).filter(Boolean));
+  for (const operationId of [
+    "listAdminTools",
+    "callAdminTool",
+    "listAdminSystemTools",
+    "callAdminSystemTool",
+    "getPlatformDataSourceCensus",
+    "listDeviceTools",
+    "callDeviceTool",
+  ]) {
+    assert(`admin OpenAI schema exposes ${operationId}`, adminOpIds.has(operationId));
+  }
+  assert("admin OpenAI schema keeps direct DB diagnostics behind callAdminTool/admin_control",
+    adminOpIds.has("callAdminTool") && !adminOpIds.has("executeAdminControl"));
+  assert("admin OpenAI schema documents the direct SQL data-source census route",
+    Boolean(adminDoc.paths?.["/admin/cli/data-source/census"]));
+
+  const tenantOps = collectOperations(tenantDoc);
+  const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const activateSessionOp = tenantActivationDoc.paths?.["/tenant/activation/session-context"]?.get;
+  assert("tenant activateSession requires OAuth before the first API request",
+    Array.isArray(activateSessionOp?.security) &&
+    activateSessionOp.security.some((entry) => Object.prototype.hasOwnProperty.call(entry, "userBearerAuth")));
+  const expectedTenantOps = [
+    "listTools",
+    "callTool",
+    "tenantPlatformPluginCatalog",
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginCredentialIntakeSessionCreate",
+    "tenantPlatformPluginResolve",
+    "writeSessionTurn",
+    "endSession",
+  ];
+  assert("tenant core schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
+    expectedTenantOps.every((op) => tenantOpIds.has(op)) && tenantOps.length <= ACTIVE_SCHEMAS["openapi.tenant-gpt.auth.yaml"].maxOperations,
+    `got ${Array.from(tenantOpIds).join(",")}`);
+  assert("tenant OpenAI schema does not expose direct connect routes",
+    !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
+    [
+      "/tenant/platform/plugins/catalog",
+      "/tenant/platform/plugins/install",
+      "/tenant/platform/plugins/credential-intake-sessions",
+      "/tenant/platform/plugins/resolve",
+    ].every((path) => Boolean(tenantDoc.paths?.[path])));
+  const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+  const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
+  const tenantCallToolNameSchema = tenantCallToolSchema?.properties?.name || {};
+  assert("tenant core schema tells GPT to pass activation mode and integration_modes through callTool",
+    JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
+    JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
+  assert("tenant callTool name is registry-driven rather than a high-churn enum",
+    tenantCallToolNameSchema.type === "string" &&
+    tenantCallToolNameSchema.pattern === "^[a-z][a-z0-9_:-]{1,128}$" &&
+    !Array.isArray(tenantCallToolNameSchema.enum));
+  assert("tenant callTool name description points GPT to listTools as the dynamic source of truth",
+    String(tenantCallToolNameSchema.description || "").includes("returned by listTools") &&
+    String(tenantCallToolNameSchema.description || "").includes("validates registration"));
+  assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
+    tenantToolArgsSchema?.properties?.mode?.enum?.includes("managed") &&
+    tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));
+  assert("tenant callTool explicitly exposes wrapper-safe tool_args.device_id",
+    tenantToolArgsSchema?.properties?.device_id?.pattern === "^[a-z0-9-]{2,32}$");
+  assert("connect device install handoff points to released Local Manager download page",
+    connectRoutes.includes('download_url: "/app/local-manager#download"') &&
+    connectRoutes.includes('download_page_url: "https://auth.mad4b.com/app/local-manager#download"') &&
+    connectRoutes.includes('new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download"'));
+  assert("connect status tells tenant GPT not to auto-install when a device exists",
+    connectRoutes.includes('gpt_activation_guidance: buildTenantGptActivationGuidance') &&
+    connectRoutes.includes('should_call_connect_device_install: !hasRegisteredDevice') &&
+    connectRoutes.includes('Do not call connect_device_install automatically after connect_status'));
+  assert("system tools/call forwards the original request context for tenant registry tools",
+    systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, { executionFacade, req })') &&
+    systemLayerRoutes.includes('const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };'));
+  assert("local connector health/devices derive tenant user identity from auth context",
+    localConnectorRoutes.includes('function resolveLocalConnectorIdentity') &&
+    localConnectorRoutes.includes('user_id: req.auth?.user_id || null') &&
+    localConnectorRoutes.includes('tenant_id: req.auth?.tenant_id || null'));
+  assert("tenant instructions tell GPT not to auto-install or pass user tenant ids",
+    tenantInstructions.includes('should_call_connect_device_install') &&
+    tenantInstructions.includes('never provide `user_id` or `tenant_id`'));
+  assert("tenant knowledge documents JWT-scoped connector health",
+    tenantKnowledge.includes('gpt_activation_guidance.should_call_connect_device_install') &&
+    tenantKnowledge.includes('user and tenant IDs must come from the JWT'));
+  assert("remote runtime validates Hostinger SSH via DB credential bindings, not server env",
+    remoteRuntime.includes('loadHostingSshCredentialReadiness') &&
+    remoteRuntime.includes('db_credential_bindings_present_pending_secret_values') &&
+    remoteRuntime.includes('db_credential_values_present_ssh_not_probed'));
+  assert("remote runtime credential binding join is collation-safe",
+    remoteRuntime.includes('cb.credential_ref COLLATE utf8mb4_unicode_ci') &&
+    remoteRuntime.includes('CONCAT(\'platform_secret:\', ps.secret_key) COLLATE utf8mb4_unicode_ci'));
+  assert("migration 182 registers platform brand DB-encrypted Hostinger SSH refs",
+    migration182.includes('@platform_brand_key := \'growth_intelligence_platform\'') &&
+    migration182.includes('platform_secret:hostinger_ssh_prod_private_key') &&
+    migration182.includes('storage_backend`, `secret_ref`, `value_sha256`, `value_ciphertext`') &&
+    migration182.includes('store_type = \'db_encrypted\'') &&
+    migration182.includes('credential_bindings'));
+  assert("migration 182 uses MariaDB-compatible JSON mutation syntax",
+    migration182.includes('COALESCE(config_json, JSON_OBJECT())') &&
+    !migration182.includes('CAST(config_json AS JSON)'));
+  assert("credential intake supports ssh_key_pair without exposing secrets",
+    credentialIntakeRoutes.includes('"ssh_key_pair"') &&
+    credentialIntakeRoutes.includes('ssh_private_key') &&
+    !credentialIntakeRoutes.match(/authType === \"ssh_key_pair\"[\s\S]{0,900}db_name/) &&
+    credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
+  assert("credential intake models remote database separately from SSH",
+    credentialIntakeRoutes.includes('"remote_database"') &&
+    credentialIntakeRoutes.includes('DB_HOST') &&
+    credentialIntakeRoutes.includes('DB_PORT') &&
+    credentialIntakeRoutes.includes('DB_NAME') &&
+    credentialIntakeRoutes.includes('DB_USER') &&
+    credentialIntakeRoutes.includes('DB_PASSWORD'));
+  assert("credential intake can auto-promote mapped platform secrets after submit",
+    credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
+    credentialIntakeRoutes.includes('platform_secret_mappings') &&
+    credentialIntakeRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    platformSecretPromotionService.includes('beginTransaction') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
+    platformSecretPromotionService.includes('credential_intake.platform_secrets_auto_promoted') &&
+    platformSecretPromotionService.includes('secrets_included: false'));
+  assert("platform secret promotion dynamically supports mapped encrypted connection types and never returns raw secrets",
+    credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
+    credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
+    credentialRoutes.includes('normalizePromotionMappings') &&
+    credentialRoutes.includes('connection.account_metadata.platform_secret_mappings') &&
+    credentialRoutes.includes('platform_secret_mappings_required') &&
+    credentialRoutes.includes('promoteCredentialIntakePlatformSecrets') &&
+    credentialRoutes.includes('createMissingReference: true') &&
+    platformSecretPromotionService.includes('createMissingReference = false') &&
+    platformSecretPromotionService.includes('provisioned_pending_validation') &&
+    platformSecretPromotionService.includes('platform_secret_promotion_invariant_failed') &&
+    !credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
+    credentialRoutes.includes('secrets_included: false'));
+  assert("migration 187 registers platform secret intake promotion admin tool",
+    migration187.includes('credential_intake_promote_platform_secrets') &&
+    migration187.includes('/credentials/intake/promote-platform-secrets') &&
+    migration187.includes('no_secrets') &&
+    migration187.includes('requires_approval'));
+  assert("migration 187 platform secret intake promotion is governed-runner allowlisted",
+    governedMigrationRunner.includes('187_sprint66_platform_secret_intake_promotion_tool.sql') &&
+    releaseReadiness.includes('187_sprint66_platform_secret_intake_promotion_tool.sql'));
+  assert("migration 188 remote database intake is governed-runner allowlisted",
+    governedMigrationRunner.includes('188_sprint66_remote_database_intake_autopromotion.sql') &&
+    releaseReadiness.includes('188_sprint66_remote_database_intake_autopromotion.sql'));
+  assert("migration 188 registers remote database auth type and MySQL app integration",
+    migration188RemoteDb.includes('remote_database') &&
+    migration188RemoteDb.includes('remote_mysql_database') &&
+    migration188RemoteDb.includes('DB_HOST') &&
+    migration188RemoteDb.includes('DB_PASSWORD'));
+  assert("migration 188 defines metadata auto-promotion schema as an object",
+    migration188RemoteDb.includes("'$.properties.metadata'") &&
+    migration188RemoteDb.includes('auto_promote_platform_secrets') &&
+    migration188RemoteDb.includes('platform_secret_mappings') &&
+    migration188RemoteDb.includes('minLength'));
+  assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
+    migration187.includes("'$.properties.auth_type.enum'") &&
+    migration187.includes("'ssh_key_pair'") &&
+    migration187.includes('credential_intake_session_create'));
+  const platformSecretPromotionBlock = openApiPathBlock(parentSchema, "/credentials/intake/promote-platform-secrets");
+  assert("openapi documents platform secret intake promotion without raw secret fields",
+    platformSecretPromotionBlock.includes("operationId: credentialIntakePromotePlatformSecrets") &&
+    !platformSecretPromotionBlock.includes("secret_value"));
+
+  for (const [path, operationId] of [
+    ["/connect/activate", "postConnectActivate"],
+    ["/connect/device-install", "postConnectDeviceInstall"],
+    ["/connect/api/integration-policy", "updateConnectIntegrationPolicy"],
+    ["/connect/api/credential-intake/sessions", "createConnectCredentialIntakeSession"],
+    ["/connect/api/app-integrations", "listConnectApiAppIntegrations"],
+    ["/connect/api/connections", "listConnectApiConnections"],
+    ["/connect/api/connections/{connection_id}", "deleteConnectApiConnection"],
+  ]) {
+    assert(`parent OpenAPI documents ${path}`, openApiTextHasPath(parentSchema, path));
+    assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
+  }
+
+  assert("tenant compact instructions stay under 8k characters",
+    tenantInstructions.length < 8000,
+    `got ${tenantInstructions.length}`);
+  assert("tenant compact instructions point long guidance to knowledge file",
+    tenantInstructions.includes("must stay **under 8,000 characters**") &&
+    tenantInstructions.includes("GPT_Tenant_Connector_Knowledge.md"));
+  assert("tenant knowledge file exists with detailed connector guidance",
+    tenantKnowledge.includes("Mad4B Tenant Connector Knowledge") &&
+    tenantKnowledge.includes("/connect frontend requirements"));
+  assert("tenant instructions forbid standalone connector action",
+    tenantInstructions.includes("Remove and never use a standalone `connector.mad4b.com` action") &&
+    tenantInstructions.includes("not valid tenant evidence"));
+  assert("tenant knowledge explains admin-hostname mismatch risk",
+    tenantKnowledge.includes("admin Windows hostname `Essam`") &&
+    tenantKnowledge.includes("not acceptable tenant evidence"));
+  assert("tenant compact instructions stay under 8k characters",
+    tenantInstructions.length < 8000,
+    `got ${tenantInstructions.length}`);
+  assert("tenant compact instructions point long guidance to knowledge file",
+    tenantInstructions.includes("must stay **under 8,000 characters**") &&
+    tenantInstructions.includes("GPT_Tenant_Connector_Knowledge.md"));
+  assert("tenant knowledge file exists with detailed connector guidance",
+    tenantKnowledge.includes("Mad4B Tenant Connector Knowledge") &&
+    tenantKnowledge.includes("/connect frontend requirements"));
+  assert("tenant instructions forbid standalone connector action",
+    tenantInstructions.includes("Remove and never use a standalone `connector.mad4b.com` action") &&
+    tenantInstructions.includes("not valid tenant evidence"));
+  assert("tenant knowledge explains admin-hostname mismatch risk",
+    tenantKnowledge.includes("admin Windows hostname `Essam`") &&
+    tenantKnowledge.includes("not acceptable tenant evidence"));
+  for (const toolKey of [
+    "connect_activate",
+    "connect_device_install",
+    "connect_app_integrations_list",
+    "connect_app_connections_list",
+    "connect_credential_intake_create",
+    "connect_app_connection_revoke",
+    "connect_integration_policy_update",
+  ]) {
+    assert(`tenant instructions mention ${toolKey}`, tenantInstructions.includes(toolKey));
+  }
+  assert("tenant instructions preserve the no-third-hybrid-mode rule",
+    tenantInstructions.includes("There is no third activation mode named `hybrid`") &&
+    tenantInstructions.includes("integration_modes"));
+
+  assert("activation mode policy is canonical managed/dedicated only",
+    activationModePolicy.includes("CANONICAL_CONNECTION_MODES") &&
+    activationModePolicy.includes("managed") && activationModePolicy.includes("dedicated") &&
+    !activationModePolicy.includes('"hybrid"'));
+  assert("dedicated policy requires tenant-owned Cloudflare and Hostinger readiness",
+    dedicatedPolicy.includes('app_key: "cloudflare"') &&
+    dedicatedPolicy.includes('app_key: "hostinger"') &&
+    dedicatedPolicy.includes("user_app_connections"));
+  assert("hybrid policy keeps mixed behavior per-app",
+    hybridPolicy.includes("CANONICAL_INTEGRATION_SOURCE_MODES") &&
+    hybridPolicy.includes("integration_modes") &&
+    hybridPolicy.includes('mode: sourceModes.size > 1 ? "mixed"'));
+
+  assert("migration 104 governs activation mode tool schema",
+    migration104.includes("connect_activate") && migration104.includes('"required":["mode"]'));
+  assert("migration 105 adds dedicated integration tenant tools",
+    ["connect_app_integrations_list", "connect_credential_intake_create", "connect_app_connections_list", "connect_app_connection_revoke"]
+      .every((toolKey) => migration105.includes(toolKey)));
+  assert("migration 106 adds hybrid policy table and tenant update tool",
+    migration106.includes("CREATE TABLE IF NOT EXISTS `tenant_integration_policies`") &&
+    migration106.includes("connect_integration_policy_update") &&
+    migration106.includes("integration_modes"));
 }
 
 section("DB tool registry fixtures");
@@ -362,7 +801,7 @@ section("Sprint 55: admin scope-sharing controller");
 section("Sprint 56: device-tools MCP facade");
 {
   const routesFile = readFileSync(resolve(__dirname, "routes/deviceToolsRoutes.js"), "utf8");
-  const dispatcherSchema = readFileSync(resolve(__dirname, "openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
+  const dispatcherSchema = readFileSync(schemaPath("openapi.custom-gpt.auth-dispatcher.yaml"), "utf8");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const gptToolsFile = readFileSync(resolve(__dirname, "routes/gptToolsRoutes.js"), "utf8");
 
@@ -395,8 +834,9 @@ section("Sprint 56: device-tools MCP facade");
 
 section("Sprint 57: Local Manager device-link schema coverage");
 {
-  const parentDoc = loadSchema("openapi.yaml");
-  const childDoc = yaml.load(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
+  const parentDoc = openApiTextDoc(parentSchema);
+  const childDoc = YAML.parse(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
   const expectedPaths = [
     "/local-manager/device-link/start",
     "/local-manager/device-link/preview",

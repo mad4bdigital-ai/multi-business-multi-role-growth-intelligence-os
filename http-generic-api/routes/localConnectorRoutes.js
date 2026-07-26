@@ -1,6 +1,22 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 
+function resolveLocalConnectorIdentity(req = {}) {
+  const isTenantScoped = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
+  if (isTenantScoped) {
+    return {
+      user_id: req.auth?.user_id || null,
+      tenant_id: req.auth?.tenant_id || null,
+      auth_derived: true,
+    };
+  }
+  return {
+    user_id: req.query?.user_id || req.body?.user_id || null,
+    tenant_id: req.query?.tenant_id || req.body?.tenant_id || null,
+    auth_derived: false,
+  };
+}
+
 export function buildLocalConnectorRoutes(deps) {
   const { requireBackendApiKey, localConnectorOrchestrator } = deps;
   const router = Router();
@@ -52,9 +68,17 @@ export function buildLocalConnectorRoutes(deps) {
 
   router.get("/local-connector/devices", requireBackendApiKey, async (req, res) => {
     try {
-      const { user_id, tenant_id } = req.query;
+      const { user_id, tenant_id, auth_derived } = resolveLocalConnectorIdentity(req);
       if (!user_id || !tenant_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id, tenant_id required." } });
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "missing_fields",
+            message: auth_derived
+              ? "Signed-in user is missing tenant context."
+              : "user_id and tenant_id are required for admin/service calls.",
+          },
+        });
       }
       const [rows] = await getPool().query(
         `SELECT config_id, device_id, tunnel_url, cf_tunnel_id, cf_tunnel_name, is_enabled, created_at, updated_at
@@ -63,7 +87,7 @@ export function buildLocalConnectorRoutes(deps) {
          ORDER BY created_at DESC`,
         [user_id, tenant_id]
       );
-      return res.status(200).json({ ok: true, devices: rows, count: rows.length });
+      return res.status(200).json({ ok: true, devices: rows, count: rows.length, auth_derived });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "devices_read_failed", message: err.message } });
     }
@@ -71,14 +95,20 @@ export function buildLocalConnectorRoutes(deps) {
 
   router.get("/local-connector/health", requireBackendApiKey, async (req, res) => {
     try {
-      const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
-      const resolved_user_id = req.query.user_id || (isUserAuth ? req.auth?.user_id : null);
-      const resolved_tenant_id = req.query.tenant_id || (isUserAuth ? req.auth?.tenant_id : null);
+      const { user_id, tenant_id, auth_derived } = resolveLocalConnectorIdentity(req);
       const { device_id } = req.query;
-      if (!resolved_user_id || !resolved_tenant_id || !device_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+      if (!user_id || !tenant_id || !device_id) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "missing_fields",
+            message: auth_derived
+              ? "device_id is required and the signed-in user must have tenant context."
+              : "user_id, tenant_id, and device_id are required for admin/service calls.",
+          },
+        });
       }
-      const userConfig = await localConnectorOrchestrator.resolveUserLocalConfig(resolved_user_id, resolved_tenant_id, device_id);
+      const userConfig = await localConnectorOrchestrator.resolveUserLocalConfig(user_id, tenant_id, device_id);
       if (!userConfig) {
         return res.status(404).json({ ok: false, error: { code: "config_not_found", message: "No local connector config for this user/device." } });
       }
@@ -90,7 +120,7 @@ export function buildLocalConnectorRoutes(deps) {
           signal: AbortSignal.timeout(10000),
         });
         const data = await response.json();
-        return res.status(200).json({ ok: true, tunnel_url: tunnelUrl, agent: data });
+        return res.status(200).json({ ok: true, tunnel_url: tunnelUrl, agent: data, auth_derived });
       } catch (e) {
         return res.status(200).json({ ok: false, tunnel_url: tunnelUrl, error: { code: "connector_unreachable", message: e.message } });
       }

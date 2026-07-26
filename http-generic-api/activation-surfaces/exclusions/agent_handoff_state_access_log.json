@@ -1,0 +1,7 @@
+{
+  "surface_key": "agent_handoff_state_access_log",
+  "source_table": "agent_handoff_state_access_log",
+  "reason": "Excluded because it is an internal append-only audit log for handoff access events. It does not represent user-visible authorization, available capabilities, workspace state, connected systems, or actionable activation readiness.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

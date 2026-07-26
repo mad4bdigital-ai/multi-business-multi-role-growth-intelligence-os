@@ -12,20 +12,25 @@ on:
         required: false
         default: "unspecified"
         type: string
-      expect_queue_available:
-        description: "Whether this deployment is expected to have live Redis/BullMQ queue connectivity"
+      runtime_profile:
+        description: "Expected runtime shape: api_only, queue_worker, or custom"
         required: false
-        default: "true"
+        default: "api_only"
+        type: string
+      expect_queue_available:
+        description: "Whether this deployment is expected to have live Redis/BullMQ queue connectivity. Leave blank to derive from runtime_profile."
+        required: false
+        default: ""
         type: string
       expect_worker_enabled:
-        description: "Whether this runtime instance is expected to run the BullMQ worker"
+        description: "Whether this runtime instance is expected to run the BullMQ worker. Leave blank to derive from runtime_profile."
         required: false
-        default: "true"
+        default: ""
         type: string
       verify_execution_log_row:
         description: "Whether to verify latest Execution Log Unified row parity"
         required: false
-        default: "true"
+        default: "false"
         type: string
       execution_log_verify_path:
         description: "Runtime endpoint that returns the latest Execution Log Unified row"
@@ -37,6 +42,11 @@ on:
         required: false
         default: "false"
         type: string
+      run_repository_main_moved_fail_closed_smoke:
+        description: "POST a no-secret GitHub push fixture and require the repository-main-moved ingress to fail closed with structured HTTP 503"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   verify:
@@ -78,12 +88,29 @@ jobs:
         env:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: ${{ inputs.runtime_profile }}
           EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}
           EXPECT_WORKER_ENABLED: ${{ inputs.expect_worker_enabled }}
           VERIFY_EXECUTION_LOG_ROW: ${{ inputs.verify_execution_log_row }}
           EXECUTION_LOG_VERIFY_PATH: ${{ inputs.execution_log_verify_path }}
           ALLOW_ENVIRONMENT_ACCESS_BLOCKED: ${{ inputs.allow_environment_access_blocked }}
         run: node verify-runtime.mjs
+
+      - name: Verify repository-main-moved fail-closed ingress
+        id: repository_main_moved_smoke
+        if: ${{ inputs.run_repository_main_moved_fail_closed_smoke == true }}
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
+        run: node smoke-github-repository-main-moved-fail-closed.mjs
+
+      - name: Summarize repository-main-moved smoke
+        if: ${{ inputs.run_repository_main_moved_fail_closed_smoke == true && success() }}
+        run: |
+          echo "REPOSITORY MAIN MOVED FAIL-CLOSED SMOKE: PASS"
+          echo "Delivery ID: ${{ steps.repository_main_moved_smoke.outputs.delivery_id }}"
+          echo "HTTP status: ${{ steps.repository_main_moved_smoke.outputs.http_status }}"
+          echo "Error code:  ${{ steps.repository_main_moved_smoke.outputs.error_code }}"
 
       - name: Confirm parity result
         if: success()

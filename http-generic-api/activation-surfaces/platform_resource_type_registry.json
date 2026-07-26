@@ -1,0 +1,20 @@
+{
+  "surface_key": "platform_resource_type_registry",
+  "display_name": "Platform Resource Type Registry",
+  "description": "Admin-only logical resource descriptors, authority, scope, and safe operation policy metadata.",
+  "source_table": "platform_resource_type_registry",
+  "covered_source_tables": ["platform_resource_type_registry"],
+  "result_key_column": "resource_key",
+  "result_label_column": "display_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active"],
+  "result_columns": ["resource_key", "display_name", "scope_class", "authority_model", "id_field", "status", "created_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 330,
+  "status": "active",
+  "notes": "Excludes source_tables_json, read_models_json, operation_policy_json, field_policy_json, and search_policy_json from activation summaries."
+}

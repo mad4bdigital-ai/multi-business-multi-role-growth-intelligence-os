@@ -207,6 +207,7 @@ async function resolveUserAppConnectionRef(ref, context, deps) {
     source: "user_app_connections",
     secret: value,
     secret_present: true,
+    username: str(credentials.username || credentials.user || credentials.login || ""),
     account_label: conn.account_label || "",
     auth_type: conn.auth_type || "",
     app_key: conn.app_key || ""
@@ -376,6 +377,16 @@ async function resolveCredentialRef(ref, context, deps) {
     credential_ref: normalizedRef,
     source: "credential_bindings"
   }, Boolean(context.includeSecret));
+}
+
+export async function resolveCredentialReference(reference, options = {}, deps = {}) {
+  const runtimeDeps = {
+    pool: deps.pool || getPool(),
+    decryptCredentials: deps.decryptCredentials || defaultDecryptCredentials,
+    decryptToken: deps.decryptToken || defaultDecryptToken,
+    env: deps.env || process.env
+  };
+  return resolveCredentialRef(reference, { includeSecret: options.includeSecret === true }, runtimeDeps);
 }
 
 function bindingSpecificityScore(binding = {}) {

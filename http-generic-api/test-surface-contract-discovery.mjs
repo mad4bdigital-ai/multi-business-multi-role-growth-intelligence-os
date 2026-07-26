@@ -1,0 +1,220 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+
+const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
+assert.equal(
+  isDirectExecution(pathToFileURL(scriptPath).href, scriptPath),
+  true,
+  "surface discovery CLI entrypoint detection must be path-safe"
+);
+assert.equal(
+  isDirectExecution(pathToFileURL(scriptPath).href, path.resolve("scripts/not-surface-contract-discovery.mjs")),
+  false,
+  "surface discovery must not execute when imported from another entrypoint"
+);
+const discoverySource = fs.readFileSync(scriptPath, "utf8");
+assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
+assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
+
+const standaloneMarkers = detectSafetyMarkers(`
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+/* no_external_send */
+* no_external_write
+-- secrets_included_false
+`);
+assert.deepEqual(standaloneMarkers, {
+  no_provider_call: true,
+  no_credential_payload_read: true,
+  no_raw_secrets: true,
+  no_external_send: true,
+  no_external_write: true,
+  secrets_included_false: true,
+}, "standalone SQL comment safety markers must be recognized exactly");
+
+const explicitBooleanMarkers = detectSafetyMarkers(`
+no_provider_call true
+no_external_write, true
+secrets_included=false
+`);
+assert.equal(explicitBooleanMarkers.no_provider_call, true, "explicit true provider marker must remain supported");
+assert.equal(explicitBooleanMarkers.no_external_write, true, "explicit true external-write marker must remain supported");
+assert.equal(explicitBooleanMarkers.secrets_included_false, true, "secrets_included=false must remain supported");
+
+const negativeMarkers = detectSafetyMarkers(`
+-- no_provider_call=false
+SELECT 'no_external_write';
+no_raw_secrets false
+`);
+assert.equal(negativeMarkers.no_provider_call, false, "false provider marker must not be accepted");
+assert.equal(negativeMarkers.no_external_write, false, "unattested token usage must not be accepted");
+assert.equal(negativeMarkers.no_raw_secrets, false, "false raw-secret marker must not be accepted");
+
+const report = discoverSurfaces({ limit: 200 });
+assert.equal(report.ok, true, "surface discovery report must be ok");
+assert.equal(report.schema_version, "surface-contract-discovery-v3", "surface discovery must expose v3 actionable queue contract");
+assert.equal(report.gap_queue.schema_version, "surface-contract-gap-queue-v1", "gap queue must expose a versioned machine contract");
+assert.equal(report.legacy_backlog_closure.schema_version, "surface-contract-legacy-backlog-closure-v1", "legacy backlog closure must expose a versioned machine contract");
+assert(report.legacy_backlog_closure.closed_migration_count > 0, "legacy backlog closure must classify historical migrations without applying runtime mutations");
+assert(report.all_migrations.length >= report.migrations.length, "machine report must include all migrations, not only rendered latest rows");
+assert(report.coverage_summary.migrations_with_surfaces >= report.migrations.length, "coverage summary must cover all discovered surface migrations");
+assert.equal(report.safety.secrets_included, false, "surface discovery must never include secrets");
+assert.equal(report.safety.executes_provider_calls, false, "surface discovery must not execute provider calls");
+assert.equal(report.safety.writes_database, false, "surface discovery must not write database rows");
+assert.equal(report.safety.external_sends, false, "surface discovery must not send externally");
+assert.equal(report.safety.deploys, false, "surface discovery must not deploy");
+assert.equal(report.gap_queue.safety.secrets_included, false, "gap queue must not include secrets");
+assert.equal(report.gap_queue.safety.executes_provider_calls, false, "gap queue must not execute provider calls");
+assert.equal(report.gap_queue.safety.writes_database, false, "gap queue must not write database rows");
+
+const persistedReport = buildPersistedDiscoveryReport(report);
+const persistedJson = `${JSON.stringify(persistedReport, null, 2)}\n`;
+assert.equal(persistedReport.serialization_profile, "bounded_evidence_v3", "persisted discovery artifact must declare bounded serialization v3");
+assert.equal(persistedReport.migration_index_detail_level, "compact_tuple_index_v3", "persisted migration evidence must declare tuple index detail level");
+assert.deepEqual(persistedReport.migration_index_columns, [
+  "migration_file",
+  "documentation_complete",
+  "gap_severity",
+  "attestation_sha256",
+  "attestation_evidence_mode",
+  "safety_marker_count",
+  "openapi_missing_route_count",
+]);
+assert.equal(persistedReport.all_migrations_count, report.all_migrations.length, "persisted discovery artifact must preserve the full migration count");
+assert.equal(persistedReport.all_migrations_index.length, report.all_migrations.length, "persisted tuple index must preserve every migration row");
+assert.equal(persistedReport.reported_migration_reference, "all_migrations_index_position", "reported migrations must reference the canonical all-migrations index");
+assert.equal(persistedReport.reported_migration_positions.length, report.migrations.length, "persisted position index must preserve every reported migration row");
+assert(persistedReport.reported_migration_positions.every((index) => Number.isInteger(index) && index >= 0 && index < persistedReport.all_migrations_index.length), "reported migration positions must be valid all-migrations indexes");
+assert.deepEqual(
+  persistedReport.reported_migration_positions.map((index) => persistedReport.all_migrations_index[index][0]),
+  report.migrations.map((entry) => entry.migration_file),
+  "reported migration positions must reconstruct the reported migration order"
+);
+assert.equal(persistedReport.reported_migrations_index, undefined, "persisted artifact must not duplicate reported migration tuples");
+assert(persistedReport.all_migrations_index.every((entry) => Array.isArray(entry) && entry.length === 7 && typeof entry[0] === "string" && [0, 1].includes(entry[1])), "persisted tuple rows must preserve migration identity and documentation state");
+assert.equal(persistedReport.all_migrations, undefined, "persisted artifact must not duplicate full all_migrations objects");
+assert.equal(persistedReport.migrations, undefined, "persisted artifact must not duplicate full reported migration objects");
+assert(Buffer.byteLength(persistedJson) < 100_000, "bounded persisted discovery artifact must remain below 100 KB");
+assert.equal(typeof report.coverage_summary.docs_completion_percent, "number", "coverage summary must expose docs completion percent");
+assert.equal(typeof report.coverage_summary.gap_severity_counts.high, "number", "coverage summary must count high-risk docs gaps");
+assert.equal(typeof report.coverage_summary.surface_totals.routes, "number", "coverage summary must count route surfaces");
+assert.equal(typeof report.coverage_summary.route_coverage.openapi_sql_route_coverage_percent, "number", "coverage summary must score SQL route/OpenAPI coverage");
+assert.equal(typeof report.coverage_summary.route_coverage.openapi_exempt_sql_route_count, "number", "coverage summary must count OpenAPI-exempt route-like surfaces");
+assert.equal(typeof report.coverage_summary.route_coverage.route_class_counts.admin_tool_registry_route, "number", "coverage summary must count admin tool registry route classifications");
+assert(Array.isArray(report.coverage_summary.route_coverage.route_openapi_gaps), "coverage summary must list route/OpenAPI gaps");
+assert(report.coverage_summary.missing_doc_target_counts["Updating Registry Patch Index.md"] >= 0, "coverage summary must count missing docs by target");
+assert(report.coverage_summary.safety_marker_counts.secrets_included_false >= 0, "coverage summary must count safety marker coverage");
+assert(report.gap_queue.total_items >= 0, "gap queue count must be a non-negative remediation queue size");
+assert(Array.isArray(report.gap_queue.top_items), "gap queue must expose top_items");
+assert(report.gap_queue.top_items.every((item) => item.score > 0), "gap queue top items must be scored");
+assert(report.gap_queue.top_items.every((item) => Array.isArray(item.remediation)), "gap queue items must include remediation actions");
+
+const migration287 = report.all_migrations.find((entry) => entry.migration_file === "287_sprint68_external_delivery_orchestration_graph_plugin.sql");
+assert(migration287, "migration 287 must be discoverable as a SQL-backed surface migration");
+assert(migration287.surfaces.plugins.includes("support_ticket_external_delivery_orchestrator"), "migration 287 plugin must be detected");
+assert(migration287.surfaces.views.includes("v_platform_orchestration_external_delivery_readiness"), "migration 287 readback view must be detected");
+assert(migration287.surfaces.policies.includes("support_ticket_external_delivery_orchestration_readback_policy_v1"), "migration 287 policy must be detected");
+assert.equal(migration287.surfaces.safety.no_external_send, true, "migration 287 no_external_send marker must be detected");
+assert.equal(migration287.surfaces.safety.secrets_included_false, true, "migration 287 secrets_included=false marker must be detected");
+assert.equal(migration287.coverage.gap_severity, "none", "documented migration 287 must not be treated as an active docs gap");
+
+const migration910 = report.all_migrations.find((entry) => entry.migration_file === "910_sprint68_session_insight_capability_binding_hardening.sql");
+assert(migration910, "migration 910 must stay discoverable after deep coverage changes");
+assert.equal(migration910.documentation_complete, true, "migration 910 documentation coverage must remain complete");
+assert.equal(migration910.coverage.requires_docs_review, false, "migration 910 must not require docs review after completion");
+
+const migration1018 = report.all_migrations.find((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql");
+assert(migration1018, "migration 1018 must remain discoverable after safety parser changes");
+assert.equal(migration1018.documentation_complete, true, "migration 1018 documentation coverage must remain complete");
+for (const marker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_raw_secrets",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included_false",
+]) {
+  assert.equal(migration1018.surfaces.safety[marker], true, `migration 1018 must expose ${marker}`);
+}
+assert.equal(
+  report.gap_queue.top_items.some((entry) => entry.migration_file === "1018_sprint69_governed_response_chunk_schema_reconciliation.sql"),
+  false,
+  "migration 1018 must leave the actionable gap queue after docs and safety closure"
+);
+
+const migration954 = report.all_migrations.find((entry) => entry.migration_file === "954_sprint68_compact_operational_views_and_github_resource_coverage.sql");
+assert(migration954, "migration 954 must be captured by all-migration coverage after auto-sync");
+assert(migration954.surfaces.views.includes("v_release_readiness_compact"), "migration 954 compact readiness view must be detected");
+const queue954 = report.gap_queue.top_items.find((entry) => entry.migration_file === "954_sprint68_compact_operational_views_and_github_resource_coverage.sql");
+if (migration954.coverage.gap_severity !== "none") {
+  assert.equal(migration954.coverage.requires_docs_review, true, "undocumented migration 954 must remain marked for docs review");
+  if (queue954) {
+    assert(queue954.remediation.some((action) => action.action_key === "document_surface_contract"), "migration 954 must recommend documentation remediation when ranked in top queue");
+    assert(queue954.remediation.some((action) => action.action_key === "verify_readback_view"), "migration 954 must recommend readback view verification when ranked in top queue");
+    assert(queue954.safety.secrets_included === false, "queue item must not include secrets");
+  }
+} else {
+  assert.equal(migration954.documentation_complete, true, "documented migration 954 may leave actionable gap queue only after docs are complete");
+}
+
+const migration282 = report.all_migrations.find((entry) => entry.migration_file === "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql");
+assert(migration282, "migration 282 must remain discoverable under legacy closure");
+assert.equal(migration282.legacy_backlog_closed, true, "migration 282 must be covered by the legacy backlog closure policy");
+assert.equal(migration282.coverage.route_coverage.missing_count, 0, "closed legacy route-like literals must not remain active OpenAPI gaps");
+assert(migration282.coverage.route_coverage.route_classifications.some((entry) => entry.route_class === "legacy_closure_route_reviewed"), "closed legacy routes must expose review classification evidence");
+
+const migration955 = report.all_migrations.find((entry) => entry.migration_file === "955_sprint68_external_delivery_admin_control_surface.sql");
+assert(migration955, "migration 955 must be discoverable for route classification regression coverage");
+assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool registry routes in migration 955 must not be treated as OpenAPI gaps");
+assert.equal(migration955.coverage.route_coverage.exempted_route_count, 5, "migration 955 external delivery control routes must be OpenAPI-exempt registry routes");
+assert(migration955.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "admin_tool_registry_route"), "migration 955 route literals must be classified as admin_tool_registry_route");
+
+const migration1026 = report.all_migrations.find((entry) => entry.migration_file === "1026_sprint69_github_actions_runs_read_dispatch.sql");
+assert(migration1026, "migration 1026 must be discoverable for registry-driven provider endpoint route classification");
+assert.equal(migration1026.coverage.route_coverage.missing_count, 0, "registry-driven GitHub provider endpoint routes in migration 1026 must not be treated as public OpenAPI gaps");
+assert(migration1026.coverage.route_coverage.route_classifications.some((entry) => entry.route === "/repos/{owner}/{repo}/actions/runs"), "migration 1026 must preserve route classification evidence for the GitHub Actions workflow-runs provider path");
+assert(migration1026.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 1026 route literals must be classified as registry_only_surface");
+
+const migration1031 = report.all_migrations.find((entry) => entry.migration_file === "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql");
+assert(migration1031, "migration 1031 must be discoverable for GitHub Actions diagnostics OpenAPI coverage");
+assert.equal(migration1031.coverage.route_coverage.missing_count, 0, "OpenAPI artifacts under http-generic-api/openapi must satisfy migration 1031 route coverage");
+assert.equal(
+  report.gap_queue.top_items.some((entry) => entry.migration_file === "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql"),
+  false,
+  "migration 1031 must leave the actionable gap queue after docs, safety markers, and OpenAPI directory coverage"
+);
+
+const migration286 = report.all_migrations.find((entry) => entry.migration_file === "286_sprint68_platform_schema_contract_completion_registry.sql");
+assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
+assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");
+assert(migration286.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 286 route literals must be registry_only_surface classifications");
+
+const markdown = renderSurfaceContractMarkdown(report);
+assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
+assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
+assert(markdown.includes("Actionable Gap Queue"), "markdown must render actionable gap queue summary");
+assert(markdown.includes("SQL Route OpenAPI Gaps"), "markdown must render route/OpenAPI gap section");
+assert(markdown.includes("Route Classification Coverage"), "markdown must render route classification coverage section");
+assert(markdown.includes("surface-contract-discovery-status.json"), "markdown must point to machine-readable JSON output");
+assert(markdown.includes("surface-contract-gap-queue.json"), "markdown must point to machine-readable gap queue output");
+assert(markdown.includes("support_ticket_external_delivery_orchestrator"), "markdown must include discovered plugin evidence");
+assert(markdown.includes("OpenAPI route autofill"), "markdown must explain relationship to OpenAPI autofill");
+
+const queueMarkdown = renderGapQueueMarkdown(report.gap_queue);
+assert(queueMarkdown.includes("Surface Contract Gap Queue"), "gap queue markdown must render title");
+if (report.gap_queue.total_items > 0) assert(queueMarkdown.includes("Remediation actions"), "gap queue markdown must include remediation actions when queue items remain");
+else assert(queueMarkdown.includes("No actionable surface contract gaps detected."), "gap queue markdown must explain empty queue after closure");
+assert(queueMarkdown.includes("surface-contract-gap-queue.json"), "gap queue markdown must reference JSON queue");
+
+const maintenanceSync = fs.readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
+assert(maintenanceSync.includes("surface-contract-discovery.mjs"), "repo maintenance sync must run surface contract discovery");
+
+const workflow = fs.readFileSync("../.github/workflows/openapi-auto-sync.yml", "utf8");
+assert(workflow.includes('"http-generic-api/migrations/**"'), "OpenAPI auto-sync workflow must trigger on migrations");
+assert(workflow.includes('"http-generic-api/scripts/surface-contract-discovery.mjs"'), "OpenAPI auto-sync workflow must trigger on surface discovery script changes");
+
+console.log("surface contract discovery actionable gap queue guard passed");

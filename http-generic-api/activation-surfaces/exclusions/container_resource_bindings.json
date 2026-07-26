@@ -1,0 +1,7 @@
+{
+  "surface_key": "container_resource_bindings",
+  "source_table": "container_resource_bindings",
+  "reason": "Excluded because it stores internal allow and deny bindings evaluated by the authority resolver. Raw binding rows are not exposed through activation responses.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

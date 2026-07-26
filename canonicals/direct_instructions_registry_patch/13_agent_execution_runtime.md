@@ -6,6 +6,8 @@ All AI-driven workflow execution must use `runAgentLoop` from `agentLoopRunner.j
 
 Direct model calls from routes, connectors, or workflow handlers outside this chain are forbidden.
 
+Visual workflows may run through n8n only via the governed `workflow_runtime_bindings` and `n8nWorkflowRuntime.js` adapter. n8n must not bypass platform auth, registry scope, model routing, secrets policy, or execution logging.
+
 ## Model Tier Selection
 
 The `execution_class` field on the `workflows` table row is authoritative for model tier selection.
@@ -20,7 +22,13 @@ If `execution_class` is absent on the workflow row, `standard` is applied.
 
 If `AGENT_MODEL` env var is set, it overrides all class routing for all workflows in that process.
 
-Model selection must not be hardcoded in routes or connectors. All routing goes through `getCallModelForClass(execution_class)` and `modelAdapterRouter` maps the selected tier to the configured provider.
+Model selection must not be hardcoded in routes or connectors. All routing goes through `getCallModelForClass(execution_class)` / `getCallModelForClassAsync(execution_class)` and `modelAdapterRouter` maps the selected tier to the configured provider.
+
+Provider routing is governed by `platform_runtime_config.config_key = agent_model_runtime` when available. This row may define `provider_order`, `free_first`, provider enabled flags, env-var names, class-to-model mappings, and task-specific profiles. It must never store raw API keys, tokens, private keys, passwords, or provider secrets.
+
+Known task profiles are `summary`, `classification`, and `image_edit`. Routes with a known task must prefer `getCallModelForTaskAsync(task_class, execution_class)`. `summary` defaults to Gemini 3.5 Flash, `classification` defaults to Gemini 2.5 Flash-Lite, and `image_edit` defaults to the Nano Banana image model `gemini-3.1-flash-image-preview`.
+
+Supported provider keys are `gemini`, `openrouter`, `openai`, and `anthropic`. By default, session summaries and async standard-class background work prefer Gemini through Google AI Studio, then fall back to OpenRouter. `openrouter` uses the OpenAI-compatible OpenRouter endpoint and may default fallback work to `openrouter/free` when `OPENROUTER_API_KEY` is configured.
 
 ## Verify Pass Enforcement
 
@@ -61,10 +69,14 @@ Skills installed via `skillInstaller.mjs` must upsert `logic_definitions` rows w
 
 | Var | Purpose |
 |---|---|
-| `AGENT_MODEL_PROVIDER` | `anthropic` (default) / `openai` / `gemini` |
-| `ANTHROPIC_API_KEY` | Required when provider is `anthropic` |
+| `AGENT_MODEL_PROVIDER` | Optional hard override: `gemini` / `openrouter` / `openai` / `anthropic` |
+| `GEMINI_API_KEY` | Required when provider is `gemini`; generated from Google AI Studio |
+| `GOOGLE_AI_API_KEY` | Legacy Gemini key alias, supported as fallback |
+| `OPENROUTER_API_KEY` | Required when provider is `openrouter` |
+| `OPENROUTER_SITE_URL` | Optional OpenRouter `HTTP-Referer` metadata |
+| `OPENROUTER_APP_NAME` | Optional OpenRouter `X-Title` metadata |
 | `OPENAI_API_KEY` | Required when provider is `openai` |
-| `GOOGLE_AI_API_KEY` | Required when provider is `gemini` |
+| `ANTHROPIC_API_KEY` | Required when provider is `anthropic` |
 | `AGENT_MODEL` | Override: forces a specific model for all classes |
 | `GOOGLE_CLIENT_ID` | Required for user-owned Google OAuth token generation |
 | `GOOGLE_CLIENT_SECRET` | Required for user-owned Google OAuth token generation |
