@@ -88,10 +88,10 @@
       "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
     },
     "phase3_delegation_persistence_closeout_pr": {
-      "number": null,
+      "number": 3132,
       "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-20260725",
       "role": "delegation_persistence_evidence_closeout",
-      "status": "current_branch"
+      "status": "current_pr"
     },
     "implementation_prs": [
       {
