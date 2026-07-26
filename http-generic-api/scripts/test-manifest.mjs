@@ -524,6 +524,8 @@ export const testCommands = [
   "node test-sequential-plan-orchestrator.mjs",
   "node test-agent-governance-runtime.mjs",
   "node test-agent-governance-admin-tool-registry.mjs",
+  "node test-agent-capability-coverage.mjs",
+  "node test-agent-capability-admin-tool-registry.mjs",
   "node test-agent-prompt-enrichment.mjs",
   "node test-agent-tool-authorization-gate.mjs",
   "node test-governed-agent-execution-context.mjs",
