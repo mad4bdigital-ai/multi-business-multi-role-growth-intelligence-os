@@ -231,7 +231,7 @@ const ambiguous = await ambiguousResolutionService.resolve({
   riskClass: "read",
   now: clock(),
 });
-assert.equal(ambiguous.status, "ambiguous");
+assert.equal(ambiguous.status, "interpretation_required");
 assert.equal(ambiguous.candidates.length, 2);
 assert.equal(ambiguous.automaticWritePerformed, false);
 assert.equal(ambiguous.secretsIncluded, false);
