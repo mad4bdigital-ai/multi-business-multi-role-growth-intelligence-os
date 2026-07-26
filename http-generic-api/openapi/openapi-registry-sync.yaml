@@ -28,6 +28,32 @@ schemas:
       callable_rows_created: { type: integer, const: 0 }
       tool_exports_created: { type: integer, const: 0 }
 
+  InventoryEvidence:
+    type: object
+    additionalProperties: false
+    required:
+      - source_document_count
+      - suppressed_route_duplicate_count
+      - suppressed_route_conflict_count
+      - suppressed_route_conflicts
+      - secrets_included
+    properties:
+      source_document_count: { type: integer, minimum: 0 }
+      suppressed_route_duplicate_count: { type: integer, minimum: 0 }
+      suppressed_route_conflict_count: { type: integer, minimum: 0 }
+      suppressed_route_conflicts:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [route, authoritative_operation_id, suppressed_operation_id, source_file]
+          properties:
+            route: { type: string, minLength: 1 }
+            authoritative_operation_id: { type: string, minLength: 1 }
+            suppressed_operation_id: { type: string, minLength: 1 }
+            source_file: { type: string, minLength: 1 }
+      secrets_included: { type: boolean, const: false }
+
   InventorySyncRequest:
     type: object
     additionalProperties: false
@@ -49,6 +75,7 @@ schemas:
       source_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
       operation_count: { type: integer, minimum: 0 }
       plan: { $ref: '#/schemas/InventoryPlan' }
+      inventory_evidence: { $ref: '#/schemas/InventoryEvidence' }
       required_confirmation: { type: string }
       run_id: { type: [string, 'null'], format: uuid }
       readback_count: { type: integer, minimum: 0 }
