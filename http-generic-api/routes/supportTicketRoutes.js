@@ -1239,7 +1239,12 @@ export function buildSupportTicketRoutes(deps = {}) {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.query?.tenant_id || null);
       if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
-      const result = await getSupportTicketWithEvents({ tenant_id: tenantId, ticket_id: req.params.ticket_id, customer_visible: false });
+      const result = await getSupportTicketWithEvents({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        customer_visible: false,
+        include_resolution: true,
+      });
       if (!result) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
       return res.status(200).json({ ok: true, ...result, secrets_included: false });
     } catch (err) {
