@@ -48,7 +48,7 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "cdb84e053af087b9d9c43b7ca522762166694707"
+      "head_sha": "d065972db1caa099ee620308678cd67ee449d53b"
     },
     "release_readiness": {
       "status": "pending"
