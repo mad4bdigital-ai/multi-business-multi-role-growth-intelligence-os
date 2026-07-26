@@ -635,13 +635,21 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
 }
 
 function enclosingHelper(source, sourceIndex) {
-  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
   let match;
   let enclosing = null;
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
-    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
+    if (closing >= sourceIndex) {
+      enclosing = {
+        name: match[1],
+        closing,
+        parameters: splitTopLevelArguments(match[2])
+          .map((parameter) => parameter.match(/^[A-Za-z_$][A-Za-z0-9_$]*/)?.[0])
+          .filter(Boolean),
+      };
+    }
   }
   return enclosing;
 }
