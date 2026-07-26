@@ -677,6 +677,59 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
+function mountedPrefixesForReceiver(source, receiverName, startIndex = 0) {
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(receiverName)) return [];
+  const useRe = new RegExp(
+    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\1\\s*,\\s*${receiverName}\\b`,
+    "g",
+  );
+  useRe.lastIndex = startIndex;
+  const prefixes = [];
+  let match;
+  while ((match = useRe.exec(source)) !== null) prefixes.push(normalizeRoutePath(match[2]));
+  return unique(prefixes);
+}
+
+function helperInvocationBindings(source, sourceIndex, aliases, mountPrefix) {
+  const helper = enclosingHelper(source, sourceIndex);
+  const fallback = [{ mount_prefix: normalizeRoutePath(mountPrefix), guards: [] }];
+  if (!helper || helper.parameters[0] !== "router") return fallback;
+
+  const callRe = new RegExp(`\\b${helper.name}\\s*\\(`, "g");
+  callRe.lastIndex = helper.closing + 1;
+  const bindings = [];
+  let call;
+  while ((call = callRe.exec(source)) !== null) {
+    const opening = source.indexOf("(", call.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0) continue;
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
+    if (!receiverName) {
+      callRe.lastIndex = closing + 1;
+      continue;
+    }
+    const guards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const internalPrefixes = mountedPrefixesForReceiver(source, receiverName, closing + 1);
+    for (const internalPrefix of internalPrefixes.length ? internalPrefixes : ["/"]) {
+      bindings.push({
+        mount_prefix: joinRoutePath(mountPrefix, internalPrefix),
+        guards,
+      });
+    }
+    callRe.lastIndex = closing + 1;
+  }
+
+  const seen = new Set();
+  const uniqueBindings = bindings.filter((binding) => {
+    const key = `${binding.mount_prefix}|${binding.guards.join(",")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return uniqueBindings.length ? uniqueBindings : fallback;
+}
+
 export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
