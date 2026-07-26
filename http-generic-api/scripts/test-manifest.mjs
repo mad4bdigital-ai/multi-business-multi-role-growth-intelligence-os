@@ -608,6 +608,7 @@ export const testCommands = [
   "node test-operation-capability-authority-context.mjs",
   "node test-operation-chunk-detail-collector.mjs",
   "node test-operation-run-durable-lifecycle.mjs",
+  "node test-operation-write-receipts.mjs",
   "node test-canonical-execution-contract-resolver.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
