@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { queueSupportTicketRoutingNotifications } from "./supportTicketRoutingNotificationService.js";
+import {
+  ensureSupportTicketResolutionCase,
+  getSupportTicketResolution,
+} from "./supportTicketResolutionService.js";
 
 const VALID_TICKET_CATEGORIES = new Set(["support", "review_request", "escalation", "managed_task", "billing", "general"]);
 const VALID_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
