@@ -88,12 +88,10 @@ async function main() {
     assertCheck(checks, `manifest has hash for ${name}`, Boolean(manifest.body?.files?.[name]?.sha256), { name });
   }
 
-  const unauthHeartbeat = await requestJson(`${base}/connector-agent/heartbeat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device_id: "smoke-test" }),
-    timeout_ms: 60000,
-  });
+  const unauthHeartbeat = await requestJson(
+    `${base}/connector-agent/heartbeat`,
+    unauthenticatedHeartbeatRequestOptions(),
+  );
   assertCheck(checks, "heartbeat rejects unauthenticated access", unauthHeartbeat.status === 401 || unauthHeartbeat.status === 403, { status: unauthHeartbeat.status, code: unauthHeartbeat.body?.error?.code || null });
 
   const passed = checks.filter((check) => check.passed).length;
