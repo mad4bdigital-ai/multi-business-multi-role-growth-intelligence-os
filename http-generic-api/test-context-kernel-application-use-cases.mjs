@@ -360,7 +360,7 @@ const stalePlan = planService.validate({
   now: new Date("2026-07-25T12:01:00.000Z"),
 });
 assert.equal(stalePlan.valid, false);
-assert.ok(stalePlan.reasonCodes.includes("context_revision_conflict"));
+assert.ok(stalePlan.reasonCodes.includes("context_revision_mismatch"));
 assertRejectCode(
   () => planService.compile({
     resolution: {
