@@ -41,8 +41,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
-          git show origin/main:http-generic-api/openapi.yaml > "$RUNNER_TEMP/openapi-main.yaml"
+          git cat-file -e af17e3d187ba9918a0e11cfa7a79e86aed52b13e^{commit}
+          git show af17e3d187ba9918a0e11cfa7a79e86aed52b13e:http-generic-api/openapi.yaml > "$RUNNER_TEMP/openapi-main.yaml"
           cd http-generic-api
           node scripts/repair-agent-capability-openapi.mjs "$RUNNER_TEMP/openapi-main.yaml" openapi.yaml
 
