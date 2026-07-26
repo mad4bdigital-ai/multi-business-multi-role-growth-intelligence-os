@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 89.53,
+  "docs_completion_percent": 89.37,
   "docs_complete_count": 513,
-  "docs_gap_count": 60,
-  "queue_items": 82,
-  "blocking_new_item_count": 63,
+  "docs_gap_count": 61,
+  "queue_items": 83,
+  "blocking_new_item_count": 64,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -53,7 +53,7 @@
     {
       "migration_file": "20260723_auth_email_outbox_skip_ineligible_policy_tags.sql",
       "queue_class": "critical_review",
-      "score": 914,
+      "score": 913,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 63,
-    "warning_new_item_count": 63
+    "blocking_new_item_count": 64,
+    "warning_new_item_count": 64
   },
   "safety": {
     "executes_provider_calls": false,
