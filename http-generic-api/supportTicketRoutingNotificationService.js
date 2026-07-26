@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 
 const EMAIL_PURPOSE = "support_ticket_admin_notification";
-const ROUTING_VERSION = "support-ticket-routing-notification-v1";
+const ROUTING_VERSION = "support-ticket-routing-notification-v2";
 const MAX_RECIPIENTS = 20;
 
 const ROLE_RANKS = new Map([
