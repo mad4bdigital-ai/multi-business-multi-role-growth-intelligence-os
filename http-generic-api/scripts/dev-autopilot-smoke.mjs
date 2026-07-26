@@ -108,7 +108,9 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-main().catch((err) => {
-  console.error(JSON.stringify({ ok: false, error: { code: err.code || "dev_autopilot_smoke_failed", message: err.message }, secrets_included: false, destructive_actions_attempted: false }, null, 2));
-  process.exitCode = 1;
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(JSON.stringify({ ok: false, error: { code: err.code || "dev_autopilot_smoke_failed", message: err.message }, secrets_included: false, destructive_actions_attempted: false }, null, 2));
+    process.exitCode = 1;
+  });
+}
