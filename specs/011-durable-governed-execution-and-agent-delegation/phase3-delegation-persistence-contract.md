@@ -119,3 +119,14 @@ The migration remains `contract_only_unapplied`. Applying it requires separate g
 Slice C is `complete_on_main`. T141 remains open for governed create, inspect, revoke, expire, idempotency receipt, same-cycle readback, and renewal no-widening behavior.
 
 The overall Spec 011 status remains `in_progress`.
+
+## Closeout recovery evidence
+
+- Original closeout PR #3132 was closed without merge.
+- The original head branch was deleted, but verified commit `3733b608d724b83616c6da350a5c2464470169f0` remained available.
+- Recovery branch: `gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726`.
+- Recovery PR: #3146.
+
+The recovery preserves the same three-file documentation and evidence scope. It does not alter the migration, apply SQL, enable runtime authority, create a public route, dispatch a provider, or require deployment.
+
+PR #3146 supersedes the unmerged closeout PR #3132.
