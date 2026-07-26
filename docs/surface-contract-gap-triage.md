@@ -4,24 +4,24 @@
 
 ## Summary
 
-- Triaged items: 83
-- Gate candidates: 62
+- Triaged items: 84
+- Gate candidates: 63
 - New-gap gate: fail
-- Blocking new items: 64
+- Blocking new items: 65
 
 ## Class counts
 
 - legacy_baseline_backlog: 19
-- new_surface_immediate_review: 62
+- new_surface_immediate_review: 63
 - safety_marker_review: 2
 
 ## Immediate review candidates
 
 - `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, score 1425; next: confirm registry binding/readback evidence before promotion
-- `20260724_auth_email_delivery_attempts.sql` — critical_review, score 1293; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260724_auth_email_delivery_attempts.sql` — critical_review, score 1292; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_admin_tools.sql` — critical_review, score 1291; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1073; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, score 1054; next: add targeted patch-index, parity, and governance documentation
+- `20260717_tenant_task_source_repair_apply_gate.sql` — critical_review, score 1053; next: add targeted patch-index, parity, and governance documentation
 - `20260715_platform_capability_shadow_certification_issue.sql` — critical_review, score 980; next: add targeted patch-index, parity, and governance documentation
 - `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 932; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 913; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
@@ -45,5 +45,5 @@
 - `20260714_supervisor_runtime_admin_tool_exports.sql` — critical_review, score 719; next: add targeted patch-index, parity, and governance documentation
 - `20260718_repair_activation_session_context_tool_registration.sql` — critical_review, score 717; next: add targeted patch-index, parity, and governance documentation
 - `20260720_github_file_patch_shadow_certification_issue.sql` — critical_review, score 711; next: add targeted patch-index, parity, and governance documentation
-- `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 709; next: add targeted patch-index, parity, and governance documentation
+- `20260716_dynamic_container_preview_canary_probe_sampler_tool.sql` — critical_review, score 708; next: add targeted patch-index, parity, and governance documentation
 - `20260724_dynamic_container_topology_verification_tool.sql` — high_review, score 699; next: add targeted patch-index, parity, and governance documentation
