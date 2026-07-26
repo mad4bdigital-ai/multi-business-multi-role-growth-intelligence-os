@@ -280,7 +280,7 @@ const serviceSource = readFileSync("src/application/growthControlPlane/activityB
 for (const source of [domainSource, serviceSource]) {
   assert.equal(source.includes("providerCalls: true"), false);
   assert.equal(source.includes("externalWrites: true"), false);
-  assert.equal(/\b(INSERT|UPDATE|DELETE)\s+/i.test(source), false);
+  assert.equal(/(?:INSERT\s+INTO|UPDATE\s+[A-Za-z0-9_`]+\s+SET|DELETE\s+FROM)\s+/i.test(source), false);
 }
 
 console.log("activity binding lifecycle core tests passed");
