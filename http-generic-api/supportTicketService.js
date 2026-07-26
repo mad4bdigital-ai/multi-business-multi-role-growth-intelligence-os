@@ -393,6 +393,22 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
     await attachResourceLink(connection, ticket, ticket.resource);
     await capturePermissionSnapshot(connection, ticket, ticket);
 
+    const resolution = await ensureSupportTicketResolutionCase({
+      connection,
+      ticket,
+      actor_id: ticket.actor_id || "support_ticket_resolution_router",
+    });
+    await insertLifecycleEvent(connection, {
+      ticket_id: ticket.ticket_id,
+      tenant_id: ticket.tenant_id,
+      event_type: "resolution_case_linked",
+      actor_id: "support_ticket_resolution_router",
+      actor_type: "system",
+      visibility: "internal_support",
+      summary: `Linked ticket to ${resolution.summary.playbook_key}.`,
+      payload_json: { ...resolution.summary, secrets_included: false },
+    });
+
     const notification = await queueSupportTicketRoutingNotifications({
       ticket,
       event_type: "ticket_created",
@@ -401,7 +417,15 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
 
     const inserted = await fetchTicketById(connection, ticket.tenant_id, ticket.ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), notification, secrets_included: false };
+    return {
+      ok: true,
+      created: true,
+      deduped: false,
+      ticket: compactTicket(inserted),
+      resolution: resolution.summary,
+      notification,
+      secrets_included: false,
+    };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;
