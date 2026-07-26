@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git show origin/main:.github/workflows/surface-contract-auto-remediation.yml > .github/workflows/surface-contract-auto-remediation.yml
+          git show c905faab1772142c9ded54d385fa4a5cdc041a42:.github/workflows/surface-contract-auto-remediation.yml > .github/workflows/surface-contract-auto-remediation.yml
           rm http-generic-api/scripts/repair-agent-capability-openapi.mjs
           git config user.name "growth-intelligence-platform[bot]"
           git config user.email "growth-intelligence-platform[bot]@users.noreply.github.com"
