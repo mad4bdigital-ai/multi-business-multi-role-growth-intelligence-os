@@ -29,6 +29,18 @@ function assertCheck(checks, name, passed, details = {}) {
   checks.push({ name, passed: Boolean(passed), details });
 }
 
+export function evaluateDevDbStatus({ health = {}, dbStatus = {} } = {}) {
+  const directStatusOk = dbStatus.status === 200 && dbStatus.ok === true;
+  const policyGoverned = [401, 403].includes(Number(dbStatus.status)) &&
+    dbStatus.error_code === "dev_db_status_not_allowed" &&
+    health.db_connected === true;
+  return { directStatusOk, policyGoverned, passed: directStatusOk || policyGoverned };
+}
+
+export function unauthenticatedHeartbeatRequestOptions() {
+  return { method: "POST", timeout_ms: 60000 };
+}
+
 async function main() {
   const args = parseArgs();
   const base = String(args.base_url || "https://dev.mad4b.com").replace(/\/$/, "");
