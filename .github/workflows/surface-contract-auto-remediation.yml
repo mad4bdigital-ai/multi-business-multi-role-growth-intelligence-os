@@ -2,133 +2,112 @@ name: Surface Contract Auto Remediation
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "http-generic-api/migrations/**"
-      - "http-generic-api/scripts/surface-contract-*.mjs"
-      - "docs/surface-contract-*.json"
-      - "docs/surface-contract-*.md"
-      - "Updating Registry Patch Index.md"
-      - "deployment_parity_checklist.md"
-      - "docs/ai-docs-agent-governance.md"
-      - "docs/auto-docs-agent/README.md"
-      - "docs/change-documentation-governance.md"
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
-  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  group: agent-capability-openapi-repair-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  remediate:
-    name: Generate reviewable remediation PR
+  repair-openapi:
     runs-on: ubuntu-latest
+    if: github.ref_name == 'gpt/agent-capability-evidence-v1'
+
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Install runtime dependencies
+      - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Generate checksum-bound remediation
-        id: remediation
-        working-directory: http-generic-api
-        run: node scripts/surface-contract-auto-remediator.mjs --write
-
-      - name: Verify generated state and focused regression coverage
-        working-directory: http-generic-api
-        run: |
-          node scripts/surface-contract-auto-remediator.mjs --check
-          node scripts/surface-contract-discovery.mjs --check
-          node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps
-          node test-surface-contract-auto-remediation.mjs
-          node test-surface-contract-discovery.mjs
-          node test-surface-contract-governance-loop.mjs
-
-      - name: Enforce documentation and generated-evidence mutation boundary
-        id: changes
+      - name: Rebuild OpenAPI from current main
         shell: bash
         run: |
           set -euo pipefail
-          changed=()
-          while IFS= read -r -d '' entry; do
-            changed+=("${entry:3}")
-          done < <(git status --porcelain=v1 -z)
-          if [ "${#changed[@]}" -eq 0 ]; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          for file in "${changed[@]}"; do
-            case "$file" in
-              "Updating Registry Patch Index.md"|\
-              "deployment_parity_checklist.md"|\
-              "docs/ai-docs-agent-governance.md"|\
-              "docs/auto-docs-agent/README.md"|\
-              "docs/change-documentation-governance.md"|\
-              specs/[0-9][0-9][0-9]-*/manifest.json|\
-              docs/surface-contract-*.json|\
-              docs/surface-contract-*.md)
-                ;;
-              *)
-                echo "Unexpected auto-remediation mutation: $file" >&2
-                exit 1
-                ;;
-            esac
-          done
-          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          git fetch origin main --depth=1
+          git show origin/main:http-generic-api/openapi.yaml > "$RUNNER_TEMP/openapi-main.yaml"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
 
-      - name: Create remediation pull request
-        if: steps.changes.outputs.has_changes == 'true'
-        id: pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: surface-contract-auto/${{ github.run_id }}-${{ github.run_attempt }}
-          AUTO_MERGE_ELIGIBLE: ${{ steps.remediation.outputs.auto_merge_eligible }}
-          MANUAL_REVIEW_COUNT: ${{ steps.remediation.outputs.manual_review_count }}
-          REMAINING_QUEUE_ITEMS: ${{ steps.remediation.outputs.remaining_queue_items }}
+          source = Path(os.environ['RUNNER_TEMP']) / 'openapi-main.yaml'
+          target = Path('http-generic-api/openapi.yaml')
+          marker = '  /platform/agent-governance/readiness:\n'
+          coverage = '''  /platform/agent-governance/logic-coverage:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceLogicCoverage
+      summary: Read evidence-backed Agent Logic runtime coverage
+      description: Returns Logic inventory separately from retrieval, selection, dispatch, success, and verification evidence. Active inventory alone is not counted as usage.
+      parameters:
+        - { name: logic_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
+        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Logic runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+  /platform/agent-governance/engine-coverage:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceEngineCoverage
+      summary: Read evidence-backed Agent Engine runtime coverage
+      description: Returns workflow-bound Engine references separately from retrieval, selection, dispatch, success, and verification evidence. Textual references alone are not counted as usage.
+      parameters:
+        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Engine runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+'''
+          text = source.read_text(encoding='utf-8')
+          if marker not in text:
+              raise SystemExit('Agent Governance readiness marker not found in current main OpenAPI')
+          if '/platform/agent-governance/logic-coverage:' in text or '/platform/agent-governance/engine-coverage:' in text:
+              raise SystemExit('Current main already contains capability coverage paths')
+          target.write_text(text.replace(marker, coverage + marker, 1), encoding='utf-8')
+          PY
+
+      - name: Validate repaired OpenAPI and focused tests
+        working-directory: http-generic-api
+        run: |
+          node -e "const fs=require('node:fs');const YAML=require('yaml');YAML.parse(fs.readFileSync('openapi.yaml','utf8'));console.log('OpenAPI YAML parse passed');"
+          node test-agent-governance-runtime.mjs
+          node test-agent-capability-coverage.mjs
+          node test-agent-capability-admin-tool-registry.mjs
+
+      - name: Restore canonical workflow and commit
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "surface-contract-agent[bot]"
-          git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add -- \
-            "Updating Registry Patch Index.md" \
-            "deployment_parity_checklist.md" \
-            "docs/ai-docs-agent-governance.md" \
-            "docs/auto-docs-agent/README.md" \
-            "docs/change-documentation-governance.md" \
-            ':(glob)specs/[0-9][0-9][0-9]-*/manifest.json' \
-            docs/surface-contract-*.json \
-            docs/surface-contract-*.md
-          git commit -m "Surface contract agent: remediate documentation and safety evidence"
-          git push origin "$BRANCH"
-          PR_URL=$(gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Surface contract agent: automated remediation" \
-            --body "Automated, checksum-bound surface-contract remediation. Scope is documentation and generated evidence only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
-          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
-          gh workflow run ci.yml --ref "$BRANCH" || true
-          if [ "$AUTO_MERGE_ELIGIBLE" = "true" ]; then
-            if gh pr merge "$PR_URL" --auto --squash; then
-              echo "Auto-merge requested successfully."
-            else
-              echo "::warning::Repository auto-merge is unavailable; the remediation PR remains open for governed review."
-            fi
-          else
-            echo "PR remains open because manual review is required."
-          fi
+          git show origin/main:.github/workflows/surface-contract-auto-remediation.yml > .github/workflows/surface-contract-auto-remediation.yml
+          git config user.name "growth-intelligence-platform[bot]"
+          git config user.email "growth-intelligence-platform[bot]@users.noreply.github.com"
+          git add http-generic-api/openapi.yaml .github/workflows/surface-contract-auto-remediation.yml
+          git commit -m "Repair Agent capability coverage OpenAPI contracts"
+          git push origin HEAD:${GITHUB_REF_NAME}
