@@ -1,45 +1,19 @@
 name: OpenAPI Auto Sync
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "http-generic-api/routes/**"
-      - "http-generic-api/migrations/**"
-      - "http-generic-api/test-*.mjs"
-      - "http-generic-api/test-openapi-builder-schema-guard.mjs"
-      - "http-generic-api/openapi.yaml"
-      - "http-generic-api/openapi.*.yaml"
-      - "http-generic-api/openapi/**/*.yaml"
-      - "http-generic-api/openapi-route-coverage.allowlist.json"
-      - "http-generic-api/package.json"
-      - "http-generic-api/package-lock.json"
-      - "http-generic-api/scripts/openapi-*.mjs"
-      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
-      - "http-generic-api/scripts/split-openapi.mjs"
-      - "http-generic-api/scripts/surface-contract-discovery.mjs"
-      - "http-generic-api/scripts/repo-maintenance-sync.mjs"
-      - "http-generic-api/scripts/update-repo-planning-docs.mjs"
-      - "canonicals/openapi/**/*.yaml"
-      - "edge/activation-gateway/**"
-      - "docs/**/*.md"
-      - "canonicals/**/*.md"
-      - "*.md"
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
-  group: openapi-auto-sync-${{ github.ref }}
-  cancel-in-progress: true
+  group: openapi-capability-repair-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  repo-contract-sync:
+  repair-capability-coverage-openapi:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: github.ref_name == 'gpt/agent-capability-evidence-v1'
 
     steps:
       - name: Checkout repository
@@ -47,18 +21,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair capability coverage OpenAPI before parsing
-        if: github.event_name == 'workflow_dispatch' && github.ref_name == 'gpt/agent-capability-evidence-v1'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Rebuild capability coverage OpenAPI paths
         shell: bash
         run: |
           set -euo pipefail
           git show origin/main:http-generic-api/openapi.yaml > "$RUNNER_TEMP/openapi-main.yaml"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const sourcePath = `${process.env.RUNNER_TEMP}/openapi-main.yaml`;
-          const targetPath = 'http-generic-api/openapi.yaml';
-          const marker = '  /platform/agent-governance/readiness:\n';
-          const coveragePaths = `  /platform/agent-governance/logic-coverage:
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path(__import__('os').environ['RUNNER_TEMP']) / 'openapi-main.yaml'
+          target = Path('http-generic-api/openapi.yaml')
+          marker = '  /platform/agent-governance/readiness:\n'
+          coverage = '''  /platform/agent-governance/logic-coverage:
     get:
       tags: [platform-agent-governance]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
@@ -66,228 +51,8 @@ jobs:
       summary: Read evidence-backed Agent Logic runtime coverage
       description: Returns Logic inventory separately from retrieval, selection, dispatch, success, and verification evidence. Active inventory alone is not counted as usage.
       parameters:
-        - { name: logic_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Report auto-sync PR credential mode
-        shell: bash
-        env:
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
-        run: |
-          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
-            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
-          else
-            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
-          fi
-
-      - name: Run repository contract maintenance sync
-        id: maintenance
-        working-directory: http-generic-api
-        run: |
-          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
-
-      - name: Generate Custom GPT schemas from canonical sources
-        working-directory: http-generic-api
-        run: npm run schemas:generate
-
-      - name: Sync activation gateway runtime bundle
-        working-directory: http-generic-api
-        run: npm run activation-gateway:bundle:sync
-
-      - name: Validate generated schemas and parity
-        working-directory: http-generic-api
-        run: npm run schemas:guard
-
-      - name: Check generated diff
-        id: diff
-        shell: bash
-        run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          AUTO_MERGE=true
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
-                ;;
-              *)
-                AUTO_MERGE=false
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-
-          if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
-            AUTO_MERGE=false
-          fi
-
-          echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
-
-      - name: Create repository contract sync PR
-        id: cpr
-        if: steps.diff.outputs.changed == 'true'
-        continue-on-error: true
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
-          delete-branch: true
-          title: "Auto-sync repository contracts"
-          commit-message: "Auto-sync repository contracts"
-          labels: |
-            openapi
-            docs
-            automated
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          body: |
-            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
-
-            Generation sequence:
-            1. Update the canonical `openapi.yaml` and repository planning docs.
-            2. Generate split Custom GPT schemas into a temporary directory.
-            3. Validate all request/response schemas recursively.
-            4. Write generated artifacts only after validation succeeds.
-            5. Verify committed artifacts exactly match their canonical sources.
-
-            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
-            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
-
-            Review checklist:
-            - Replace any `TODO document ...` summaries with precise contracts.
-            - Confirm request and response properties match implementation.
-            - Confirm authentication and authorization notes.
-            - Confirm `x-openai-isConsequential` is correct.
-            - Confirm each Custom GPT schema stays within its operation budget.
-            - Confirm canonical and generated artifacts remain byte-for-byte aligned.
-
-      - name: Enable auto-merge for safe docs-only sync PRs
-        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
- } }
-        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: '^[a-z0-9_-]{1,32}
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Report auto-sync PR credential mode
-        shell: bash
-        env:
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
-        run: |
-          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
-            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
-          else
-            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
-          fi
-
-      - name: Run repository contract maintenance sync
-        id: maintenance
-        working-directory: http-generic-api
-        run: |
-          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
-
-      - name: Generate Custom GPT schemas from canonical sources
-        working-directory: http-generic-api
-        run: npm run schemas:generate
-
-      - name: Sync activation gateway runtime bundle
-        working-directory: http-generic-api
-        run: npm run activation-gateway:bundle:sync
-
-      - name: Validate generated schemas and parity
-        working-directory: http-generic-api
-        run: npm run schemas:guard
-
-      - name: Check generated diff
-        id: diff
-        shell: bash
-        run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          AUTO_MERGE=true
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
-                ;;
-              *)
-                AUTO_MERGE=false
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-
-          if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
-            AUTO_MERGE=false
-          fi
-
-          echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
-
-      - name: Create repository contract sync PR
-        id: cpr
-        if: steps.diff.outputs.changed == 'true'
-        continue-on-error: true
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
-          delete-branch: true
-          title: "Auto-sync repository contracts"
-          commit-message: "Auto-sync repository contracts"
-          labels: |
-            openapi
-            docs
-            automated
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          body: |
-            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
-
-            Generation sequence:
-            1. Update the canonical `openapi.yaml` and repository planning docs.
-            2. Generate split Custom GPT schemas into a temporary directory.
-            3. Validate all request/response schemas recursively.
-            4. Write generated artifacts only after validation succeeds.
-            5. Verify committed artifacts exactly match their canonical sources.
-
-            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
-            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
-
-            Review checklist:
-            - Replace any `TODO document ...` summaries with precise contracts.
-            - Confirm request and response properties match implementation.
-            - Confirm authentication and authorization notes.
-            - Confirm `x-openai-isConsequential` is correct.
-            - Confirm each Custom GPT schema stays within its operation budget.
-            - Confirm canonical and generated artifacts remain byte-for-byte aligned.
-
-      - name: Enable auto-merge for safe docs-only sync PRs
-        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
- } }
+        - { name: logic_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
+        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' } }
         - name: usage_status
           in: query
           required: false
@@ -306,117 +71,7 @@ jobs:
       summary: Read evidence-backed Agent Engine runtime coverage
       description: Returns workflow-bound Engine references separately from retrieval, selection, dispatch, success, and verification evidence. Textual references alone are not counted as usage.
       parameters:
-        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Report auto-sync PR credential mode
-        shell: bash
-        env:
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
-        run: |
-          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
-            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
-          else
-            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
-          fi
-
-      - name: Run repository contract maintenance sync
-        id: maintenance
-        working-directory: http-generic-api
-        run: |
-          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
-
-      - name: Generate Custom GPT schemas from canonical sources
-        working-directory: http-generic-api
-        run: npm run schemas:generate
-
-      - name: Sync activation gateway runtime bundle
-        working-directory: http-generic-api
-        run: npm run activation-gateway:bundle:sync
-
-      - name: Validate generated schemas and parity
-        working-directory: http-generic-api
-        run: npm run schemas:guard
-
-      - name: Check generated diff
-        id: diff
-        shell: bash
-        run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          AUTO_MERGE=true
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
-                ;;
-              *)
-                AUTO_MERGE=false
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-
-          if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
-            AUTO_MERGE=false
-          fi
-
-          echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
-
-      - name: Create repository contract sync PR
-        id: cpr
-        if: steps.diff.outputs.changed == 'true'
-        continue-on-error: true
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
-          delete-branch: true
-          title: "Auto-sync repository contracts"
-          commit-message: "Auto-sync repository contracts"
-          labels: |
-            openapi
-            docs
-            automated
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          body: |
-            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
-
-            Generation sequence:
-            1. Update the canonical `openapi.yaml` and repository planning docs.
-            2. Generate split Custom GPT schemas into a temporary directory.
-            3. Validate all request/response schemas recursively.
-            4. Write generated artifacts only after validation succeeds.
-            5. Verify committed artifacts exactly match their canonical sources.
-
-            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
-            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
-
-            Review checklist:
-            - Replace any `TODO document ...` summaries with precise contracts.
-            - Confirm request and response properties match implementation.
-            - Confirm authentication and authorization notes.
-            - Confirm `x-openai-isConsequential` is correct.
-            - Confirm each Custom GPT schema stays within its operation budget.
-            - Confirm canonical and generated artifacts remain byte-for-byte aligned.
-
-      - name: Enable auto-merge for safe docs-only sync PRs
-        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
- } }
+        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,191}$' } }
         - name: usage_status
           in: query
           required: false
@@ -427,128 +82,34 @@ jobs:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
-`;
-          const yaml = fs.readFileSync(sourcePath, 'utf8');
-          if (!yaml.includes(marker)) throw new Error('Agent Governance readiness marker was not found in main OpenAPI.');
-          if (yaml.includes('/platform/agent-governance/logic-coverage:') || yaml.includes('/platform/agent-governance/engine-coverage:')) {
-            throw new Error('Main OpenAPI already contains capability coverage paths; preflight must be updated instead of duplicating them.');
-          }
-          fs.writeFileSync(targetPath, yaml.replace(marker, coveragePaths + marker));
-          NODE
+'''
+          text = source.read_text(encoding='utf-8')
+          if marker not in text:
+              raise SystemExit('Agent Governance readiness marker not found in main OpenAPI')
+          if '/platform/agent-governance/logic-coverage:' in text or '/platform/agent-governance/engine-coverage:' in text:
+              raise SystemExit('Main OpenAPI already contains capability coverage paths')
+          target.write_text(text.replace(marker, coverage + marker, 1), encoding='utf-8')
+          PY
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Report auto-sync PR credential mode
-        shell: bash
-        env:
-          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
-        run: |
-          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
-            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
-          else
-            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
-          fi
-
-      - name: Run repository contract maintenance sync
-        id: maintenance
+      - name: Validate repaired contracts
         working-directory: http-generic-api
         run: |
-          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
+          node -e "const fs=require('node:fs');const YAML=require('yaml');YAML.parse(fs.readFileSync('openapi.yaml','utf8'));console.log('OpenAPI YAML parse passed');"
+          node test-agent-governance-runtime.mjs
+          node test-agent-capability-coverage.mjs
+          node test-agent-capability-admin-tool-registry.mjs
 
-      - name: Generate Custom GPT schemas from canonical sources
-        working-directory: http-generic-api
-        run: npm run schemas:generate
-
-      - name: Sync activation gateway runtime bundle
-        working-directory: http-generic-api
-        run: npm run activation-gateway:bundle:sync
-
-      - name: Validate generated schemas and parity
-        working-directory: http-generic-api
-        run: npm run schemas:guard
-
-      - name: Check generated diff
-        id: diff
+      - name: Restore canonical workflow and commit repair
         shell: bash
         run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          git show origin/main:.github/workflows/openapi-auto-sync.yml > .github/workflows/openapi-auto-sync.yml
+          git config user.name "growth-intelligence-platform[bot]"
+          git config user.email "growth-intelligence-platform[bot]@users.noreply.github.com"
+          git add http-generic-api/openapi.yaml .github/workflows/openapi-auto-sync.yml
+          if git diff --cached --quiet; then
+            echo "No repair changes detected."
             exit 0
           fi
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          AUTO_MERGE=true
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            case "$file" in
-              docs/*.md|docs/**/*.md|canonicals/*.md|canonicals/**/*.md|*.md)
-                ;;
-              *)
-                AUTO_MERGE=false
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-
-          if git diff -- http-generic-api/openapi.yaml | grep -q "TODO document"; then
-            AUTO_MERGE=false
-          fi
-
-          echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
-
-      - name: Create repository contract sync PR
-        id: cpr
-        if: steps.diff.outputs.changed == 'true'
-        continue-on-error: true
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
-          delete-branch: true
-          title: "Auto-sync repository contracts"
-          commit-message: "Auto-sync repository contracts"
-          labels: |
-            openapi
-            docs
-            automated
-          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          body: |
-            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
-
-            Generation sequence:
-            1. Update the canonical `openapi.yaml` and repository planning docs.
-            2. Generate split Custom GPT schemas into a temporary directory.
-            3. Validate all request/response schemas recursively.
-            4. Write generated artifacts only after validation succeeds.
-            5. Verify committed artifacts exactly match their canonical sources.
-
-            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
-            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
-
-            Review checklist:
-            - Replace any `TODO document ...` summaries with precise contracts.
-            - Confirm request and response properties match implementation.
-            - Confirm authentication and authorization notes.
-            - Confirm `x-openai-isConsequential` is correct.
-            - Confirm each Custom GPT schema stays within its operation budget.
-            - Confirm canonical and generated artifacts remain byte-for-byte aligned.
-
-      - name: Enable auto-merge for safe docs-only sync PRs
-        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
-        env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
+          git commit -m "Repair Agent capability coverage OpenAPI contracts"
+          git push origin HEAD:${GITHUB_REF_NAME}
