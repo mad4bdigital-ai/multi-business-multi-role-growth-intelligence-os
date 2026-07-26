@@ -329,8 +329,10 @@ export function compileOperationBindingManifest(input = {}) {
   const candidates = root.candidates.map(normalizeCandidate).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
   if (new Set(candidates.map((candidate) => candidate.binding_id)).size !== candidates.length) fail("operation_binding_duplicate_id", "candidate binding IDs must be unique.");
   if (new Set(candidates.map((candidate) => candidate.binding_key)).size !== candidates.length) fail("operation_binding_duplicate_key", "candidate binding keys must be unique.");
+  const eligibilityReport = filterOperationBindingEligibility({ candidates, context });
+  const eligibilityByBindingId = new Map(eligibilityReport.candidate_evidence.map((entry) => [entry.binding_id, entry.exclusion_reasons]));
   const evaluated = candidates.map((candidate) => {
-    const exclusionReasons = evaluateEligibility(candidate, context);
+    const exclusionReasons = eligibilityByBindingId.get(candidate.binding_id) || [];
     const eligible = exclusionReasons.length === 0;
     const score = eligible ? scoreCandidate(candidate, weights) : null;
     return { candidate, eligible, exclusion_reasons: exclusionReasons, score, rank: eligible ? rankCandidate(candidate, context, score) : null };
