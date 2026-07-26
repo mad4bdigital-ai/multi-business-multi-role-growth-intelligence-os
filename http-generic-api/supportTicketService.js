@@ -546,7 +546,12 @@ export async function listSupportTicketsForTenant({ tenant_id, user_id = null, s
   return rows.map(compactTicket);
 }
 
-export async function getSupportTicketWithEvents({ tenant_id, ticket_id, customer_visible = false }, options = {}) {
+export async function getSupportTicketWithEvents({
+  tenant_id,
+  ticket_id,
+  customer_visible = false,
+  include_resolution = false,
+}, options = {}) {
   const pool = options.pool || getPool();
   const [ticketRows] = await pool.query("SELECT * FROM tickets WHERE tenant_id = ? AND ticket_id = ? LIMIT 1", [tenant_id, ticket_id]);
   const ticket = ticketRows[0] || null;
@@ -559,7 +564,19 @@ export async function getSupportTicketWithEvents({ tenant_id, ticket_id, custome
       ORDER BY created_at ASC LIMIT 500`,
     [tenant_id, ticket_id]
   );
-  return { ticket: compactTicket(ticket), events: eventRows.map((row) => ({ ...row, payload_json: parseJsonObject(row.payload_json, null), secrets_included: false })), secrets_included: false };
+  const resolution = include_resolution
+    ? await getSupportTicketResolution({ tenant_id, ticket_id, pool })
+    : null;
+  return {
+    ticket: compactTicket(ticket),
+    events: eventRows.map((row) => ({
+      ...row,
+      payload_json: parseJsonObject(row.payload_json, null),
+      secrets_included: false,
+    })),
+    ...(include_resolution ? { resolution } : {}),
+    secrets_included: false,
+  };
 }
 
 function ticketTextForClassification(row = {}) {
