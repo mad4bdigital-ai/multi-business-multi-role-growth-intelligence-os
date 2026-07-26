@@ -248,6 +248,26 @@ function uuidSequence(values) {
 
 {
   const memory = createMemoryPool();
+  const result = await executeOperationWriteWithReceipt(input(), {
+    pool: memory.pool,
+    uuid: uuidSequence([ids.receipt, ids.attempt]),
+    dispatchWrite: async () => ({ ok: true, result: { write_id: "write-unsafe-readback" }, secrets_included: false }),
+    readbackWrite: async () => ({
+      ok: true,
+      conclusive: true,
+      applied: true,
+      result: { write_id: "write-unsafe-readback", access_token: "forbidden" },
+      secrets_included: false,
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.receipt.receipt_status, "blocked_recovery");
+  assert.equal(result.receipt.recovery_required, true);
+  assert.equal(result.receipt.last_error_code, "operation_write_receipt_sensitive_field_forbidden");
+}
+
+{
+  const memory = createMemoryPool();
   await assert.rejects(
     executeOperationWriteWithReceipt(input({ request: { access_token: "forbidden" } }), {
       pool: memory.pool,
