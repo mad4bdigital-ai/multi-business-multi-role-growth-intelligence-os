@@ -661,29 +661,6 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
-  /local-connector/uninstall:
-    delete:
-      operationId: deleteLocalConnectorUninstall7811632d
-      summary: DELETE /local-connector/uninstall (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/localConnectorInstallRoutes.js
-      x-mad4b-runtime-auth:
-        profile: backend_or_user
-        principal: authenticated
-        guard_chain:
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-          - JWT_SECRET
   /logic-definitions/{id}:
     delete:
       operationId: deleteLogicDefinitionsById123a3885
@@ -1311,6 +1288,30 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
+  /admin/container-authority/topology-verification:
+    get:
+      operationId: getAdminContainerAuthorityTopologyVerificationd629050f
+      summary: GET /admin/container-authority/topology-verification (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/dynamicContainerAuthorityRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdmin
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /admin/onboarding/escalations:
     get:
       operationId: getAdminOnboardingEscalationse6551410
@@ -1535,6 +1536,52 @@ paths:
           schema:
             type: string
             minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/attempts:
+    get:
+      operationId: getAdminSupportTicketsAuthEmailOutboxAttempts52691406
+      summary: GET /admin/support/tickets/auth-email-outbox/attempts (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/authEmailTargetedDeliveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/status:
+    get:
+      operationId: getAdminSupportTicketsAuthEmailOutboxStatus8ae36b97
+      summary: GET /admin/support/tickets/auth-email-outbox/status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       responses:
         default:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
@@ -2897,6 +2944,7 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
+          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/schema:
@@ -2925,6 +2973,7 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
+          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/status:
@@ -3221,6 +3270,7 @@ paths:
         guard_chain:
           - requireActiveMembership
           - requireUserJwt
+          - requireWorkspaceOwner
         configuration_dependencies:
           - JWT_SECRET
   /me/workspaces/{tenant_id}/resource-grants:
@@ -6704,6 +6754,121 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/apply:
+    post:
+      operationId: postAdminSupportTicketsAuthEmailOutboxApply284416a2
+      summary: POST /admin/support/tickets/auth-email-outbox/apply (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/dry-run:
+    post:
+      operationId: postAdminSupportTicketsAuthEmailOutboxDryRunbfbc8cf3
+      summary: POST /admin/support/tickets/auth-email-outbox/dry-run (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/skip-ineligible:
+    post:
+      operationId: postAdminSupportTicketsAuthEmailOutboxSkipIneligible5aefb252
+      summary: POST /admin/support/tickets/auth-email-outbox/skip-ineligible (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/targeted-apply:
+    post:
+      operationId: postAdminSupportTicketsAuthEmailOutboxTargetedApplyb70a51c1
+      summary: POST /admin/support/tickets/auth-email-outbox/targeted-apply (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/authEmailTargetedDeliveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/support/tickets/auth-email-outbox/targeted-dry-run:
+    post:
+      operationId: postAdminSupportTicketsAuthEmailOutboxTargetedDryRun3cfbbd59
+      summary: POST /admin/support/tickets/auth-email-outbox/targeted-dry-run (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/authEmailTargetedDeliveryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /admin/support/tickets/external-delivery/control/adapter/dispatch:
     post:
       operationId: postAdminSupportTicketsExternalDeliveryControlAdapterDispatch7282b378
@@ -7125,36 +7290,6 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/agentRegistryRoutes.js
-      x-mad4b-runtime-auth:
-        profile: backend_or_user
-        principal: authenticated
-        guard_chain:
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
-          - JWT_SECRET
-  /agents/{id}/skills/grant:
-    post:
-      operationId: postAgentsByIdSkillsGrant6991d382
-      summary: POST /agents/{id}/skills/grant (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/agentSkillRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
@@ -8277,29 +8412,6 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
-  /local-manager/device/desktop-commands:
-    post:
-      operationId: postLocalManagerDeviceDesktopCommands2a17983f
-      summary: POST /local-manager/device/desktop-commands (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/localManagerDesktopCommandRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /local-manager/device/desktop-commands/{commandId}/complete:
     post:
       operationId: postLocalManagerDeviceDesktopCommandsByCommandIdComplete91421260
@@ -8448,6 +8560,7 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
+          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/preflight:
