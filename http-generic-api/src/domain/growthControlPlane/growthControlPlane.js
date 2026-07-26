@@ -345,6 +345,143 @@ export function resolveEffectiveConfiguration({ definition, versions = [], scope
   return Object.freeze({ ...resolved, blocked: conflicts.length > 0, sha256: stableSha256(resolved), secretsIncluded: false });
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function activityPackCanonicalKey(value, field, details) {
+  const normalized = clean(value);
+  if (!normalized || !CANONICAL_KEY.test(normalized)) {
+    details.push({ field, issue: "invalid_canonical_key" });
+    return null;
+  }
+  return normalized;
+}
+
+function activityPackEntryKey(entry, aliases, field, details) {
+  if (typeof entry === "string") return activityPackCanonicalKey(entry, field, details);
+  if (!isPlainObject(entry)) {
+    details.push({ field, issue: "must_be_string_or_object" });
+    return null;
+  }
+  const value = aliases.map((alias) => entry[alias]).find((candidate) => candidate != null);
+  return activityPackCanonicalKey(value, field, details);
+}
+
+function activityPackKeySet(entries, field, aliases, details) {
+  const keys = new Set();
+  const items = [];
+  if (!Array.isArray(entries)) return { keys, items };
+  entries.forEach((entry, index) => {
+    const itemField = `${field}[${index}]`;
+    const key = activityPackEntryKey(entry, aliases, itemField, details);
+    if (!key) return;
+    if (keys.has(key)) details.push({ field: itemField, issue: "duplicate_key", key });
+    keys.add(key);
+    items.push({ entry, index, key });
+  });
+  return { keys, items };
+}
+
+function activityPackReferenceList(value, field, known, details, issue) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    details.push({ field, issue: "must_be_array" });
+    return [];
+  }
+  const seen = new Set();
+  const normalized = [];
+  value.forEach((entry, index) => {
+    const key = activityPackCanonicalKey(entry, `${field}[${index}]`, details);
+    if (!key) return;
+    if (seen.has(key)) details.push({ field: `${field}[${index}]`, issue: "duplicate_reference", key });
+    seen.add(key);
+    normalized.push(key);
+    if (known && !known.has(key)) details.push({ field: `${field}[${index}]`, issue, key });
+  });
+  return normalized;
+}
+
+function activityPackWorkflowHasCycle(nodeDependencies) {
+  const state = new Map();
+  function visit(nodeId) {
+    const current = state.get(nodeId) || 0;
+    if (current === 1) return true;
+    if (current === 2) return false;
+    state.set(nodeId, 1);
+    for (const dependency of nodeDependencies.get(nodeId) || []) {
+      if (nodeDependencies.has(dependency) && visit(dependency)) return true;
+    }
+    state.set(nodeId, 2);
+    return false;
+  }
+  return [...nodeDependencies.keys()].some(visit);
+}
+
+function collectForbiddenActivityPackPointers(value, path, details, seen = new WeakSet()) {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => collectForbiddenActivityPackPointers(entry, `${path}[${index}]`, details, seen));
+    return;
+  }
+  const forbidden = new Set(["file_path", "file_paths", "drive_id", "drive_ids", "prompt_body", "prompt_bodies"]);
+  for (const [key, child] of Object.entries(value)) {
+    const normalizedKey = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+    const nextPath = `${path}.${key}`;
+    if (forbidden.has(normalizedKey)) details.push({ field: nextPath, issue: "inline_pointer_forbidden" });
+    collectForbiddenActivityPackPointers(child, nextPath, details, seen);
+  }
+}
+
+function validateActivityPackWorkflow(workflow, index, capabilityKeys, details) {
+  if (!isPlainObject(workflow)) return;
+  const field = `workflows[${index}]`;
+  if (workflow.version != null && (!Number.isInteger(Number(workflow.version)) || Number(workflow.version) < 1)) {
+    details.push({ field: `${field}.version`, issue: "must_be_positive_integer" });
+  }
+  if (!Array.isArray(workflow.nodes)) {
+    details.push({ field: `${field}.nodes`, issue: "must_be_array" });
+    return;
+  }
+  const nodeIds = new Set();
+  const nodeDependencies = new Map();
+  workflow.nodes.forEach((node, nodeIndex) => {
+    const nodeField = `${field}.nodes[${nodeIndex}]`;
+    if (!isPlainObject(node)) {
+      details.push({ field: nodeField, issue: "must_be_object" });
+      return;
+    }
+    const nodeId = activityPackCanonicalKey(node.id, `${nodeField}.id`, details);
+    if (!nodeId) return;
+    if (nodeIds.has(nodeId)) details.push({ field: `${nodeField}.id`, issue: "duplicate_node_id", key: nodeId });
+    nodeIds.add(nodeId);
+    const capabilityKey = activityPackCanonicalKey(node.capability ?? node.capabilityKey ?? node.capability_key, `${nodeField}.capability`, details);
+    if (capabilityKey && !capabilityKeys.has(capabilityKey)) {
+      details.push({ field: `${nodeField}.capability`, issue: "unknown_capability_reference", key: capabilityKey });
+    }
+    const dependencies = activityPackReferenceList(node.dependsOn ?? node.depends_on ?? [], `${nodeField}.dependsOn`, null, details, "unknown_node_reference");
+    nodeDependencies.set(nodeId, dependencies);
+  });
+  for (const [nodeId, dependencies] of nodeDependencies.entries()) {
+    dependencies.forEach((dependency) => {
+      if (!nodeIds.has(dependency)) details.push({ field: `${field}.nodes.${nodeId}.dependsOn`, issue: "unknown_node_reference", key: dependency });
+      if (dependency === nodeId) details.push({ field: `${field}.nodes.${nodeId}.dependsOn`, issue: "self_dependency", key: dependency });
+    });
+  }
+  if (activityPackWorkflowHasCycle(nodeDependencies)) details.push({ field: `${field}.nodes`, issue: "workflow_cycle" });
+}
+
+function validateActivityPackCompatibilityEntries(items, field, capabilityKeys, workflowKeys, details) {
+  items.forEach(({ entry, index }) => {
+    if (!isPlainObject(entry)) return;
+    const itemField = `${field}[${index}]`;
+    activityPackReferenceList(entry.capabilities ?? entry.capabilityKeys ?? entry.capability_keys, `${itemField}.capabilities`, capabilityKeys, details, "unknown_capability_reference");
+    activityPackReferenceList(entry.workflows ?? entry.workflowKeys ?? entry.workflow_keys, `${itemField}.workflows`, workflowKeys, details, "unknown_workflow_reference");
+  });
+}
+
 export function validateActivityPackManifest(manifest = {}) {
   assertNoSecretFields(manifest);
   const required = ["entitySchemas","knowledgeProfile","kpiTaxonomy","capabilities","workflows","policies","providerCompatibility","tests"];
@@ -352,8 +489,90 @@ export function validateActivityPackManifest(manifest = {}) {
   for (const key of ["kpiTaxonomy","capabilities","workflows","policies","providerCompatibility"]) {
     if (Object.hasOwn(manifest, key) && !Array.isArray(manifest[key])) details.push({ field: key, issue: "must_be_array" });
   }
-  if (!manifest.entitySchemas || typeof manifest.entitySchemas !== "object" || Array.isArray(manifest.entitySchemas)) details.push({ field: "entitySchemas", issue: "must_be_object" });
-  if (!manifest.knowledgeProfile || typeof manifest.knowledgeProfile !== "object" || Array.isArray(manifest.knowledgeProfile)) details.push({ field: "knowledgeProfile", issue: "must_be_object" });
+  if (!isPlainObject(manifest.entitySchemas)) {
+    details.push({ field: "entitySchemas", issue: "must_be_object" });
+  } else {
+    for (const [entityKey, entitySchema] of Object.entries(manifest.entitySchemas)) {
+      activityPackCanonicalKey(entityKey, `entitySchemas.${entityKey}`, details);
+      try {
+        validateSchemaDefinition(entitySchema, `$.entitySchemas.${entityKey}`);
+      } catch (error) {
+        const schemaDetails = Array.isArray(error?.details) && error.details.length
+          ? error.details
+          : [{ field: `entitySchemas.${entityKey}`, issue: "invalid_schema" }];
+        details.push(...schemaDetails);
+      }
+    }
+  }
+  if (!isPlainObject(manifest.knowledgeProfile)) {
+    details.push({ field: "knowledgeProfile", issue: "must_be_object" });
+  } else {
+    activityPackCanonicalKey(
+      manifest.knowledgeProfile.pointerKey ?? manifest.knowledgeProfile.pointer_key,
+      "knowledgeProfile.pointerKey",
+      details
+    );
+  }
+  if (!isPlainObject(manifest.tests)) {
+    details.push({ field: "tests", issue: "must_be_object" });
+  } else {
+    activityPackReferenceList(manifest.tests.fixtures, "tests.fixtures", null, details, "unknown_fixture_reference");
+  }
+
+  if (manifest.identity != null && !isPlainObject(manifest.identity)) details.push({ field: "identity", issue: "must_be_object" });
+  if (isPlainObject(manifest.identity)) {
+    activityPackCanonicalKey(manifest.identity.activityPackKey ?? manifest.identity.activity_pack_key, "identity.activityPackKey", details);
+    const identityVersion = manifest.identity.version;
+    if (identityVersion != null && (!Number.isInteger(Number(identityVersion)) || Number(identityVersion) < 1)) {
+      details.push({ field: "identity.version", issue: "must_be_positive_integer" });
+    }
+  }
+
+  const kpis = activityPackKeySet(manifest.kpiTaxonomy, "kpiTaxonomy", ["kpiKey", "kpi_key"], details);
+  const capabilities = activityPackKeySet(manifest.capabilities, "capabilities", ["capabilityKey", "capability_key"], details);
+  const workflows = activityPackKeySet(manifest.workflows, "workflows", ["workflowKey", "workflow_key"], details);
+  const policies = activityPackKeySet(manifest.policies, "policies", ["policyKey", "policy_key"], details);
+  const providers = activityPackKeySet(manifest.providerCompatibility, "providerCompatibility", ["providerKey", "provider_key"], details);
+
+  capabilities.items.forEach(({ entry, index }) => {
+    if (!isPlainObject(entry)) return;
+    if (entry.version != null && (!Number.isInteger(Number(entry.version)) || Number(entry.version) < 1)) {
+      details.push({ field: `capabilities[${index}].version`, issue: "must_be_positive_integer" });
+    }
+  });
+  workflows.items.forEach(({ entry, index }) => validateActivityPackWorkflow(entry, index, capabilities.keys, details));
+  validateActivityPackCompatibilityEntries(policies.items, "policies", capabilities.keys, workflows.keys, details);
+  validateActivityPackCompatibilityEntries(providers.items, "providerCompatibility", capabilities.keys, workflows.keys, details);
+
+  if (Array.isArray(manifest.tests?.compatibilityDeclarations)) {
+    manifest.tests.compatibilityDeclarations.forEach((declaration, index) => {
+      const field = `tests.compatibilityDeclarations[${index}]`;
+      if (!isPlainObject(declaration)) {
+        details.push({ field, issue: "must_be_object" });
+        return;
+      }
+      const capabilityKey = declaration.capabilityKey ?? declaration.capability_key;
+      const workflowKey = declaration.workflowKey ?? declaration.workflow_key;
+      const providerKey = declaration.providerKey ?? declaration.provider_key;
+      if (capabilityKey != null) {
+        const normalized = activityPackCanonicalKey(capabilityKey, `${field}.capabilityKey`, details);
+        if (normalized && !capabilities.keys.has(normalized)) details.push({ field: `${field}.capabilityKey`, issue: "unknown_capability_reference", key: normalized });
+      }
+      if (workflowKey != null) {
+        const normalized = activityPackCanonicalKey(workflowKey, `${field}.workflowKey`, details);
+        if (normalized && !workflows.keys.has(normalized)) details.push({ field: `${field}.workflowKey`, issue: "unknown_workflow_reference", key: normalized });
+      }
+      if (providerKey != null) {
+        const normalized = activityPackCanonicalKey(providerKey, `${field}.providerKey`, details);
+        if (normalized && !providers.keys.has(normalized)) details.push({ field: `${field}.providerKey`, issue: "unknown_provider_reference", key: normalized });
+      }
+    });
+  } else if (manifest.tests?.compatibilityDeclarations != null) {
+    details.push({ field: "tests.compatibilityDeclarations", issue: "must_be_array" });
+  }
+
+  collectForbiddenActivityPackPointers(manifest, "$", details);
+  void kpis;
   if (details.length) throw new GrowthControlPlaneError("GROWTH_CONTROL_ACTIVITY_PACK_INVALID", "Activity Pack manifest is incomplete or invalid.", 422, details);
   return Object.freeze({ manifest: canonicalize(manifest), checksumSha256: stableSha256(manifest), secretsIncluded: false });
 }
