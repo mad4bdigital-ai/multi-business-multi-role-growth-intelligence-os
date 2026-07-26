@@ -87,10 +87,17 @@
       "status": "merged",
       "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
     },
-    "phase3_delegation_persistence_closeout_pr": {
+    "phase3_delegation_persistence_original_closeout_pr": {
       "number": 3132,
       "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-20260725",
-      "role": "delegation_persistence_evidence_closeout",
+      "role": "delegation_persistence_evidence_closeout_original",
+      "status": "closed_unmerged",
+      "head_sha": "3733b608d724b83616c6da350a5c2464470169f0"
+    },
+    "phase3_delegation_persistence_closeout_pr": {
+      "number": 3146,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726",
+      "role": "delegation_persistence_evidence_closeout_recovery",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -471,7 +478,9 @@
       "phase3_delegation_grant_shadow_status": "complete_on_main",
       "phase3_delegation_grant_shadow_closeout_status": "merged",
       "phase3_delegation_persistence_status": "complete_on_main",
+      "phase3_delegation_persistence_original_closeout_status": "closed_unmerged",
       "phase3_delegation_persistence_closeout_status": "current_pr",
+      "phase3_delegation_persistence_recovery_pull_request": 3146,
       "phase3_delegation_persistence_migration_status": "contract_only_unapplied",
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
