@@ -15,6 +15,14 @@ const beforeSha = "a".repeat(40);
 const afterSha = "b".repeat(40);
 const env = { RELEASE_TRIGGER_REPOSITORY: repository };
 
+assert.equal(resolveConfiguredReleaseBranch({}), "main");
+assert.equal(resolveConfiguredReleaseBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "Production");
+assert.equal(resolveConfiguredReleaseBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
+assert.equal(resolveConfiguredReleaseBranch({
+  RELEASE_TRIGGER_BRANCH: "release/candidate",
+  ACTIVATION_GITHUB_BRANCH: "Production",
+}), "release/candidate");
+
 const normalized = normalizeRepositoryMainMovedEvent({
   source_event_id: "delivery-1",
   repository,
