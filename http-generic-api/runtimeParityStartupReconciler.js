@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
-import { createRepositoryMainMovedTriggerEvent } from "./repositoryMainMovedTriggerService.js";
+import {
+  createRepositoryMainMovedTriggerEvent,
+  resolveConfiguredReleaseBranch,
+} from "./repositoryMainMovedTriggerService.js";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const DEFAULT_MANIFEST_PATH = fileURLToPath(new URL("./deployment-manifest.json", import.meta.url));
