@@ -51,11 +51,14 @@ function scanForSecrets(value, field = "input", depth = 0) {
   }
   for (const [key, nested] of Object.entries(value)) {
     const childField = `${field}.${key}`;
+    if (key === "secrets_included" || key === "credential_payloads_read") {
+      if (nested !== false) {
+        fail("operation_binding_eligibility_safety_marker_invalid", `${childField} must be false.`, 400, { field: childField });
+      }
+      continue;
+    }
     if (SECRET_FIELD_PATTERN.test(key)) {
       fail("operation_binding_eligibility_secret_field_forbidden", `${childField} is secret-bearing.`, 400, { field: childField });
-    }
-    if ((key === "secrets_included" || key === "credential_payloads_read") && nested !== false) {
-      fail("operation_binding_eligibility_safety_marker_invalid", `${childField} must be false.`, 400, { field: childField });
     }
     scanForSecrets(nested, childField, depth + 1);
   }
