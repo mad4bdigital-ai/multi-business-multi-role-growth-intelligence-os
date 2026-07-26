@@ -449,7 +449,6 @@ async function invokeReadback(deps, input, receipt, phase) {
       secrets_included: false,
     }), "readback_result", { requireReadback: true });
   } catch (error) {
-    if (error instanceof OperationWriteReceiptError) throw error;
     return {
       ok: false,
       conclusive: false,
