@@ -325,6 +325,10 @@ import {
   configureJobRunner
 } from "./jobRunner.js";
 import { registerRoutes } from "./routes/index.js";
+import {
+  createOperationRuntimeErrorHandler,
+  createOperationRuntimeGuard,
+} from "./operationRuntimeGuard.js";
 import { createExecutionFacade } from "./executionFacade.js";
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
