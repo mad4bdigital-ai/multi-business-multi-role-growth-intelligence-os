@@ -209,11 +209,12 @@ function safeEvidence(candidate, exclusionReasons) {
   };
 }
 
-export function evaluateOperationBindingHardConstraints(candidate, context) {
-  return evaluateNormalizedCandidate(normalizeCandidate(candidate, 0), normalizeContext(context));
+export function evaluateOperationBindingHardConstraints(candidate, context, { policy = null, env = process.env } = {}) {
+  const killSwitchPolicy = policy || resolveOperationBindingKillSwitchPolicy(env);
+  return evaluateNormalizedCandidate(normalizeCandidate(candidate, 0), normalizeContext(context), killSwitchPolicy);
 }
 
-export function filterOperationBindingEligibility({ candidates = [], context = {} } = {}) {
+export function filterOperationBindingEligibility({ candidates = [], context = {} } = {}, { policy = null, env = process.env } = {}) {
   if (!Array.isArray(candidates) || candidates.length === 0 || candidates.length > 1000) {
     fail("operation_binding_eligibility_candidates_invalid", "candidates must contain between 1 and 1000 bindings.");
   }
