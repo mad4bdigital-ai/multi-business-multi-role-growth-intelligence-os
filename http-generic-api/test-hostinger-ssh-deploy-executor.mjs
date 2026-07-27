@@ -30,6 +30,11 @@ assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "read-only probe timeo
 assert(executor.includes("mkdtemp"), "private key must be written only to a temporary file");
 assert(executor.includes("rm(tempDir"), "temporary private key directory must be cleaned up");
 assert(executor.includes("expected_commit_sha"), "executor must require an expected commit SHA");
+assert(executor.includes('const ALLOWED_BRANCHES = new Set(["main", "Production"])'), "executor must allow only main and Production deployment branches");
+assert(executor.includes("Only main and Production branch deployment is supported by this executor."), "executor must reject any third deployment branch with a stable error");
+assert(openapi.includes("branch: { type: string, enum: [main, Production], default: main }"), "OpenAPI must document the exact deployment branch allowlist");
+assert(branchAllowlistMigration.includes("JSON_ARRAY('main','Production')"), "corrective migration must register the exact deployment branch allowlist");
+assert(branchAllowlistMigration.includes('"enum":["main","Production"]'), "admin tool schema must accept main and Production only");
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
