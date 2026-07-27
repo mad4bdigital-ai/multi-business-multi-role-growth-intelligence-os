@@ -217,6 +217,7 @@ export function registerRoutes(app, deps) {
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDynamicGrowthControlPlaneRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildActivityBindingLifecycleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantGrowthControlPlaneRoutes({ ...deps }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
