@@ -140,6 +140,8 @@ function normalizeCandidate(input, index) {
     binding_scope_type: bindingScopeType,
     scope_ref: stringValue(value.scope_ref, `${field}.scope_ref`, { optional: true, max: 500 }),
     provider_family: stringValue(value.provider_family, `${field}.provider_family`, { optional: true, max: 128, pattern: SAFE_KEY_PATTERN }),
+    adapter_key: stringValue(value.adapter_key, `${field}.adapter_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
+    runtime_key: stringValue(value.runtime_key, `${field}.runtime_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
     capability_key: stringValue(value.capability_key, `${field}.capability_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
     effect_class: stringValue(value.effect_class, `${field}.effect_class`, { optional: true, max: 128, pattern: SAFE_KEY_PATTERN }),
     status,
