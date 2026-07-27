@@ -235,6 +235,10 @@ export function filterOperationBindingEligibility({ candidates = [], context = {
   });
   const eligibleBindingIds = candidateEvidence.filter((entry) => entry.eligible).map((entry) => entry.binding_id);
   const excludedBindingIds = candidateEvidence.filter((entry) => !entry.eligible).map((entry) => entry.binding_id);
+  const killSwitchExcludedCount = candidateEvidence.filter((entry) => (
+    entry.exclusion_reasons.includes("adapter_kill_switch_enabled")
+    || entry.exclusion_reasons.includes("runtime_kill_switch_enabled")
+  )).length;
   const reportCore = {
     schema_version: "operation-binding-eligibility-report-v1",
     constraints_version: "operation-binding-hard-constraints-v1",
