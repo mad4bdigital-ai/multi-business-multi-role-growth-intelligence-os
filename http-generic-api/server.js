@@ -3210,6 +3210,7 @@ registerRoutes(app, {
   callModel: getAgentDeps().callModel,
   localConnectorOrchestrator,
 });
+app.use(createOperationRuntimeErrorHandler());
 
 async function shutdownJobState() {
   try {
