@@ -219,6 +219,7 @@ export function filterOperationBindingEligibility({ candidates = [], context = {
     fail("operation_binding_eligibility_candidates_invalid", "candidates must contain between 1 and 1000 bindings.");
   }
   const normalizedContext = normalizeContext(context);
+  const killSwitchPolicy = policy || resolveOperationBindingKillSwitchPolicy(env);
   const normalizedCandidates = candidates.map(normalizeCandidate).sort((left, right) => (
     left.binding_key.localeCompare(right.binding_key) || left.binding_id.localeCompare(right.binding_id)
   ));
