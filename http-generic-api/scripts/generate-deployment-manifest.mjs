@@ -55,7 +55,8 @@ export function generateDeploymentManifest({
     ["env:ACTIVATION_GITHUB_BRANCH", env.ACTIVATION_GITHUB_BRANCH],
     ["git", gitBranch === "HEAD" ? "" : gitBranch],
   ];
-  const [branchSource, branch] = branchCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
+  const [branchSource, rawBranch] = branchCandidates.find(([, value]) => String(value || "").trim()) || ["unavailable", ""];
+  const branch = normalizeDeploymentBranch(rawBranch);
   const commitCandidates = [
     ["arg:--commit", argValue(argv, "--commit")],
     ["env:DEPLOYMENT_COMMIT_SHA", env.DEPLOYMENT_COMMIT_SHA],
