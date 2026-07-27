@@ -339,12 +339,20 @@ export function compileOperationBindingManifest(input = {}) {
   const selected = eligible[0];
   const fallbackEntries = fallbackPlan.fallback_binding_ids.map((bindingId) => evaluatedByBindingId.get(bindingId));
   const candidateEvidence = evaluated.map((entry) => safeEvidence(entry, selected.candidate.binding_id)).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
-  const sourceRevisionHash = stableOperationHash({ operation, context, candidates, policy: { weights }, compiler_version: compilerVersion });
+  const sourceRevisionHash = stableOperationHash({
+    operation,
+    context,
+    candidates,
+    policy: { weights },
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
+    compiler_version: compilerVersion,
+  });
   const manifestCore = {
     schema_version: "operation-binding-manifest-v1",
     compiler_version: compilerVersion,
     compiled_at: context.now,
     compile_mode: context.compile_mode,
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
     operation,
     scope_fingerprint: stableOperationHash({ resource_ref: context.resource_ref, workspace_id: context.workspace_id, tenant_id: context.tenant_id }),
     source_revision_hash: sourceRevisionHash,
@@ -370,6 +378,7 @@ export function compileOperationBindingManifest(input = {}) {
       candidate_count: evaluated.length,
       eligible_count: eligible.length,
       excluded_count: evaluated.length - eligible.length,
+      kill_switch_excluded_count: eligibilityReport.summary.kill_switch_excluded_count,
       fallback_count: fallbackPlan.summary.fallback_count,
       fallback_overflow_count: fallbackPlan.summary.overflow_count,
       fallback_truncated: fallbackPlan.summary.fallback_truncated,

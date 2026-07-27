@@ -1,4 +1,8 @@
 import { stableOperationHash } from "./operationRegistryContracts.js";
+import {
+  evaluateOperationBindingKillSwitch,
+  resolveOperationBindingKillSwitchPolicy,
+} from "./operationBindingKillSwitchPolicy.js";
 
 const COMPILE_MODES = new Set(["shadow", "active"]);
 const SCOPE_TYPES = new Set(["platform", "tenant", "workspace", "resource"]);
@@ -136,6 +140,8 @@ function normalizeCandidate(input, index) {
     binding_scope_type: bindingScopeType,
     scope_ref: stringValue(value.scope_ref, `${field}.scope_ref`, { optional: true, max: 500 }),
     provider_family: stringValue(value.provider_family, `${field}.provider_family`, { optional: true, max: 128, pattern: SAFE_KEY_PATTERN }),
+    adapter_key: stringValue(value.adapter_key, `${field}.adapter_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
+    runtime_key: stringValue(value.runtime_key, `${field}.runtime_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
     capability_key: stringValue(value.capability_key, `${field}.capability_key`, { optional: true, pattern: SAFE_KEY_PATTERN }),
     effect_class: stringValue(value.effect_class, `${field}.effect_class`, { optional: true, max: 128, pattern: SAFE_KEY_PATTERN }),
     status,
@@ -162,7 +168,7 @@ function scopeMatches(candidate, context) {
   return Boolean(expected[candidate.binding_scope_type]) && candidate.scope_ref === expected[candidate.binding_scope_type];
 }
 
-function evaluateNormalizedCandidate(candidate, context) {
+function evaluateNormalizedCandidate(candidate, context, killSwitchPolicy) {
   const reasons = [];
   if (candidate.denied || candidate.deny_reasons.length > 0) reasons.push("policy_denied");
   reasons.push(...candidate.deny_reasons.map((reason) => `deny:${reason}`));
@@ -180,6 +186,11 @@ function evaluateNormalizedCandidate(candidate, context) {
   for (const [gate, reason] of HARD_GATES) if (!candidate[gate]) reasons.push(reason);
   if (candidate.requires_approval && !candidate.approval_ready) reasons.push("approval_not_ready");
   if (candidate.requires_readback && !candidate.readback_ready) reasons.push("readback_not_ready");
+  const killSwitchDecision = evaluateOperationBindingKillSwitch({
+    adapter_key: candidate.adapter_key,
+    runtime_key: candidate.runtime_key,
+  }, { policy: killSwitchPolicy });
+  reasons.push(...killSwitchDecision.reason_codes);
   return [...new Set(reasons)].sort();
 }
 
@@ -198,15 +209,17 @@ function safeEvidence(candidate, exclusionReasons) {
   };
 }
 
-export function evaluateOperationBindingHardConstraints(candidate, context) {
-  return evaluateNormalizedCandidate(normalizeCandidate(candidate, 0), normalizeContext(context));
+export function evaluateOperationBindingHardConstraints(candidate, context, { policy = null, env = process.env } = {}) {
+  const killSwitchPolicy = policy || resolveOperationBindingKillSwitchPolicy(env);
+  return evaluateNormalizedCandidate(normalizeCandidate(candidate, 0), normalizeContext(context), killSwitchPolicy);
 }
 
-export function filterOperationBindingEligibility({ candidates = [], context = {} } = {}) {
+export function filterOperationBindingEligibility({ candidates = [], context = {} } = {}, { policy = null, env = process.env } = {}) {
   if (!Array.isArray(candidates) || candidates.length === 0 || candidates.length > 1000) {
     fail("operation_binding_eligibility_candidates_invalid", "candidates must contain between 1 and 1000 bindings.");
   }
   const normalizedContext = normalizeContext(context);
+  const killSwitchPolicy = policy || resolveOperationBindingKillSwitchPolicy(env);
   const normalizedCandidates = candidates.map(normalizeCandidate).sort((left, right) => (
     left.binding_key.localeCompare(right.binding_key) || left.binding_id.localeCompare(right.binding_id)
   ));
@@ -217,20 +230,31 @@ export function filterOperationBindingEligibility({ candidates = [], context = {
     fail("operation_binding_eligibility_duplicate_key", "candidate binding keys must be unique.");
   }
   const candidateEvidence = normalizedCandidates.map((candidate) => {
-    const exclusionReasons = evaluateNormalizedCandidate(candidate, normalizedContext);
+    const exclusionReasons = evaluateNormalizedCandidate(candidate, normalizedContext, killSwitchPolicy);
     return safeEvidence(candidate, exclusionReasons);
   });
   const eligibleBindingIds = candidateEvidence.filter((entry) => entry.eligible).map((entry) => entry.binding_id);
   const excludedBindingIds = candidateEvidence.filter((entry) => !entry.eligible).map((entry) => entry.binding_id);
+  const killSwitchExcludedCount = candidateEvidence.filter((entry) => (
+    entry.exclusion_reasons.includes("adapter_kill_switch_enabled")
+    || entry.exclusion_reasons.includes("runtime_kill_switch_enabled")
+  )).length;
   const reportCore = {
     schema_version: "operation-binding-eligibility-report-v1",
     constraints_version: "operation-binding-hard-constraints-v1",
     compile_mode: normalizedContext.compile_mode,
+    kill_switch_policy_hash: killSwitchPolicy.policy_hash,
     scope_fingerprint: stableOperationHash({ resource_ref: normalizedContext.resource_ref, workspace_id: normalizedContext.workspace_id, tenant_id: normalizedContext.tenant_id }),
     eligible_binding_ids: eligibleBindingIds,
     excluded_binding_ids: excludedBindingIds,
     candidate_evidence: candidateEvidence,
-    summary: { candidate_count: candidateEvidence.length, eligible_count: eligibleBindingIds.length, excluded_count: excludedBindingIds.length, fail_closed: true },
+    summary: {
+      candidate_count: candidateEvidence.length,
+      eligible_count: eligibleBindingIds.length,
+      excluded_count: excludedBindingIds.length,
+      kill_switch_excluded_count: killSwitchExcludedCount,
+      fail_closed: true,
+    },
     candidate_selected: false,
     selection_authorized: false,
     scoring_performed: false,
