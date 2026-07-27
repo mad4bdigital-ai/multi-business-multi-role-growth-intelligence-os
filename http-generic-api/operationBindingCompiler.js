@@ -352,6 +352,7 @@ export function compileOperationBindingManifest(input = {}) {
     compiler_version: compilerVersion,
     compiled_at: context.now,
     compile_mode: context.compile_mode,
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
     operation,
     scope_fingerprint: stableOperationHash({ resource_ref: context.resource_ref, workspace_id: context.workspace_id, tenant_id: context.tenant_id }),
     source_revision_hash: sourceRevisionHash,
