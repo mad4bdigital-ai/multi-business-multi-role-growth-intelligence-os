@@ -125,6 +125,14 @@ GitHub REST execution is registry-driven. Resolve `actions.github_api_mcp` first
 
 The Admin projection `github_rest_endpoint_dispatch` forwards bounded nested `tool_args` to the existing `runtime_endpoint_call` kernel. `runtime_endpoint_call` remains responsible for principal context, credential resolution, endpoint schema validation, mutation preflight, audit, and readback. Endpoint registration or tool exposure never self-authorizes a provider write. See `docs/github-rest-endpoint-dispatch.md`.
 
+### HTTP transient error envelope authority
+
+The shared HTTP route boundary must normalize transient `502`, `503`, `504`, `522`, and `524` responses into a stable JSON envelope that preserves the selected status and includes machine-readable `code`, bounded `message`, structured `details`, `requestId`, boolean `retryable`, and `secrets_included=false`. Existing structured errors may be enriched, but raw HTML gateway pages, upstream bodies, stack traces, authorization headers, credentials, tokens, and secret-like diagnostics must never be exposed.
+
+Reuse `x-request-id` or `x-correlation-id` when present; otherwise generate a bounded request ID and return it in both the response header and envelope. Map known timeout transport classes to timeout responses and known reset/refused/unreachable/broken-pipe classes to dependency-unavailable responses. Non-transient programmer errors must continue through the existing error-handler chain.
+
+Operation timeout and response-size budgets apply only when `operation_key` resolves to a registered operation contract. General routes without a registered operation must not inherit the fallback operation timer or response-size budget, while transient normalization and request correlation remain active. Regression coverage must include HTML 5xx replacement, request ID behavior, transport errors, structured-error preservation, no-secret output, registered budgets, and unregistered-route behavior. The canonical rule lives in `canonicals/system_bootstrap/06_http_generic_api.md`.
+
 ### Semantic capability resolution
 
 User intent should resolve to a semantic capability before provider-specific action, endpoint, connection, or tool selection. Tenant-effective readiness is the conjunction of authenticated principal, canonical workspace, active membership, semantic capability, provider binding, workspace-linked validated connection, action grant, resource authority, canonical endpoint identity, runtime certification, and derived export state.

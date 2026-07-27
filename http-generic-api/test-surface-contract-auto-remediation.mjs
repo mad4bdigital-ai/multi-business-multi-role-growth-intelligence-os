@@ -177,6 +177,13 @@ assert(!workflow.includes("specs/*/manifest.json"), "workflow must not allow bro
 assert(!workflow.includes("specs/**/manifest.json"), "workflow must not allow recursive Spec Kit manifests");
 assert(workflow.includes("git add --"), "workflow must terminate git options before governed pathspecs");
 assert(workflow.includes("auto_merge_eligible"));
+assert(workflow.includes("id: gap_gate"), "workflow must evaluate the new-gap gate separately from generated-state validation");
+assert(workflow.includes("node scripts/surface-contract-gap-triage.mjs --check\n"), "generated triage outputs must remain a blocking consistency check");
+assert(!workflow.includes("node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps"), "new-gap review findings must not prevent creation of the remediation PR");
+assert(workflow.includes('grep -Fq "surface-contract-gap-triage: blocking new high/critical gaps:"'), "only the known new-gap finding may be downgraded to review evidence");
+assert(workflow.includes('NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}'), "new-gap evidence must be carried into PR and merge decisions");
+assert(workflow.includes('[ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]'), "new gaps must prevent automated merge");
+assert(workflow.includes('exit "$status"'), "unexpected triage failures must remain blocking");
 assert(workflow.includes('if gh pr merge "$PR_URL" --auto --squash; then'), "auto-merge requests must not fail the workflow when repository auto-merge is disabled");
 assert(workflow.includes("Repository auto-merge is unavailable; the remediation PR remains open for governed review."), "workflow must leave a clear governed-review fallback warning");
 assert(!workflow.includes("http-generic-api/migrations/*.sql\n          git add"), "workflow must not stage migration SQL");
