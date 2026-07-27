@@ -98,7 +98,8 @@
       "number": 3146,
       "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726",
       "role": "delegation_persistence_evidence_closeout_recovery",
-      "status": "current_pr"
+      "status": "merged",
+      "merge_sha": "02d42fab17638d11aa1737187fde3c49ee35198f"
     },
     "implementation_prs": [
       {
