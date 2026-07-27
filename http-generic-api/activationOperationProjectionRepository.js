@@ -353,6 +353,57 @@ function normalizeAppendBase(input = {}) {
   };
 }
 
+const DELIVERY_TRANSITIONS = Object.freeze({
+  prepared: new Set(["sent", "failed", "expired"]),
+});
+const ACKNOWLEDGEMENT_TRANSITIONS = Object.freeze({
+  not_requested: new Set(["pending"]),
+  pending: new Set(["acknowledged", "rejected", "expired"]),
+});
+const RECONCILIATION_TRANSITIONS = Object.freeze({
+  pending: new Set(["executed", "not_executed", "conflicting", "still_unknown", "failed"]),
+});
+
+function normalizeAllowedTransition({ from_status, to_status, transitions, field }) {
+  const fromStatus = normalizeState(from_status, `${field}_from_status`);
+  const toStatus = normalizeState(to_status, `${field}_to_status`);
+  if (!transitions[fromStatus]?.has(toStatus)) {
+    throw fail(
+      `activation_${field}_transition_invalid`,
+      `${field} cannot transition from ${fromStatus} to ${toStatus}.`,
+      409,
+    );
+  }
+  return { from_status: fromStatus, to_status: toStatus };
+}
+
+async function executeScopedActivationTransition(
+  pool,
+  {
+    sql,
+    params,
+    read_sql,
+    read_params,
+    state_field,
+    target_state,
+    conflict_code,
+    conflict_message,
+  },
+) {
+  requirePool(pool);
+  const [result] = await pool.query(sql, params);
+  if (Number(result?.affectedRows || 0) === 1) {
+    return { updated: true, idempotent: false, state: target_state };
+  }
+
+  const [rows] = await pool.query(read_sql, read_params);
+  if (rows?.[0]?.[state_field] === target_state) {
+    return { updated: false, idempotent: true, state: target_state };
+  }
+
+  throw fail(conflict_code, conflict_message, 409);
+}
+
 export async function appendActivationStageAttempt(pool, input = {}) {
   const base = normalizeAppendBase(input);
   const attemptId = normalizeUuid(input.attempt_id || randomUUID(), "attempt_id");
