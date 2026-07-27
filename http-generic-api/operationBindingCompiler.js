@@ -378,6 +378,7 @@ export function compileOperationBindingManifest(input = {}) {
       candidate_count: evaluated.length,
       eligible_count: eligible.length,
       excluded_count: evaluated.length - eligible.length,
+      kill_switch_excluded_count: eligibilityReport.summary.kill_switch_excluded_count,
       fallback_count: fallbackPlan.summary.fallback_count,
       fallback_overflow_count: fallbackPlan.summary.overflow_count,
       fallback_truncated: fallbackPlan.summary.fallback_truncated,
