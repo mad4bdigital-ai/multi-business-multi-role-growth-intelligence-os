@@ -122,6 +122,7 @@ import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
 import { buildDynamicGrowthControlPlaneRoutes } from "./dynamicGrowthControlPlaneRoutes.js";
+import { buildActivityBindingLifecycleRoutes } from "./activityBindingLifecycleRoutes.js";
 import { buildTenantGrowthControlPlaneRoutes } from "./tenantGrowthControlPlaneRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
