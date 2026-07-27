@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/206_sprint67_hostinger_ssh_deploy_executor.sql", "utf8");
+const branchAllowlistMigration = readFileSync("migrations/20260727_remote_runtime_hostinger_production_branch_allowlist.sql", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED"), "actual SSH execution must be behind an explicit feature flag");
