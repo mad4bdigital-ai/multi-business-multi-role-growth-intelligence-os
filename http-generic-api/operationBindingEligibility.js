@@ -168,7 +168,7 @@ function scopeMatches(candidate, context) {
   return Boolean(expected[candidate.binding_scope_type]) && candidate.scope_ref === expected[candidate.binding_scope_type];
 }
 
-function evaluateNormalizedCandidate(candidate, context) {
+function evaluateNormalizedCandidate(candidate, context, killSwitchPolicy) {
   const reasons = [];
   if (candidate.denied || candidate.deny_reasons.length > 0) reasons.push("policy_denied");
   reasons.push(...candidate.deny_reasons.map((reason) => `deny:${reason}`));
