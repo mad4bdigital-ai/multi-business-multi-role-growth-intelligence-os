@@ -186,6 +186,11 @@ function evaluateNormalizedCandidate(candidate, context, killSwitchPolicy) {
   for (const [gate, reason] of HARD_GATES) if (!candidate[gate]) reasons.push(reason);
   if (candidate.requires_approval && !candidate.approval_ready) reasons.push("approval_not_ready");
   if (candidate.requires_readback && !candidate.readback_ready) reasons.push("readback_not_ready");
+  const killSwitchDecision = evaluateOperationBindingKillSwitch({
+    adapter_key: candidate.adapter_key,
+    runtime_key: candidate.runtime_key,
+  }, { policy: killSwitchPolicy });
+  reasons.push(...killSwitchDecision.reason_codes);
   return [...new Set(reasons)].sort();
 }
 
