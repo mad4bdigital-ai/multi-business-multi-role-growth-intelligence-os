@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 575
+- Migrations with detected surfaces: 576
 - Migrations reported here: 80
 - OpenAPI operations detected: 1049
 - OpenAPI paths detected: 967
@@ -32,20 +32,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 568/575 (98.78%)
-- Documentation gap migrations: 7
-- Gap severity: high=27, medium=2, low=0
+- Documentation complete migrations: 568/576 (98.61%)
+- Documentation gap migrations: 8
+- Gap severity: high=27, medium=3, low=0
 - SQL route coverage in OpenAPI: 22/32 (68.75%)
 - SQL route-like literals exempted from OpenAPI scoring: 665/697
 - SQL routes missing OpenAPI path coverage: 10
-- Migrations without explicit `secrets_included=false` marker: 5
+- Migrations without explicit `secrets_included=false` marker: 6
 
 ### Surface Totals
 
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 14 | 11 |
-| tools | 2617 | 489 |
+| tools | 2618 | 490 |
 | views | 495 | 194 |
 | policies | 192 | 131 |
 | routes | 697 | 286 |
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 7 |
-| `deployment_parity_checklist.md` | 7 |
-| `docs/ai-docs-agent-governance.md` | 7 |
-| `docs/auto-docs-agent/README.md` | 7 |
-| `docs/change-documentation-governance.md` | 7 |
+| `Updating Registry Patch Index.md` | 8 |
+| `deployment_parity_checklist.md` | 8 |
+| `docs/ai-docs-agent-governance.md` | 8 |
+| `docs/auto-docs-agent/README.md` | 8 |
+| `docs/change-documentation-governance.md` | 8 |
 
 ### Safety Marker Coverage
 
@@ -66,7 +66,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | no_provider_call | 568 |
 | no_credential_payload_read | 568 |
-| no_raw_secrets | 568 |
+| no_raw_secrets | 569 |
 | no_external_send | 568 |
 | no_external_write | 568 |
 | secrets_included_false | 570 |
@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 29
+- Total queue items: 30
 - Critical review: 27
-- High review: 2
+- High review: 3
 - Medium review: 0
 - Low review: 0
 
@@ -104,7 +104,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` | critical_review | 1073 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
 | `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `200_sprint68_workspace_invitation_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
-| `20260723_auth_email_outbox_skip_ineligible_tool.sql` | critical_review | 932 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `20260723_auth_email_outbox_skip_ineligible_tool.sql` | critical_review | 931 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` | critical_review | 913 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
 | `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql` | critical_review | 903 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `201_sprint68_workspace_access_request_control_tools.sql` | critical_review | 903 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
