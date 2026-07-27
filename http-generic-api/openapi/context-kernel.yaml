@@ -1,0 +1,349 @@
+openapi: 3.1.0
+info:
+  title: Unified Context Kernel API
+  version: 0.1.0
+  description: >-
+    Dynamic context resolution and governed execution-planning contracts shared by Admin, Tenant,
+    service, and delegated principals. Provider dispatch, readback, and unknown-outcome reconciliation
+    remain internal governed capabilities unless a later contract explicitly exposes them.
+x-runtime-mounted: false
+servers:
+  - url: https://auth.example.invalid
+security:
+  - bearerAuth: []
+paths:
+  /context-resolutions:
+    post:
+      operationId: createContextResolution
+      summary: Resolve an authorized execution context
+      tags: [Context]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CandidateLimit'
+        - $ref: '#/components/parameters/CandidateCursor'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextResolutionRequest' }
+      responses:
+        '201':
+          description: Context resolution created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextResolution' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /context-resolutions/{resolutionId}:
+    get:
+      operationId: getContextResolution
+      summary: Read one context resolution
+      tags: [Context]
+      parameters:
+        - $ref: '#/components/parameters/ResolutionId'
+        - $ref: '#/components/parameters/CandidateLimit'
+        - $ref: '#/components/parameters/CandidateCursor'
+      responses:
+        '200':
+          description: Context resolution
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextResolution' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /context-pins:
+    post:
+      operationId: createContextPin
+      summary: Confirm and pin a resolved context
+      tags: [Context]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPinRequest' }
+      responses:
+        '201':
+          description: Context pin created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPin' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /context-pins/{pinId}:
+    delete:
+      operationId: deleteContextPin
+      summary: Invalidate a context pin
+      tags: [Context]
+      parameters:
+        - name: pinId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        '204': { description: Pin invalidated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /execution-contexts:
+    post:
+      operationId: createExecutionContext
+      summary: Compile a governed execution context and plan
+      tags: [Execution]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExecutionContextRequest' }
+      responses:
+        '201':
+          description: Execution context created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExecutionContext' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /execution-contexts/{contextId}/validate:
+    post:
+      operationId: validateExecutionContext
+      summary: Revalidate context, authority, readiness, and plan bindings
+      tags: [Execution]
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExecutionValidation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ResolutionId:
+      name: resolutionId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, minLength: 8, maxLength: 191 }
+    CandidateLimit:
+      name: candidateLimit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CandidateCursor:
+      name: candidateCursor
+      in: query
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 2048 }
+  schemas:
+    ContextResolutionRequest:
+      type: object
+      required: [operationIntent]
+      properties:
+        operationIntent: { type: string, minLength: 1, maxLength: 191 }
+        explicitContext:
+          type: object
+          minProperties: 1
+          properties:
+            tenantRef: { type: string, minLength: 1, maxLength: 191 }
+            workspaceRef: { type: string, minLength: 1, maxLength: 191 }
+            brandRef: { type: string, minLength: 1, maxLength: 191 }
+            resourceType: { type: string, minLength: 1, maxLength: 191 }
+            resourceRef: { type: string, minLength: 1, maxLength: 191 }
+            connectionRef: { type: string, minLength: 1, maxLength: 191 }
+          additionalProperties: false
+        pinRef: { type: string, minLength: 1, maxLength: 191 }
+        riskClass:
+          type: string
+          enum: [read, low, medium, high, critical]
+      additionalProperties: false
+    ContextResolution:
+      type: object
+      required: [resolutionId, status, reasonCodes, contextRevision, candidates, candidatePage]
+      properties:
+        resolutionId: { type: string }
+        status:
+          type: string
+          enum: [resolved, interpretation_required, blocked, stale]
+        reasonCodes:
+          type: array
+          items: { type: string }
+        contextRevision: { type: string }
+        contextHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        selectedContext: { $ref: '#/components/schemas/SelectedContext' }
+        candidates:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ContextCandidate' }
+        candidatePage: { $ref: '#/components/schemas/CandidatePage' }
+        expiresAt: { type: string, format: date-time }
+      additionalProperties: false
+    CandidatePage:
+      type: object
+      required: [limit, hasMore]
+      properties:
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        hasMore: { type: boolean }
+        nextCursor: { type: [string, 'null'] }
+      additionalProperties: false
+    SelectedContext:
+      type: object
+      properties:
+        tenantRef: { type: string }
+        workspaceRef: { type: string }
+        brandRef: { type: string }
+        resourceType: { type: string }
+        resourceRef: { type: string }
+        connectionRef: { type: string }
+      additionalProperties: false
+    ContextCandidate:
+      type: object
+      required: [candidateType, stableRef, displayLabel, reasonCodes]
+      properties:
+        candidateType: { type: string }
+        stableRef: { type: string }
+        displayLabel: { type: string }
+        authoritySummary: { type: string }
+        readinessSummary: { type: string }
+        reasonCodes:
+          type: array
+          items: { type: string }
+      additionalProperties: false
+    ContextPinRequest:
+      type: object
+      required: [resolutionId, scope, contextRevision]
+      properties:
+        resolutionId: { type: string, minLength: 1, maxLength: 191 }
+        scope: { type: string, enum: [request, workflow, conversation] }
+        contextRevision: { type: string, minLength: 1, maxLength: 128 }
+        expiresAt: { type: string, format: date-time }
+      additionalProperties: false
+    ContextPin:
+      type: object
+      required: [pinId, resolutionId, scope, status, contextRevision]
+      properties:
+        pinId: { type: string }
+        resolutionId: { type: string }
+        scope: { type: string }
+        status: { type: string, enum: [active, invalidated, expired] }
+        contextRevision: { type: string }
+        expiresAt: { type: string, format: date-time }
+      additionalProperties: false
+    ExecutionContextRequest:
+      type: object
+      required: [resolutionId, operationIntent]
+      properties:
+        resolutionId: { type: string, minLength: 1, maxLength: 191 }
+        operationIntent: { type: string, minLength: 1, maxLength: 191 }
+        expectedContextRevision: { type: string, minLength: 1, maxLength: 128 }
+        expectedResourceRevision: { type: string, minLength: 1, maxLength: 128 }
+      additionalProperties: false
+    ExecutionContext:
+      type: object
+      required: [contextId, contextHash, planHash, status, readiness]
+      properties:
+        contextId: { type: string }
+        contextHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        planHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        status: { type: string, enum: [planned, approval_required, ready, blocked, stale] }
+        readiness:
+          type: object
+          required: [contextReady, operationReady, blockingGaps]
+          properties:
+            contextReady: { type: boolean }
+            operationReady: { type: boolean }
+            blockingGaps:
+              type: array
+              items: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+    ExecutionValidation:
+      type: object
+      required: [valid, reasonCodes]
+      properties:
+        valid: { type: boolean }
+        reasonCodes:
+          type: array
+          items: { type: string }
+        contextRevision: { type: string }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Authenticated but not authorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Context, revision, or idempotency conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unprocessable:
+      description: Request is structurally valid but cannot be resolved or executed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
