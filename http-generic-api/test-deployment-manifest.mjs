@@ -13,7 +13,7 @@ const manifestPath = join(dir, "deployment-manifest.json");
 try {
   writeFileSync(manifestPath, JSON.stringify({
     repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-    branch: "main",
+    branch: "Main",
     branch_source: "env:DEPLOYMENT_BRANCH",
     commit_sha: "abc123",
     commit_source: "env:DEPLOYMENT_COMMIT_SHA",
