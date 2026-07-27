@@ -205,4 +205,27 @@ assert(repositorySource.includes("rollback"));
 assert(repositorySource.includes("activity_binding_id=?"));
 assert.equal(repositorySource.includes("provider_calls,external_writes,secrets_included)\n         VALUES (?,?,?,?,?,?,?,?,?,?,1"), false);
 
+const activationSurface = JSON.parse(readFileSync(
+  "activation-surfaces/growth_control_activity_binding_readiness_evidence.json",
+  "utf8"
+));
+assert.equal(activationSurface.surface_key, "growth_control_activity_binding_readiness_evidence");
+assert.equal(activationSurface.source_table, "growth_control_activity_binding_readiness_evidence");
+assert.equal(activationSurface.include_for_admin, true);
+assert.equal(activationSurface.include_for_tenant, false);
+assert.equal(activationSurface.tenant_column, null);
+assert.equal(activationSurface.max_rows, 50);
+for (const excluded of [
+  "checks_json",
+  "assessed_by",
+  "request_id",
+  "correlation_id",
+  "provider_calls",
+  "external_writes",
+  "secrets_included"
+]) {
+  assert.equal(activationSurface.result_columns.includes(excluded), false);
+}
+assert.deepEqual(activationSurface.active_status_values, ["ready", "blocked"]);
+
 console.log("activity binding lifecycle integration tests passed");
