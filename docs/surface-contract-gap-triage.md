@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 29
-- Gate candidates: 10
+- Triaged items: 30
+- Gate candidates: 11
 - New-gap gate: fail
-- Blocking new items: 10
+- Blocking new items: 11
 
 ## Class counts
 
 - legacy_baseline_backlog: 19
-- new_surface_immediate_review: 10
+- new_surface_immediate_review: 11
 
 ## Immediate review candidates
 
@@ -20,9 +20,10 @@
 - `20260724_auth_email_delivery_attempts.sql` — critical_review, score 1292; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_admin_tools.sql` — critical_review, score 1291; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1073; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 932; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 931; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 913; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 866; next: confirm registry binding/readback evidence before promotion
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 811; next: confirm registry binding/readback evidence before promotion
 - `20260720_github_update_pull_request_branch_503_response_contract.sql` — high_review, score 555; next: add targeted patch-index, parity, and governance documentation
 - `20260720_tenant_tool_input_schema_strictness.sql` — high_review, score 549; next: add targeted patch-index, parity, and governance documentation
+- `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` — high_review, score 541; next: add targeted patch-index, parity, and governance documentation
