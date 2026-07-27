@@ -16,7 +16,7 @@ try {
     cwd: new URL(".", import.meta.url),
     env: {
       ...process.env,
-      DEPLOYMENT_BRANCH: "main",
+      DEPLOYMENT_BRANCH: "Main",
       DEPLOYMENT_COMMIT_SHA: commitSha,
     },
     stdio: "pipe",
