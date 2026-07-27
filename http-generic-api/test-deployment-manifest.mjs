@@ -25,6 +25,7 @@ try {
   const manifest = readDeploymentManifest(env);
   assert.equal(manifest.ok, true, "manifest is read from DEPLOYMENT_MANIFEST_PATH");
   assert.equal(manifest.manifest.commit_sha, "abc123", "commit sha is normalized");
+  assert.equal(manifest.manifest.branch, "main", "main branch casing is canonicalized");
   assert.equal(manifest.manifest.branch_source, "env:DEPLOYMENT_BRANCH", "branch evidence source is normalized");
   assert.equal(manifest.manifest.commit_source, "env:DEPLOYMENT_COMMIT_SHA", "commit evidence source is normalized");
 
