@@ -34,7 +34,7 @@ const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const EXECUTOR_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_executor_enabled";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
-const ALLOWED_BRANCHES = new Set(["main"]);
+const ALLOWED_BRANCHES = new Set(["main", "Production"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
 const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
 const SSH_KEY_ROLE = "ssh_private_key";
@@ -1112,7 +1112,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   if (!ALLOWED_BRANCHES.has(branch)) {
-    const err = new Error("Only main branch deployment is supported by this executor.");
+    const err = new Error("Only main and Production branch deployment is supported by this executor.");
     err.status = 400;
     err.code = "remote_runtime_hosting_deploy_branch_not_allowed";
     throw err;
