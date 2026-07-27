@@ -27,6 +27,11 @@ function argValue(argv, name, fallback = "") {
   return entry.slice(prefix.length);
 }
 
+function normalizeDeploymentBranch(value) {
+  const branch = String(value || "").trim();
+  return branch.toLowerCase() === "main" ? "main" : branch;
+}
+
 export function generateDeploymentManifest({
   env = process.env,
   argv = process.argv.slice(2),
