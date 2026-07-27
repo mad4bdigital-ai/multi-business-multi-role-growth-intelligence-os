@@ -101,6 +101,12 @@
       "status": "merged",
       "merge_sha": "02d42fab17638d11aa1737187fde3c49ee35198f"
     },
+    "phase3_delegation_lifecycle_pr": {
+      "number": 3173,
+      "branch": "gpt/spec-011-phase3-delegation-lifecycle-contract-20260726",
+      "role": "delegation_lifecycle_shadow_contract",
+      "status": "current_pr"
+    },
     "implementation_prs": [
       {
         "number": 2960,
