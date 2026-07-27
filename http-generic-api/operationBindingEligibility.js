@@ -243,6 +243,7 @@ export function filterOperationBindingEligibility({ candidates = [], context = {
     schema_version: "operation-binding-eligibility-report-v1",
     constraints_version: "operation-binding-hard-constraints-v1",
     compile_mode: normalizedContext.compile_mode,
+    kill_switch_policy_hash: killSwitchPolicy.policy_hash,
     scope_fingerprint: stableOperationHash({ resource_ref: normalizedContext.resource_ref, workspace_id: normalizedContext.workspace_id, tenant_id: normalizedContext.tenant_id }),
     eligible_binding_ids: eligibleBindingIds,
     excluded_binding_ids: excludedBindingIds,
