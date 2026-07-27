@@ -59,7 +59,7 @@
 - [ ] T051 Implement cache/projection invalidation consumers.
 - [x] T052 Implement Registered/Authorized/Projected/Executable/Observed reconciler.
 - [x] T053 Create `AUTHORITY_PROJECTION_DRIFT` lifecycle.
-- [ ] T054 Add synthetic Admin, Tenant, support, agent, and revoked principals.
+- [x] T054 Add synthetic Admin, Tenant, support, agent, and revoked principals.
 - [ ] T055 Add alerting, ownership, and SLO telemetry.
 
 ## P2 — Enforcement rollout
