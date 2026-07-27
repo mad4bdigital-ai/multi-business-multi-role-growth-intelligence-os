@@ -150,7 +150,11 @@
     "phase3_delegation_shadow_tests",
     "phase3_delegation_persistence_contract",
     "phase3_delegation_persistence_contract_test",
-    "phase3_effective_grants_fail_closed_view_contract"
+    "phase3_effective_grants_fail_closed_view_contract",
+    "phase3_delegation_lifecycle_shadow_contract",
+    "phase3_pending_mutation_receipt_planning",
+    "phase3_delegation_renewal_no_widening_tests",
+    "phase3_delegation_lifecycle_read_only_repository_port"
   ],
   "constraints": [
     "no_provider_call",
