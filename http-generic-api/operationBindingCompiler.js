@@ -1,6 +1,7 @@
 import { stableOperationHash } from "./operationRegistryContracts.js";
 import { filterOperationBindingEligibility } from "./operationBindingEligibility.js";
 import { scoreOperationBindingCandidate } from "./operationBindingScoring.js";
+import { buildOperationBindingFallbackPlan } from "./operationBindingFallback.js";
 
 const SCOPE_RANK = Object.freeze({ platform: 1, tenant: 2, workspace: 3, resource: 4 });
 const COMPILE_MODES = new Set(["shadow", "active"]);
@@ -306,7 +307,18 @@ export function compileOperationBindingManifest(input = {}) {
     const score = eligible ? scoreCandidate(candidate, weights) : null;
     return { candidate, eligible, exclusion_reasons: exclusionReasons, score, rank: eligible ? rankCandidate(candidate, context, score) : null };
   });
-  const eligible = evaluated.filter((entry) => entry.eligible).sort(compareRank);
+  const fallbackPlan = buildOperationBindingFallbackPlan({
+    candidates: evaluated.map((entry) => ({
+      binding_id: entry.candidate.binding_id,
+      binding_key: entry.candidate.binding_key,
+      eligible: entry.eligible,
+      rank: entry.rank,
+      score: entry.score,
+      exclusion_reasons: entry.exclusion_reasons,
+    })),
+  });
+  const evaluatedByBindingId = new Map(evaluated.map((entry) => [entry.candidate.binding_id, entry]));
+  const eligible = fallbackPlan.ordered_binding_ids.map((bindingId) => evaluatedByBindingId.get(bindingId));
   const preselectionEvidence = evaluated.map((entry) => safeEvidence(entry, null)).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
   if (eligible.length === 0) {
     fail("operation_binding_no_eligible_candidate", "No execution binding satisfies the hard eligibility constraints.", 409, {
@@ -325,6 +337,7 @@ export function compileOperationBindingManifest(input = {}) {
     });
   }
   const selected = eligible[0];
+  const fallbackEntries = fallbackPlan.fallback_binding_ids.map((bindingId) => evaluatedByBindingId.get(bindingId));
   const candidateEvidence = evaluated.map((entry) => safeEvidence(entry, selected.candidate.binding_id)).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
   const sourceRevisionHash = stableOperationHash({ operation, context, candidates, policy: { weights }, compiler_version: compilerVersion });
   const manifestCore = {
@@ -336,9 +349,33 @@ export function compileOperationBindingManifest(input = {}) {
     scope_fingerprint: stableOperationHash({ resource_ref: context.resource_ref, workspace_id: context.workspace_id, tenant_id: context.tenant_id }),
     source_revision_hash: sourceRevisionHash,
     selected_binding: { ...safeBinding(selected.candidate), rank: selected.rank, score: selected.score },
-    fallback_bindings: eligible.slice(1).map((entry) => ({ ...safeBinding(entry.candidate), rank: entry.rank, score: entry.score })),
+    fallback_bindings: fallbackEntries.map((entry) => ({ ...safeBinding(entry.candidate), rank: entry.rank, score: entry.score })),
+    fallback_plan: {
+      schema_version: fallbackPlan.schema_version,
+      max_fallbacks: fallbackPlan.max_fallbacks,
+      primary_binding_id: fallbackPlan.primary_binding_id,
+      fallback_binding_ids: fallbackPlan.fallback_binding_ids,
+      overflow_binding_ids: fallbackPlan.overflow_binding_ids,
+      typed_exclusions: fallbackPlan.typed_exclusions,
+      summary: fallbackPlan.summary,
+      primary_selected_by_plan: fallbackPlan.primary_selected_by_plan,
+      selection_authorized: fallbackPlan.selection_authorized,
+      fallback_executed: fallbackPlan.fallback_executed,
+      dispatch_authorized: fallbackPlan.dispatch_authorized,
+      authority_created: fallbackPlan.authority_created,
+      report_hash: fallbackPlan.report_hash,
+    },
     candidate_evidence: candidateEvidence,
-    resolution_summary: { candidate_count: evaluated.length, eligible_count: eligible.length, excluded_count: evaluated.length - eligible.length, ambiguity_rejected: false, fail_closed: true },
+    resolution_summary: {
+      candidate_count: evaluated.length,
+      eligible_count: eligible.length,
+      excluded_count: evaluated.length - eligible.length,
+      fallback_count: fallbackPlan.summary.fallback_count,
+      fallback_overflow_count: fallbackPlan.summary.overflow_count,
+      fallback_truncated: fallbackPlan.summary.fallback_truncated,
+      ambiguity_rejected: false,
+      fail_closed: true,
+    },
     scoring_policy: { weights },
     safety: { provider_calls_performed: false, credential_payloads_read: false, external_writes_performed: false, runtime_activation_changed: false, secrets_included: false }
   };
