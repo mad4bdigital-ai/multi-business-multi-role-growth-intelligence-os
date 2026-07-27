@@ -23,7 +23,7 @@ try {
   });
 
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  assert.equal(manifest.branch, "main", "explicit deployment branch is recorded");
+  assert.equal(manifest.branch, "main", "deployment branch casing is canonicalized");
   assert.equal(manifest.branch_source, "env:DEPLOYMENT_BRANCH", "branch evidence source is recorded");
   assert.equal(manifest.commit_sha, commitSha, "explicit deployment commit is recorded");
   assert.equal(manifest.commit_source, "env:DEPLOYMENT_COMMIT_SHA", "commit evidence source is recorded");
