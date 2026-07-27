@@ -14,6 +14,11 @@ function parseJson(value = "") {
   }
 }
 
+function normalizeDeploymentBranch(value) {
+  const branch = String(value || "").trim();
+  return branch.toLowerCase() === "main" ? "main" : branch;
+}
+
 function normalizeManifest(raw = {}, source = "unknown") {
   return {
     source,
