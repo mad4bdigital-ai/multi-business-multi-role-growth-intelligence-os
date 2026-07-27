@@ -1112,7 +1112,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   if (!ALLOWED_BRANCHES.has(branch)) {
-    const err = new Error("Only main branch deployment is supported by this executor.");
+    const err = new Error("Only main and Production branch deployment is supported by this executor.");
     err.status = 400;
     err.code = "remote_runtime_hosting_deploy_branch_not_allowed";
     throw err;
