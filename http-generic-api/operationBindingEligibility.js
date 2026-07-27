@@ -230,7 +230,7 @@ export function filterOperationBindingEligibility({ candidates = [], context = {
     fail("operation_binding_eligibility_duplicate_key", "candidate binding keys must be unique.");
   }
   const candidateEvidence = normalizedCandidates.map((candidate) => {
-    const exclusionReasons = evaluateNormalizedCandidate(candidate, normalizedContext);
+    const exclusionReasons = evaluateNormalizedCandidate(candidate, normalizedContext, killSwitchPolicy);
     return safeEvidence(candidate, exclusionReasons);
   });
   const eligibleBindingIds = candidateEvidence.filter((entry) => entry.eligible).map((entry) => entry.binding_id);
