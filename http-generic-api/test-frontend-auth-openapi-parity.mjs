@@ -122,15 +122,29 @@ for (const signature of resourceMutationSignatures) {
 
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");
 const authContractGaps = operations
-  .filter((entry) => entry.auth_parity?.state === "unknown")
+  .filter((entry) => entry.auth_parity?.state !== "equivalent")
   .map((entry) => ({
     signature: entry.signature,
     source_file: entry.source_file,
     runtime_auth: entry.runtime_auth,
+    openapi_security: entry.openapi_security,
     auth_parity: entry.auth_parity,
+  }));
+const openApiPresenceGaps = operations
+  .filter((entry) => entry.openapi_documented !== true && entry.openapi_exempt !== true)
+  .map((entry) => ({
+    signature: entry.signature,
+    source_file: entry.source_file,
+    runtime_auth: entry.runtime_auth,
+    openapi_documented: entry.openapi_documented,
+    openapi_exempt: entry.openapi_exempt,
+    openapi_contract_level: entry.openapi_contract_level,
   }));
 if (authContractGaps.length > 0) {
   console.error("frontend auth parity gaps", JSON.stringify(authContractGaps, null, 2));
+}
+if (openApiPresenceGaps.length > 0) {
+  console.error("frontend OpenAPI presence gaps", JSON.stringify(openApiPresenceGaps, null, 2));
 }
 assert.equal(plan.coverage.auth_contract_gap_count, 0, "runtime and canonical OpenAPI authentication must have complete parity");
 assert.equal(plan.coverage.operation_policy_issue_count, 0, "all exact auth and operation rules must resolve uniquely");
