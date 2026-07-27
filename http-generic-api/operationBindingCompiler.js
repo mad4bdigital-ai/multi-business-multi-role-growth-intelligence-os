@@ -307,7 +307,18 @@ export function compileOperationBindingManifest(input = {}) {
     const score = eligible ? scoreCandidate(candidate, weights) : null;
     return { candidate, eligible, exclusion_reasons: exclusionReasons, score, rank: eligible ? rankCandidate(candidate, context, score) : null };
   });
-  const eligible = evaluated.filter((entry) => entry.eligible).sort(compareRank);
+  const fallbackPlan = buildOperationBindingFallbackPlan({
+    candidates: evaluated.map((entry) => ({
+      binding_id: entry.candidate.binding_id,
+      binding_key: entry.candidate.binding_key,
+      eligible: entry.eligible,
+      rank: entry.rank,
+      score: entry.score,
+      exclusion_reasons: entry.exclusion_reasons,
+    })),
+  });
+  const evaluatedByBindingId = new Map(evaluated.map((entry) => [entry.candidate.binding_id, entry]));
+  const eligible = fallbackPlan.ordered_binding_ids.map((bindingId) => evaluatedByBindingId.get(bindingId));
   const preselectionEvidence = evaluated.map((entry) => safeEvidence(entry, null)).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
   if (eligible.length === 0) {
     fail("operation_binding_no_eligible_candidate", "No execution binding satisfies the hard eligibility constraints.", 409, {
