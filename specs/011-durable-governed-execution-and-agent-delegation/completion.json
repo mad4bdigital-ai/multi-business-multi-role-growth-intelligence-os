@@ -275,8 +275,33 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_lifecycle_shadow": {
+      "status": "complete_on_branch",
+      "source_main_sha": "6b3ee56913e9e9a9c058f727c5101d71321f9692",
+      "pull_request": 3173,
+      "service": "http-generic-api/delegationGrantLifecycleShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-lifecycle-shadow.mjs",
+      "design": "phase3-delegation-lifecycle-shadow.md",
+      "create_shadow_planning": true,
+      "revoke_shadow_planning": true,
+      "expire_shadow_planning": true,
+      "pending_mutation_receipt_planning": true,
+      "renewal_no_widening": true,
+      "read_only_repository_port": true,
+      "schema_readiness_evidence_required": true,
+      "migration_applied": false,
+      "database_write": false,
+      "grant_mutation": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_persistence_contract_complete_on_main"
+      "status": "phase3_delegation_lifecycle_shadow_complete_on_branch"
     },
     "ci": {
       "status": "pass",
