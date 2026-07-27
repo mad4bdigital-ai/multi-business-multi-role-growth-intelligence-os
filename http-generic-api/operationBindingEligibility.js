@@ -1,4 +1,8 @@
 import { stableOperationHash } from "./operationRegistryContracts.js";
+import {
+  evaluateOperationBindingKillSwitch,
+  resolveOperationBindingKillSwitchPolicy,
+} from "./operationBindingKillSwitchPolicy.js";
 
 const COMPILE_MODES = new Set(["shadow", "active"]);
 const SCOPE_TYPES = new Set(["platform", "tenant", "workspace", "resource"]);
