@@ -20,6 +20,8 @@ tags:
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: local-connector
   - name: session-archive
+  - name: support-tickets
+    description: Tenant-created support tickets, customer-visible events, and role-gated governed resolution summaries.
 components:
   securitySchemes:
     userBearerAuth:
