@@ -125,7 +125,7 @@
 ### 9. `20260723_auth_email_outbox_skip_ineligible_tool.sql`
 
 - Queue class: critical_review
-- Score: 932
+- Score: 931
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/auth-email-outbox/skip-ineligible`

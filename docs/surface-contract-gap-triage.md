@@ -20,7 +20,7 @@
 - `20260724_auth_email_delivery_attempts.sql` — critical_review, score 1292; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_admin_tools.sql` — critical_review, score 1291; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, score 1073; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 932; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260723_auth_email_outbox_skip_ineligible_tool.sql` — critical_review, score 931; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 913; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 866; next: confirm registry binding/readback evidence before promotion
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 811; next: confirm registry binding/readback evidence before promotion
