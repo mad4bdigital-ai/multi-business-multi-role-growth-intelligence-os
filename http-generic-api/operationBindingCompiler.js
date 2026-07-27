@@ -339,7 +339,14 @@ export function compileOperationBindingManifest(input = {}) {
   const selected = eligible[0];
   const fallbackEntries = fallbackPlan.fallback_binding_ids.map((bindingId) => evaluatedByBindingId.get(bindingId));
   const candidateEvidence = evaluated.map((entry) => safeEvidence(entry, selected.candidate.binding_id)).sort((left, right) => left.binding_key.localeCompare(right.binding_key));
-  const sourceRevisionHash = stableOperationHash({ operation, context, candidates, policy: { weights }, compiler_version: compilerVersion });
+  const sourceRevisionHash = stableOperationHash({
+    operation,
+    context,
+    candidates,
+    policy: { weights },
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
+    compiler_version: compilerVersion,
+  });
   const manifestCore = {
     schema_version: "operation-binding-manifest-v1",
     compiler_version: compilerVersion,
