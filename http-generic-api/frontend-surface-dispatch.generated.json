@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1f6320cef76b53fa17fdaced9cad95c1f19ef865bab75bf9532d4a64d7e1f276",
+    "source_digest": "7bb9daa859779c6feea8c1086c76d70ba67ff7c1c791036bfa3d3471b74b8aec",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "5d2d810044f814a84fccf64d594e8ba71a682be613b4e9b80ad1a80980e7570a",
+        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
         "present": true
       },
       {
@@ -666,7 +666,7 @@
       },
       {
         "file": "routes/resourceApiRoutes.js",
-        "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+        "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
         "present": true
       },
       {
@@ -831,7 +831,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+        "sha256": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
         "present": true
       },
       {
@@ -911,7 +911,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "57ce1d6168a0ee613291daccb0e32e6a6060bca321f734ce1501c8600ad41b55",
+        "sha256": "347acab5b174881eca540c1d07eeae4af31c484851cae763ccd6514ada1c0e0f",
         "present": true
       },
       {
@@ -1117,10 +1117,11 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 383,
     "auth_parity_counts": {
-      "equivalent": 977,
-      "exempt": 17
+      "equivalent": 974,
+      "exempt": 17,
+      "unknown": 3
     },
-    "auth_contract_gap_count": 0,
+    "auth_contract_gap_count": 3,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -9348,7 +9349,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+      "source_digest": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
       "mount_prefix": "/",
       "mount_order": 13277,
       "split_from_mixed_scope_file": true,
@@ -10044,7 +10045,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+      "source_digest": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
       "mount_prefix": "/",
       "mount_order": 13277,
       "split_from_mixed_scope_file": true,
@@ -26941,7 +26942,7 @@
       "family_key": "resource-api.admin",
       "label": "resource api (admin)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
@@ -28108,7 +28109,7 @@
       "family_key": "resource-api.tenant",
       "label": "resource api (tenant)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
@@ -28124,23 +28125,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28153,8 +28144,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28184,23 +28177,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28213,8 +28196,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28244,23 +28229,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28273,8 +28248,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28977,7 +28954,29 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
       "evidence_routes": [
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
@@ -29026,8 +29025,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 8,
-        "class": "high"
+        "score": 10,
+        "class": "critical"
       },
       "wave": "F1-tenant-shell"
     },
@@ -29035,7 +29034,7 @@
       "family_key": "resource-api.unresolved",
       "label": "resource api (unresolved)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
@@ -83143,6 +83142,7 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "4bed4c867e32a6f9bed695648fadd4c5809001d85297bc05f27c97a4fe1f345e",
+    "source_digest": "609f2b7f6a7e592d5bb2901ceb5bd9eca10023fa195d27fb744a2dac75c2b3f6",
     "fail_closed": true
   },
   "source_authority": [
@@ -28,7 +28,7 @@
     },
     {
       "file": "routes/resourceApiRoutes.js",
-      "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "present": true
     },
     {
@@ -116,7 +116,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -158,7 +158,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -284,7 +284,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -326,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     }
