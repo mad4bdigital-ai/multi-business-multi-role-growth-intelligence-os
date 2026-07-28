@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+## Hostinger Production deploy-branch allowlist parity
+
+Migration `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` is parity-complete only when registry readback confirms the command allowlist, Admin tool schema, execution policy, and certification metadata all allow exactly `main` and `Production`, while the runtime executor still requires an exact 40-character commit SHA, approved target/path, bounded output, and same-cycle health readback. The migration itself has `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, and `secrets_included_false`; merge or documentation alone never applies it or authorizes deployment.
+
 ## Dynamic Container read-only canary promotion parity
 
 Migration `20260715_dynamic_container_canary_promotion_tool.sql` is parity-complete when the governed migration ledger records run `2b2015d2-73d0-40a2-af33-57678af0389a`, checksum `1c0327e8a8c5533683f92a4906d221af052ba633421464605a68488d3e5b665f`, statement count `4`, and zero-risk preflight; registry readback confirms `dynamic_container_canary_promotion_policy_v1`, the `dynamic_container_canary_promotion` Admin tool, and its app integration binding; and runtime readback confirms global mode remains `shadow`, enforcement remains disabled, and no more than one `read_only_canary` is active. Any apply requires a fresh plan-bound Capability Envelope, exact typed confirmation, transactional envelope consumption, and same-cycle readback. Merge, deployment, or documentation alone never authorizes global or mutation enforcement. No provider call, credential payload read, raw-secret access, external send/write, or secret inclusion is introduced; `secrets_included=false`.
