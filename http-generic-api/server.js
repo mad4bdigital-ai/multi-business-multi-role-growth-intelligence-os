@@ -326,6 +326,10 @@ import {
   configureJobRunner
 } from "./jobRunner.js";
 import { registerRoutes } from "./routes/index.js";
+import {
+  createOperationRuntimeErrorHandler,
+  createOperationRuntimeGuard,
+} from "./operationRuntimeGuard.js";
 import { createExecutionFacade } from "./executionFacade.js";
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
@@ -365,6 +369,7 @@ app.use(express.json({
     }
   },
 }));
+app.use(createOperationRuntimeGuard());
 
 
 
@@ -3206,6 +3211,7 @@ registerRoutes(app, {
   callModel: getAgentDeps().callModel,
   localConnectorOrchestrator,
 });
+app.use(createOperationRuntimeErrorHandler());
 
 async function shutdownJobState() {
   try {
