@@ -427,7 +427,7 @@ ON DUPLICATE KEY UPDATE
   repository_node_id=VALUES(repository_node_id), canonical_owner=VALUES(canonical_owner),
   canonical_name=VALUES(canonical_name), default_branch=VALUES(default_branch), environment=VALUES(environment),
   system_binding_mode=VALUES(system_binding_mode), lifecycle_status=VALUES(lifecycle_status), is_primary=VALUES(is_primary),
-  metadata_json=VALUES(metadata_json), authority_version=authority_version+1, lock_version=lock_version+1, updated_at=NOW();
+  metadata_json=VALUES(metadata_json), authority_version=repository_authority_bindings.authority_version+1, lock_version=repository_authority_bindings.lock_version+1, updated_at=NOW();
 
 INSERT INTO repository_authority_aliases
   (alias_id, binding_id, alias_type, alias_value, normalized_alias, lifecycle_status, metadata_json)
@@ -465,8 +465,9 @@ ON DUPLICATE KEY UPDATE
   repository_binding_id=VALUES(repository_binding_id), business_activity_type_key=VALUES(business_activity_type_key),
   adapter_key=VALUES(adapter_key), policy_key=VALUES(policy_key), readback_contract_key=VALUES(readback_contract_key),
   credential_ref=VALUES(credential_ref), effect_class=VALUES(effect_class), configuration_json=VALUES(configuration_json),
-  lifecycle_status='active', metadata_json=VALUES(metadata_json), capability_version=capability_version+1,
-  lock_version=lock_version+1, updated_at=NOW();
+  lifecycle_status='active', metadata_json=VALUES(metadata_json),
+  capability_version=repository_capability_bindings.capability_version+1,
+  lock_version=repository_capability_bindings.lock_version+1, updated_at=NOW();
 
 INSERT INTO repository_capability_policy_layers
   (layer_id, capability_binding_id, scope_type, scope_ref, precedence, configuration_json,
@@ -486,7 +487,9 @@ JOIN (
 ) layers
 WHERE capability.capability_binding_key='growth_intelligence_platform.github.repository_main_moved_webhook.production'
 ON DUPLICATE KEY UPDATE precedence=VALUES(precedence), configuration_json=VALUES(configuration_json),
-  lifecycle_status='active', layer_version=layer_version+1, lock_version=lock_version+1,
+  lifecycle_status='active',
+  layer_version=repository_capability_policy_layers.layer_version+1,
+  lock_version=repository_capability_policy_layers.lock_version+1,
   metadata_json=VALUES(metadata_json), updated_at=NOW();
 
 INSERT INTO workspace_resource_grants
