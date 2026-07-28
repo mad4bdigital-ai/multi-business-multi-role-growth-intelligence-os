@@ -19,7 +19,6 @@ const AUTH_GUARDS = new Set([
   "verifyUserJwt",
   "requireUser",
   "requireTenantPrincipal",
-  "requireTenantOperationPrincipal",
   "requireResolutionPrincipal",
   "requireActiveMembership",
   "requireWorkspaceOwner",
@@ -596,7 +595,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasBackend = guardChain.includes("requireBackendApiKey");
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
-  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
@@ -667,106 +666,14 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
-function nestedRouterRouteExpansions(source, file, mountPrefix, aliases) {
-  const text = maskJavaScriptComments(source);
-  const helperDefinitions = [];
-  const helperRe = /\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*\{/g;
-  let helperMatch;
-  while ((helperMatch = helperRe.exec(text)) !== null) {
-    const opening = text.indexOf("{", helperMatch.index);
-    const closing = findMatchingBrace(text, opening);
-    if (closing < 0) continue;
-    helperDefinitions.push({
-      name: helperMatch[1],
-      parameters: splitTopLevelArguments(helperMatch[2]).map((parameter) =>
-        parameter.split("=")[0].trim().replace(/^\.\.\./, ""),
-      ),
-      start: helperMatch.index,
-      opening,
-      closing,
-    });
-    helperRe.lastIndex = closing + 1;
-  }
-
-  const childRouters = new Set(
-    [...text.matchAll(/\bconst\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*Router\s*\(\s*\)\s*;/g)]
-      .map((match) => match[1]),
-  );
-  const mounts = new Map();
-  for (const match of text.matchAll(/(?:router|app)\.use\s*\(\s*(["'`])([^"'`]+)\1\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)\s*;/g)) {
-    if (!childRouters.has(match[3])) continue;
-    mounts.set(match[3], { prefix: normalizeRoutePath(match[2]), source_index: match.index });
-  }
-  if (!mounts.size) return { operations: [], excludedRanges: [] };
-
-  const operations = [];
-  const excludedRanges = [];
-  for (const helper of helperDefinitions) {
-    let expandedHelper = false;
-    const escapedHelper = helper.name.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {");
-    const callRe = new RegExp(`\\b${escapedHelper}\\s*\\(`, "g");
-    let call;
-    while ((call = callRe.exec(text)) !== null) {
-      if (call.index >= helper.start && call.index <= helper.closing) continue;
-      const opening = text.indexOf("(", call.index);
-      const closing = findMatchingDelimiter(text, opening, "(", ")");
-      if (closing < 0) continue;
-      const args = splitTopLevelArguments(text.slice(opening + 1, closing));
-      const childRouter = args[0]?.trim();
-      const mount = mounts.get(childRouter);
-      if (!mount) continue;
-
-      let helperBody = text.slice(helper.opening + 1, helper.closing);
-      const middlewareParameter = helper.parameters[1];
-      if (middlewareParameter) {
-        const escapedParameter = middlewareParameter.replace(/[.*+?^${}()|[\]\\]/g, "\\  return unique(expanded);
-}
-
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {");
-        helperBody = helperBody.replace(
-          new RegExp(`\\.\\.\\.${escapedParameter}\\b`, "g"),
-          args[1] || "[]",
-        );
-      }
-      operations.push(
-        ...parseRoutesFromFile(
-          helperBody,
-          file,
-          joinRoutePath(mountPrefix, mount.prefix),
-          { expandNestedRouters: false, inheritedAliases: aliases },
-        ).map((operation) => ({
-          ...operation,
-          source_index: helper.opening + 1 + operation.source_index,
-        })),
-      );
-      expandedHelper = true;
-      callRe.lastIndex = closing + 1;
-    }
-    if (expandedHelper) excludedRanges.push([helper.start, helper.closing]);
-  }
-  return { operations, excludedRanges };
-}
-
-export function parseRoutesFromFile(
-  source,
-  file,
-  mountPrefix = "/",
-  { receiver = "router_or_app", expandNestedRouters = true, inheritedAliases = null } = {},
-) {
+export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
-  const aliases = inheritedAliases || middlewareAliases(scanSource);
-  const nestedRouters = expandNestedRouters
-    ? nestedRouterRouteExpansions(scanSource, file, mountPrefix, aliases)
-    : { operations: [], excludedRanges: [] };
+  const aliases = middlewareAliases(scanSource);
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete|all)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(scanSource)) !== null) {
-    if (nestedRouters.excludedRanges.some(([start, end]) => match.index >= start && match.index <= end)) continue;
     const registrationMethod = match[1].toUpperCase();
     const methods = registrationMethod === "ALL" ? [...HTTP_METHODS] : [registrationMethod];
     if (methods.some((method) => !HTTP_METHODS.has(method))) continue;
@@ -800,7 +707,7 @@ export function parseRoutesFromFile(
       }
     }
   }
-  return [...operations, ...nestedRouters.operations];
+  return operations;
 }
 
 function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, runtimeAuth = null }) {
