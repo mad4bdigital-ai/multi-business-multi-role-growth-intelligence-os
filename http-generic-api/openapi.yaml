@@ -6610,6 +6610,82 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /local-connector/uninstall:
+    delete:
+      tags: [local-manager]
+      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: uninstallLocalConnector
+      summary: Disable a Local Connector device configuration
+      description: >
+        Disables the selected Local Connector device configuration and clears its stored
+        Cloudflare token, connector secret, and local API key. User JWT and API credential
+        callers may rely on their authenticated principal; backend or admin callers must
+        also provide user_id and tenant_id in the request body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                tenant_id:
+                  type: string
+                  format: uuid
+                device_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+      responses:
+        "200":
+          description: Local Connector disabled and stored credentials cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, disabled, rotated, message, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  disabled: { type: boolean, const: true }
+                  rotated: { type: boolean, const: true }
+                  message: { type: string }
+                  secrets_included: { type: boolean, const: false }
+        "400":
+          description: Required uninstall fields are missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Authenticated principal is not allowed to uninstall this device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Local Connector configuration was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Local Connector uninstall failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /local-connector/install/download-link:
     post:
       tags: [local-manager]
