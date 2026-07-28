@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fed081bca0063df0460e70243df89a6e65f935710fed465d3eaee67e74fde140",
+    "source_digest": "6ee3827ab4a6265ac699d22bc1f4a74f6d507fe97498e79f24936a924a51e4b3",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -901,7 +901,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "2f1c75adf7c811e13908310e36d7c1387485ee151ced94f40ada6629c57da076",
+        "sha256": "6023f2ea860e3d9618777bac8af95921874b2a53c5121559516ecf0709e37463",
         "present": true
       },
       {
@@ -1112,12 +1112,12 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 384,
     "auth_parity_counts": {
-      "equivalent": 960,
+      "equivalent": 968,
       "exempt": 17,
       "mismatch": 7,
-      "unknown": 10
+      "unknown": 2
     },
-    "auth_contract_gap_count": 17,
+    "auth_contract_gap_count": 9,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -4919,10 +4919,12 @@
             "principal": null,
             "guard_chain": [
               "requireBackendApiKey",
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "verifyInstallerDownloadToken"
             ],
             "evidence": [
               "route:requireBackendApiKey",
+              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "route:verifyInstallerDownloadToken"
             ],
             "configuration_dependencies": []
@@ -5280,9 +5282,11 @@
             ],
             "principal": "signed_link",
             "guard_chain": [
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "verifyInstallerDownloadToken"
             ],
             "evidence": [
+              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "route:verifyInstallerDownloadToken",
               "routes/backupArtifactRoutes.js",
               "routes/connectorAgentRoutes.js",
@@ -25270,13 +25274,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-orchestrator.yaml",
@@ -25292,10 +25311,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25325,13 +25342,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-orchestrator.yaml",
@@ -25347,10 +25379,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25382,13 +25412,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-orchestrator.yaml",
@@ -25404,10 +25449,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25439,13 +25482,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-capability-lifecycle.yaml",
@@ -25461,10 +25519,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25496,13 +25552,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-orchestrator.yaml",
@@ -25518,10 +25589,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25553,13 +25622,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/managed-git-workers.yaml",
@@ -25575,10 +25659,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25608,13 +25690,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-artifacts.yaml",
@@ -25630,10 +25727,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25663,13 +25758,28 @@
           "source_file": "routes/operationOrchestratorRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi/operation-orchestrator.yaml",
@@ -25685,10 +25795,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -25717,64 +25825,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /admin/operations/contracts",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/context",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/preview",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/execute",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/status",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/operations/workers/{worker_id}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/operations/artifacts",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/operations/ci-diagnose",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /admin/operations/preview",
         "POST /admin/operations/status"
@@ -25848,7 +25899,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -80308,10 +80359,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -80376,10 +80429,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -80444,10 +80499,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -80512,10 +80569,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -86024,7 +86083,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
