@@ -16,6 +16,10 @@ import {
   evaluateContainerBypassRetirementReadiness
 } from "./dynamicContainerRolloutSafety.js";
 import { runContainerQueryPlanPreflight } from "./dynamicContainerQueryPlanPreflight.js";
+// frontend-surface-operation: POST /admin/container-authority/canary-promotions
+// frontend-state-change-proof: POST /admin/container-authority/canary-promotions
+// frontend-surface-operation: POST /admin/container-authority/canary-rollbacks
+// frontend-state-change-proof: POST /admin/container-authority/canary-rollbacks
 
 // frontend-surface-operation: POST /admin/container-authority/canary-closeouts
 

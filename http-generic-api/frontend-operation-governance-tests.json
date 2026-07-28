@@ -1084,6 +1084,70 @@
           "rationale": "Locks the tenant case, applies exactly one allowed diagnostic mode with evidence events in a transaction, and returns the locked projection while denying provider calls and repair execution."
         }
       ]
+    },
+    {
+      "batch_id": "dynamic-container-canary-state-changes-v1",
+      "owner": "platform-governance",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "implementation_file": "dynamicContainerRolloutSafety.js",
+      "test_file": "test-dynamic-container-rollout-safety.mjs",
+      "operations": [
+        {
+          "recipe_id": "dynamic-container-canary-promotion-state-change-v1",
+          "operation": "POST /admin/container-authority/canary-promotions",
+          "proof_functions": ["runContainerCanaryPromotion"],
+          "route_markers": ["runContainerCanaryPromotion", "requireCapabilityEnvelope:mode === \"apply\"", "capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null"],
+          "preflight_markers": ["resolveCapabilityExecutionEnvelope", "capability_resolution_envelope_apply_not_allowed", "confirm !== plan.confirmation"],
+          "safety_markers": ["providerCalls:false", "credentialPayloadReads:false", "externalWrites:false", "enforcementApplied:false", "secretsIncluded:false"],
+          "provider_denial_markers": ["providerCalls:false", "externalWrites:false"],
+          "mutation_readback_pairs": [
+            {
+              "mutation_marker": "SET rollout_mode='read_only_canary'",
+              "readback_marker": "SELECT canary_key,capability_key,operation_class,rollout_mode,status,metadata_json FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1"
+            }
+          ],
+          "transaction_markers": ["beginTransaction", "commit", "rollback"],
+          "preflight_mode": "capability_envelope_readiness_and_rollout_state_lock",
+          "approval_mode": "typed_confirmation_and_apply_authorized_capability_envelope",
+          "readback_mode": "same_transaction_exact_canary_readback",
+          "rollback_mode": "transaction",
+          "rollback_rationale": "The canary row mutation, exact readback, and capability-envelope consumption share one SQL transaction; any mutation, readback, or lifecycle failure rolls back before commit.",
+          "parameter_bindings": {
+            "target_canary_key": "request.body.targetCanaryKey",
+            "capability_envelope_id": "request.body.capabilityEnvelopeId",
+            "rollout_mode": "response.readback.rollout_mode"
+          },
+          "rationale": "Requires Admin authorization, an apply-authorized capability envelope, typed confirmation, and rollout readiness before promoting one exact read-only canary, reading it back, and consuming the envelope in the same transaction."
+        },
+        {
+          "recipe_id": "dynamic-container-canary-rollback-state-change-v1",
+          "operation": "POST /admin/container-authority/canary-rollbacks",
+          "proof_functions": ["runContainerCanaryRollback"],
+          "route_markers": ["runContainerCanaryRollback", "capabilityEnvelopeId:req.body?.capabilityEnvelopeId || null", "reason:req.body?.reason || \"runtime_canary_not_observed\""],
+          "preflight_markers": ["resolveCapabilityExecutionEnvelope", "capability_resolution_envelope_apply_not_allowed", "confirm !== plan.confirmation"],
+          "safety_markers": ["providerCalls:false", "credentialPayloadReads:false", "externalWrites:false", "enforcementApplied:false", "secretsIncluded:false"],
+          "provider_denial_markers": ["providerCalls:false", "externalWrites:false"],
+          "mutation_readback_pairs": [
+            {
+              "mutation_marker": "SET rollout_mode='shadow'",
+              "readback_marker": "SELECT canary_key,capability_key,operation_class,rollout_mode,status,metadata_json FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1"
+            }
+          ],
+          "transaction_markers": ["beginTransaction", "commit", "rollback"],
+          "preflight_mode": "capability_envelope_readiness_and_active_canary_lock",
+          "approval_mode": "typed_confirmation_and_apply_authorized_capability_envelope",
+          "readback_mode": "same_transaction_exact_canary_readback",
+          "rollback_mode": "transaction",
+          "rollback_rationale": "The rollback mutation, exact shadow-mode readback, and capability-envelope consumption share one SQL transaction; any mutation, readback, or lifecycle failure rolls back before commit.",
+          "parameter_bindings": {
+            "target_canary_key": "request.body.targetCanaryKey",
+            "capability_envelope_id": "request.body.capabilityEnvelopeId",
+            "reason": "request.body.reason|runtime_canary_not_observed",
+            "rollout_mode": "response.readback.rollout_mode"
+          },
+          "rationale": "Requires Admin authorization, an apply-authorized capability envelope, and typed confirmation before returning one exact active canary to shadow mode, reading it back, and consuming the envelope in the same transaction."
+        }
+      ]
     }
   ],
   "external_effect_batches": [
