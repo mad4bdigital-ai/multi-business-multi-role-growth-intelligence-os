@@ -331,6 +331,47 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const nestedRouterOperations = parseRoutesFromFile(`
+  function mountOperationRoutes(router, middleware = []) {
+    router.get("/operations/contracts", ...middleware, handler);
+    router.post("/operations/execute", ...middleware, handler);
+  }
+  export function buildOperationRoutes() {
+    const router = Router();
+    const backendGuard = requireBackendApiKey;
+    const adminGuard = requireAdminPrincipal;
+    const admin = Router();
+    mountOperationRoutes(admin, [backendGuard, adminGuard]);
+    router.use("/admin", admin);
+    const tenant = Router();
+    mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
+    router.use("/tenant", tenant);
+    return router;
+  }
+`, "routes/nestedOperationRoutes.js");
+assert.deepEqual(
+  nestedRouterOperations.map((operation) => operation.signature).sort(),
+  [
+    "GET /admin/operations/contracts",
+    "GET /tenant/operations/contracts",
+    "POST /admin/operations/execute",
+    "POST /tenant/operations/execute",
+  ].sort(),
+  "nested child routers must inherit their mounted prefixes without emitting bare helper routes",
+);
+assert.deepEqual(
+  nestedRouterOperations.find((operation) => operation.signature === "GET /admin/operations/contracts").route_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+);
+assert.deepEqual(
+  nestedRouterOperations.find((operation) => operation.signature === "GET /tenant/operations/contracts").route_guards,
+  ["requireTenantOperationPrincipal"],
+);
+assert.equal(
+  nestedRouterOperations.some((operation) => operation.path.startsWith("/operations/")),
+  false,
+  "helper-local bare routes must not enter the runtime inventory",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
