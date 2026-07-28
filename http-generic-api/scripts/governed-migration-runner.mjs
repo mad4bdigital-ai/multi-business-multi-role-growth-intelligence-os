@@ -487,6 +487,7 @@ async function main() {
   const statement_count = statements.length;
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
 
   if (preflight_statement_count !== statement_count) {
     console.log(JSON.stringify({
@@ -513,6 +514,23 @@ async function main() {
       migration,
       blocked_reason: "preflight_not_pass",
       preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
+
+  if (identifier_contract_preflight.status !== "pass") {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "identifier_comparison_contract_mismatch",
+      preflight,
+      identifier_contract_preflight,
       requirements: artifactNames(requirements),
       before_schema_objects,
       applies_sql: false,
