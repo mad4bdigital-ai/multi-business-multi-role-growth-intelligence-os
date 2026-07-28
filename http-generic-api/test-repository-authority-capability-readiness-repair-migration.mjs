@@ -22,6 +22,8 @@ assert(sql.includes("authority.installation_id=NULL"));
 assert(sql.includes("authority.authority_version=authority.authority_version+1"));
 assert(sql.includes("authority.lock_version=authority.lock_version+1"));
 assert(!sql.includes("binding_version"));
+assert(sql.includes("BINARY authority.system_id<>BINARY system.system_id"));
+assert(!sql.includes("authority.system_id<>system.system_id"));
 assert.match(sql, /WHERE\s+authority\.binding_key='growth_intelligence_platform\.github\.primary\.production'/i);
 
 assert.match(sql, /UPDATE\s+repository_capability_bindings\s+capability\s+JOIN\s+capability_apply_authorization_policy_registry\s+policy/i);
