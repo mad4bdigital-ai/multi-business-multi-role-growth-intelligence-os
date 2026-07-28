@@ -9924,7 +9924,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGrowthIntelligenceReadinessAssessment
       summary: Record an immutable no-execution readiness assessment
       description: >
