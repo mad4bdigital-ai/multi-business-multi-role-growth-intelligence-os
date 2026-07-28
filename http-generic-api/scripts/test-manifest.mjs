@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-context-kernel-approval-binding.mjs",
   "node test-context-kernel-synthetic-principal-matrix.mjs",
   "node test-effective-authority-drift-lifecycle.mjs",
   "node test-effective-authority-projection-parity.mjs",

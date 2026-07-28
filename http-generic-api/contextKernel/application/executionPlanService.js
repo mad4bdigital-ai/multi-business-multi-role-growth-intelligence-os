@@ -32,6 +32,90 @@ function normalizePlanStep(step, index) {
   });
 }
 
+function normalizedText(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function parseApprovalTimestamp(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function evaluateApprovalBinding({ plan, approval, approvalRef, now }) {
+  if (plan.requiresApproval !== true) {
+    return {
+      reasonCodes: [],
+      approvalRef: null,
+      approvalBindingVerified: false,
+    };
+  }
+
+  if (!approval) {
+    return {
+      reasonCodes: [approvalRef || plan.approvalRef ? "approval_binding_required" : "approval_required"],
+      approvalRef: normalizedText(approvalRef || plan.approvalRef),
+      approvalBindingVerified: false,
+    };
+  }
+  if (typeof approval !== "object" || Array.isArray(approval)) {
+    return {
+      reasonCodes: ["approval_evidence_invalid"],
+      approvalRef: null,
+      approvalBindingVerified: false,
+    };
+  }
+
+  const reasonCodes = [];
+  const boundApprovalRef = normalizedText(approval.approvalRef);
+  const expectedApprovalRef = normalizedText(approvalRef || plan.approvalRef);
+  if (!boundApprovalRef) reasonCodes.push("approval_evidence_invalid");
+  if (expectedApprovalRef && boundApprovalRef !== expectedApprovalRef) {
+    reasonCodes.push("approval_ref_mismatch");
+  }
+
+  const status = normalizedText(approval.status)?.toLowerCase() || null;
+  if (status === "consumed" || approval.consumedAt) {
+    reasonCodes.push("approval_consumed");
+  } else if (status === "revoked" || approval.revokedAt) {
+    reasonCodes.push("approval_revoked");
+  } else if (status !== "approved") {
+    reasonCodes.push("approval_status_not_approved");
+  }
+
+  const approvalExpiry = parseApprovalTimestamp(approval.expiresAt);
+  if (!approval.expiresAt) {
+    reasonCodes.push("approval_expiry_required");
+  } else if (!approvalExpiry) {
+    reasonCodes.push("approval_expiry_invalid");
+  } else if (approvalExpiry.getTime() <= now.getTime()) {
+    reasonCodes.push("approval_expired");
+  }
+
+  const bindings = [
+    ["planRef", plan.planRef, "approval_plan_ref_mismatch"],
+    ["planHash", plan.planHash, "approval_plan_hash_mismatch"],
+    ["contextRevision", plan.contextRevision, "approval_context_revision_mismatch"],
+    ["manifestHash", plan.manifestHash, "approval_manifest_hash_mismatch"],
+  ];
+  for (const [field, expected, code] of bindings) {
+    if (approval[field] !== expected) reasonCodes.push(code);
+  }
+  if (String(approval.manifestVersion ?? "") !== String(plan.manifestVersion ?? "")) {
+    reasonCodes.push("approval_manifest_version_mismatch");
+  }
+  if (!plan.manifestHash || plan.manifestVersion === null || plan.manifestVersion === undefined) {
+    reasonCodes.push("approval_manifest_binding_unavailable");
+  }
+
+  const uniqueReasons = [...new Set(reasonCodes)];
+  return {
+    reasonCodes: uniqueReasons,
+    approvalRef: boundApprovalRef,
+    approvalBindingVerified: uniqueReasons.length === 0,
+  };
+}
+
 export function createExecutionPlanService({
   idFactory = () => randomUUID(),
   clock = () => new Date(),
@@ -100,6 +184,18 @@ export function createExecutionPlanService({
       operationKind === "mutation" ||
       riskClass === "high" ||
       riskClass === "critical";
+    const currentManifest = readiness?.currentManifest || null;
+    if (
+      requiresApproval &&
+      (!currentManifest?.manifestHash || currentManifest.manifestVersion === null || currentManifest.manifestVersion === undefined)
+    ) {
+      throw new ContextApplicationError(
+        "capability_manifest_required",
+        "Approval-bound plans require current capability manifest evidence.",
+        409,
+      );
+    }
+
     const descriptor = freezeApplicationValue({
       planRef: requireApplicationString(idFactory(), "planRef"),
       operationIntent: requireApplicationString(operationIntent, "operationIntent"),
@@ -117,6 +213,8 @@ export function createExecutionPlanService({
       connectionRef: resolved.context.connectionRef,
       capabilityDispatchAllowed: readiness?.dispatchAllowed === true,
       capabilityApplyAllowed: readiness?.applyAllowed === true,
+      manifestHash: currentManifest?.manifestHash || null,
+      manifestVersion: currentManifest?.manifestVersion ?? null,
       steps: normalizedSteps,
       compiledAt: compiledAt.toISOString(),
       expiresAt: normalizedExpiry.toISOString(),
@@ -132,7 +230,13 @@ export function createExecutionPlanService({
     });
   }
 
-  function validate({ plan, currentContext, approvalRef = null, now = clock() }) {
+  function validate({
+    plan,
+    currentContext,
+    approval = null,
+    approvalRef = null,
+    now = clock(),
+  }) {
     const compiledPlan = requireApplicationObject(plan, "plan");
     const context = requireApplicationObject(currentContext, "currentContext");
     const revision = validateContextRevision({
@@ -153,9 +257,14 @@ export function createExecutionPlanService({
     if (compiledPlan.operationKind === "mutation" && compiledPlan.capabilityApplyAllowed !== true) {
       reasonCodes.push("capability_apply_not_allowed");
     }
-    if (compiledPlan.requiresApproval && !(approvalRef || compiledPlan.approvalRef)) {
-      reasonCodes.push("approval_required");
-    }
+
+    const approvalValidation = evaluateApprovalBinding({
+      plan: compiledPlan,
+      approval,
+      approvalRef,
+      now,
+    });
+    reasonCodes.push(...approvalValidation.reasonCodes);
 
     const uniqueReasons = [...new Set(reasonCodes)];
     return freezeApplicationValue({
@@ -164,6 +273,8 @@ export function createExecutionPlanService({
       reasonCodes: uniqueReasons,
       planRef: compiledPlan.planRef,
       contextRevision: context.contextRevision,
+      approvalRef: approvalValidation.approvalRef,
+      approvalBindingVerified: approvalValidation.approvalBindingVerified,
       validatedAt: now.toISOString(),
       automaticWritePerformed: false,
       secretsIncluded: false,
@@ -175,4 +286,5 @@ export function createExecutionPlanService({
 
 export const _testingExecutionPlanService = Object.freeze({
   normalizePlanStep,
+  evaluateApprovalBinding,
 });

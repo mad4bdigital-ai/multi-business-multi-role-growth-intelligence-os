@@ -344,11 +344,21 @@ assert.equal(plan.secretsIncluded, false);
 const validPlan = planService.validate({
   plan,
   currentContext: resolution.context,
-  approvalRef: "approval-a",
+  approval: {
+    approvalRef: "approval-a",
+    status: "approved",
+    planRef: plan.planRef,
+    planHash: plan.planHash,
+    contextRevision: plan.contextRevision,
+    manifestHash: plan.manifestHash,
+    manifestVersion: plan.manifestVersion,
+    expiresAt: "2026-07-25T12:05:00.000Z",
+  },
   now: new Date("2026-07-25T12:01:00.000Z"),
 });
 assert.equal(validPlan.valid, true);
 assert.equal(validPlan.executionAllowed, true);
+assert.equal(validPlan.approvalBindingVerified, true);
 assert.equal(validPlan.secretsIncluded, false);
 const stalePlan = planService.validate({
   plan,
