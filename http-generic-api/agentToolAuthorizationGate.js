@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolveUserBrandSkillEntitlement } from "./userBrandSkillEntitlement.js";
 
 const CONSEQUENCE_PATTERN = /(?:^|[._-])(write|create|insert|update|delete|remove|apply|execute|dispatch|send|publish|deploy|restart|stop|start|install|uninstall|trigger|mutate|mutation|shell|control|approve|revoke|rollback|migrate|sync)(?:$|[._-])/i;
 const READ_ONLY_PATTERN = /(?:^|[._-])(read|get|list|search|inspect|status|preview|diagnostic|health|lookup|resolve|validate|verify|dry[_-]?run|plan)(?:$|[._-])/i;
