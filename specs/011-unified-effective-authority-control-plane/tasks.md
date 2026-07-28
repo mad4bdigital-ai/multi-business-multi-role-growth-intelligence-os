@@ -46,7 +46,7 @@
 
 - [x] T040 Add cross-tenant negative test matrix.
 - [x] T041 Add Admin visibility versus mutation tests.
-- [ ] T042 Add support delegation and impersonation tests.
+- [x] T042 Add support delegation and impersonation tests.
 - [ ] T043 Add graph inheritance/restriction property tests.
 - [x] T044 Add connection ambiguity tests.
 - [x] T045 Add approval replay and manifest binding tests.
