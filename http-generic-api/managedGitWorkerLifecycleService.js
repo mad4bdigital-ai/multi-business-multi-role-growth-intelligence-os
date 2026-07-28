@@ -273,7 +273,7 @@ export async function prepareManagedGitWorkerLifecycle({
          operation_key, owner, repo, branch_name, checkout_strategy,
          checkout_head_sha, workspace_fingerprint, worker_status,
          lease_expires_at, secrets_included
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'virtual_git_tree', ?, ?, 'allocated', ?, 0)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ephemeral_checkout', ?, ?, 'allocated', ?, 0)`,
       [
         workerId, leaseKey, leaseKey, actor.scope, actor.tenant_id, actor.user_id,
         operation, context.owner, context.repo, context.branch,
