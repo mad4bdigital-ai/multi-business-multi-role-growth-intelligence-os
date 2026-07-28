@@ -331,6 +331,11 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const explicitRequireUserRoute = parseRoutesFromFile(
+  'router.get("/me/workspaces/:tenant_id/resources", requireUser, controller.tenantCatalog);',
+  "routes/resourceApiRoutes.js",
+)[0];
+assert.deepEqual(explicitRequireUserRoute.route_guards, ["requireUser"]);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
