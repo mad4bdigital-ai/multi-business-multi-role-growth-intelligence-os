@@ -1,0 +1,128 @@
+{
+  "identity": {
+    "activityPackKey": "travel.reference_pack",
+    "version": 1
+  },
+  "entitySchemas": {
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destinationKey", "name", "market"],
+      "properties": {
+        "destinationKey": { "type": "string", "minLength": 3 },
+        "name": { "type": "string", "minLength": 2 },
+        "market": { "type": "string", "minLength": 2 },
+        "themes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    },
+    "travelerIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intentKey", "stage"],
+      "properties": {
+        "intentKey": { "type": "string", "minLength": 3 },
+        "stage": {
+          "type": "string",
+          "enum": ["discover", "compare", "plan", "book", "experience"]
+        },
+        "locale": { "type": "string", "minLength": 2 }
+      }
+    },
+    "contentBrief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["briefKey", "destinationKey", "primaryIntent"],
+      "properties": {
+        "briefKey": { "type": "string", "minLength": 3 },
+        "destinationKey": { "type": "string", "minLength": 3 },
+        "primaryIntent": { "type": "string", "minLength": 3 },
+        "supportingTopics": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    }
+  },
+  "knowledgeProfile": {
+    "pointerKey": "travel_knowledge_profile"
+  },
+  "kpiTaxonomy": [
+    "qualified_lead_rate",
+    "organic_visibility",
+    "destination_engagement",
+    "content_assisted_conversion"
+  ],
+  "capabilities": [
+    { "capabilityKey": "travel_intent_map_generate", "version": 1 },
+    { "capabilityKey": "travel_content_brief_generate", "version": 1 },
+    { "capabilityKey": "travel_destination_analysis_generate", "version": 1 },
+    { "capabilityKey": "travel_brand_plan_generate", "version": 1 }
+  ],
+  "workflows": [
+    {
+      "workflowKey": "content_generation_workflow",
+      "version": 1,
+      "nodes": [
+        {
+          "id": "intent_map",
+          "capability": "travel_intent_map_generate",
+          "mode": "internal_draft"
+        },
+        {
+          "id": "content_brief",
+          "capability": "travel_content_brief_generate",
+          "depends_on": ["intent_map"],
+          "mode": "internal_draft"
+        }
+      ]
+    },
+    {
+      "workflowKey": "destination_analysis_workflow",
+      "version": 1,
+      "nodes": [
+        {
+          "id": "destination_analysis",
+          "capability": "travel_destination_analysis_generate",
+          "mode": "internal_draft"
+        }
+      ]
+    },
+    {
+      "workflowKey": "brand_marketing_workflow",
+      "version": 1,
+      "nodes": [
+        {
+          "id": "brand_plan",
+          "capability": "travel_brand_plan_generate",
+          "mode": "internal_draft"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "policyKey": "travel_internal_draft_policy",
+      "capabilities": [
+        "travel_intent_map_generate",
+        "travel_content_brief_generate",
+        "travel_destination_analysis_generate",
+        "travel_brand_plan_generate"
+      ],
+      "workflows": [
+        "content_generation_workflow",
+        "destination_analysis_workflow",
+        "brand_marketing_workflow"
+      ]
+    }
+  ],
+  "providerCompatibility": [],
+  "tests": {
+    "fixtures": ["travel-reference-v1"],
+    "compatibilityDeclarations": []
+  }
+}
