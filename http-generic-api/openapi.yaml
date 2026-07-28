@@ -9852,7 +9852,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceReport
       summary: Read one persisted Growth Intelligence report with insights and actions
       parameters:
