@@ -49,7 +49,7 @@
 - [ ] T042 Add support delegation and impersonation tests.
 - [ ] T043 Add graph inheritance/restriction property tests.
 - [x] T044 Add connection ambiguity tests.
-- [ ] T045 Add approval replay and manifest binding tests.
+- [x] T045 Add approval replay and manifest binding tests.
 - [x] T046 Add no-secret serialization tests.
 - [ ] T047 Add stale and revocation revalidation tests.
 
