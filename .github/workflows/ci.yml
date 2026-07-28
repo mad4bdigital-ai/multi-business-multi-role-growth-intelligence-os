@@ -93,6 +93,10 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Block context-kernel runtime hardcoding regressions
+        working-directory: http-generic-api
+        run: node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime
+
       - name: Validate Connect auth, secret boundary, and atomic bootstrap
         working-directory: http-generic-api
         run: |
