@@ -299,6 +299,35 @@ export async function prepareManagedGitWorkerLifecycle({
     });
   }
 
+  let workspaceHandle = null;
+  try {
+    if (typeof createWorkspace !== "function") {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_EXECUTOR_REQUIRED", "A managed Git workspace executor is required.");
+    }
+    workspaceHandle = await createWorkspace({
+      worker_id: workerId,
+      root_dir: workspaceRoot,
+    });
+  } catch (error) {
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'failed', active_lease_key = NULL, error_json = ?,
+              released_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ?`,
+      [
+        JSON.stringify({
+          code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CREATE_FAILED",
+          message: error?.message || "The isolated workspace could not be created.",
+          details: error?.details || null,
+          secrets_included: false,
+        }),
+        workerId,
+      ],
+    );
+    throw error;
+  }
+
   await db(
     pool,
     `UPDATE operation_managed_git_worker_leases
