@@ -125,6 +125,8 @@ jobs:
         run: npm run schemas:guard
       - name: Verify Contract Guard trigger coverage
         run: node test-custom-gpt-contract-guard-paths.mjs
+      - name: Verify auth edge proxy envelope
+        run: node test-auth-mad4b-proxy-edge.mjs
       - name: Verify split-schema governance and regeneration parity
         run: |
           node test-openapi-split-governance.mjs
