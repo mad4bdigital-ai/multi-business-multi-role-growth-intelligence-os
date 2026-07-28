@@ -112,7 +112,10 @@ function explainInput(overrides = {}) {
   const serialized = JSON.stringify(report);
   assert.ok(!serialized.includes("scope_ref"));
   assert.ok(!serialized.includes("metrics"));
-  assert.ok(!serialized.includes("credential"));
+  assert.equal(report.credential_payloads_read, false);
+  assert.ok(!serialized.includes("access_token"));
+  assert.ok(!serialized.includes("refresh_token"));
+  assert.ok(!serialized.includes("authorization"));
 }
 
 assert.throws(
