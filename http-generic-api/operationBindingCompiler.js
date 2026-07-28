@@ -2,6 +2,7 @@ import { stableOperationHash } from "./operationRegistryContracts.js";
 import { filterOperationBindingEligibility } from "./operationBindingEligibility.js";
 import { scoreOperationBindingCandidate } from "./operationBindingScoring.js";
 import { buildOperationBindingFallbackPlan } from "./operationBindingFallback.js";
+import { buildOperationBindingResolverExplain } from "./operationBindingResolverExplain.js";
 
 const SCOPE_RANK = Object.freeze({ platform: 1, tenant: 2, workspace: 3, resource: 4 });
 const COMPILE_MODES = new Set(["shadow", "active"]);
@@ -347,6 +348,17 @@ export function compileOperationBindingManifest(input = {}) {
     kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
     compiler_version: compilerVersion,
   });
+  const resolverExplain = buildOperationBindingResolverExplain({
+    operation_key: operation.operation_key,
+    operation_version: operation.version,
+    source_revision_hash: sourceRevisionHash,
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
+    selected_binding_id: selected.candidate.binding_id,
+    fallback_binding_ids: fallbackPlan.fallback_binding_ids,
+    overflow_binding_ids: fallbackPlan.overflow_binding_ids,
+    typed_exclusions: fallbackPlan.typed_exclusions,
+    candidate_evidence: candidateEvidence,
+  });
   const manifestCore = {
     schema_version: "operation-binding-manifest-v1",
     compiler_version: compilerVersion,
@@ -373,6 +385,7 @@ export function compileOperationBindingManifest(input = {}) {
       authority_created: fallbackPlan.authority_created,
       report_hash: fallbackPlan.report_hash,
     },
+    resolver_explain: resolverExplain,
     candidate_evidence: candidateEvidence,
     resolution_summary: {
       candidate_count: evaluated.length,
