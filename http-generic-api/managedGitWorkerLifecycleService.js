@@ -524,7 +524,12 @@ export async function readManagedGitWorkerLease(input = {}, deps = {}) {
   return { ok: true, principal_scope: actor.scope, worker: publicRow(rows[0]), secrets_included: false };
 }
 
-export async function expireManagedGitWorkerLeases({ pool, limit = 100 } = {}) {
+export async function expireManagedGitWorkerLeases({
+  pool,
+  limit = 100,
+  workspaceRoot = process.env.MANAGED_GIT_WORKSPACE_ROOT,
+  releaseExpiredWorkspaces = releaseManagedGitEphemeralCheckoutsForWorker,
+} = {}) {
   const safeLimit = boundedInt(limit, 100, 1, 500);
   const [rows] = await db(
     pool,
@@ -537,25 +542,62 @@ export async function expireManagedGitWorkerLeases({ pool, limit = 100 } = {}) {
     [safeLimit],
   );
   const ids = (rows || []).map((row) => row.worker_id).filter(Boolean);
+  let cleanupFailureCount = 0;
   for (const workerId of ids) {
+    let cleanup = null;
+    let cleanupError = null;
+    try {
+      if (typeof releaseExpiredWorkspaces !== "function") {
+        throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_RELEASE_REQUIRED", "A managed Git workspace release function is required.");
+      }
+      cleanup = await releaseExpiredWorkspaces({
+        worker_id: workerId,
+        root_dir: workspaceRoot,
+      });
+    } catch (error) {
+      cleanupFailureCount += 1;
+      cleanupError = {
+        code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+        message: error?.message || "Expired workspace cleanup failed.",
+        details: error?.details || null,
+        secrets_included: false,
+      };
+    }
     await db(
       pool,
       `UPDATE operation_managed_git_worker_leases
           SET worker_status = 'expired', active_lease_key = NULL,
-              error_json = ?, released_at = NOW(), updated_at = NOW()
+              readback_json = ?, error_json = ?, released_at = NOW(), updated_at = NOW()
         WHERE worker_id = ?
           AND worker_status IN ('allocated','ready','running','cleaning')`,
       [
         JSON.stringify({
-          code: "MANAGED_GIT_WORKER_LEASE_EXPIRED",
-          message: "The managed worker lease expired before cleanup completed.",
+          workspace_released: cleanup?.workspace_released === true,
+          cleanup_verified: cleanup?.cleanup_verified === true,
+          cleanup_count: Number(cleanup?.cleanup_count || 0),
+          workspace_path_exposed: false,
+          secrets_included: false,
+        }),
+        JSON.stringify({
+          code: cleanupError ? "MANAGED_GIT_WORKER_LEASE_EXPIRED_CLEANUP_FAILED" : "MANAGED_GIT_WORKER_LEASE_EXPIRED",
+          message: cleanupError
+            ? "The managed worker lease expired and workspace cleanup requires attention."
+            : "The managed worker lease expired and its workspace was released.",
+          details: cleanupError ? { cleanup_error: cleanupError } : null,
           secrets_included: false,
         }),
         workerId,
       ],
     );
   }
-  return { ok: true, expired_count: ids.length, worker_ids: ids, secrets_included: false };
+  return {
+    ok: cleanupFailureCount === 0,
+    expired_count: ids.length,
+    cleanup_failure_count: cleanupFailureCount,
+    worker_ids: ids,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
 }
 
 export const _testingManagedGitWorkerLifecycleService = {
