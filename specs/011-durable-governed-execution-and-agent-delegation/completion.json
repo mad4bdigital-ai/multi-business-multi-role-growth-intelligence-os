@@ -328,9 +328,10 @@
       "secrets_included": false
     },
     "phase3_delegation_mode_drift_repair": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "704c452666c055259c426c6534620df497bc2a45",
       "pull_request": 3203,
+      "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
       "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
       "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
       "design": "phase3-delegation-persistence-contract.md",
@@ -344,8 +345,32 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_repository_mutation_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
+      "pull_request": 3221,
+      "service": "http-generic-api/delegationGrantRepositoryMutationService.js",
+      "test": "http-generic-api/test-delegation-grant-repository-mutation.mjs",
+      "design": "phase3-delegation-repository-mutation-contract.md",
+      "transactional_repository_port": true,
+      "pending_receipt_before_mutation": true,
+      "same_cycle_grant_readback": true,
+      "same_cycle_receipt_readback": true,
+      "idempotent_replay": true,
+      "idempotency_conflict_detection": true,
+      "unknown_commit_outcome_fail_closed": true,
+      "authorization_fingerprint_binding": true,
+      "migration_applied": false,
+      "live_database_write": false,
+      "mariadb_adapter_bound": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_mode_drift_repair_complete_on_branch"
+      "status": "phase3_delegation_repository_mutation_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
