@@ -34,10 +34,10 @@ assert.equal(reviewedRepositoryResourceEnum.status, "pass", "the exact reviewed 
 assert.equal(reviewedRepositoryResourceEnum.counts.alter_table_idempotent, 1, "the reviewed ENUM extension must be classified as idempotent");
 
 const repositoryResourceEnumWrongFilename = assessMigrationSqlPreflight(
-  "unreviewed_repository_enum.sql",
+  "unreviewed_repository_resource_enum.sql",
   repositoryResourceEnumSql
 );
-assert.equal(repositoryResourceEnumWrongFilename.status, "warn", "the same ENUM extension under another filename must remain blocked");
+assert.equal(repositoryResourceEnumWrongFilename.status, "warn", "the repository ENUM ALTER under another filename must remain blocked");
 assert.equal(repositoryResourceEnumWrongFilename.risks[0]?.code, "alter_table_requires_manual_idempotency_review");
 
 const repositoryResourceEnumBroadened = assessMigrationSqlPreflight(
@@ -46,5 +46,38 @@ const repositoryResourceEnumBroadened = assessMigrationSqlPreflight(
 );
 assert.equal(repositoryResourceEnumBroadened.status, "warn", "a broader ENUM change must remain blocked for manual review");
 assert.equal(repositoryResourceEnumBroadened.risks[0]?.code, "alter_table_requires_manual_idempotency_review");
+
+const agentSkillCollationRepairSql = `ALTER TABLE agent_skill_grant_requests
+  MODIFY COLUMN request_id VARCHAR(36)
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  MODIFY COLUMN agent_id VARCHAR(36)
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  MODIFY COLUMN skill_id VARCHAR(36)
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+  MODIFY COLUMN tenant_id VARCHAR(36)
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
+  MODIFY COLUMN brand_key VARCHAR(128)
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL;`;
+
+const reviewedAgentSkillCollationRepair = assessMigrationSqlPreflight(
+  "20260725_agent_skill_grant_request_collation_repair.sql",
+  agentSkillCollationRepairSql
+);
+assert.equal(reviewedAgentSkillCollationRepair.status, "pass", "the exact reviewed agent-skill collation repair must pass");
+assert.equal(reviewedAgentSkillCollationRepair.counts.alter_table_idempotent, 1);
+
+const agentSkillCollationWrongFilename = assessMigrationSqlPreflight(
+  "unreviewed_agent_skill_collation_repair.sql",
+  agentSkillCollationRepairSql
+);
+assert.equal(agentSkillCollationWrongFilename.status, "warn", "the same repair under another filename must remain blocked");
+assert.equal(agentSkillCollationWrongFilename.risks[0]?.code, "alter_table_requires_manual_idempotency_review");
+
+const agentSkillCollationChanged = assessMigrationSqlPreflight(
+  "20260725_agent_skill_grant_request_collation_repair.sql",
+  agentSkillCollationRepairSql.replace("brand_key VARCHAR(128)", "brand_key VARCHAR(255)")
+);
+assert.equal(agentSkillCollationChanged.status, "warn", "a changed column definition must remain blocked");
+assert.equal(agentSkillCollationChanged.risks[0]?.code, "alter_table_requires_manual_idempotency_review");
 
 console.log("migration preflight collation allowance tests passed");

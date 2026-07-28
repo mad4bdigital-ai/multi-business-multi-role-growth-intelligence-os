@@ -718,6 +718,11 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         && /^ALTER\s+TABLE\s+`?secret_references`?\s+MODIFY\s+COLUMN\s+`?secret_key`?\s+VARCHAR\(128\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci\s+NOT\s+NULL$/i.test(normalized)
       ) {
         counts.alter_table_idempotent += 1;
+      } else if (
+        filename === "20260725_agent_skill_grant_request_collation_repair.sql"
+        && /^ALTER\s+TABLE\s+agent_skill_grant_requests\s+MODIFY\s+COLUMN\s+request_id\s+VARCHAR\(36\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_uca1400_ai_ci\s+NOT\s+NULL,\s+MODIFY\s+COLUMN\s+agent_id\s+VARCHAR\(36\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_uca1400_ai_ci\s+NOT\s+NULL,\s+MODIFY\s+COLUMN\s+skill_id\s+VARCHAR\(36\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_uca1400_ai_ci\s+NOT\s+NULL,\s+MODIFY\s+COLUMN\s+tenant_id\s+VARCHAR\(36\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_uca1400_ai_ci\s+NULL,\s+MODIFY\s+COLUMN\s+brand_key\s+VARCHAR\(128\)\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_uca1400_ai_ci\s+NULL$/i.test(normalized)
+      ) {
+        counts.alter_table_idempotent += 1;
       } else if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
       } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
