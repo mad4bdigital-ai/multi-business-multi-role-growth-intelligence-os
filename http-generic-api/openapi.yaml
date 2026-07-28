@@ -9825,7 +9825,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listGrowthIntelligenceReports
       summary: List persisted Growth Intelligence reports
       parameters:
