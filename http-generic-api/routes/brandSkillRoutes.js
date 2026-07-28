@@ -1,35 +1,10 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import {
   activateBrandSkillForUser,
   listBrandSkillsForUser,
   revokeBrandSkillForUser,
 } from "../brandSkillActivationService.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authHeader.slice(7), JWT_SECRET); } catch { return null; }
-}
-
-function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "user_jwt_required", message: "Sign in required.", requestId: req.requestId || null },
-      secrets_included: false,
-    });
-  }
-  req.auth = {
-    mode: "user_jwt",
-    user_id: payload.user_id,
-    tenant_id: payload.tenant_id || null,
-    is_admin: false,
-  };
-  return next();
-}
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 function sendError(req, res, error) {
   return res.status(Number(error?.status || 500)).json({
