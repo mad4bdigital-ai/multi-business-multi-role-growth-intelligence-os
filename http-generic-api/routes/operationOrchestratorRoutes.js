@@ -541,32 +541,6 @@ function mountOperationRoutes(router, { prefix }) {
   });
 }
 
-export function buildOperationOrchestratorRoutes({
-  requireBackendApiKey,
-  requireAdminPrincipal,
-} = {}) {
-  const router = Router();
-
-  const backendGuard = requireSecurityMiddleware(
-    "requireBackendApiKey",
-    requireBackendApiKey,
-  );
-  const adminGuard = requireSecurityMiddleware(
-    "requireAdminPrincipal",
-    requireAdminPrincipal,
-  );
-
-  const admin = Router();
-  mountOperationRoutes(admin, [backendGuard, adminGuard]);
-  router.use("/admin", admin);
-
-  const tenant = Router();
-  mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
-  router.use("/tenant", tenant);
-
-  return router;
-}
-
 export const _testingOperationOrchestratorRoutes = {
   errorResponse,
   isResumeOperation,
