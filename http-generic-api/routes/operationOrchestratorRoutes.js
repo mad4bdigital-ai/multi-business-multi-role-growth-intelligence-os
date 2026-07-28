@@ -486,8 +486,7 @@ function mountOperationRoutes(router, { prefix }) {
   });
 
   router.get(
-    "/operations/workers/:worker_id",
-    ...middleware,
+    `${prefix}/operations/workers/:worker_id`,
     async (req, res) => {
       try {
         return res.status(200).json(
