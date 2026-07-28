@@ -107,9 +107,9 @@ WHERE d.runtime_policy_ready = 1
     'agent_queue_for_approval',
     'delegated_low_risk',
     'delegated_plan_bound',
-    'delegated_time_bound',
-    'delegated_budget_bound',
-    'delegated_combined_bound'
+    'human_on_exception',
+    'multi_agent_approval',
+    'break_glass'
   )
   AND d.max_risk_tier IN ('read_only', 'low', 'medium', 'high', 'critical')
   AND d.max_mutations IS NOT NULL
