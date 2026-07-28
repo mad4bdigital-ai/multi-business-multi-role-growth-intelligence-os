@@ -180,6 +180,43 @@ export async function releaseManagedGitEphemeralCheckout(handle) {
   };
 }
 
+export async function releaseManagedGitEphemeralCheckoutsForWorker({
+  worker_id,
+  root_dir = process.env.MANAGED_GIT_WORKSPACE_ROOT,
+} = {}) {
+  const workerId = normalizeWorkerId(worker_id);
+  const root = normalizeRoot(root_dir);
+  let entries;
+  try {
+    entries = await readdir(root);
+  } catch (error) {
+    if (error?.code === "ENOENT") entries = [];
+    else throw error;
+  }
+  const prefix = `${workerId}-`;
+  const targets = entries.filter((entry) => entry.startsWith(prefix)).sort();
+  for (const entry of targets) {
+    const target = resolve(root, entry);
+    assertInsideRoot(root, target);
+    await rm(target, { recursive: true, force: true });
+    if (await pathExists(target)) {
+      fail("managed_git_ephemeral_cleanup_failed", "Expired workspace cleanup could not be verified.", 503, {
+        worker_id: workerId,
+        retryable: true,
+      });
+    }
+  }
+  return {
+    worker_id: workerId,
+    checkout_strategy: "ephemeral_checkout",
+    workspace_released: true,
+    cleanup_verified: true,
+    cleanup_count: targets.length,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
+}
+
 export async function listManagedGitEphemeralRootEntries(root_dir = process.env.MANAGED_GIT_WORKSPACE_ROOT) {
   const root = normalizeRoot(root_dir);
   try {
