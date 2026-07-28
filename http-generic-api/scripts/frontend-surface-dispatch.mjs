@@ -766,6 +766,7 @@ export function parseRoutesFromFile(
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete|all)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(scanSource)) !== null) {
+    if (nestedRouters.excludedRanges.some(([start, end]) => match.index >= start && match.index <= end)) continue;
     const registrationMethod = match[1].toUpperCase();
     const methods = registrationMethod === "ALL" ? [...HTTP_METHODS] : [registrationMethod];
     if (methods.some((method) => !HTTP_METHODS.has(method))) continue;
