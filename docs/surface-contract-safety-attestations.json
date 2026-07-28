@@ -6343,7 +6343,7 @@
     },
     {
       "migration_file": "20260725_repository_authority_capability_readiness_repair.sql",
-      "migration_sha256": "516a2b52e3cd330f480eb10f8f1cb5016c9f995ae08535addeb489195d846ae9",
+      "migration_sha256": "d409fca318bcc767125c210a02a44468d6688852fb41e1388d6c7f6755015626",
       "checksum_canonicalization": "utf8_lf_v1",
       "attestation_status": "verified_static_no_external_side_effects",
       "evidence_mode": "checksum_bound_static_contract",
