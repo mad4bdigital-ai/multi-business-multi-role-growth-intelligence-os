@@ -306,7 +306,8 @@ function mountOperationRoutes(router, middleware = []) {
         lifecycle: workerLifecycle,
       });
       const input = workerLifecycle.input || capabilityInput;
-      const result = await executeOperation(input, operationDeps);
+      const executionDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+      const result = await executeOperation(input, executionDeps);
       const workerResult = await finalizeWorkerSafely({
         lifecycle: workerLifecycle,
         result,
