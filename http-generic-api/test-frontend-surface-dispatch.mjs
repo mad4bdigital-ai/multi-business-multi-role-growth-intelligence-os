@@ -31,6 +31,24 @@ assert.equal(
   "a signed installer token must remain a standalone authenticator when no principal guard is present",
 );
 
+const compositeLocalConnectorAuth = runtimeAuthProfile({
+  routePath: "/local-connector/uninstall",
+  routeGuards: ["requireBackendApiKey", "requireFreshLocalManagerDeviceForPrivilegedInstaller"],
+});
+assert.equal(
+  compositeLocalConnectorAuth.profile,
+  "backend_local_manager",
+  "the uninstall route must preserve its backend plus Local Manager composite authentication profile",
+);
+assert.deepEqual(
+  compositeLocalConnectorAuth.alternatives,
+  [
+    ["backendBearerAuth", "localManagerBearerAuth"],
+    ["backendApiKeyAuth", "localManagerBearerAuth"],
+  ],
+  "each uninstall security alternative must require backend and Local Manager authentication together",
+);
+
 function write(root, relative, content) {
   const target = path.join(root, relative);
   fs.mkdirSync(path.dirname(target), { recursive: true });
