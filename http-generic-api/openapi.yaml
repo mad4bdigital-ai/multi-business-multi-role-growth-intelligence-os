@@ -9783,7 +9783,7 @@ paths:
   /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGrowthIntelligencePilot
       summary: Run the read-only tenant and brand Growth Intelligence pilot
       description: >
