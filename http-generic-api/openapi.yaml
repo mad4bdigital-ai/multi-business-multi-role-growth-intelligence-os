@@ -9839,7 +9839,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/metrics:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceMetrics
       summary: Read tenant-scoped Growth Intelligence product and safety metrics
       parameters:
