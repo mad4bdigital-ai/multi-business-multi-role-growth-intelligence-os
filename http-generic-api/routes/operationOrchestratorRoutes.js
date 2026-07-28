@@ -506,7 +506,7 @@ function mountOperationRoutes(router, { prefix }) {
     },
   );
 
-  router.get("/operations/artifacts", ...middleware, async (req, res) => {
+  router.get(`${prefix}/operations/artifacts`, async (req, res) => {
     try {
       const input = {
         run_id: req.query.run_id,
