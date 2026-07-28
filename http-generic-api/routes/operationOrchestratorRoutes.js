@@ -530,7 +530,7 @@ function mountOperationRoutes(router, { prefix }) {
     }
   });
 
-  router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/ci-diagnose`, async (req, res) => {
     try {
       return res
         .status(200)
