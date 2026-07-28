@@ -220,7 +220,7 @@ export function registerRoutes(app, deps) {
   app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationOrchestratorRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
-  app.use(buildBrandSkillRoutes());
+  app.use(buildBrandSkillRoutes(deps));
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
