@@ -370,7 +370,10 @@ export async function markManagedGitWorkerRunning({ pool, lifecycle = {} } = {})
       WHERE worker_id = ? AND worker_status = 'ready'`,
     [lifecycle.worker_id],
   );
-  return { ...lifecycle, status: "running", secrets_included: false };
+  return attachWorkspaceHandle(
+    { ...lifecycle, status: "running", secrets_included: false },
+    workspaceHandleOf(lifecycle),
+  );
 }
 
 export async function finalizeManagedGitWorkerLifecycle({
