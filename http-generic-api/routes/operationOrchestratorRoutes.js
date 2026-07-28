@@ -255,7 +255,38 @@ function operationLifecycleNeedsAttention({
     || artifactRegistry?.status === "unavailable";
 }
 
-function mountOperationRoutes(router, middleware = []) {
+export function buildOperationOrchestratorRoutes({
+  requireBackendApiKey,
+  requireAdminPrincipal,
+} = {}) {
+  const router = Router();
+
+  requireSecurityMiddleware(
+    "requireBackendApiKey",
+    requireBackendApiKey,
+  );
+  requireSecurityMiddleware(
+    "requireAdminPrincipal",
+    requireAdminPrincipal,
+  );
+
+  router.use(
+    "/admin/operations",
+    requireBackendApiKey,
+    requireAdminPrincipal,
+  );
+  router.use(
+    "/tenant/operations",
+    requireTenantOperationPrincipal,
+  );
+
+  mountOperationRoutes(router, { prefix: "/admin" });
+  mountOperationRoutes(router, { prefix: "/tenant" });
+
+  return router;
+}
+
+function mountOperationRoutes(router, { prefix }) {
   router.get("/operations/contracts", ...middleware, async (req, res) => {
     try {
       const scope =
