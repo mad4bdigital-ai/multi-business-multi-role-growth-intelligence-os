@@ -348,6 +348,17 @@ export function compileOperationBindingManifest(input = {}) {
     kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
     compiler_version: compilerVersion,
   });
+  const resolverExplain = buildOperationBindingResolverExplain({
+    operation_key: operation.operation_key,
+    operation_version: operation.version,
+    source_revision_hash: sourceRevisionHash,
+    kill_switch_policy_hash: eligibilityReport.kill_switch_policy_hash,
+    selected_binding_id: selected.candidate.binding_id,
+    fallback_binding_ids: fallbackPlan.fallback_binding_ids,
+    overflow_binding_ids: fallbackPlan.overflow_binding_ids,
+    typed_exclusions: fallbackPlan.typed_exclusions,
+    candidate_evidence: candidateEvidence,
+  });
   const manifestCore = {
     schema_version: "operation-binding-manifest-v1",
     compiler_version: compilerVersion,
