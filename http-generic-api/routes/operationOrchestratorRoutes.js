@@ -287,7 +287,7 @@ export function buildOperationOrchestratorRoutes({
 }
 
 function mountOperationRoutes(router, { prefix }) {
-  router.get("/operations/contracts", ...middleware, async (req, res) => {
+  router.get(`${prefix}/operations/contracts`, async (req, res) => {
     try {
       const scope =
         req.auth?.is_admin || req.auth?.mode === "backend_api"
