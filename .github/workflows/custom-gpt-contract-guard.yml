@@ -74,6 +74,10 @@ on:
       - "http-generic-api/platformDegradationPolicy.js"
       - "http-generic-api/routes/credentialIntakeRoutes.js"
       - "http-generic-api/routes/gptToolsRoutes.js"
+      - "http-generic-api/server.js"
+      - "http-generic-api/operationRuntimeGuard.js"
+      - "http-generic-api/scripts/test-operation-runtime-guard.mjs"
+      - "http-generic-api/test-custom-gpt-contract-guard-paths.mjs"
       - ".github/workflows/openapi-auto-sync.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
   workflow_dispatch:
