@@ -27,6 +27,30 @@ function digest(value) {
   return createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
 }
 
+function attachWorkspaceHandle(lifecycle, handle) {
+  if (!lifecycle || !handle) return lifecycle;
+  Object.defineProperty(lifecycle, WORKSPACE_HANDLE, {
+    value: handle,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return lifecycle;
+}
+
+function workspaceHandleOf(lifecycle) {
+  return lifecycle?.[WORKSPACE_HANDLE] || null;
+}
+
+export function getManagedGitWorkerWorkspacePath(lifecycle = {}) {
+  if (lifecycle?.required !== true) return null;
+  const handle = workspaceHandleOf(lifecycle);
+  if (!handle) {
+    throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_HANDLE_REQUIRED", "The managed Git workspace handle is unavailable.");
+  }
+  return getManagedGitEphemeralCheckoutPath(handle);
+}
+
 function boundedInt(value, fallback, min, max) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(Math.floor(number), max)) : fallback;
