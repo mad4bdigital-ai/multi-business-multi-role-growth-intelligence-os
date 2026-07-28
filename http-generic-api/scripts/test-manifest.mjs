@@ -506,6 +506,7 @@ export const testCommands = [
   "node test-governed-response-chunk-durable-recovery-smoke.mjs",
   "node test-gpt-tools-response-chunking.mjs",
   "node test-hard-activation-transport-semantics.mjs",
+  "node test-system-layer-response-chunk-passthrough.mjs",
   "node test-google-sheets-chunking.mjs",
   "node test-sheets-range-drift.mjs",
   "node test-starter-authority-surfaces.mjs",
