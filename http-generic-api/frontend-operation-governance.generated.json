@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "0aa4e2b735d1fca48fc96f6200c25a1471188300f3a45ac2f2e84427b03bd715",
+    "source_digest": "609f2b7f6a7e592d5bb2901ceb5bd9eca10023fa195d27fb744a2dac75c2b3f6",
     "fail_closed": true
   },
   "source_authority": [
@@ -23,12 +23,12 @@
     },
     {
       "file": "routes/dynamicContainerAuthorityRoutes.js",
-      "sha256": "212d2dba72bd8bc25f476a3bebc4f771788c7d6714f8a43aaee6df8f83dfd0a6",
+      "sha256": "4301ec6b0c26eb8242f47b9a5f960acfbb60dd0c352d34411dca0d15a71a88f2",
       "present": true
     },
     {
       "file": "routes/resourceApiRoutes.js",
-      "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "present": true
     },
     {
@@ -116,7 +116,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -158,7 +158,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -200,7 +200,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "b7afb46fe0864fc0ba81fd362aaefa7065210a1763f641c5b826caa52d2777a9",
+        "source_digest": "2b8269f9c0e0fc6227f4494d40bd0bf9143d222d03371a57a070e3dda4e61927",
         "fail_closed": true
       }
     },
@@ -284,7 +284,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     },
@@ -326,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "1fc98fabeb5cbda64e6c4939f01654e3cde4ef31f840a74410e7eaa00cca5ca3",
+        "source_digest": "c752494aa02462b6ccba65c19791bc31f4089915536fdf32aee99d1258073acc",
         "fail_closed": true
       }
     }
