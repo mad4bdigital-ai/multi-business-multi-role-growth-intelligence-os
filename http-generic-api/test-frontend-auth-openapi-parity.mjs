@@ -122,7 +122,7 @@ for (const signature of resourceMutationSignatures) {
 
 assert.equal(plan.coverage.auth_parity_counts.undefined_scheme || 0, 0, "every referenced OpenAPI security scheme must be defined in its source document");
 const authContractGaps = operations
-  .filter((entry) => entry.auth_parity?.state === "unknown")
+  .filter((entry) => !["equivalent", "exempt"].includes(entry.auth_parity?.state))
   .map((entry) => ({
     signature: entry.signature,
     source_file: entry.source_file,
