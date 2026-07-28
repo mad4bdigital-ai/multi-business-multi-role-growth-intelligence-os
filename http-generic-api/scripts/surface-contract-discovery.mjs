@@ -4,12 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { validateDirectRouteCallabilityContracts } from "./resource-api-callability-contracts.mjs";
 
 const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const MIGRATIONS_DIR = path.join(API_ROOT, "migrations");
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
 const OPENAPI_DIR = path.join(API_ROOT, "openapi");
+const RESOURCE_API_COVERAGE_MANIFEST_PATH = path.join(API_ROOT, "resource-api-coverage.manifest.json");
 const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.md");
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
@@ -103,6 +105,28 @@ function normalizePathForCoverage(route = "") {
     .replace(/\/+$/g, "") || "/";
 }
 
+function loadDirectRouteCallabilityIndex() {
+  const manifestSource = readFileIfExists(RESOURCE_API_COVERAGE_MANIFEST_PATH);
+  if (!manifestSource) return { routes: new Map(), tools: new Set(), result: { ok: false, findings: [{ type: "direct_route_callability_manifest_missing" }] } };
+  try {
+    const manifest = JSON.parse(manifestSource);
+    const result = validateDirectRouteCallabilityContracts({ root: API_ROOT, manifest });
+    const routes = new Map();
+    const tools = new Set();
+    for (const contract of result.covered_contracts) {
+      const migrationFile = path.basename(contract.migration_file);
+      const routePath = String(contract.route_signature || "").replace(/^[A-Z]+\s+/, "");
+      routes.set(`${migrationFile}|${normalizePathForCoverage(routePath)}`, contract);
+      tools.add(`${migrationFile}|${contract.tool_key}`);
+    }
+    return { routes, tools, result };
+  } catch (error) {
+    return { routes: new Map(), tools: new Set(), result: { ok: false, findings: [{ type: "direct_route_callability_manifest_invalid", message: String(error?.message || error) }] } };
+  }
+}
+
+const DIRECT_ROUTE_CALLABILITY = loadDirectRouteCallabilityIndex();
+
 function migrationNumericPrefix(fileName = "") {
   const match = String(fileName || "").match(/^(\d+)_/);
   return match ? Number(match[1]) : null;
@@ -161,7 +185,7 @@ function collectOpenapiPaths() {
   return { operations: unique(operations), paths: unique(paths) };
 }
 
-function classifyRoute(route, source = "") {
+function classifyRoute(route, source = "", fileName = "") {
   if (/INSERT\s+INTO\s+admin_platform_endpoint_tools/i.test(source)) {
     return {
       route,
@@ -171,6 +195,19 @@ function classifyRoute(route, source = "") {
     };
   }
   if (/INSERT\s+INTO\s+tenant_platform_endpoint_tools/i.test(source)) {
+    const contract = DIRECT_ROUTE_CALLABILITY.routes.get(`${fileName}|${normalizePathForCoverage(route)}`) || null;
+    if (contract) {
+      return {
+        route,
+        route_class: "tenant_tool_registry_route",
+        openapi_required: false,
+        callability_evidence_required: false,
+        registry_presence_sufficient: false,
+        callability_contract_key: contract.contract_key,
+        callability_evidence_status: "verified_direct_route_contract",
+        reason: "Tenant tool registration is backed by a fail-closed direct-route contract covering SQL registration, handler, authentication, readback source, route mount, tests, and OpenAPI.",
+      };
+    }
     return {
       route,
       route_class: "tenant_tool_registry_route",
@@ -256,7 +293,7 @@ function extractSurfaces(source = "", fileName = "") {
   const routes = unique(routeMatches);
   const legacyClosed = isLegacyBacklogClosed(fileName);
   const routeClassifications = routes.map((route) => {
-    const classified = classifyRoute(route, source);
+    const classified = classifyRoute(route, source, fileName);
     return legacyClosed && classified.openapi_required ? legacyClosureRouteClassification(route, fileName) : classified;
   });
   const views = [...source.matchAll(/`?(v_[A-Za-z0-9_]+)`?/g)].map((m) => m[1]);
