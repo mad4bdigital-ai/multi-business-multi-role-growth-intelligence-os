@@ -19,7 +19,8 @@ function sendError(req, res, error) {
   });
 }
 
-export function buildBrandSkillRoutes() {
+export function buildBrandSkillRoutes(deps = {}) {
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
   const router = Router();
 
   router.get("/me/workspaces/:tenant_id/brands/:brand_key/skills", requireUserJwt, async (req, res) => {
