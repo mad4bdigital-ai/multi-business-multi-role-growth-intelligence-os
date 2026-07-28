@@ -130,3 +130,15 @@ The overall Spec 011 status remains `in_progress`.
 The recovery preserves the same three-file documentation and evidence scope. It does not alter the migration, apply SQL, enable runtime authority, create a public route, dispatch a provider, or require deployment.
 
 PR #3146 supersedes the unmerged closeout PR #3132.
+
+## Approval-mode contract drift correction
+
+The canonical approval-mode authority is the `delegation-grant.schema.json` enum together with `approval-delegation-modes.md`. The effective-view contract previously listed three non-canonical modes—`delegated_time_bound`, `delegated_budget_bound`, and `delegated_combined_bound`—instead of `human_on_exception`, `multi_agent_approval`, and `break_glass`.
+
+The migration contract now uses the exact canonical eight-mode set. The deterministic persistence test reads the JSON Schema and compares the effective-view mode list for exact equality, so future additions, removals, or renames fail CI unless the schema and migration contract change together.
+
+This correction changes repository contract text only. The migration remains `contract_only_unapplied`; no SQL was executed, no row was changed, and no runtime authority was enabled.
+
+The initial implementation scope remains limited to `user_approval_only`, `agent_recommend_only`, `agent_queue_for_approval`, `delegated_low_risk`, and `delegated_plan_bound`. Presence in the canonical schema does not activate `human_on_exception`, `multi_agent_approval`, or `break_glass` without their separate implementation and certification phases.
+
+T141 remains open.
