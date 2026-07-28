@@ -385,6 +385,7 @@ export function compileOperationBindingManifest(input = {}) {
       authority_created: fallbackPlan.authority_created,
       report_hash: fallbackPlan.report_hash,
     },
+    resolver_explain: resolverExplain,
     candidate_evidence: candidateEvidence,
     resolution_summary: {
       candidate_count: evaluated.length,
