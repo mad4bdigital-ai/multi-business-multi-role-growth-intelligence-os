@@ -32,13 +32,13 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 568/576 (98.61%)
-- Documentation gap migrations: 8
-- Gap severity: high=27, medium=3, low=0
+- Documentation complete migrations: 569/576 (98.78%)
+- Documentation gap migrations: 7
+- Gap severity: high=27, medium=2, low=0
 - SQL route coverage in OpenAPI: 22/32 (68.75%)
 - SQL route-like literals exempted from OpenAPI scoring: 665/697
 - SQL routes missing OpenAPI path coverage: 10
-- Migrations without explicit `secrets_included=false` marker: 6
+- Migrations without explicit `secrets_included=false` marker: 5
 
 ### Surface Totals
 
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 8 |
-| `deployment_parity_checklist.md` | 8 |
-| `docs/ai-docs-agent-governance.md` | 8 |
-| `docs/auto-docs-agent/README.md` | 8 |
-| `docs/change-documentation-governance.md` | 8 |
+| `Updating Registry Patch Index.md` | 7 |
+| `deployment_parity_checklist.md` | 7 |
+| `docs/ai-docs-agent-governance.md` | 7 |
+| `docs/auto-docs-agent/README.md` | 7 |
+| `docs/change-documentation-governance.md` | 7 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 568 |
-| no_credential_payload_read | 568 |
+| no_provider_call | 569 |
+| no_credential_payload_read | 569 |
 | no_raw_secrets | 569 |
-| no_external_send | 568 |
-| no_external_write | 568 |
-| secrets_included_false | 570 |
+| no_external_send | 569 |
+| no_external_write | 569 |
+| secrets_included_false | 571 |
 
 ### Route Classification Coverage
 
@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 30
+- Total queue items: 29
 - Critical review: 27
-- High review: 3
+- High review: 2
 - Medium review: 0
 - Low review: 0
 

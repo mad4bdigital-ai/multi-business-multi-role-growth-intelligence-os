@@ -4,6 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ACTIVATION_EVIDENCE_MAX_BYTES,
+  appendActivationAcknowledgement,
+  appendActivationDelivery,
+  appendActivationReconciliationAttempt,
   appendActivationStageAttempt,
   buildActivationEvidenceRecord,
   buildActivationOperationProjectionInsert,
@@ -12,6 +15,9 @@ import {
   deriveActivationOperationFingerprint,
   readActivationOperationProjection,
   sanitizeActivationEvidence,
+  transitionActivationAcknowledgement,
+  transitionActivationDelivery,
+  completeActivationReconciliationAttempt,
   updateActivationOperationProjection,
 } from "./activationOperationProjectionRepository.js";
 
@@ -214,6 +220,170 @@ const stageAttempt = await appendActivationStageAttempt(successfulPool, {
   attempt_status: "started",
 });
 assert.equal(stageAttempt.affected_rows, 1);
+
+const deliveryId = "55555555-5555-4555-8555-555555555555";
+const acknowledgementId = "66666666-6666-4666-8666-666666666666";
+const reconciliationId = "77777777-7777-4777-8777-777777777777";
+const actorRef = "tenant-user@example.test";
+
+const delivery = await appendActivationDelivery(successfulPool, {
+  delivery_id: deliveryId,
+  operation_id: operationId,
+  tenant_id: tenantId,
+  channel_key: "tenant_gpt",
+  delivery_attempt_number: 1,
+  delivery_status: "prepared",
+  payload_sha256: "a".repeat(64),
+});
+assert.equal(delivery.affected_rows, 1);
+
+const acknowledgement = await appendActivationAcknowledgement(successfulPool, {
+  acknowledgement_id: acknowledgementId,
+  operation_id: operationId,
+  delivery_id: deliveryId,
+  tenant_id: tenantId,
+  actor_type: "tenant_user",
+  actor_ref: actorRef,
+  acknowledgement_state: "pending",
+  client_event_id: "event-1",
+});
+assert.equal(acknowledgement.affected_rows, 1);
+assert.match(acknowledgement.acknowledgement_key_sha256, /^[0-9a-f]{64}$/);
+const acknowledgementInsertCall = calls.find(({ sql }) =>
+  /INSERT INTO activation_acknowledgements/.test(sql),
+);
+assert(acknowledgementInsertCall);
+assert.equal(acknowledgementInsertCall.params.includes(actorRef), false);
+assert.equal(JSON.stringify(acknowledgementInsertCall.params).includes(actorRef), false);
+
+const reconciliation = await appendActivationReconciliationAttempt(successfulPool, {
+  reconciliation_id: reconciliationId,
+  operation_id: operationId,
+  tenant_id: tenantId,
+  attempt_number: 1,
+  reason_code: "unknown_outcome",
+  source_type: "platform_native",
+  reconciliation_status: "pending",
+});
+assert.equal(reconciliation.affected_rows, 1);
+
+const transitionCalls = [];
+const transitionPool = {
+  async query(sql, params) {
+    transitionCalls.push({ sql, params });
+    return [{ affectedRows: 1 }];
+  },
+};
+
+assert.deepEqual(
+  await transitionActivationDelivery(transitionPool, {
+    delivery_id: deliveryId,
+    operation_id: operationId,
+    tenant_id: tenantId,
+    from_status: "prepared",
+    to_status: "sent",
+    response_status_code: 202,
+  }),
+  { updated: true, idempotent: false, state: "sent" },
+);
+assert.deepEqual(
+  await transitionActivationAcknowledgement(transitionPool, {
+    acknowledgement_id: acknowledgementId,
+    operation_id: operationId,
+    tenant_id: tenantId,
+    from_status: "pending",
+    to_status: "acknowledged",
+    acknowledgement_reason: "tenant_confirmed",
+  }),
+  { updated: true, idempotent: false, state: "acknowledged" },
+);
+assert.deepEqual(
+  await completeActivationReconciliationAttempt(transitionPool, {
+    reconciliation_id: reconciliationId,
+    operation_id: operationId,
+    tenant_id: tenantId,
+    from_status: "pending",
+    to_status: "executed",
+    outcome_code: "provider_executed",
+    evidence_ref: "execution-log:123",
+  }),
+  { updated: true, idempotent: false, state: "executed" },
+);
+for (const { sql, params } of transitionCalls) {
+  assert.match(sql, /operation_id = \?/);
+  assert.match(sql, /tenant_id = \?/);
+  assert(params.includes(operationId));
+  assert(params.includes(tenantId));
+}
+
+let idempotentQueryCount = 0;
+const idempotentDeliveryPool = {
+  async query(sql) {
+    idempotentQueryCount += 1;
+    if (/^\s*SELECT/i.test(sql)) {
+      return [[{ delivery_status: "sent" }]];
+    }
+    return [{ affectedRows: 0 }];
+  },
+};
+assert.deepEqual(
+  await transitionActivationDelivery(idempotentDeliveryPool, {
+    delivery_id: deliveryId,
+    operation_id: operationId,
+    tenant_id: tenantId,
+    from_status: "prepared",
+    to_status: "sent",
+  }),
+  { updated: false, idempotent: true, state: "sent" },
+);
+assert.equal(idempotentQueryCount, 2);
+
+const transitionConflictPool = {
+  async query(sql) {
+    if (/^\s*SELECT/i.test(sql)) {
+      return [[{ acknowledgement_state: "rejected" }]];
+    }
+    return [{ affectedRows: 0 }];
+  },
+};
+await assert.rejects(
+  () =>
+    transitionActivationAcknowledgement(transitionConflictPool, {
+      acknowledgement_id: acknowledgementId,
+      operation_id: operationId,
+      tenant_id: tenantId,
+      from_status: "pending",
+      to_status: "acknowledged",
+    }),
+  (error) =>
+    error?.code === "activation_acknowledgement_transition_conflict" &&
+    error?.status === 409,
+);
+await assert.rejects(
+  () =>
+    transitionActivationDelivery(transitionPool, {
+      delivery_id: deliveryId,
+      operation_id: operationId,
+      tenant_id: tenantId,
+      from_status: "sent",
+      to_status: "prepared",
+    }),
+  (error) =>
+    error?.code === "activation_delivery_transition_invalid" &&
+    error?.status === 409,
+);
+await assert.rejects(
+  () =>
+    transitionActivationDelivery(transitionPool, {
+      delivery_id: deliveryId,
+      operation_id: operationId,
+      tenant_id: tenantId,
+      from_status: "prepared",
+      to_status: "sent",
+      response_status_code: 99,
+    }),
+  (error) => error?.code === "activation_response_status_code_invalid",
+);
 
 const conflictPool = {
   async query() {

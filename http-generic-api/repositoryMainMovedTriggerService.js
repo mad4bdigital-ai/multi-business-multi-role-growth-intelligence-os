@@ -55,18 +55,34 @@ function expectedRepository(env = process.env) {
   return text(env.RELEASE_TRIGGER_REPOSITORY || env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY, 255).toLowerCase();
 }
 
+export function resolveConfiguredReleaseBranch(env = process.env) {
+  const branch = text(
+    env.RELEASE_TRIGGER_BRANCH
+      || env.ACTIVATION_GITHUB_BRANCH
+      || env.GITHUB_DEFAULT_BRANCH
+      || "main",
+    191,
+  ).replace(/^refs\/heads\//, "");
+  return branch || "main";
+}
+
 export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
   const repository = text(input.repository || input.repository_full_name, 255).toLowerCase();
-  const allowedRepository = expectedRepository(options.env || process.env);
+  const env = options.env || process.env;
+  const allowedRepository = expectedRepository(env);
   if (!repository || repository !== allowedRepository) {
     fail("repository_main_moved_repository_not_allowed", "The repository is not allowlisted for release triggering.", 403, {
       repository,
       expected_repository: allowedRepository,
     });
   }
-  const branch = text(input.branch || input.branch_name || "main", 191).replace(/^refs\/heads\//, "");
-  if (branch !== "main") {
-    fail("repository_main_moved_branch_not_supported", "Only the main branch may trigger release coordination.", 400, { branch });
+  const allowedBranch = resolveConfiguredReleaseBranch(env);
+  const branch = text(input.branch || input.branch_name || allowedBranch, 191).replace(/^refs\/heads\//, "");
+  if (branch !== allowedBranch) {
+    fail("repository_main_moved_branch_not_supported", "Only the configured release branch may trigger release coordination.", 400, {
+      branch,
+      expected_branch: allowedBranch,
+    });
   }
   const beforeSha = sha(input.before_sha || input.before, "before_sha");
   const afterSha = sha(input.after_sha || input.after, "after_sha");
@@ -74,7 +90,7 @@ export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
     fail("repository_main_moved_no_change", "before_sha and after_sha must differ.", 409);
   }
   if (input.deleted === true) {
-    fail("repository_main_moved_deleted_ref_blocked", "Deleted main references cannot trigger release coordination.", 409);
+    fail("repository_main_moved_deleted_ref_blocked", "Deleted release references cannot trigger release coordination.", 409);
   }
   const environmentKey = text(input.environment_key || "production", 64).toLowerCase();
   if (!ALLOWED_ENVIRONMENTS.has(environmentKey)) {

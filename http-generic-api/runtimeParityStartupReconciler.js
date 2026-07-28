@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
-import { createRepositoryMainMovedTriggerEvent } from "./repositoryMainMovedTriggerService.js";
+import {
+  createRepositoryMainMovedTriggerEvent,
+  resolveConfiguredReleaseBranch,
+} from "./repositoryMainMovedTriggerService.js";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const DEFAULT_MANIFEST_PATH = fileURLToPath(new URL("./deployment-manifest.json", import.meta.url));
@@ -34,9 +37,20 @@ export async function reconcileRuntimeParityOnStartup(options = {}) {
   try {
     const readManifest = options.readManifest || (() => readManifestFile(options.manifestPath));
     const manifest = await readManifest();
-    const branch = normalizeText(manifest?.branch || env.GITHUB_REF_NAME || env.GITHUB_BRANCH, 191).replace(/^refs\/heads\//, "");
-    if (branch !== "main") {
-      return { ok: true, status: "skipped", reason: "non_main_branch", branch, secrets_included: false };
+    const expectedBranch = resolveConfiguredReleaseBranch(env);
+    const branch = normalizeText(
+      manifest?.branch || env.GITHUB_REF_NAME || env.GITHUB_BRANCH || expectedBranch,
+      191,
+    ).replace(/^refs\/heads\//, "");
+    if (branch !== expectedBranch) {
+      return {
+        ok: true,
+        status: "skipped",
+        reason: expectedBranch === "main" ? "non_main_branch" : "non_release_branch",
+        branch,
+        expected_branch: expectedBranch,
+        secrets_included: false,
+      };
     }
 
     const repository = normalizeText(
@@ -85,7 +99,7 @@ export async function reconcileRuntimeParityOnStartup(options = {}) {
     const result = await createTrigger({
       source_event_id: sourceEventId,
       repository,
-      branch: "main",
+      branch,
       before_sha: beforeSha,
       after_sha: afterSha,
       forced: false,

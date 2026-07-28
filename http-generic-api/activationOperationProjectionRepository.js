@@ -353,6 +353,57 @@ function normalizeAppendBase(input = {}) {
   };
 }
 
+const DELIVERY_TRANSITIONS = Object.freeze({
+  prepared: new Set(["sent", "failed", "expired"]),
+});
+const ACKNOWLEDGEMENT_TRANSITIONS = Object.freeze({
+  not_requested: new Set(["pending"]),
+  pending: new Set(["acknowledged", "rejected", "expired"]),
+});
+const RECONCILIATION_TRANSITIONS = Object.freeze({
+  pending: new Set(["executed", "not_executed", "conflicting", "still_unknown", "failed"]),
+});
+
+function normalizeAllowedTransition({ from_status, to_status, transitions, field }) {
+  const fromStatus = normalizeState(from_status, `${field}_from_status`);
+  const toStatus = normalizeState(to_status, `${field}_to_status`);
+  if (!transitions[fromStatus]?.has(toStatus)) {
+    throw fail(
+      `activation_${field}_transition_invalid`,
+      `${field} cannot transition from ${fromStatus} to ${toStatus}.`,
+      409,
+    );
+  }
+  return { from_status: fromStatus, to_status: toStatus };
+}
+
+async function executeScopedActivationTransition(
+  pool,
+  {
+    sql,
+    params,
+    read_sql,
+    read_params,
+    state_field,
+    target_state,
+    conflict_code,
+    conflict_message,
+  },
+) {
+  requirePool(pool);
+  const [result] = await pool.query(sql, params);
+  if (Number(result?.affectedRows || 0) === 1) {
+    return { updated: true, idempotent: false, state: target_state };
+  }
+
+  const [rows] = await pool.query(read_sql, read_params);
+  if (rows?.[0]?.[state_field] === target_state) {
+    return { updated: false, idempotent: true, state: target_state };
+  }
+
+  throw fail(conflict_code, conflict_message, 409);
+}
+
 export async function appendActivationStageAttempt(pool, input = {}) {
   const base = normalizeAppendBase(input);
   const attemptId = normalizeUuid(input.attempt_id || randomUUID(), "attempt_id");
@@ -564,4 +615,178 @@ export async function appendActivationReconciliationAttempt(pool, input = {}) {
     "The reconciliation attempt number already exists for this operation.",
   );
   return { reconciliation_id: reconciliationId, affected_rows: affectedRows };
+}
+
+export async function transitionActivationDelivery(pool, input = {}) {
+  const base = normalizeAppendBase(input);
+  const deliveryId = normalizeUuid(input.delivery_id, "delivery_id");
+  const transition = normalizeAllowedTransition({
+    from_status: input.from_status,
+    to_status: input.to_status,
+    transitions: DELIVERY_TRANSITIONS,
+    field: "delivery",
+  });
+  const responseStatusCode =
+    input.response_status_code == null ? null : Number(input.response_status_code);
+  if (
+    responseStatusCode != null &&
+    (!Number.isSafeInteger(responseStatusCode) ||
+      responseStatusCode < 100 ||
+      responseStatusCode > 599)
+  ) {
+    throw fail(
+      "activation_response_status_code_invalid",
+      "response_status_code must be an integer between 100 and 599.",
+    );
+  }
+  const errorCode = normalizeText(input.error_code, "error_code", 160);
+  const errorMessage = normalizeText(input.error_message, "error_message", 1000);
+  const deliveredAt = input.delivered_at || null;
+  return executeScopedActivationTransition(pool, {
+    sql: `UPDATE activation_deliveries
+             SET delivery_status = ?,
+                 response_status_code = ?,
+                 error_code = ?,
+                 error_message = ?,
+                 delivered_at = CASE
+                   WHEN ? = 'sent' THEN COALESCE(?, UTC_TIMESTAMP(3))
+                   ELSE delivered_at
+                 END
+           WHERE delivery_id = ?
+             AND operation_id = ?
+             AND tenant_id = ?
+             AND delivery_status = ?`,
+    params: [
+      transition.to_status,
+      responseStatusCode,
+      errorCode,
+      errorMessage,
+      transition.to_status,
+      deliveredAt,
+      deliveryId,
+      base.operation_id,
+      base.tenant_id,
+      transition.from_status,
+    ],
+    read_sql: `SELECT delivery_status
+                 FROM activation_deliveries
+                WHERE delivery_id = ?
+                  AND operation_id = ?
+                  AND tenant_id = ?
+                LIMIT 1`,
+    read_params: [deliveryId, base.operation_id, base.tenant_id],
+    state_field: "delivery_status",
+    target_state: transition.to_status,
+    conflict_code: "activation_delivery_transition_conflict",
+    conflict_message:
+      "The delivery changed or is outside the authorized tenant and operation scope.",
+  });
+}
+
+export async function transitionActivationAcknowledgement(pool, input = {}) {
+  const base = normalizeAppendBase(input);
+  const acknowledgementId = normalizeUuid(
+    input.acknowledgement_id,
+    "acknowledgement_id",
+  );
+  const transition = normalizeAllowedTransition({
+    from_status: input.from_status,
+    to_status: input.to_status,
+    transitions: ACKNOWLEDGEMENT_TRANSITIONS,
+    field: "acknowledgement",
+  });
+  const acknowledgementReason = normalizeText(
+    input.acknowledgement_reason,
+    "acknowledgement_reason",
+    1000,
+  );
+  const acknowledgedAt = input.acknowledged_at || null;
+  return executeScopedActivationTransition(pool, {
+    sql: `UPDATE activation_acknowledgements
+             SET acknowledgement_state = ?,
+                 acknowledgement_reason = COALESCE(?, acknowledgement_reason),
+                 acknowledged_at = CASE
+                   WHEN ? IN ('acknowledged', 'rejected', 'expired')
+                     THEN COALESCE(?, UTC_TIMESTAMP(3))
+                   ELSE acknowledged_at
+                 END
+           WHERE acknowledgement_id = ?
+             AND operation_id = ?
+             AND tenant_id = ?
+             AND acknowledgement_state = ?`,
+    params: [
+      transition.to_status,
+      acknowledgementReason,
+      transition.to_status,
+      acknowledgedAt,
+      acknowledgementId,
+      base.operation_id,
+      base.tenant_id,
+      transition.from_status,
+    ],
+    read_sql: `SELECT acknowledgement_state
+                 FROM activation_acknowledgements
+                WHERE acknowledgement_id = ?
+                  AND operation_id = ?
+                  AND tenant_id = ?
+                LIMIT 1`,
+    read_params: [acknowledgementId, base.operation_id, base.tenant_id],
+    state_field: "acknowledgement_state",
+    target_state: transition.to_status,
+    conflict_code: "activation_acknowledgement_transition_conflict",
+    conflict_message:
+      "The acknowledgement changed or is outside the authorized tenant and operation scope.",
+  });
+}
+
+export async function completeActivationReconciliationAttempt(pool, input = {}) {
+  const base = normalizeAppendBase(input);
+  const reconciliationId = normalizeUuid(
+    input.reconciliation_id,
+    "reconciliation_id",
+  );
+  const transition = normalizeAllowedTransition({
+    from_status: input.from_status,
+    to_status: input.to_status,
+    transitions: RECONCILIATION_TRANSITIONS,
+    field: "reconciliation",
+  });
+  const outcomeCode = input.outcome_code
+    ? normalizeState(input.outcome_code, "outcome_code")
+    : null;
+  const evidenceRef = normalizeText(input.evidence_ref, "evidence_ref", 500);
+  const completedAt = input.completed_at || null;
+  return executeScopedActivationTransition(pool, {
+    sql: `UPDATE activation_reconciliation_attempts
+             SET reconciliation_status = ?,
+                 outcome_code = ?,
+                 evidence_ref = ?,
+                 completed_at = COALESCE(?, UTC_TIMESTAMP(3))
+           WHERE reconciliation_id = ?
+             AND operation_id = ?
+             AND tenant_id = ?
+             AND reconciliation_status = ?`,
+    params: [
+      transition.to_status,
+      outcomeCode,
+      evidenceRef,
+      completedAt,
+      reconciliationId,
+      base.operation_id,
+      base.tenant_id,
+      transition.from_status,
+    ],
+    read_sql: `SELECT reconciliation_status
+                 FROM activation_reconciliation_attempts
+                WHERE reconciliation_id = ?
+                  AND operation_id = ?
+                  AND tenant_id = ?
+                LIMIT 1`,
+    read_params: [reconciliationId, base.operation_id, base.tenant_id],
+    state_field: "reconciliation_status",
+    target_state: transition.to_status,
+    conflict_code: "activation_reconciliation_transition_conflict",
+    conflict_message:
+      "The reconciliation attempt changed or is outside the authorized tenant and operation scope.",
+  });
 }
