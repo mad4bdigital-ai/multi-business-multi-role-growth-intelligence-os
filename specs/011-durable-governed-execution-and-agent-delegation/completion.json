@@ -148,6 +148,12 @@
       {
         "number": 3173,
         "role": "phase3_delegation_lifecycle_shadow_contract",
+        "status": "merged",
+        "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+      },
+      {
+        "number": 3203,
+        "role": "phase3_delegation_approval_mode_contract_drift_repair",
         "status": "current_pr"
       }
     ],
