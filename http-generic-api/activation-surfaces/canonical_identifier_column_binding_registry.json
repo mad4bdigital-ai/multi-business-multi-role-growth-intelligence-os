@@ -1,0 +1,29 @@
+{
+  "surface_key": "canonical_identifier_column_binding_registry",
+  "display_name": "Canonical Identifier Column Bindings",
+  "description": "Admin-only rollout bindings between canonical identifier contracts and physical database columns.",
+  "source_table": "canonical_identifier_column_binding_registry",
+  "covered_source_tables": ["canonical_identifier_column_binding_registry"],
+  "result_key_column": "binding_key",
+  "result_label_column": "binding_key",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "lifecycle_status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "binding_key",
+    "contract_key",
+    "table_name",
+    "column_name",
+    "rollout_phase",
+    "lifecycle_status",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 500,
+  "sort_order": 346,
+  "status": "active",
+  "notes": "Excludes metadata_json and exposes no tenant records, credential material, provider payloads, or secrets."
+}
