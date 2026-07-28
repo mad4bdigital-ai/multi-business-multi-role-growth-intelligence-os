@@ -670,7 +670,85 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
+function nestedRouterRouteExpansions(source, file, mountPrefix, aliases) {
+  const text = maskJavaScriptComments(source);
+  const helperDefinitions = [];
+  const helperRe = /\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*\{/g;
+  let helperMatch;
+  while ((helperMatch = helperRe.exec(text)) !== null) {
+    const opening = text.indexOf("{", helperMatch.index);
+    const closing = findMatchingBrace(text, opening);
+    if (closing < 0) continue;
+    helperDefinitions.push({
+      name: helperMatch[1],
+      parameters: splitTopLevelArguments(helperMatch[2]).map((parameter) =>
+        parameter.split("=")[0].trim().replace(/^\.\.\./, ""),
+      ),
+      start: helperMatch.index,
+      opening,
+      closing,
+    });
+    helperRe.lastIndex = closing + 1;
+  }
+
+  const childRouters = new Set(
+    [...text.matchAll(/\bconst\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*Router\s*\(\s*\)\s*;/g)]
+      .map((match) => match[1]),
+  );
+  const mounts = new Map();
+  for (const match of text.matchAll(/(?:router|app)\.use\s*\(\s*(["'`])([^"'`]+)\1\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)\s*;/g)) {
+    if (!childRouters.has(match[3])) continue;
+    mounts.set(match[3], normalizeRoutePath(match[2]));
+  }
+  if (!mounts.size) return { operations: [], excludedRanges: [] };
+
+  const operations = [];
+  const excludedRanges = [];
+  for (const helper of helperDefinitions) {
+    let expandedHelper = false;
+    const callToken = `${helper.name}(`;
+    let callIndex = text.indexOf(callToken, helper.closing + 1);
+    while (callIndex >= 0) {
+      const opening = callIndex + helper.name.length;
+      const closing = findMatchingDelimiter(text, opening, "(", ")");
+      if (closing < 0) break;
+      const args = splitTopLevelArguments(text.slice(opening + 1, closing));
+      const childRouter = args[0]?.trim();
+      const mountedPrefix = mounts.get(childRouter);
+      if (mountedPrefix) {
+        let helperBody = text.slice(helper.opening + 1, helper.closing);
+        const middlewareParameter = helper.parameters[1];
+        if (middlewareParameter) {
+          helperBody = helperBody
+            .split(`...${middlewareParameter}`)
+            .join(args[1] || "[]");
+        }
+        operations.push(
+          ...parseRoutesFromFile(
+            helperBody,
+            file,
+            joinRoutePath(mountPrefix, mountedPrefix),
+            { expandNestedRouters: false, inheritedAliases: aliases },
+          ).map((operation) => ({
+            ...operation,
+            source_index: helper.opening + 1 + operation.source_index,
+          })),
+        );
+        expandedHelper = true;
+      }
+      callIndex = text.indexOf(callToken, closing + 1);
+    }
+    if (expandedHelper) excludedRanges.push([helper.start, helper.closing]);
+  }
+  return { operations, excludedRanges };
+}
+
+export function parseRoutesFromFile(
+  source,
+  file,
+  mountPrefix = "/",
+  { receiver = "router_or_app", expandNestedRouters = true, inheritedAliases = null } = {},
+) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
   const aliases = middlewareAliases(scanSource);
