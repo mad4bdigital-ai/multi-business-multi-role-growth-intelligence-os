@@ -604,6 +604,7 @@ export const testCommands = [
   "node test-operation-binding-fallback.mjs",
   "node test-operation-binding-kill-switch.mjs",
   "node test-operation-binding-resolver-explain.mjs",
+  "node test-operation-binding-preference-authority.mjs",
   "node test-operation-compiled-manifest-persistence.mjs",
   "node test-operation-runtime-verifier.mjs",
   "node test-operation-authority-preflight.mjs",
