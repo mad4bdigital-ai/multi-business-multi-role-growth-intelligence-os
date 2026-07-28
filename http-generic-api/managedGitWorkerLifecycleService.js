@@ -381,6 +381,7 @@ export async function finalizeManagedGitWorkerLifecycle({
   lifecycle = {},
   result = {},
   dispatch,
+  releaseWorkspace = releaseManagedGitEphemeralCheckout,
 } = {}) {
   if (lifecycle?.required !== true || !lifecycle?.worker_id) {
     return {
@@ -400,19 +401,12 @@ export async function finalizeManagedGitWorkerLifecycle({
   );
 
   let finalHeadSha = null;
-  let readback = null;
   let readbackError = null;
+  let cleanupResult = null;
+  let cleanupError = null;
+
   try {
     finalHeadSha = await readHead(dispatch, lifecycle.input || {});
-    readback = {
-      checkout_head_sha: lifecycle.checkout_head_sha || null,
-      final_head_sha: finalHeadSha,
-      head_changed: Boolean(lifecycle.checkout_head_sha && lifecycle.checkout_head_sha !== finalHeadSha),
-      operation_status: result?.status || null,
-      operation_ok: result?.ok !== false,
-      workspace_released: true,
-      secrets_included: false,
-    };
   } catch (error) {
     readbackError = {
       code: error?.code || "MANAGED_GIT_WORKER_READBACK_FAILED",
@@ -422,8 +416,52 @@ export async function finalizeManagedGitWorkerLifecycle({
     };
   }
 
-  const finalStatus = readbackError ? "failed" : "cleaned";
+  try {
+    const handle = workspaceHandleOf(lifecycle);
+    if (!handle) {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_HANDLE_REQUIRED", "The managed Git workspace handle is unavailable.");
+    }
+    if (typeof releaseWorkspace !== "function") {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_RELEASE_REQUIRED", "A managed Git workspace release function is required.");
+    }
+    cleanupResult = await releaseWorkspace(handle);
+  } catch (error) {
+    cleanupError = {
+      code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+      message: error?.message || "Managed worker workspace cleanup failed.",
+      details: error?.details || null,
+      secrets_included: false,
+    };
+  }
+
+  const workspaceReleased = cleanupResult?.workspace_released === true;
+  const cleanupVerified = cleanupResult?.cleanup_verified === true;
+  const readback = {
+    checkout_head_sha: lifecycle.checkout_head_sha || null,
+    final_head_sha: finalHeadSha,
+    head_changed: Boolean(lifecycle.checkout_head_sha && finalHeadSha && lifecycle.checkout_head_sha !== finalHeadSha),
+    operation_status: result?.status || null,
+    operation_ok: result?.ok !== false,
+    workspace_created: lifecycle.workspace_created === true,
+    workspace_released: workspaceReleased,
+    cleanup_verified: cleanupVerified,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
+  const finalError = readbackError || cleanupError
+    ? {
+        code: "MANAGED_GIT_WORKER_FINALIZATION_FAILED",
+        message: "Managed worker finalization requires attention.",
+        details: {
+          readback_error: readbackError,
+          cleanup_error: cleanupError,
+        },
+        secrets_included: false,
+      }
+    : null;
+  const finalStatus = finalError ? "failed" : "cleaned";
   const runId = text(result?.run_id || result?.operation_id, 64) || null;
+
   await db(
     pool,
     `UPDATE operation_managed_git_worker_leases
@@ -434,8 +472,8 @@ export async function finalizeManagedGitWorkerLifecycle({
       runId,
       finalStatus,
       finalHeadSha,
-      readback ? JSON.stringify(readback) : null,
-      readbackError ? JSON.stringify(readbackError) : null,
+      JSON.stringify(readback),
+      finalError ? JSON.stringify(finalError) : null,
       lifecycle.worker_id,
     ],
   );
@@ -445,14 +483,17 @@ export async function finalizeManagedGitWorkerLifecycle({
     status: finalStatus,
     worker_id: lifecycle.worker_id,
     run_id: runId,
-    checkout_strategy: lifecycle.checkout_strategy || "virtual_git_tree",
+    checkout_strategy: lifecycle.checkout_strategy || "ephemeral_checkout",
     checkout_head_sha: lifecycle.checkout_head_sha || null,
     final_head_sha: finalHeadSha,
     workspace_fingerprint: lifecycle.workspace_fingerprint || null,
-    workspace_released: true,
+    workspace_created: lifecycle.workspace_created === true,
+    workspace_released: workspaceReleased,
+    cleanup_verified: cleanupVerified,
+    workspace_path_exposed: false,
     readback,
-    error: readbackError,
-    readback_required: Boolean(readbackError),
+    error: finalError,
+    readback_required: Boolean(finalError),
     secrets_included: false,
   };
 }
