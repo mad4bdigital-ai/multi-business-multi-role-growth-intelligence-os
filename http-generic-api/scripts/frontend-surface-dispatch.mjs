@@ -639,7 +639,13 @@ function enclosingHelper(source, sourceIndex) {
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
-    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
+    if (closing >= sourceIndex) {
+      enclosing = {
+        name: match[1],
+        declaration_index: match.index,
+        closing,
+      };
+    }
   }
   return enclosing;
 }
@@ -649,19 +655,24 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   if (!tokens.length) return [routeTemplate];
   const helper = enclosingHelper(source, sourceIndex);
   if (!helper) return [];
-  const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
-  callRe.lastIndex = helper.closing + 1;
   const expanded = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const bindings = {};
-    for (const token of tokens) {
-      const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
-      if (value) bindings[token] = value;
-    }
-    if (tokens.every((token) => bindings[token])) {
-      expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+  const callSources = [
+    source.slice(0, helper.declaration_index),
+    source.slice(helper.closing + 1),
+  ];
+  for (const callSource of callSources) {
+    const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
+    let call;
+    while ((call = callRe.exec(callSource)) !== null) {
+      const bindings = {};
+      for (const token of tokens) {
+        const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
+        const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
+        if (value) bindings[token] = value;
+      }
+      if (tokens.every((token) => bindings[token])) {
+        expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+      }
     }
   }
   return unique(expanded);
