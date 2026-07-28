@@ -25,6 +25,7 @@ import {
 } from "../operationCapabilityLifecycleService.js";
 import {
   finalizeManagedGitWorkerLifecycle,
+  getManagedGitWorkerWorkspacePath,
   markManagedGitWorkerRunning,
   prepareManagedGitWorkerLifecycle,
   readManagedGitWorkerLease,
