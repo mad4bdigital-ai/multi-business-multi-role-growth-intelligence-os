@@ -201,6 +201,7 @@ function publicRow(row = {}) {
     if (typeof value === "object") return value;
     try { return JSON.parse(value); } catch { return null; }
   };
+  const readback = parse(row.readback_json);
   return {
     worker_id: row.worker_id,
     run_id: row.run_id || null,
@@ -219,8 +220,11 @@ function publicRow(row = {}) {
     running_at: row.running_at ? new Date(row.running_at).toISOString() : null,
     cleanup_started_at: row.cleanup_started_at ? new Date(row.cleanup_started_at).toISOString() : null,
     released_at: row.released_at ? new Date(row.released_at).toISOString() : null,
-    workspace_released: Boolean(row.released_at),
-    readback: parse(row.readback_json),
+    workspace_created: readback?.workspace_created === true,
+    workspace_released: readback?.workspace_released === true,
+    cleanup_verified: readback?.cleanup_verified === true,
+    workspace_path_exposed: false,
+    readback,
     error: parse(row.error_json),
     secrets_included: false,
   };
