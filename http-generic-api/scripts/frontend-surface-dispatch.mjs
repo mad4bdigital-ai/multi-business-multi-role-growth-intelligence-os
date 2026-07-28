@@ -793,7 +793,7 @@ export function parseRoutesFromFile(
       }
     }
   }
-  return operations;
+  return [...operations, ...nestedRouters.operations];
 }
 
 function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, runtimeAuth = null }) {
