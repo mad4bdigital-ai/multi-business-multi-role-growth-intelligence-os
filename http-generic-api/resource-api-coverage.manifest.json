@@ -61,7 +61,7 @@
         "route_file": "routes/workspaceResourceRoutes.js",
         "mount_file": "routes/index.js",
         "test_file": "test-workspace-resource-authority-foundation.mjs",
-        "openapi_file": "openapi/openapi.tenant-gpt.auth.yaml",
+        "openapi_file": "openapi.yaml",
         "migration_markers": [
           "INSERT INTO tenant_platform_endpoint_tools",
           "'workspace_brands_list'",
