@@ -327,7 +327,7 @@ function mountOperationRoutes(router, { prefix }) {
     }
   });
 
-  router.post("/operations/execute", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/execute`, async (req, res) => {
     let capabilityLifecycle = null;
     let capabilityFinalized = false;
     let workerLifecycle = null;
