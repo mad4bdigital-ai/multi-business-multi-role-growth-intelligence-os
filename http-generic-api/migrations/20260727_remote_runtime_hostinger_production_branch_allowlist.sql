@@ -1,6 +1,12 @@
 -- Allow the governed Hostinger deploy executor to deploy exact SHAs from
 -- canonical main or the protected Production promotion branch.
 -- This migration only updates existing registry contracts and policies.
+-- Safety attestations:
+-- no_provider_call
+-- no_credential_payload_read
+-- no_external_send
+-- no_external_write
+-- secrets_included_false
 
 UPDATE remote_runtime_command_allowlists
 SET input_schema_json = JSON_OBJECT(
