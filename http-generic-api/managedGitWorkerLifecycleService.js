@@ -233,6 +233,8 @@ export async function prepareManagedGitWorkerLifecycle({
   operationKey = "",
   dispatch,
   now = new Date(),
+  workspaceRoot = process.env.MANAGED_GIT_WORKSPACE_ROOT,
+  createWorkspace = createManagedGitEphemeralCheckout,
 } = {}) {
   if (!operationRequiresWorker(operationKey)) {
     return { required: false, status: "not_required", operation_key: operationKey || null, input, secrets_included: false };
