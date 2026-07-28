@@ -35,6 +35,15 @@ assert(executor.includes("Only main and Production branch deployment is supporte
 assert(openapi.includes("branch: { type: string, enum: [main, Production], default: main }"), "OpenAPI must document the exact deployment branch allowlist");
 assert(branchAllowlistMigration.includes("JSON_ARRAY('main','Production')"), "corrective migration must register the exact deployment branch allowlist");
 assert(branchAllowlistMigration.includes('"enum":["main","Production"]'), "admin tool schema must accept main and Production only");
+for (const marker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included_false",
+]) {
+  assert(branchAllowlistMigration.includes(marker), `corrective migration must preserve ${marker}`);
+}
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
