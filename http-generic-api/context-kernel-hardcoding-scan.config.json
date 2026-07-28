@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mode": "runtime_blocking",
+  "mode": "runtime_ratchet",
   "scan_roots": [
     "http-generic-api",
     "src",
