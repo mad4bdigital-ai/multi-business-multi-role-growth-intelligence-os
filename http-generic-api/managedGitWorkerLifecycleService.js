@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
+import {
+  createManagedGitEphemeralCheckout,
+  getManagedGitEphemeralCheckoutPath,
+  releaseManagedGitEphemeralCheckout,
+  releaseManagedGitEphemeralCheckoutsForWorker,
+} from "./managedGitEphemeralCheckoutExecutor.js";
 
+const WORKSPACE_HANDLE = Symbol("managed_git_worker_workspace_handle");
 const ADMIN_MODES = new Set(["backend_api", "admin", "service", "service_account"]);
 const WORKER_OPERATIONS = new Set(["repo.change.execute", "repo.branch.reconcile", "operation.resume"]);
 const ACTIVE_STATUSES = new Set(["allocated", "ready", "running", "cleaning"]);
