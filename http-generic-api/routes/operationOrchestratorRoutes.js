@@ -469,7 +469,7 @@ function mountOperationRoutes(router, { prefix }) {
     }
   });
 
-  router.post("/operations/status", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/status`, async (req, res) => {
     try {
       const input = bodyOf(req);
       await assertOperationRunAccess({
