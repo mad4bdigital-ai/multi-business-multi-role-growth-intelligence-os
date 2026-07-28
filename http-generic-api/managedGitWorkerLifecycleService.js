@@ -328,13 +328,52 @@ export async function prepareManagedGitWorkerLifecycle({
     throw error;
   }
 
-  await db(
-    pool,
-    `UPDATE operation_managed_git_worker_leases
-        SET worker_status = 'ready', ready_at = NOW(), updated_at = NOW()
-      WHERE worker_id = ? AND worker_status = 'allocated'`,
-    [workerId],
-  );
+  try {
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'ready', ready_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ? AND worker_status = 'allocated'`,
+      [workerId],
+    );
+  } catch (error) {
+    let cleanupError = null;
+    try {
+      await releaseManagedGitEphemeralCheckout(workspaceHandle);
+    } catch (cleanupFailure) {
+      cleanupError = {
+        code: cleanupFailure?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+        message: cleanupFailure?.message || "Compensating workspace cleanup failed.",
+        details: cleanupFailure?.details || null,
+        secrets_included: false,
+      };
+    }
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'failed', active_lease_key = NULL, error_json = ?,
+              released_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ?`,
+      [
+        JSON.stringify({
+          code: "MANAGED_GIT_WORKER_READY_TRANSITION_FAILED",
+          message: "The managed Git worker could not enter the ready state.",
+          details: {
+            cause_code: String(error?.code || "ready_transition_failed"),
+            cleanup_error: cleanupError,
+          },
+          secrets_included: false,
+        }),
+        workerId,
+      ],
+    ).catch(() => {});
+    throw fail(503, "MANAGED_GIT_WORKER_READY_TRANSITION_FAILED", "The managed Git worker could not enter the ready state.", {
+      cause_code: String(error?.code || "ready_transition_failed"),
+      cleanup_verified: cleanupError === null,
+      workspace_path_exposed: false,
+      retryable: true,
+    });
+  }
 
   return attachWorkspaceHandle({
     required: true,
