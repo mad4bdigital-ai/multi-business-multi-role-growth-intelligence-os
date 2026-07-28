@@ -751,7 +751,10 @@ export function parseRoutesFromFile(
 ) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
-  const aliases = middlewareAliases(scanSource);
+  const aliases = inheritedAliases || middlewareAliases(scanSource);
+  const nestedRouters = expandNestedRouters
+    ? nestedRouterRouteExpansions(scanSource, file, mountPrefix, aliases)
+    : { operations: [], excludedRanges: [] };
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete|all)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
