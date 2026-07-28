@@ -19,6 +19,7 @@ const AUTH_GUARDS = new Set([
   "verifyUserJwt",
   "requireUser",
   "requireTenantPrincipal",
+  "requireTenantOperationPrincipal",
   "requireResolutionPrincipal",
   "requireActiveMembership",
   "requireWorkspaceOwner",
