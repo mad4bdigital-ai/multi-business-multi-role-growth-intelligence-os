@@ -167,7 +167,12 @@
     "phase3_delegation_lifecycle_shadow_contract",
     "phase3_pending_mutation_receipt_planning",
     "phase3_delegation_renewal_no_widening_tests",
-    "phase3_delegation_lifecycle_read_only_repository_port"
+    "phase3_delegation_lifecycle_read_only_repository_port",
+    "phase3_delegation_repository_mutation_contract",
+    "phase3_transactional_pending_receipt_protocol",
+    "phase3_idempotent_replay_and_reconciliation_tests",
+    "phase3_same_cycle_grant_and_receipt_readback",
+    "phase3_unknown_commit_outcome_fail_closed"
   ],
   "constraints": [
     "no_provider_call",
