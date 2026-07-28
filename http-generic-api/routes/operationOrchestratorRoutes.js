@@ -317,7 +317,7 @@ function mountOperationRoutes(router, { prefix }) {
     }
   });
 
-  router.post("/operations/preview", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/preview`, async (req, res) => {
     try {
       return res
         .status(200)
