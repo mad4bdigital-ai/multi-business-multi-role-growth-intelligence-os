@@ -213,6 +213,8 @@ Critical/high SQL cache runtime conditions are projected into the Admin operatio
 
 Governed migration child-process failures return bounded redacted diagnostics. They may include exit code, signal, detected database error code, and sanitized stderr/stdout summaries, but never raw credentials, bearer values, URL credentials, or unbounded logs.
 
+Before any governed migration statement executes, the runner must inspect canonical identifier comparisons against the live `information_schema`. Identifier columns with incompatible SQL type, character set, or collation are blocking unless both operands use an explicit binary comparison. The SQL registries `canonical_identifier_contract_registry` and `canonical_identifier_column_binding_registry` are the authority for staged identifier normalization. The transitional target is `CHAR(36) CHARACTER SET ascii COLLATE ascii_bin`; the final storage target is `BINARY(16)`. Broad conversion requires additive columns, backfill, dual-read or dual-write, relationship verification, cutover, and later cleanup in separate governed migrations.
+
 ### Repository automation control plane
 
 Use the Admin-only Repository Automation Control Plane to coordinate repeated repository delivery work instead of manually chaining the same tools. The four registered surfaces are `repository_automation_plan`, `repository_automation_run`, `repository_automation_status`, and `repository_automation_hygiene_scan`. Supported templates are `pr_delivery`, `migration_release`, `post_merge_closeout`, `branch_cleanup`, `spec_lifecycle`, `hygiene_scan`, and `full_workstream`.

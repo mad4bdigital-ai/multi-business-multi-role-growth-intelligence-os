@@ -1,0 +1,33 @@
+{
+  "surface_key": "canonical_identifier_contract_registry",
+  "display_name": "Canonical Identifier Contracts",
+  "description": "Admin-only authority for UUID-like platform identifier storage, comparison, and phased normalization contracts.",
+  "source_table": "canonical_identifier_contract_registry",
+  "covered_source_tables": ["canonical_identifier_contract_registry"],
+  "result_key_column": "contract_key",
+  "result_label_column": "identifier_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "rollout_status",
+  "active_status_values": ["guardrail_active", "migration_active"],
+  "result_columns": [
+    "contract_key",
+    "identifier_name",
+    "logical_type",
+    "transition_sql_type",
+    "transition_character_set",
+    "transition_collation",
+    "target_sql_type",
+    "comparison_mode",
+    "rollout_status",
+    "owner_surface",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 345,
+  "status": "active",
+  "notes": "Excludes metadata_json and exposes no tenant records, credential material, provider payloads, or secrets."
+}
