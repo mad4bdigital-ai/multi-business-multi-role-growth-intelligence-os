@@ -6613,7 +6613,11 @@ paths:
   /local-connector/uninstall:
     delete:
       tags: [local-manager]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security:
+        - backendBearerAuth: []
+          localManagerBearerAuth: []
+        - backendApiKeyAuth: []
+          localManagerBearerAuth: []
       operationId: uninstallLocalConnector
       summary: Disable a Local Connector device configuration
       description: >
