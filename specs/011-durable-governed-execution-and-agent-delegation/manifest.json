@@ -104,8 +104,13 @@
   "phase3_delegation_lifecycle_source_main_sha": "6b3ee56913e9e9a9c058f727c5101d71321f9692",
   "phase3_delegation_lifecycle_final_ci_head_sha": "8aa099c93cce7ab8b140f167ff9944d79e628ab8",
   "phase3_delegation_lifecycle_final_ci_base_sha": "9f3cfe6391b97eb2cf5de0895ff7e5f06cee8e63",
+  "phase3_delegation_lifecycle_merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
   "phase3_delegation_lifecycle_deployment_required": false,
   "phase3_delegation_lifecycle_runtime_authority": false,
+  "phase3_delegation_mode_drift_branch": "gpt/spec-011-delegation-mode-contract-drift-20260728",
+  "phase3_delegation_mode_drift_pull_request": 3203,
+  "phase3_delegation_mode_drift_source_main_sha": "704c452666c055259c426c6534620df497bc2a45",
+  "phase3_delegation_mode_drift_migration_applied": false,
   "deliverables": [
     "spec",
     "plan",
