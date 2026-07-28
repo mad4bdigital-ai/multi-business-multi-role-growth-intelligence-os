@@ -3,8 +3,33 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, parseRoutesFromFile, parseTestEvidenceClaims, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, parseRoutesFromFile, parseTestEvidenceClaims, runtimeAuthProfile, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
 import { serializedSecurity } from "./scripts/openapi-runtime-auth-sync.mjs";
+
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/download-link",
+    routeGuards: ["requireBackendApiKey", "verifyInstallerDownloadToken"],
+  }).profile,
+  "backend_or_user",
+  "a signed installer token must remain a secondary validator when backend authentication is present",
+);
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/device-download-link",
+    routeGuards: ["requireFreshLocalManagerDeviceForPrivilegedInstaller", "verifyInstallerDownloadToken"],
+  }).profile,
+  "local_manager",
+  "a signed installer token must remain a secondary validator when a Local Manager principal is present",
+);
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/download",
+    routeGuards: ["verifyInstallerDownloadToken"],
+  }).profile,
+  "signed_query_token",
+  "a signed installer token must remain a standalone authenticator when no principal guard is present",
+);
 
 function write(root, relative, content) {
   const target = path.join(root, relative);
