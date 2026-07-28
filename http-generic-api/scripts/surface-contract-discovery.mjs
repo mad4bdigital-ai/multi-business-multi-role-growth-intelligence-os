@@ -300,6 +300,8 @@ function extractSurfaces(source = "", fileName = "") {
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
   const tools = [...source.matchAll(/['"`]([A-Za-z0-9_]+(?:_tool|_readback|_gate|_request|_approve|_decision|_execute|_list|_rollback|_certify|_record|_propose|_lookup|_validate|_blueprint|_dispatch|_preflight|_readiness)[A-Za-z0-9_]*)['"`]/g)].map((m) => m[1]);
+  const detectedTools = unique(tools);
+  const callabilityCoveredTools = detectedTools.filter((tool) => DIRECT_ROUTE_CALLABILITY.tools.has(`${fileName}|${tool}`));
   const safety = detectSafetyMarkers(source);
   return {
     routes,
@@ -307,7 +309,9 @@ function extractSurfaces(source = "", fileName = "") {
     views: unique(views),
     policies: unique(policies),
     plugins: unique(plugins),
-    tools: unique(tools),
+    tools: detectedTools,
+    callability_covered_tools: callabilityCoveredTools,
+    callability_unverified_tools: detectedTools.filter((tool) => !callabilityCoveredTools.includes(tool)),
     safety,
   };
 }
