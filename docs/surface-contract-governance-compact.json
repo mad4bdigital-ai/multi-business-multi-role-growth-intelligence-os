@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.61,
-  "docs_complete_count": 568,
-  "docs_gap_count": 8,
-  "queue_items": 30,
-  "blocking_new_item_count": 11,
+  "docs_completion_percent": 98.78,
+  "docs_complete_count": 569,
+  "docs_gap_count": 7,
+  "queue_items": 29,
+  "blocking_new_item_count": 10,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -72,13 +72,13 @@
   "openapi_missing_sql_route_count": 10,
   "openapi_exempt_sql_route_count": 665,
   "total_sql_route_like_count": 697,
-  "safety_marker_gap_migrations": 6,
+  "safety_marker_gap_migrations": 5,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 11,
-    "warning_new_item_count": 11
+    "blocking_new_item_count": 10,
+    "warning_new_item_count": 10
   },
   "safety": {
     "executes_provider_calls": false,

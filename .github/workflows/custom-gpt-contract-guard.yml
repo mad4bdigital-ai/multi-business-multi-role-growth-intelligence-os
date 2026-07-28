@@ -40,6 +40,10 @@ on:
       - "http-generic-api/routes/rootDiscoveryRoutes.js"
       - "http-generic-api/tenantGptOAuthPreset.js"
       - "http-generic-api/test-platform-routes.mjs"
+      - "http-generic-api/server.js"
+      - "http-generic-api/operationRuntimeGuard.js"
+      - "http-generic-api/scripts/test-operation-runtime-guard.mjs"
+      - "http-generic-api/test-custom-gpt-contract-guard-paths.mjs"
       - ".github/workflows/openapi-auto-sync.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
   push:
@@ -70,6 +74,10 @@ on:
       - "http-generic-api/platformDegradationPolicy.js"
       - "http-generic-api/routes/credentialIntakeRoutes.js"
       - "http-generic-api/routes/gptToolsRoutes.js"
+      - "http-generic-api/server.js"
+      - "http-generic-api/operationRuntimeGuard.js"
+      - "http-generic-api/scripts/test-operation-runtime-guard.mjs"
+      - "http-generic-api/test-custom-gpt-contract-guard-paths.mjs"
       - ".github/workflows/openapi-auto-sync.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
   workflow_dispatch:
@@ -108,6 +116,8 @@ jobs:
       - run: npm ci
       - name: Enforce canonical parity and Builder-safe schemas
         run: npm run schemas:guard
+      - name: Verify Contract Guard trigger coverage
+        run: node test-custom-gpt-contract-guard-paths.mjs
       - name: Verify split-schema governance and regeneration parity
         run: |
           node test-openapi-split-governance.mjs
