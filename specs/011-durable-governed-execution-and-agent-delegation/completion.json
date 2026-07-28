@@ -613,8 +613,11 @@
       "phase3_delegation_lifecycle_status": "complete_on_main",
       "phase3_delegation_lifecycle_pull_request": 3173,
       "phase3_delegation_lifecycle_merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
-      "phase3_delegation_mode_drift_status": "pending_merge",
+      "phase3_delegation_mode_drift_status": "complete_on_main",
       "phase3_delegation_mode_drift_pull_request": 3203,
+      "phase3_delegation_mode_drift_merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
+      "phase3_delegation_repository_status": "pending_merge",
+      "phase3_delegation_repository_pull_request": 3221,
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
     }
