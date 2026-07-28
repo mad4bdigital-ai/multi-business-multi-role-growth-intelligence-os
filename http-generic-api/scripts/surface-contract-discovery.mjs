@@ -468,8 +468,9 @@ function remediationFor(entry) {
       reason: "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion.",
     });
   }
-  if (entry.surfaces.tools.length) {
-    actions.push({ action_key: "verify_tool_registry_binding", owner_hint: "runtime-registry-review", targets: entry.surfaces.tools.slice(0, 25), reason: "Tool-like surfaces need registry binding/readback evidence before promotion." });
+  const unverifiedTools = Array.isArray(entry.surfaces.callability_unverified_tools) ? entry.surfaces.callability_unverified_tools : entry.surfaces.tools;
+  if (unverifiedTools.length) {
+    actions.push({ action_key: "verify_tool_registry_binding", owner_hint: "runtime-registry-review", targets: unverifiedTools.slice(0, 25), reason: "Tool-like surfaces need registry binding/readback evidence before promotion." });
   }
   if (entry.surfaces.policies.length) {
     actions.push({ action_key: "verify_policy_seed_readiness", owner_hint: "runtime-policy-review", targets: entry.surfaces.policies, reason: "Policy surfaces need active/blocking/valid-JSON readiness evidence." });
