@@ -122,6 +122,23 @@ function depsFor(req) {
   };
 }
 
+function depsWithManagedGitWorkspace(deps, lifecycle) {
+  const workspacePath = getManagedGitWorkerWorkspacePath(lifecycle);
+  if (!workspacePath) return deps;
+  const next = { ...deps };
+  Object.defineProperty(next, "managed_git_workspace", {
+    value: Object.freeze({
+      worker_id: lifecycle.worker_id,
+      checkout_strategy: lifecycle.checkout_strategy,
+      workspace_path: workspacePath,
+    }),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return next;
+}
+
 function isTenant(req) {
   return req.auth?.mode === "user_jwt" && req.auth?.is_admin !== true;
 }
