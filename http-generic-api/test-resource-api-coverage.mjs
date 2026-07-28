@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { RESOURCE_DESCRIPTORS, decodePageToken, descriptor, encodePageToken } from "./src/domain/resourceApi/resourceCatalog.js";
 import { _testingResourceCoverageService, evaluateResourceSurfacePolicy, isRecoverySnapshotSurface, requiresScopedPrimaryKey, shouldResolvePriorCoverageFindings } from "./resourceApiCoverageService.js";
+import { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";
 
 const manifest = JSON.parse(readFileSync("resource-api-coverage.manifest.json", "utf8"));
 const routeSource = readFileSync("routes/resourceApiRoutes.js", "utf8");
@@ -45,6 +46,21 @@ assert(auditCloseoutMigration.includes("migration_only"));
 assert(!/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i.test(auditCloseoutMigration));
 assert(auditScript.includes("new_relation_missing_surface_policy_decision"));
 assert(spec.includes("No feature without resource API coverage"));
+const directRouteCallability = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest });
+assert.equal(directRouteCallability.ok, true, JSON.stringify(directRouteCallability.findings));
+assert(directRouteCallability.covered_tool_keys.includes("workspace_brands_list"));
+assert(directRouteCallability.covered_route_signatures.includes("GET /me/workspaces/{tenant_id}/brands"));
+const workspaceRouteSource = readFileSync("routes/workspaceResourceRoutes.js", "utf8");
+const tamperedRouteCallability = validateDirectRouteCallabilityContracts({
+  root: process.cwd(),
+  manifest,
+  fileOverrides: {
+    "routes/workspaceResourceRoutes.js": workspaceRouteSource.replace("RESOURCE_API_CALLABILITY_CONTRACT: workspace_brands_list", "RESOURCE_API_CALLABILITY_CONTRACT: tampered"),
+  },
+});
+assert.equal(tamperedRouteCallability.ok, false);
+assert(!tamperedRouteCallability.covered_tool_keys.includes("workspace_brands_list"));
+assert(tamperedRouteCallability.findings.some((row) => row.type === "direct_route_contract_marker_missing" && row.role === "route"));
 
 const internalPolicy = { exposure_class: "internal_registry", resource_key: null, descriptor_requirement: "not_applicable", operation_requirement: "not_applicable", archive_requirement: "not_applicable", version_requirement: "not_applicable" };
 assert.deepEqual(evaluateResourceSurfacePolicy({ surfaceKind: "table", surfaceRef: "internal_registry_example", policy: internalPolicy }), []);
