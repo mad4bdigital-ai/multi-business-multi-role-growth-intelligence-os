@@ -259,7 +259,7 @@ export async function prepareManagedGitWorkerLifecycle({
   const ttlMinutes = boundedInt(input.managed_worker_ttl_minutes || input.managedWorkerTtlMinutes, 30, 5, 120);
   const leaseExpiresAt = new Date(now.getTime() + ttlMinutes * 60_000);
   const fingerprint = digest(JSON.stringify({
-    checkout_strategy: "virtual_git_tree",
+    checkout_strategy: "ephemeral_checkout",
     ...context,
     checkout_head_sha: checkoutHeadSha,
     worker_id: workerId,
