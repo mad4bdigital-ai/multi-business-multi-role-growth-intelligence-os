@@ -502,7 +502,7 @@ function scoreGap(entry, index, total) {
   score += entry.coverage.route_coverage.callability_review_count * 160;
   score += entry.surfaces.plugins.length * 120;
   score += entry.coverage.route_coverage.openapi_required_route_count * 100;
-  score += entry.surfaces.tools.length * 18;
+  score += (Array.isArray(entry.surfaces.callability_unverified_tools) ? entry.surfaces.callability_unverified_tools : entry.surfaces.tools).length * 18;
   score += entry.surfaces.policies.length * 40;
   score += entry.surfaces.views.length * 10;
   score += safetyGapsFor(entry).length * 12;
