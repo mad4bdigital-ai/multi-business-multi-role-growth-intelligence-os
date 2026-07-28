@@ -9897,7 +9897,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceInsight
       summary: Accept, reject, or mark a Growth Intelligence insight stale
       description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
