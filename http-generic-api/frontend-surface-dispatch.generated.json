@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a2c658b2a8717935aff2344a34824a277bb68284cfce5c0b527afb6dd78cd75f",
+    "source_digest": "8dea513f5bb2369b3e41020a45c0667f175337bab93cdb3b8f54376f0d75ebf8",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "0d5628554ff1e70e5be89b4de4f05000edf9517a7d802c2afeb076daddd5ea57",
+        "sha256": "f6945681d7aa980af731d77ad997debc4b788c6d29a5ffc09789f17ae2142409",
         "present": true
       },
       {
@@ -1117,12 +1117,11 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 384,
     "auth_parity_counts": {
-      "equivalent": 968,
+      "equivalent": 975,
       "exempt": 17,
-      "mismatch": 7,
       "unknown": 2
     },
-    "auth_contract_gap_count": 9,
+    "auth_contract_gap_count": 2,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -55315,20 +55314,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55388,20 +55384,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55459,20 +55452,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55530,20 +55520,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55601,20 +55588,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55674,20 +55658,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55747,20 +55728,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55789,64 +55767,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/metrics",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -55906,7 +55827,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -85501,7 +85422,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
