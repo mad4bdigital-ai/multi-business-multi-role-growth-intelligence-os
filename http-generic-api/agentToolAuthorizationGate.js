@@ -194,6 +194,21 @@ export async function authorizeAgentToolCall({
   }));
   if (classification.consequential && skill.required && !skill.granted) blockers.push(skill.reason || "required_agent_skill_grant_missing");
 
+  const userBrandSkillGrant = await resolveUserBrandSkillEntitlement(db, skill, context, {
+    toolName,
+    args,
+    action,
+  }).catch(() => ({
+    configured: context.enforce_brand_skill_entitlement === true,
+    granted: context.enforce_brand_skill_entitlement !== true,
+    grant_id: null,
+    operation: null,
+    reason: "user_brand_skill_grant_resolution_failed",
+  }));
+  if (classification.consequential && userBrandSkillGrant.configured && !userBrandSkillGrant.granted) {
+    blockers.push(userBrandSkillGrant.reason || "user_brand_skill_grant_missing");
+  }
+
   const appGrant = await resolveAppActionGrant(db, action?.action_key, context).catch(() => ({
     configured: true,
     granted: false,
