@@ -639,6 +639,40 @@ function enclosingHelper(source, sourceIndex) {
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
+    if (closing >= sourceIndex) {
+      enclosing = {
+        name: match[1],
+        declaration_index: match.index,
+        closing,
+      };
+    }
+  }
+  return enclosing;
+}
+
+function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
+  const tokens = unique([...String(routeTemplate).matchAll(/\$\{([A-Za-z0-9_]+)}/g)].map((match) => match[1]));
+  if (!tokens.length) return [routeTemplate];
+  const helper = enclosingHelper(source, sourceIndex);
+  if (!helper) return [];
+  const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
+  const expanded = [];
+  const callSources = [
+    source.slice(0, helper.declaration_index),
+    source.slice(helper.closing + 1),
+  ];
+  for (const callSource of callSources) {
+    let call;
+    while ((call = callRe.exec(callSource)) !== null) {
+      const bindings = {};
+      for (const token of tokens) {
+        const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\function enclosingHelper(source, sourceIndex) {
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
+  let match;
+  let enclosing = null;
+  while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
+    const opening = functionRe.lastIndex - 1;
+    const closing = findMatchingBrace(source, opening);
     if (closing >= sourceIndex) enclosing = { name: match[1], closing };
   }
   return enclosing;
@@ -663,6 +697,17 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
     if (tokens.every((token) => bindings[token])) {
       expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
     }
+  }
+  return unique(expanded);
+}");
+        const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
+        if (value) bindings[token] = value;
+      }
+      if (tokens.every((token) => bindings[token])) {
+        expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+      }
+    }
+    callRe.lastIndex = 0;
   }
   return unique(expanded);
 }
