@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "6ee3827ab4a6265ac699d22bc1f4a74f6d507fe97498e79f24936a924a51e4b3",
+    "source_digest": "a2c658b2a8717935aff2344a34824a277bb68284cfce5c0b527afb6dd78cd75f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "5d2d810044f814a84fccf64d594e8ba71a682be613b4e9b80ad1a80980e7570a",
+        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "a2b5e952f989c71f4c6494dbf59e4379f4cfef75af487d221c81d126d51b8b35",
+        "sha256": "0d5628554ff1e70e5be89b4de4f05000edf9517a7d802c2afeb076daddd5ea57",
         "present": true
       },
       {
@@ -47,6 +47,11 @@
       {
         "file": "openapi/container-authority.yaml",
         "sha256": "01fea4e1c003bce1a1fed46c65f9bf7437fcb00913c32d332f63094c6ad7a473",
+        "present": true
+      },
+      {
+        "file": "openapi/context-kernel.yaml",
+        "sha256": "b3a1abfb9fce7bcb0c273febe850b7b2e9ef61350db6448d5d28ed4599f16602",
         "present": true
       },
       {
@@ -661,7 +666,7 @@
       },
       {
         "file": "routes/resourceApiRoutes.js",
-        "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+        "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
         "present": true
       },
       {
@@ -826,7 +831,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+        "sha256": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
         "present": true
       },
       {
@@ -906,7 +911,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "d3a2ce5291d93cec225077a488f7c01183686261d903fd50db6b692ec5727afa",
+        "sha256": "20b7e8a945b06e338b9952e4d192f8528304967b4715cb6d063a472da91bcf3f",
         "present": true
       },
       {
@@ -9353,7 +9358,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+      "source_digest": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
       "mount_prefix": "/",
       "mount_order": 13277,
       "split_from_mixed_scope_file": true,
@@ -10049,7 +10054,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "902837596905460dffdcd875058d3eeec7d0ed77e40a30b5ac2613517f6fb544",
+      "source_digest": "771771e0970148a1e41a73ea4a10d760dac681cf6bf03b7c80365e6a2b4413bd",
       "mount_prefix": "/",
       "mount_order": 13277,
       "split_from_mixed_scope_file": true,
@@ -26946,7 +26951,7 @@
       "family_key": "resource-api.admin",
       "label": "resource api (admin)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
@@ -28113,7 +28118,7 @@
       "family_key": "resource-api.tenant",
       "label": "resource api (tenant)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
@@ -29040,7 +29045,7 @@
       "family_key": "resource-api.unresolved",
       "label": "resource api (unresolved)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
       "mount_order": 15663,
       "split_from_mixed_scope_file": true,
