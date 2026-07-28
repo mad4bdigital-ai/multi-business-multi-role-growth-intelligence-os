@@ -98,6 +98,20 @@
       "number": 3146,
       "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726",
       "role": "delegation_persistence_evidence_closeout_recovery",
+      "status": "merged",
+      "merge_sha": "02d42fab17638d11aa1737187fde3c49ee35198f"
+    },
+    "phase3_delegation_lifecycle_pr": {
+      "number": 3173,
+      "branch": "gpt/spec-011-phase3-delegation-lifecycle-contract-20260726",
+      "role": "delegation_lifecycle_shadow_contract",
+      "status": "merged",
+      "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+    },
+    "phase3_delegation_mode_drift_pr": {
+      "number": 3203,
+      "branch": "gpt/spec-011-delegation-mode-contract-drift-20260728",
+      "role": "delegation_approval_mode_contract_drift_repair",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -130,6 +144,17 @@
         "role": "phase3_delegation_persistence_contract",
         "status": "merged",
         "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
+      },
+      {
+        "number": 3173,
+        "role": "phase3_delegation_lifecycle_shadow_contract",
+        "status": "merged",
+        "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+      },
+      {
+        "number": 3203,
+        "role": "phase3_delegation_approval_mode_contract_drift_repair",
+        "status": "current_pr"
       }
     ],
     "closeout_pr": {
@@ -263,8 +288,51 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_lifecycle_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "6b3ee56913e9e9a9c058f727c5101d71321f9692",
+      "pull_request": 3173,
+      "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
+      "service": "http-generic-api/delegationGrantLifecycleShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-lifecycle-shadow.mjs",
+      "design": "phase3-delegation-lifecycle-shadow.md",
+      "create_shadow_planning": true,
+      "revoke_shadow_planning": true,
+      "expire_shadow_planning": true,
+      "pending_mutation_receipt_planning": true,
+      "renewal_no_widening": true,
+      "read_only_repository_port": true,
+      "schema_readiness_evidence_required": true,
+      "migration_applied": false,
+      "database_write": false,
+      "grant_mutation": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_mode_drift_repair": {
+      "status": "complete_on_branch",
+      "source_main_sha": "704c452666c055259c426c6534620df497bc2a45",
+      "pull_request": 3203,
+      "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
+      "design": "phase3-delegation-persistence-contract.md",
+      "canonical_schema": "schemas/delegation-grant.schema.json",
+      "canonical_approval_modes_exact_match": true,
+      "migration_applied": false,
+      "database_write": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_persistence_contract_complete_on_main"
+      "status": "phase3_delegation_mode_drift_repair_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -314,6 +382,17 @@
       "status": "pass",
       "head_sha": "22f100d6aece8600fa953bed7f05fd1f975890f5",
       "base_sha": "2587f804045e5045a87a5df3009ea2bac8aa45d8",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_lifecycle_ci": {
+      "status": "pass",
+      "head_sha": "8aa099c93cce7ab8b140f167ff9944d79e628ab8",
+      "base_sha": "9f3cfe6391b97eb2cf5de0895ff7e5f06cee8e63",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -479,9 +558,14 @@
       "phase3_delegation_grant_shadow_closeout_status": "merged",
       "phase3_delegation_persistence_status": "complete_on_main",
       "phase3_delegation_persistence_original_closeout_status": "closed_unmerged",
-      "phase3_delegation_persistence_closeout_status": "current_pr",
+      "phase3_delegation_persistence_closeout_status": "merged",
       "phase3_delegation_persistence_recovery_pull_request": 3146,
       "phase3_delegation_persistence_migration_status": "contract_only_unapplied",
+      "phase3_delegation_lifecycle_status": "complete_on_main",
+      "phase3_delegation_lifecycle_pull_request": 3173,
+      "phase3_delegation_lifecycle_merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
+      "phase3_delegation_mode_drift_status": "pending_merge",
+      "phase3_delegation_mode_drift_pull_request": 3203,
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
     }
