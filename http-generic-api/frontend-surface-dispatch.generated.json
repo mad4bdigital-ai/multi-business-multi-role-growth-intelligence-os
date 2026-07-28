@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "772834e12fccf96efe9c567690fc7b36ebdd21749b29eafc0ae4e0526c7e907e",
+    "source_digest": "fed081bca0063df0460e70243df89a6e65f935710fed465d3eaee67e74fde140",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -51,7 +51,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "5eb776c96f5587ed7f08fac7266ae09ee7fa980362597d124f68bacec5c31159",
+        "sha256": "87731338913075e6f3e9afa41f508b088ea1eb5198e2ebc47fa7eb43898bf3d4",
         "present": true
       },
       {
@@ -901,7 +901,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "7ce0752418d7caeb676937f3dc0770f3629b078116484900a96689da15e0b5fa",
+        "sha256": "2f1c75adf7c811e13908310e36d7c1387485ee151ced94f40ada6629c57da076",
         "present": true
       },
       {
@@ -1105,20 +1105,19 @@
     "mounted_route_file_count": 132,
     "mixed_scope_route_file_count": 25,
     "operation_count": 994,
-    "openapi_documented_count": 976,
+    "openapi_documented_count": 977,
     "openapi_canonical_documented_count": 593,
-    "openapi_generated_index_count": 383,
+    "openapi_generated_index_count": 384,
     "openapi_exemption_count": 17,
-    "openapi_gap_count": 1,
-    "openapi_detail_gap_count": 383,
+    "openapi_gap_count": 0,
+    "openapi_detail_gap_count": 384,
     "auth_parity_counts": {
-      "equivalent": 959,
+      "equivalent": 960,
       "exempt": 17,
       "mismatch": 7,
-      "missing_openapi": 1,
       "unknown": 10
     },
-    "auth_contract_gap_count": 18,
+    "auth_contract_gap_count": 17,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -5113,10 +5112,17 @@
           "source_file": "routes/localConnectorInstallRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "mixed_guard_chain",
-            "alternatives": null,
-            "principal": null,
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
             "guard_chain": [
               "requireBackendApiKey",
               "requireFreshLocalManagerDeviceForPrivilegedInstaller"
@@ -5125,19 +5131,32 @@
               "route:requireBackendApiKey",
               "route:requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": null,
-          "auth_parity": {
-            "state": "missing_openapi",
-            "reasons": [
-              "operation_not_documented"
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
             ]
           },
-          "openapi_documented": false,
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
           "openapi_canonical_documented": false,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "operation-index-only",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -5158,13 +5177,12 @@
           "mutation": false
         }
       ],
-      "openapi_gaps": [
-        "DELETE /local-connector/uninstall"
-      ],
+      "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "POST /local-connector/install",
-        "GET /local-connector/install/status"
+        "GET /local-connector/install/status",
+        "DELETE /local-connector/uninstall"
       ],
       "auth_contract_gaps": [
         {
@@ -5172,13 +5190,6 @@
           "state": "unknown",
           "reasons": [
             "mixed_guard_chain"
-          ]
-        },
-        {
-          "signature": "DELETE /local-connector/uninstall",
-          "state": "missing_openapi",
-          "reasons": [
-            "operation_not_documented"
           ]
         }
       ],
@@ -5235,7 +5246,7 @@
         }
       ],
       "risk": {
-        "score": 16,
+        "score": 14,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -5374,7 +5385,7 @@
           "scope": "unresolved",
           "runtime_auth": {
             "state": "unresolved",
-            "profile": "mixed_guard_chain",
+            "profile": "auth_policy_conflicts_with_runtime_guard",
             "alternatives": null,
             "principal": null,
             "guard_chain": [
@@ -5403,7 +5414,7 @@
           "auth_parity": {
             "state": "unknown",
             "reasons": [
-              "mixed_guard_chain"
+              "auth_policy_conflicts_with_runtime_guard"
             ]
           },
           "openapi_documented": true,
@@ -5438,7 +5449,7 @@
           "signature": "POST /local-connector/install/device-download-link",
           "state": "unknown",
           "reasons": [
-            "mixed_guard_chain"
+            "auth_policy_conflicts_with_runtime_guard"
           ]
         }
       ],
@@ -85594,7 +85605,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_contract_gap",
         "openapi_detail_contract_gap",
         "auth_contract_gap",
         "test_ownership_gap",
