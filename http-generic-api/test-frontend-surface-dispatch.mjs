@@ -331,6 +331,47 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const operationOrchestratorSource = fs.readFileSync(new URL("./routes/operationOrchestratorRoutes.js", import.meta.url), "utf8");
+const operationOrchestratorRoutes = parseRoutesFromFile(
+  operationOrchestratorSource,
+  "routes/operationOrchestratorRoutes.js",
+);
+const operationOrchestratorSuffixes = [
+  "GET /operations/contracts",
+  "POST /operations/context",
+  "POST /operations/preview",
+  "POST /operations/execute",
+  "POST /operations/status",
+  "GET /operations/workers/{worker_id}",
+  "GET /operations/artifacts",
+  "POST /operations/ci-diagnose",
+];
+const expectedOperationOrchestratorSignatures = ["/admin", "/tenant"]
+  .flatMap((prefix) => operationOrchestratorSuffixes.map((signature) => {
+    const [method, routePath] = signature.split(" ");
+    return `${method} ${prefix}${routePath}`;
+  }))
+  .sort();
+assert.deepEqual(
+  operationOrchestratorRoutes.map((operation) => operation.signature).sort(),
+  expectedOperationOrchestratorSignatures,
+  "operation orchestrator helper routes must preserve both admin and tenant mounts",
+);
+assert.equal(
+  operationOrchestratorRoutes.some((operation) => operation.path.startsWith("/operations/")),
+  false,
+  "operation orchestrator helper routes must not produce phantom root operations",
+);
+assert.deepEqual(
+  operationOrchestratorRoutes.find((operation) => operation.signature === "GET /admin/operations/contracts").inherited_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "admin operation routes must preserve backend authentication and admin authorization",
+);
+assert.deepEqual(
+  operationOrchestratorRoutes.find((operation) => operation.signature === "GET /tenant/operations/contracts").inherited_guards,
+  ["requireTenantOperationPrincipal"],
+  "tenant operation routes must preserve the tenant operation principal guard",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
