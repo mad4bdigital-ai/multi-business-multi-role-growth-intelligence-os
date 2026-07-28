@@ -571,7 +571,7 @@ function activeRouterUseGuards(source, sourceIndex, routePath, aliases) {
   return unique(guards);
 }
 
-function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
+export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
   const guardChain = unique([...inheritedGuards, ...routeGuards]);
   const evidence = [
     ...inheritedGuards.map((guard) => `router.use:${guard}`),
