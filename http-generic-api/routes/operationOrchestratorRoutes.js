@@ -467,6 +467,7 @@ export const _testingOperationOrchestratorRoutes = {
   errorResponse,
   isResumeOperation,
   dispatchWithChunkCollection,
+  depsWithManagedGitWorkspace,
   recordArtifactsSafely,
   finalizeCapabilitySafely,
   finalizeWorkerSafely,
