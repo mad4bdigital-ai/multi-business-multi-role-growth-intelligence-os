@@ -612,6 +612,20 @@ export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuard
   const hasPrincipalAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasLocal;
   const hasStandaloneSignedQuery = hasSignedQuery && !hasPrincipalAuthenticator;
   const isolatedModes = [hasLocal, hasMcp, hasStandaloneSignedQuery, hasGitHubWebhook].filter(Boolean).length;
+  if (hasBackendAuthenticator && hasLocal && !hasAdmin && !hasUser && !hasMcp && !hasGitHubWebhook) {
+    return {
+      state: "resolved",
+      profile: "backend_local_manager",
+      alternatives: [
+        ["backendBearerAuth", "localManagerBearerAuth"],
+        ["backendApiKeyAuth", "localManagerBearerAuth"],
+      ],
+      principal: "local_manager",
+      guard_chain: guardChain,
+      evidence,
+      configuration_dependencies: ["BACKEND_API_KEY"],
+    };
+  }
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
