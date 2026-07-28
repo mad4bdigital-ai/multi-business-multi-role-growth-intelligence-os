@@ -719,9 +719,13 @@ function nestedRouterRouteExpansions(source, file, mountPrefix, aliases) {
         let helperBody = text.slice(helper.opening + 1, helper.closing);
         const middlewareParameter = helper.parameters[1];
         if (middlewareParameter) {
+          const middlewareExpression = String(args[1] || "").trim();
+          const middlewareItems = middlewareExpression.startsWith("[") && middlewareExpression.endsWith("]")
+            ? middlewareExpression.slice(1, -1).trim()
+            : middlewareExpression;
           helperBody = helperBody
             .split(`...${middlewareParameter}`)
-            .join(args[1] || "[]");
+            .join(middlewareItems);
         }
         operations.push(
           ...parseRoutesFromFile(
