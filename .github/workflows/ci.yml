@@ -126,6 +126,7 @@ jobs:
           node test-custom-gpt-schemas.mjs
           node test-tenant-activation-contract-inventory-parity.mjs
           node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
           node test-activation-contract-finalization.mjs
           node test-activation-operation-projection-foundation.mjs
           node test-openapi-split-governance.mjs

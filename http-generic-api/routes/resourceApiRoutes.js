@@ -5,6 +5,7 @@ import {
   errorEnvelope,
 } from "../src/api/resourceApi/resourceApiController.js";
 import { createDefaultResourceApiService } from "../src/infrastructure/resourceApi/resourceApiComposition.js";
+import { createResourceApiContextShadowMiddleware } from "../contextKernel/integration/index.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -39,6 +40,14 @@ export function buildResourceApiRoutes(deps = {}) {
   const requireAdmin = deps.requireAdminPrincipal || ((req, res, next) => next());
   const service = deps.resourceApiService || createDefaultResourceApiService(deps);
   const controller = deps.resourceApiController || createResourceApiController({ service });
+  const contextKernelResourceShadow = typeof deps.contextKernelResourceShadowMiddleware === "function"
+    ? deps.contextKernelResourceShadowMiddleware
+    : deps.contextKernelShadow
+      ? createResourceApiContextShadowMiddleware(deps.contextKernelShadow)
+      : null;
+  const tenantReadHandlers = (handler) => contextKernelResourceShadow
+    ? [requireUser, contextKernelResourceShadow, handler]
+    : [requireUser, handler];
 
   router.get("/admin/resource-types", requireBackend, requireAdmin, controller.adminResourceTypes);
   router.get("/admin/resource-types/:resourceKey", requireBackend, requireAdmin, controller.adminResourceType);
@@ -56,9 +65,9 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
-  router.get("/me/workspaces/:tenant_id/resources", requireUser, controller.tenantCatalog);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey", requireUser, controller.tenantResourcesList);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceGet);
+  router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", ...tenantReadHandlers(controller.tenantResourceGet));
   router.post("/me/workspaces/:tenant_id/resources/:resourceKey", requireUser, controller.tenantResourceCreate);
   router.patch("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceUpdate);
   router.delete("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceArchive);
