@@ -303,7 +303,7 @@ function mountOperationRoutes(router, { prefix }) {
     }
   });
 
-  router.post("/operations/context", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/context`, async (req, res) => {
     try {
       return res.status(200).json(
         await buildOperationContext({
