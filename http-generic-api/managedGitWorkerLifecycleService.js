@@ -336,14 +336,20 @@ export async function prepareManagedGitWorkerLifecycle({
     [workerId],
   );
 
-  return {
+  return attachWorkspaceHandle({
     required: true,
     status: "ready",
     operation_key: operation,
     worker_id: workerId,
-    checkout_strategy: "virtual_git_tree",
+    checkout_strategy: "ephemeral_checkout",
     checkout_head_sha: checkoutHeadSha,
     workspace_fingerprint: fingerprint,
+    workspace_created: workspaceHandle?.workspace_created === true,
+    git_repository_initialized: workspaceHandle?.git_repository_initialized === true,
+    remote_fetch_performed: false,
+    remote_checkout_performed: false,
+    credentials_read: false,
+    workspace_path_exposed: false,
     lease_expires_at: leaseExpiresAt.toISOString(),
     input: {
       ...input,
@@ -352,7 +358,7 @@ export async function prepareManagedGitWorkerLifecycle({
       managed_worker_id: workerId,
     },
     secrets_included: false,
-  };
+  }, workspaceHandle);
 }
 
 export async function markManagedGitWorkerRunning({ pool, lifecycle = {} } = {}) {
