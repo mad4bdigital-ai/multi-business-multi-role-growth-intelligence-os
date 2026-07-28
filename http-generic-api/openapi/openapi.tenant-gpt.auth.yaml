@@ -520,40 +520,6 @@ security:
       - https://auth.mad4b.com/scopes/tenant.install
       - https://auth.mad4b.com/scopes/tenant.system-tools
 paths:
-  /me/workspaces/{tenant_id}/brands:
-    get:
-      operationId: getMeWorkspacesTenantIdBrands
-      summary: GET /me/workspaces/{tenant_id}/brands
-      description: Tenant-safe brand records resolved from workspace membership and resource-grant authority.
-      tags:
-        - resource-api
-      security:
-        - userBearerAuth:
-            - https://auth.mad4b.com/scopes/tenant.links
-            - https://auth.mad4b.com/scopes/tenant.status
-            - https://auth.mad4b.com/scopes/tenant.activation
-            - https://auth.mad4b.com/scopes/tenant.install
-            - https://auth.mad4b.com/scopes/tenant.system-tools
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        "200":
-          description: Tenant-safe brands and visible asset brand references
-        "400":
-          description: Invalid request
-        "401":
-          description: Authentication required
-        "403":
-          description: Active workspace membership required
-        "404":
-          description: Workspace not found
-        "500":
-          description: Workspace brand listing failed
   /me/workspaces/{tenant_id}/resources:
     get:
       operationId: getMeWorkspacesTenantIdResources
