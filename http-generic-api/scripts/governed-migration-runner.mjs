@@ -282,7 +282,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "20260721_repository_authority_capability_bindings_v2.sql",
 ]);
 
-const RUNNER_VERSION = "governed-migration-runner-v2";
+const RUNNER_VERSION = "governed-migration-runner-v3";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
