@@ -74,6 +74,7 @@ import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
+import { buildBrandSkillRoutes } from "./brandSkillRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
 import { buildResourceAuthorityGrantRoutes } from "./resourceAuthorityGrantRoutes.js";
 import { buildAdminWorkspaceAuthorityRoutes } from "./adminWorkspaceAuthorityRoutes.js";
