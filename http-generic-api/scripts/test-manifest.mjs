@@ -92,6 +92,7 @@ export const testCommands = [
   "node test-capability-resolution-envelope-shared-guard.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
+  "node test-canonical-identifier-contract.mjs",
   "node test-agent-runtime-provider-selection.mjs",
   "node test-agent-model-runtime-settings.mjs",
   "node test-agent-runtime-ledger-wiring.mjs",

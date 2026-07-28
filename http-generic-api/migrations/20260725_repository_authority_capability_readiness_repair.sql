@@ -67,7 +67,7 @@ SET authority.system_id=system.system_id,
 WHERE authority.binding_key='growth_intelligence_platform.github.primary.production'
   AND authority.system_binding_mode='shared_platform_adapter'
   AND authority.lifecycle_status='active'
-  AND (authority.system_id<>system.system_id OR authority.installation_id IS NOT NULL);
+  AND (BINARY authority.system_id<>BINARY system.system_id OR authority.installation_id IS NOT NULL);
 
 UPDATE repository_capability_bindings capability
 JOIN capability_apply_authorization_policy_registry policy
