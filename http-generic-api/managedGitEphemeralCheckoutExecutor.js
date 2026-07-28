@@ -18,7 +18,7 @@ export class ManagedGitEphemeralCheckoutError extends Error {
     this.status = status;
     this.details = {
       ...details,
-      retryable: false,
+      retryable: details?.retryable === true,
       workspace_path_exposed: false,
       secrets_included: false,
     };
