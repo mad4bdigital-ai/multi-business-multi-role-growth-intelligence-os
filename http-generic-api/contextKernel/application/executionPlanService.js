@@ -184,10 +184,13 @@ export function createExecutionPlanService({
       operationKind === "mutation" ||
       riskClass === "high" ||
       riskClass === "critical";
-    const currentManifest = readiness?.currentManifest || null;
+    const manifestHash =
+      readiness?.manifestHash ?? readiness?.currentManifest?.manifestHash ?? null;
+    const manifestVersion =
+      readiness?.manifestVersion ?? readiness?.currentManifest?.manifestVersion ?? null;
     if (
       requiresApproval &&
-      (!currentManifest?.manifestHash || currentManifest.manifestVersion === null || currentManifest.manifestVersion === undefined)
+      (!manifestHash || manifestVersion === null || manifestVersion === undefined)
     ) {
       throw new ContextApplicationError(
         "capability_manifest_required",
@@ -213,8 +216,8 @@ export function createExecutionPlanService({
       connectionRef: resolved.context.connectionRef,
       capabilityDispatchAllowed: readiness?.dispatchAllowed === true,
       capabilityApplyAllowed: readiness?.applyAllowed === true,
-      manifestHash: currentManifest?.manifestHash || null,
-      manifestVersion: currentManifest?.manifestVersion ?? null,
+      manifestHash,
+      manifestVersion,
       steps: normalizedSteps,
       compiledAt: compiledAt.toISOString(),
       expiresAt: normalizedExpiry.toISOString(),
