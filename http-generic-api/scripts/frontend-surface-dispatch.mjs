@@ -609,7 +609,9 @@ export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuard
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
   const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
-  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
+  const hasPrincipalAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasLocal;
+  const hasStandaloneSignedQuery = hasSignedQuery && !hasPrincipalAuthenticator;
+  const isolatedModes = [hasLocal, hasMcp, hasStandaloneSignedQuery, hasGitHubWebhook].filter(Boolean).length;
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
