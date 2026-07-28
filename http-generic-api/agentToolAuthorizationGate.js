@@ -231,6 +231,13 @@ export async function authorizeAgentToolCall({
       granted: skill.granted,
       matched_skill_key: skill.matched_skill_key || null,
     },
+    user_brand_skill_grant: {
+      configured: userBrandSkillGrant.configured,
+      granted: userBrandSkillGrant.granted,
+      grant_id: userBrandSkillGrant.grant_id || null,
+      operation: userBrandSkillGrant.operation || null,
+      reason: userBrandSkillGrant.reason || null,
+    },
     app_action_grant: {
       configured: appGrant.configured,
       granted: appGrant.granted,
