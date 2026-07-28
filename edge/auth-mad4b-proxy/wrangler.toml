@@ -1,0 +1,8 @@
+name = "auth-mad4b-proxy"
+main = "src/worker.mjs"
+compatibility_date = "2024-01-01"
+workers_dev = false
+
+# Production routes are managed through governed Cloudflare controls.
+# Do not add or mutate route bindings from this file without a separately
+# approved deployment plan and same-cycle readback.
