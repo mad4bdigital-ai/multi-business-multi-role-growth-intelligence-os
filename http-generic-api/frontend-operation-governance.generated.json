@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "02511c75f1d0d64cc26960c38b84f32473bd247cab505e825231a3f40247ec35",
+    "source_digest": "f1284663b915dbb57e07d459684f38206b5ce6261c60a1047577e9e82e495947",
     "fail_closed": true
   },
   "source_authority": [
@@ -18,7 +18,7 @@
     },
     {
       "file": "authEmailTargetedDeliveryWorker.js",
-      "sha256": "2a6fb36ea8bfdc906203071e7d19e8970c28a6a77c78bc55de90756dfaa9cc7a",
+      "sha256": "42e00306a0d50822d3f45fe89ac4e8dcd3b65bf4724ebc2df07c14f285a0ae05",
       "present": true
     },
     {
@@ -48,7 +48,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "3bd86ba579dfc45e2ddcb41592e321bde38a1d13e274784ff4e71b709e2c2835",
+      "sha256": "5c6ad3c2e2c0252e5aa21219d4b06232aca91453912f34f2d312b0e307d8c19a",
       "present": true
     },
     {
@@ -183,7 +183,7 @@
     },
     {
       "file": "routes/resourceApiRoutes.js",
-      "sha256": "920087ea6dfd85ad32c2371ecffc684527d23550cf238d9e3dc44e94fe31d9ee",
+      "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "present": true
     },
     {
@@ -243,7 +243,7 @@
     },
     {
       "file": "routes/supportTicketRoutes.js",
-      "sha256": "369383aff7c327e71712ff37bf0e052743bf389f2ea0c39517e6fb26949c72f2",
+      "sha256": "26234d00526eeea3856159d138b86ed43c6c6d00851c94386381757e519b7271",
       "present": true
     },
     {
@@ -258,7 +258,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "f09aadff59a30032c737b9232538ebcb703f20105d1d3722eb24d71c44e5c8e7",
+      "sha256": "0a342b329d876c13a686ad6ef62129d4373292456d6d704306c52c76ef495ee1",
       "present": true
     },
     {
@@ -423,7 +423,7 @@
     },
     {
       "file": "test-auth-email-targeted-delivery-worker.mjs",
-      "sha256": "853c6d73f3b0959af4105655e46499f31404b4c9ca5f57391bea57946aa6a61c",
+      "sha256": "bdcf9bbd56ff967cf9b6097b26ce702546dc8d599a0e309a0fa509c4883bc9fb",
       "present": true
     },
     {
@@ -463,7 +463,7 @@
     },
     {
       "file": "test-dynamic-container-rollout-safety.mjs",
-      "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
+      "sha256": "3deea61b02f9539d6c7c58457474393452d5530b2ca8804849c01a3b382adaac",
       "present": true
     },
     {
@@ -663,8 +663,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 83,
-    "generated_rule_count": 83,
+    "candidate_count": 85,
+    "generated_rule_count": 85,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -683,7 +683,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-resource-archive-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -724,7 +724,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -766,7 +766,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-resource-update-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -807,7 +807,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -866,7 +866,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "2b8269f9c0e0fc6227f4494d40bd0bf9143d222d03371a57a070e3dda4e61927",
+        "source_digest": "304009e4e32bbdc114a6f7d8f38a3ef1e811842cad6cbdad19ea5a5cd4587981",
         "fail_closed": true
       },
       "preflight": {
@@ -892,6 +892,91 @@
         "capability_envelope_id": "request.body.capabilityEnvelopeId",
         "confirmation": "request.body.confirm",
         "canary_key": "response.readback.canary_key"
+      }
+    },
+    {
+      "rule_id": "generated-dynamic-container-canary-promotion-state-change-v1",
+      "operation": "POST /admin/container-authority/canary-promotions",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "state_change",
+      "owner": "platform-governance",
+      "rationale": "Requires Admin authorization, an apply-authorized capability envelope, typed confirmation, and rollout readiness before promoting one exact read-only canary, reading it back, and consuming the envelope in the same transaction.",
+      "evidence_refs": [
+        "dynamicContainerRolloutSafety.js",
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "test-dynamic-container-rollout-safety.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-promotion-state-change-v1",
+        "source_digest": "6a41d28bf45d64ee41c84ce7e078d5bc7378b6849f57f13a7f4014925aeba511",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "capability_envelope_readiness_and_rollout_state_lock"
+      },
+      "approval": {
+        "mode": "typed_confirmation_and_apply_authorized_capability_envelope"
+      },
+      "readback": {
+        "mode": "same_transaction_exact_canary_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ],
+        "rationale": "The canary row mutation, exact readback, and capability-envelope consumption share one SQL transaction; any mutation, readback, or lifecycle failure rolls back before commit."
+      },
+      "parameter_bindings": {
+        "target_canary_key": "request.body.targetCanaryKey",
+        "capability_envelope_id": "request.body.capabilityEnvelopeId",
+        "rollout_mode": "response.readback.rollout_mode"
+      }
+    },
+    {
+      "rule_id": "generated-dynamic-container-canary-rollback-state-change-v1",
+      "operation": "POST /admin/container-authority/canary-rollbacks",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "state_change",
+      "owner": "platform-governance",
+      "rationale": "Requires Admin authorization, an apply-authorized capability envelope, and typed confirmation before returning one exact active canary to shadow mode, reading it back, and consuming the envelope in the same transaction.",
+      "evidence_refs": [
+        "dynamicContainerRolloutSafety.js",
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "test-dynamic-container-rollout-safety.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-rollback-state-change-v1",
+        "source_digest": "6a41d28bf45d64ee41c84ce7e078d5bc7378b6849f57f13a7f4014925aeba511",
+        "fail_closed": true
+      },
+      "preflight": {
+        "mode": "capability_envelope_readiness_and_active_canary_lock"
+      },
+      "approval": {
+        "mode": "typed_confirmation_and_apply_authorized_capability_envelope"
+      },
+      "readback": {
+        "mode": "same_transaction_exact_canary_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ],
+        "rationale": "The rollback mutation, exact shadow-mode readback, and capability-envelope consumption share one SQL transaction; any mutation, readback, or lifecycle failure rolls back before commit."
+      },
+      "parameter_bindings": {
+        "target_canary_key": "request.body.targetCanaryKey",
+        "capability_envelope_id": "request.body.capabilityEnvelopeId",
+        "reason": "request.body.reason|runtime_canary_not_observed",
+        "rollout_mode": "response.readback.rollout_mode"
       }
     },
     {
@@ -1162,7 +1247,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-resource-create-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -1204,7 +1289,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "admin-resource-restore-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -1244,7 +1329,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-activation-plan-read-action-v1",
-        "source_digest": "f0516465a8f79546b4fc655aecf5355b198ffc66f71bc5ecbc94ef2e992bd15e",
+        "source_digest": "8e9ee3aada4586dd592359e3de4b924186ad753225433d8975fd5ac874c086c3",
         "fail_closed": true
       }
     },
@@ -1262,7 +1347,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-credential-orchestration-plan-read-action-v1",
-        "source_digest": "e956901880e0b2ee8d31db9c71bf06abdcc1a5e0461eeb2b2dbf7589491bfd31",
+        "source_digest": "c46bd663d8a833a0e39a892eb74f9bc58adc59be5e90bea3c4f82916e81b4a2b",
         "fail_closed": true
       }
     },
@@ -1280,7 +1365,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-delivery-readiness-read-action-v1",
-        "source_digest": "750465973ad4bede4ced16f102b4d4b7a298440002f650ed78807b4ed41feaff",
+        "source_digest": "81b38a40abbe95c561636906e771e2d3b3fe2cb988cc120615021c644df2da18",
         "fail_closed": true
       }
     },
@@ -1298,7 +1383,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-secret-intake-plan-read-action-v1",
-        "source_digest": "45148d2248a205b47a0355c7ef4f30871233266e2363c0ae48f05e2acc9da7ab",
+        "source_digest": "73f5f37f37afa29061c62783daf6c9662177e8e569c1d2fef557daf5c1e18ad0",
         "fail_closed": true
       }
     },
@@ -1316,7 +1401,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-external-send-execution-plan-read-action-v1",
-        "source_digest": "8515a5faa0d9b53a3c8782dc399875af3c0cfc5d7cad94c9814ef96a23fa23ca",
+        "source_digest": "eb81e48780c07e48dc06c853de7db9b3b35620d598caf7a7d7d81279dad0b591",
         "fail_closed": true
       }
     },
@@ -1334,7 +1419,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-gate-plan-read-action-v1",
-        "source_digest": "4038bb8d093a254809fec358b63b06697fe114df4dbf306f9b3d91bd8e92180b",
+        "source_digest": "dbb0cc51e31e64481108f504139c1e0917258b64c517b16b2e325f6ab1940bbe",
         "fail_closed": true
       }
     },
@@ -1352,7 +1437,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-notification-preview-read-action-v1",
-        "source_digest": "844dbe0f73d5a28c00fe39cc69f0f7edc14d4697719db3a904162e55a7de24e5",
+        "source_digest": "b87facbf36883a7400b3404f1f29c6bc8300b9d83d0a3354e716b65ae939f97f",
         "fail_closed": true
       }
     },
@@ -1370,7 +1455,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "auth-email-outbox-dry-run-read-action-v1",
-        "source_digest": "b55444a3d3b4d2fbbecda9f05a8edff679e6201bff1f9f6b9fc8c0e6bb82c297",
+        "source_digest": "0cb548e6f62ba7f35bc65be0f1f67db4e283da67a88f307f57a8bef107abc0ba",
         "fail_closed": true
       }
     },
@@ -1388,7 +1473,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "auth-email-outbox-targeted-dry-run-read-action-v1",
-        "source_digest": "8fae74aa7f1a34f6af8a9c684dc7e551d5fe4a77510ae3a436177e58e12a7b09",
+        "source_digest": "91a646ac91b927f73654db375f5a30f081f494799034777035b9b44a91f5648e",
         "fail_closed": true
       }
     },
@@ -1406,7 +1491,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-provider-enablement-candidates-read-action-v1",
-        "source_digest": "da351acf8c1b68440b300bcea352d894d22158f92c7fad4555a69d6a37dccb90",
+        "source_digest": "36c55f6fa4669cd58c3e9ceba524f5f882afc73796ce873c616436ef98171abd",
         "fail_closed": true
       }
     },
@@ -1424,7 +1509,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-future-pr-scope-plan-read-action-v1",
-        "source_digest": "85d53d5fd8695cc75fa5bc407d899b9074ccb2697d1701feb75014a60af53b77",
+        "source_digest": "52b1b77a54f112bfd59d3ad5fd2f8fd5b24828cb7ae80c5fc8da3a5cfea22b98",
         "fail_closed": true
       }
     },
@@ -1442,7 +1527,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "ticket-adapter-readiness-plan-read-action-v1",
-        "source_digest": "d4dc3639f6e9384360c1ae27f7e4ae7e58dc732b15a695b3f2a621a17a604e01",
+        "source_digest": "5de27a8704594181f88c6d78da9f1cc27bb643833777907a8dbd28f29cd36dfb",
         "fail_closed": true
       }
     },
@@ -1865,7 +1950,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
@@ -1907,7 +1992,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "520c3800f99462234891d4dceb5109529c9273eef82a5380b8468ad65f94bbbc",
+        "source_digest": "9f927e4fa9d04d9f24a7bacd44ddf29fb1e6fc64ea4921d941ee284ec89e1cf8",
         "fail_closed": true
       },
       "preflight": {
