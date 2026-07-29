@@ -6,10 +6,10 @@
 - Gate schema: surface-contract-new-gap-gate-v1
 - Queue items: 30
 - Triaged items: 30
-- Gate candidates: 11
+- Gate candidates: 10
 - New-gap gate: fail
 - Blocking new items: 11
-- Docs completion: 98.61%
+- Docs completion: 98.78%
 - SQL route OpenAPI coverage: 68.75%
 
 ## Top immediate items
@@ -24,4 +24,3 @@
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, confirm registry binding/readback evidence before promotion
 - `20260720_github_update_pull_request_branch_503_response_contract.sql` — high_review, add targeted patch-index, parity, and governance documentation
 - `20260720_tenant_tool_input_schema_strictness.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` — high_review, add targeted patch-index, parity, and governance documentation

@@ -27,7 +27,7 @@ import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHub
 import { GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_PROVISIONING_SYSTEM_TOOLS } from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import * as GitHubRepositoryMainMovedWebhookProvisioningRuntime from "../githubRepositoryMainMovedWebhookProvisioning.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
-import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems, shouldChunkDispatchedToolResponse } from "./gptToolsRoutes.js";
 import {
   PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   catalogGovernedResources,
@@ -2294,6 +2294,9 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
+      if (!shouldChunkDispatchedToolResponse(name, result)) {
+        return res.status(200).json(result);
+      }
       return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
@@ -2363,6 +2366,9 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade }),
         deadline
       ]);
+      if (!shouldChunkDispatchedToolResponse(name, result)) {
+        return res.status(200).json(result);
+      }
       return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");

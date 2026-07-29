@@ -71,14 +71,10 @@ assert.doesNotMatch(repair, /\bBINARY\b/i);
 assert.doesNotMatch(repair, /MODIFY COLUMN approval_hold_id/i);
 assert.doesNotMatch(repair, /^\s*(DROP|TRUNCATE|DELETE FROM)\b/mi);
 const repairPreflight = assessMigrationSqlPreflight(repairName, repair);
-assert.equal(repairPreflight.status, "warn", JSON.stringify(repairPreflight, null, 2));
-assert.equal(repairPreflight.risk_count, 1, JSON.stringify(repairPreflight, null, 2));
-assert.deepEqual(
-  repairPreflight.risks.map(({ severity, code }) => ({ severity, code })),
-  [{ severity: "warn", code: "alter_table_requires_manual_idempotency_review" }],
-  JSON.stringify(repairPreflight, null, 2)
-);
+assert.equal(repairPreflight.status, "pass", JSON.stringify(repairPreflight, null, 2));
+assert.equal(repairPreflight.risk_count, 0, JSON.stringify(repairPreflight, null, 2));
 assert.equal(repairPreflight.counts.alter_table, 1, JSON.stringify(repairPreflight, null, 2));
+assert.equal(repairPreflight.counts.alter_table_idempotent, 1, JSON.stringify(repairPreflight, null, 2));
 assert.equal(repairPreflight.counts.destructive, 0, JSON.stringify(repairPreflight, null, 2));
 assert.equal(repairPreflight.secrets_included, false, JSON.stringify(repairPreflight, null, 2));
 

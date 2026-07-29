@@ -226,4 +226,19 @@ for (const [statusCode, expectedCode] of [
   assert.equal(run.forwardedError, originalError);
 }
 
+{
+  const { readFile } = await import("node:fs/promises");
+  const serverSource = await readFile(new URL("../server.js", import.meta.url), "utf8");
+  const jsonMiddlewareIndex = serverSource.indexOf("app.use(express.json({");
+  const runtimeGuardIndex = serverSource.indexOf("app.use(createOperationRuntimeGuard());");
+  const routesIndex = serverSource.indexOf("registerRoutes(app, {");
+  const errorHandlerIndex = serverSource.indexOf("app.use(createOperationRuntimeErrorHandler());");
+
+  assert.ok(runtimeGuardIndex >= 0, "server must mount the operation runtime guard");
+  assert.ok(errorHandlerIndex >= 0, "server must mount the operation runtime error handler");
+  assert.ok(jsonMiddlewareIndex < runtimeGuardIndex, "runtime guard must follow JSON parsing");
+  assert.ok(runtimeGuardIndex < routesIndex, "runtime guard must be mounted before routes");
+  assert.ok(routesIndex < errorHandlerIndex, "runtime error handler must be mounted after routes");
+}
+
 console.log("operation runtime guard tests passed");

@@ -6,6 +6,7 @@ import {
   buildRepositoryMainMovedFingerprint,
   deriveRepositoryMainMovedOutcome,
   normalizeRepositoryMainMovedEvent,
+  resolveConfiguredReleaseBranch,
 } from "./repositoryMainMovedTriggerService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +14,14 @@ const repository = "mad4bdigital-ai/multi-business-multi-role-growth-intelligenc
 const beforeSha = "a".repeat(40);
 const afterSha = "b".repeat(40);
 const env = { RELEASE_TRIGGER_REPOSITORY: repository };
+
+assert.equal(resolveConfiguredReleaseBranch({}), "main");
+assert.equal(resolveConfiguredReleaseBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "Production");
+assert.equal(resolveConfiguredReleaseBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
+assert.equal(resolveConfiguredReleaseBranch({
+  RELEASE_TRIGGER_BRANCH: "release/candidate",
+  ACTIVATION_GITHUB_BRANCH: "Production",
+}), "release/candidate");
 
 const normalized = normalizeRepositoryMainMovedEvent({
   source_event_id: "delivery-1",
@@ -28,6 +37,24 @@ assert.equal(normalized.branch, "main");
 assert.equal(normalized.before_sha, beforeSha);
 assert.equal(normalized.after_sha, afterSha);
 assert.equal(normalized.deleted, false);
+
+const productionEnv = {
+  RELEASE_TRIGGER_REPOSITORY: repository,
+  ACTIVATION_GITHUB_BRANCH: "Production",
+};
+const productionNormalized = normalizeRepositoryMainMovedEvent({
+  ...normalized,
+  branch: "refs/heads/Production",
+  source_event_id: "delivery-production",
+}, { env: productionEnv });
+assert.equal(productionNormalized.branch, "Production");
+
+assert.throws(
+  () => normalizeRepositoryMainMovedEvent({ ...productionNormalized, branch: "main" }, { env: productionEnv }),
+  (error) => error.code === "repository_main_moved_branch_not_supported"
+    && error.status === 400
+    && error.details?.expected_branch === "Production",
+);
 
 assert.throws(
   () => normalizeRepositoryMainMovedEvent({ ...normalized, repository: "other/repository" }, { env }),
