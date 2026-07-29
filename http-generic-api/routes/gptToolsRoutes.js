@@ -2206,6 +2206,10 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
     source_tool_key: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || null,
     cursor_policy: GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
     secrets_included: false,
+    auth: optionsSource?.auth,
+    trustedInternal: optionsSource?.trustedInternal === true || optionsSource?.trusted_internal === true,
+    principalId: optionsSource?.principalId || optionsSource?.principal_id,
+    source_surface: optionsSource?.source_surface || optionsSource?.sourceSurface || "gpt_tools",
   }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
     serialized,
