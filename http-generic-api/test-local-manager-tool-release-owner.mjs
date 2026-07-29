@@ -95,7 +95,7 @@ assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'),
 assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
-assert(localManagerDeviceLinkService.includes('fresh_local_manager_authorization_required'), 'Local Manager privileged installer guard must return a stable fresh-auth error code');
+assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: false'), 'Local Manager privileged installer authorization must not require repeated sign-in for a valid device token');
 assert(localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer guard must return an actionable re-auth hint');
 assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
 assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');
