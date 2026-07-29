@@ -38,7 +38,7 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 
 ## Phase E — Plan composition
 
-- [ ] T401 Integrate semantic capability resolution from Spec 007.
+- [x] T401 Integrate semantic capability resolution from Spec 007.
 - [ ] T402 Compile immutable workflow DAGs on Spec 006 runtime contracts.
 - [ ] T403 Persist plan/config/policy/version snapshots and hashes.
 - [ ] T404 Create explicit approval holds for provider-effect nodes.

@@ -48,7 +48,7 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "09d68fe075d6b979781598ca5b823c4bb1d46568"
+      "head_sha": "7476ba1145adb0e43fad70b15a1d4c1890a65bf4"
     },
     "reference_packs": {
       "status": "passed_catalog_and_manifest_validation",
@@ -62,6 +62,18 @@
       "head_sha": "09d68fe075d6b979781598ca5b823c4bb1d46568",
       "selector_contract": "explicit_activity_intent_required_for_multiple_selectable_bindings",
       "provider_calls": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "semantic_capability_resolution": {
+      "status": "passed_spec_007_preview_integration",
+      "head_sha": "7476ba1145adb0e43fad70b15a1d4c1890a65bf4",
+      "resolver": "tenant_effective_capability_resolver_v1",
+      "integration": "growth_control_plane_semantic_capability_adapter_v1",
+      "preview_only": true,
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
       "external_writes": false,
       "secrets_included": false
     },
