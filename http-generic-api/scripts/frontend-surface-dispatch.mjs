@@ -533,7 +533,7 @@ function middlewareAliases(source = "") {
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([\s\S]*?);/g)) {
     if (aliases.has(match[1])) continue;
     const containsGuard = middlewareGuards(match[2], aliases).length > 0;
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) {
+    if (isMiddlewareAliasName(match[1]) && containsGuard) {
       aliases.set(match[1], match[2]);
     }
   }
