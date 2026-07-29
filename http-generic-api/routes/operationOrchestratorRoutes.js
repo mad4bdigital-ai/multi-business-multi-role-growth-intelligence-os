@@ -320,6 +320,8 @@ function mountOperationRoutes(router, middleware = []) {
 
   router.post("/operations/execute", ...middleware, async (req, res) => {
     let workerLifecycle = null;
+    let credentialBinding = null;
+    let credentialFinalized = false;
     let operationDeps = null;
     try {
       const requestedInput = bodyOf(req);
