@@ -64,6 +64,15 @@ export function buildMixedRoutes({ requireAdminPrincipal }) {
   router.get("/admin/support/tickets", requireAdminPrincipal, handler);
   router.get("/credential-intake/:token", (_req, res) => res.type("html").send("<!doctype html>"));
   router.get("/credential-intake/:token/schema", (_req, res) => res.json({ fields: [] }));
+  router.get(
+    "/signed-download/:token",
+    requireBackendApiKey,
+    requireFreshLocalManagerDeviceForPrivilegedInstaller,
+    async (req, res) => {
+      verifyInstallerDownloadToken(req.query.token);
+      return handler(req, res);
+    },
+  );
   /* router.delete("/disabled/commented-route", requireAdminPrincipal, handler); */
   return router;
 }
