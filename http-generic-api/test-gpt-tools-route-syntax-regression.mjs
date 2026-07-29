@@ -42,7 +42,9 @@ async function main() {
   assert.match(operationRoutes, /dispatchWithChunkCollection/);
   assert.match(operationRoutes, /recordOperationGeneratedArtifacts/);
   assert.match(operationRoutes, /listOperationGeneratedArtifacts/);
-  assert.match(operationRoutes, /router\.get\("\/operations\/artifacts"/);
+  assert.match(operationRoutes, /router\.get\(`\$\{prefix\}\/operations\/artifacts`/);
+  assert.match(operationRoutes, /router\.use\(\s*"\/admin\/operations"/s);
+  assert.match(operationRoutes, /router\.use\(\s*"\/tenant\/operations"/s);
   assert.match(operationRoutes, /artifact_registry: artifactRegistry/);
   assert.match(operationRoutes, /prepareOperationCapabilityLifecycle/);
   assert.match(operationRoutes, /finalizeOperationCapabilityLifecycle/);
