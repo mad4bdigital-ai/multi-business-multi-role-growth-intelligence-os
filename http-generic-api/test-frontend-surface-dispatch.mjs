@@ -331,46 +331,11 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
-const nestedSharedRoutes = parseRoutesFromFile(`
-function mountSharedRoutes(router, middleware = []) {
-  router.get("/operations/contracts", ...middleware, handler);
-  router.post("/operations/context", ...middleware, handler);
-}
-export function buildSharedRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
-  const router = Router();
-  const backendGuard = requireSecurityMiddleware("requireBackendApiKey", requireBackendApiKey);
-  const adminGuard = requireSecurityMiddleware("requireAdminPrincipal", requireAdminPrincipal);
-  const admin = Router();
-  mountSharedRoutes(admin, [backendGuard, adminGuard]);
-  router.use("/admin", admin);
-  const tenant = Router();
-  mountSharedRoutes(tenant, [requireTenantOperationPrincipal]);
-  router.use("/tenant", tenant);
-  return router;
-}
-`, "routes/sharedRoutes.js");
-assert.deepEqual(
-  nestedSharedRoutes.map((operation) => operation.signature),
-  [
-    "GET /admin/operations/contracts",
-    "GET /tenant/operations/contracts",
-    "POST /admin/operations/context",
-    "POST /tenant/operations/context",
-  ],
-  "shared helper routes must expand through each statically mounted child router",
-);
-assert.deepEqual(
-  nestedSharedRoutes.find((operation) =>
-    operation.signature === "GET /admin/operations/contracts").route_guards,
-  ["requireAdminPrincipal", "requireBackendApiKey"],
-  "child-router expansion must preserve wrapped administrator guards",
-);
-assert.deepEqual(
-  nestedSharedRoutes.find((operation) =>
-    operation.signature === "GET /tenant/operations/contracts").route_guards,
-  ["requireTenantOperationPrincipal"],
-  "child-router expansion must preserve local tenant-principal guards",
-);
+const explicitRequireUserRoute = parseRoutesFromFile(
+  'router.get("/me/workspaces/:tenant_id/resources", requireUser, controller.tenantCatalog);',
+  "routes/resourceApiRoutes.js",
+)[0];
+assert.deepEqual(explicitRequireUserRoute.route_guards, ["requireUser"]);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],

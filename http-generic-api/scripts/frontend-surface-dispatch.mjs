@@ -19,6 +19,7 @@ const AUTH_GUARDS = new Set([
   "verifyUserJwt",
   "requireUser",
   "requireTenantPrincipal",
+  "requireTenantOperationPrincipal",
   "requireResolutionPrincipal",
   "requireActiveMembership",
   "requireWorkspaceOwner",
@@ -28,15 +29,6 @@ const AUTH_GUARDS = new Set([
   "requireMcpToken",
   "verifyInstallerDownloadToken",
   "requireGitHubWebhookSignature",
-]);
-const USER_AUTH_GUARDS = new Set([
-  "requireUserJwt",
-  "requireTenantUserJwt",
-  "verifyUserJwt",
-  "requireUser",
-  "requireTenantPrincipal",
-  "requireActiveMembership",
-  "requireWorkspaceOwner",
 ]);
 const AUTH_SCHEME_ALIASES = new Map([
   ["userBearerAuth", "userJwtAuth"],
@@ -55,15 +47,6 @@ const AUTH_PROFILES = {
   github_webhook_hmac: { alternatives: [["githubWebhookSignature"]], principal: "github_webhook", configuration_dependencies: ["GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK_SECRET"] },
 };
 const OPERATION_CLASSIFICATIONS = new Set(["read", "read_action", "preflight", "state_change", "external_effect", "disabled", "unresolved"]);
-
-function isUserAuthGuardName(name = "") {
-  return USER_AUTH_GUARDS.has(name)
-    || /^requireTenant[A-Za-z0-9_$]*Principal$/.test(String(name));
-}
-
-function isAuthGuardName(name = "") {
-  return AUTH_GUARDS.has(name) || isUserAuthGuardName(name);
-}
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -526,7 +509,7 @@ function middlewareAliases(source = "") {
   const text = maskJavaScriptComments(source);
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\[([\s\S]*?)\]\s*(?:\.\s*filter\s*\(\s*Boolean\s*\))?\s*;/g)) {
     const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
-      .some((entry) => isAuthGuardName(entry[1]) || aliases.has(entry[1]));
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
     if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
   }
   const helperRe = /\bfunction\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{/g;
@@ -538,21 +521,19 @@ function middlewareAliases(source = "") {
     const returnedArray = text.slice(opening + 1, closing).match(/\breturn\s*\[([\s\S]*?)\]\s*;?/);
     if (returnedArray) {
       const containsGuard = [...returnedArray[1].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
-        .some((entry) => isAuthGuardName(entry[1]) || aliases.has(entry[1]));
+        .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
       if (/^(?:require|verify|authenticate|authorize|auth)/i.test(helper[1]) || containsGuard) aliases.set(helper[1], returnedArray[1]);
     }
     helperRe.lastIndex = closing + 1;
   }
-  for (const match of text.matchAll(
-    /\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*requireSecurityMiddleware\s*\(([\s\S]*?)\)\s*;/g,
-  )) {
-    aliases.set(match[1], match[2]);
+  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\([^)]*\)\s*=>\s*([\s\S]*?);/g)) {
+    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (containsGuard) aliases.set(match[1], match[2]);
   }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) {
-      aliases.set(match[1], match[2]);
-    }
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
   }
   return aliases;
 }
@@ -561,7 +542,7 @@ function middlewareGuards(expression = "", aliases = new Map(), seen = new Set()
   const guards = [];
   for (const match of String(expression).matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)) {
     const name = match[1];
-    if (isAuthGuardName(name)) guards.push(name);
+    if (AUTH_GUARDS.has(name)) guards.push(name);
     if (aliases.has(name) && !seen.has(name)) {
       const nextSeen = new Set(seen);
       nextSeen.add(name);
@@ -620,7 +601,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasBackend = guardChain.includes("requireBackendApiKey");
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
-  const hasUser = guardChain.some((guard) => isUserAuthGuardName(guard));
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
@@ -657,7 +638,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
 }
 
 function enclosingHelper(source, sourceIndex) {
-  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
   let match;
   let enclosing = null;
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
@@ -666,8 +647,7 @@ function enclosingHelper(source, sourceIndex) {
     if (closing >= sourceIndex) {
       enclosing = {
         name: match[1],
-        parameters: splitTopLevelArguments(match[2]).map((parameter) =>
-          parameter.match(/^([A-Za-z_$][A-Za-z0-9_$]*)/)?.[1] || null),
+        declaration_index: match.index,
         closing,
       };
     }
@@ -680,82 +660,27 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   if (!tokens.length) return [routeTemplate];
   const helper = enclosingHelper(source, sourceIndex);
   if (!helper) return [];
-  const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
-  callRe.lastIndex = helper.closing + 1;
   const expanded = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const bindings = {};
-    for (const token of tokens) {
-      const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
-      if (value) bindings[token] = value;
-    }
-    if (tokens.every((token) => bindings[token])) {
-      expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+  const callSources = [
+    source.slice(0, helper.declaration_index),
+    source.slice(helper.closing + 1),
+  ];
+  for (const callSource of callSources) {
+    const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
+    let call;
+    while ((call = callRe.exec(callSource)) !== null) {
+      const bindings = {};
+      for (const token of tokens) {
+        const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
+        const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
+        if (value) bindings[token] = value;
+      }
+      if (tokens.every((token) => bindings[token])) {
+        expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+      }
     }
   }
   return unique(expanded);
-}
-
-function nestedRouterMountPrefixes(source, receiverName) {
-  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(String(receiverName))) return [];
-  const receiverPattern = String(receiverName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const useRe = new RegExp(
-    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\1\\s*,\\s*${receiverPattern}\\s*\\)`,
-    "g",
-  );
-  return unique([...source.matchAll(useRe)].map((match) => normalizeRoutePath(match[2])));
-}
-
-function staticHelperRouteVariants(source, sourceIndex, routeArguments, aliases) {
-  const helper = enclosingHelper(source, sourceIndex);
-  const receiverParameter = helper?.parameters?.[0];
-  if (!helper || !receiverParameter) return [];
-
-  const helperPattern = helper.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const callRe = new RegExp(`\\b${helperPattern}\\s*\\(`, "g");
-  callRe.lastIndex = helper.closing + 1;
-  const variants = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const opening = source.indexOf("(", call.index);
-    const closing = findMatchingDelimiter(source, opening, "(", ")");
-    if (closing < 0) continue;
-    const callArguments = splitTopLevelArguments(source.slice(opening + 1, closing));
-    const receiverName = callArguments[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
-    if (!receiverName) {
-      callRe.lastIndex = closing + 1;
-      continue;
-    }
-
-    const bindings = new Map();
-    helper.parameters.forEach((parameter, index) => {
-      if (parameter && callArguments[index]) bindings.set(parameter, callArguments[index]);
-    });
-    const guards = unique(routeArguments.flatMap((argument) => {
-      const parameter = String(argument).trim().replace(/^\.\.\./, "");
-      return bindings.has(parameter)
-        ? middlewareGuards(bindings.get(parameter), aliases)
-        : [];
-    }));
-    const mountPrefixes = nestedRouterMountPrefixes(source, receiverName);
-    if (!mountPrefixes.length && ["router", "app"].includes(receiverName)) mountPrefixes.push("/");
-    for (const mountPrefix of mountPrefixes) {
-      variants.push({ mount_prefix: mountPrefix, route_guards: guards });
-    }
-    callRe.lastIndex = closing + 1;
-  }
-
-  if (!variants.some((variant) => variant.mount_prefix !== "/" || variant.route_guards.length)) {
-    return [];
-  }
-  const uniqueVariants = new Map();
-  for (const variant of variants) {
-    const key = `${variant.mount_prefix}|${variant.route_guards.join(",")}`;
-    uniqueVariants.set(key, variant);
-  }
-  return [...uniqueVariants.values()];
 }
 
 export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
@@ -777,38 +702,27 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     // Authentication is sometimes enforced inside the final handler rather than
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
-    const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
-    const routeVariants = staticHelperRouteVariants(
-      scanSource,
-      match.index,
-      args.slice(1),
-      aliases,
-    );
-    const variants = routeVariants.length
-      ? routeVariants
-      : [{ mount_prefix: "/", route_guards: [] }];
+    const routeGuards = unique([
+      ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
+      ...middlewareGuards(declaration, aliases),
+    ]);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
-    for (const variant of variants) {
-      for (const route of routes) {
-        for (const expandedRoute of expandRoutePaths(route)) {
-          const routePath = joinRoutePath(
-            joinRoutePath(mountPrefix, variant.mount_prefix),
-            expandedRoute,
-          );
-          const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-          for (const method of methods) {
-            operations.push({
-              method,
-              path: routePath,
-              signature: `${method} ${routePath}`,
-              source_file: file,
-              source_index: match.index,
-              declaration,
-              route_guards: unique([...routeGuards, ...variant.route_guards]),
-              inherited_guards: inheritedGuards,
-            });
-          }
+    for (const route of routes) {
+      for (const expandedRoute of expandRoutePaths(route)) {
+        const routePath = joinRoutePath(mountPrefix, expandedRoute);
+        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
+        for (const method of methods) {
+          operations.push({
+            method,
+            path: routePath,
+            signature: `${method} ${routePath}`,
+            source_file: file,
+            source_index: match.index,
+            declaration,
+            route_guards: routeGuards,
+            inherited_guards: inheritedGuards,
+          });
         }
       }
     }
