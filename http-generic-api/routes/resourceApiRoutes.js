@@ -45,9 +45,10 @@ export function buildResourceApiRoutes(deps = {}) {
     : deps.contextKernelShadow
       ? createResourceApiContextShadowMiddleware(deps.contextKernelShadow)
       : null;
-  const tenantReadHandlers = (handler) => contextKernelResourceShadow
-    ? [requireUser, contextKernelResourceShadow, handler]
-    : [requireUser, handler];
+  function tenantReadHandlers(handler) {
+    if (contextKernelResourceShadow) return [requireUser, contextKernelResourceShadow, handler];
+    return [requireUser, handler];
+  }
 
   router.get("/admin/resource-types", requireBackend, requireAdmin, controller.adminResourceTypes);
   router.get("/admin/resource-types/:resourceKey", requireBackend, requireAdmin, controller.adminResourceType);
