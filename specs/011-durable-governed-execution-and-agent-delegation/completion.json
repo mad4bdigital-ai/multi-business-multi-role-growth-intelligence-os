@@ -119,6 +119,13 @@
       "number": 3221,
       "branch": "gpt/spec-011-phase3-delegation-repository-contract-20260728",
       "role": "delegation_repository_mutation_contract",
+      "status": "merged",
+      "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492"
+    },
+    "phase3_delegation_mariadb_adapter_pr": {
+      "number": 3246,
+      "branch": "gpt/spec-011-phase3-delegation-mariadb-adapter-contract-20260729",
+      "role": "delegation_mariadb_adapter_and_readiness_contract",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -167,6 +174,12 @@
       {
         "number": 3221,
         "role": "phase3_delegation_repository_mutation_contract",
+        "status": "merged",
+        "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492"
+      },
+      {
+        "number": 3246,
+        "role": "phase3_delegation_mariadb_adapter_and_readiness_contract",
         "status": "current_pr"
       }
     ],
