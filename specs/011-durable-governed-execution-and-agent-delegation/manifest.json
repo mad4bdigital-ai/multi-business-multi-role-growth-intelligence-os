@@ -117,8 +117,17 @@
   "phase3_delegation_repository_source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
   "phase3_delegation_repository_final_ci_head_sha": "9a21d801c58cc85b8ade5859c6ed85e44ab1ab5e",
   "phase3_delegation_repository_final_ci_base_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
+  "phase3_delegation_repository_merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492",
   "phase3_delegation_repository_migration_applied": false,
   "phase3_delegation_repository_runtime_authority": false,
+  "phase3_delegation_mariadb_adapter_branch": "gpt/spec-011-phase3-delegation-mariadb-adapter-contract-20260729",
+  "phase3_delegation_mariadb_adapter_pull_request": 3246,
+  "phase3_delegation_mariadb_adapter_source_main_sha": "e98bac18d3147cdad1449c1c068f110e5a311393",
+  "phase3_delegation_mariadb_adapter_final_ci_head_sha": "e34dcb4990abf21db3ff2a18522d3df4fc291207",
+  "phase3_delegation_mariadb_adapter_final_ci_base_sha": "c7ee1a0e0d38793516dfcbb4d417bdda9341a19f",
+  "phase3_delegation_mariadb_adapter_migration_applied": false,
+  "phase3_delegation_mariadb_adapter_runtime_binding": false,
+  "phase3_delegation_mariadb_adapter_deployment_required": false,
   "deliverables": [
     "spec",
     "plan",
@@ -172,7 +181,12 @@
     "phase3_transactional_pending_receipt_protocol",
     "phase3_idempotent_replay_and_reconciliation_tests",
     "phase3_same_cycle_grant_and_receipt_readback",
-    "phase3_unknown_commit_outcome_fail_closed"
+    "phase3_unknown_commit_outcome_fail_closed",
+    "phase3_delegation_mariadb_adapter_contract",
+    "phase3_existing_receipt_surface_reuse",
+    "phase3_mariadb_engine_schema_readiness_contract",
+    "phase3_fake_mariadb_integration_tests",
+    "phase3_runtime_policy_ready_fail_closed"
   ],
   "constraints": [
     "no_provider_call",
