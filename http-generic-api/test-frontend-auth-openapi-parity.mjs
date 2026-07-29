@@ -99,6 +99,16 @@ for (const signature of [
   assert.equal(entry.governance.classification, "read_action", `${signature} is a non-mutating planning action`);
 }
 
+const resourceReadSignatures = [
+  "GET /me/workspaces/{tenant_id}/resources",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+];
+for (const signature of resourceReadSignatures) {
+  const entry = operation(signature, "routes/resourceApiRoutes.js");
+  assert.equal(entry.runtime_auth.profile, "user_jwt", `${signature} runtime guard must resolve to user JWT`);
+  assert.equal(entry.auth_parity.state, "equivalent", `${signature} OpenAPI security must match its runtime user-JWT guard`);
+}
 assert.equal(operation("GET /connector-agent/installer.ps1").runtime_auth.profile, "signed_query_token");
 assert.equal(operation("GET /connector-agent/installer.ps1").auth_parity.state, "equivalent");
 assert.equal(operation("POST /connector-agent/heartbeat").runtime_auth.profile, "connector_bearer");
