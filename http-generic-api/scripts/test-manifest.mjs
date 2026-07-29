@@ -608,6 +608,8 @@ export const testCommands = [
   "node test-managed-git-ephemeral-checkout-executor.mjs",
   "node scripts/test-managed-git-worker-lifecycle.mjs",
   "node test-operation-orchestrator-managed-workspace-dependency.mjs",
+  "node test-managed-git-repository-credential-binding.mjs",
+  "node test-operation-orchestrator-repository-credential.mjs",
   "node test-operation-compiled-manifest-persistence.mjs",
   "node test-operation-runtime-verifier.mjs",
   "node test-operation-authority-preflight.mjs",
