@@ -461,6 +461,19 @@ function mountOperationRoutes(router, middleware = []) {
           artifact_registry: artifactRegistry,
         });
     } catch (error) {
+      if (!credentialFinalized && credentialBinding) {
+        const credentialResult = finalizeCredentialSafely(credentialBinding);
+        credentialFinalized = true;
+        if (credentialResult.status === "release_failed") {
+          error.details = {
+            ...(error?.details && typeof error.details === "object"
+              ? error.details
+              : {}),
+            credential_lifecycle: credentialResult,
+            secrets_included: false,
+          };
+        }
+      }
       if (workerLifecycle?.required === true && operationDeps?.dispatch) {
         const workerResult = await finalizeWorkerSafely({
           lifecycle: workerLifecycle,
