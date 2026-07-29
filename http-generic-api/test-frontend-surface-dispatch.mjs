@@ -331,6 +331,58 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const nestedOperationRoutes = parseRoutesFromFile(`
+function mountOperationRoutes(router, middleware = []) {
+  router.get("/operations/contracts", ...middleware, handler);
+  router.post("/operations/execute", ...middleware, handler);
+}
+const backendGuard = namedMiddleware("requireBackendApiKey", requireBackendApiKey);
+const adminGuard = namedMiddleware("requireAdminPrincipal", requireAdminPrincipal);
+const router = Router();
+const admin = Router();
+mountOperationRoutes(admin, [backendGuard, adminGuard]);
+router.use("/admin", admin);
+const tenant = Router();
+mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
+router.use("/tenant", tenant);
+`, "routes/operationOrchestratorRoutes.js");
+assert.deepEqual(
+  nestedOperationRoutes.map((operation) => operation.signature).sort(),
+  [
+    "GET /admin/operations/contracts",
+    "GET /tenant/operations/contracts",
+    "POST /admin/operations/execute",
+    "POST /tenant/operations/execute",
+  ].sort(),
+  "nested routers must expand helper-defined operations under their real admin and tenant prefixes",
+);
+assert.equal(
+  nestedOperationRoutes.some((operation) => /^\w+ \/operations\//.test(operation.signature)),
+  false,
+  "helper-defined operations must not leak unprefixed runtime paths",
+);
+assert.deepEqual(
+  [...nestedOperationRoutes.find((operation) => operation.signature === "GET /admin/operations/contracts").inherited_guards].sort(),
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "admin nested routes must retain authenticator and authorizer evidence",
+);
+assert.deepEqual(
+  nestedOperationRoutes.find((operation) => operation.signature === "GET /tenant/operations/contracts").inherited_guards,
+  ["requireTenantOperationPrincipal"],
+  "tenant nested routes must retain tenant-principal evidence",
+);
+const arrowAliasRoutes = parseRoutesFromFile(`
+const tenantReadHandlers = (handler) =>
+  enabled
+    ? [requireUser, optionalMiddleware, handler]
+    : [requireUser, handler];
+router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(handler));
+`, "routes/resourceApiRoutes.js");
+assert.deepEqual(
+  arrowAliasRoutes[0].route_guards,
+  ["requireUser"],
+  "multiline arrow middleware aliases must expose user authentication evidence",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
