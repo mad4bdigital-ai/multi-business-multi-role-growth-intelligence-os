@@ -5,13 +5,19 @@ function normalize(value = "") {
 export function inferBrandSkillOperation(toolName = "", args = {}, action = null, context = {}) {
   const explicit = normalize(context.operation_intent || context.operation || "");
   if (explicit) return explicit;
-  const signal = normalize(`${toolName} ${action?.action_key || ""} ${Object.keys(args || {}).join(" ")}`);
-  if (/(delete|remove|revoke)/.test(signal)) return "delete";
-  if (/(publish|send)/.test(signal)) return "publish";
-  if (/(create|insert|add)/.test(signal)) return "create";
-  if (/(update|edit|patch|write)/.test(signal)) return "update";
-  if (/(dispatch|trigger)/.test(signal)) return "dispatch";
-  if (/(deploy|restart|apply|execute|run)/.test(signal)) return "execute";
+
+  const signals = [
+    normalize(`${toolName} ${Object.keys(args || {}).join(" ")}`),
+    normalize(action?.action_key || ""),
+  ];
+  for (const signal of signals) {
+    if (/(delete|remove|revoke)/.test(signal)) return "delete";
+    if (/(publish|send)/.test(signal)) return "publish";
+    if (/(create|insert|add)/.test(signal)) return "create";
+    if (/(update|edit|patch|write)/.test(signal)) return "update";
+    if (/(dispatch|trigger)/.test(signal)) return "dispatch";
+    if (/(deploy|restart|apply|execute|run)/.test(signal)) return "execute";
+  }
   return "use";
 }
 
