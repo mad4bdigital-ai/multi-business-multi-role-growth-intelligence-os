@@ -5,6 +5,10 @@ import {
   brandRowReferences,
   normalizeBrandReference,
 } from "./resolvers/brandReferenceResolver.js";
+import {
+  loadAuthorizedRepositoryContext,
+  repositoryResourceRecords,
+} from "./repositoryAuthorityContextResolver.js";
 
 const RESOURCE_TYPES = Object.freeze([
   "auto",
@@ -13,6 +17,7 @@ const RESOURCE_TYPES = Object.freeze([
   "asset",
   "site",
   "connection",
+  "repository",
 ]);
 
 function text(value = "", max = 2048) {
@@ -53,6 +58,8 @@ function requestedAnchor(args = {}) {
     ["site", "site_ref", args.site_ref],
     ["site", "site_url", args.site_url],
     ["connection", "connection_id", args.connection_id],
+    ["repository", "repository_ref", args.repository_ref],
+    ["repository", "binding_key", args.binding_key],
     [args.resource_type || "auto", "resource_ref", args.resource_ref],
     [args.resource_type || "auto", "reference", args.reference],
   ];
@@ -258,6 +265,13 @@ async function loadGraph(pool, scope, membership = null) {
     );
   }
 
+  const repositoryContext = await loadAuthorizedRepositoryContext({
+    pool,
+    scope,
+    membership,
+    resourceGrants,
+  });
+
   return {
     brands,
     workspaces,
@@ -266,6 +280,8 @@ async function loadGraph(pool, scope, membership = null) {
     cmsGrants,
     sites,
     connections,
+    repositories: repositoryContext.repositories,
+    repositorySummary: repositoryContext.summary,
   };
 }
 
@@ -298,6 +314,13 @@ function brandAuthorityReferences(graph) {
       row.canonical_target_key,
       row.normalized_domain,
       row.site_url,
+    ]),
+    ...graph.repositories.flatMap((row) => [
+      row.brand_target_key,
+      row.workspace_id,
+      row.app_key,
+      row.binding_key,
+      row.full_name,
     ]),
   ]);
 }
@@ -348,6 +371,7 @@ function resourceCatalog(graph, scope) {
       [row.account_label, row.api_base_url, row.app_key],
       row
     )),
+    ...repositoryResourceRecords({ repositories: graph.repositories }),
   ];
 }
 
@@ -429,6 +453,7 @@ function relatedGraph(graph, anchor) {
   const connectionIds = new Set();
   const brandRefs = new Set();
   const assetIds = new Set();
+  const repositoryBindingKeys = new Set();
 
   const row = anchor.row;
   if (anchor.type === "brand") {
@@ -449,6 +474,12 @@ function relatedGraph(graph, anchor) {
   } else if (anchor.type === "connection") {
     connectionIds.add(row.connection_id);
     if (row.tenant_id) tenantIds.add(row.tenant_id);
+  } else if (anchor.type === "repository") {
+    repositoryBindingKeys.add(row.binding_key);
+    if (row.tenant_id) tenantIds.add(row.tenant_id);
+    if (row.workspace_id) workspaceIds.add(row.workspace_id);
+    if (row.connection_id) connectionIds.add(row.connection_id);
+    if (row.brand_target_key) brandRefs.add(row.brand_target_key);
   }
 
   for (const grant of graph.cmsGrants) {
@@ -510,6 +541,20 @@ function relatedGraph(graph, anchor) {
     [asset.brand_ref, asset.site_ref].filter(Boolean).forEach((value) => brandRefs.add(value));
   });
 
+  const repositories = graph.repositories.filter((repository) =>
+    repositoryBindingKeys.has(repository.binding_key)
+    || (repository.workspace_id && workspaceIds.has(repository.workspace_id))
+    || (repository.connection_id && connectionIds.has(repository.connection_id))
+    || matchesAny([repository.brand_target_key, repository.app_key], [...brandRefs])
+  );
+  repositories.forEach((repository) => {
+    repositoryBindingKeys.add(repository.binding_key);
+    if (repository.tenant_id) tenantIds.add(repository.tenant_id);
+    if (repository.workspace_id) workspaceIds.add(repository.workspace_id);
+    if (repository.connection_id) connectionIds.add(repository.connection_id);
+    if (repository.brand_target_key) brandRefs.add(repository.brand_target_key);
+  });
+
   const sites = graph.sites.filter((site) => siteIds.has(site.site_id));
   const grants = graph.cmsGrants.filter((grant) =>
     siteIds.has(grant.site_id)
@@ -532,6 +577,8 @@ function relatedGraph(graph, anchor) {
     sites,
     cms_access_grants: grants,
     connections,
+    repositories,
+    repository_capabilities: repositories.flatMap((repository) => repository.capabilities || []),
   };
 }
 
@@ -585,6 +632,8 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
         site_ref: { type: "string", minLength: 1, maxLength: 2048 },
         site_url: { type: "string", minLength: 1, maxLength: 2048 },
         connection_id: { type: "string", minLength: 1, maxLength: 255 },
+        repository_ref: { type: "string", minLength: 1, maxLength: 2048 },
+        binding_key: { type: "string", minLength: 1, maxLength: 191 },
         candidate_refs: {
           type: "array",
           maxItems: 8,
@@ -605,6 +654,8 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
         { required: ["site_ref"] },
         { required: ["site_url"] },
         { required: ["connection_id"] },
+        { required: ["repository_ref"] },
+        { required: ["binding_key"] },
       ],
     },
   },
@@ -626,12 +677,12 @@ export const PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS = Object.freeze([
   },
   {
     name: "platform_resource_context_related",
-    description: "Expand the authorized one-hop resource graph for one canonical Brand, Workspace, Asset, CMS Site, or Connection key. Uses deterministic exact-key resolution and returns no interpretation catalog. Read-only; no provider call, mutation, or secrets.",
+    description: "Expand the authorized one-hop resource graph for one canonical Brand, Workspace, Asset, CMS Site, Connection, or Repository key. Repository results include safe inherited capability metadata, source maps, authority fingerprints, and capability fingerprints without credential references. Uses deterministic exact-key resolution and returns no interpretation catalog. Read-only; no provider call, mutation, or secrets.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        resource_type: { type: "string", enum: ["brand", "workspace", "asset", "site", "connection"] },
+        resource_type: { type: "string", enum: ["brand", "workspace", "asset", "site", "connection", "repository"] },
         resource_key: { type: "string", minLength: 1, maxLength: 2048 },
         tenant_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
         user_id: { type: "string", description: "Admin-only override; ignored for Tenant principals." },
@@ -800,6 +851,8 @@ export async function platformResourceContextResolve(args = {}, { auth = {}, poo
       site_count: related.sites.length,
       cms_access_grant_count: related.cms_access_grants.length,
       connection_count: related.connections.length,
+      repository_count: related.repositories.length,
+      repository_capability_count: related.repository_capabilities.length,
       brand_context_included: Boolean(brandContext),
     },
     provider_calls_made: 0,
@@ -1102,6 +1155,12 @@ export async function platformResourceContextReadinessSmoke(_args = {}, { pool =
     "cms_sites",
     "cms_site_access_grants",
     "user_app_connections",
+    "repository_authority_bindings",
+    "repository_authority_aliases",
+    "repository_capability_bindings",
+    "repository_capability_policy_layers",
+    "v_repository_authority_binding_readiness",
+    "v_repository_capability_binding_readiness",
   ];
   const rows = await queryRows(
     pool,
@@ -1118,8 +1177,9 @@ export async function platformResourceContextReadinessSmoke(_args = {}, { pool =
       pass: requiredObjects.every((name) => present.has(name)),
       missing: requiredObjects.filter((name) => !present.has(name)),
     },
-    { name: "resource_types_supported", pass: RESOURCE_TYPES.length === 6 },
+    { name: "seven_resource_types_supported", pass: RESOURCE_TYPES.length === 7 && RESOURCE_TYPES.includes("repository") },
     { name: "five_descriptor_tools_present", pass: PLATFORM_RESOURCE_CONTEXT_SYSTEM_TOOLS.length === 5 },
+    { name: "repository_authority_resolver_registered", pass: typeof loadAuthorizedRepositoryContext === "function" },
     { name: "no_provider_call", pass: true },
     { name: "no_mutation", pass: true },
     { name: "no_external_send", pass: true },

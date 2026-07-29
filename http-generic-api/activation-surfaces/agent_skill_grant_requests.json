@@ -1,0 +1,47 @@
+{
+  "surface_key": "agent_skill_grant_requests",
+  "display_name": "Agent Skill Grant Approval Requests",
+  "description": "Tenant-scoped pending and deferred agent skill grant requests with bounded no-secret approval provenance.",
+  "source_table": "v_activation_agent_skill_grant_requests",
+  "covered_source_tables": [
+    "agent_skill_grant_requests",
+    "agent_skill_grants",
+    "agents",
+    "agent_skills"
+  ],
+  "result_key_column": "request_id",
+  "result_label_column": "skill_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "request_status",
+  "active_status_values": [
+    "pending",
+    "deferred"
+  ],
+  "result_columns": [
+    "request_id",
+    "tenant_id",
+    "brand_key",
+    "agent_id",
+    "agent_name",
+    "agent_display_name",
+    "skill_id",
+    "skill_key",
+    "skill_display_name",
+    "skill_type",
+    "skill_scope",
+    "requires_approval",
+    "request_status",
+    "approval_policy_key",
+    "approval_hold_id",
+    "requested_at",
+    "expires_at",
+    "provenance_type"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 51,
+  "status": "active",
+  "notes": "Excludes decision notes, decision actor identity, provenance references, idempotency keys, capability payloads, provider payloads, credential material, and secrets. Tenant projection remains bounded by tenant_id."
+}

@@ -17,6 +17,8 @@ export const CAPABILITY_ENVELOPE_TEMPLATE_CONTEXT_FIELDS = Object.freeze([
   "resource_uri",
   "recipe_key",
   "expected_commit_sha",
+  "binding_sha256",
+  "capability_sha256",
 ]);
 
 const CONTEXT_LIMITS = Object.freeze({
@@ -33,6 +35,8 @@ const CONTEXT_LIMITS = Object.freeze({
   resource_uri: 512,
   recipe_key: 191,
   expected_commit_sha: 40,
+  binding_sha256: 64,
+  capability_sha256: 64,
 });
 
 function fail(code, message, status = 400, details = undefined) {
@@ -135,6 +139,15 @@ export function normalizeCapabilityEnvelopeTemplateContext(template, rawContext 
   if (context.expected_commit_sha && !/^[0-9a-f]{40}$/i.test(context.expected_commit_sha)) {
     fail("capability_envelope_template_commit_invalid", "expected_commit_sha must be a 40-character hexadecimal commit SHA.", 400);
   }
+  for (const field of ["binding_sha256", "capability_sha256"]) {
+    if (context[field] && !/^[0-9a-f]{64}$/i.test(context[field])) {
+      fail(
+        `capability_envelope_template_${field}_invalid`,
+        `${field} must be a 64-character hexadecimal SHA-256 fingerprint.`,
+        400,
+      );
+    }
+  }
   if (context.resource_uri && !/^[a-z][a-z0-9+.-]*:\/\//i.test(context.resource_uri)) {
     fail("capability_envelope_template_resource_uri_invalid", "resource_uri must be an absolute governed resource URI.", 400);
   }
@@ -157,6 +170,8 @@ export function buildCapabilityEnvelopeTemplatePassthrough(template, context, { 
     resource_uri: "--resource-uri",
     recipe_key: "--recipe-key",
     expected_commit_sha: "--expected-commit-sha",
+    binding_sha256: "--binding-sha256",
+    capability_sha256: "--capability-sha256",
   };
   for (const key of CAPABILITY_ENVELOPE_TEMPLATE_CONTEXT_FIELDS) {
     if (!context[key]) continue;

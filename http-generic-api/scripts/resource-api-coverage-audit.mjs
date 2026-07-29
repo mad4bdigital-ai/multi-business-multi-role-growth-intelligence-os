@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { validateDirectRouteCallabilityContracts } from "./resource-api-callability-contracts.mjs";
 
 const ROOT = process.cwd();
 const MANIFEST_PATH = path.join(ROOT, "resource-api-coverage.manifest.json");
@@ -73,6 +74,140 @@ function declaredSurfacePolicies(source) {
   return decisions;
 }
 
+function readContractSource(relativePath, findings, familyKey, role) {
+  if (!relativePath) {
+    findings.push({ type: "callability_contract_file_not_declared", family_key: familyKey, role });
+    return null;
+  }
+  const fullPath = path.join(ROOT, relativePath);
+  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+    findings.push({ type: "callability_contract_file_missing", family_key: familyKey, role, file: relativePath });
+    return null;
+  }
+  return fs.readFileSync(fullPath, "utf8");
+}
+
+function validateCallabilityContracts(manifest, findings) {
+  const coveredToolKeys = new Set();
+  const gate = manifest.callability_gate || {};
+  if (gate.required !== true) {
+    findings.push({ type: "callability_gate_not_enabled" });
+    return coveredToolKeys;
+  }
+  if (!Array.isArray(gate.contracts) || gate.contracts.length === 0) {
+    findings.push({ type: "callability_contracts_missing" });
+    return coveredToolKeys;
+  }
+
+  for (const contract of gate.contracts) {
+    const familyKey = String(contract.family_key || "").trim() || null;
+    if (!familyKey) {
+      findings.push({ type: "callability_family_key_missing" });
+      continue;
+    }
+
+    const contractSource = readContractSource(contract.contract_source_file, findings, familyKey, "contract_source");
+    const registrySource = readContractSource(contract.admin_registry_file, findings, familyKey, "admin_registry");
+    const implementationSource = readContractSource(contract.implementation_file, findings, familyKey, "implementation");
+
+    if (contractSource && contract.contract_source_marker && !contractSource.includes(contract.contract_source_marker)) {
+      findings.push({
+        type: "callability_contract_source_marker_missing",
+        family_key: familyKey,
+        file: contract.contract_source_file,
+        marker: contract.contract_source_marker,
+      });
+    }
+
+    if (contractSource && contract.contract_key_pattern) {
+      try {
+        const expression = new RegExp(contract.contract_key_pattern, "g");
+        const keys = [];
+        let match;
+        while ((match = expression.exec(contractSource)) !== null) {
+          keys.push(String(match[1] || match[0] || "").trim());
+          if (match[0] === "") expression.lastIndex += 1;
+        }
+        const uniqueKeys = new Set(keys.filter(Boolean));
+        for (const key of uniqueKeys) coveredToolKeys.add(key);
+        if (Number.isInteger(contract.expected_contract_count) && keys.length !== contract.expected_contract_count) {
+          findings.push({
+            type: "callability_contract_count_mismatch",
+            family_key: familyKey,
+            expected: contract.expected_contract_count,
+            actual: keys.length,
+          });
+        }
+        if (uniqueKeys.size !== keys.length) {
+          findings.push({
+            type: "callability_contract_keys_not_unique",
+            family_key: familyKey,
+            contract_count: keys.length,
+            unique_count: uniqueKeys.size,
+          });
+        }
+      } catch (error) {
+        findings.push({
+          type: "callability_contract_pattern_invalid",
+          family_key: familyKey,
+          pattern: contract.contract_key_pattern,
+          message: String(error?.message || error),
+        });
+      }
+    } else {
+      findings.push({ type: "callability_contract_key_pattern_missing", family_key: familyKey });
+    }
+
+    for (const [markerRole, marker] of [
+      ["descriptor", contract.descriptor_marker],
+      ["handler", contract.handler_marker],
+      ["handler_call", contract.handler_call_marker],
+    ]) {
+      if (!marker) {
+        findings.push({ type: "callability_marker_not_declared", family_key: familyKey, role: markerRole });
+      } else if (registrySource && !registrySource.includes(marker)) {
+        findings.push({
+          type: "callability_registry_marker_missing",
+          family_key: familyKey,
+          role: markerRole,
+          file: contract.admin_registry_file,
+          marker,
+        });
+      }
+    }
+
+    if (!contract.implementation_export_marker) {
+      findings.push({ type: "callability_implementation_export_not_declared", family_key: familyKey });
+    } else if (implementationSource && !implementationSource.includes(contract.implementation_export_marker)) {
+      findings.push({
+        type: "callability_implementation_export_missing",
+        family_key: familyKey,
+        file: contract.implementation_file,
+        marker: contract.implementation_export_marker,
+      });
+    }
+
+    for (const marker of contract.required_safety_markers || []) {
+      if (implementationSource && !implementationSource.includes(marker)) {
+        findings.push({
+          type: "callability_safety_marker_missing",
+          family_key: familyKey,
+          file: contract.implementation_file,
+          marker,
+        });
+      }
+    }
+
+    if (contract.admin_preview_required_while_disabled === true && !contract.admin_preview_tool) {
+      findings.push({ type: "callability_admin_preview_not_declared", family_key: familyKey });
+    }
+    if (contract.runtime_execution_allowed !== false) {
+      findings.push({ type: "callability_preview_runtime_execution_not_explicitly_blocked", family_key: familyKey });
+    }
+  }
+  return coveredToolKeys;
+}
+
 const args = new Set(process.argv.slice(2));
 const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
 const routeSource = fs.readFileSync(ROUTE_PATH, "utf8");
@@ -82,6 +217,13 @@ const tenantOpenapi = fs.readFileSync(TENANT_OPENAPI_PATH, "utf8");
 const findings = [];
 
 if (manifest.new_feature_gate?.require_surface_policy_decision !== true) findings.push({ type: "surface_policy_gate_not_enabled" });
+if (manifest.new_feature_gate?.require_callable_handler_or_explicit_admin_preview !== true) {
+  findings.push({ type: "callable_handler_or_admin_preview_gate_not_enabled" });
+}
+const callabilityCoveredTools = validateCallabilityContracts(manifest, findings);
+const directRouteCallability = validateDirectRouteCallabilityContracts({ root: ROOT, manifest });
+findings.push(...directRouteCallability.findings);
+for (const toolKey of directRouteCallability.covered_tool_keys) callabilityCoveredTools.add(toolKey);
 
 for (const resource of manifest.resources || []) {
   if (!resource.resource_key || !Array.isArray(resource.source_tables) || !resource.operations) {
@@ -123,8 +265,16 @@ if (combined) {
   const manifestTools = new Set(manifest.tool_exports || []);
   for (const match of combined.matchAll(/(?:admin_platform_endpoint_tools|tenant_platform_endpoint_tools)[\s\S]{0,400}?['"]([a-z][a-z0-9_]{3,})['"]/gi)) {
     const toolKey = match[1];
-    if (!manifestTools.has(toolKey) && !surfacePolicyDecisions.has(`tool:${toolKey}`) && !["tool_key", "display_name", "description"].includes(toolKey)) {
-      findings.push({ type: "new_tool_missing_surface_policy_decision", tool_key: toolKey });
+    if (
+      !manifestTools.has(toolKey)
+      && !callabilityCoveredTools.has(toolKey)
+      && !surfacePolicyDecisions.has(`tool:${toolKey}`)
+      && !["tool_key", "display_name", "description"].includes(toolKey)
+    ) {
+      findings.push({
+        type: "new_tool_missing_callability_contract_or_surface_policy_decision",
+        tool_key: toolKey,
+      });
     }
   }
 

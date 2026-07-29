@@ -80,6 +80,14 @@ function envelopeCommitHint(row = {}) {
   ).toLowerCase();
 }
 
+function envelopeRequestContext(row = {}) {
+  const envelopeJson = parseJson(row.envelope_json, {});
+  const requestContext = envelopeJson?.request_context;
+  return requestContext && typeof requestContext === "object" && !Array.isArray(requestContext)
+    ? requestContext
+    : {};
+}
+
 export async function resolveCapabilityExecutionEnvelope({
   pool = null,
   envelopeId = "",
@@ -90,7 +98,13 @@ export async function resolveCapabilityExecutionEnvelope({
   acceptedCapabilityKeys = [],
   expectedTenantId = "",
   expectedUserId = "",
+  expectedWorkspaceId = "",
+  expectedBrandKey = "",
+  expectedResourceUri = "",
   expectedCommitSha = "",
+  expectedBindingSha256 = "",
+  expectedCapabilitySha256 = "",
+  requireCommitHint = false,
   allowReferenced = true,
   requireReadyForDispatch = true,
   requireDispatchAllowed = true,
@@ -141,6 +155,55 @@ export async function resolveCapabilityExecutionEnvelope({
     return capabilityEnvelopeFailure("capability_resolution_envelope_user_mismatch", { envelope_id: resolvedEnvelopeId });
   }
 
+  const workspaceId = compact(expectedWorkspaceId, 64);
+  if (workspaceId && compact(row.workspace_id, 64) !== workspaceId) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_workspace_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_workspace_id: compact(row.workspace_id, 64) || null,
+      expected_workspace_id: workspaceId,
+    });
+  }
+
+  const brandKey = compact(expectedBrandKey, 255);
+  if (brandKey && compact(row.brand_key, 255) !== brandKey) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_brand_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_brand_key: compact(row.brand_key, 255) || null,
+      expected_brand_key: brandKey,
+    });
+  }
+
+  const requestContext = envelopeRequestContext(row);
+  const envelopeResourceUri = compact(requestContext.resource_uri || requestContext.resourceUri, 2048);
+  const resourceUri = compact(expectedResourceUri, 2048);
+  if (resourceUri && envelopeResourceUri !== resourceUri) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_resource_uri_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_resource_uri: envelopeResourceUri || null,
+      expected_resource_uri: resourceUri,
+    });
+  }
+
+  const envelopeBindingSha256 = compact(requestContext.binding_sha256 || requestContext.bindingSha256, 64).toLowerCase();
+  const bindingSha256 = compact(expectedBindingSha256, 64).toLowerCase();
+  if (bindingSha256 && envelopeBindingSha256 !== bindingSha256) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_binding_sha256_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_binding_sha256: envelopeBindingSha256 || null,
+      expected_binding_sha256: bindingSha256,
+    });
+  }
+
+  const envelopeCapabilitySha256 = compact(requestContext.capability_sha256 || requestContext.capabilitySha256, 64).toLowerCase();
+  const capabilitySha256 = compact(expectedCapabilitySha256, 64).toLowerCase();
+  if (capabilitySha256 && envelopeCapabilitySha256 !== capabilitySha256) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_capability_sha256_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      envelope_capability_sha256: envelopeCapabilitySha256 || null,
+      expected_capability_sha256: capabilitySha256,
+    });
+  }
+
   if (requireReadyForDispatch && row.envelope_status !== "ready_for_dispatch") {
     return capabilityEnvelopeFailure("capability_resolution_envelope_not_dispatch_ready", { envelope_id: resolvedEnvelopeId, envelope_status: row.envelope_status, decision: row.decision });
   }
@@ -168,8 +231,13 @@ export async function resolveCapabilityExecutionEnvelope({
 
   const sha = compact(expectedCommitSha, 64).toLowerCase();
   const hintedSha = envelopeCommitHint(row);
-  if (sha && hintedSha && hintedSha !== sha) {
-    return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", { envelope_id: resolvedEnvelopeId, expected_commit_sha: sha, envelope_commit_sha: hintedSha });
+  if (sha && ((requireCommitHint && hintedSha !== sha) || (!requireCommitHint && hintedSha && hintedSha !== sha))) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", {
+      envelope_id: resolvedEnvelopeId,
+      expected_commit_sha: sha,
+      envelope_commit_sha: hintedSha || null,
+      commit_hint_required: requireCommitHint === true,
+    });
   }
 
   return {
@@ -178,9 +246,17 @@ export async function resolveCapabilityExecutionEnvelope({
     envelope_id: resolvedEnvelopeId,
     envelope_status: row.envelope_status,
     decision: row.decision,
+    tenant_id: row.tenant_id || null,
+    user_id: row.user_id || null,
+    workspace_id: row.workspace_id || null,
+    brand_key: row.brand_key || null,
     app_key: row.app_key || null,
     capability_key: row.capability_key || null,
     operation_intent: row.operation_intent || null,
+    resource_uri: envelopeResourceUri || null,
+    expected_commit_sha: hintedSha || null,
+    binding_sha256: envelopeBindingSha256 || null,
+    capability_sha256: envelopeCapabilitySha256 || null,
     selected_source_tier: row.selected_source_tier || null,
     selected_runtime_surface: row.selected_runtime_surface || null,
     dispatch_allowed: true,

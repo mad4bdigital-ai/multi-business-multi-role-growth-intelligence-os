@@ -13,8 +13,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: docs-agent-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   pr-impact-note:

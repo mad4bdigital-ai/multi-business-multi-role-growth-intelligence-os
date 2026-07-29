@@ -1,0 +1,258 @@
+openapi: 3.1.0
+info:
+  title: Agent Skill Grant Approval API
+  version: 1.0.0
+  description: Canonical contracts for requesting, reviewing, and deciding approval-governed agent skill grants.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: agent-skill-grant-approvals
+    description: Fail-closed approval provenance for agent skill grants.
+paths:
+  /agents/{id}/skills/grant:
+    post:
+      tags: [agent-skill-grant-approvals]
+      operationId: requestAgentSkillGrant
+      summary: Request or directly grant an agent skill according to its approval policy
+      description: |
+        Skills that do not require approval return an effective grant immediately.
+        Skills that require approval return a pending request and remain unavailable to runtime execution until an authorized decision is recorded.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentSkillGrantRequestInput'
+      responses:
+        '201':
+          description: Approval is not required and the skill grant is runtime-effective.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSkillGrantRequestResult'
+        '202':
+          description: Approval is required; a pending request and approval hold were created and the grant is not runtime-effective.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSkillGrantRequestResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+      x-contract-completeness: canonical
+  /agent-skill-grant-requests:
+    get:
+      tags: [agent-skill-grant-approvals]
+      operationId: listAgentSkillGrantRequests
+      summary: List agent skill grant requests for platform review
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: request_status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AgentSkillGrantRequestStatus'
+        - name: tenant_id
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 36 }
+        - name: agent_id
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 36 }
+        - name: skill_id
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 36 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: Matching grant requests and runtime-effective readback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSkillGrantRequestList'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+      x-contract-completeness: canonical
+  /agent-skill-grant-requests/{request_id}/decision:
+    post:
+      tags: [agent-skill-grant-approvals]
+      operationId: decidePlatformAgentSkillGrantRequest
+      summary: Decide a platform-scoped agent skill grant request
+      description: Requires a platform admin principal and an exact typed confirmation bound to the request id and decision.
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GrantRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformAgentSkillGrantDecisionInput'
+      responses:
+        '200':
+          description: Decision committed with same-cycle request, grant, hold, and runtime-effectiveness readback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSkillGrantDecisionResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+      x-contract-completeness: canonical
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend bearer authentication accepted only when the runtime admin-principal guard succeeds.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  parameters:
+    AgentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 36 }
+    GrantRequestId:
+      name: request_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 36 }
+  schemas:
+    AgentSkillGrantRequestStatus:
+      type: string
+      enum: [pending, approved, rejected, deferred, expired, not_required]
+    AgentSkillGrantRequestInput:
+      type: object
+      additionalProperties: false
+      properties:
+        skill_id: { type: string, minLength: 1, maxLength: 36 }
+        skill_key: { type: string, minLength: 1, maxLength: 128 }
+        tenant_id: { type: [string, 'null'], minLength: 1, maxLength: 36 }
+        brand_key: { type: [string, 'null'], minLength: 1, maxLength: 128 }
+        requested_by: { type: string, minLength: 1, maxLength: 128 }
+        granted_by: { type: string, minLength: 1, maxLength: 128, deprecated: true }
+        expires_at: { type: [string, 'null'], format: date-time }
+        idempotency_key: { type: [string, 'null'], minLength: 1, maxLength: 191 }
+      anyOf:
+        - required: [skill_id]
+        - required: [skill_key]
+    AgentSkillGrantRequestReadback:
+      type: object
+      required: [request_id, agent_id, skill_id, request_status, runtime_effective]
+      properties:
+        request_id: { type: string }
+        agent_id: { type: string }
+        skill_id: { type: string }
+        tenant_id: { type: [string, 'null'] }
+        brand_key: { type: [string, 'null'] }
+        request_status: { $ref: '#/components/schemas/AgentSkillGrantRequestStatus' }
+        approval_policy_key: { type: string }
+        approval_hold_id: { type: [string, 'null'] }
+        requested_by: { type: string }
+        requested_at: { type: string, format: date-time }
+        decision_by: { type: [string, 'null'] }
+        decision_note: { type: [string, 'null'] }
+        decided_at: { type: [string, 'null'], format: date-time }
+        provenance_type: { type: string }
+        provenance_ref: { type: [string, 'null'] }
+        expires_at: { type: [string, 'null'], format: date-time }
+        grant_id: { type: [string, 'null'] }
+        grant_status: { type: [string, 'null'], enum: [active, revoked, null] }
+        runtime_effective: { type: integer, enum: [0, 1] }
+      additionalProperties: true
+    AgentSkillGrantRequestResult:
+      type: object
+      required: [ok, changed, approval_required, request, http_status, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        changed: { type: boolean }
+        approval_required: { type: boolean }
+        request: { $ref: '#/components/schemas/AgentSkillGrantRequestReadback' }
+        http_status: { type: integer, enum: [201, 202] }
+        policy: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    AgentSkillGrantRequestList:
+      type: object
+      required: [ok, requests, total, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        requests:
+          type: array
+          items: { $ref: '#/components/schemas/AgentSkillGrantRequestReadback' }
+        total: { type: integer, minimum: 0 }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    PlatformAgentSkillGrantDecisionInput:
+      type: object
+      required: [decision, confirm]
+      additionalProperties: false
+      properties:
+        decision: { type: string, enum: [approve, reject, defer] }
+        confirm:
+          type: string
+          minLength: 20
+          description: DECIDE_AGENT_SKILL_GRANT_REQUEST_<NORMALIZED_REQUEST_ID>_<UPPERCASE_DECISION>
+        decision_note: { type: [string, 'null'], maxLength: 512 }
+        grant_ttl_hours: { type: [integer, 'null'], minimum: 1, maximum: 8760 }
+        defer_until: { type: [string, 'null'], format: date-time }
+        defer_hours: { type: integer, minimum: 1, maximum: 2160, default: 168 }
+    AgentSkillGrantDecisionResult:
+      type: object
+      required: [ok, changed, decision, request, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        changed: { type: boolean }
+        decision: { type: string, enum: [approve, reject, defer] }
+        request: { $ref: '#/components/schemas/AgentSkillGrantRequestReadback' }
+        idempotency: { type: object, additionalProperties: true }
+        policy: { type: object, additionalProperties: true }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+          additionalProperties: false
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Unauthorized: { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Authenticated principal is not allowed, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: "Agent, skill, or request not found", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: "Approval lifecycle, scope, idempotency, or readback conflict", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    InternalError: { description: Unexpected server failure, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }

@@ -121,7 +121,8 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
         error: preparedRecord.error || null,
       };
 
-      const statusCode = hard.activation_complete ? 200 : 424;
+      const reportProduced = responseBody?.state_model?.evidence_state === "complete";
+      const statusCode = hard.activation_complete || reportProduced ? 200 : 424;
       const runId = responseBody.run_id || null;
       res.on("finish", () => {
         markActivationRunDelivered(getPool(), {

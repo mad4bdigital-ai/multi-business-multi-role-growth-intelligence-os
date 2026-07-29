@@ -56,6 +56,69 @@
       "number": 3042,
       "branch": "gpt/spec-011-phase3-plan-bound-session-shadow-20260723",
       "role": "plan_bound_session_shadow",
+      "status": "merged",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+    },
+    "phase3_closeout_pr": {
+      "number": 3055,
+      "branch": "gpt/spec-011-phase3-closeout-20260723",
+      "role": "phase3_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "64b862e1de0c0398b0d87e1d7c93d1ceff866103"
+    },
+    "phase3_delegation_grant_shadow_pr": {
+      "number": 3067,
+      "branch": "gpt/spec-011-phase3-delegation-grant-shadow-20260723",
+      "role": "delegation_grant_shadow",
+      "status": "merged",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+    },
+    "phase3_delegation_grant_shadow_closeout_pr": {
+      "number": 3092,
+      "branch": "gpt/spec-011-phase3-delegation-shadow-closeout-20260724",
+      "role": "delegation_grant_shadow_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "97098a1c4284063be4a684b1618c36b9e88e4257"
+    },
+    "phase3_delegation_persistence_pr": {
+      "number": 3110,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-20260725",
+      "role": "delegation_persistence_contract",
+      "status": "merged",
+      "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
+    },
+    "phase3_delegation_persistence_original_closeout_pr": {
+      "number": 3132,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-20260725",
+      "role": "delegation_persistence_evidence_closeout_original",
+      "status": "closed_unmerged",
+      "head_sha": "3733b608d724b83616c6da350a5c2464470169f0"
+    },
+    "phase3_delegation_persistence_closeout_pr": {
+      "number": 3146,
+      "branch": "gpt/spec-011-phase3-delegation-persistence-closeout-recovery-20260726",
+      "role": "delegation_persistence_evidence_closeout_recovery",
+      "status": "merged",
+      "merge_sha": "02d42fab17638d11aa1737187fde3c49ee35198f"
+    },
+    "phase3_delegation_lifecycle_pr": {
+      "number": 3173,
+      "branch": "gpt/spec-011-phase3-delegation-lifecycle-contract-20260726",
+      "role": "delegation_lifecycle_shadow_contract",
+      "status": "merged",
+      "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+    },
+    "phase3_delegation_mode_drift_pr": {
+      "number": 3203,
+      "branch": "gpt/spec-011-delegation-mode-contract-drift-20260728",
+      "role": "delegation_approval_mode_contract_drift_repair",
+      "status": "merged",
+      "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87"
+    },
+    "phase3_delegation_repository_pr": {
+      "number": 3221,
+      "branch": "gpt/spec-011-phase3-delegation-repository-contract-20260728",
+      "role": "delegation_repository_mutation_contract",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -74,6 +137,36 @@
       {
         "number": 3042,
         "role": "phase3_plan_bound_session_shadow",
+        "status": "merged",
+        "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+      },
+      {
+        "number": 3067,
+        "role": "phase3_delegation_grant_shadow",
+        "status": "merged",
+        "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+      },
+      {
+        "number": 3110,
+        "role": "phase3_delegation_persistence_contract",
+        "status": "merged",
+        "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
+      },
+      {
+        "number": 3173,
+        "role": "phase3_delegation_lifecycle_shadow_contract",
+        "status": "merged",
+        "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+      },
+      {
+        "number": 3203,
+        "role": "phase3_delegation_approval_mode_contract_drift_repair",
+        "status": "merged",
+        "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87"
+      },
+      {
+        "number": 3221,
+        "role": "phase3_delegation_repository_mutation_contract",
         "status": "current_pr"
       }
     ],
@@ -135,9 +228,10 @@
       "secrets_included": false
     },
     "phase3_session_shadow": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "ecfb62702d1eecc591c23ff3ac51954e0f819441",
       "pull_request": 3042,
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
       "service": "http-generic-api/planBoundSessionShadow.js",
       "test": "http-generic-api/test-plan-bound-session-shadow.mjs",
       "design": "phase3-plan-bound-session-shadow.md",
@@ -156,8 +250,127 @@
       "provider_write": false,
       "secrets_included": false
     },
+    "phase3_delegation_grant_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "39050425451233a75357cc018199c7a791a55ba2",
+      "pull_request": 3067,
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "service": "http-generic-api/delegationGrantShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-shadow.mjs",
+      "design": "phase3-delegation-grant-shadow.md",
+      "reused_plan_bound_session_shadow": "http-generic-api/planBoundSessionShadow.js",
+      "reused_manual_opt_in": "http-generic-api/agentDelegationOptIn.js",
+      "preview_contract": true,
+      "legacy_inspection_contract": true,
+      "revoke_preview": true,
+      "expire_preview": true,
+      "legacy_dispatch_eligible": false,
+      "tenant_scope": true,
+      "self_delegation_blocked": true,
+      "plan_hash_binding": true,
+      "resource_snapshot_hash_binding": true,
+      "risk_ceiling_binding": true,
+      "bounded_ttl_and_limits": true,
+      "readback_required": true,
+      "stop_on_drift_required": true,
+      "public_route": false,
+      "runtime_authority": false,
+      "database_migration": false,
+      "database_write": false,
+      "delegation_activation": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_persistence_contract": {
+      "status": "complete_on_main",
+      "source_main_sha": "09f34140a51ce1092c7572ef89bceb94ec19e614",
+      "pull_request": 3110,
+      "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b",
+      "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
+      "design": "phase3-delegation-persistence-contract.md",
+      "effective_view": "effective_agent_delegation_grants_v",
+      "additive_only": true,
+      "migration_applied": false,
+      "legacy_rows_dispatch_eligible": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "database_write": false,
+      "provider_write": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_lifecycle_shadow": {
+      "status": "complete_on_main",
+      "source_main_sha": "6b3ee56913e9e9a9c058f727c5101d71321f9692",
+      "pull_request": 3173,
+      "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
+      "service": "http-generic-api/delegationGrantLifecycleShadowService.js",
+      "test": "http-generic-api/test-delegation-grant-lifecycle-shadow.mjs",
+      "design": "phase3-delegation-lifecycle-shadow.md",
+      "create_shadow_planning": true,
+      "revoke_shadow_planning": true,
+      "expire_shadow_planning": true,
+      "pending_mutation_receipt_planning": true,
+      "renewal_no_widening": true,
+      "read_only_repository_port": true,
+      "schema_readiness_evidence_required": true,
+      "migration_applied": false,
+      "database_write": false,
+      "grant_mutation": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "approval_mutation": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_mode_drift_repair": {
+      "status": "complete_on_main",
+      "source_main_sha": "704c452666c055259c426c6534620df497bc2a45",
+      "pull_request": 3203,
+      "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
+      "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
+      "design": "phase3-delegation-persistence-contract.md",
+      "canonical_schema": "schemas/delegation-grant.schema.json",
+      "canonical_approval_modes_exact_match": true,
+      "migration_applied": false,
+      "database_write": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_repository_mutation_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
+      "pull_request": 3221,
+      "service": "http-generic-api/delegationGrantRepositoryMutationService.js",
+      "test": "http-generic-api/test-delegation-grant-repository-mutation.mjs",
+      "design": "phase3-delegation-repository-mutation-contract.md",
+      "transactional_repository_port": true,
+      "pending_receipt_before_mutation": true,
+      "same_cycle_grant_readback": true,
+      "same_cycle_receipt_readback": true,
+      "idempotent_replay": true,
+      "idempotency_conflict_detection": true,
+      "unknown_commit_outcome_fail_closed": true,
+      "authorization_fingerprint_binding": true,
+      "migration_applied": false,
+      "live_database_write": false,
+      "mariadb_adapter_bound": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_plan_bound_session_shadow_complete_on_branch"
+      "status": "phase3_delegation_repository_mutation_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -182,7 +395,53 @@
       ]
     },
     "phase3_ci": {
-      "status": "pending_phase3_pr",
+      "status": "pass",
+      "head_sha": "e3c927bee291a425ada8e939bf3485a1e0762f02",
+      "base_sha": "d3cdf2e249d2c2fd62d52fbff0b83c3c4a6fbb6b",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_grant_shadow_ci": {
+      "status": "pass",
+      "head_sha": "2ad2d916cb43f8410c7f5ae80a6fb4bcffec69fa",
+      "base_sha": "bd404977fe12ef12c8449e143705e40a475690ce",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_persistence_ci": {
+      "status": "pass",
+      "head_sha": "22f100d6aece8600fa953bed7f05fd1f975890f5",
+      "base_sha": "2587f804045e5045a87a5df3009ea2bac8aa45d8",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_lifecycle_ci": {
+      "status": "pass",
+      "head_sha": "8aa099c93cce7ab8b140f167ff9944d79e628ab8",
+      "base_sha": "9f3cfe6391b97eb2cf5de0895ff7e5f06cee8e63",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_repository_ci": {
+      "status": "pass",
+      "head_sha": "dc374ca66715cb302afae51beb6dff7d5658514a",
+      "base_sha": "a23e00763b1d1a783c9dab31195e1a81be113307",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -198,6 +457,74 @@
     },
     "phase3_migration": {
       "status": "not_required_for_phase3_shadow_session"
+    },
+    "phase3_delegation_grant_shadow_migration": {
+      "status": "not_required_for_shadow_contract"
+    },
+    "phase3_delegation_persistence_migration": {
+      "status": "contract_only_unapplied",
+      "file": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "migration_applied": false,
+      "database_write": false,
+      "backfill_performed": false,
+      "same_cycle_readback_required_before_apply": true
+    },
+    "phase3_delegation_persistence_production_verification": {
+      "status": "verified_scope_only_no_runtime_deploy_required",
+      "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b",
+      "final_ci_head_sha": "22f100d6aece8600fa953bed7f05fd1f975890f5",
+      "final_ci_base_sha": "2587f804045e5045a87a5df3009ea2bac8aa45d8",
+      "verification_basis": "isolated_merge_diff",
+      "migration_applied": false,
+      "database_write": false,
+      "backfill_performed": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "provider_dispatch_performed": false,
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "release_operation_required": false,
+      "rollback_required": false,
+      "global_release_readiness": "warn_unrelated_main_runtime_gap",
+      "global_readiness_note": "The wider main-to-runtime gap contains unrelated operational changes. Slice C itself adds an unapplied migration contract, deterministic test, CI registration, and evidence only.",
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow_production_verification": {
+      "status": "verified_at_runtime_descendant_and_current_main_parity",
+      "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "deployed_commit_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "current_main_sha": "14e705b84df294f5b1d96334dcf90f303708f2d2",
+      "runtime_verification_run_id": "5d5a1318-0ecd-4b38-8283-461ef627e642",
+      "checked_at": "2026-07-24T02:58:15.641Z",
+      "merge_to_runtime_status": "ahead",
+      "merge_to_runtime_ahead_by": 2,
+      "merge_to_runtime_behind_by": 0,
+      "runtime_to_main_status": "identical",
+      "runtime_to_main_ahead_by": 0,
+      "runtime_to_main_behind_by": 0,
+      "release_readiness": "pass",
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_grant_shadow_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "degraded_contract_pre_execution_module_missing",
+      "release_operation_id": "8aada61f-4007-46e1-804f-60c4b0b3afe9",
+      "gate_id": "879fab13-058a-46f9-a746-7b252241de84",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "ef30d1d831b7743587d08d701fb391f5230e9690",
+      "observed_error_code": "ERR_MODULE_NOT_FOUND",
+      "missing_module": "http-generic-api/knowledgeSurfaceResolver.js",
+      "transient_module_race_reconciled": true,
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "4bbc4963ef81a5f9cf847dcab9bd53742aebc1c505678f001c0fc625b66c4416",
+      "secrets_included": false
     },
     "production_verification": {
       "status": "verified_at_newer_descendant",
@@ -233,11 +560,65 @@
       "rollback_required": false,
       "secrets_included": false
     },
+    "phase3_production_verification": {
+      "status": "verified_at_runtime_descendant",
+      "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a",
+      "deployed_commit_sha": "b342eadd093464811157e9c0fcac1d82a8fa09c4",
+      "runtime_verification_run_id": "e2a51673-8bb4-4864-a1c2-1606d1fcc5e8",
+      "checked_at": "2026-07-23T18:31:36.459Z",
+      "phase3_to_runtime_status": "ahead",
+      "phase3_to_runtime_ahead_by": 7,
+      "phase3_to_runtime_behind_by": 0,
+      "current_main_sha": "87e8f01bd004837ac89a6e54e90fe13ecf2bacb9",
+      "runtime_to_main_status": "ahead",
+      "runtime_to_main_ahead_by": 1,
+      "runtime_to_main_behind_by": 0,
+      "main_only_files": [
+        "docs/work-maps/README.md",
+        "docs/work-maps/data-model-domain-map.md",
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_release_reconciliation": {
+      "status": "cancelled",
+      "classification": "superseded_before_execution",
+      "release_operation_id": "2cca7984-3d93-40eb-bcc3-78f6319e87ff",
+      "gate_id": "05d4ef00-0a42-47bc-bb5e-6649c6b50df7",
+      "gate_status": "hard_disabled",
+      "gate_bound_sha": "02c13f7409d7cf84333dc80f034d2f8c45f89de5",
+      "execution_performed": false,
+      "provider_dispatch_performed": false,
+      "retry_performed": false,
+      "rollback_required": false,
+      "evidence_sha256": "094633d4f0a6e81c1ef2239efa081c34c84d48dba82842c6652498a100735b03",
+      "secrets_included": false
+    },
     "post_merge_audit": {
       "phase1_status": "complete",
       "phase2_status": "complete_on_main",
       "phase2_closeout_status": "merged",
-      "phase3_status": "pending_phase3_merge",
+      "phase3_status": "complete_on_main",
+      "phase3_closeout_status": "merged",
+      "phase3_delegation_grant_shadow_status": "complete_on_main",
+      "phase3_delegation_grant_shadow_closeout_status": "merged",
+      "phase3_delegation_persistence_status": "complete_on_main",
+      "phase3_delegation_persistence_original_closeout_status": "closed_unmerged",
+      "phase3_delegation_persistence_closeout_status": "merged",
+      "phase3_delegation_persistence_recovery_pull_request": 3146,
+      "phase3_delegation_persistence_migration_status": "contract_only_unapplied",
+      "phase3_delegation_lifecycle_status": "complete_on_main",
+      "phase3_delegation_lifecycle_pull_request": 3173,
+      "phase3_delegation_lifecycle_merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
+      "phase3_delegation_mode_drift_status": "complete_on_main",
+      "phase3_delegation_mode_drift_pull_request": 3203,
+      "phase3_delegation_mode_drift_merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
+      "phase3_delegation_repository_status": "pending_merge",
+      "phase3_delegation_repository_pull_request": 3221,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
     }
   },

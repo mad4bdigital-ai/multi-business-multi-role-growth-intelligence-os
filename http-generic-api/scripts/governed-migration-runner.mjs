@@ -5,6 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { assessLiveIdentifierComparisonContracts } from "../canonicalIdentifierContract.js";
 import {
   assessMigrationSqlPreflight,
   extractMigrationReadinessRequirementsFromSql,
@@ -278,9 +279,10 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "20260630_dynamic_capability_governance_persistence.sql",
   "20260701_dynamic_capability_certification_readback.sql",
   "20260702_dynamic_capability_readback_source_link_fix.sql",
+  "20260721_repository_authority_capability_bindings_v2.sql",
 ]);
 
-const RUNNER_VERSION = "governed-migration-runner-v2";
+const RUNNER_VERSION = "governed-migration-runner-v3";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
@@ -485,6 +487,7 @@ async function main() {
   const statement_count = statements.length;
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
 
   if (preflight_statement_count !== statement_count) {
     console.log(JSON.stringify({
@@ -511,6 +514,23 @@ async function main() {
       migration,
       blocked_reason: "preflight_not_pass",
       preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
+
+  if (identifier_contract_preflight.status !== "pass") {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "identifier_comparison_contract_mismatch",
+      preflight,
+      identifier_contract_preflight,
       requirements: artifactNames(requirements),
       before_schema_objects,
       applies_sql: false,

@@ -87,6 +87,7 @@ import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
 import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 import { buildPlatformPrivateCapabilityVaultRoutes } from "./platformPrivateCapabilityVaultRoutes.js";
 import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";
+import { buildAuthEmailTargetedDeliveryRoutes } from "./authEmailTargetedDeliveryRoutes.js";
 import { buildSessionInsightPromotionReviewRoutes } from "./sessionInsightPromotionReviewRoutes.js";
 import { buildSessionInsightPromotionDryRunExecutorRoutes } from "./sessionInsightPromotionDryRunExecutorRoutes.js";
 import { buildSessionInsightPromotionApplyRequestRoutes } from "./sessionInsightPromotionApplyRequestRoutes.js";
@@ -127,6 +128,11 @@ import { buildRegistryDataManagementRoutes } from "./registryDataManagementRoute
 import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js";
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
+import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
+import {
+  createOperationRuntimeErrorHandler,
+  createOperationRuntimeGuard,
+} from "../operationRuntimeGuard.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -151,6 +157,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
+  app.use(createOperationRuntimeGuard());
   app.use(buildTenantGptOAuthMetadataRoutes());
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
@@ -210,10 +217,12 @@ export function registerRoutes(app, deps) {
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepoConflictIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildOperationOrchestratorRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAuthEmailTargetedDeliveryRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
   app.use(buildTenantInfrastructureRoutes(deps));
@@ -262,7 +271,7 @@ export function registerRoutes(app, deps) {
   app.use(buildConnectedSystemsRoutes(deps));
   app.use(buildPlannerRoutes(deps));
   app.use(buildAgentRegistryRoutes(deps));
-  app.use(buildAgentSkillRoutes(deps));
+  app.use(buildAgentSkillRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAppIntegrationRoutes(deps));
   app.use(buildCredentialRoutes(deps));
   app.use(buildDevAgentRoutes(deps));
@@ -295,4 +304,5 @@ export function registerRoutes(app, deps) {
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
   app.post("/admin/session-continuity/link-user", deps.requireBackendApiKey, requireAdminPrincipal, buildSessionContinuityHandler());
   app.use("/admin/cli", buildAdminCliRoutes(deps));
+  app.use(createOperationRuntimeErrorHandler());
 }

@@ -1,84 +1,60 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 90.48,
-  "docs_complete_count": 513,
-  "docs_gap_count": 54,
-  "queue_items": 54,
-  "blocking_new_item_count": 54,
+  "docs_completion_percent": 99.48,
+  "docs_complete_count": 576,
+  "docs_gap_count": 3,
+  "queue_items": 24,
+  "blocking_new_item_count": 6,
   "gate_ok": false,
   "top_actionable": [
     {
-      "migration_file": "20260723_auth_email_outbox_admin_tools.sql",
+      "migration_file": "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
       "queue_class": "critical_review",
-      "score": 1292,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
+      "score": 1425,
+      "next_step": "confirm registry binding/readback evidence before promotion"
     },
     {
       "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
       "queue_class": "critical_review",
-      "score": 1074,
+      "score": 1073,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
-      "migration_file": "20260717_tenant_task_source_repair_apply_gate.sql",
+      "migration_file": "1030_sprint69_generic_platform_resource_context.sql",
       "queue_class": "critical_review",
-      "score": 1054,
+      "score": 866,
+      "next_step": "confirm registry binding/readback evidence before promotion"
+    },
+    {
+      "migration_file": "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+      "queue_class": "critical_review",
+      "score": 812,
+      "next_step": "confirm registry binding/readback evidence before promotion"
+    },
+    {
+      "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
+      "queue_class": "high_review",
+      "score": 555,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "20260715_platform_capability_shadow_certification_issue.sql",
-      "queue_class": "critical_review",
-      "score": 981,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260723_auth_email_outbox_skip_ineligible_tool.sql",
-      "queue_class": "critical_review",
-      "score": 932,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "20260723_auth_email_outbox_skip_ineligible_policy_tags.sql",
-      "queue_class": "critical_review",
-      "score": 914,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "20260715_dynamic_container_canary_runtime_observability.sql",
-      "queue_class": "critical_review",
-      "score": 884,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260718_github_list_issue_comments_endpoint.sql",
-      "queue_class": "critical_review",
-      "score": 867,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260718_tenant_connect_bootstrap_tool.sql",
-      "queue_class": "critical_review",
-      "score": 848,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260714_tenant_connection_shadow_contract_bootstrap.sql",
-      "queue_class": "critical_review",
-      "score": 836,
+      "migration_file": "20260720_tenant_tool_input_schema_strictness.sql",
+      "queue_class": "high_review",
+      "score": 549,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
-  "openapi_missing_sql_route_count": 7,
-  "openapi_exempt_sql_route_count": 664,
-  "total_sql_route_like_count": 693,
-  "safety_marker_gap_migrations": 11,
+  "openapi_missing_sql_route_count": 2,
+  "openapi_exempt_sql_route_count": 667,
+  "total_sql_route_like_count": 699,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 54,
-    "warning_new_item_count": 54
+    "blocking_new_item_count": 6,
+    "warning_new_item_count": 6
   },
   "safety": {
     "executes_provider_calls": false,

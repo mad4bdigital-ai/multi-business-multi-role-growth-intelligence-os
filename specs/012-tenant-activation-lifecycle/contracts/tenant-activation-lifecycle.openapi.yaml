@@ -1,13 +1,16 @@
 openapi: 3.1.0
 info:
-  title: Tenant GPT Activation Lifecycle — Proposed Contract
-  version: 0.1.0-draft
-  summary: Proposed evidence-driven Tenant Activation lifecycle contract.
+  title: Tenant GPT Activation Lifecycle — Final Target Contract
+  version: 1.0.0-contract
+  summary: Final evidence-driven Tenant Activation lifecycle target contract.
   description: >-
-    Specification-only contract. This file is not registered runtime authority and does not
-    make any operation callable. Implementation must update canonical OpenAPI sources and
-    generated artifacts through governed delivery.
+    Final specification-only target contract. This file is not registered runtime authority and
+    does not make any operation callable. Canonical OpenAPI adoption, generated artifacts,
+    consumer review, and governed runtime delivery remain required under T080 and later tasks.
   x-specification-only: true
+  x-contract-status: final
+  x-runtime-authority: false
+  x-contract-finalization-ref: ../implementation/pr-3-contract-finalization.json
   x-feature-key: 012-tenant-activation-lifecycle
 servers:
   - url: https://activation.mad4b.com

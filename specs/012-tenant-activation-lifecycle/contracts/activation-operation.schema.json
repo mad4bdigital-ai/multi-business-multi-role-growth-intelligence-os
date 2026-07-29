@@ -1,8 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mad4b.com/schemas/specs/012/activation-operation.schema.json",
-  "title": "Tenant Activation Operation",
-  "description": "Specification-only lifecycle schema. It is not runtime authority until registered through canonical implementation delivery.",
+  "title": "Tenant Activation Operation — Final Target Contract",
+  "description": "Final specification-only lifecycle schema. It is not runtime authority and remains subject to canonical adoption, generated parity, consumer review, and governed implementation delivery.",
+  "x-contract-status": "final",
+  "x-runtime-authority": false,
+  "x-contract-finalization-ref": "../implementation/pr-3-contract-finalization.json",
   "type": "object",
   "additionalProperties": false,
   "required": [

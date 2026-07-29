@@ -20,7 +20,87 @@
     "require_secret_field_allowlist": true,
     "allow_expiring_exemptions": true,
     "require_surface_policy_decision": true,
-    "internal_surfaces_require_explicit_not_applicable": true
+    "internal_surfaces_require_explicit_not_applicable": true,
+    "require_callable_handler_or_explicit_admin_preview": true
+  },
+  "callability_gate": {
+    "required": true,
+    "contracts": [
+      {
+        "family_key": "tenant_connection_self_repair",
+        "contract_source_file": "tenantConnectionSelfRepairService.js",
+        "contract_source_marker": "TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS",
+        "contract_key_pattern": "tool_key:\\s*\"([^\"]+)\"",
+        "expected_contract_count": 9,
+        "admin_registry_file": "routes/gptToolsRoutes.js",
+        "admin_preview_tool": "tenant_connection_operation_preview",
+        "descriptor_marker": "name: \"tenant_connection_operation_preview\"",
+        "handler_marker": "toolKey === \"tenant_connection_operation_preview\"",
+        "handler_call_marker": "buildTenantConnectionOperationPreview(args)",
+        "implementation_file": "tenantConnectionOperationPreview.js",
+        "implementation_export_marker": "export async function buildTenantConnectionOperationPreview",
+        "required_safety_markers": [
+          "provider_call_performed: false",
+          "provider_write_performed: false",
+          "credential_payload_read: false",
+          "external_write_performed: false",
+          "tenant_authority_changed: false",
+          "secrets_included: false"
+        ],
+        "tenant_contracts_may_remain_disabled": true,
+        "admin_preview_required_while_disabled": true,
+        "runtime_execution_allowed": false
+      }
+    ],
+    "direct_route_contracts": [
+      {
+        "contract_key": "workspace_brands_list",
+        "tool_key": "workspace_brands_list",
+        "route_signature": "GET /me/workspaces/{tenant_id}/brands",
+        "migration_file": "migrations/229_sprint67_workspace_brands_list_tool.sql",
+        "route_file": "routes/workspaceResourceRoutes.js",
+        "mount_file": "routes/index.js",
+        "test_file": "test-workspace-resource-authority-foundation.mjs",
+        "openapi_file": "openapi.yaml",
+        "migration_markers": [
+          "INSERT INTO tenant_platform_endpoint_tools",
+          "'workspace_brands_list'",
+          "'GET'",
+          "'/me/workspaces/{tenant_id}/brands'"
+        ],
+        "route_markers": [
+          "RESOURCE_API_CALLABILITY_CONTRACT: workspace_brands_list",
+          "router.get(\"/me/workspaces/:tenant_id/brands\", requireUserJwt",
+          "requireActiveMembership(req, res, req.params.tenant_id)",
+          "FROM v_workspace_resource_grant_effective",
+          "diagnostic_counts_used_as_authority: false",
+          "workspace_brands_list_failed",
+          "secrets_included: false"
+        ],
+        "mount_markers": [
+          "import { buildWorkspaceResourceRoutes } from \"./workspaceResourceRoutes.js\";",
+          "app.use(buildWorkspaceResourceRoutes());"
+        ],
+        "test_markers": [
+          "brandListMigration.includes(\"workspace_brands_list\")",
+          "routeSource.includes('/me/workspaces/:tenant_id/brands')",
+          "routeSource.includes(\"diagnostic_counts_used_as_authority: false\")",
+          "indexSource.includes(\"app.use(buildWorkspaceResourceRoutes());\")"
+        ],
+        "openapi_markers": [
+          "/me/workspaces/{tenant_id}/brands:",
+          "operationId: listCurrentWorkspaceBrands",
+          "summary: List tenant-safe brands visible to the signed-in workspace member"
+        ],
+        "auth_model": "user_jwt",
+        "read_only": true,
+        "runtime_execution_allowed": true,
+        "provider_calls_allowed": false,
+        "external_writes_allowed": false,
+        "credential_payload_reads_allowed": false,
+        "secrets_included": false
+      }
+    ]
   },
   "resources": [
     {
@@ -251,6 +331,7 @@
     "platform_resource_restore",
     "platform_resource_purge",
     "platform_resource_coverage_audit",
+    "tenant_connection_operation_preview",
     "platform_operation_get",
     "tenant_resource_catalog",
     "tenant_resource_list",

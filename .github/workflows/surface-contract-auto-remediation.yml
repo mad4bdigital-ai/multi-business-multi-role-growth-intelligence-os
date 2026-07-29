@@ -22,8 +22,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: surface-contract-auto-remediation-${{ github.ref }}
-  cancel-in-progress: true
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   remediate:
@@ -53,10 +53,33 @@ jobs:
         run: |
           node scripts/surface-contract-auto-remediator.mjs --check
           node scripts/surface-contract-discovery.mjs --check
-          node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps
+          node scripts/surface-contract-gap-triage.mjs --check
           node test-surface-contract-auto-remediation.mjs
           node test-surface-contract-discovery.mjs
           node test-surface-contract-governance-loop.mjs
+
+      - name: Evaluate new-gap promotion gate
+        id: gap_gate
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output=$(node scripts/surface-contract-gap-triage.mjs --enforce-new-gaps 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "blocking=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$status" -eq 1 ] && grep -Fq "surface-contract-gap-triage: blocking new high/critical gaps:" <<<"$output"; then
+            echo "blocking=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::New high/critical Surface Contract gaps require review; the remediation PR will remain open."
+            exit 0
+          fi
+          echo "surface-contract-gap-triage failed unexpectedly with exit code $status" >&2
+          exit "$status"
 
       - name: Enforce documentation and generated-evidence mutation boundary
         id: changes
@@ -99,6 +122,7 @@ jobs:
           AUTO_MERGE_ELIGIBLE: ${{ steps.remediation.outputs.auto_merge_eligible }}
           MANUAL_REVIEW_COUNT: ${{ steps.remediation.outputs.manual_review_count }}
           REMAINING_QUEUE_ITEMS: ${{ steps.remediation.outputs.remaining_queue_items }}
+          NEW_GAP_BLOCKING: ${{ steps.gap_gate.outputs.blocking }}
         shell: bash
         run: |
           set -euo pipefail
@@ -120,15 +144,15 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "Surface contract agent: automated remediation" \
-            --body "Automated, checksum-bound surface-contract remediation. Scope is documentation and generated evidence only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
+            --body "Automated, checksum-bound surface-contract remediation. Scope is documentation and generated evidence only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Remediator auto-merge eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}.")
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
           gh workflow run ci.yml --ref "$BRANCH" || true
-          if [ "$AUTO_MERGE_ELIGIBLE" = "true" ]; then
+          if [ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]; then
             if gh pr merge "$PR_URL" --auto --squash; then
               echo "Auto-merge requested successfully."
             else
               echo "::warning::Repository auto-merge is unavailable; the remediation PR remains open for governed review."
             fi
           else
-            echo "PR remains open because manual review is required."
+            echo "PR remains open because manual review or new-gap review is required."
           fi

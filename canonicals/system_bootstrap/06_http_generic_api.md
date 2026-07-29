@@ -120,6 +120,27 @@ Execution result must preserve:
 - `request_schema_alignment_status` when applicable
 - `transport_request_contract_status` when applicable
 
+HTTP Transient Error Envelope Rule
+
+At the HTTP route boundary, transient upstream or transport failures with status `502`, `503`, `504`, `522`, or `524` must return a stable JSON error envelope while preserving the selected HTTP status.
+
+The response must preserve:
+- `ok=false`
+- machine-readable `error.code`
+- bounded human-readable `error.message`
+- structured `error.details`
+- `error.requestId`
+- boolean `error.retryable`
+- `secrets_included=false`
+
+When `x-request-id` or `x-correlation-id` is present, the runtime must reuse it. Otherwise, the runtime must generate a bounded request identifier and expose it through the response header and error envelope.
+
+Existing structured transient errors may be enriched with missing request and retry metadata. Unstructured strings, HTML gateway pages, raw upstream bodies, stack traces, authorization headers, credentials, tokens, and secret-like transport diagnostics must not be returned to clients.
+
+Known timeout transport failures such as `ETIMEDOUT` and abort/connect timeout classes resolve to a timeout-class transient response. Known connection failures such as `ECONNRESET`, `ECONNREFUSED`, unreachable-network classes, and broken pipes resolve to a dependency-unavailable transient response. Non-transient programmer errors must continue through the existing error-handler chain rather than being silently converted.
+
+Operation timeout and response-size budgets apply only when the request resolves to a registered operation contract. Routes without a registered `operation_key` must not receive the fallback operation timer or response-size budget, but they still receive transient error-envelope normalization and request correlation.
+
 Supported auth modes as of 2026-05: `api_key_query`, `api_key_header`, `bearer_token`, `basic_auth`, `google_oauth2`, `google_ads_oauth2`, `delegated_per_target`, `managed_service_account_adc`, `none`.
 
 `managed_service_account_adc` - Google managed service account ADC bearer token for platform-owned registry/bootstrap Drive and Sheets files, injected by `googleAuthTokenResolver.js`.

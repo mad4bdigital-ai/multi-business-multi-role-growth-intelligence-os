@@ -20,7 +20,7 @@ function buildPool({
         const toolName = params[0];
         return [[actions[toolName]].filter(Boolean)];
       }
-      if (text.includes(" FROM agent_skill_grants ")) {
+      if (text.includes(" FROM v_effective_agent_skill_grants ")) {
         const agentId = params[0];
         const alternatives = params.slice(3, 3 + ((params.length - 3) / 2));
         const granted = new Set(grantedSkills[agentId] || []);

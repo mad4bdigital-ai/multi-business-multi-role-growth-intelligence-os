@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   assertAdminBranchReconcileTarget,
+  assertRepositoryReconciliationMergeLease,
   branchMergeCommitConfirmation,
   branchReconcileConfirmation,
   buildBranchReconcileDryRunPlan,
@@ -124,6 +125,55 @@ assert.equal(plan.continuation.checkpoint.resource_scope.scope_type, "repository
 assert.equal(plan.dry_run.apply_supported, false);
 assert.equal(plan.secrets_included, false);
 
+await assert.rejects(
+  () => assertRepositoryReconciliationMergeLease({}, {
+    assertLeaseHolder: async () => {
+      throw new Error("lease verifier must not run for missing evidence");
+    },
+  }),
+  (error) => error?.code === "repository_reconciliation_lease_required"
+);
+
+await assert.rejects(
+  () => assertRepositoryReconciliationMergeLease({
+    recipe_key: "repo.pr.reconcile_and_finalize",
+    repository_reconciliation_operation_id: "operation-12345",
+    repository_holder_run_id: "holder-12345678",
+    repository_lease_id: "lease-123456789",
+    repository_resource_fingerprint: "a".repeat(64),
+  }, {
+    assertLeaseHolder: async () => {
+      throw new Error("lease verifier must not run for mismatched operation and holder ids");
+    },
+  }),
+  (error) => error?.code === "repository_reconciliation_operation_holder_mismatch"
+);
+
+let leaseVerifierCalls = 0;
+const verifiedLease = await assertRepositoryReconciliationMergeLease({
+  recipe_key: "repo.pr.reconcile_and_finalize",
+  repository_reconciliation_operation_id: "run-12345678",
+  repository_holder_run_id: "run-12345678",
+  repository_lease_id: "lease-12345678",
+  repository_resource_fingerprint: "b".repeat(64),
+}, {
+  assertLeaseHolder: async (input) => {
+    leaseVerifierCalls += 1;
+    assert.deepEqual(input, {
+      lease_id: "lease-12345678",
+      holder_run_id: "run-12345678",
+      resource_fingerprint: "b".repeat(64),
+    });
+    return { lease_status: "active" };
+  },
+});
+assert.equal(leaseVerifierCalls, 1);
+assert.equal(verifiedLease.ok, true);
+assert.equal(verifiedLease.lease_status, "active");
+assert.equal(verifiedLease.provider_calls, false);
+assert.equal(verifiedLease.external_writes, false);
+assert.equal(verifiedLease.secrets_included, false);
+
 const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const adapter = readFileSync(new URL("./adminBranchReconciliationAdapter.js", import.meta.url), "utf8");
 assert.equal((source.match(/name: "admin_branch_reconcile"/g) || []).length, 1, "admin_branch_reconcile should be registered exactly once");
@@ -165,7 +215,15 @@ assert.match(adapter, /expected_branch_sha/);
 assert.match(adapter, /github_branch_fast_forward_stale_dry_run_evidence/);
 assert.match(adapter, /body: \{ sha: baseSha, force: false \}/);
 assert.match(adapter, /github_branch_fast_forward_readback_failed/);
+assert.match(adapter, /export async function assertRepositoryReconciliationMergeLease/);
 assert.doesNotMatch(adapter, /force: true/);
+
+const mergeFunctionIndex = adapter.indexOf("export async function runGithubBranchMergeCommitCreate");
+const mergeLeaseGuardIndex = adapter.indexOf("const repositoryLease = await assertRepositoryReconciliationMergeLease", mergeFunctionIndex);
+const mergeProviderTokenIndex = adapter.indexOf("const token = deps.token || await getGitHubAppInstallationToken({});", mergeFunctionIndex);
+assert.ok(mergeFunctionIndex > -1, "merge adapter function must remain exported");
+assert.ok(mergeLeaseGuardIndex > mergeFunctionIndex, "merge adapter must invoke the reconciliation lease guard");
+assert.ok(mergeProviderTokenIndex > mergeLeaseGuardIndex, "reconciliation lease guard must run before provider token resolution");
 
 const repoPatchTokenIndex = source.indexOf("const token = await getGitHubAppInstallationToken({});");
 const envelopeGateIndex = source.lastIndexOf("await requireRepoPatchCapabilityEnvelope", repoPatchTokenIndex);

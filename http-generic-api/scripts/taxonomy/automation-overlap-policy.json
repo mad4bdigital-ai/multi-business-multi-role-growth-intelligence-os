@@ -1,0 +1,53 @@
+{
+  "version": "2026-07-24.v1",
+  "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
+  "enforcement": {
+    "fail_severity": "critical",
+    "discovered_overlap_default_severity": "high",
+    "ratchet_strategy": "Policy-declared regressions block immediately. Behavioral findings remain visible and non-blocking until reviewed, assigned an owner, and promoted into a governed resource group."
+  },
+  "resource_groups": [
+    {
+      "key": "repository-generated-artifacts",
+      "kind": "repository_write",
+      "owner": "http-generic-api/scripts/repo-maintenance-sync.mjs",
+      "required_concurrency_group": "repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}",
+      "workflows": [
+        { "path": ".github/workflows/openapi-auto-sync.yml", "access": "write" },
+        { "path": ".github/workflows/surface-contract-auto-remediation.yml", "access": "write" },
+        { "path": ".github/workflows/docs-agent.yml", "access": "conditional_write" }
+      ],
+      "write_patterns": [
+        "http-generic-api/openapi.yaml",
+        "http-generic-api/openapi.*.yaml",
+        "http-generic-api/openapi/**/*.yaml",
+        "canonicals/openapi/**/*.yaml",
+        "edge/activation-gateway/**",
+        "docs/auto-docs-agent/**",
+        "docs/work-maps/**",
+        "docs/surface-contract-*.json",
+        "docs/surface-contract-*.md",
+        "canonicals/**/*.md",
+        "*.md"
+      ]
+    }
+  ],
+  "schedule_separation_rules": [
+    {
+      "before_workflow": ".github/workflows/surface-contract-auto-remediation.yml",
+      "after_workflow": ".github/workflows/platform-completion-cleanup-readback.yml",
+      "minimum_minutes": 20,
+      "severity": "critical",
+      "reason": "The readback audit must observe state after the daily remediation mutation window."
+    }
+  ],
+  "database_lock_contracts": [
+    {
+      "path": "http-generic-api/governedMigrationReconciliationRuntime.js",
+      "lock_key": "governed_migration_reconciliation.v1",
+      "required_tokens": ["GET_LOCK", "RELEASE_LOCK"],
+      "severity": "critical"
+    }
+  ],
+  "behavioral_allowlist": []
+}

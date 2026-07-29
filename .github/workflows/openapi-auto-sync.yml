@@ -33,8 +33,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: openapi-auto-sync-${{ github.ref }}
-  cancel-in-progress: true
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   repo-contract-sync:

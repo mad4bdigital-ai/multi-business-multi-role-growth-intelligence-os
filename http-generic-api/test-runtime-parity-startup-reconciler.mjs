@@ -86,6 +86,59 @@ function poolWithParity(row) {
 }
 
 {
+  const calls = [];
+  const result = await reconcileRuntimeParityOnStartup({
+    env: {
+      NODE_ENV: "production",
+      GITHUB_REPOSITORY: REPOSITORY,
+      ACTIVATION_GITHUB_BRANCH: "Production",
+    },
+    readManifest: async () => manifest({ branch: "Production" }),
+    getPool: () => poolWithParity({
+      expected_commit_sha: SHA_OLD,
+      deployed_commit_sha: SHA_OLD,
+      production_parity: "not_verified",
+    }),
+    createTrigger: async (...args) => {
+      calls.push(args);
+      return {
+        deduplicated: false,
+        trigger_event: {
+          trigger_event_id: "22222222-2222-4222-8222-222222222222",
+          coordination_status: "no_action",
+        },
+      };
+    },
+  });
+  assert.equal(result.status, "triggered");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0].branch, "Production");
+  assert.equal(calls[0][0].after_sha, SHA_NEW);
+}
+
+{
+  let triggerCalls = 0;
+  const result = await reconcileRuntimeParityOnStartup({
+    env: {
+      NODE_ENV: "production",
+      GITHUB_REPOSITORY: REPOSITORY,
+      ACTIVATION_GITHUB_BRANCH: "Production",
+    },
+    readManifest: async () => manifest({ branch: "main" }),
+    getPool: () => poolWithParity(null),
+    createTrigger: async () => {
+      triggerCalls += 1;
+      return {};
+    },
+  });
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "non_release_branch");
+  assert.equal(result.branch, "main");
+  assert.equal(result.expected_branch, "Production");
+  assert.equal(triggerCalls, 0);
+}
+
+{
   let triggerCalls = 0;
   const result = await reconcileRuntimeParityOnStartup({
     env: { NODE_ENV: "production", GITHUB_REPOSITORY: REPOSITORY },

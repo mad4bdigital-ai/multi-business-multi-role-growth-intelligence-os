@@ -90,7 +90,7 @@ async function resolveSkillGrant(pool, alternatives, context) {
   const placeholders = alternatives.map(() => "?").join(",");
   const [rows] = await pool.query(
     `SELECT sk.skill_key, sg.grant_id
-       FROM agent_skill_grants sg
+       FROM v_effective_agent_skill_grants sg
        JOIN agent_skills sk ON sk.skill_id = sg.skill_id AND sk.status = 'active'
       WHERE sg.agent_id = ?
         AND sg.status = 'active'

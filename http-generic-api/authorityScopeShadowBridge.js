@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { writeAuditLog } from "./auditLogger.js";
 import { createAuthorityScopeService } from "./src/application/authorityScope/authorityScopeService.js";
 import { createAuthorityScopeRepository } from "./src/infrastructure/authorityScope/authorityScopeRepository.js";
 
@@ -14,7 +15,27 @@ function getDefaultService() {
   const repository = createAuthorityScopeRepository({
     resolvePool: async () => getPool()
   });
-  defaultService = createAuthorityScopeService({ repository });
+  defaultService = createAuthorityScopeService({
+    repository,
+    requirePlatformTenantAudit: true,
+    auditWriter: (event) => writeAuditLog({
+      tenant_id: event.tenantId,
+      actor_id: event.principal?.principalId || "platform_admin",
+      actor_type: "service",
+      request_id: event.requestId,
+      action: event.action,
+      resource_type: "authority_scope",
+      resource_id: event.scopeKey,
+      service_mode: "platform_admin",
+      outcome: "resolved_shadow_only",
+      metadata: {
+        scope_id: event.scopeId,
+        selection_mode: event.selectionMode,
+        authority_granted: false,
+        secrets_included: false,
+      },
+    }),
+  });
   return defaultService;
 }
 
@@ -73,7 +94,8 @@ export async function resolveAuthorityScopeShadowContext(input = {}, dependencie
     const resolution = await service.preview({
       auth: principalToAuthorityAuth(input.principal, tenantId),
       tenantId,
-      scopeKey
+      scopeKey,
+      requestId: cleanString(input.requestId),
     });
     const comparison = compareAuthorityScopeShadow({ tenantId, resolution });
 

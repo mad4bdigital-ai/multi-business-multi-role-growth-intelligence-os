@@ -170,64 +170,162 @@ function compactOperationContract(pathItem, operation, method, routePath) {
   };
 }
 
-export async function collectOpenApiEndpointInventory({ openApiPath = DEFAULT_OPENAPI_PATH } = {}) {
+export async function collectOpenApiEndpointInventory({
+  openApiPath = DEFAULT_OPENAPI_PATH,
+  includeSiblingFragments = true,
+} = {}) {
   const cache = new Map();
   const root = await readYamlDocument(openApiPath, cache);
   if (!root.document.openapi || !root.document.paths || typeof root.document.paths !== "object") {
     throw syncError(422, "openapi_inventory_root_invalid", "Root OpenAPI document must declare openapi and paths.", { file: root.absolutePath });
   }
 
+  const rootDirectory = path.dirname(root.absolutePath);
   const operations = [];
   const seenOperationIds = new Map();
-  for (const [rawPath, rawPathItem] of Object.entries(root.document.paths)) {
-    const routePath = normalizePath(rawPath);
-    const resolvedPathItem = await resolveReferencedObject(rawPathItem, root.absolutePath, cache, path.dirname(root.absolutePath));
-    const pathItem = resolvedPathItem.value;
-    if (!pathItem || typeof pathItem !== "object") continue;
-    for (const [method, operation] of Object.entries(pathItem)) {
-      if (!HTTP_METHODS.has(String(method).toLowerCase())) continue;
-      if (!operation || typeof operation !== "object") continue;
-      const operationId = normalizeOperationId(operation.operationId);
-      if (seenOperationIds.has(operationId)) {
-        throw syncError(409, "openapi_inventory_duplicate_operation_id", "OpenAPI operationId must be globally unique.", {
-          operation_id: operationId,
-          first: seenOperationIds.get(operationId),
-          duplicate: `${String(method).toUpperCase()} ${routePath}`,
+  const seenRoutes = new Map();
+  let suppressedRouteDuplicateCount = 0;
+  let suppressedRouteConflictCount = 0;
+  const suppressedRouteConflicts = [];
+
+  const appendDocumentOperations = async (entry, { required = false } = {}) => {
+    const hasInventorySurface = Boolean(
+      entry?.document?.openapi
+      && entry?.document?.paths
+      && typeof entry.document.paths === "object",
+    );
+    if (!hasInventorySurface) {
+      if (required) {
+        throw syncError(422, "openapi_inventory_root_invalid", "Root OpenAPI document must declare openapi and paths.", { file: entry?.absolutePath || root.absolutePath });
+      }
+      return;
+    }
+
+    for (const [rawPath, rawPathItem] of Object.entries(entry.document.paths)) {
+      const routePath = normalizePath(rawPath);
+      const resolvedPathItem = await resolveReferencedObject(
+        rawPathItem,
+        entry.absolutePath,
+        cache,
+        rootDirectory,
+      );
+      const pathItem = resolvedPathItem.value;
+      if (!pathItem || typeof pathItem !== "object") continue;
+      for (const [method, operation] of Object.entries(pathItem)) {
+        if (!HTTP_METHODS.has(String(method).toLowerCase())) continue;
+        if (!operation || typeof operation !== "object") continue;
+        const methodName = String(method).toUpperCase();
+        const routeKey = `${methodName} ${routePath}`;
+        const operationId = normalizeOperationId(operation.operationId);
+        const existingOperationId = seenRoutes.get(routeKey);
+        if (existingOperationId) {
+          if (existingOperationId === operationId) {
+            suppressedRouteDuplicateCount += 1;
+          } else {
+            suppressedRouteConflictCount += 1;
+            suppressedRouteConflicts.push({
+              route: routeKey,
+              authoritative_operation_id: existingOperationId,
+              suppressed_operation_id: operationId,
+              source_file:
+                path.relative(rootDirectory, entry.absolutePath).replace(/\\/g, "/")
+                || path.basename(entry.absolutePath),
+            });
+          }
+          continue;
+        }
+
+        if (seenOperationIds.has(operationId)) {
+          throw syncError(409, "openapi_inventory_duplicate_operation_id", "OpenAPI operationId must be globally unique.", {
+            operation_id: operationId,
+            first: seenOperationIds.get(operationId),
+            duplicate: routeKey,
+          });
+        }
+
+        const contract = compactOperationContract(pathItem, operation, method, routePath);
+        const sourceFile = path.relative(
+          rootDirectory,
+          resolvedPathItem.sourceFile || entry.absolutePath,
+        ).replace(/\\/g, "/") || path.basename(entry.absolutePath);
+        const operationSha256 = sha256(stableJson(contract));
+        operations.push({
+          endpoint_id: `openapi_inventory::${operationId}`,
+          parent_action_key: PARENT_ACTION_KEY,
+          endpoint_key: operationId,
+          endpoint_operation: operationId,
+          method: methodName,
+          endpoint_path_or_function: routePath,
+          source_file: sourceFile,
+          source_ref: resolvedPathItem.sourceRef,
+          schema_json: stableJson(contract),
+          operation_sha256: operationSha256,
+          registry_exposure: contract.registryExposure,
+          registry_tool_key: contract.registryToolKey,
+          consequential: contract.consequential,
+        });
+        seenRoutes.set(routeKey, operationId);
+        seenOperationIds.set(operationId, routeKey);
+      }
+    }
+  };
+
+  await appendDocumentOperations(root, { required: true });
+
+  if (includeSiblingFragments) {
+    const fragmentDirectory = path.join(rootDirectory, "openapi");
+    let fragmentEntries = [];
+    try {
+      fragmentEntries = await fs.readdir(fragmentDirectory, { withFileTypes: true });
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw syncError(500, "openapi_inventory_fragment_directory_read_failed", "OpenAPI fragment directory could not be read.", {
+          directory: fragmentDirectory,
+          read_error: String(error?.message || error),
         });
       }
-      seenOperationIds.set(operationId, `${String(method).toUpperCase()} ${routePath}`);
-      const contract = compactOperationContract(pathItem, operation, method, routePath);
-      const sourceFile = path.relative(path.dirname(root.absolutePath), resolvedPathItem.sourceFile || root.absolutePath).replace(/\\/g, "/") || path.basename(root.absolutePath);
-      const operationSha256 = sha256(stableJson(contract));
-      operations.push({
-        endpoint_id: `openapi_inventory::${operationId}`,
-        parent_action_key: PARENT_ACTION_KEY,
-        endpoint_key: operationId,
-        endpoint_operation: operationId,
-        method: String(method).toUpperCase(),
-        endpoint_path_or_function: routePath,
-        source_file: sourceFile,
-        source_ref: resolvedPathItem.sourceRef,
-        schema_json: stableJson(contract),
-        operation_sha256: operationSha256,
-        registry_exposure: contract.registryExposure,
-        registry_tool_key: contract.registryToolKey,
-        consequential: contract.consequential,
-      });
+    }
+
+    const fragmentFiles = fragmentEntries
+      .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
+      .map((entry) => path.join(fragmentDirectory, entry.name))
+      .sort((a, b) => a.localeCompare(b));
+
+    for (const fragmentFile of fragmentFiles) {
+      if (path.resolve(fragmentFile) === root.absolutePath) continue;
+      const fragment = await readYamlDocument(fragmentFile, cache);
+      await appendDocumentOperations(fragment);
     }
   }
+
   operations.sort((a, b) => a.endpoint_key.localeCompare(b.endpoint_key));
-  const sourceFingerprint = sha256(stableJson(operations.map((item) => ({
-    endpoint_key: item.endpoint_key,
-    method: item.method,
-    path: item.endpoint_path_or_function,
-    operation_sha256: item.operation_sha256,
-  }))));
+  suppressedRouteConflicts.sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+  const sourceFingerprint = sha256(stableJson({
+    operations: operations.map((item) => ({
+      endpoint_key: item.endpoint_key,
+      method: item.method,
+      path: item.endpoint_path_or_function,
+      operation_sha256: item.operation_sha256,
+    })),
+    suppressed_route_duplicate_count: suppressedRouteDuplicateCount,
+    suppressed_route_conflicts: suppressedRouteConflicts,
+  }));
+  const sourceDocuments = [...cache.values()]
+    .map((entry) => ({
+      file: path.relative(rootDirectory, entry.absolutePath).replace(/\\/g, "/") || path.basename(entry.absolutePath),
+      sha256: sha256(entry.raw),
+    }))
+    .sort((a, b) => a.file.localeCompare(b.file));
+
   return {
     openapi_path: root.absolutePath,
     openapi_version: String(root.document.openapi),
     operation_count: operations.length,
-    source_sha256: sha256(root.raw),
+    source_document_count: sourceDocuments.length,
+    suppressed_route_duplicate_count: suppressedRouteDuplicateCount,
+    suppressed_route_conflict_count: suppressedRouteConflictCount,
+    suppressed_route_conflicts: suppressedRouteConflicts,
+    source_sha256: sha256(stableJson(sourceDocuments)),
     source_fingerprint: sourceFingerprint,
     operations,
     secrets_included: false,
@@ -542,6 +640,13 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
   const inventory = await collectOpenApiEndpointInventory({ openApiPath: deps.openApiPath || DEFAULT_OPENAPI_PATH });
   const existingRows = await loadExistingRows(pool);
   const plan = buildOpenApiEndpointInventoryPlan({ inventory, existingRows });
+  const inventoryEvidence = {
+    source_document_count: inventory.source_document_count,
+    suppressed_route_duplicate_count: inventory.suppressed_route_duplicate_count,
+    suppressed_route_conflict_count: inventory.suppressed_route_conflict_count,
+    suppressed_route_conflicts: inventory.suppressed_route_conflicts,
+    secrets_included: false,
+  };
   const responseBase = {
     ok: true,
     mode,
@@ -557,6 +662,7 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       callable_rows_created: 0,
       tool_exports_created: 0,
     },
+    inventory_evidence: inventoryEvidence,
     applies_inventory_metadata_only: mode === "apply",
     provider_calls: false,
     external_writes: false,
@@ -615,7 +721,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       unchanged_count: plan.unchanged_count,
       deprecated_count: plan.deprecate_count,
       readback_count: readbackCount,
-      summary: responseBase.plan,
+      summary: {
+        plan: responseBase.plan,
+        inventory_evidence: inventoryEvidence,
+      },
       started_at: startedAt,
       completed_at: new Date(),
     });
@@ -653,7 +762,10 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
         unchanged_count: 0,
         deprecated_count: 0,
         readback_count: 0,
-        summary: responseBase.plan,
+        summary: {
+          plan: responseBase.plan,
+          inventory_evidence: inventoryEvidence,
+        },
         error_code: error?.code || "openapi_inventory_apply_failed",
         error_message: String(error?.message || error).slice(0, 1000),
         started_at: startedAt,

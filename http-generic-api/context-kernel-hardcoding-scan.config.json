@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "mode": "report_only",
+  "scan_roots": [
+    "http-generic-api",
+    "src",
+    "specs",
+    "docs"
+  ],
+  "exclude_path_segments": [
+    ".git",
+    ".next",
+    "artifacts",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "vendor"
+  ],
+  "extensions": [
+    ".cjs",
+    ".js",
+    ".json",
+    ".jsx",
+    ".md",
+    ".mjs",
+    ".sql",
+    ".ts",
+    ".tsx",
+    ".yaml",
+    ".yml"
+  ]
+}

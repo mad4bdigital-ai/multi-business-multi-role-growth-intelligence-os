@@ -11,6 +11,22 @@ const migration = readFileSync(
 );
 const runtime = readFileSync("dynamicAuditRuntime.js", "utf8");
 
+function createAdvisoryLockPool() {
+  const connection = {
+    async query(sql) {
+      if (sql.includes("GET_LOCK")) return [[{ acquired: 1 }]];
+      if (sql.includes("RELEASE_LOCK")) return [[{ released: 1 }]];
+      throw new Error(`Unexpected advisory lock query: ${sql}`);
+    },
+    release() {},
+  };
+  return {
+    async getConnection() {
+      return connection;
+    },
+  };
+}
+
 for (const token of [
   "information_schema.columns",
   "information_schema.statistics",
@@ -53,6 +69,7 @@ const result = await runGovernedMigrationReconciliationRuntime(
     migration: "../1018_sprint69_governed_response_chunk_schema_reconciliation.sql",
   },
   {
+    pool: createAdvisoryLockPool(),
     execFileAsync: async (command, args, options) => {
       captured = { command, args, options };
       return {
@@ -92,6 +109,7 @@ assert.equal(captured.options.maxBuffer, 32 * 1024 * 1024);
 const failure = await runGovernedMigrationReconciliationRuntime(
   { apply: false },
   {
+    pool: createAdvisoryLockPool(),
     execFileAsync: async () => {
       const error = new Error("runner failed");
       error.stderr = JSON.stringify({

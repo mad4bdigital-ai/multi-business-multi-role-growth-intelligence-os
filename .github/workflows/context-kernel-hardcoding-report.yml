@@ -1,0 +1,66 @@
+name: Context Kernel Hardcoding Report
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "http-generic-api/**"
+      - "src/**"
+      - "specs/012-unified-admin-tenant-context-kernel/**"
+      - "docs/context-kernel/**"
+      - ".github/workflows/context-kernel-hardcoding-report.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: context-kernel-hardcoding-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Context Kernel Hardcoding Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Test scanner behavior
+        working-directory: http-generic-api
+        run: node test-context-kernel-hardcoding-scan.mjs
+
+      - name: Generate report-only baseline
+        if: always()
+        run: >-
+          node http-generic-api/scripts/context-kernel-hardcoding-scan.mjs
+          --report-only
+          --format=github
+          --output="${{ runner.temp }}/context-kernel-hardcoding-report.json"
+
+      - name: Summarize aggregate baseline
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/context-kernel-hardcoding-report.json
+        run: |
+          if [[ ! -f "$REPORT_PATH" ]]; then
+            echo "::warning::Context kernel baseline report was not generated."
+            exit 0
+          fi
+          node -e '
+            const fs = require("node:fs");
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            console.log(`CONTEXT_KERNEL_BASELINE_SUMMARY=${JSON.stringify(report.summary)}`);
+          '
+
+      - name: Upload baseline artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-kernel-hardcoding-report
+          path: ${{ runner.temp }}/context-kernel-hardcoding-report.json
+          if-no-files-found: error
+          retention-days: 14

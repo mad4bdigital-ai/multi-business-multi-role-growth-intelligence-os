@@ -108,7 +108,7 @@ function makePool({
           user_id: null,
         }]] : [[]];
       }
-      if (sql.includes("FROM agent_skill_grants")) {
+      if (sql.includes("FROM v_effective_agent_skill_grants")) {
         return withSkill ? [[{
           grant_id: "skill-grant-1",
           skill_key: "code.repository_automation",

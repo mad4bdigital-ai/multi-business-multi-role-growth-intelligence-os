@@ -195,6 +195,7 @@ export function buildWorkspaceResourceRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_brands_list
   router.get("/me/workspaces/:tenant_id/brands", requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);

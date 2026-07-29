@@ -2,6 +2,7 @@ import { Router } from "express";
 import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import {
   connectorAuthPredicateForToken,
@@ -9,7 +10,8 @@ import {
 } from "../connectorSchemaCompatibility.js";
 
 const AGENT_VERSION = "2026.05.28.1";
-const ROOT = process.cwd();
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(MODULE_DIR, "..");
 const CONNECTOR_PORT = 7070;
 
 const FILES = {

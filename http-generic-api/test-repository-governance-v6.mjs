@@ -32,6 +32,8 @@ const bindingContext = buildBindingContext([
   "--resource-uri=github://example/repo",
   "--recipe-key=repo.pr.comment_advisory",
   `--expected-commit-sha=${"a".repeat(40)}`,
+  `--binding-sha256=${"b".repeat(64)}`,
+  `--capability-sha256=${"c".repeat(64)}`,
 ]);
 assert.deepEqual(bindingContext, {
   plan_id: "plan-1",
@@ -39,10 +41,20 @@ assert.deepEqual(bindingContext, {
   resource_uri: "github://example/repo",
   recipe_key: "repo.pr.comment_advisory",
   expected_commit_sha: "a".repeat(40),
+  binding_sha256: "b".repeat(64),
+  capability_sha256: "c".repeat(64),
 });
 assert.throws(
   () => buildBindingContext(["--expected-commit-sha=not-a-sha"]),
   (error) => error?.code === "capability_resolution_expected_commit_sha_invalid"
+);
+assert.throws(
+  () => buildBindingContext(["--binding-sha256=not-a-sha256"]),
+  (error) => error?.code === "capability_resolution_binding_sha256_invalid"
+);
+assert.throws(
+  () => buildBindingContext(["--capability-sha256=not-a-sha256"]),
+  (error) => error?.code === "capability_resolution_capability_sha256_invalid"
 );
 assert.throws(
   () => buildBindingContext(["--resource-uri=relative/path"]),

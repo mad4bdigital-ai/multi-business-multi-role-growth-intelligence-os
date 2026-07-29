@@ -1,0 +1,31 @@
+{
+  "surface_key": "repository_capability_policy_layers",
+  "display_name": "Repository Capability Policy Layers",
+  "description": "Admin activation visibility for deterministic repository capability inheritance layers across platform, tenant, workspace, brand, app, repository, and environment scopes.",
+  "source_table": "repository_capability_policy_layers",
+  "result_key_column": "layer_id",
+  "result_label_column": "scope_ref",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "lifecycle_status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "layer_id",
+    "capability_binding_id",
+    "scope_type",
+    "scope_ref",
+    "precedence",
+    "lifecycle_status",
+    "layer_version",
+    "lock_version",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 200,
+  "sort_order": 318,
+  "status": "active",
+  "notes": "Admin-only activation surface. Excludes configuration_json and metadata_json because policy payloads may contain sensitive operational configuration."
+}

@@ -1,0 +1,83 @@
+name: Automation Overlap Guard
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "http-generic-api/governedMigrationReconciliationRuntime.js"
+      - "http-generic-api/scripts/**/*.mjs"
+      - "http-generic-api/scripts/taxonomy/*.json"
+      - "http-generic-api/test-automation-overlap-analyzer.mjs"
+      - "http-generic-api/test-governed-migration-reconciliation-runtime-lock.mjs"
+      - "http-generic-api/package.json"
+      - "docs/automation-overlap-governance.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "http-generic-api/governedMigrationReconciliationRuntime.js"
+      - "http-generic-api/scripts/**/*.mjs"
+      - "http-generic-api/scripts/taxonomy/*.json"
+      - "http-generic-api/test-automation-overlap-analyzer.mjs"
+      - "http-generic-api/test-governed-migration-reconciliation-runtime-lock.mjs"
+      - "http-generic-api/package.json"
+      - "docs/automation-overlap-governance.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automation-overlap-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze automation ownership and overlap
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run governed overlap analysis
+        working-directory: http-generic-api
+        run: |
+          node scripts/automation-overlap-analyzer.mjs \
+            --check \
+            --report-file=automation-overlap-report.json \
+            --markdown-file=automation-overlap-report.md
+
+      - name: Run focused regression tests
+        working-directory: http-generic-api
+        run: npm run test:automation:overlap
+
+      - name: Publish overlap summary
+        if: always()
+        working-directory: http-generic-api
+        run: |
+          if [ -f automation-overlap-report.md ]; then
+            cat automation-overlap-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload overlap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-overlap-report
+          path: |
+            http-generic-api/automation-overlap-report.json
+            http-generic-api/automation-overlap-report.md
+          if-no-files-found: warn
+          retention-days: 30

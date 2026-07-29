@@ -1,0 +1,470 @@
+{
+  "schema_version": "1.0.0",
+  "feature_key": "012-tenant-activation-lifecycle",
+  "implementation_slice": "pr-3-contract-finalization",
+  "tasks": ["T010", "T011", "T012", "T013"],
+  "contract_status": "final",
+  "runtime_authority": false,
+  "canonical_adoption_required": true,
+  "canonical_task": "T080",
+  "source_contracts": [
+    "specs/012-tenant-activation-lifecycle/operation-paths.md",
+    "specs/012-tenant-activation-lifecycle/contracts/tenant-activation-lifecycle.openapi.yaml",
+    "specs/012-tenant-activation-lifecycle/contracts/activation-operation.schema.json",
+    "specs/012-tenant-activation-lifecycle/implementation/pr-1-inventory.json",
+    "specs/012-tenant-activation-lifecycle/implementation/pr-2a-lifecycle-contracts.json"
+  ],
+  "layers": {
+    "runtime_current": {
+      "authority": "pr-1-inventory-and-served-openapi",
+      "served_artifact": "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "canonical_source": "http-generic-api/openapi.yaml",
+      "protected_resource": "https://activation.mad4b.com",
+      "security_scheme": "userBearerAuth",
+      "oauth_handoffs": [
+        {
+          "method": "GET",
+          "path": "/auth/oauth/authorize",
+          "operation_id": "tenantGptOAuthAuthorize"
+        },
+        {
+          "method": "POST",
+          "path": "/auth/oauth/code",
+          "operation_id": "tenantGptOAuthCode"
+        },
+        {
+          "method": "POST",
+          "path": "/auth/oauth/token",
+          "operation_id": "tenantGptOAuthToken"
+        }
+      ],
+      "public_operations": [
+        {
+          "method": "GET",
+          "path": "/tenant/activation/session-context",
+          "operation_id": "activateSession",
+          "consequential": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/sessions",
+          "operation_id": "listSessions",
+          "consequential": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/activation/sessions/{id}/turns",
+          "operation_id": "writeGptSessionTurns",
+          "consequential": true
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/operational-attention",
+          "operation_id": "readTenantActivationOperationalAttention",
+          "consequential": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/awareness",
+          "operation_id": "readTenantActivationAwareness",
+          "consequential": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/dynamic-tabs/detail",
+          "operation_id": "readTenantActivationDynamicTabDetail",
+          "consequential": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/resolution/problem-cards",
+          "operation_id": "readTenantResolutionProblemCards",
+          "consequential": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/resolution/cases",
+          "operation_id": "listTenantResolutionCases",
+          "consequential": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases",
+          "operation_id": "createTenantResolutionCase",
+          "consequential": true
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/resolution/cases/{caseId}",
+          "operation_id": "getTenantResolutionCase",
+          "consequential": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/transitions",
+          "operation_id": "transitionTenantResolutionCase",
+          "consequential": true
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/diagnostics",
+          "operation_id": "runTenantResolutionDiagnosticAction",
+          "consequential": true
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/preview",
+          "operation_id": "previewTenantTaskSourceRepair",
+          "consequential": true
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/apply",
+          "operation_id": "applyTenantTaskSourceRepair",
+          "consequential": true
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/cases/{caseId}/task-source-repair/verify",
+          "operation_id": "verifyTenantTaskSourceRepair",
+          "consequential": true
+        }
+      ],
+      "runtime_discovered_not_declared_in_served_schema": [
+        {
+          "method": "GET",
+          "path": "/tenant/activation/guidance",
+          "operation_id": "getTenantActivationGuidance"
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/runs/{runId}/archive",
+          "operation_id": "getTenantActivationRunArchive"
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/resolution/skill-approvals",
+          "operation_id": "listTenantSkillApprovals"
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/resolution/skill-approvals/{approvalKey}/decision",
+          "operation_id": "decideTenantSkillApproval"
+        }
+      ],
+      "scopes": [
+        "https://auth.mad4b.com/scopes/tenant.links",
+        "https://auth.mad4b.com/scopes/tenant.status",
+        "https://auth.mad4b.com/scopes/tenant.activation",
+        "https://auth.mad4b.com/scopes/tenant.install",
+        "https://auth.mad4b.com/scopes/tenant.system-tools"
+      ]
+    },
+    "target_lifecycle": {
+      "authority": "specification-only-openapi-and-json-schema",
+      "openapi": "specs/012-tenant-activation-lifecycle/contracts/tenant-activation-lifecycle.openapi.yaml",
+      "json_schema": "specs/012-tenant-activation-lifecycle/contracts/activation-operation.schema.json",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/.well-known/oauth-protected-resource",
+          "operation_id": "readTenantActivationProtectedResourceMetadata",
+          "task": "T010"
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/session-context",
+          "operation_id": "readTenantActivationSessionContext",
+          "task": "T011"
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/activation/operations",
+          "operation_id": "startTenantActivationOperation",
+          "task": "T011"
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/activation/operations/{operationId}",
+          "operation_id": "readTenantActivationOperation",
+          "task": "T012"
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/activation/operations/{operationId}/retries",
+          "operation_id": "retryTenantActivationOperation",
+          "task": "T012"
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/activation/operations/{operationId}/acknowledgements",
+          "operation_id": "acknowledgeTenantActivationOperation",
+          "task": "T012"
+        }
+      ],
+      "operation_aliases": [
+        {
+          "method": "GET",
+          "path": "/tenant/activation/session-context",
+          "runtime_operation_id": "activateSession",
+          "target_operation_id": "readTenantActivationSessionContext",
+          "reason": "Target lifecycle name is explicit; canonical adoption must coordinate the existing client operation ID rather than silently rename it."
+        }
+      ],
+      "scopes": [
+        "https://auth.mad4b.com/scopes/tenant.links",
+        "https://auth.mad4b.com/scopes/tenant.status",
+        "https://auth.mad4b.com/scopes/tenant.activation",
+        "https://auth.mad4b.com/scopes/tenant.install",
+        "https://auth.mad4b.com/scopes/tenant.system-tools",
+        "https://auth.mad4b.com/scopes/tenant.resolution.read",
+        "https://auth.mad4b.com/scopes/tenant.resolution.manage",
+        "https://auth.mad4b.com/scopes/tenant.resolution.diagnose",
+        "https://auth.mad4b.com/scopes/tenant.resolution.repair",
+        "https://auth.mad4b.com/scopes/tenant.resolution.approve"
+      ],
+      "resolution_scope_runtime_status": "not_active_pending_dynamic_policy_implementation"
+    }
+  },
+  "non_route_contracts": [
+    {
+      "key": "gateway_first_protected_request",
+      "operation_paths": ["OP-004"],
+      "tasks": ["T010"],
+      "authority": "gateway-policy-and-central-token-verifier"
+    },
+    {
+      "key": "managed_and_mixed_bootstrap",
+      "operation_paths": ["OP-006", "OP-007"],
+      "tasks": ["T011"],
+      "authority": "backend-bootstrap-workspace-connection-and-activation-policy"
+    },
+    {
+      "key": "provider_bootstrap_validation",
+      "operation_paths": ["OP-008"],
+      "tasks": ["T011"],
+      "authority": "governed-provider-bootstrap-validation-tool"
+    },
+    {
+      "key": "tool_discovery_and_dispatch_preparation",
+      "operation_paths": ["OP-009", "OP-010"],
+      "tasks": ["T011"],
+      "authority": "registry-prompt-router-module-loader-system-bootstrap"
+    },
+    {
+      "key": "delivery_and_acknowledgement_semantics",
+      "operation_paths": ["OP-011"],
+      "tasks": ["T012"],
+      "authority": "operation-delivery-and-acknowledgement-ledgers"
+    },
+    {
+      "key": "token_expiry_revocation_and_reconnect",
+      "operation_paths": ["OP-012"],
+      "tasks": ["T010", "T012"],
+      "authority": "token-verification-and-connection-registry"
+    },
+    {
+      "key": "transient_dependency_retry",
+      "operation_paths": ["OP-013"],
+      "tasks": ["T012"],
+      "authority": "retry-policy-and-dependency-classification"
+    },
+    {
+      "key": "unknown_outcome_reconciliation",
+      "operation_paths": ["OP-014"],
+      "tasks": ["T012"],
+      "authority": "operation-ledger-and-provider-readback-contract"
+    },
+    {
+      "key": "membership_workspace_connection_remediation",
+      "operation_paths": ["OP-015"],
+      "tasks": ["T011", "T012"],
+      "authority": "membership-workspace-and-connection-registries"
+    },
+    {
+      "key": "deployment_freshness_diagnosis",
+      "operation_paths": ["OP-016"],
+      "tasks": ["T013"],
+      "authority": "main-deployed-health-and-contract-evidence"
+    },
+    {
+      "key": "operator_governed_recovery",
+      "operation_paths": ["OP-017"],
+      "tasks": ["T013"],
+      "authority": "admin-tool-registry-resource-grants-and-approval-policy"
+    },
+    {
+      "key": "rollback_and_post_rollback_verification",
+      "operation_paths": ["OP-018"],
+      "tasks": ["T013"],
+      "authority": "release-gates-deployment-and-migration-policy"
+    }
+  ],
+  "operation_path_coverage": [
+    {
+      "operation_path": "OP-001",
+      "task": "T010",
+      "contract_class": "runtime_current",
+      "refs": ["GET /auth/oauth/authorize"]
+    },
+    {
+      "operation_path": "OP-002",
+      "task": "T010",
+      "contract_class": "runtime_current",
+      "refs": ["POST /auth/oauth/code"]
+    },
+    {
+      "operation_path": "OP-003",
+      "task": "T010",
+      "contract_class": "runtime_current",
+      "refs": ["POST /auth/oauth/token"]
+    },
+    {
+      "operation_path": "OP-004",
+      "task": "T010",
+      "contract_class": "non_route_contract",
+      "refs": ["gateway_first_protected_request"]
+    },
+    {
+      "operation_path": "OP-005",
+      "task": "T011",
+      "contract_class": "runtime_and_target",
+      "refs": ["GET /tenant/activation/session-context"]
+    },
+    {
+      "operation_path": "OP-006",
+      "task": "T011",
+      "contract_class": "target_and_non_route",
+      "refs": ["POST /tenant/activation/operations", "managed_and_mixed_bootstrap"]
+    },
+    {
+      "operation_path": "OP-007",
+      "task": "T011",
+      "contract_class": "target_and_non_route",
+      "refs": ["POST /tenant/activation/operations", "managed_and_mixed_bootstrap"]
+    },
+    {
+      "operation_path": "OP-008",
+      "task": "T011",
+      "contract_class": "non_route_contract",
+      "refs": ["provider_bootstrap_validation"]
+    },
+    {
+      "operation_path": "OP-009",
+      "task": "T011",
+      "contract_class": "non_route_contract",
+      "refs": ["tool_discovery_and_dispatch_preparation"]
+    },
+    {
+      "operation_path": "OP-010",
+      "task": "T011",
+      "contract_class": "target_and_non_route",
+      "refs": ["POST /tenant/activation/operations", "tool_discovery_and_dispatch_preparation"]
+    },
+    {
+      "operation_path": "OP-011",
+      "task": "T012",
+      "contract_class": "target_and_non_route",
+      "refs": ["GET /tenant/activation/operations/{operationId}", "POST /tenant/activation/operations/{operationId}/acknowledgements", "delivery_and_acknowledgement_semantics"]
+    },
+    {
+      "operation_path": "OP-012",
+      "task": "T012",
+      "contract_class": "non_route_contract",
+      "refs": ["token_expiry_revocation_and_reconnect"]
+    },
+    {
+      "operation_path": "OP-013",
+      "task": "T012",
+      "contract_class": "target_and_non_route",
+      "refs": ["POST /tenant/activation/operations/{operationId}/retries", "transient_dependency_retry"]
+    },
+    {
+      "operation_path": "OP-014",
+      "task": "T012",
+      "contract_class": "target_and_non_route",
+      "refs": ["POST /tenant/activation/operations/{operationId}/retries", "unknown_outcome_reconciliation"]
+    },
+    {
+      "operation_path": "OP-015",
+      "task": "T011",
+      "contract_class": "non_route_contract",
+      "refs": ["membership_workspace_connection_remediation"]
+    },
+    {
+      "operation_path": "OP-016",
+      "task": "T013",
+      "contract_class": "runtime_target_and_non_route",
+      "refs": ["GET /tenant/activation/awareness", "GET /tenant/activation/operational-attention", "DeploymentSummary", "deployment_freshness_diagnosis"]
+    },
+    {
+      "operation_path": "OP-017",
+      "task": "T013",
+      "contract_class": "non_route_contract",
+      "refs": ["operator_governed_recovery"]
+    },
+    {
+      "operation_path": "OP-018",
+      "task": "T013",
+      "contract_class": "non_route_contract",
+      "refs": ["rollback_and_post_rollback_verification"]
+    }
+  ],
+  "lifecycle_authority": {
+    "state_error_compatibility_contract": "specs/012-tenant-activation-lifecycle/implementation/pr-2a-lifecycle-contracts.json",
+    "operation_schema": "specs/012-tenant-activation-lifecycle/contracts/activation-operation.schema.json",
+    "active_requires_same_operation_evidence": true,
+    "unknown_outcome_requires_reconcile_before_replay": true,
+    "delivery_rewrites_execution_outcome": false,
+    "acknowledgement_rewrites_execution_outcome": false,
+    "deployment_mismatch_reconnect_required": false
+  },
+  "deployment_exposure": {
+    "tenant_statuses": ["current", "deploying", "stale", "diverged", "unknown"],
+    "tenant_exposure_levels": ["none", "opaque", "diagnostic"],
+    "tenant_allowed_fields": [
+      "status",
+      "runtime_version",
+      "expected_version",
+      "observed_at",
+      "fresh_until",
+      "exposure_level",
+      "complete",
+      "reconnect_required",
+      "next_action",
+      "details_omitted_silently"
+    ],
+    "tenant_forbidden_fields": [
+      "git_sha",
+      "branch",
+      "repository",
+      "host_path",
+      "credential",
+      "infrastructure_details"
+    ],
+    "admin_full_evidence_separate": true,
+    "reconnect_required": false
+  },
+  "stable_error_codes": [
+    "USER_JWT_REQUIRED",
+    "USER_JWT_INVALID",
+    "TOKEN_RESOURCE_INVALID",
+    "MEMBERSHIP_REQUIRED",
+    "WORKSPACE_NOT_READY",
+    "CONNECTION_REQUIRED",
+    "BOOTSTRAP_VALIDATING",
+    "VALIDATION_RATE_LIMITED",
+    "ACTIVATION_DEPENDENCY_UNAVAILABLE",
+    "ACTIVATION_OUTCOME_UNKNOWN",
+    "DEPLOYMENT_STALE",
+    "ACTIVATION_CONTRACT_ERROR"
+  ],
+  "compatibility": {
+    "additive_response_fields_optional": true,
+    "existing_required_fields_removal_allowed": false,
+    "existing_required_fields_rename_allowed": false,
+    "existing_operation_id_silent_rename_allowed": false,
+    "target_paths_callable_before_canonical_adoption": false
+  },
+  "secrets_included": false
+}

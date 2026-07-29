@@ -387,7 +387,7 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   const rows = await safeQuery(
     pool,
     `SELECT asg.grant_id, ask.skill_key
-       FROM agent_skill_grants asg
+       FROM v_effective_agent_skill_grants asg
        JOIN agent_skills ask ON ask.skill_id = asg.skill_id
       WHERE asg.agent_id = ?
         AND ask.skill_key = ?

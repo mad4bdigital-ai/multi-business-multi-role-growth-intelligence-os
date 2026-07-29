@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 
 const EMAIL_PURPOSE = "support_ticket_admin_notification";
-const ROUTING_VERSION = "support-ticket-routing-notification-v1";
+const ROUTING_VERSION = "support-ticket-routing-notification-v2";
 const MAX_RECIPIENTS = 20;
 
 const ROLE_RANKS = new Map([
@@ -81,7 +81,7 @@ async function fetchSubmitterMembership(connection, ticket = {}) {
   return rows[0] || null;
 }
 
-async function fetchSameTenantSuperiors(connection, ticket = {}, submitterRole = "member") {
+async function fetchSameTenantAdminOwners(connection, ticket = {}) {
   if (!ticket.tenant_id) return [];
   const [rows] = await connection.query(
     `SELECT m.user_id, m.tenant_id, m.role, u.email, u.display_name, t.display_name AS tenant_display_name
@@ -90,14 +90,13 @@ async function fetchSameTenantSuperiors(connection, ticket = {}, submitterRole =
        LEFT JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.tenant_id = ?
         AND m.status = 'active'
+        AND m.role IN ('owner','admin')
         AND (m.user_id <> ? OR ? IS NULL)
-      ORDER BY FIELD(m.role, 'platform_owner','owner','admin','manager','operator','member','viewer'), m.granted_at ASC`,
+      ORDER BY FIELD(m.role, 'owner','admin'), m.granted_at ASC`,
     [ticket.tenant_id, ticket.user_id || null, ticket.user_id || null]
   );
-  const submitterRank = rankTicketRole(submitterRole);
   return rows
-    .filter((row) => rankTicketRole(row.role) > submitterRank)
-    .map((row) => compactRecipient(row, "same_tenant_superior"))
+    .map((row) => compactRecipient(row, "same_tenant_admin_owner"))
     .filter(Boolean);
 }
 
@@ -130,9 +129,9 @@ export async function resolveSupportTicketRoutingRecipients(ticket = {}, options
     const metadata = parseJsonObject(ticket.metadata_json, {});
     const submitterMembership = await fetchSubmitterMembership(connection, ticket);
     const submitterRole = submitterMembership?.role || metadata?.role_at_creation || metadata?.authority?.role_at_creation || "member";
-    const sameTenantSuperiors = await fetchSameTenantSuperiors(connection, ticket, submitterRole);
+    const sameTenantAdminOwners = await fetchSameTenantAdminOwners(connection, ticket);
     const platformAdmins = await fetchPlatformAdmins(connection, ticket);
-    const recipients = dedupeRoutingRecipients([...sameTenantSuperiors, ...platformAdmins]);
+    const recipients = dedupeRoutingRecipients([...sameTenantAdminOwners, ...platformAdmins]);
     return {
       ok: true,
       routing_version: ROUTING_VERSION,
@@ -140,7 +139,8 @@ export async function resolveSupportTicketRoutingRecipients(ticket = {}, options
       recipient_count: recipients.length,
       recipients,
       sources: {
-        same_tenant_superior_count: sameTenantSuperiors.length,
+        same_tenant_superior_count: sameTenantAdminOwners.length,
+        same_tenant_admin_owner_count: sameTenantAdminOwners.length,
         platform_admin_count: platformAdmins.length,
       },
       secrets_included: false,

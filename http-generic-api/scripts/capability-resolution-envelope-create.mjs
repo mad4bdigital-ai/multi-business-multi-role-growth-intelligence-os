@@ -89,7 +89,15 @@ function buildDryRunArgs(passthrough = []) {
 }
 
 export function buildBindingContext(passthrough = []) {
-  const context = { plan_id: "", plan_item_id: "", resource_uri: "", recipe_key: "", expected_commit_sha: "" };
+  const context = {
+    plan_id: "",
+    plan_item_id: "",
+    resource_uri: "",
+    recipe_key: "",
+    expected_commit_sha: "",
+    binding_sha256: "",
+    capability_sha256: "",
+  };
   for (let i = 0; i < passthrough.length; i += 1) {
     const item = passthrough[i];
     const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
@@ -100,11 +108,20 @@ export function buildBindingContext(passthrough = []) {
     else if (key === "--resource-uri") { context.resource_uri = safeText(value, 512); if (consume) i += 1; }
     else if (key === "--recipe-key") { context.recipe_key = safeText(value, 191); if (consume) i += 1; }
     else if (key === "--expected-commit-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--binding-sha256") { context.binding_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--capability-sha256") { context.capability_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
   }
   if (context.expected_commit_sha && !/^[0-9a-f]{40}$/.test(context.expected_commit_sha)) {
     const err = new Error("--expected-commit-sha must be a 40-character hexadecimal commit SHA.");
     err.code = "capability_resolution_expected_commit_sha_invalid";
     throw err;
+  }
+  for (const [field, flag] of [["binding_sha256", "--binding-sha256"], ["capability_sha256", "--capability-sha256"]]) {
+    if (context[field] && !/^[0-9a-f]{64}$/.test(context[field])) {
+      const err = new Error(`${flag} must be a 64-character hexadecimal SHA-256 fingerprint.`);
+      err.code = `capability_resolution_${field}_invalid`;
+      throw err;
+    }
   }
   if (context.resource_uri && !/^[a-z][a-z0-9+.-]*:\/\//i.test(context.resource_uri)) {
     const err = new Error("--resource-uri must be an absolute governed resource URI.");

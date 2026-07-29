@@ -8,6 +8,7 @@ import {
   resolveDiffRange,
   runGit,
 } from "./docs-impact-classifier.mjs";
+import { attachRepositoryMutationCoordination, evaluateRepositoryMutationCoordination } from "../repositoryMutationCoordinationTelemetry.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
@@ -66,7 +67,19 @@ function entryName(mode = "manual") {
 function ensureReadme(outDir) {
   const file = path.join(outDir, "README.md");
   if (fs.existsSync(file)) return;
-  const content = `# Automated Docs Agent Notes\n\nThis directory is maintained by the Docs Agent workflow. Each generated note records the documentation impact of a PR or commit so runtime, schema, deployment, and tenant-facing changes do not disappear into chat history or transient CI logs.\n\nGenerated notes are reviewable evidence. They do not replace targeted human documentation for high-risk changes, but they make the required docs targets explicit and keep the repository auto-mergeable when a follow-up documentation note is enough.\n\nRules:\n\n- No secrets or credential values.\n- No generated canonical root edits without canonical source edits.\n- High-risk notes must name required docs and validation evidence.\n- Docs-only agent PRs may be auto-merged only after CI passes.\n`;
+  const content = `# Automated Docs Agent Notes
+
+This directory is maintained by the Docs Agent workflow. Each generated note records the documentation impact of a PR or commit so runtime, schema, deployment, and tenant-facing changes do not disappear into chat history or transient CI logs.
+
+Generated notes are reviewable evidence. They do not replace targeted human documentation for high-risk changes, but they make the required docs targets explicit and keep the repository auto-mergeable when a follow-up documentation note is enough.
+
+Rules:
+
+- No secrets or credential values.
+- No generated canonical root edits without canonical source edits.
+- High-risk notes must name required docs and validation evidence.
+- Docs-only agent PRs may be auto-merged only after CI passes.
+`;
   fs.writeFileSync(file, content);
 }
 
@@ -80,16 +93,53 @@ function writeGithubOutput(values = {}) {
   fs.appendFileSync(outputPath, `${lines.join("\n")}\n`);
 }
 
+function normalizeGeneratedDocsDir(value = "") {
+  return String(value || "docs/auto-docs-agent")
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/\/+$/g, "") || "docs/auto-docs-agent";
+}
+
+function normalizeGeneratedDocsPath(outDir, value = "") {
+  const normalized = String(value || "generated-note.md")
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "");
+  if (!normalized) return `${outDir}/generated-note.md`;
+  if (normalized.startsWith(`${outDir}/`)) return normalized;
+  return `${outDir}/${normalized.split("/").filter(Boolean).pop() || "generated-note.md"}`;
+}
+
+export function docsAgentGeneratedPaths(options = {}) {
+  const outDir = normalizeGeneratedDocsDir(options.outDir);
+  return [
+    `${outDir}/README.md`,
+    normalizeGeneratedDocsPath(outDir, options.output_path || options.outputPath || options.entryName),
+  ];
+}
+
+export function buildDocsAgentCoordinationTelemetry(options = {}) {
+  return evaluateRepositoryMutationCoordination("docs_agent_commit", {
+    ...options,
+    changes: docsAgentGeneratedPaths(options).map((filePath) => ({ path: filePath })),
+    repository_current_state: {
+      ...(options.repository_current_state || {}),
+      unknown_provider_outcome: options.unknown_provider_outcome === true,
+      same_cycle_readback_verified: options.same_cycle_readback_verified === true,
+    },
+  });
+}
+
 export function runDocsAgent(options = {}) {
   const range = resolveDiffRange({ base: options.base, head: options.head });
   const changedFiles = changedFilesForRange(range);
   const impact = classifyChangedFiles(changedFiles);
-  const result = {
+  const repositoryCoordination = buildDocsAgentCoordinationTelemetry(options);
+  const result = attachRepositoryMutationCoordination({
     range,
     ...impact,
     wrote: false,
     output_path: "",
-  };
+  }, repositoryCoordination);
 
   if (!impact.should_generate) {
     writeGithubOutput({

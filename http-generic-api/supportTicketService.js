@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { queueSupportTicketRoutingNotifications } from "./supportTicketRoutingNotificationService.js";
+import {
+  ensureSupportTicketResolutionCase,
+  getSupportTicketResolution,
+} from "./supportTicketResolutionService.js";
 
 const VALID_TICKET_CATEGORIES = new Set(["support", "review_request", "escalation", "managed_task", "billing", "general"]);
 const VALID_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
@@ -307,13 +311,43 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
         summary: ticket.customer_message,
         payload_json: { customer_visible: true, deduped: true, secrets_included: false },
       });
+      const existingTicket = {
+        ...existing,
+        occurrence_count: Number(existing.occurrence_count || 1) + 1,
+        last_seen_at: new Date(),
+      };
+      const resolution = await ensureSupportTicketResolutionCase({
+        connection,
+        ticket: existingTicket,
+        actor_id: ticket.actor_id || "support_ticket_resolution_router",
+      });
+      if (resolution.created) {
+        await insertLifecycleEvent(connection, {
+          ticket_id: existing.ticket_id,
+          tenant_id: existing.tenant_id,
+          event_type: "resolution_case_linked",
+          actor_id: "support_ticket_resolution_router",
+          actor_type: "system",
+          visibility: "internal_support",
+          summary: `Linked ticket to ${resolution.summary.playbook_key}.`,
+          payload_json: { ...resolution.summary, secrets_included: false },
+        });
+      }
       const notification = await queueSupportTicketRoutingNotifications({
-        ticket: { ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() },
+        ticket: existingTicket,
         event_type: "dedupe_matched",
         deduped: true,
       }, { connection });
       if (ownsConnection) await connection.commit();
-      return { ok: true, created: false, deduped: true, ticket: compactTicket({ ...existing, occurrence_count: Number(existing.occurrence_count || 1) + 1, last_seen_at: new Date() }), notification, secrets_included: false };
+      return {
+        ok: true,
+        created: false,
+        deduped: true,
+        ticket: compactTicket(existingTicket),
+        resolution: resolution.summary,
+        notification,
+        secrets_included: false,
+      };
     }
 
     await connection.query(
@@ -359,6 +393,22 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
     await attachResourceLink(connection, ticket, ticket.resource);
     await capturePermissionSnapshot(connection, ticket, ticket);
 
+    const resolution = await ensureSupportTicketResolutionCase({
+      connection,
+      ticket,
+      actor_id: ticket.actor_id || "support_ticket_resolution_router",
+    });
+    await insertLifecycleEvent(connection, {
+      ticket_id: ticket.ticket_id,
+      tenant_id: ticket.tenant_id,
+      event_type: "resolution_case_linked",
+      actor_id: "support_ticket_resolution_router",
+      actor_type: "system",
+      visibility: "internal_support",
+      summary: `Linked ticket to ${resolution.summary.playbook_key}.`,
+      payload_json: { ...resolution.summary, secrets_included: false },
+    });
+
     const notification = await queueSupportTicketRoutingNotifications({
       ticket,
       event_type: "ticket_created",
@@ -367,7 +417,15 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
 
     const inserted = await fetchTicketById(connection, ticket.tenant_id, ticket.ticket_id);
     if (ownsConnection) await connection.commit();
-    return { ok: true, created: true, deduped: false, ticket: compactTicket(inserted), notification, secrets_included: false };
+    return {
+      ok: true,
+      created: true,
+      deduped: false,
+      ticket: compactTicket(inserted),
+      resolution: resolution.summary,
+      notification,
+      secrets_included: false,
+    };
   } catch (error) {
     if (ownsConnection) await connection.rollback();
     throw error;
@@ -488,7 +546,12 @@ export async function listSupportTicketsForTenant({ tenant_id, user_id = null, s
   return rows.map(compactTicket);
 }
 
-export async function getSupportTicketWithEvents({ tenant_id, ticket_id, customer_visible = false }, options = {}) {
+export async function getSupportTicketWithEvents({
+  tenant_id,
+  ticket_id,
+  customer_visible = false,
+  include_resolution = false,
+}, options = {}) {
   const pool = options.pool || getPool();
   const [ticketRows] = await pool.query("SELECT * FROM tickets WHERE tenant_id = ? AND ticket_id = ? LIMIT 1", [tenant_id, ticket_id]);
   const ticket = ticketRows[0] || null;
@@ -501,7 +564,19 @@ export async function getSupportTicketWithEvents({ tenant_id, ticket_id, custome
       ORDER BY created_at ASC LIMIT 500`,
     [tenant_id, ticket_id]
   );
-  return { ticket: compactTicket(ticket), events: eventRows.map((row) => ({ ...row, payload_json: parseJsonObject(row.payload_json, null), secrets_included: false })), secrets_included: false };
+  const resolution = include_resolution
+    ? await getSupportTicketResolution({ tenant_id, ticket_id, pool })
+    : null;
+  return {
+    ticket: compactTicket(ticket),
+    events: eventRows.map((row) => ({
+      ...row,
+      payload_json: parseJsonObject(row.payload_json, null),
+      secrets_included: false,
+    })),
+    ...(include_resolution ? { resolution } : {}),
+    secrets_included: false,
+  };
 }
 
 function ticketTextForClassification(row = {}) {

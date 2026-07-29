@@ -8862,13 +8862,13 @@ paths:
               $ref: "#/components/schemas/HardActivationRunRequest"
       responses:
         "200":
-          description: Hard activation complete.
+          description: Hard activation diagnostic report produced; activation status may be active or degraded.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HardActivationRunResponse"
         "424":
-          description: Required activation evidence is missing or degraded.
+          description: Hard activation could not produce a complete diagnostic evidence report.
           content:
             application/json:
               schema:
@@ -11682,7 +11682,8 @@ paths:
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
-      description: Calls a fixed, governed system-layer tool. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2 readiness invokes the binding lifecycle and tenant sweep through the same public descriptor dispatcher used by this endpoint, verifies tenant forcing, read-only execution, cleanup, no mutation, and no secrets, and blocks release readiness on any broken public entrypoint. `system_layer_descriptor_callability_audit` extends this guarantee to every descriptor source by requiring a governed no-secret readiness smoke and failing closed on missing handlers, missing smokes, failed calls, unauthorized mutations, or secret-bearing output. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence. `activation_drive_probe` resolves the SQL-authoritative `google_drive_api` action and scope contract explicitly and must not inherit a Sheets action context. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and response_chunk_read. Callers may request max_chars, chunk_ttl_ms, or chunk_ttl_minutes through response_options; successful reads extend cache retention.
+      description: >-
+        Calls a fixed, governed system-layer tool. Descriptor tools may declare an explicit handler_name when the public tool name does not map one-to-one to the runtime export; descriptor readiness verifies that the selected handler is callable. Repository Intelligence V2 readiness invokes the binding lifecycle and tenant sweep through the same public descriptor dispatcher used by this endpoint, verifies tenant forcing, read-only execution, cleanup, no mutation, and no secrets, and blocks release readiness on any broken public entrypoint. `system_layer_descriptor_callability_audit` extends this guarantee to every descriptor source by requiring a governed no-secret readiness smoke and failing closed on missing handlers, missing smokes, failed calls, unauthorized mutations, or secret-bearing output. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence. `activation_drive_probe` resolves the SQL-authoritative `google_drive_api` action and scope contract explicitly and must not inherit a Sheets action context. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and response_chunk_read. Callers may request max_chars, chunk_ttl_ms, or chunk_ttl_minutes through response_options; successful reads extend cache retention. Repository webhook V2 tools remain behind this dispatcher: status and dry-run resolve a governed repository `binding_key`, inherited capability configuration, `binding_sha256`, and `capability_sha256` without exposing credential references; apply additionally requires the reviewed fingerprints, exact commit SHA, a single-use approved capability envelope bound to tenant, workspace, brand, and resource URI, atomic claim, signed ping status 200, provider readback, repository-scoped evidence, and environment-scoped certification before envelope consumption.
       requestBody:
         required: true
         content:
@@ -11703,7 +11704,28 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields.
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Repository webhook V2 status and dry-run prefer binding_key; apply also requires binding_sha256, capability_sha256, expected_commit_sha, capability_envelope_id, typed confirmation, and a review reason.
+            examples:
+              repositoryWebhookDryRun:
+                summary: Resolve the governed repository and produce review-bound fingerprints without a provider write
+                value:
+                  name: github_repository_main_moved_webhook_provision
+                  tool_args:
+                    binding_key: growth_intelligence_platform.github.primary.production
+                    mode: dry_run
+              repositoryWebhookApply:
+                summary: Apply only after reviewing dry-run output and approving a single-use context-bound envelope
+                value:
+                  name: github_repository_main_moved_webhook_provision
+                  tool_args:
+                    binding_key: growth_intelligence_platform.github.primary.production
+                    mode: apply
+                    confirm: PROVISION_GITHUB_REPOSITORY_MAIN_MOVED_WEBHOOK
+                    capability_envelope_id: 00000000-0000-0000-0000-000000000000
+                    expected_commit_sha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    binding_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                    capability_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+                    reason: Apply the reviewed repository webhook plan after same-cycle authority and capability validation.
       responses:
         "200":
           description: System tool result
@@ -17980,7 +18002,7 @@ paths:
                 target_id: { type: string }
                 app_key: { type: string, default: auth.mad4b.com }
                 app_path: { type: string }
-                branch: { type: string, enum: [main], default: main }
+                branch: { type: string, enum: [main, Production], default: main }
                 expected_commit_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
                 dry_run: { type: boolean, default: true }
                 force_clean: { type: boolean, default: false }
@@ -22023,6 +22045,45 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
 
+  /platform/agent-governance/logic-coverage:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceLogicCoverage
+      summary: Read evidence-backed Agent Logic runtime coverage
+      description: Returns Logic inventory separately from retrieval, selection, dispatch, success, and verification evidence. Active inventory alone is not counted as usage.
+      parameters:
+        - { name: logic_key, in: query, required: false, schema: { type: string, pattern: "^[A-Za-z0-9_.:-]{1,191}$" } }
+        - { name: registry_status, in: query, required: false, schema: { type: string, pattern: "^[a-z0-9_-]{1,32}$" } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Logic runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
+  /platform/agent-governance/engine-coverage:
+    get:
+      tags: [platform-agent-governance]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      operationId: getAgentGovernanceEngineCoverage
+      summary: Read evidence-backed Agent Engine runtime coverage
+      description: Returns workflow-bound Engine references separately from retrieval, selection, dispatch, success, and verification evidence. Textual references alone are not counted as usage.
+      parameters:
+        - { name: engine_key, in: query, required: false, schema: { type: string, pattern: "^[A-Za-z0-9_.:-]{1,191}$" } }
+        - name: usage_status
+          in: query
+          required: false
+          schema: { type: string, enum: [never_retrieved, retrieved_never_selected, selected_never_dispatched, dispatched_never_succeeded, succeeded_not_verified, verified] }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200": { description: Engine runtime coverage and usage evidence }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Admin principal required }
   /platform/agent-governance/readiness:
     get:
       tags: [platform-agent-governance]

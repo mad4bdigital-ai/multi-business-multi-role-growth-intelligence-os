@@ -41,7 +41,7 @@ assert.match(logger, /BLOCKED_EVIDENCE_KEY_PATTERN/);
 assert.match(logger, /runtimeEvidenceEnvelope/);
 assert.match(logger, /execution_evidence_status/);
 assert.match(logger, /resolveExecutionAgentSkillGrant/);
-assert.match(logger, /agent_skill_grants/);
+assert.match(logger, /v_effective_agent_skill_grants/);
 assert.match(logger, /DEFAULT_EXECUTION_EVIDENCE_AGENT_KEY = "admin_gpt_assistant"/);
 assert.match(logger, /github_repository_recovery_adapter/);
 assert.match(logger, /platform_registry_database_recovery/);

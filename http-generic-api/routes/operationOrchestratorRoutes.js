@@ -38,6 +38,15 @@ function bodyOf(req) {
     : {};
 }
 
+function requireSecurityMiddleware(name, middleware) {
+  if (typeof middleware !== "function") {
+    const error = new Error(`Operation routes require ${name}.`);
+    error.code = "OPERATION_ROUTE_SECURITY_MIDDLEWARE_REQUIRED";
+    throw error;
+  }
+  return middleware;
+}
+
 async function tenantMembership(userId, requestedTenantId = null) {
   const params = [userId];
   let tenantClause = "";
@@ -209,8 +218,76 @@ async function finalizeWorkerSafely({ lifecycle, result, dispatch }) {
   }
 }
 
-function mountOperationRoutes(router, middleware = []) {
-  router.get("/operations/contracts", ...middleware, async (req, res) => {
+async function recordOwnershipSafely({ req, input, result, operationKey }) {
+  try {
+    return await recordOperationRunOwnership({
+      pool: getPool(),
+      auth: req.auth,
+      input,
+      result,
+      operationKey,
+    });
+  } catch (error) {
+    return {
+      recorded: false,
+      status: "unavailable",
+      error: {
+        code: error?.code || "OPERATION_OWNERSHIP_REGISTRY_UNAVAILABLE",
+        message:
+          error?.message || "Operation ownership registration is unavailable.",
+        details: error?.details || null,
+      },
+      retryable: false,
+      secrets_included: false,
+    };
+  }
+}
+
+function operationLifecycleNeedsAttention({
+  workerResult,
+  lifecycleResult,
+  ownership,
+  artifactRegistry,
+}) {
+  return workerResult?.status === "cleanup_failed"
+    || lifecycleResult?.status === "consume_failed"
+    || ownership?.status === "unavailable"
+    || artifactRegistry?.status === "unavailable";
+}
+
+export function buildOperationOrchestratorRoutes({
+  requireBackendApiKey,
+  requireAdminPrincipal,
+} = {}) {
+  const router = Router();
+
+  requireSecurityMiddleware(
+    "requireBackendApiKey",
+    requireBackendApiKey,
+  );
+  requireSecurityMiddleware(
+    "requireAdminPrincipal",
+    requireAdminPrincipal,
+  );
+
+  router.use(
+    "/admin/operations",
+    requireBackendApiKey,
+    requireAdminPrincipal,
+  );
+  router.use(
+    "/tenant/operations",
+    requireTenantOperationPrincipal,
+  );
+
+  mountOperationRoutes(router, { prefix: "/admin" });
+  mountOperationRoutes(router, { prefix: "/tenant" });
+
+  return router;
+}
+
+function mountOperationRoutes(router, { prefix }) {
+  router.get(`${prefix}/operations/contracts`, async (req, res) => {
     try {
       const scope =
         req.auth?.is_admin || req.auth?.mode === "backend_api"
@@ -226,7 +303,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/context", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/context`, async (req, res) => {
     try {
       return res.status(200).json(
         await buildOperationContext({
@@ -240,7 +317,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/preview", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/preview`, async (req, res) => {
     try {
       return res
         .status(200)
@@ -250,8 +327,11 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/execute", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/execute`, async (req, res) => {
+    let capabilityLifecycle = null;
+    let capabilityFinalized = false;
     let workerLifecycle = null;
+    let workerFinalized = false;
     let operationDeps = null;
     try {
       const requestedInput = bodyOf(req);
@@ -269,7 +349,7 @@ function mountOperationRoutes(router, middleware = []) {
           || requestedInput.intent,
       );
       operationDeps = depsFor(req);
-      const capabilityLifecycle = await prepareOperationCapabilityLifecycle({
+      capabilityLifecycle = await prepareOperationCapabilityLifecycle({
         pool: getPool(),
         auth: req.auth,
         input: requestedInput,
@@ -294,13 +374,14 @@ function mountOperationRoutes(router, middleware = []) {
         result,
         dispatch: operationDeps.dispatch,
       });
+      workerFinalized = true;
       const lifecycleResult = await finalizeCapabilitySafely({
         lifecycle: capabilityLifecycle,
         result,
       });
-      const ownership = await recordOperationRunOwnership({
-        pool: getPool(),
-        auth: req.auth,
+      capabilityFinalized = true;
+      const ownership = await recordOwnershipSafely({
+        req,
         input,
         result,
         operationKey,
@@ -311,48 +392,84 @@ function mountOperationRoutes(router, middleware = []) {
         result,
         operationKey,
       });
+      const lifecycleNeedsAttention = operationLifecycleNeedsAttention({
+        workerResult,
+        lifecycleResult,
+        ownership,
+        artifactRegistry,
+      });
 
       return res
         .status(
-          result?.status === "awaiting_input"
-            ? 202
-            : result?.ok === false
-              ? 409
-              : 200,
+          lifecycleNeedsAttention
+            ? 409
+            : result?.status === "awaiting_input"
+              ? 202
+              : result?.ok === false
+                ? 409
+                : 200,
         )
         .json({
           ...result,
+          ...(lifecycleNeedsAttention
+            ? {
+                ok: false,
+                status: "completed_with_unresolved_lifecycle",
+                retry_safe: false,
+                operation_result: {
+                  ok: result?.ok !== false,
+                  status: result?.status || null,
+                },
+              }
+            : {}),
           capability_lifecycle: lifecycleResult,
           managed_worker: workerResult,
           ownership,
           artifact_registry: artifactRegistry,
         });
     } catch (error) {
-      if (workerLifecycle?.required === true && operationDeps?.dispatch) {
-        const workerResult = await finalizeWorkerSafely({
+      const failureResult = {
+        ok: false,
+        status: "failed",
+        error: {
+          code: error?.code || "OPERATION_EXECUTION_FAILED",
+          message: error?.message || "Operation execution failed.",
+        },
+      };
+      const lifecycleDetails = {};
+
+      if (
+        workerLifecycle?.required === true
+        && workerFinalized !== true
+        && operationDeps?.dispatch
+      ) {
+        lifecycleDetails.managed_worker = await finalizeWorkerSafely({
           lifecycle: workerLifecycle,
-          result: {
-            ok: false,
-            status: "failed",
-            error: {
-              code: error?.code || "OPERATION_EXECUTION_FAILED",
-              message: error?.message || "Operation execution failed.",
-            },
-          },
+          result: failureResult,
           dispatch: operationDeps.dispatch,
         });
+      }
+
+      if (capabilityLifecycle?.required === true && capabilityFinalized !== true) {
+        lifecycleDetails.capability_lifecycle = await finalizeCapabilitySafely({
+          lifecycle: capabilityLifecycle,
+          result: failureResult,
+        });
+      }
+
+      if (Object.keys(lifecycleDetails).length > 0) {
         error.details = {
           ...(error?.details && typeof error.details === "object"
             ? error.details
             : {}),
-          managed_worker: workerResult,
+          ...lifecycleDetails,
         };
       }
       return errorResponse(res, error, "OPERATION_EXECUTION_FAILED");
     }
   });
 
-  router.post("/operations/status", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/status`, async (req, res) => {
     try {
       const input = bodyOf(req);
       await assertOperationRunAccess({
@@ -369,8 +486,7 @@ function mountOperationRoutes(router, middleware = []) {
   });
 
   router.get(
-    "/operations/workers/:worker_id",
-    ...middleware,
+    `${prefix}/operations/workers/:worker_id`,
     async (req, res) => {
       try {
         return res.status(200).json(
@@ -389,7 +505,7 @@ function mountOperationRoutes(router, middleware = []) {
     },
   );
 
-  router.get("/operations/artifacts", ...middleware, async (req, res) => {
+  router.get(`${prefix}/operations/artifacts`, async (req, res) => {
     try {
       const input = {
         run_id: req.query.run_id,
@@ -413,7 +529,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/ci-diagnose`, async (req, res) => {
     try {
       return res
         .status(200)
@@ -424,31 +540,14 @@ function mountOperationRoutes(router, middleware = []) {
   });
 }
 
-export function buildOperationOrchestratorRoutes({
-  requireBackendApiKey,
-  requireAdminPrincipal,
-} = {}) {
-  const router = Router();
-
-  const admin = Router();
-  mountOperationRoutes(
-    admin,
-    [requireBackendApiKey, requireAdminPrincipal].filter(Boolean),
-  );
-  router.use("/admin", admin);
-
-  const tenant = Router();
-  mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
-  router.use("/tenant", tenant);
-
-  return router;
-}
-
 export const _testingOperationOrchestratorRoutes = {
   errorResponse,
   isResumeOperation,
   dispatchWithChunkCollection,
   recordArtifactsSafely,
+  recordOwnershipSafely,
   finalizeCapabilitySafely,
   finalizeWorkerSafely,
+  operationLifecycleNeedsAttention,
+  requireSecurityMiddleware,
 };
