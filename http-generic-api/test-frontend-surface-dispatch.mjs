@@ -503,11 +503,6 @@ const missingSignedGuardOperation = missingSignedGuardPlan.families
   .filter((family) => family.source_file === "routes/mixedRoutes.js")
   .flatMap((family) => family.operations)
   .find((entry) => entry.signature === "GET /signed-download/{token}");
-console.error(`::warning title=signed-download-negative::${JSON.stringify({
-  found: Boolean(missingSignedGuardOperation),
-  runtime_auth: missingSignedGuardOperation?.runtime_auth,
-  auth_parity: missingSignedGuardOperation?.auth_parity,
-})}`);
 assert.equal(missingSignedGuardOperation.runtime_auth.state, "unresolved");
 assert.equal(
   missingSignedGuardOperation.runtime_auth.profile,
