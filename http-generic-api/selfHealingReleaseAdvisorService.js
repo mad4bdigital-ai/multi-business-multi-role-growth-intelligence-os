@@ -153,7 +153,7 @@ function productionBranchSyncSteps({ expectedCommitSha, sourceBranch, deployment
 function buildRecommendation(gap, evidence) {
   const runbook = parseJson(gap.runbook_json, {});
   const hasTarget = Boolean(evidence.target_id || evidence.operation?.target_id);
-  const action = actionForGap(gap, hasTarget);
+  const action = actionForGap(gap, hasTarget, evidence);
   const severity = text(gap.severity || "medium", 16);
   const approvalRequired = Number(gap.approval_required || 0) === 1
     || ["high", "critical"].includes(severity)
