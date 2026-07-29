@@ -45,6 +45,11 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "local-agent-runtime.mjs": {
+    relativePath: "local-connector/local-agent-runtime.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
 
 const LOCAL_TOOL_RELEASES = [
@@ -434,7 +439,9 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$WatchdogPs1 = Join-Path $Root 'connector-watchdog.ps1'",
     "$SafeUpgradePs1 = Join-Path $Root 'connector-safe-upgrade.ps1'",
     "$DbRestoreCertifier = Join-Path $Root 'db-restore-certifier.mjs'",
-    "$N8nRestoreCertifier = Join-Path $Root 'n8n-restore-certifier.mjs'", 
+    "$N8nRestoreCertifier = Join-Path $Root 'n8n-restore-certifier.mjs'",
+    "$Browser4Adapter = Join-Path $Root 'browser4-adapter.mjs'",
+    "$LocalAgentRuntime = Join-Path $Root 'local-agent-runtime.mjs'",
     "",
     "function Get-Mad4BManifestFile {",
     "  param([Parameter(Mandatory=$true)][string]$Name, [Parameter(Mandatory=$true)][string]$OutFile)",
@@ -460,7 +467,8 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "Get-Mad4BManifestFile -Name 'connector-safe-upgrade.ps1' -OutFile $SafeUpgradePs1",
     "Get-Mad4BManifestFile -Name 'db-restore-certifier.mjs' -OutFile $DbRestoreCertifier",
     "Get-Mad4BManifestFile -Name 'n8n-restore-certifier.mjs' -OutFile $N8nRestoreCertifier",
-    "if ($Manifest.files.'browser4-adapter.mjs') { Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile (Join-Path $Root 'browser4-adapter.mjs') }",
+    "Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile $Browser4Adapter",
+    "Get-Mad4BManifestFile -Name 'local-agent-runtime.mjs' -OutFile $LocalAgentRuntime",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$EnvText = @'",
