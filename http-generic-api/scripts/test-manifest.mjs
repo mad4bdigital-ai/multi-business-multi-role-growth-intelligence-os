@@ -1,4 +1,5 @@
 export const testCommands = [
+  "node test-multi-activity-ambiguity-isolation.mjs",
   "node test-runtime-parity-startup-reconciler.mjs",
   "node test-platform-frontend-routes.mjs",
   "node test-frontend-operation-governance-generator.mjs",
