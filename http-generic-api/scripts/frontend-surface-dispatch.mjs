@@ -526,7 +526,7 @@ function middlewareAliases(source = "") {
     if (returnedArray) {
       const containsGuard = [...returnedArray[1].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
         .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-      if (/^(?:require|verify|authenticate|authorize|auth)/i.test(helper[1]) || containsGuard) aliases.set(helper[1], returnedArray[1]);
+      if (isMiddlewareAliasName(helper[1]) && containsGuard) aliases.set(helper[1], returnedArray[1]);
     }
     helperRe.lastIndex = closing + 1;
   }
