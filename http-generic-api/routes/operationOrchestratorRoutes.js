@@ -397,13 +397,31 @@ function mountOperationRoutes(router, middleware = []) {
         operationKey,
         dispatch: operationDeps.dispatch,
       });
+      credentialBinding = await prepareCredentialBindingForWorker({
+        deps: operationDeps,
+        lifecycle: workerLifecycle,
+        input: workerLifecycle.input || capabilityInput,
+      });
       workerLifecycle = await markManagedGitWorkerRunning({
         pool: getPool(),
         lifecycle: workerLifecycle,
       });
       const input = workerLifecycle.input || capabilityInput;
-      const executionDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+      const workspaceDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+      const executionDeps = depsWithManagedGitCredential(workspaceDeps, credentialBinding);
       const result = await executeOperation(input, executionDeps);
+      const credentialResult = finalizeCredentialSafely(credentialBinding);
+      credentialFinalized = true;
+      if (credentialResult.status === "release_failed") {
+        const releaseError = new Error("Repository credential release failed.");
+        releaseError.code = "MANAGED_GIT_CREDENTIAL_RELEASE_FAILED";
+        releaseError.status = 500;
+        releaseError.details = {
+          credential_lifecycle: credentialResult,
+          secrets_included: false,
+        };
+        throw releaseError;
+      }
       const workerResult = await finalizeWorkerSafely({
         lifecycle: workerLifecycle,
         result,
