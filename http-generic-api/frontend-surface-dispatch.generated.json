@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "9d2d74439bc24321f683f1344d89e8084e0745f43a710ac286d60c5a16eb563a",
+    "source_digest": "aad5b4156eb6beb20928be382ced5f5022e0d9c4b38b41f856539382ec36a2f0",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -236,7 +236,7 @@
       },
       {
         "file": "resource-api-coverage.manifest.json",
-        "sha256": "9427f57019e2187098676f8a6c6a4eb2847174e62f87d4f8508fdc79423521ea",
+        "sha256": "3be4a5365a3d5e20d88e2587e3a286f48341fcbf9ee146459739b7bc80eda686",
         "present": true
       },
       {
@@ -896,7 +896,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "1c79777a9c5c51f40f0a1c7850cf9554e710f9eded155dae05eedb7adc433538",
+        "sha256": "62e29888212edae7d7adea3b8d05d4c56d42a95decb86a7c4be2321a43e73b53",
         "present": true
       },
       {
@@ -26492,7 +26492,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "1c79777a9c5c51f40f0a1c7850cf9554e710f9eded155dae05eedb7adc433538",
+      "source_digest": "62e29888212edae7d7adea3b8d05d4c56d42a95decb86a7c4be2321a43e73b53",
       "mount_prefix": "/",
       "mount_order": 15620,
       "split_from_mixed_scope_file": false,
@@ -26898,7 +26898,13 @@
         "GET /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
@@ -80818,7 +80824,13 @@
         "POST /admin/control",
         "POST /admin/session-continuity/link-user"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
