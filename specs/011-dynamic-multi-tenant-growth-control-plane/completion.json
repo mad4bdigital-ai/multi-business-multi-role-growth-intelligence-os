@@ -48,7 +48,7 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "53c3a1c657485790ac743d5f46b389e31663b585"
+      "head_sha": "09d68fe075d6b979781598ca5b823c4bb1d46568"
     },
     "reference_packs": {
       "status": "passed_catalog_and_manifest_validation",
@@ -56,6 +56,14 @@
       "active_profile_count": 25,
       "specialized_profile_count": 1,
       "baseline_profile_count": 24
+    },
+    "multi_activity_selection": {
+      "status": "passed_ambiguity_and_isolation_validation",
+      "head_sha": "09d68fe075d6b979781598ca5b823c4bb1d46568",
+      "selector_contract": "explicit_activity_intent_required_for_multiple_selectable_bindings",
+      "provider_calls": false,
+      "external_writes": false,
+      "secrets_included": false
     },
     "release_readiness": {
       "status": "pending"
