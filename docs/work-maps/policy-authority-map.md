@@ -173,6 +173,7 @@ flowchart TD
 | `ads_provider_preflight_surface_blueprint_policy_v1` | 2 |
 | `ads_provider_profile_onboarding_flow_policy_v1` | 1 |
 | `agent_governance_runtime_policy_v1` | 1 |
+| `auth_mad4b_proxy_deploy_apply_policy_v1` | 1 |
 | `brand_reference_interpretation_policy_v1` | 1 |
 | `brand_workspace_context_minimal_policy_v1` | 1 |
 | `budget_quota_authority_registry_policy_v1` | 2 |

@@ -4,12 +4,12 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 30
-- Triaged items: 30
-- Gate candidates: 10
+- Queue items: 31
+- Triaged items: 31
+- Gate candidates: 11
 - New-gap gate: fail
-- Blocking new items: 11
-- Docs completion: 98.78%
+- Blocking new items: 12
+- Docs completion: 98.61%
 - SQL route OpenAPI coverage: 68.75%
 
 ## Top immediate items
@@ -22,5 +22,6 @@
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, confirm registry binding/readback evidence before promotion
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, confirm registry binding/readback evidence before promotion
+- `20260729_auth_mad4b_proxy_rollout_surface.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `20260720_github_update_pull_request_branch_503_response_contract.sql` — high_review, add targeted patch-index, parity, and governance documentation
 - `20260720_tenant_tool_input_schema_strictness.sql` — high_review, add targeted patch-index, parity, and governance documentation
