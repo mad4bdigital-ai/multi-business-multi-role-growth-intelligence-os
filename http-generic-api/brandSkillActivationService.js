@@ -316,6 +316,25 @@ export async function activateBrandSkillForUser({
     }
     const ttlHours = normalizeTtlHours(input.ttl_hours, mode, policy.max_ttl_hours);
     const grantId = uuid();
+    await connection.query(
+      `UPDATE user_brand_skill_grants
+          SET status = 'expired', updated_at = NOW()
+        WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_id = ?
+          AND COALESCE(resource_type, '') = COALESCE(?, '')
+          AND COALESCE(resource_ref, '') = COALESCE(?, '')
+          AND status = 'active'
+          AND expires_at IS NOT NULL
+          AND expires_at <= CURRENT_TIMESTAMP`,
+      [
+        normalizedTenantId,
+        userId,
+        normalizedBrandKey,
+        normalizedAgentId,
+        skill.skill_id,
+        authority.resource_type,
+        authority.resource_ref,
+      ]
+    );
     await expireStaleUserBrandSkillGrants(connection, {
       tenantId: normalizedTenantId,
       userId,
