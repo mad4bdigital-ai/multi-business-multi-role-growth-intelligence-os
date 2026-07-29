@@ -86,6 +86,8 @@ assert(entitlement.includes("enforce_brand_skill_entitlement"));
 const openapi = readFileSync(new URL("./openapi/brand-skill-activation.yaml", import.meta.url), "utf8");
 assert(openapi.includes("openapi: 3.1.0"));
 assert(openapi.includes("activateBrandSkillForSignedInUser"));
+assert(openapi.includes("Scope-idempotent activation"));
+assert(openapi.includes("Idempotency-Key is not required"));
 assert(openapi.includes("ErrorEnvelope"));
 assert(openapi.includes("requestId"));
 
