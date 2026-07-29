@@ -189,6 +189,50 @@ function finalizeCredentialSafely(binding) {
   }
 }
 
+async function prepareCredentialBindingForWorker({
+  deps,
+  lifecycle,
+  input = {},
+  now = new Date(),
+  createCredentialBinding = createManagedGitRepositoryCredentialBinding,
+} = {}) {
+  if (lifecycle?.required !== true) return null;
+  const connectionId = String(input?.connection_id || "").trim();
+  if (!connectionId) return null;
+  if (typeof createCredentialBinding !== "function") {
+    const error = new Error("A repository credential binding factory is required.");
+    error.code = "MANAGED_GIT_CREDENTIAL_BINDING_FACTORY_REQUIRED";
+    error.status = 500;
+    throw error;
+  }
+  const current = now instanceof Date ? new Date(now.getTime()) : new Date(now);
+  const leaseExpiry = new Date(lifecycle.lease_expires_at || 0);
+  const remainingSeconds = Math.floor((leaseExpiry.getTime() - current.getTime()) / 1000);
+  if (!Number.isFinite(remainingSeconds) || remainingSeconds < 30) {
+    const error = new Error("The managed Git worker lease is too close to expiry for a repository credential binding.");
+    error.code = "MANAGED_GIT_CREDENTIAL_LEASE_TOO_SHORT";
+    error.status = 409;
+    error.details = {
+      minimum_remaining_seconds: 30,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      secrets_included: false,
+    };
+    throw error;
+  }
+  return createCredentialBinding({
+    pool: deps?.pool,
+    auth: deps?.auth || {},
+    worker_id: lifecycle.worker_id,
+    owner: input.owner,
+    repo: input.repo,
+    connection_id: connectionId,
+    allow_platform_fallback: false,
+    ttl_seconds: Math.min(900, remainingSeconds),
+    now: current,
+  });
+}
+
 function isTenant(req) {
   return req.auth?.mode === "user_jwt" && req.auth?.is_admin !== true;
 }
