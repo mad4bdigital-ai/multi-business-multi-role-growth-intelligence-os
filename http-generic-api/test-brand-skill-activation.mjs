@@ -71,10 +71,14 @@ assert(routes.includes("/:skill_key/activation"));
 assert(routes.includes("requestId"));
 
 const gate = readFileSync(new URL("./agentToolAuthorizationGate.js", import.meta.url), "utf8");
-assert(gate.includes("brand_skill_policies"));
-assert(gate.includes("v_effective_user_brand_skill_grants"));
-assert(gate.includes("user_brand_skill_grant_missing"));
-assert(gate.includes("enforce_brand_skill_entitlement"));
+assert(gate.includes("resolveUserBrandSkillEntitlement"));
+assert(gate.includes("user_brand_skill_grant"));
+
+const entitlement = readFileSync(new URL("./userBrandSkillEntitlement.js", import.meta.url), "utf8");
+assert(entitlement.includes("brand_skill_policies"));
+assert(entitlement.includes("v_effective_user_brand_skill_grants"));
+assert(entitlement.includes("user_brand_skill_grant_missing"));
+assert(entitlement.includes("enforce_brand_skill_entitlement"));
 
 const openapi = readFileSync(new URL("./openapi/brand-skill-activation.yaml", import.meta.url), "utf8");
 assert(openapi.includes("openapi: 3.1.0"));
