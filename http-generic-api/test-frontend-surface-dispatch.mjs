@@ -635,6 +635,7 @@ assert.equal(
 );
 fs.writeFileSync(policyPath, validPolicySource);
 
+console.error("::warning title=frontend-checkpoint::partition-passed");
 const invalidPolicy = JSON.parse(validPolicySource);
 invalidPolicy.rules.find((rule) => rule.source_file === "routes/tenantRoutes.js").decision = "unrecognized_surface";
 fs.writeFileSync(policyPath, JSON.stringify(invalidPolicy));
