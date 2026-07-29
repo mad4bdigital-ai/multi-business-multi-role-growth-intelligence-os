@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 33
-- Critical review: 28
+- Total queue items: 32
+- Critical review: 27
 - High review: 4
 - Medium review: 0
 - Low review: 1
@@ -267,20 +267,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `approval_request_id`, `tenant_ssh_cli_allowlisted_execute`
 
-### 20. `229_sprint67_workspace_brands_list_tool.sql`
-
-- Queue class: critical_review
-- Score: 748
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/brands`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_brands_list`
-
-### 21. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
+### 20. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
 
 - Queue class: critical_review
 - Score: 742
@@ -293,7 +280,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_execute_job_result`
 
-### 22. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
+### 21. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
 
 - Queue class: critical_review
 - Score: 734
@@ -307,7 +294,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_approval_request_create`
 - `verify_readback_view` → db-readback-review; targets: `v_json`
 
-### 23. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
+### 22. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
 
 - Queue class: critical_review
 - Score: 724
@@ -319,7 +306,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/connect/api/credential-intake/sessions/{session_id}/wait`
 
-### 24. `197_sprint66_tenant_database_query_readonly_tool.sql`
+### 23. `197_sprint66_tenant_database_query_readonly_tool.sql`
 
 - Queue class: critical_review
 - Score: 705
@@ -331,7 +318,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/query-readonly`
 
-### 25. `198_sprint66_tenant_ssh_probe_tool.sql`
+### 24. `198_sprint66_tenant_ssh_probe_tool.sql`
 
 - Queue class: critical_review
 - Score: 705
@@ -343,7 +330,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/probe`
 
-### 26. `199_sprint66_tenant_ssh_cli_dry_run_tool.sql`
+### 25. `199_sprint66_tenant_ssh_cli_dry_run_tool.sql`
 
 - Queue class: critical_review
 - Score: 705
@@ -355,7 +342,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run`
 
-### 27. `196_sprint66_tenant_database_schema_read_tool.sql`
+### 26. `196_sprint66_tenant_database_schema_read_tool.sql`
 
 - Queue class: critical_review
 - Score: 704
@@ -367,7 +354,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/schema`
 
-### 28. `191_sprint66_tenant_credential_intake_connection_status.sql`
+### 27. `191_sprint66_tenant_credential_intake_connection_status.sql`
 
 - Queue class: critical_review
 - Score: 703
@@ -379,7 +366,7 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/connections/{connection_id}/credential-intake-status`
 
-### 29. `1007_sprint69_agent_capability_coverage_admin_tools.sql`
+### 28. `1007_sprint69_agent_capability_coverage_admin_tools.sql`
 
 - Queue class: high_review
 - Score: 690
@@ -393,7 +380,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `selected_never_dispatched`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 30. `20260720_github_update_pull_request_branch_503_response_contract.sql`
+### 29. `20260720_github_update_pull_request_branch_503_response_contract.sql`
 
 - Queue class: high_review
 - Score: 555
@@ -407,7 +394,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_rest_endpoint_dispatch`, `github_update_pull_request_branch`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 31. `20260720_tenant_tool_input_schema_strictness.sql`
+### 30. `20260720_tenant_tool_input_schema_strictness.sql`
 
 - Queue class: high_review
 - Score: 549
@@ -421,7 +408,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 32. `1006_sprint69_agent_capability_evidence_coverage.sql`
+### 31. `1006_sprint69_agent_capability_evidence_coverage.sql`
 
 - Queue class: high_review
 - Score: 540
@@ -436,7 +423,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_engine_runtime_coverage`, `v_logic_runtime_coverage`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 33. `20260725_repository_authority_capability_readiness_repair.sql`
+### 32. `20260725_repository_authority_capability_readiness_repair.sql`
 
 - Queue class: low_review
 - Score: 159

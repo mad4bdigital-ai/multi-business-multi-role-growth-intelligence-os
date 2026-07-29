@@ -11,10 +11,10 @@
     "docs_gap_count": 10,
     "docs_completion_percent": 98.27,
     "gap_severity_counts": {
-      "high": 28,
+      "high": 27,
       "medium": 4,
       "low": 0,
-      "none": 547
+      "none": 548
     },
     "surface_totals": {
       "plugins": 14,
@@ -66,18 +66,18 @@
     }
   },
   "queue": {
-    "total_items": 33,
+    "total_items": 32,
     "class_counts": {
-      "critical_review": 28,
+      "critical_review": 27,
       "high_review": 4,
       "medium_review": 0,
       "low_review": 1
     }
   },
   "triage": {
-    "total_items": 33,
+    "total_items": 32,
     "class_counts": {
-      "legacy_baseline_backlog": 19,
+      "legacy_baseline_backlog": 18,
       "new_surface_immediate_review": 13,
       "safety_marker_review": 1
     },
