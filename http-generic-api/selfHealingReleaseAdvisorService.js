@@ -81,10 +81,17 @@ function maxSeverity(items = []) {
   ), "info");
 }
 
-function actionForGap(gap = {}, hasTarget = false) {
+function actionForGap(gap = {}, hasTarget = false, evidence = {}) {
   const gapKey = text(gap.gap_key, 180);
   const remediationType = text(gap.remediation_type || "manual_review", 64);
   if (gapKey === "deployed_commit_mismatch" || remediationType === "repo_patch_or_deploy") {
+    if (evidence.context?.production_sync_required === true) {
+      return {
+        action_key: "release.sync_production_from_latest_main",
+        template_key: null,
+        plan_type: "production_branch_sync_plan",
+      };
+    }
     return {
       action_key: hasTarget ? "release.prepare_deploy_reconciliation" : "release.collect_target_and_review_deploy",
       template_key: hasTarget ? "hostinger_release_deploy_v1" : null,
