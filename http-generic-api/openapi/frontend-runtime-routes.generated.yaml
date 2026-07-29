@@ -681,7 +681,6 @@ paths:
         principal: authenticated
         guard_chain:
           - requireBackendApiKey
-          - requireFreshLocalManagerDeviceForPrivilegedInstaller
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
@@ -2968,7 +2967,6 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
-          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/schema:
@@ -2997,7 +2995,6 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
-          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/status:
@@ -3294,7 +3291,6 @@ paths:
         guard_chain:
           - requireActiveMembership
           - requireUserJwt
-          - requireWorkspaceOwner
         configuration_dependencies:
           - JWT_SECRET
   /me/workspaces/{tenant_id}/resource-grants:
@@ -8436,6 +8432,29 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /local-manager/device/desktop-commands:
+    post:
+      operationId: postLocalManagerDeviceDesktopCommands2a17983f
+      summary: POST /local-manager/device/desktop-commands (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/localManagerDesktopCommandRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /local-manager/device/desktop-commands/{commandId}/complete:
     post:
       operationId: postLocalManagerDeviceDesktopCommandsByCommandIdComplete91421260
@@ -8584,7 +8603,6 @@ paths:
         principal: tenant_user
         guard_chain:
           - requireUserJwt
-          - verifyUserJwt
         configuration_dependencies:
           - JWT_SECRET
   /me/infrastructure/database/connections/{connection_id}/preflight:

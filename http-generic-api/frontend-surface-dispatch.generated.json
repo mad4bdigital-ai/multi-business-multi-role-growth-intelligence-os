@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "acbf627717dddc26300588d66b04285fd0ce55ad69b28b8aea68854c3871f494",
+    "source_digest": "1cbd08a08f33f9aec5328bed631d9fcfc66c1195d4e074ce2fa5fad60d3385ae",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -56,7 +56,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "87731338913075e6f3e9afa41f508b088ea1eb5198e2ebc47fa7eb43898bf3d4",
+        "sha256": "ef92df92dd6a30e9266a86014cd3c043183fecb6d1ccea10b9c5708b244b892f",
         "present": true
       },
       {
@@ -906,7 +906,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "52429b08799a984be7259c0634e30183dc2967737c9ff608d028ccb03e76284d",
+        "sha256": "326dc27b5c7390c644e0046c78d0ccbd86ff3b67ce6c18d00b3cecc53654e7e0",
         "present": true
       },
       {
@@ -1110,18 +1110,18 @@
     "mounted_route_file_count": 132,
     "mixed_scope_route_file_count": 25,
     "operation_count": 994,
-    "openapi_documented_count": 977,
+    "openapi_documented_count": 978,
     "openapi_canonical_documented_count": 593,
-    "openapi_generated_index_count": 384,
-    "openapi_exemption_count": 17,
+    "openapi_generated_index_count": 385,
+    "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 384,
+    "openapi_detail_gap_count": 385,
     "auth_parity_counts": {
-      "equivalent": 975,
-      "exempt": 17,
-      "unknown": 2
+      "equivalent": 965,
+      "exempt": 16,
+      "unknown": 13
     },
-    "auth_contract_gap_count": 2,
+    "auth_contract_gap_count": 13,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -4534,6 +4534,76 @@
       "scope": "admin",
       "operations": [
         {
+          "method": "POST",
+          "path": "/local-manager/device/desktop-commands",
+          "signature": "POST /local-manager/device/desktop-commands",
+          "source_file": "routes/localManagerDesktopCommandRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
           "method": "GET",
           "path": "/local-manager/device/desktop-commands/{commandId}",
           "signature": "GET /local-manager/device/desktop-commands/{commandId}",
@@ -4605,12 +4675,14 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/{commandId}"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
+        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/{commandId}"
       ],
       "resources": [],
@@ -4641,10 +4713,17 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /local-manager/device/desktop-commands",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
-        "score": 8,
-        "class": "high"
+        "score": 10,
+        "class": "critical"
       },
       "wave": "F3-admin-workspaces"
     },
@@ -4661,59 +4740,6 @@
       "group": "local-manager",
       "scope": "local_device",
       "operations": [
-        {
-          "method": "POST",
-          "path": "/local-manager/device/desktop-commands",
-          "signature": "POST /local-manager/device/desktop-commands",
-          "source_file": "routes/localManagerDesktopCommandRoutes.js",
-          "scope": "local_device",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "mixed_guard_chain",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey",
-              "requireLocalManagerDevice"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey",
-              "route:requireLocalManagerDevice"
-            ],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": null,
-          "auth_parity": {
-            "state": "exempt",
-            "reasons": [
-              "repository_openapi_allowlist"
-            ]
-          },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": true,
-          "openapi_contract_level": "explicit_exemption",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
         {
           "method": "GET",
           "path": "/local-manager/device/desktop-commands/pending",
@@ -4834,9 +4860,7 @@
         }
       ],
       "openapi_gaps": [],
-      "openapi_exemptions": [
-        "POST /local-manager/device/desktop-commands"
-      ],
+      "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "GET /local-manager/device/desktop-commands/pending",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
@@ -4845,7 +4869,6 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/pending",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
       ],
@@ -4879,12 +4902,6 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /local-manager/device/desktop-commands",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
           "signature": "POST /local-manager/device/desktop-commands/{commandId}/complete",
           "blockers": [
             "operation_classification_gap"
@@ -4917,21 +4934,27 @@
           "source_file": "routes/localConnectorInstallRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "mixed_guard_chain",
-            "alternatives": null,
-            "principal": null,
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
             "guard_chain": [
-              "requireBackendApiKey",
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "verifyInstallerDownloadToken"
+              "requireBackendApiKey"
             ],
             "evidence": [
-              "route:requireBackendApiKey",
-              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "route:verifyInstallerDownloadToken"
+              "route:requireBackendApiKey"
             ],
-            "configuration_dependencies": []
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -4947,10 +4970,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "mixed_guard_chain"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -5130,12 +5151,10 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
-              "requireBackendApiKey",
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
+              "requireBackendApiKey"
             ],
             "evidence": [
-              "route:requireBackendApiKey",
-              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller"
+              "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -5190,15 +5209,7 @@
         "GET /local-connector/install/status",
         "DELETE /local-connector/uninstall"
       ],
-      "auth_contract_gaps": [
-        {
-          "signature": "POST /local-connector/install/download-link",
-          "state": "unknown",
-          "reasons": [
-            "mixed_guard_chain"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /local-connector/install/status"
       ],
@@ -5252,7 +5263,7 @@
         }
       ],
       "risk": {
-        "score": 14,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -5286,11 +5297,9 @@
             ],
             "principal": "signed_link",
             "guard_chain": [
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "verifyInstallerDownloadToken"
             ],
             "evidence": [
-              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
               "route:verifyInstallerDownloadToken",
               "routes/backupArtifactRoutes.js",
               "routes/connectorAgentRoutes.js",
@@ -5393,16 +5402,14 @@
           "scope": "unresolved",
           "runtime_auth": {
             "state": "unresolved",
-            "profile": "auth_policy_conflicts_with_runtime_guard",
+            "profile": "no_explicit_auth_evidence",
             "alternatives": null,
             "principal": null,
             "guard_chain": [
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "verifyInstallerDownloadToken"
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
             "evidence": [
               "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "route:verifyInstallerDownloadToken",
               "routes/connectorProxyRoutes.js",
               "routes/localConnectorInstallRoutes.js",
               "services/localManagerDeviceLinkService.js"
@@ -5422,7 +5429,7 @@
           "auth_parity": {
             "state": "unknown",
             "reasons": [
-              "auth_policy_conflicts_with_runtime_guard"
+              "no_explicit_auth_evidence"
             ]
           },
           "openapi_documented": true,
@@ -5457,7 +5464,7 @@
           "signature": "POST /local-connector/install/device-download-link",
           "state": "unknown",
           "reasons": [
-            "auth_policy_conflicts_with_runtime_guard"
+            "no_explicit_auth_evidence"
           ]
         }
       ],
@@ -9373,28 +9380,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9410,8 +9402,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9441,28 +9435,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9478,8 +9457,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9509,28 +9490,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9546,8 +9512,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9577,28 +9545,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9614,8 +9567,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9647,28 +9602,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9684,8 +9624,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9715,28 +9657,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9752,8 +9679,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9783,28 +9712,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9820,8 +9734,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9853,28 +9769,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9890,8 +9791,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9921,28 +9824,13 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9958,8 +9846,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9988,7 +9878,71 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /admin/system/connectors",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /admin/system/connectors/{system_id}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /admin/system/tools",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "POST /admin/system/tools/call",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/google-auth-platform",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/google-auth-platform/{tab}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "POST /admin/apis-services/google-auth-platform/{tab}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /admin/apis-services/credentials",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "POST /admin/apis-services/credentials",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -10044,7 +9998,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -19968,13 +19922,11 @@
             "principal": "tenant_user",
             "guard_chain": [
               "requireActiveMembership",
-              "requireUserJwt",
-              "requireWorkspaceOwner"
+              "requireUserJwt"
             ],
             "evidence": [
               "route:requireActiveMembership",
-              "route:requireUserJwt",
-              "route:requireWorkspaceOwner"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -23469,11 +23421,9 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
-              "requireBackendApiKey",
               "requireResolutionPrincipal"
             ],
             "evidence": [
-              "route:requireBackendApiKey",
               "route:requireResolutionPrincipal"
             ],
             "configuration_dependencies": [
@@ -23540,11 +23490,9 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
-              "requireBackendApiKey",
               "requireResolutionPrincipal"
             ],
             "evidence": [
-              "route:requireBackendApiKey",
               "route:requireResolutionPrincipal"
             ],
             "configuration_dependencies": [
@@ -28133,23 +28081,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28162,8 +28100,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28193,23 +28133,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28222,8 +28152,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28253,23 +28185,13 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUser"
-            ],
-            "evidence": [
-              "route:requireUser"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
+            "state": "unresolved",
+            "profile": "no_explicit_auth_evidence",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [],
+            "evidence": [],
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28282,8 +28204,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "no_explicit_auth_evidence"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28986,7 +28910,29 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        },
+        {
+          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+          "state": "unknown",
+          "reasons": [
+            "no_explicit_auth_evidence"
+          ]
+        }
+      ],
       "evidence_routes": [
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
@@ -29035,8 +28981,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 8,
-        "class": "high"
+        "score": 10,
+        "class": "critical"
       },
       "wave": "F1-tenant-shell"
     },
@@ -36701,12 +36647,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36765,12 +36709,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36949,12 +36891,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37011,12 +36951,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37075,12 +37013,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37137,12 +37073,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37201,12 +37135,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37265,12 +37197,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37327,12 +37257,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37391,12 +37319,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37455,12 +37381,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37519,12 +37443,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37581,12 +37503,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -64326,8 +64246,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64394,8 +64313,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64462,8 +64380,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64532,8 +64449,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64602,8 +64518,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64672,8 +64587,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64740,8 +64654,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64808,8 +64721,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64876,8 +64788,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -64946,8 +64857,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65016,8 +64926,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65086,8 +64995,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65154,8 +65062,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65222,8 +65129,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65292,8 +65198,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65362,8 +65267,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65432,8 +65336,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65502,8 +65405,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65572,8 +65474,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65640,8 +65541,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65710,8 +65610,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65780,8 +65679,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65850,8 +65748,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65918,8 +65815,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65986,8 +65882,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66054,8 +65949,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66122,8 +66016,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66192,8 +66085,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66262,8 +66154,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66330,8 +66221,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -66400,8 +66290,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -83228,6 +83117,7 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],
@@ -85590,7 +85480,6 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -85757,11 +85646,13 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap"
+        "test_ownership_gap",
+        "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
-        "F2-admin-bff-session"
+        "F2-admin-bff-session",
+        "operation-classification"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -85782,7 +85673,8 @@
         "scope_and_auth_explicit",
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
-        "tests_registered"
+        "tests_registered",
+        "operation_classification_explicit"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -88010,6 +87902,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
