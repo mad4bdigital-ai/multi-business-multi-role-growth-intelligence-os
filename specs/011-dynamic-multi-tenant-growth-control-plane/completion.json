@@ -48,7 +48,14 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "cfdc896e36974cb1d14628b86a308d2951b5e33b"
+      "head_sha": "53c3a1c657485790ac743d5f46b389e31663b585"
+    },
+    "reference_packs": {
+      "status": "passed_catalog_and_manifest_validation",
+      "head_sha": "53c3a1c657485790ac743d5f46b389e31663b585",
+      "active_profile_count": 25,
+      "specialized_profile_count": 1,
+      "baseline_profile_count": 24
     },
     "release_readiness": {
       "status": "pending"

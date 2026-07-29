@@ -33,7 +33,7 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 
 - [x] T301 Implement Activity Pack manifest and compatibility validation.
 - [x] T302 Implement brand activity binding lifecycle and readiness.
-- [ ] T303 Create travel reference pack from governed pointers and schemas.
+- [x] T303 Create travel reference pack from governed pointers and schemas.
 - [ ] T304 Add multi-activity ambiguity and isolation tests.
 
 ## Phase E — Plan composition
