@@ -402,7 +402,7 @@ assert.deepEqual(
   ["GET /nested", "POST /"],
   "registered evidence must support the root path as well as nested paths",
 );
-assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 12);
+assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 13);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),
   apiRoot,
