@@ -118,7 +118,20 @@ const blocked = deriveRepositoryMainMovedOutcome({
 });
 assert.equal(blocked.coordination_status, "blocked");
 
-for (const result of [noAction, approvalRequired, blocked]) {
+const productionSyncRequired = deriveRepositoryMainMovedOutcome({
+  verification: { production_parity: "degraded" },
+  advisor: { advisor_run: { advisor_status: "review_required", requires_approval: true } },
+  event: { branch: "main", source_branch: "main", deployment_branch: "Production" },
+});
+assert.equal(productionSyncRequired.coordination_status, "production_sync_required");
+assert.equal(productionSyncRequired.next_action_key, "release.sync_production_from_latest_main");
+assert.equal(productionSyncRequired.production_sync_required, true);
+assert.equal(productionSyncRequired.fresh_hostinger_build_required, true);
+assert.equal(productionSyncRequired.same_cycle_readback_required, true);
+assert.equal(productionSyncRequired.source_branch, "main");
+assert.equal(productionSyncRequired.deployment_branch, "Production");
+
+for (const result of [noAction, approvalRequired, blocked, productionSyncRequired]) {
   assert.equal(result.execution_allowed, false);
   assert.equal(result.release_operation_created, false);
   assert.equal(result.gate_opened, false);
