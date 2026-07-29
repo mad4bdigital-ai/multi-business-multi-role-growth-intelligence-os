@@ -500,7 +500,7 @@ fs.writeFileSync(
 );
 const missingSignedGuardPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
 const missingSignedGuardOperation = missingSignedGuardPlan.families
-  .find((family) => family.source_file === "routes/mixedRoutes.js")
+  .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "developer")
   .operations
   .find((entry) => entry.signature === "GET /signed-download/{token}");
 assert.equal(missingSignedGuardOperation.runtime_auth.state, "unresolved");
