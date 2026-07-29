@@ -160,22 +160,34 @@ function buildRecommendation(gap, evidence) {
     || ["repo_patch_or_deploy", "db_migration"].includes(text(gap.remediation_type, 64));
   const targetId = evidence.target_id || evidence.operation?.target_id || null;
   const expectedCommitSha = evidence.verification?.expected_commit_sha || evidence.expected_commit_sha || null;
-  const plan = action.plan_type === "release_operation_plan"
+  const sourceBranch = text(evidence.context?.source_branch || "main", 191);
+  const deploymentBranch = text(evidence.context?.deployment_branch || "Production", 191);
+  const plan = action.plan_type === "production_branch_sync_plan"
     ? {
-        status: targetId ? "proposed" : "blocked_missing_target",
-        target_id: targetId,
-        expected_commit_sha: expectedCommitSha,
-        operation_id: evidence.operation?.operation_id || null,
-        gate_id: evidence.gate?.gate_id || null,
-        async_deployment_id: evidence.async_deployment?.async_deployment_id || null,
-        steps: releaseOperationSteps({ targetId, expectedCommitSha }),
-      }
-    : {
         status: "proposed",
-        steps: Array.isArray(runbook?.steps)
-          ? runbook.steps.slice(0, 20).map((step, index) => ({ order: (index + 1) * 10, description: text(step, 1000), execution_allowed: false }))
-          : [],
-      };
+        source_branch: sourceBranch,
+        deployment_branch: deploymentBranch,
+        expected_main_commit_sha: expectedCommitSha,
+        fresh_hostinger_build_required: true,
+        same_cycle_readback_required: true,
+        steps: productionBranchSyncSteps({ expectedCommitSha, sourceBranch, deploymentBranch }),
+      }
+    : action.plan_type === "release_operation_plan"
+      ? {
+          status: targetId ? "proposed" : "blocked_missing_target",
+          target_id: targetId,
+          expected_commit_sha: expectedCommitSha,
+          operation_id: evidence.operation?.operation_id || null,
+          gate_id: evidence.gate?.gate_id || null,
+          async_deployment_id: evidence.async_deployment?.async_deployment_id || null,
+          steps: releaseOperationSteps({ targetId, expectedCommitSha }),
+        }
+      : {
+          status: "proposed",
+          steps: Array.isArray(runbook?.steps)
+            ? runbook.steps.slice(0, 20).map((step, index) => ({ order: (index + 1) * 10, description: text(step, 1000), execution_allowed: false }))
+            : [],
+        };
   const recommendation = {
     recommendation_key: `${gap.gap_key || gap.classification || "runtime_gap"}:${action.action_key}`,
     gap_key: gap.gap_key || null,
