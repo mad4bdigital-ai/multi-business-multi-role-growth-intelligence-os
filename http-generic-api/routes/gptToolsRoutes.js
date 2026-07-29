@@ -2310,7 +2310,14 @@ export async function readCachedToolResponseChunk(args = {}, deps = {}) {
   entry.lastReadAt = now;
   entry.readCount = Number(entry.readCount || 0) + 1;
   entry.expiresAt = now + entry.ttlMs;
-  await extendGovernedToolResponseChunkExpiry({ chunk_id: chunkId, ttl_ms: entry.ttlMs }, deps);
+  await extendGovernedToolResponseChunkExpiry({
+    chunk_id: chunkId,
+    ttl_ms: entry.ttlMs,
+    auth: args?.auth,
+    trustedInternal: args?.trustedInternal === true || args?.trusted_internal === true,
+    principalId: args?.principalId || args?.principal_id,
+    source_surface: args?.source_surface || args?.sourceSurface || "gpt_tools",
+  }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, entry);
   return buildToolResponseChunk({
     serialized: entry.serialized,
