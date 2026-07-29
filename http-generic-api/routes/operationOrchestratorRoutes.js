@@ -143,6 +143,52 @@ function depsWithManagedGitWorkspace(deps, lifecycle) {
   return next;
 }
 
+function depsWithManagedGitCredential(deps, binding) {
+  if (!binding) return deps;
+  const next = { ...deps };
+  Object.defineProperty(next, "managed_git_credential_binding", {
+    value: binding,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return next;
+}
+
+function finalizeCredentialSafely(binding) {
+  if (!binding) {
+    return {
+      required: false,
+      status: "not_required",
+      released: false,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      secrets_included: false,
+    };
+  }
+  try {
+    return {
+      required: true,
+      status: "released",
+      ...releaseManagedGitRepositoryCredentialBinding(binding),
+    };
+  } catch (error) {
+    return {
+      required: true,
+      status: "release_failed",
+      released: false,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      error: {
+        code: error?.code || "MANAGED_GIT_CREDENTIAL_RELEASE_FAILED",
+        message: error?.message || "Repository credential release failed.",
+        details: error?.details || null,
+      },
+      secrets_included: false,
+    };
+  }
+}
+
 function isTenant(req) {
   return req.auth?.mode === "user_jwt" && req.auth?.is_admin !== true;
 }
