@@ -119,6 +119,13 @@
       "number": 3221,
       "branch": "gpt/spec-011-phase3-delegation-repository-contract-20260728",
       "role": "delegation_repository_mutation_contract",
+      "status": "merged",
+      "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492"
+    },
+    "phase3_delegation_mariadb_adapter_pr": {
+      "number": 3246,
+      "branch": "gpt/spec-011-phase3-delegation-mariadb-adapter-contract-20260729",
+      "role": "delegation_mariadb_adapter_and_readiness_contract",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -167,6 +174,12 @@
       {
         "number": 3221,
         "role": "phase3_delegation_repository_mutation_contract",
+        "status": "merged",
+        "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492"
+      },
+      {
+        "number": 3246,
+        "role": "phase3_delegation_mariadb_adapter_and_readiness_contract",
         "status": "current_pr"
       }
     ],
@@ -346,9 +359,10 @@
       "secrets_included": false
     },
     "phase3_delegation_repository_mutation_contract": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
       "pull_request": 3221,
+      "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492",
       "service": "http-generic-api/delegationGrantRepositoryMutationService.js",
       "test": "http-generic-api/test-delegation-grant-repository-mutation.mjs",
       "design": "phase3-delegation-repository-mutation-contract.md",
@@ -369,8 +383,34 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_mariadb_adapter_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "e98bac18d3147cdad1449c1c068f110e5a311393",
+      "pull_request": 3246,
+      "repository": "http-generic-api/delegationGrantMariaDbRepository.js",
+      "validation_service": "http-generic-api/delegationGrantMariaDbValidationService.js",
+      "test": "http-generic-api/test-delegation-grant-mariadb-adapter-contract.mjs",
+      "design": "phase3-delegation-mariadb-adapter-contract.md",
+      "reused_agent_delegations": true,
+      "reused_repository_automation_receipts": true,
+      "tenant_scoped_receipt_binding": true,
+      "canonical_approval_mode_persisted": true,
+      "runtime_policy_ready_forced_false": true,
+      "fake_mariadb_integration_test": true,
+      "engine_schema_readiness_contract": true,
+      "migration_applied": false,
+      "live_database_connection": false,
+      "live_database_write": false,
+      "backfill_performed": false,
+      "runtime_adapter_bound": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_repository_mutation_contract_complete_on_branch"
+      "status": "phase3_delegation_mariadb_adapter_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -442,6 +482,17 @@
       "status": "pass",
       "head_sha": "dc374ca66715cb302afae51beb6dff7d5658514a",
       "base_sha": "a23e00763b1d1a783c9dab31195e1a81be113307",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_mariadb_adapter_ci": {
+      "status": "pass",
+      "head_sha": "5440eaecab4ec4286c719a06c2ea6cd8cbea9ce0",
+      "base_sha": "c7ee1a0e0d38793516dfcbb4d417bdda9341a19f",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -616,8 +667,11 @@
       "phase3_delegation_mode_drift_status": "complete_on_main",
       "phase3_delegation_mode_drift_pull_request": 3203,
       "phase3_delegation_mode_drift_merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
-      "phase3_delegation_repository_status": "pending_merge",
+      "phase3_delegation_repository_status": "complete_on_main",
       "phase3_delegation_repository_pull_request": 3221,
+      "phase3_delegation_repository_merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492",
+      "phase3_delegation_mariadb_adapter_status": "pending_merge",
+      "phase3_delegation_mariadb_adapter_pull_request": 3246,
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
     }
