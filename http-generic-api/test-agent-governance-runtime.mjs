@@ -512,7 +512,9 @@ const readiness = buildAgentGovernanceReadiness({
   schema_objects: [
     "agent_response_profile_registry", "research_source_policy_registry", "research_source_execution_log",
     "agent_handoff_state_registry", "agent_handoff_state_access_log", "external_prompt_artifact_registry",
-    "v_skill_runtime_coverage", "memory_scope_type_registry", "memory_scope_links", "governed_research_plan_registry",
+    "capability_retrieval_events", "capability_retrieval_candidates", "capability_invocations",
+    "v_skill_runtime_coverage", "v_logic_runtime_coverage", "v_engine_runtime_coverage",
+    "memory_scope_type_registry", "memory_scope_links", "governed_research_plan_registry",
   ],
   active_policy_count: 1,
   active_profile_count: 1,
@@ -607,7 +609,7 @@ const openapiDocument = YAML.parse(openapi);
 const agentOpenApiOperations = Object.entries(openapiDocument.paths)
   .filter(([routePath]) => routePath.startsWith("/platform/agent-governance/"))
   .flatMap(([, pathItem]) => ["get", "post", "put", "patch", "delete"].map((method) => pathItem[method]).filter(Boolean));
-assert.equal(agentOpenApiOperations.length, 13);
+assert.equal(agentOpenApiOperations.length, 15);
 for (const operation of agentOpenApiOperations) {
   assert(operation.tags.includes("platform-agent-governance"));
   assert.deepEqual(operation.security, [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]);
