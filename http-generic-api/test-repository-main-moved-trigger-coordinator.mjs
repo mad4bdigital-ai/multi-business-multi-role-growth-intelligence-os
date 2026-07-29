@@ -49,19 +49,28 @@ const productionEnv = {
   RELEASE_TRIGGER_REPOSITORY: repository,
   ACTIVATION_GITHUB_BRANCH: "Production",
 };
+assert.throws(
+  () => normalizeRepositoryMainMovedEvent({
+    ...normalized,
+    branch: "refs/heads/Production",
+    source_event_id: "delivery-production",
+  }, { env: productionEnv }),
+  (error) => error.code === "repository_main_moved_branch_not_supported"
+    && error.status === 400
+    && error.details?.expected_branch === "main"
+    && error.details?.source_branch === "main"
+    && error.details?.deployment_branch === "Production",
+);
+
 const productionNormalized = normalizeRepositoryMainMovedEvent({
   ...normalized,
   branch: "refs/heads/Production",
   source_event_id: "delivery-production",
-}, { env: productionEnv });
+}, { env: productionEnv, allowDeploymentBranch: true });
 assert.equal(productionNormalized.branch, "Production");
-
-assert.throws(
-  () => normalizeRepositoryMainMovedEvent({ ...productionNormalized, branch: "main" }, { env: productionEnv }),
-  (error) => error.code === "repository_main_moved_branch_not_supported"
-    && error.status === 400
-    && error.details?.expected_branch === "Production",
-);
+assert.equal(productionNormalized.source_branch, "main");
+assert.equal(productionNormalized.deployment_branch, "Production");
+assert.equal(productionNormalized.trigger_mode, "runtime_deployment_reconciliation");
 
 assert.throws(
   () => normalizeRepositoryMainMovedEvent({ ...normalized, repository: "other/repository" }, { env }),
