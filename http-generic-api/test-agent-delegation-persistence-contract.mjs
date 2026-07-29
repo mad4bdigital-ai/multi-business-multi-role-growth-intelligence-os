@@ -5,7 +5,12 @@ const migrationUrl = new URL(
   "./migrations/20260725_agent_delegation_grant_persistence_contract.sql",
   import.meta.url,
 );
+const schemaUrl = new URL(
+  "../specs/011-durable-governed-execution-and-agent-delegation/schemas/delegation-grant.schema.json",
+  import.meta.url,
+);
 const sql = await readFile(migrationUrl, "utf8");
+const schema = JSON.parse(await readFile(schemaUrl, "utf8"));
 const normalized = sql.replace(/\s+/g, " ").trim();
 
 assert.match(normalized, /ALTER TABLE agent_delegations/i);
@@ -78,19 +83,16 @@ for (const guard of requiredViewGuards) {
   assert.ok(sql.includes(guard), `missing fail-closed view guard: ${guard}`);
 }
 
-const approvalModes = [
-  "user_approval_only",
-  "agent_recommend_only",
-  "agent_queue_for_approval",
-  "delegated_low_risk",
-  "delegated_plan_bound",
-  "delegated_time_bound",
-  "delegated_budget_bound",
-  "delegated_combined_bound",
-];
-for (const mode of approvalModes) {
-  assert.ok(sql.includes(`'${mode}'`), `missing approval mode: ${mode}`);
-}
+const approvalModes = schema.properties.approval_mode.enum;
+const approvalModeClause = normalized.match(/d\.approval_mode IN \(([^)]+)\)/i);
+assert.ok(approvalModeClause, "missing effective-view approval mode clause");
+const viewApprovalModes = [...approvalModeClause[1].matchAll(/'([^']+)'/g)]
+  .map((match) => match[1]);
+assert.deepEqual(
+  [...viewApprovalModes].sort(),
+  [...approvalModes].sort(),
+  "effective view approval modes must exactly match the canonical delegation grant schema",
+);
 
 assert.ok(sql.includes("Legacy rows remain dispatch-ineligible"));
 assert.ok(sql.includes("This migration is not applied by adding it to the repository"));
