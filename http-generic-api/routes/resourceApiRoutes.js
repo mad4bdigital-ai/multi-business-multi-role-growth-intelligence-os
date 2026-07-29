@@ -45,9 +45,9 @@ export function buildResourceApiRoutes(deps = {}) {
     : deps.contextKernelShadow
       ? createResourceApiContextShadowMiddleware(deps.contextKernelShadow)
       : null;
-  const tenantReadShadowHandlers = contextKernelResourceShadow
-    ? [contextKernelResourceShadow]
-    : [];
+  const tenantReadHandlers = (handler) => contextKernelResourceShadow
+    ? [requireUser, contextKernelResourceShadow, handler]
+    : [requireUser, handler];
 
   router.get("/admin/resource-types", requireBackend, requireAdmin, controller.adminResourceTypes);
   router.get("/admin/resource-types/:resourceKey", requireBackend, requireAdmin, controller.adminResourceType);
@@ -65,9 +65,9 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
-  router.get("/me/workspaces/:tenant_id/resources", requireUser, ...tenantReadShadowHandlers, controller.tenantCatalog);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey", requireUser, ...tenantReadShadowHandlers, controller.tenantResourcesList);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, ...tenantReadShadowHandlers, controller.tenantResourceGet);
+  router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", ...tenantReadHandlers(controller.tenantResourceGet));
   router.post("/me/workspaces/:tenant_id/resources/:resourceKey", requireUser, controller.tenantResourceCreate);
   router.patch("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceUpdate);
   router.delete("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceArchive);
