@@ -631,7 +631,6 @@ fs.writeFileSync(policyPath, validPolicySource);
 
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
 assert.equal(writeResult.ok, true);
-console.error("::warning title=frontend-checkpoint::sync-write-ok");
 assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
 console.error("::warning title=frontend-checkpoint::sync-file-exists");
 const checkResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
