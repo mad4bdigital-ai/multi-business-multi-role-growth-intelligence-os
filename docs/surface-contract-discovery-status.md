@@ -66,8 +66,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | no_provider_call | 569 |
 | no_credential_payload_read | 569 |
-| no_raw_secrets | 569 |
-| no_external_send | 569 |
+| no_raw_secrets | 568 |
+| no_external_send | 568 |
 | no_external_write | 569 |
 | secrets_included_false | 571 |
 
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 29
+- Total queue items: 30
 - Critical review: 27
 - High review: 2
 - Medium review: 0
-- Low review: 0
+- Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
