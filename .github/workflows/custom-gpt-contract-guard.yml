@@ -7,6 +7,9 @@ on:
       - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
+      - "edge/auth-mad4b-proxy/**"
+      - "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+      - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/split-openapi.mjs"
@@ -52,6 +55,10 @@ on:
       - "http-generic-api/openapi*.yaml"
       - "http-generic-api/openapi/**/*.yaml"
       - "canonicals/openapi/**/*.yaml"
+      - "edge/activation-gateway/**"
+      - "edge/auth-mad4b-proxy/**"
+      - "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+      - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
@@ -118,6 +125,8 @@ jobs:
         run: npm run schemas:guard
       - name: Verify Contract Guard trigger coverage
         run: node test-custom-gpt-contract-guard-paths.mjs
+      - name: Verify auth edge proxy envelope
+        run: node test-auth-mad4b-proxy-edge.mjs
       - name: Verify split-schema governance and regeneration parity
         run: |
           node test-openapi-split-governance.mjs
