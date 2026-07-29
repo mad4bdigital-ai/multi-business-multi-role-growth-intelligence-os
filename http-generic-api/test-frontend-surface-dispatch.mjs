@@ -635,7 +635,6 @@ assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generat
 const checkResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
-console.error("::warning title=frontend-checkpoint::sync-check-no-drift");
 const implicitBaselineCheck = syncDispatchPlan({ apiRoot, mode: "check" });
 console.error(`::warning title=frontend-implicit-check::${JSON.stringify({
   ok: implicitBaselineCheck.ok,
