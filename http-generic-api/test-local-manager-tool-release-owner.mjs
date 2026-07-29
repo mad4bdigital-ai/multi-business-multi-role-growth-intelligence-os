@@ -92,7 +92,7 @@ assert(installRoutes.includes('app_managed: appManaged'), 'installer route must 
 assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
 assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
 assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'), 'privileged installer link responses must not require repeated sign-in for a valid saved device token');
-assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'Local Manager privileged installer freshness window must be explicit');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
 assert(localManagerDeviceLinkService.includes('fresh_local_manager_authorization_required'), 'Local Manager privileged installer guard must return a stable fresh-auth error code');
