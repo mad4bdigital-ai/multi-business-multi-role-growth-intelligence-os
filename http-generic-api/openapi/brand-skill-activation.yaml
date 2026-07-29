@@ -22,6 +22,11 @@ paths:
       tags: [brand-skill-activation]
       operationId: activateBrandSkillForSignedInUser
       summary: Activate an allowed skill for the signed-in user and selected brand
+      description: |
+        Scope-idempotent activation. Repeating the same request for an already-effective
+        tenant, user, brand, agent, skill, resource, and operation scope returns 200 with
+        the existing grant; 201 is returned only when a new grant is created.
+        Idempotency-Key is not required.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/TenantId'
