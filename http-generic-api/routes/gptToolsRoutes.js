@@ -43,6 +43,7 @@ import {
   runSqlCacheControlledLoadTest,
 } from "../sqlCacheOperationalDiagnostics.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
+import { buildAuthMad4bProxyRolloutPlan, runAuthMad4bProxyRollout } from "../authMad4bProxyRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
@@ -777,6 +778,30 @@ const VIRTUAL_ADMIN_TOOLS = [
         expected_plan_hash: { type: "string", pattern: "^[0-9a-f]{64}$" },
         confirm: { type: "string", const: TENANT_CONNECTION_SHADOW_CONTRACT_BOOTSTRAP_CONFIRM },
         capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "auth_mad4b_proxy_rollout",
+    displayName: "Auth MAD4B Proxy Worker Rollout",
+    description: "Admin-only exact-resource Cloudflare Worker rollout. Defaults to dry-run. Apply requires exact Git HEAD and bundle hash, approved single-use capability envelope, execution nonce, typed confirmation, source and health readback, audit evidence, and automatic rollback. DNS, Worker routes, custom domains, subdomains, and secret writes are forbidden.",
+    method: "VIRTUAL",
+    path: "internal://auth-mad4b-proxy-rollout",
+    tags: ["admin", "cloudflare", "worker", "deployment", "mutation", "resource_authority", "dry_run", "readback", "rollback", "no_dns", "no_secrets"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        account_id: { type: "string", pattern: "^[a-f0-9]{32}$" },
+        script_name: { type: "string", enum: ["auth-mad4b-proxy"] },
+        expected_source_commit: { type: "string", pattern: "^[a-f0-9]{40}$" },
+        expected_bundle_hash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        workspace_id: { type: "string" },
+        resource_binding_id: { type: "string" },
+        capability_envelope_id: { type: "string", minLength: 1, maxLength: 64 },
+        execution_nonce: { type: "string", minLength: 8, maxLength: 128 },
+        confirm: { type: "string", pattern: "^DEPLOY_AUTH_MAD4B_PROXY_[0-9A-F]{12}$" },
       },
       additionalProperties: false,
     },
@@ -2548,6 +2573,43 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       auth: req?.auth || {},
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
+  }
+  if (callerType === "admin" && toolKey === "auth_mad4b_proxy_rollout") {
+    try {
+      const result = await runAuthMad4bProxyRollout(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+        audit: async (entry = {}) => writeAuditLog({
+          tenant_id: req?.auth?.tenant_id || null,
+          workspace_id: args?.workspace_id || null,
+          actor_id: req?.auth?.user_id || null,
+          actor_type: req?.auth?.mode || "backend_api_key",
+          user_id: req?.auth?.user_id || null,
+          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+          action: entry.action || "auth_mad4b_proxy.deploy",
+          resource_type: entry.resource_type || "cloudflare_worker",
+          resource_id: entry.resource_id || "auth-mad4b-proxy",
+          after_json: entry.payload || { secrets_included: false },
+          ip_address: req?.ip || null,
+          user_agent: req?.headers?.["user-agent"] || null,
+          service_mode: "platform_admin",
+        }),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "auth_mad4b_proxy_rollout_failed",
+            message: err?.message || "Auth proxy rollout failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
   }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {

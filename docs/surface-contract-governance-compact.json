@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.78,
+  "docs_completion_percent": 98.61,
   "docs_complete_count": 569,
-  "docs_gap_count": 7,
-  "queue_items": 30,
-  "blocking_new_item_count": 11,
+  "docs_gap_count": 8,
+  "queue_items": 31,
+  "blocking_new_item_count": 12,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -57,15 +57,15 @@
       "next_step": "confirm registry binding/readback evidence before promotion"
     },
     {
-      "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
-      "queue_class": "high_review",
-      "score": 555,
+      "migration_file": "20260729_auth_mad4b_proxy_rollout_surface.sql",
+      "queue_class": "critical_review",
+      "score": 789,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
-      "migration_file": "20260720_tenant_tool_input_schema_strictness.sql",
+      "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
       "queue_class": "high_review",
-      "score": 549,
+      "score": 555,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 11,
-    "warning_new_item_count": 11
+    "blocking_new_item_count": 12,
+    "warning_new_item_count": 12
   },
   "safety": {
     "executes_provider_calls": false,
