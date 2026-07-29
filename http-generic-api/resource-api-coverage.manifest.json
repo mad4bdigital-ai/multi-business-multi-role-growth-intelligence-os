@@ -189,6 +189,51 @@
         "external_writes_allowed": false,
         "credential_payload_reads_allowed": false,
         "secrets_included": false
+      },
+      {
+        "contract_key": "workspace_access_requests_list",
+        "tool_key": "workspace_access_requests_list",
+        "route_signature": "GET /me/workspaces/{tenant_id}/access-requests",
+        "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+        "route_file": "routes/tenantLifecycleRoutes.js",
+        "mount_file": "routes/index.js",
+        "test_file": "test-workspace-lifecycle-foundation.mjs",
+        "openapi_file": "openapi.yaml",
+        "migration_markers": [
+          "INSERT INTO tenant_platform_endpoint_tools",
+          "'workspace_access_requests_list'",
+          "'GET'",
+          "'/me/workspaces/{tenant_id}/access-requests'"
+        ],
+        "route_markers": [
+          "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list",
+          "router.get(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt",
+          "requireWorkspaceOwner(req, res, req.params.tenant_id)",
+          "workspace_access_requests_list_failed",
+          "secrets_included: false"
+        ],
+        "mount_markers": [
+          "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+          "app.use(buildTenantLifecycleRoutes());"
+        ],
+        "test_markers": [
+          "migration.includes(\"workspace_access_requests_list\")",
+          "routeSource.includes(\"RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list\")",
+          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt')",
+          "indexSource.includes(\"app.use(buildTenantLifecycleRoutes());\")"
+        ],
+        "openapi_markers": [
+          "/me/workspaces/{tenant_id}/access-requests:",
+          "operationId: listCurrentWorkspaceAccessRequests",
+          "summary: List workspace access requests visible to an owner or admin"
+        ],
+        "auth_model": "user_jwt",
+        "read_only": true,
+        "runtime_execution_allowed": true,
+        "provider_calls_allowed": false,
+        "external_writes_allowed": false,
+        "credential_payload_reads_allowed": false,
+        "secrets_included": false
       }
     ]
   },
