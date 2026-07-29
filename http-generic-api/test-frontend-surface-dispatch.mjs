@@ -397,6 +397,37 @@ assert.equal(
   false,
   "helper-local bare routes must not enter the runtime inventory",
 );
+const adjacentInstallerOperations = parseRoutesFromFile(`
+  router.post("/device-download-link", async (req, res) => {
+    const principal = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
+    const token = signInstallerDownloadToken({ device_id: principal.device_id });
+    return res.json({ token });
+  });
+  router.post("/download-link", requireBackendApiKey, async (req, res) => {
+    const principal = await resolveRequestedLocalPrincipal(req);
+    const token = signInstallerDownloadToken({ user_id: principal.user_id });
+    return res.json({ token });
+  });
+  router.get("/download", async (req, res) => {
+    const token = verifyInstallerDownloadToken(req.query.token);
+    return res.json({ token });
+  });
+`, "routes/localConnectorInstallRoutes.js");
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "POST /device-download-link").route_guards,
+  ["requireFreshLocalManagerDeviceForPrivilegedInstaller"],
+  "handler-local token aliases must not leak signed-download verification into the device link route",
+);
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "POST /download-link").route_guards,
+  ["requireBackendApiKey"],
+  "handler-local principal and token aliases must not leak guards into the backend link route",
+);
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "GET /download").route_guards,
+  ["verifyInstallerDownloadToken"],
+  "the signed download verifier must remain visible on the route that invokes it",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
