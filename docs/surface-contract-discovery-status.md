@@ -34,7 +34,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 - Documentation complete migrations: 569/579 (98.27%)
 - Documentation gap migrations: 10
-- Gap severity: high=28, medium=4, low=0
+- Gap severity: high=27, medium=4, low=0
 - SQL route coverage in OpenAPI: 30/32 (93.75%)
 - SQL route-like literals exempted from OpenAPI scoring: 667/699
 - SQL routes missing OpenAPI path coverage: 2
@@ -88,8 +88,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 33
-- Critical review: 28
+- Total queue items: 32
+- Critical review: 27
 - High review: 4
 - Medium review: 0
 - Low review: 1
@@ -115,7 +115,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1029_sprint69_minimal_dynamic_brand_resolution.sql` | critical_review | 812 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `20260729_auth_mad4b_proxy_rollout_surface.sql` | critical_review | 789 | medium | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql` | critical_review | 759 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
-| `229_sprint67_workspace_brands_list_tool.sql` | critical_review | 748 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
+| `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql` | critical_review | 742 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 
 
 ## Latest Surface Coverage
@@ -232,7 +232,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
 - `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
 - `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
-- `229_sprint67_workspace_brands_list_tool.sql`
 
 ## SQL Route OpenAPI Gaps
 
