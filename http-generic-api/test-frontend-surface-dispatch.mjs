@@ -102,6 +102,10 @@ components:
           authorizationUrl: https://example.test/authorize
           tokenUrl: https://example.test/token
           scopes: {}
+    signedQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
 paths:
   /me/workspaces/{tenant_id}/dashboard:
     get:
