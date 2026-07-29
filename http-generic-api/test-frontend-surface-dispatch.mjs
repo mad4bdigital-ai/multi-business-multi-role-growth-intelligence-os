@@ -649,6 +649,7 @@ assert.equal(
 );
 fs.writeFileSync(policyPath, validPolicySource);
 
+console.error("::warning title=frontend-checkpoint::invalid-policy-passed");
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
 assert.equal(writeResult.ok, true);
 assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
