@@ -762,21 +762,28 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
+    const helperContexts = helperInvocationContexts(scanSource, match.index, mountPrefix, aliases);
+    const contexts = helperContexts.length ? helperContexts : [{ mount_prefix: mountPrefix, inherited_guards: [] }];
     for (const route of routes) {
       for (const expandedRoute of expandRoutePaths(route)) {
-        const routePath = joinRoutePath(mountPrefix, expandedRoute);
-        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-        for (const method of methods) {
-          operations.push({
-            method,
-            path: routePath,
-            signature: `${method} ${routePath}`,
-            source_file: file,
-            source_index: match.index,
-            declaration,
-            route_guards: routeGuards,
-            inherited_guards: inheritedGuards,
-          });
+        for (const context of contexts) {
+          const routePath = joinRoutePath(context.mount_prefix, expandedRoute);
+          const inheritedGuards = unique([
+            ...context.inherited_guards,
+            ...activeRouterUseGuards(scanSource, match.index, routePath, aliases),
+          ]);
+          for (const method of methods) {
+            operations.push({
+              method,
+              path: routePath,
+              signature: `${method} ${routePath}`,
+              source_file: file,
+              source_index: match.index,
+              declaration,
+              route_guards: routeGuards,
+              inherited_guards: inheritedGuards,
+            });
+          }
         }
       }
     }
