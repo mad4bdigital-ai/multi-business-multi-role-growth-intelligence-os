@@ -80,7 +80,7 @@ async function withTransaction(pool, callback) {
 
 async function resolveMembership(connection, tenantId, userId) {
   const [rows] = await connection.query(
-    `SELECT m.user_id, m.tenant_id, m.role, m.status, t.status AS tenant_status
+    `SELECT m.user_id, m.tenant_id, m.role_key AS role, m.status, t.status AS tenant_status
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.tenant_id = ?
