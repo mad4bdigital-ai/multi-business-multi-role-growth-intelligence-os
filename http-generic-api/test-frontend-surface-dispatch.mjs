@@ -148,6 +148,10 @@ paths:
   /admin/control:
     post:
       responses: {}
+  /signed-download/{token}:
+    get:
+      security: [{ signedQueryTokenAuth: [] }]
+      responses: {}
   /me/workspaces/{workspaceId}/team:
     $ref: './openapi/team.yaml#/workspaceTeam'
   /me/workspaces/{workspaceId}/team/members:
