@@ -43,6 +43,7 @@ import {
   runSqlCacheControlledLoadTest,
 } from "../sqlCacheOperationalDiagnostics.js";
 import { buildActivationGatewayRolloutPlan, runActivationGatewayDarkDeploy } from "../activationGatewayRolloutTool.js";
+import { buildAuthMad4bProxyRolloutPlan, runAuthMad4bProxyRollout } from "../authMad4bProxyRolloutTool.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import {
   CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES,
