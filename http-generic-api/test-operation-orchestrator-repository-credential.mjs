@@ -61,7 +61,7 @@ assert.ok(!JSON.stringify(binding).includes("route-scoped-secret"));
 const executionDeps = hooks.depsWithManagedGitCredential(deps, binding);
 assert.equal(executionDeps.managed_git_credential_binding, binding);
 assert.equal(Object.prototype.propertyIsEnumerable.call(executionDeps, "managed_git_credential_binding"), false);
-assert.ok(!JSON.stringify(executionDeps).include("route-scoped-secret"));
+assert.ok(!JSON.stringify(executionDeps).includes("route-scoped-secret"));
 
 const released = hooks.finalizeCredentialSafely(binding);
 assert.equal(released.status, "released");
