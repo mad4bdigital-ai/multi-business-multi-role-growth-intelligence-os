@@ -89,8 +89,8 @@
         ],
         "openapi_markers": [
           "/me/workspaces/{tenant_id}/brands:",
-          "operationId: getMeWorkspacesTenantIdBrands",
-          "description: Tenant-safe brand records resolved from workspace membership and resource-grant authority."
+          "operationId: listCurrentWorkspaceBrands",
+          "summary: List tenant-safe brands visible to the signed-in workspace member"
         ],
         "auth_model": "user_jwt",
         "read_only": true,
