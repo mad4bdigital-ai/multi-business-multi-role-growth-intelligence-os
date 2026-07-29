@@ -238,6 +238,12 @@ export function buildReleaseAdvisorPlan(evidence = {}) {
     release_operation_id: evidence.operation?.operation_id || null,
     gate_id: evidence.gate?.gate_id || null,
     async_deployment_id: evidence.async_deployment?.async_deployment_id || null,
+    release_context: {
+      source: evidence.context?.source || null,
+      production_sync_required: evidence.context?.production_sync_required === true,
+      source_branch: evidence.context?.source_branch || null,
+      deployment_branch: evidence.context?.deployment_branch || null,
+    },
     gaps: gaps.map((gap) => ({ gap_key: gap.gap_key, classification: gap.classification, severity: gap.severity, remediation_type: gap.remediation_type })).sort((a, b) => String(a.gap_key).localeCompare(String(b.gap_key))),
   };
   return {
