@@ -651,8 +651,11 @@ fs.writeFileSync(policyPath, validPolicySource);
 
 console.error("::warning title=frontend-checkpoint::invalid-policy-passed");
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
+console.error(`::warning title=frontend-sync-write::${JSON.stringify({ ok: writeResult.ok, drift: writeResult.drift })}`);
 assert.equal(writeResult.ok, true);
+console.error("::warning title=frontend-checkpoint::sync-write-ok");
 assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
+console.error("::warning title=frontend-checkpoint::sync-file-exists");
 const checkResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
