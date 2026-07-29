@@ -1,4 +1,5 @@
 const PORT_METHODS = Object.freeze({
+  principal: Object.freeze(["findPrincipal"]),
   authorizedScope: Object.freeze(["findAuthorizedScope"]),
   resourceGraph: Object.freeze(["listAuthorizedResources"]),
   exactConnection: Object.freeze(["findExactConnection"]),
@@ -16,6 +17,10 @@ function assertRepositoryMethods(repository, portName, requiredMethods) {
     throw new TypeError(`${portName} repository is missing methods: ${missing.join(", ")}.`);
   }
   return repository;
+}
+
+export function assertPrincipalRepository(repository) {
+  return assertRepositoryMethods(repository, "Principal", PORT_METHODS.principal);
 }
 
 export function assertAuthorizedScopeRepository(repository) {
