@@ -489,6 +489,17 @@
         "Unit & Integration Tests"
       ]
     },
+    "phase3_delegation_mariadb_adapter_ci": {
+      "status": "pass",
+      "head_sha": "5440eaecab4ec4286c719a06c2ea6cd8cbea9ce0",
+      "base_sha": "c7ee1a0e0d38793516dfcbb4d417bdda9341a19f",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
     "migration": {
       "status": "not_required_for_phase1_shadow"
     },
