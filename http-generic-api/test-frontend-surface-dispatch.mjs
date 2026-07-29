@@ -254,6 +254,14 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
       owner: "tenant-ui",
       rationale: "Fixture auth decision.",
       evidence_refs: ["fixture-auth-rule"]
+    },
+    {
+      rule_id: "signed-download-auth",
+      operation: "GET /signed-download/{token}",
+      profile: "signed_query_token",
+      owner: "installer-security",
+      rationale: "Signed downloads require an explicit short-lived token.",
+      evidence_refs: ["fixture-signed-download-auth"]
     }
   ],
   operation_rules: [
