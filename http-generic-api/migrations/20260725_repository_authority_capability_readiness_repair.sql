@@ -67,7 +67,13 @@ SET authority.system_id=system.system_id,
 WHERE authority.binding_key='growth_intelligence_platform.github.primary.production'
   AND authority.system_binding_mode='shared_platform_adapter'
   AND authority.lifecycle_status='active'
-  AND (BINARY authority.system_id<>BINARY system.system_id OR authority.installation_id IS NOT NULL);
+  AND (
+    NOT (
+      authority.system_id COLLATE utf8mb4_unicode_ci
+      <=> system.system_id COLLATE utf8mb4_unicode_ci
+    )
+    OR authority.installation_id IS NOT NULL
+  );
 
 UPDATE repository_capability_bindings capability
 JOIN capability_apply_authorization_policy_registry policy
@@ -92,4 +98,4 @@ SET capability.policy_key=policy.policy_key,
     capability.updated_at=CURRENT_TIMESTAMP
 WHERE capability.capability_binding_key='growth_intelligence_platform.github.repository_main_moved_webhook.production'
   AND capability.lifecycle_status='active'
-  AND capability.policy_key<>policy.policy_key;
+  AND NOT (capability.policy_key <=> policy.policy_key);

@@ -255,8 +255,39 @@ function operationLifecycleNeedsAttention({
     || artifactRegistry?.status === "unavailable";
 }
 
-function mountOperationRoutes(router, middleware = []) {
-  router.get("/operations/contracts", ...middleware, async (req, res) => {
+export function buildOperationOrchestratorRoutes({
+  requireBackendApiKey,
+  requireAdminPrincipal,
+} = {}) {
+  const router = Router();
+
+  requireSecurityMiddleware(
+    "requireBackendApiKey",
+    requireBackendApiKey,
+  );
+  requireSecurityMiddleware(
+    "requireAdminPrincipal",
+    requireAdminPrincipal,
+  );
+
+  router.use(
+    "/admin/operations",
+    requireBackendApiKey,
+    requireAdminPrincipal,
+  );
+  router.use(
+    "/tenant/operations",
+    requireTenantOperationPrincipal,
+  );
+
+  mountOperationRoutes(router, { prefix: "/admin" });
+  mountOperationRoutes(router, { prefix: "/tenant" });
+
+  return router;
+}
+
+function mountOperationRoutes(router, { prefix }) {
+  router.get(`${prefix}/operations/contracts`, async (req, res) => {
     try {
       const scope =
         req.auth?.is_admin || req.auth?.mode === "backend_api"
@@ -272,7 +303,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/context", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/context`, async (req, res) => {
     try {
       return res.status(200).json(
         await buildOperationContext({
@@ -286,7 +317,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/preview", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/preview`, async (req, res) => {
     try {
       return res
         .status(200)
@@ -296,7 +327,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/execute", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/execute`, async (req, res) => {
     let capabilityLifecycle = null;
     let capabilityFinalized = false;
     let workerLifecycle = null;
@@ -438,7 +469,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/status", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/status`, async (req, res) => {
     try {
       const input = bodyOf(req);
       await assertOperationRunAccess({
@@ -455,8 +486,7 @@ function mountOperationRoutes(router, middleware = []) {
   });
 
   router.get(
-    "/operations/workers/:worker_id",
-    ...middleware,
+    `${prefix}/operations/workers/:worker_id`,
     async (req, res) => {
       try {
         return res.status(200).json(
@@ -475,7 +505,7 @@ function mountOperationRoutes(router, middleware = []) {
     },
   );
 
-  router.get("/operations/artifacts", ...middleware, async (req, res) => {
+  router.get(`${prefix}/operations/artifacts`, async (req, res) => {
     try {
       const input = {
         run_id: req.query.run_id,
@@ -499,7 +529,7 @@ function mountOperationRoutes(router, middleware = []) {
     }
   });
 
-  router.post("/operations/ci-diagnose", ...middleware, async (req, res) => {
+  router.post(`${prefix}/operations/ci-diagnose`, async (req, res) => {
     try {
       return res
         .status(200)
@@ -508,32 +538,6 @@ function mountOperationRoutes(router, middleware = []) {
       return errorResponse(res, error, "CI_DIAGNOSIS_FAILED");
     }
   });
-}
-
-export function buildOperationOrchestratorRoutes({
-  requireBackendApiKey,
-  requireAdminPrincipal,
-} = {}) {
-  const router = Router();
-
-  const backendGuard = requireSecurityMiddleware(
-    "requireBackendApiKey",
-    requireBackendApiKey,
-  );
-  const adminGuard = requireSecurityMiddleware(
-    "requireAdminPrincipal",
-    requireAdminPrincipal,
-  );
-
-  const admin = Router();
-  mountOperationRoutes(admin, [backendGuard, adminGuard]);
-  router.use("/admin", admin);
-
-  const tenant = Router();
-  mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
-  router.use("/tenant", tenant);
-
-  return router;
 }
 
 export const _testingOperationOrchestratorRoutes = {
