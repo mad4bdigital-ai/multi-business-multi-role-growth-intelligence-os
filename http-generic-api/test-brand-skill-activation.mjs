@@ -59,6 +59,9 @@ for (const marker of [
   "BRAND_SKILL_POLICY_REQUIRED",
   "BRAND_SKILL_OPERATION_DENIED",
   "v_effective_user_brand_skill_grants",
+  "m.role_key AS role",
+  "SET status = 'expired'",
+  "expires_at <= CURRENT_TIMESTAMP",
   "provider_call_allowed: false",
   "external_write_allowed: false",
 ]) assert(service.includes(marker), `service missing ${marker}`);
