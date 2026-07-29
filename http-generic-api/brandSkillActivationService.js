@@ -223,6 +223,29 @@ function validatePolicy(policy, { membershipRole, agentId, operations }) {
   return mode;
 }
 
+async function expireStaleUserBrandSkillGrants(connection, {
+  tenantId,
+  userId,
+  brandKey,
+  agentId,
+  skillId,
+  resourceType,
+  resourceRef,
+}) {
+  const [result] = await connection.query(
+    `UPDATE user_brand_skill_grants
+        SET status = 'expired', updated_at = NOW()
+      WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_id = ?
+        AND COALESCE(resource_type, '') = COALESCE(?, '')
+        AND COALESCE(resource_ref, '') = COALESCE(?, '')
+        AND status = 'active'
+        AND expires_at IS NOT NULL
+        AND expires_at <= CURRENT_TIMESTAMP`,
+    [tenantId, userId, brandKey, agentId, skillId, resourceType, resourceRef]
+  );
+  return Number(result.affectedRows || 0);
+}
+
 async function loadGrantReadback(connection, grantId) {
   const [rows] = await connection.query(
     `SELECT grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, skill_key,
