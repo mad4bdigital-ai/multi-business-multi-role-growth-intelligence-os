@@ -267,7 +267,7 @@ export function createDelegationGrantMariaDbRepository({ pool } = {}) {
           const requestedBy = compact(command.requested_by, 191);
           await query(
             `INSERT INTO agent_delegations
-               (delegation_id, grant_schema_version, user_id, tenant_id, agent_id,
+               (delegation_id, grant_schema_version, approval_mode, user_id, tenant_id, agent_id,
                 intent_key, brand_key, plan_id, plan_hash, resource_scope_json,
                 resource_scope_hash, allowed_intents_json, denied_intents_json,
                 max_risk_tier, max_mutations, consumed_mutations, max_retries,
@@ -277,12 +277,13 @@ export function createDelegationGrantMariaDbRepository({ pool } = {}) {
                 approved_by, approved_at, revoked_by, revoked_at,
                 revocation_reason, runtime_policy_ready, canonical_created_at,
                 canonical_updated_at, expires_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0,
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0,
                      ?, 0, 1, 1, ?, ?, ?, 'pending', ?, NULL, ?, ?, NULL, NULL,
                      NULL, 0, ?, ?, ?)`,
             [
               assertUuid(grant.grant_id, "grant.grant_id"),
               compact(grant.schema_version, 64),
+              compact(grant.approval_mode, 64),
               compact(grant.delegated_by, 36),
               normalizedTenantId,
               compact(grant.delegated_to, 36),
