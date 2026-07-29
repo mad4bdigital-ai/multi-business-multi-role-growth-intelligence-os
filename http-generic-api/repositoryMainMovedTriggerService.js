@@ -140,7 +140,33 @@ export function buildRepositoryMainMovedFingerprint(event) {
   return sha256([event.repository, event.branch, event.after_sha].join("|"));
 }
 
-export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = {} } = {}) {
+export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = {}, event = {} } = {}) {
+  const sourceBranch = text(event.source_branch || "main", 191);
+  const deploymentBranch = text(event.deployment_branch || "Production", 191);
+  const sourceMovement = Boolean(event.branch) && event.branch === sourceBranch;
+  if (sourceMovement) {
+    return {
+      coordination_status: "production_sync_required",
+      next_action_key: "release.sync_production_from_latest_main",
+      approval_required: true,
+      production_sync_required: true,
+      source_branch: sourceBranch,
+      deployment_branch: deploymentBranch,
+      fresh_hostinger_build_required: true,
+      same_cycle_readback_required: true,
+      execution_allowed: false,
+      release_operation_created: false,
+      gate_opened: false,
+      capability_envelope_created: false,
+      job_enqueued: false,
+      deploy_executed: false,
+      restart_executed: false,
+      provider_call_performed: false,
+      external_write_performed: false,
+      secrets_included: false,
+    };
+  }
+
   const advisorRun = advisor.advisor_run || {};
   const advisorStatus = text(advisorRun.advisor_status || "blocked", 32);
   const productionParity = text(verification.production_parity || "unknown", 32);
@@ -163,6 +189,11 @@ export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = 
     coordination_status: coordinationStatus,
     next_action_key: nextActionKey,
     approval_required: approvalRequired,
+    production_sync_required: false,
+    source_branch: sourceBranch,
+    deployment_branch: deploymentBranch,
+    fresh_hostinger_build_required: false,
+    same_cycle_readback_required: true,
     execution_allowed: false,
     release_operation_created: false,
     gate_opened: false,
