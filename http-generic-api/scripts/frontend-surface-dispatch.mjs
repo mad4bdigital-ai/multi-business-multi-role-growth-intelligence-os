@@ -576,6 +576,22 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   if (override?.profile && guardChain.length) {
     const discovered = runtimeAuthProfile({ routePath, routeGuards, inheritedGuards, override: null });
     if (discovered.state !== "resolved") {
+      const signedQueryGuardVerified = override.profile === "signed_query_token"
+        && guardChain.includes("verifyInstallerDownloadToken");
+      if (signedQueryGuardVerified) {
+        const selected = AUTH_PROFILES[override.profile];
+        return {
+          state: "resolved",
+          profile: override.profile,
+          ...selected,
+          guard_chain: guardChain,
+          evidence: unique([
+            ...evidence,
+            ...(override.evidence_refs || []),
+            "runtime_guard:verifyInstallerDownloadToken",
+          ]),
+        };
+      }
       return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
     }
     if (discovered.profile !== override.profile) {
