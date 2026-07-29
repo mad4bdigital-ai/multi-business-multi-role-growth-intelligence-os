@@ -4,7 +4,7 @@
 
 - [ ] T001 Inventory every Admin and Tenant authorization path.
 - [ ] T002 Map authority-owning tables and views from live SQL census.
-- [ ] T003 Define compatibility meanings for `active`, `connected`, and `ready`.
+- [x] T003 Define compatibility meanings for `active`, `connected`, and `ready`.
 - [x] T004 Add typed Actor, Subject Scope, Capability, Resource, Decision, Gap, and Version Vector contracts.
 - [x] T005 Encode non-configurable safety invariants in domain code.
 - [x] T006 Add stable reason-code catalog and redaction rules.
