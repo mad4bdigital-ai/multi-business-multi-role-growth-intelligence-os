@@ -19,6 +19,7 @@ const AUTH_GUARDS = new Set([
   "verifyUserJwt",
   "requireUser",
   "requireTenantPrincipal",
+  "requireTenantOperationPrincipal",
   "requireResolutionPrincipal",
   "requireActiveMembership",
   "requireWorkspaceOwner",
@@ -525,6 +526,11 @@ function middlewareAliases(source = "") {
     }
     helperRe.lastIndex = closing + 1;
   }
+  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\([^)]*\)\s*=>\s*([\s\S]*?);/g)) {
+    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (containsGuard) aliases.set(match[1], match[2]);
+  }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
     if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
@@ -595,7 +601,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasBackend = guardChain.includes("requireBackendApiKey");
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
-  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
+  const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
   const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
@@ -638,7 +644,13 @@ function enclosingHelper(source, sourceIndex) {
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
-    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
+    if (closing >= sourceIndex) {
+      enclosing = {
+        name: match[1],
+        declaration_index: match.index,
+        closing,
+      };
+    }
   }
   return enclosing;
 }
@@ -648,19 +660,24 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   if (!tokens.length) return [routeTemplate];
   const helper = enclosingHelper(source, sourceIndex);
   if (!helper) return [];
-  const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
-  callRe.lastIndex = helper.closing + 1;
   const expanded = [];
-  let call;
-  while ((call = callRe.exec(source)) !== null) {
-    const bindings = {};
-    for (const token of tokens) {
-      const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
-      if (value) bindings[token] = value;
-    }
-    if (tokens.every((token) => bindings[token])) {
-      expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+  const callSources = [
+    source.slice(0, helper.declaration_index),
+    source.slice(helper.closing + 1),
+  ];
+  for (const callSource of callSources) {
+    const callRe = new RegExp(`\\b${helper.name}\\s*\\(([\\s\\S]*?)\\);`, "g");
+    let call;
+    while ((call = callRe.exec(callSource)) !== null) {
+      const bindings = {};
+      for (const token of tokens) {
+        const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
+        const value = call[1].match(new RegExp(`\\b${escapedToken}\\s*:\\s*([\"'\\x60])([^\"'\\x60]+)\\1`))?.[2];
+        if (value) bindings[token] = value;
+      }
+      if (tokens.every((token) => bindings[token])) {
+        expanded.push(tokens.reduce((value, token) => value.replaceAll(`\${${token}}`, bindings[token]), routeTemplate));
+      }
     }
   }
   return unique(expanded);
@@ -685,7 +702,10 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     // Authentication is sometimes enforced inside the final handler rather than
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
-    const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const routeGuards = unique([
+      ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
+      ...middlewareGuards(declaration, aliases),
+    ]);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {

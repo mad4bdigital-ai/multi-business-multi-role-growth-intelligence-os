@@ -9,11 +9,15 @@ const workflowSource = await readFile(
 const workflow = parse(workflowSource);
 const requiredPaths = [
   "edge/auth-mad4b-proxy/**",
+  "http-generic-api/authMad4bProxyRolloutTool.js",
   "http-generic-api/server.js",
   "http-generic-api/operationRuntimeGuard.js",
   "http-generic-api/scripts/test-operation-runtime-guard.mjs",
   "http-generic-api/scripts/test-manifest.mjs",
   "http-generic-api/test-auth-mad4b-proxy-edge.mjs",
+  "http-generic-api/test-auth-mad4b-proxy-rollout-tool.mjs",
+  "http-generic-api/test-auth-mad4b-proxy-rollout-surface.mjs",
+  "http-generic-api/migrations/20260729_auth_mad4b_proxy_rollout_surface.sql",
   "http-generic-api/test-custom-gpt-contract-guard-paths.mjs",
 ];
 
