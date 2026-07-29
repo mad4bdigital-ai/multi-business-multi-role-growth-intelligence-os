@@ -504,6 +504,10 @@ function maskJavaScriptComments(source = "") {
   return output.join("");
 }
 
+function isMiddlewareAliasName(name = "") {
+  return /^(?:require|verify|authenticate|authorize|auth)/i.test(name)
+    || /(?:auth|guard|guards|middleware)$/i.test(name);
+}
 function middlewareAliases(source = "") {
   const aliases = new Map();
   const text = maskJavaScriptComments(source);
