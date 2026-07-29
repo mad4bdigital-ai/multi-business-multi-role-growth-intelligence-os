@@ -1,8 +1,8 @@
 # Surface Contract Gap Trends
 
 - Baseline items: 105
-- Current queue items: 33
-- Current triaged items: 33
+- Current queue items: 32
+- Current triaged items: 32
 - Gate candidates: 13
 - Blocking new items: 14
 - Trend quality gate: fail
