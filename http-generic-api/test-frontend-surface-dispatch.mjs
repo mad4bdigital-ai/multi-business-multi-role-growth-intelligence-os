@@ -374,6 +374,30 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const resourceApiSource = fs.readFileSync(new URL("./routes/resourceApiRoutes.js", import.meta.url), "utf8");
+const resourceApiRoutes = parseRoutesFromFile(resourceApiSource, "routes/resourceApiRoutes.js");
+for (const signature of [
+  "GET /me/workspaces/{tenant_id}/resources",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+]) {
+  const operation = resourceApiRoutes.find((entry) => entry.signature === signature);
+  assert(operation, `${signature} must be discovered from resourceApiRoutes.js`);
+  assert.deepEqual(
+    operation.route_guards,
+    ["requireUser"],
+    `${signature} must inherit requireUser from the multiline tenantReadHandlers arrow factory`,
+  );
+  assert.equal(
+    runtimeAuthProfile({
+      routePath: operation.path,
+      routeGuards: operation.route_guards,
+      inheritedGuards: operation.inherited_guards,
+    }).profile,
+    "user_jwt",
+    `${signature} must resolve to the user_jwt runtime authentication profile`,
+  );
+}
 const operationOrchestratorSource = fs.readFileSync(new URL("./routes/operationOrchestratorRoutes.js", import.meta.url), "utf8");
 const operationOrchestratorRoutes = parseRoutesFromFile(
   operationOrchestratorSource,

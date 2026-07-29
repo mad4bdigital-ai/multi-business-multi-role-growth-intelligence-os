@@ -531,6 +531,20 @@ function middlewareAliases(source = "") {
   )) {
     aliases.set(match[1], match[3]);
   }
+  const arrowFactoryRe = /\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][A-Za-z0-9_$]*)\s*=>/g;
+  let arrowFactory;
+  while ((arrowFactory = arrowFactoryRe.exec(text)) !== null) {
+    const expressionStart = arrowFactoryRe.lastIndex;
+    const statementEnd = text.indexOf(";", expressionStart);
+    if (statementEnd < 0) continue;
+    const expression = text.slice(expressionStart, statementEnd);
+    const containsGuard = [...expression.matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (/\[[\s\S]*\]/.test(expression) && containsGuard) {
+      aliases.set(arrowFactory[1], expression);
+    }
+    arrowFactoryRe.lastIndex = statementEnd + 1;
+  }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
     const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
