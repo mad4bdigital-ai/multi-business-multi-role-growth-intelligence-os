@@ -451,7 +451,7 @@ assert.equal(plan.baseline.ref, "fixture-sha");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
 assert.equal(plan.coverage.mounted_family_count, 8);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
-assert.equal(plan.coverage.operation_count, 20);
+assert.equal(plan.coverage.operation_count, 21);
 const tenantOperations = plan.families.find((family) => family.source_file === "routes/tenantRoutes.js").operations;
 assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights"));
 assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights/{view}"));
