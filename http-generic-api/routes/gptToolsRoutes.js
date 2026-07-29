@@ -2278,7 +2278,13 @@ export async function readCachedToolResponseChunk(args = {}, deps = {}) {
   let entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
   let source = "tool_response_cache";
   if (!entry) {
-    const durable = await loadGovernedToolResponseChunk({ chunk_id: chunkId }, deps);
+    const durable = await loadGovernedToolResponseChunk({
+      chunk_id: chunkId,
+      auth: args?.auth,
+      trustedInternal: args?.trustedInternal === true || args?.trusted_internal === true,
+      principalId: args?.principalId || args?.principal_id,
+      source_surface: args?.source_surface || args?.sourceSurface || "gpt_tools",
+    }, deps);
     if (!durable) {
       const err = new Error("response chunk was not found or has expired.");
       err.status = 404;
