@@ -8,7 +8,11 @@ on:
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "edge/auth-mad4b-proxy/**"
+      - "http-generic-api/authMad4bProxyRolloutTool.js"
       - "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+      - "http-generic-api/test-auth-mad4b-proxy-rollout-tool.mjs"
+      - "http-generic-api/test-auth-mad4b-proxy-rollout-surface.mjs"
+      - "http-generic-api/migrations/20260729_auth_mad4b_proxy_rollout_surface.sql"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
@@ -57,7 +61,11 @@ on:
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "edge/auth-mad4b-proxy/**"
+      - "http-generic-api/authMad4bProxyRolloutTool.js"
       - "http-generic-api/test-auth-mad4b-proxy-edge.mjs"
+      - "http-generic-api/test-auth-mad4b-proxy-rollout-tool.mjs"
+      - "http-generic-api/test-auth-mad4b-proxy-rollout-surface.mjs"
+      - "http-generic-api/migrations/20260729_auth_mad4b_proxy_rollout_surface.sql"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/scripts/split-openapi.mjs"
@@ -127,6 +135,10 @@ jobs:
         run: node test-custom-gpt-contract-guard-paths.mjs
       - name: Verify auth edge proxy envelope
         run: node test-auth-mad4b-proxy-edge.mjs
+      - name: Verify auth proxy rollout tool
+        run: node test-auth-mad4b-proxy-rollout-tool.mjs
+      - name: Verify auth proxy rollout governance surface
+        run: node test-auth-mad4b-proxy-rollout-surface.mjs
       - name: Verify split-schema governance and regeneration parity
         run: |
           node test-openapi-split-governance.mjs

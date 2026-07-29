@@ -1,9 +1,9 @@
 # Surface Contract Governance Compact
 
 - Gate: fail
-- Blocking new items: 11
-- Docs completion: 569/576 (98.78%)
-- Queue items: 30
+- Blocking new items: 12
+- Docs completion: 569/577 (98.61%)
+- Queue items: 31
 - OpenAPI missing SQL routes: 10
 - OpenAPI-exempt SQL route-like literals: 665/697
 - Safety marker gap migrations: 5
@@ -19,5 +19,5 @@
 - `20260723_auth_email_outbox_skip_ineligible_policy_tags.sql` — critical_review, score 913; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 866; confirm registry binding/readback evidence before promotion
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 811; confirm registry binding/readback evidence before promotion
+- `20260729_auth_mad4b_proxy_rollout_surface.sql` — critical_review, score 789; add targeted patch-index, parity, and governance documentation
 - `20260720_github_update_pull_request_branch_503_response_contract.sql` — high_review, score 555; add targeted patch-index, parity, and governance documentation
-- `20260720_tenant_tool_input_schema_strictness.sql` — high_review, score 549; add targeted patch-index, parity, and governance documentation
