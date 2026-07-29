@@ -630,7 +630,6 @@ assert.equal(
 fs.writeFileSync(policyPath, validPolicySource);
 
 const writeResult = syncDispatchPlan({ apiRoot, mode: "write", baselineRef: "fixture-sha" });
-console.error(`::warning title=frontend-sync-write::${JSON.stringify({ ok: writeResult.ok, drift: writeResult.drift })}`);
 assert.equal(writeResult.ok, true);
 console.error("::warning title=frontend-checkpoint::sync-write-ok");
 assert.equal(fs.existsSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json")), true);
