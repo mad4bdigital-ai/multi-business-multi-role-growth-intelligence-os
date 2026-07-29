@@ -30,6 +30,10 @@ import {
   prepareManagedGitWorkerLifecycle,
   readManagedGitWorkerLease,
 } from "../managedGitWorkerLifecycleService.js";
+import {
+  createManagedGitRepositoryCredentialBinding,
+  releaseManagedGitRepositoryCredentialBinding,
+} from "../managedGitRepositoryCredentialBinding.js";
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
