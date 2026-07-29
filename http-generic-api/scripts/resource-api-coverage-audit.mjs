@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { validateDirectRouteCallabilityContracts } from "./resource-api-callability-contracts.mjs";
 
 const ROOT = process.cwd();
 const MANIFEST_PATH = path.join(ROOT, "resource-api-coverage.manifest.json");
@@ -220,6 +221,9 @@ if (manifest.new_feature_gate?.require_callable_handler_or_explicit_admin_previe
   findings.push({ type: "callable_handler_or_admin_preview_gate_not_enabled" });
 }
 const callabilityCoveredTools = validateCallabilityContracts(manifest, findings);
+const directRouteCallability = validateDirectRouteCallabilityContracts({ root: ROOT, manifest });
+findings.push(...directRouteCallability.findings);
+for (const toolKey of directRouteCallability.covered_tool_keys) callabilityCoveredTools.add(toolKey);
 
 for (const resource of manifest.resources || []) {
   if (!resource.resource_key || !Array.isArray(resource.source_tables) || !resource.operations) {

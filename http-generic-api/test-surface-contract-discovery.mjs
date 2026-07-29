@@ -112,6 +112,16 @@ assert(report.gap_queue.total_items >= 0, "gap queue count must be a non-negativ
 assert(Array.isArray(report.gap_queue.top_items), "gap queue must expose top_items");
 assert(report.gap_queue.top_items.every((item) => item.score > 0), "gap queue top items must be scored");
 assert(report.gap_queue.top_items.every((item) => Array.isArray(item.remediation)), "gap queue items must include remediation actions");
+const migration229 = report.all_migrations.find((entry) => entry.migration_file === "229_sprint67_workspace_brands_list_tool.sql");
+assert(migration229, "migration 229 must remain discoverable");
+assert.equal(migration229.coverage.route_coverage.callability_review_count, 0, "verified workspace brands route must leave callability review");
+assert(migration229.surfaces.callability_covered_tools.includes("workspace_brands_list"));
+assert(!migration229.surfaces.callability_unverified_tools.includes("workspace_brands_list"));
+const migration229QueueItem = report.gap_queue.top_items.find((entry) => entry.migration_file === "229_sprint67_workspace_brands_list_tool.sql");
+if (migration229QueueItem) {
+  assert(!migration229QueueItem.remediation.some((action) => action.action_key === "verify_callable_handler_or_admin_preview"));
+  assert(!migration229QueueItem.remediation.some((action) => action.action_key === "verify_tool_registry_binding"));
+}
 
 const migration287 = report.all_migrations.find((entry) => entry.migration_file === "287_sprint68_external_delivery_orchestration_graph_plugin.sql");
 assert(migration287, "migration 287 must be discoverable as a SQL-backed surface migration");
