@@ -643,15 +643,78 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
 }
 
 function enclosingHelper(source, sourceIndex) {
-  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
   let match;
   let enclosing = null;
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
     const opening = functionRe.lastIndex - 1;
     const closing = findMatchingBrace(source, opening);
-    if (closing >= sourceIndex) enclosing = { name: match[1], closing };
+    if (closing >= sourceIndex) {
+      enclosing = {
+        name: match[1],
+        closing,
+        parameters: splitTopLevelArguments(match[2])
+          .map((parameter) => parameter.match(/^[A-Za-z_$][A-Za-z0-9_$]*/)?.[0])
+          .filter(Boolean),
+      };
+    }
   }
   return enclosing;
+}
+
+function mountedReceiverContexts(source, receiverName, mountPrefix, aliases) {
+  const contexts = [];
+  const useRe = /(?:router|app)\.use\s*\(/g;
+  let match;
+  while ((match = useRe.exec(source)) !== null) {
+    const opening = source.indexOf("(", match.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0) continue;
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const prefixMatch = args[0]?.match(/^["'`]([^"'`]+)["'`]$/);
+    const middlewareArgs = prefixMatch ? args.slice(1) : args;
+    const receiverIndex = middlewareArgs.findIndex((argument) => argument.trim() === receiverName);
+    if (receiverIndex < 0) continue;
+    contexts.push({
+      mount_prefix: prefixMatch ? joinRoutePath(mountPrefix, prefixMatch[1]) : mountPrefix,
+      inherited_guards: unique(middlewareArgs
+        .filter((_, index) => index !== receiverIndex)
+        .flatMap((argument) => middlewareGuards(argument, aliases))),
+    });
+  }
+  return contexts;
+}
+
+function helperInvocationContexts(source, sourceIndex, mountPrefix, aliases) {
+  const helper = enclosingHelper(source, sourceIndex);
+  if (!helper?.parameters?.length) return [];
+  const callRe = new RegExp(`\\b${helper.name}\\s*\\(`, "g");
+  callRe.lastIndex = helper.closing + 1;
+  const contexts = [];
+  let call;
+  while ((call = callRe.exec(source)) !== null) {
+    const opening = source.indexOf("(", call.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0) continue;
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
+    if (!receiverName) continue;
+    const callGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    for (const mounted of mountedReceiverContexts(source, receiverName, mountPrefix, aliases)) {
+      contexts.push({
+        mount_prefix: mounted.mount_prefix,
+        inherited_guards: unique([...mounted.inherited_guards, ...callGuards]),
+      });
+    }
+    callRe.lastIndex = closing + 1;
+  }
+  const seen = new Set();
+  return contexts.filter((context) => {
+    const key = `${context.mount_prefix}|${context.inherited_guards.join(",")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
