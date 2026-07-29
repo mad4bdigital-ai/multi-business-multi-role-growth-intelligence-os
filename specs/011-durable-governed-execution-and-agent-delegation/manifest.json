@@ -181,7 +181,12 @@
     "phase3_transactional_pending_receipt_protocol",
     "phase3_idempotent_replay_and_reconciliation_tests",
     "phase3_same_cycle_grant_and_receipt_readback",
-    "phase3_unknown_commit_outcome_fail_closed"
+    "phase3_unknown_commit_outcome_fail_closed",
+    "phase3_delegation_mariadb_adapter_contract",
+    "phase3_existing_receipt_surface_reuse",
+    "phase3_mariadb_engine_schema_readiness_contract",
+    "phase3_fake_mariadb_integration_tests",
+    "phase3_runtime_policy_ready_fail_closed"
   ],
   "constraints": [
     "no_provider_call",
