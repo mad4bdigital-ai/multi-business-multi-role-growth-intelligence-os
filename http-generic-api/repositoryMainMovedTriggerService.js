@@ -55,15 +55,25 @@ function expectedRepository(env = process.env) {
   return text(env.RELEASE_TRIGGER_REPOSITORY || env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY, 255).toLowerCase();
 }
 
-export function resolveConfiguredReleaseBranch(env = process.env) {
+export function resolveConfiguredSourceBranch(env = process.env) {
   const branch = text(
-    env.RELEASE_TRIGGER_BRANCH
-      || env.ACTIVATION_GITHUB_BRANCH
+    env.RELEASE_TRIGGER_SOURCE_BRANCH
+      || env.RELEASE_TRIGGER_BRANCH
       || env.GITHUB_DEFAULT_BRANCH
       || "main",
     191,
   ).replace(/^refs\/heads\//, "");
   return branch || "main";
+}
+
+export function resolveConfiguredReleaseBranch(env = process.env) {
+  const branch = text(
+    env.RELEASE_TRIGGER_DEPLOYMENT_BRANCH
+      || env.ACTIVATION_GITHUB_BRANCH
+      || "Production",
+    191,
+  ).replace(/^refs\/heads\//, "");
+  return branch || "Production";
 }
 
 export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
@@ -76,12 +86,17 @@ export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
       expected_repository: allowedRepository,
     });
   }
-  const allowedBranch = resolveConfiguredReleaseBranch(env);
+  const sourceBranch = resolveConfiguredSourceBranch(env);
+  const deploymentBranch = resolveConfiguredReleaseBranch(env);
+  const allowDeploymentBranch = options.allowDeploymentBranch === true;
+  const allowedBranch = allowDeploymentBranch ? deploymentBranch : sourceBranch;
   const branch = text(input.branch || input.branch_name || allowedBranch, 191).replace(/^refs\/heads\//, "");
   if (branch !== allowedBranch) {
-    fail("repository_main_moved_branch_not_supported", "Only the configured release branch may trigger release coordination.", 400, {
+    fail("repository_main_moved_branch_not_supported", "Only the configured branch for this trigger mode may trigger release coordination.", 400, {
       branch,
       expected_branch: allowedBranch,
+      source_branch: sourceBranch,
+      deployment_branch: deploymentBranch,
     });
   }
   const beforeSha = sha(input.before_sha || input.before, "before_sha");
@@ -108,6 +123,9 @@ export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
     source_event_id: sourceEventId,
     repository,
     branch,
+    source_branch: sourceBranch,
+    deployment_branch: deploymentBranch,
+    trigger_mode: allowDeploymentBranch ? "runtime_deployment_reconciliation" : "source_branch_moved",
     before_sha: beforeSha,
     after_sha: afterSha,
     forced: input.forced === true,
