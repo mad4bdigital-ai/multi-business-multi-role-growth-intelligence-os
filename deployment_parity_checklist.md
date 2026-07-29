@@ -1,5 +1,11 @@
 # Deployment Parity Checklist
 
+## Production auto-deploy content retrigger — 2026-07-29
+
+A documentation-only content change is intentionally promoted through the protected `Production` branch to retrigger the configured Hostinger GitHub auto-deploy after ancestry-only promotions did not advance the deployed runtime. Before this trigger, GitHub `Production` was observed at `bf0df9260d1b7fb9ec11e223986014387ce8ff86`, while the deployment manifest still reported `8a3eeeaa1ee3b73b0227bb9c940440881bf5782e`. This record changes no runtime logic, API contract, database schema, feature flag, scheduler, or delivery behavior; it performs no SSH operation, provider call, credential payload read, migration apply, external send, or external write, and includes no secrets.
+
+Completion requires same-cycle readback proving the deployment manifest reports the exact resulting `Production` merge SHA and the production health endpoint is healthy. Until both checks pass, runtime parity remains blocked and this retrigger must not be described as a successful deployment.
+
 ## Hostinger Production deploy-branch allowlist parity
 
 Migration `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` is parity-complete only when registry readback confirms the command allowlist, Admin tool schema, execution policy, and certification metadata all allow exactly `main` and `Production`, while the runtime executor still requires an exact 40-character commit SHA, approved target/path, bounded output, and same-cycle health readback. The migration itself has `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, and `secrets_included_false`; merge or documentation alone never applies it or authorizes deployment.

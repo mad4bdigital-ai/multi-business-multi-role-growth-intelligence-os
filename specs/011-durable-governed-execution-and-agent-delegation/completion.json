@@ -112,6 +112,13 @@
       "number": 3203,
       "branch": "gpt/spec-011-delegation-mode-contract-drift-20260728",
       "role": "delegation_approval_mode_contract_drift_repair",
+      "status": "merged",
+      "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87"
+    },
+    "phase3_delegation_repository_pr": {
+      "number": 3221,
+      "branch": "gpt/spec-011-phase3-delegation-repository-contract-20260728",
+      "role": "delegation_repository_mutation_contract",
       "status": "current_pr"
     },
     "implementation_prs": [
@@ -154,6 +161,12 @@
       {
         "number": 3203,
         "role": "phase3_delegation_approval_mode_contract_drift_repair",
+        "status": "merged",
+        "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87"
+      },
+      {
+        "number": 3221,
+        "role": "phase3_delegation_repository_mutation_contract",
         "status": "current_pr"
       }
     ],
@@ -315,9 +328,10 @@
       "secrets_included": false
     },
     "phase3_delegation_mode_drift_repair": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "704c452666c055259c426c6534620df497bc2a45",
       "pull_request": 3203,
+      "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
       "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
       "test": "http-generic-api/test-agent-delegation-persistence-contract.mjs",
       "design": "phase3-delegation-persistence-contract.md",
@@ -331,8 +345,32 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_repository_mutation_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
+      "pull_request": 3221,
+      "service": "http-generic-api/delegationGrantRepositoryMutationService.js",
+      "test": "http-generic-api/test-delegation-grant-repository-mutation.mjs",
+      "design": "phase3-delegation-repository-mutation-contract.md",
+      "transactional_repository_port": true,
+      "pending_receipt_before_mutation": true,
+      "same_cycle_grant_readback": true,
+      "same_cycle_receipt_readback": true,
+      "idempotent_replay": true,
+      "idempotency_conflict_detection": true,
+      "unknown_commit_outcome_fail_closed": true,
+      "authorization_fingerprint_binding": true,
+      "migration_applied": false,
+      "live_database_write": false,
+      "mariadb_adapter_bound": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_mode_drift_repair_complete_on_branch"
+      "status": "phase3_delegation_repository_mutation_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
@@ -393,6 +431,17 @@
       "status": "pass",
       "head_sha": "8aa099c93cce7ab8b140f167ff9944d79e628ab8",
       "base_sha": "9f3cfe6391b97eb2cf5de0895ff7e5f06cee8e63",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_repository_ci": {
+      "status": "pass",
+      "head_sha": "dc374ca66715cb302afae51beb6dff7d5658514a",
+      "base_sha": "a23e00763b1d1a783c9dab31195e1a81be113307",
       "required_checks": [
         "Syntax Check",
         "Architecture Drift Detection",
@@ -564,8 +613,11 @@
       "phase3_delegation_lifecycle_status": "complete_on_main",
       "phase3_delegation_lifecycle_pull_request": 3173,
       "phase3_delegation_lifecycle_merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2",
-      "phase3_delegation_mode_drift_status": "pending_merge",
+      "phase3_delegation_mode_drift_status": "complete_on_main",
       "phase3_delegation_mode_drift_pull_request": 3203,
+      "phase3_delegation_mode_drift_merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87",
+      "phase3_delegation_repository_status": "pending_merge",
+      "phase3_delegation_repository_pull_request": 3221,
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases"
     }
