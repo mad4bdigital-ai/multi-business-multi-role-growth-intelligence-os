@@ -406,7 +406,7 @@ assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),
   apiRoot,
-}).size, 20);
+}).size, 21);
 const blockSecuritySource = "security:\n  - adminBearerAuth: []\n  - backendApiKeyAuth: []\n";
 const blockSecurityDocument = YAML.parseDocument(blockSecuritySource, { keepSourceTokens: true });
 const blockSecurityNode = blockSecurityDocument.getIn(["security"], true);
