@@ -603,6 +603,7 @@ assert.equal(conflictingAuthOperation.runtime_auth.state, "unresolved");
 assert.equal(conflictingAuthOperation.runtime_auth.profile, "auth_policy_conflicts_with_runtime_guard", "manual auth policy must not weaken discovered runtime guards");
 fs.writeFileSync(policyPath, validPolicySource);
 
+console.error("::warning title=frontend-checkpoint::policy-conflict-passed");
 const partitionPolicy = JSON.parse(validPolicySource);
 partitionPolicy.rules = partitionPolicy.rules
   .filter((rule) => rule.source_file !== "routes/mixedRoutes.js")
