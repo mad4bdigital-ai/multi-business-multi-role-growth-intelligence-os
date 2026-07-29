@@ -479,6 +479,37 @@ const inlineHandlerAuth = plan.families
   .find((entry) => entry.signature === "GET /me/support/tickets");
 assert.equal(inlineHandlerAuth.runtime_auth.profile, "user_jwt", "handler-internal auth calls must be discovered");
 assert.equal(inlineHandlerAuth.auth_parity.state, "equivalent");
+const signedDownloadOperation = plan.families
+  .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "developer")
+  .operations
+  .find((entry) => entry.signature === "GET /signed-download/{token}");
+assert.equal(signedDownloadOperation.runtime_auth.state, "resolved");
+assert.equal(signedDownloadOperation.runtime_auth.profile, "signed_query_token");
+assert.equal(signedDownloadOperation.auth_parity.state, "equivalent");
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("requireBackendApiKey"));
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller"));
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("verifyInstallerDownloadToken"));
+assert(signedDownloadOperation.runtime_auth.evidence.includes("fixture-signed-download-auth"));
+assert(signedDownloadOperation.runtime_auth.evidence.includes("runtime_guard:verifyInstallerDownloadToken"));
+
+const mixedRoutesPath = path.join(apiRoot, "routes/mixedRoutes.js");
+const validMixedRoutesSource = fs.readFileSync(mixedRoutesPath, "utf8");
+fs.writeFileSync(
+  mixedRoutesPath,
+  validMixedRoutesSource.replace("verifyInstallerDownloadToken(req.query.token);", "void req.query.token;"),
+);
+const missingSignedGuardPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const missingSignedGuardOperation = missingSignedGuardPlan.families
+  .find((family) => family.source_file === "routes/mixedRoutes.js")
+  .operations
+  .find((entry) => entry.signature === "GET /signed-download/{token}");
+assert.equal(missingSignedGuardOperation.runtime_auth.state, "unresolved");
+assert.equal(
+  missingSignedGuardOperation.runtime_auth.profile,
+  "auth_policy_conflicts_with_runtime_guard",
+  "signed-query-token policy must fail closed when the runtime token verifier is absent",
+);
+fs.writeFileSync(mixedRoutesPath, validMixedRoutesSource);
 assert(
   !plan.baseline.authority.some((entry) => entry.file === "openapi/openapi.tenant-gpt.auth.yaml"),
   "generated audience projections must not satisfy canonical OpenAPI coverage",
