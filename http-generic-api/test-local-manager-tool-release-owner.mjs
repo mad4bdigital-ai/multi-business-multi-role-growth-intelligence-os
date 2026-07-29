@@ -25,6 +25,7 @@ assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersi
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
+assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
 assert(connectorAgent.includes('owner_app: "mad4b-local-manager"'), 'Local Manager must own local tool releases');
 assert(connectorAgent.includes('release_model: "manifest_driven_allowlisted_tools"'), 'manifest must declare allowlisted tool release model');
