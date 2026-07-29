@@ -331,6 +331,20 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
+const arrowHelperOperations = parseRoutesFromFile(`
+const tenantReadHandlers = (handler) => contextKernelResourceShadow
+  ? [requireUser, contextKernelResourceShadow, handler]
+  : [requireUser, handler];
+router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(listResources));
+`, "routes/resourceApiRoutes.js");
+assert.deepEqual(
+  arrowHelperOperations.map(({ signature, route_guards: routeGuards }) => ({ signature, route_guards: routeGuards })),
+  [{
+    signature: "GET /me/workspaces/{tenant_id}/resources",
+    route_guards: ["requireUser"],
+  }],
+  "expression-bodied arrow middleware helpers must preserve nested auth guards",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
