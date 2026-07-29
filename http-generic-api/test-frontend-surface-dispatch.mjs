@@ -495,8 +495,11 @@ assert(
     .every((entry) => entry.runtime_auth.profile === "admin_backend"),
   "filtered admin guard arrays must retain both authenticator and authorizer evidence",
 );
-assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 3);
-assert.deepEqual(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(), ["admin", "tenant", "unresolved"]);
+assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 4);
+assert.deepEqual(
+  plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(),
+  ["admin", "developer", "tenant", "unresolved"],
+);
 assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").embedded_ui, true);
 assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").operations.find((operation) => operation.path.endsWith("/schema")).embedded_ui, false);
 assert.equal(new Set(plan.tasks.map((task) => task.task_key)).size, plan.tasks.length, "split-scope dispatch tasks must keep unique keys");
