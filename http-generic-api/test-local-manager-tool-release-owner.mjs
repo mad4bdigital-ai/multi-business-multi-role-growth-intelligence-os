@@ -25,6 +25,7 @@ assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersi
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
+assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest must define local tool releases');
 assert(connectorAgent.includes('owner_app: "mad4b-local-manager"'), 'Local Manager must own local tool releases');
 assert(connectorAgent.includes('release_model: "manifest_driven_allowlisted_tools"'), 'manifest must declare allowlisted tool release model');
@@ -43,16 +44,16 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.25"'), 'public Local Manager update route must advertise Windows 0.2.25');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.25.exe'), 'public Local Manager download route must point at Windows 0.2.25 assets');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.26"'), 'public Local Manager update route must advertise Windows 0.2.26');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.26.exe'), 'public Local Manager download route must point at Windows 0.2.26 assets');
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('compareVersions(fallbackVersion, selectedVersion)'), 'Local Manager stale DB guard must use the defined version comparator');
 assert(!localManager.includes('compareSemver('), 'Local Manager stale DB guard must not call an undefined semver comparator');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
-assert(localManagerProject.includes('<Version>0.2.25</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.25.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.25.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.25-post-install-runtime-retry</InformationalVersion>'), 'Windows project InformationalVersion must identify the post-install runtime retry build');
+assert(localManagerProject.includes('<Version>0.2.26</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.26.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.26.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.26-complete-runtime-bundle-device-auth</InformationalVersion>'), 'Windows project InformationalVersion must identify the complete runtime bundle and device authorization build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -91,12 +92,12 @@ assert(localManagerWindowsInstallerSurface.includes('suppress_pause = true'), 'W
 assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
 assert(installRoutes.includes('requireFreshLocalManagerDeviceForPrivilegedInstaller(req)'), 'privileged installer links must require fresh Local Manager authorization');
 assert(installRoutes.includes('auth_context: device.auth_context'), 'privileged installer link responses must disclose saved device-token auth context');
-assert(installRoutes.includes('reauth_required_for_stale_device_tokens: true'), 'privileged installer link responses must flag stale saved device-token reauth requirements');
-assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = 15 * 60'), 'Local Manager privileged installer freshness window must be explicit');
+assert(installRoutes.includes('reauth_required_for_stale_device_tokens: false'), 'privileged installer link responses must not require repeated sign-in for a valid saved device token');
+assert(localManagerDeviceLinkService.includes('PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS'), 'Local Manager privileged installer authorization must follow the revocable device token lifetime');
 assert(localManagerDeviceLinkService.includes('source: "saved_device_token"'), 'Local Manager device session must disclose saved device-token identity source');
 assert(localManagerDeviceLinkService.includes('interactive_user_session_present: false'), 'Local Manager device session must distinguish saved token auth from an interactive user session');
-assert(localManagerDeviceLinkService.includes('fresh_local_manager_authorization_required'), 'Local Manager privileged installer guard must return a stable fresh-auth error code');
-assert(localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer guard must return an actionable re-auth hint');
+assert(localManagerDeviceLinkService.includes('requires_reauth_for_privileged_installers: false'), 'Local Manager privileged installer authorization must not require repeated sign-in for a valid device token');
+assert(!localManagerDeviceLinkService.includes('reauth_action: "forget_device_and_link_again"'), 'Local Manager privileged installer authorization must not instruct a valid linked device to unlink and sign in again');
 assert(localManagerDeviceLinkService.includes('resolveConnectorRuntimeReadback'), 'repair controls must resolve authoritative connector runtime evidence');
 assert(localManagerDeviceLinkService.includes('runtime_readback: runtimeReadback'), 'repair controls must expose runtime readback to the Windows app');
 assert(localManagerDeviceLinkService.includes('healthAgeSeconds <= 600'), 'connector runtime verification must require a recent heartbeat');
