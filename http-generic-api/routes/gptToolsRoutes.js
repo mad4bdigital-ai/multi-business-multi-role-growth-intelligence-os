@@ -2574,6 +2574,43 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     });
     return { status: 200, body: { ok: true, name: toolKey, result } };
   }
+  if (callerType === "admin" && toolKey === "auth_mad4b_proxy_rollout") {
+    try {
+      const result = await runAuthMad4bProxyRollout(args || {}, {
+        pool: getPool(),
+        auth: req?.auth || {},
+        env: process.env,
+        audit: async (entry = {}) => writeAuditLog({
+          tenant_id: req?.auth?.tenant_id || null,
+          workspace_id: args?.workspace_id || null,
+          actor_id: req?.auth?.user_id || null,
+          actor_type: req?.auth?.mode || "backend_api_key",
+          user_id: req?.auth?.user_id || null,
+          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+          action: entry.action || "auth_mad4b_proxy.deploy",
+          resource_type: entry.resource_type || "cloudflare_worker",
+          resource_id: entry.resource_id || "auth-mad4b-proxy",
+          after_json: entry.payload || { secrets_included: false },
+          ip_address: req?.ip || null,
+          user_agent: req?.headers?.["user-agent"] || null,
+          service_mode: "platform_admin",
+        }),
+      });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: {
+          ok: false,
+          error: {
+            code: err?.code || "auth_mad4b_proxy_rollout_failed",
+            message: err?.message || "Auth proxy rollout failed.",
+            details: err?.details,
+          },
+        },
+      };
+    }
+  }
   if (callerType === "admin" && toolKey === "activation_gateway_rollout_plan") {
     try {
       const result = await buildActivationGatewayRolloutPlan(args || {}, {
