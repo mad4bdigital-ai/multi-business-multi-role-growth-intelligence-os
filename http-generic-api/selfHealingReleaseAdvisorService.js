@@ -131,6 +131,25 @@ function releaseOperationSteps({ targetId, expectedCommitSha } = {}) {
   ].map((step) => ({ ...step, target_id: targetId || null, expected_commit_sha: expectedCommitSha || null }));
 }
 
+function productionBranchSyncSteps({ expectedCommitSha, sourceBranch, deploymentBranch } = {}) {
+  return [
+    { order: 10, step_key: "read_latest_main_sha", execution_allowed: false },
+    { order: 20, step_key: "compare_production_with_latest_main", execution_allowed: false },
+    { order: 30, step_key: "create_or_update_main_to_production_pr", execution_allowed: false },
+    { order: 40, step_key: "run_ci_gate", execution_allowed: false },
+    { order: 50, step_key: "obtain_typed_approval", execution_allowed: false },
+    { order: 60, step_key: "merge_latest_main_into_production", execution_allowed: false },
+    { order: 70, step_key: "verify_fresh_hostinger_build", execution_allowed: false },
+    { order: 80, step_key: "verify_deployment_manifest_sha", execution_allowed: false },
+    { order: 90, step_key: "verify_production_health", execution_allowed: false },
+  ].map((step) => ({
+    ...step,
+    source_branch: sourceBranch,
+    deployment_branch: deploymentBranch,
+    expected_commit_sha: expectedCommitSha || null,
+  }));
+}
+
 function buildRecommendation(gap, evidence) {
   const runbook = parseJson(gap.runbook_json, {});
   const hasTarget = Boolean(evidence.target_id || evidence.operation?.target_id);
