@@ -446,14 +446,6 @@ assert.deepEqual(
 );
 
 const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
-console.error(`::warning title=frontend-fixture-counts::${JSON.stringify({
-  mounted_family_count: plan.coverage.mounted_family_count,
-  operation_count: plan.coverage.operation_count,
-  ready_task_count: plan.tasks.filter((task) => task.state === "ready").length,
-  non_get_candidate_count: plan.coverage.non_get_candidate_count,
-  unresolved_operation_class_count: plan.coverage.unresolved_operation_class_count,
-  mixed_scopes: plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(),
-})}`);
 assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
 assert.equal(plan.baseline.ref, "fixture-sha");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
