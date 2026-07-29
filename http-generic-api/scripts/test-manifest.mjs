@@ -1,5 +1,6 @@
 export const testCommands = [
   "node test-context-kernel-approval-binding.mjs",
+  "node test-context-kernel-principal-resolver.mjs",
   "node test-context-kernel-stale-revocation-revalidation.mjs",
   "node test-context-kernel-support-delegation.mjs",
   "node test-context-kernel-synthetic-principal-matrix.mjs",
