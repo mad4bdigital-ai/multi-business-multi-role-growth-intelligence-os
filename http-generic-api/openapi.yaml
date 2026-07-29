@@ -4315,26 +4315,6 @@ paths:
         '403': { description: Resource access forbidden }
         '404': { description: Resource not found }
         '409': { description: Operation conflicts with lifecycle or policy }
-  /me/workspaces/{tenant_id}/brands:
-    get:
-      operationId: getMeWorkspacesTenantIdBrands
-      summary: "GET /me/workspaces/{tenant_id}/brands"
-      description: Tenant-safe brand records resolved from workspace membership and resource-grant authority.
-      tags: [resource-api]
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema: { type: string, minLength: 1 }
-      responses:
-        '200': { description: Tenant-safe brands and visible asset brand references }
-        '400': { description: Invalid request }
-        '401': { description: Authentication required }
-        '403': { description: Active workspace membership required }
-        '404': { description: Workspace not found }
-        '500': { description: Workspace brand listing failed }
   /me/workspaces/{tenant_id}/resources:
     get:
       operationId: getMeWorkspacesTenantIdResources
