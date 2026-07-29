@@ -359,9 +359,10 @@
       "secrets_included": false
     },
     "phase3_delegation_repository_mutation_contract": {
-      "status": "complete_on_branch",
+      "status": "complete_on_main",
       "source_main_sha": "0ce267ddbe62f12717782190aa25d6a4bf60bfe7",
       "pull_request": 3221,
+      "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492",
       "service": "http-generic-api/delegationGrantRepositoryMutationService.js",
       "test": "http-generic-api/test-delegation-grant-repository-mutation.mjs",
       "design": "phase3-delegation-repository-mutation-contract.md",
@@ -382,8 +383,34 @@
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "secrets_included": false
     },
+    "phase3_delegation_mariadb_adapter_contract": {
+      "status": "complete_on_branch",
+      "source_main_sha": "e98bac18d3147cdad1449c1c068f110e5a311393",
+      "pull_request": 3246,
+      "repository": "http-generic-api/delegationGrantMariaDbRepository.js",
+      "validation_service": "http-generic-api/delegationGrantMariaDbValidationService.js",
+      "test": "http-generic-api/test-delegation-grant-mariadb-adapter-contract.mjs",
+      "design": "phase3-delegation-mariadb-adapter-contract.md",
+      "reused_agent_delegations": true,
+      "reused_repository_automation_receipts": true,
+      "tenant_scoped_receipt_binding": true,
+      "canonical_approval_mode_persisted": true,
+      "runtime_policy_ready_forced_false": true,
+      "fake_mariadb_integration_test": true,
+      "engine_schema_readiness_contract": true,
+      "migration_applied": false,
+      "live_database_connection": false,
+      "live_database_write": false,
+      "backfill_performed": false,
+      "runtime_adapter_bound": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
     "implementation": {
-      "status": "phase3_delegation_repository_mutation_contract_complete_on_branch"
+      "status": "phase3_delegation_mariadb_adapter_contract_complete_on_branch"
     },
     "ci": {
       "status": "pass",
