@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ea6eaf2b91b4bebc4ef93a1796d070ae12e778c103f89e4dfcf4592f0a96343c",
+    "source_digest": "3bdcf67b4882cbe5a99128b3394e54d489b79441b0518207d3c7f63ad77cfc5f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "431179be7f1f7b0a4164caa7cf7eeb3e05bcc75d6e9d22581694f8beae15b9cd",
+        "sha256": "de459fb99ea6539429ace09d4de7c3d4fef0765f2469e778b52f18b688af9676",
         "present": true
       },
       {
@@ -911,7 +911,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "a1a4de28f0ff5d8feddb21c4d2e92be5a7c2168a01f29a6cc4b81188d706d0ff",
+        "sha256": "26a03b98f4225ca687b8536a462fd56aecdd9b1003201b9d7ef3f6a3515ce090",
         "present": true
       },
       {
@@ -1111,36 +1111,37 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 164,
+    "mounted_family_count": 165,
     "mounted_route_file_count": 132,
-    "mixed_scope_route_file_count": 24,
-    "operation_count": 986,
-    "openapi_documented_count": 962,
-    "openapi_canonical_documented_count": 583,
-    "openapi_generated_index_count": 379,
-    "openapi_exemption_count": 16,
-    "openapi_gap_count": 8,
-    "openapi_detail_gap_count": 379,
+    "mixed_scope_route_file_count": 25,
+    "operation_count": 994,
+    "openapi_documented_count": 976,
+    "openapi_canonical_documented_count": 599,
+    "openapi_generated_index_count": 377,
+    "openapi_exemption_count": 17,
+    "openapi_gap_count": 1,
+    "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
       "equivalent": 959,
-      "exempt": 16,
-      "missing_openapi": 8,
-      "unknown": 3
+      "exempt": 17,
+      "mismatch": 7,
+      "missing_openapi": 1,
+      "unknown": 10
     },
-    "auth_contract_gap_count": 11,
+    "auth_contract_gap_count": 18,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 600,
-    "unresolved_operation_class_count": 543,
+    "non_get_candidate_count": 605,
+    "unresolved_operation_class_count": 548,
     "classified_mutation_count": 8,
     "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 149,
+    "unresolved_surface_decision_count": 150,
     "test_owned_family_count": 6,
-    "untested_family_count": 158,
+    "untested_family_count": 159,
     "test_owned_operation_count": 53,
-    "untested_operation_count": 933,
+    "untested_operation_count": 941,
     "ready_task_count": 3,
-    "blocked_task_count": 161,
+    "blocked_task_count": 162,
     "coverage_complete": false
   },
   "waves": [
@@ -4540,76 +4541,6 @@
       "scope": "admin",
       "operations": [
         {
-          "method": "POST",
-          "path": "/local-manager/device/desktop-commands",
-          "signature": "POST /local-manager/device/desktop-commands",
-          "source_file": "routes/localManagerDesktopCommandRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
           "method": "GET",
           "path": "/local-manager/device/desktop-commands/{commandId}",
           "signature": "GET /local-manager/device/desktop-commands/{commandId}",
@@ -4681,14 +4612,12 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/{commandId}"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/{commandId}"
       ],
       "resources": [],
@@ -4719,17 +4648,10 @@
           "specs/010-unified-platform-frontend/plan.md"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /local-manager/device/desktop-commands",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
-        "score": 10,
-        "class": "critical"
+        "score": 8,
+        "class": "high"
       },
       "wave": "F3-admin-workspaces"
     },
@@ -4746,6 +4668,59 @@
       "group": "local-manager",
       "scope": "local_device",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/local-manager/device/desktop-commands",
+          "signature": "POST /local-manager/device/desktop-commands",
+          "source_file": "routes/localManagerDesktopCommandRoutes.js",
+          "scope": "local_device",
+          "runtime_auth": {
+            "state": "unresolved",
+            "profile": "mixed_guard_chain",
+            "alternatives": null,
+            "principal": null,
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey",
+              "requireLocalManagerDevice"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey",
+              "route:requireLocalManagerDevice"
+            ],
+            "configuration_dependencies": []
+          },
+          "openapi_auth": null,
+          "auth_parity": {
+            "state": "exempt",
+            "reasons": [
+              "repository_openapi_allowlist"
+            ]
+          },
+          "openapi_documented": false,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": true,
+          "openapi_contract_level": "explicit_exemption",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/local-manager/device/desktop-commands/pending",
@@ -4866,7 +4841,9 @@
         }
       ],
       "openapi_gaps": [],
-      "openapi_exemptions": [],
+      "openapi_exemptions": [
+        "POST /local-manager/device/desktop-commands"
+      ],
       "openapi_detail_gaps": [
         "GET /local-manager/device/desktop-commands/pending",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
@@ -4875,6 +4852,7 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
+        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/pending",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
       ],
@@ -4908,6 +4886,12 @@
       },
       "operation_blockers": [
         {
+          "signature": "POST /local-manager/device/desktop-commands",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
           "signature": "POST /local-manager/device/desktop-commands/{commandId}/complete",
           "blockers": [
             "operation_classification_gap"
@@ -4940,27 +4924,19 @@
           "source_file": "routes/localConnectorInstallRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
+            "state": "unresolved",
+            "profile": "mixed_guard_chain",
+            "alternatives": null,
+            "principal": null,
             "guard_chain": [
-              "requireBackendApiKey"
+              "requireBackendApiKey",
+              "verifyInstallerDownloadToken"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
+              "route:requireBackendApiKey",
+              "route:verifyInstallerDownloadToken"
             ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
+            "configuration_dependencies": []
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -4976,8 +4952,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "mixed_guard_chain"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -5145,49 +5123,31 @@
           "source_file": "routes/localConnectorInstallRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
+            "state": "unresolved",
+            "profile": "mixed_guard_chain",
+            "alternatives": null,
+            "principal": null,
             "guard_chain": [
-              "requireBackendApiKey"
+              "requireBackendApiKey",
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
             "evidence": [
-              "route:requireBackendApiKey"
+              "route:requireBackendApiKey",
+              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+            "configuration_dependencies": []
+          },
+          "openapi_auth": null,
+          "auth_parity": {
+            "state": "missing_openapi",
+            "reasons": [
+              "operation_not_documented"
             ]
           },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
+          "openapi_documented": false,
           "openapi_canonical_documented": false,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "missing",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -5208,14 +5168,30 @@
           "mutation": false
         }
       ],
-      "openapi_gaps": [],
+      "openapi_gaps": [
+        "DELETE /local-connector/uninstall"
+      ],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "POST /local-connector/install",
-        "GET /local-connector/install/status",
-        "DELETE /local-connector/uninstall"
+        "GET /local-connector/install/status"
       ],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "POST /local-connector/install/download-link",
+          "state": "unknown",
+          "reasons": [
+            "mixed_guard_chain"
+          ]
+        },
+        {
+          "signature": "DELETE /local-connector/uninstall",
+          "state": "missing_openapi",
+          "reasons": [
+            "operation_not_documented"
+          ]
+        }
+      ],
       "evidence_routes": [
         "GET /local-connector/install/status"
       ],
@@ -5269,7 +5245,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 16,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -5388,8 +5364,8 @@
       "wave": "F5-developer-evidence"
     },
     {
-      "family_key": "local-connector-install.local_device",
-      "label": "local connector install (local_device)",
+      "family_key": "local-connector-install.unresolved",
+      "label": "local connector install (unresolved)",
       "source_file": "routes/localConnectorInstallRoutes.js",
       "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
       "mount_prefix": "/",
@@ -5398,28 +5374,26 @@
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "authentication",
-      "scope": "local_device",
+      "scope": "unresolved",
       "operations": [
         {
           "method": "POST",
           "path": "/local-connector/install/device-download-link",
           "signature": "POST /local-connector/install/device-download-link",
           "source_file": "routes/localConnectorInstallRoutes.js",
-          "scope": "local_device",
+          "scope": "unresolved",
           "runtime_auth": {
-            "state": "resolved",
-            "profile": "local_manager",
-            "alternatives": [
-              [
-                "localManagerBearerAuth"
-              ]
-            ],
-            "principal": "local_manager",
+            "state": "unresolved",
+            "profile": "mixed_guard_chain",
+            "alternatives": null,
+            "principal": null,
             "guard_chain": [
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
+              "verifyInstallerDownloadToken"
             ],
             "evidence": [
               "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
+              "route:verifyInstallerDownloadToken",
               "routes/connectorProxyRoutes.js",
               "routes/localConnectorInstallRoutes.js",
               "services/localManagerDeviceLinkService.js"
@@ -5437,8 +5411,10 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "unknown",
+            "reasons": [
+              "mixed_guard_chain"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -5467,7 +5443,15 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "POST /local-connector/install/device-download-link",
+          "state": "unknown",
+          "reasons": [
+            "mixed_guard_chain"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -5503,10 +5487,10 @@
         }
       ],
       "risk": {
-        "score": 10,
+        "score": 13,
         "class": "critical"
       },
-      "wave": "F4-local-manager"
+      "wave": "F0-authority-resolution"
     },
     {
       "family_key": "credential-intake.admin",
@@ -19975,11 +19959,13 @@
             "principal": "tenant_user",
             "guard_chain": [
               "requireActiveMembership",
-              "requireUserJwt"
+              "requireUserJwt",
+              "requireWorkspaceOwner"
             ],
             "evidence": [
               "route:requireActiveMembership",
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:requireWorkspaceOwner"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -23474,9 +23460,11 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireResolutionPrincipal"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireResolutionPrincipal"
             ],
             "configuration_dependencies": [
@@ -23543,9 +23531,11 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireResolutionPrincipal"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireResolutionPrincipal"
             ],
             "configuration_dependencies": [
@@ -25260,24 +25250,24 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "operation-orchestrator",
-      "label": "operation orchestrator",
+      "family_key": "operation-orchestrator.admin",
+      "label": "operation orchestrator (admin)",
       "source_file": "routes/operationOrchestratorRoutes.js",
       "source_digest": "26386b17e6fef8b45fc7045b1ddc24cf5ee27a90100fdf786b24251e1c1f1cb2",
       "mount_prefix": "/",
       "mount_order": 15539,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "platform-core",
-      "scope": "unresolved",
+      "scope": "admin",
       "operations": [
         {
           "method": "GET",
-          "path": "/operations/contracts",
-          "signature": "GET /operations/contracts",
+          "path": "/admin/operations/contracts",
+          "signature": "GET /admin/operations/contracts",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25287,17 +25277,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25317,10 +25319,10 @@
         },
         {
           "method": "POST",
-          "path": "/operations/context",
-          "signature": "POST /operations/context",
+          "path": "/admin/operations/context",
+          "signature": "POST /admin/operations/context",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25330,17 +25332,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25362,10 +25376,10 @@
         },
         {
           "method": "POST",
-          "path": "/operations/preview",
-          "signature": "POST /operations/preview",
+          "path": "/admin/operations/preview",
+          "signature": "POST /admin/operations/preview",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25375,17 +25389,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": true,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25407,10 +25433,10 @@
         },
         {
           "method": "POST",
-          "path": "/operations/execute",
-          "signature": "POST /operations/execute",
+          "path": "/admin/operations/execute",
+          "signature": "POST /admin/operations/execute",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25420,17 +25446,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-capability-lifecycle.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25452,10 +25490,10 @@
         },
         {
           "method": "POST",
-          "path": "/operations/status",
-          "signature": "POST /operations/status",
+          "path": "/admin/operations/status",
+          "signature": "POST /admin/operations/status",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25465,17 +25503,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": true,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25497,10 +25547,10 @@
         },
         {
           "method": "GET",
-          "path": "/operations/workers/{worker_id}",
-          "signature": "GET /operations/workers/{worker_id}",
+          "path": "/admin/operations/workers/{worker_id}",
+          "signature": "GET /admin/operations/workers/{worker_id}",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25510,17 +25560,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/managed-git-workers.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25540,10 +25602,10 @@
         },
         {
           "method": "GET",
-          "path": "/operations/artifacts",
-          "signature": "GET /operations/artifacts",
+          "path": "/admin/operations/artifacts",
+          "signature": "GET /admin/operations/artifacts",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25553,17 +25615,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-artifacts.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25583,10 +25657,10 @@
         },
         {
           "method": "POST",
-          "path": "/operations/ci-diagnose",
-          "signature": "POST /operations/ci-diagnose",
+          "path": "/admin/operations/ci-diagnose",
+          "signature": "POST /admin/operations/ci-diagnose",
           "source_file": "routes/operationOrchestratorRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "unresolved",
             "profile": "no_explicit_auth_evidence",
@@ -25596,17 +25670,29 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25627,90 +25713,81 @@
           "mutation": false
         }
       ],
-      "openapi_gaps": [
-        "GET /operations/contracts",
-        "POST /operations/context",
-        "POST /operations/preview",
-        "POST /operations/execute",
-        "POST /operations/status",
-        "GET /operations/workers/{worker_id}",
-        "GET /operations/artifacts",
-        "POST /operations/ci-diagnose"
-      ],
+      "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [
         {
-          "signature": "GET /operations/contracts",
-          "state": "missing_openapi",
+          "signature": "GET /admin/operations/contracts",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "POST /operations/context",
-          "state": "missing_openapi",
+          "signature": "POST /admin/operations/context",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "POST /operations/preview",
-          "state": "missing_openapi",
+          "signature": "POST /admin/operations/preview",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "POST /operations/execute",
-          "state": "missing_openapi",
+          "signature": "POST /admin/operations/execute",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "POST /operations/status",
-          "state": "missing_openapi",
+          "signature": "POST /admin/operations/status",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "GET /operations/workers/{worker_id}",
-          "state": "missing_openapi",
+          "signature": "GET /admin/operations/workers/{worker_id}",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "GET /operations/artifacts",
-          "state": "missing_openapi",
+          "signature": "GET /admin/operations/artifacts",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         },
         {
-          "signature": "POST /operations/ci-diagnose",
-          "state": "missing_openapi",
+          "signature": "POST /admin/operations/ci-diagnose",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         }
       ],
       "evidence_routes": [
-        "POST /operations/preview",
-        "POST /operations/status"
+        "POST /admin/operations/preview",
+        "POST /admin/operations/status"
       ],
       "tests": [],
       "untested_operations": [
-        "GET /operations/contracts",
-        "POST /operations/context",
-        "POST /operations/preview",
-        "POST /operations/execute",
-        "POST /operations/status",
-        "GET /operations/workers/{worker_id}",
-        "GET /operations/artifacts",
-        "POST /operations/ci-diagnose"
+        "GET /admin/operations/contracts",
+        "POST /admin/operations/context",
+        "POST /admin/operations/preview",
+        "POST /admin/operations/execute",
+        "POST /admin/operations/status",
+        "GET /admin/operations/workers/{worker_id}",
+        "GET /admin/operations/artifacts",
+        "POST /admin/operations/ci-diagnose"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -25721,7 +25798,11 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
+        "openapi/managed-git-workers.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/operation-artifacts.yaml",
+        "openapi/operation-capability-lifecycle.yaml",
+        "openapi/operation-orchestrator.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
@@ -25735,41 +25816,627 @@
       },
       "operation_blockers": [
         {
-          "signature": "POST /operations/context",
+          "signature": "POST /admin/operations/context",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /operations/preview",
+          "signature": "POST /admin/operations/preview",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /operations/execute",
+          "signature": "POST /admin/operations/execute",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /operations/status",
+          "signature": "POST /admin/operations/status",
           "blockers": [
             "operation_classification_gap"
           ]
         },
         {
-          "signature": "POST /operations/ci-diagnose",
+          "signature": "POST /admin/operations/ci-diagnose",
           "blockers": [
             "operation_classification_gap"
           ]
         }
       ],
       "risk": {
-        "score": 15,
+        "score": 13,
         "class": "critical"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "operation-orchestrator.tenant",
+      "label": "operation orchestrator (tenant)",
+      "source_file": "routes/operationOrchestratorRoutes.js",
+      "source_digest": "26386b17e6fef8b45fc7045b1ddc24cf5ee27a90100fdf786b24251e1c1f1cb2",
+      "mount_prefix": "/",
+      "mount_order": 15539,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "platform-core",
+      "scope": "tenant",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/tenant/operations/contracts",
+          "signature": "GET /tenant/operations/contracts",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/operations/context",
+          "signature": "POST /tenant/operations/context",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/operations/preview",
+          "signature": "POST /tenant/operations/preview",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/operations/execute",
+          "signature": "POST /tenant/operations/execute",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-capability-lifecycle.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/operations/status",
+          "signature": "POST /tenant/operations/status",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/operations/workers/{worker_id}",
+          "signature": "GET /tenant/operations/workers/{worker_id}",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/managed-git-workers.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenant/operations/artifacts",
+          "signature": "GET /tenant/operations/artifacts",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-artifacts.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/tenant/operations/ci-diagnose",
+          "signature": "POST /tenant/operations/ci-diagnose",
+          "source_file": "routes/operationOrchestratorRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantOperationPrincipal"
+            ],
+            "evidence": [
+              "router.use:requireTenantOperationPrincipal"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/operation-orchestrator.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [],
+      "evidence_routes": [
+        "POST /tenant/operations/preview",
+        "POST /tenant/operations/status"
+      ],
+      "tests": [],
+      "untested_operations": [
+        "GET /tenant/operations/contracts",
+        "POST /tenant/operations/context",
+        "POST /tenant/operations/preview",
+        "POST /tenant/operations/execute",
+        "POST /tenant/operations/status",
+        "GET /tenant/operations/workers/{worker_id}",
+        "GET /tenant/operations/artifacts",
+        "POST /tenant/operations/ci-diagnose"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/managed-git-workers.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/operation-artifacts.yaml",
+        "openapi/operation-capability-lifecycle.yaml",
+        "openapi/operation-orchestrator.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/operationOrchestratorRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /tenant/operations/context",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /tenant/operations/preview",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /tenant/operations/execute",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /tenant/operations/status",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /tenant/operations/ci-diagnose",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 6,
+        "class": "high"
+      },
+      "wave": "F1-tenant-shell"
     },
     {
       "family_key": "workspace-resource",
@@ -27410,13 +28077,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -27429,10 +28106,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -27462,13 +28137,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -27481,10 +28166,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -27514,13 +28197,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -27533,10 +28226,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28239,29 +28930,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
@@ -28310,8 +28979,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 10,
-        "class": "critical"
+        "score": 8,
+        "class": "high"
       },
       "wave": "F1-tenant-shell"
     },
@@ -35970,10 +36639,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36032,10 +36703,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36214,10 +36887,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36274,10 +36949,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36336,10 +37013,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36396,10 +37075,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36458,10 +37139,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36520,10 +37203,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36580,10 +37265,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36642,10 +37329,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36704,10 +37393,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36766,10 +37457,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -36826,10 +37519,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt"
+              "requireUserJwt",
+              "verifyUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt"
+              "route:requireUserJwt",
+              "route:verifyUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -54520,35 +55215,36 @@
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "growth",
-      "scope": "unresolved",
+      "scope": "admin",
       "operations": [
         {
           "method": "POST",
           "path": "/tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
           "signature": "POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54565,8 +55261,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54596,28 +55295,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54634,8 +55334,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54663,28 +55366,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/metrics",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/metrics",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54701,8 +55405,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54730,28 +55437,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54768,8 +55476,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54797,28 +55508,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54835,8 +55547,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54866,28 +55581,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54904,8 +55620,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -54935,28 +55654,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -54973,8 +55693,11 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:adminBearerAuth|backendApiKeyAuth",
+              "openapi:backendApiKeyAuth|backendBearerAuth"
+            ]
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55003,7 +55726,64 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /tenants/{tenant_id}/growth-intelligence/metrics",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        },
+        {
+          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:adminBearerAuth|backendApiKeyAuth",
+            "openapi:backendApiKeyAuth|backendBearerAuth"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -55063,10 +55843,10 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F3-admin-workspaces"
     },
     {
       "family_key": "identity",
@@ -64725,7 +65505,8 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey"
+              "router.use:requireBackendApiKey",
+              "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -81082,47 +81863,6 @@
       ]
     },
     {
-      "task_key": "frontend.growth-intelligence",
-      "title": "Resolve and deliver growth intelligence",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/growthIntelligenceRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.legal",
       "title": "Resolve and deliver legal",
       "wave": "F0-authority-resolution",
@@ -81161,6 +81901,48 @@
       ]
     },
     {
+      "task_key": "frontend.local-connector-install.unresolved",
+      "title": "Resolve and deliver local connector install (unresolved)",
+      "wave": "F0-authority-resolution",
+      "state": "blocked",
+      "blockers": [
+        "scope_unresolved",
+        "auth_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localConnectorInstallRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.member-google-oauth.unresolved",
       "title": "Resolve and deliver member google oauth (unresolved)",
       "wave": "F0-authority-resolution",
@@ -81192,49 +81974,6 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
-      "task_key": "frontend.operation-orchestrator",
-      "title": "Resolve and deliver operation orchestrator",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "openapi_contract_gap",
-        "auth_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/operationOrchestratorRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -82342,6 +83081,51 @@
       ]
     },
     {
+      "task_key": "frontend.operation-orchestrator.tenant",
+      "title": "Resolve and deliver operation orchestrator (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/managed-git-workers.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/operation-artifacts.yaml",
+        "openapi/operation-capability-lifecycle.yaml",
+        "openapi/operation-orchestrator.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/operationOrchestratorRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.platform-smoke",
       "title": "Resolve and deliver platform smoke",
       "wave": "F1-tenant-shell",
@@ -82426,7 +83210,6 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],
@@ -84615,6 +85398,48 @@
       ]
     },
     {
+      "task_key": "frontend.growth-intelligence",
+      "title": "Resolve and deliver growth intelligence",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "auth_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/growthIntelligenceRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.identity",
       "title": "Resolve and deliver identity",
       "wave": "F3-admin-workspaces",
@@ -84746,7 +85571,9 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "openapi_contract_gap",
         "openapi_detail_contract_gap",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -84913,13 +85740,11 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "operation_classification_gap"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
-        "F2-admin-bff-session",
-        "operation-classification"
+        "F2-admin-bff-session"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -84940,8 +85765,7 @@
         "scope_and_auth_explicit",
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
+        "tests_registered"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -85146,6 +85970,52 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/openApiRegistrySyncRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.operation-orchestrator.admin",
+      "title": "Resolve and deliver operation orchestrator (admin)",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "auth_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/managed-git-workers.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/operation-artifacts.yaml",
+        "openapi/operation-capability-lifecycle.yaml",
+        "openapi/operation-orchestrator.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/operationOrchestratorRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
@@ -87402,48 +88272,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorDeviceRouteRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
-      "task_key": "frontend.local-connector-install.local_device",
-      "title": "Resolve and deliver local connector install (local_device)",
-      "wave": "F4-local-manager",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "F4-device-trust",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localConnectorInstallRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
