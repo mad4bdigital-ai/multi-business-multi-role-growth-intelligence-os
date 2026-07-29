@@ -16,11 +16,17 @@ const beforeSha = "a".repeat(40);
 const afterSha = "b".repeat(40);
 const env = { RELEASE_TRIGGER_REPOSITORY: repository };
 
-assert.equal(resolveConfiguredReleaseBranch({}), "main");
+assert.equal(resolveConfiguredSourceBranch({}), "main");
+assert.equal(resolveConfiguredSourceBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "main");
+assert.equal(resolveConfiguredSourceBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
+assert.equal(resolveConfiguredSourceBranch({
+  RELEASE_TRIGGER_SOURCE_BRANCH: "source/candidate",
+  RELEASE_TRIGGER_BRANCH: "legacy/source",
+}), "source/candidate");
+assert.equal(resolveConfiguredReleaseBranch({}), "Production");
 assert.equal(resolveConfiguredReleaseBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "Production");
-assert.equal(resolveConfiguredReleaseBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
 assert.equal(resolveConfiguredReleaseBranch({
-  RELEASE_TRIGGER_BRANCH: "release/candidate",
+  RELEASE_TRIGGER_DEPLOYMENT_BRANCH: "release/candidate",
   ACTIVATION_GITHUB_BRANCH: "Production",
 }), "release/candidate");
 
