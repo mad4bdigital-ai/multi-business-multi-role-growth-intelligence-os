@@ -51,7 +51,7 @@
 - [x] T044 Add connection ambiguity tests.
 - [x] T045 Add approval replay and manifest binding tests.
 - [x] T046 Add no-secret serialization tests.
-- [ ] T047 Add stale and revocation revalidation tests.
+- [x] T047 Add stale and revocation revalidation tests.
 
 ## P2 — Invalidation and reconciliation
 
