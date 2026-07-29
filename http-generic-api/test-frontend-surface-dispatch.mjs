@@ -491,6 +491,11 @@ const signedDownloadOperation = plan.families
   .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "developer")
   .operations
   .find((entry) => entry.signature === "GET /signed-download/{token}");
+console.error(`::warning title=signed-download-positive::${JSON.stringify({
+  found: Boolean(signedDownloadOperation),
+  runtime_auth: signedDownloadOperation?.runtime_auth,
+  auth_parity: signedDownloadOperation?.auth_parity,
+})}`);
 assert.equal(signedDownloadOperation.runtime_auth.state, "resolved");
 assert.equal(signedDownloadOperation.runtime_auth.profile, "signed_query_token");
 assert.equal(signedDownloadOperation.auth_parity.state, "equivalent");
