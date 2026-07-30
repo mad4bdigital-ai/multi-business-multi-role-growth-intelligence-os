@@ -7,12 +7,14 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
 ## Status
 
 - Specification: complete and recovered from stale PR `#2888`
+- Specification recovery: PR `#3498`
 - Implementation: in progress through separate governed PRs
-- Current implementation recovery: PR `#3471` for T010/T011 only
+- Merged implementation slice: PR `#3471` for T010 Principal Resolver and T011 Subject Scope & Delegation Resolver
 - Superseded implementation recovery: PR `#3351`
 - Delivery: multi-PR, additive, shadow-first
 - Runtime effect of this specification recovery: none
-- Migration execution, provider calls, external writes, deployment, or Production promotion: none
+- Runtime wiring or enforcement cutover from PR `#3471`: none
+- Migration execution, provider calls, external writes, deployment, or Production promotion from this recovery path: none
 
 ## Normative documents
 
@@ -36,7 +38,7 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
 
 The recovered directory also preserves authority inventory, compatibility semantics, implementation, SQL census, performance/retention, and security-review evidence from the former mixed-scope branch. These files are historical snapshots. Their old PR numbers, branch SHAs, CI results, and implementation claims are not current merge, deployment, migration, or Production evidence.
 
-See `RECOVERY_PROVENANCE.md` and `completion.json` for the current delivery boundary.
+Current merged evidence for T010/T011 is recorded separately in `completion.json` and `RECOVERY_PROVENANCE.md` using PR `#3471`, reviewed head `9452d47d628ca17985c998720b56060b6a82c7e7`, and merge SHA `0ff39a85661a9552daa52d3a56338a24fe6bf560`.
 
 ## Relationship to existing specifications
 
