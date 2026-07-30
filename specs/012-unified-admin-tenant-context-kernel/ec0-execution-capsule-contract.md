@@ -4,9 +4,9 @@
 
 `in_progress`
 
-Delivery PR: `#3324` on `gpt/spec-012-ec0-final-latest-main-20260730`.
+Delivery PR: `#3348` on `gpt/spec-012-ec0-clean-9c9b-20260730`.
 
-The bounded latest-main build completed successfully before this evidence update: the nine permanent EC0 files were copied from the reviewed source, the EC0 and existing Context Kernel domain/application/isolation regressions passed, the hardcoding scanner passed, and the one-shot workflow removed itself. Exact-head platform CI and human review remain required before merge.
+The clean latest-main build completed successfully before this evidence update: the nine permanent EC0 files were copied from the reviewed source onto the clean baseline, the EC0 and existing Context Kernel domain/application/isolation regressions passed, the latest hardcoding scanner passed, and the one-shot workflow removed itself. Exact-head platform CI and human review remain required before merge.
 
 EC0 delivers the pure domain/application contract and tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
 
@@ -148,7 +148,7 @@ The EC0 contract test and existing Context Kernel domain/application/isolation r
 
 ## Remaining work
 
-- exact-head CI and human review for PR `#3324`;
+- exact-head CI and human review for PR `#3348`;
 - EC1 shadow adapter beside legacy resolution;
 - EC2 selected Tenant/Admin read pilot;
 - EC3 read-only unified-dispatch integration;
