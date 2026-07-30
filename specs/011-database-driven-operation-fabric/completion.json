@@ -9,7 +9,7 @@
     "post_merge_audit": false
   },
   "delivery": {
-    "implementation_prs": [3394, 3499],
+    "implementation_prs": [3394, 3499, 3553],
     "t500_t501_closeout": {
       "number": 3394,
       "branch": "gpt/reconcile/011-managed-git-worker-main-v4-20260730",
@@ -21,6 +21,20 @@
       "number": 3499,
       "branch": "gpt/spec-011-t502-governed-remote-git-transport-20260730",
       "role": "t502_remote_git_transport",
+      "status": "merged",
+      "merge_sha": "7553051d1d7f0912aace41090aec552c32d7de22"
+    },
+    "t502_hardening": {
+      "number": 3553,
+      "branch": "gpt/spec-011-t502-transport-input-hardening-20260730",
+      "role": "t502_fail_closed_input_hardening",
+      "status": "merged",
+      "merge_sha": "bdf3c72143d8942b04da6ef3d83919d0502e5985"
+    },
+    "t502_closeout": {
+      "number": 3586,
+      "branch": "gpt/spec-011-t502-closeout-evidence-20260730",
+      "role": "t502_delivery_evidence",
       "status": "current_pr"
     },
     "superseded_prs": [3240, 3259, 3326]
@@ -37,16 +51,25 @@
       "main_blob_sha": "89c919b84ac920a1af1510e08e4d5440e0f22597"
     },
     "t502_remote_git_transport": {
-      "status": "implemented_pending_ci",
-      "pr": 3499,
+      "status": "implemented_merged_hardened",
+      "implementation_pr": 3499,
+      "hardening_pr": 3553,
+      "implementation_merge_sha": "7553051d1d7f0912aace41090aec552c32d7de22",
+      "hardening_merge_sha": "bdf3c72143d8942b04da6ef3d83919d0502e5985",
+      "main_transport_blob_sha": "de6ebc491cf8096b303340174e8ff3e0c769bff9",
+      "main_orchestrator_blob_sha": "b2076ccac4b887ed445462a9ba5dbe56f5232182",
+      "main_input_hardening_test_blob_sha": "467c9e35ff4769941502845985d1bac8da45e930",
       "focused_tests": [
         "test-managed-git-remote-transport.mjs",
-        "test-operation-orchestrator-managed-git-transport.mjs"
+        "test-operation-orchestrator-managed-git-transport.mjs",
+        "test-managed-git-remote-transport-input-hardening.mjs"
       ],
       "force_push_allowed": false,
       "credential_secret_exposed": false,
       "persistent_credential_file_created": false,
-      "workspace_path_exposed": false
+      "workspace_path_exposed": false,
+      "option_like_branch_rejected": true,
+      "relative_workspace_rejected": true
     },
     "t500_t501_ci": {
       "status": "passed",
@@ -60,23 +83,41 @@
       }
     },
     "t502_ci": {
-      "status": "pending",
+      "status": "passed",
+      "run_id": 30535282634,
+      "validated_head_sha": "58d126fca3613ece402b7565604f47b060a5afa2",
       "required_jobs": {
-        "syntax_check": "pending",
-        "architecture_drift_detection": "pending",
-        "execution_resolver_gate": "pending",
-        "unit_and_integration_tests": "pending"
+        "syntax_check": "success",
+        "architecture_drift_detection": "success",
+        "execution_resolver_gate": "success",
+        "unit_and_integration_tests": "success"
+      }
+    },
+    "t502_hardening_ci": {
+      "status": "passed",
+      "run_id": 30536413250,
+      "validated_head_sha": "5fd29613226f610214448be609236697d2d990c6",
+      "required_jobs": {
+        "syntax_check": "success",
+        "architecture_drift_detection": "success",
+        "execution_resolver_gate": "success",
+        "unit_and_integration_tests": "success"
       }
     },
     "release_readiness": {
-      "status": "t500_t501_passed_t502_pending",
+      "status": "code_complete_migration_pending",
       "t500_t501_merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6",
-      "t500_t501_default_branch_readback": "passed",
+      "t502_merge_sha": "7553051d1d7f0912aace41090aec552c32d7de22",
+      "t502_hardening_merge_sha": "bdf3c72143d8942b04da6ef3d83919d0502e5985",
+      "default_branch_readback": "passed",
       "superseded_prs_closed": true
     },
     "migration": {
       "status": "not_applied",
-      "file": "http-generic-api/migrations/20260728_operation_managed_git_ephemeral_checkout.sql"
+      "file": "http-generic-api/migrations/20260728_operation_managed_git_ephemeral_checkout.sql",
+      "migration_checksum_sha256": "8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c",
+      "expected_statement_count": 1,
+      "typed_apply_confirmation": "APPLY_20260728_OPERATION_MANAGED_GIT_EPHEMERAL_CHECKOUT"
     },
     "production_verification": {
       "status": "not_required"

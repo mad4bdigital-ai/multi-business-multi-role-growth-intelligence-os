@@ -183,6 +183,12 @@
         "role": "phase3_delegation_mariadb_adapter_and_readiness_contract",
         "status": "merged",
         "merge_sha": "33dbcc6f15bbee07b8b106bcf99a77acf9206494"
+      },
+      {
+        "number": 3465,
+        "role": "phase3_delegation_mariadb_disposable_certification_and_default_off_runtime_binding",
+        "status": "merged",
+        "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed"
       }
     ],
     "closeout_pr": {
@@ -190,6 +196,13 @@
       "branch": null,
       "role": "spec_completion",
       "status": "pending_remaining_phases"
+    },
+    "phase3_delegation_mariadb_certification_pr": {
+      "number": 3465,
+      "branch": "gpt/spec-011-phase3-delegation-mariadb-certification-final3-20260730",
+      "role": "delegation_mariadb_disposable_certification_and_default_off_runtime_binding",
+      "status": "merged",
+      "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed"
     }
   },
   "evidence": {
@@ -413,7 +426,8 @@
       "merge_sha": "33dbcc6f15bbee07b8b106bcf99a77acf9206494"
     },
     "implementation": {
-      "status": "phase3_delegation_mariadb_adapter_contract_complete_on_main"
+      "status": "phase3_delegation_mariadb_adapter_contract_complete_on_main",
+      "phase3_delegation_mariadb_certification_status": "certified_default_off_on_main"
     },
     "ci": {
       "status": "pass",
@@ -677,7 +691,96 @@
       "phase3_delegation_mariadb_adapter_pull_request": 3246,
       "t141_status": "open_pending_governed_lifecycle_mutations",
       "spec_status": "pending_remaining_phases",
-      "phase3_delegation_mariadb_adapter_merge_sha": "33dbcc6f15bbee07b8b106bcf99a77acf9206494"
+      "phase3_delegation_mariadb_adapter_merge_sha": "33dbcc6f15bbee07b8b106bcf99a77acf9206494",
+      "phase3_delegation_mariadb_certification_status": "certified_default_off_on_main",
+      "phase3_delegation_mariadb_certification_pull_request": 3465,
+      "phase3_delegation_mariadb_certification_merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed",
+      "phase3_delegation_mariadb_disposable_certification": "pass",
+      "phase3_delegation_mariadb_runtime_binding_code_present": true,
+      "phase3_delegation_mariadb_runtime_binding_enabled": false,
+      "phase3_delegation_mariadb_runtime_policy_ready": false,
+      "phase3_delegation_mariadb_production_migration_applied": false,
+      "phase3_delegation_mariadb_production_runtime_authority": false
+    },
+    "phase3_delegation_mariadb_certification_runtime_binding": {
+      "status": "certified_default_off_on_main",
+      "source_main_sha": "0d6e52236a91e99ea5fda0af15f7e36d3aea147f",
+      "pull_request": 3465,
+      "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed",
+      "merged_at": "2026-07-30T10:42:44Z",
+      "readiness_collector": "http-generic-api/delegationGrantMariaDbReadinessCollector.js",
+      "runtime_binding": "http-generic-api/delegationGrantMariaDbRuntimeBinding.js",
+      "certification_script": "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs",
+      "production_cycle": "http-generic-api/scripts/delegation-mariadb-production-cycle.mjs",
+      "workflow": ".github/workflows/spec-011-delegation-mariadb-certification.yml",
+      "design": "phase3-delegation-mariadb-certification-runtime-binding.md",
+      "disposable_engine": "mariadb:11.4",
+      "governed_migration_runner_reused": true,
+      "disposable_migration_applied": true,
+      "disposable_lifecycle_mutations_verified": true,
+      "create_verified": true,
+      "revoke_verified": true,
+      "expire_verified": true,
+      "same_cycle_receipt_readback_verified": true,
+      "persisted_active_grant_hash_verified": true,
+      "mariadb_datetime_serialization_verified": true,
+      "fixed_customer_identifiers_present": false,
+      "runtime_binding_code_present": true,
+      "runtime_binding_enabled": false,
+      "runtime_policy_ready": false,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "production_runtime_authority": false,
+      "public_route": false,
+      "openapi_operation_added": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase3_delegation_mariadb_certification_ci": {
+      "status": "pass",
+      "head_sha": "1c70c16965548500bca95fa32d6864052b1d3547",
+      "base_sha": "0d6e52236a91e99ea5fda0af15f7e36d3aea147f",
+      "ci_run_id": 30534933337,
+      "certification_run_id": 30534933319,
+      "frontend_dispatch_run_id": 30534933349,
+      "disposable_mariadb_certification": "pass",
+      "frontend_dispatch": "pass",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_mariadb_certification_migration": {
+      "status": "disposable_certified_production_unapplied",
+      "file": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+      "disposable_migration_applied": true,
+      "disposable_database_write": true,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "backfill_performed": false,
+      "production_same_cycle_readback_required_before_apply": true
+    },
+    "phase3_delegation_mariadb_certification_production_verification": {
+      "status": "not_executed_authorization_and_credentials_required",
+      "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed",
+      "final_ci_head_sha": "1c70c16965548500bca95fa32d6864052b1d3547",
+      "final_ci_base_sha": "0d6e52236a91e99ea5fda0af15f7e36d3aea147f",
+      "runtime_binding_enabled": false,
+      "runtime_policy_ready": false,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "runtime_authority": false,
+      "public_route": false,
+      "provider_dispatch_performed": false,
+      "deployment_required": false,
+      "deployment_performed_for_closeout": false,
+      "rollback_required": false,
+      "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
     }
   },
   "sensitive_values_included": false
