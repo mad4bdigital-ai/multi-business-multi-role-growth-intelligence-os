@@ -1,0 +1,76 @@
+name: PR3371 Current Main Reconcile
+
+on:
+  push:
+    branches:
+      - gpt/fix-1006-capability-coverage-collation-20260730-v2
+    paths:
+      - .github/workflows/pr3371-main-reconcile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr3371-current-main-reconcile
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/fix-1006-capability-coverage-collation-20260730-v2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Merge current main without conflict overrides
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch already contains current main."
+          else
+            if ! git merge --no-ff --no-commit origin/main; then
+              echo "::error::Reconciliation produced conflicts; explicit review is required"
+              git diff --name-only --diff-filter=U
+              git merge --abort
+              exit 1
+            fi
+          fi
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate reconciled migration fix
+        working-directory: http-generic-api
+        run: |
+          node test-agent-capability-coverage.mjs
+          printf '%s\n' \
+            migrations/1006_sprint69_agent_capability_evidence_coverage.sql \
+            test-agent-capability-coverage.mjs \
+            > "$RUNNER_TEMP/pr3371-reconcile-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/pr3371-reconcile-files.txt"
+
+      - name: Commit merge and remove branch workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git commit -m "merge: reconcile Migration 1006 collation fix with current main"
+          fi
+          rm .github/workflows/pr3371-main-reconcile.yml
+          git add .github/workflows/pr3371-main-reconcile.yml
+          git commit -m "chore(ci): remove PR #3371 reconciliation workflow"
+          git push origin HEAD:gpt/fix-1006-capability-coverage-collation-20260730-v2
