@@ -132,3 +132,52 @@ jobs:
           git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
           git commit -m "chore(ci): refresh frontend dispatch evidence"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+  pr-3162-rebuild:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 3295
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/pr-3162-rebuild-main-20260730-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - run: npm ci
+        working-directory: http-generic-api
+      - name: Execute bounded PR 3162 rebuild
+        shell: bash
+        run: |
+          if grep -q 'profile: "backend_local_manager"' http-generic-api/scripts/frontend-surface-dispatch.mjs; then
+            echo "PR 3162 rebuild already applied."
+            exit 0
+          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const YAML = require('./http-generic-api/node_modules/yaml');
+          const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
+          const steps = workflow.jobs.rebuild.steps;
+          for (const name of [
+            'Apply bounded reconciliation patch',
+            'Generate and validate frontend surface evidence',
+            'Commit bounded reconciliation result',
+          ]) {
+            const step = steps.find((entry) => entry.name === name);
+            if (!step || typeof step.run !== 'string') {
+              throw new Error(`Missing bounded workflow step: ${name}`);
+            }
+            const result = spawnSync('bash', ['-lc', step.run], {
+              cwd: process.cwd(),
+              env: process.env,
+              stdio: 'inherit',
+            });
+            if (result.status !== 0) process.exit(result.status || 1);
+          }
+          NODE
