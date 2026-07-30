@@ -1,4 +1,5 @@
 // frontend-surface-operation: DELETE /local-connector/uninstall
+// Owns runtime guard discovery, canonical OpenAPI parity, and secret-rotation behavior.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
