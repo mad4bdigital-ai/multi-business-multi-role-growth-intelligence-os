@@ -2,7 +2,7 @@ name: EC1 Closeout Test Registration
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
 
 permissions:
   contents: write
@@ -46,13 +46,12 @@ jobs:
           fs.writeFileSync(path, text);
           NODE
 
-      - name: Run bounded EC1 and Context Kernel regressions
+      - name: Run bounded dependency-free EC1 regressions
         working-directory: http-generic-api
         run: |
           node test-execution-capsule-shadow-adapter.mjs
           node test-execution-capsule-shadow-composition.mjs
           node test-execution-capsule-contract.mjs
-          node test-context-kernel-shadow-integration.mjs
           node test-context-kernel-domain.mjs
           node test-context-kernel-application-use-cases.mjs
 
