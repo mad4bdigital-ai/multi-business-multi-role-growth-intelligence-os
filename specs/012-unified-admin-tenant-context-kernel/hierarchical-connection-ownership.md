@@ -221,11 +221,8 @@ Provider authorization state MUST be signed, expiring, nonce-bound, single-use, 
 - allowlisted redirect target reference;
 - nonce hash;
 - issue and expiry timestamps;
-- optional claimed timestamp;
-- claim revision;
-- internal non-exportable claim-token hash;
-- consumed timestamp when completed;
-- completion revision;
+- `claimedAt`, `claimRevision`, and a state-bound `claimTokenHash` while the state is `claimed`;
+- consumed timestamp and completion revision when completed;
 - state status and signature version.
 
 The state lifecycle is normative:
@@ -241,7 +238,9 @@ issued
 
 Before any authorization-code exchange, provider call, credential lookup, or credential mutation, the callback MUST atomically claim the state through a compare-and-set from `issued` to `claimed`, conditioned on the state revision, expiry, nonce, context binding, and unconsumed status. Exactly one concurrent callback receives the internal claim token and may continue. Concurrent losers fail with `OAUTH_STATE_CLAIM_CONFLICT`; later callbacks against a consumed state fail with `OAUTH_STATE_REPLAYED`. Neither case may exchange a code or mutate credentials.
 
-The claim token is short-lived, state-specific, internal, and non-exportable. A failed exchange may move the state only through a governed terminal or recoverable transition and MUST NOT make the same state freely claimable again.
+Every persisted `claimed` state MUST contain `claimedAt`, `claimRevision`, and `claimTokenHash`. A claimed state missing any of this verifier evidence is invalid and cannot exchange a code or complete. This permits the legitimate callback to resume on another worker after process restart while preserving the exactly-one-claimant guarantee.
+
+The raw claim token is short-lived, state-specific, internal, and non-exportable. Provider exchange and completion verify it against the persisted state-bound hash; status and revision alone are never sufficient. A failed exchange may move the state only through a governed terminal or recoverable transition and MUST NOT make the same state freely claimable again.
 
 Reconnect state additionally includes:
 
@@ -251,7 +250,7 @@ Reconnect state additionally includes:
 
 Callbacks MUST reject replay, expiry, signature failure, redirect mismatch, provider-account mismatch, connection-revision mismatch, and any mismatch between signed state and live tenant, workspace, brand, membership, ownership, or target-connection context.
 
-A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection. Credential replacement itself MUST use a compare-and-set conditioned on the signed expected connection revision, the live target connection revision, the current claimed-state revision, and the valid claim token. The encrypted credential replacement, durable provider-account binding update, target connection revision increment, and transition of the same authorization state from `claimed` to `consumed` MUST commit through one governed atomic completion boundary. If any revision moved, no credential replacement becomes visible and a new authorization attempt is required.
+A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection. Credential replacement itself MUST use a compare-and-set conditioned on the signed expected connection revision, the live target connection revision, the current claimed-state revision, and successful verification of the claim token against the persisted hash. The encrypted credential replacement, durable provider-account binding update, target connection revision increment, and transition of the same authorization state from `claimed` to `consumed` MUST commit through one governed atomic completion boundary. If any revision moved or verifier validation fails, no credential replacement becomes visible and a new authorization attempt is required.
 
 Callbacks MUST NOT accept free `user_id`, `tenant_id`, `workspace_id`, or `brand_id` values as authority.
 
@@ -333,6 +332,7 @@ The persistence phase will introduce or normalize:
 - durable safe provider-account references or versioned privacy-preserving provider-account binding hashes;
 - provider scopes;
 - authorization and connection revisions;
+- persisted claimed-state verifier evidence;
 - reconnect target/account binding state;
 - active/default uniqueness constraints within one exact scope;
 - compatibility classification for legacy rows.
@@ -373,10 +373,11 @@ The platform MUST NOT restore a prior selector that can choose a connection usin
 20. Rollback retains exact-owner isolation or disables affected provider operations.
 21. Concurrent callbacks using one issued state yield exactly one atomic claim and no losing provider exchange or credential mutation.
 22. Reconnect credential replacement is rejected without visible mutation when the target connection revision moves after callback validation.
-23. Reconnect credential replacement and authorization-state consumption complete atomically or both remain unapplied.
+23. Reconnect credential replacement and authorization-state consumption complete atomically or both remain unapplied under fault injection at every substep.
 24. Operations requiring no human approval still compile and bind an exact execution plan before credential materialization.
 25. Owner-scope substitution or owner-scope revision movement changes the context hash and invalidates dependent plans and approvals.
 26. A durable privacy-preserving provider-account binding remains available for reconnect after credential expiry or revocation when the raw account reference is not retained.
+27. A claimed callback can resume on another worker only by presenting a token that verifies against mandatory persisted claim evidence.
 
 ## Multi-PR implementation sequence
 
