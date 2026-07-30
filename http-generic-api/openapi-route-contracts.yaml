@@ -1,5 +1,6 @@
 contracts:
   POST /admin/container-authority/override-governance-smokes:
+    route_file: 'routes/dynamicContainerOverrideGovernanceSmokeRoutes.js'
     path_item_ref: './openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes'
     owner: dynamic_container_authority
     exposure: admin_tool

@@ -35,7 +35,13 @@ jobs:
 
       - name: Guard merge and runtime interruption readiness
         working-directory: http-generic-api
-        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+        shell: bash
+        env:
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          MERGE_TARGET="${PULL_REQUEST_BASE_SHA:-origin/main}"
+          node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree --target "$MERGE_TARGET"
 
       - name: Validate canonical source structure
         run: node validate-canonical-sources.mjs
