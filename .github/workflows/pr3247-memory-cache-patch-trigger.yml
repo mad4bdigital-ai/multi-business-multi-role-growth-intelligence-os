@@ -1,0 +1,45 @@
+name: PR 3247 ownership patch trigger
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-existing-patch:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'gpt/response-chunk-ownership-a23e0076'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/response-chunk-ownership-a23e0076
+          fetch-depth: 0
+      - name: Execute exact patch script
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/pr3247-memory-cache-patch.yml').read_text(encoding='utf-8').splitlines()
+          marker = '        run: |'
+          try:
+              start = source.index(marker) + 1
+          except ValueError as exc:
+              raise SystemExit('Patch run block was not found') from exc
+
+          body = []
+          for line in source[start:]:
+              if line and len(line) - len(line.lstrip(' ')) <= 8:
+                  break
+              body.append(line[10:] if line.startswith('          ') else line)
+
+          script = '\n'.join(body).rstrip() + '\n'
+          if 'security: enforce response chunk cache ownership' not in script:
+              raise SystemExit('Patch script integrity marker is missing')
+          Path('/tmp/pr3247-patch.sh').write_text(script, encoding='utf-8')
+          PY
+          bash /tmp/pr3247-patch.sh
