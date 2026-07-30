@@ -28,6 +28,18 @@ export const READINESS_REPAIR_RUNNER_VERSION =
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const CONNECTED_SYSTEM_TENANT_ID = "f2795a7f-8d06-4053-8bee-35ca9af8b460";
 const CONNECTED_SYSTEM_KEY = "github_rest_prod_platform_managed";
+const CONNECTED_SYSTEM_ID = "2f4ce77b-0ef8-4d83-aec4-1fca5e332108";
+const TARGET_SYSTEM = Object.freeze({
+  display_name: "GitHub REST - Production Platform Managed",
+  provider_family: "github_com_connector",
+  provider_domain: "https://api.github.com",
+  connector_family: "github_com_connector",
+  service_mode: "managed",
+  self_serve_capable: 0,
+  assisted_capable: 1,
+  managed_capable: 1,
+  status: "active",
+});
 const AUTHORITY_BINDING_KEY = "growth_intelligence_platform.github.primary.production";
 const CAPABILITY_BINDING_KEY =
   "growth_intelligence_platform.github.repository_main_moved_webhook.production";
@@ -88,7 +100,8 @@ function oneRow(rows, name, { allowMissing = false } = {}) {
       row_count: rows.length,
     });
   }
-  return rows[0] || null;
+  const [onlyRow = null] = rows;
+  return onlyRow;
 }
 
 function publicMetadata(value) {
@@ -112,9 +125,16 @@ function publicState(state = {}) {
           system_id: state.system.system_id,
           tenant_id: state.system.tenant_id,
           system_key: state.system.system_key,
+          display_name: state.system.display_name,
+          provider_family: state.system.provider_family,
+          provider_domain: state.system.provider_domain,
+          connector_family: state.system.connector_family,
           service_mode: state.system.service_mode,
+          self_serve_capable: Number(state.system.self_serve_capable || 0),
+          assisted_capable: Number(state.system.assisted_capable || 0),
           managed_capable: Number(state.system.managed_capable || 0),
           status: state.system.status,
+          config: publicMetadata(state.system.config_json),
         }
       : null,
     authority: state.authority
@@ -184,11 +204,21 @@ async function readState(db, { forUpdate = false } = {}) {
   // fail with a connection-level command sequencing error.
   const systemRows = await queryRows(
     db,
-    `SELECT system_id, tenant_id, system_key, service_mode, managed_capable, status, config_json
+    `SELECT system_id, tenant_id, system_key, display_name, provider_family, provider_domain,
+            connector_family, service_mode, self_serve_capable, assisted_capable,
+            managed_capable, status, config_json
        FROM connected_systems
       WHERE tenant_id = ? AND system_key = ?
       LIMIT 2${lockSuffix}`,
     [CONNECTED_SYSTEM_TENANT_ID, CONNECTED_SYSTEM_KEY],
+  );
+  const systemIdRows = await queryRows(
+    db,
+    `SELECT system_id, tenant_id, system_key
+       FROM connected_systems
+      WHERE system_id = ?
+      LIMIT 2${lockSuffix}`,
+    [CONNECTED_SYSTEM_ID],
   );
   const authorityRows = await queryRows(
     db,
@@ -245,8 +275,19 @@ async function readState(db, { forUpdate = false } = {}) {
       ORDER BY table_name, column_name`,
   );
 
+  const system = oneRow(systemRows, "connected_system", { allowMissing: true });
+  const systemById = oneRow(systemIdRows, "connected_system_id", { allowMissing: true });
+  const systemIdCollision = Boolean(
+    systemById && (
+      systemById.tenant_id !== CONNECTED_SYSTEM_TENANT_ID
+      || systemById.system_key !== CONNECTED_SYSTEM_KEY
+      || (system && system.system_id !== systemById.system_id)
+    ),
+  );
+
   return {
-    system: oneRow(systemRows, "connected_system", { allowMissing: true }),
+    system,
+    system_id_collision: systemIdCollision,
     authority: oneRow(authorityRows, "repository_authority_binding"),
     capability: oneRow(capabilityRows, "repository_capability_binding"),
     policy: oneRow(policyRows, "capability_policy"),
@@ -287,6 +328,27 @@ export function assertReadinessRepairStatements(statements = []) {
   return true;
 }
 
+function metadataFlagsReady(value, expectedSourceKey, expectedSourceValue) {
+  const metadata = parseJson(value, {});
+  return metadata[expectedSourceKey] === expectedSourceValue
+    && metadata.provider_call_executed === false
+    && metadata.external_write_executed === false
+    && metadata.credential_payload_read === false
+    && metadata.secrets_included === false;
+}
+
+function systemConfigReady(value) {
+  const config = parseJson(value, {});
+  return config.source === "migration:20260725_repository_authority_capability_readiness_repair"
+    && config.execution_readiness === "ready"
+    && config.authority_role === "repository_shared_platform_adapter"
+    && config.provider_transport === "http_generic_api"
+    && config.provider_call_executed === false
+    && config.external_write_executed === false
+    && config.credential_payload_read === false
+    && config.secrets_included === false;
+}
+
 export function assessReadinessRepairState(state = {}) {
   const blocking = [];
   const system = state.system || null;
@@ -315,16 +377,67 @@ export function assessReadinessRepairState(state = {}) {
   if (!Array.isArray(state.collations) || state.collations.length !== 2) {
     blocking.push("system_id_collation_evidence_incomplete");
   }
+  if (state.system_id_collision) blocking.push("connected_system_id_collision");
+  if (authorization && Number(authorization.requires_preflight || 0) !== 1) {
+    blocking.push("migration_preflight_requirement_missing");
+  }
+  if (authorization && Number(authorization.requires_confirmation || 0) !== 1) {
+    blocking.push("migration_confirmation_requirement_missing");
+  }
+  if (policy && policy.app_key !== "github") blocking.push("policy_app_key_mismatch");
+  if (policy && capability && policy.capability_key !== capability.capability_key) {
+    blocking.push("policy_capability_key_mismatch");
+  }
+  if (policy && capability && policy.operation_intent !== capability.operation_intent) {
+    blocking.push("policy_operation_intent_mismatch");
+  }
 
   const systemReady = Boolean(
-    system && system.status === "active" && system.service_mode === "managed" && Number(system.managed_capable || 0) === 1,
+    system
+    && system.system_id === CONNECTED_SYSTEM_ID
+    && Object.entries(TARGET_SYSTEM).every(([key, value]) => (
+      ["self_serve_capable", "assisted_capable", "managed_capable"].includes(key)
+        ? Number(system[key] || 0) === value
+        : system[key] === value
+    ))
+    && systemConfigReady(system.config_json)
   );
-  const authorityReady = Boolean(
+  const authorityCoreReady = Boolean(
     system && authority && equalNullable(authority.system_id, system.system_id) && authority.installation_id === null,
   );
-  const capabilityReady = Boolean(
+  const authorityMetadataReady = Boolean(
+    authority && metadataFlagsReady(
+      authority.metadata_json,
+      "readiness_repair_migration",
+      "20260725_repository_authority_capability_readiness_repair",
+    )
+    && parseJson(authority.metadata_json, {}).system_authority_source === "platform_managed_connected_system"
+    && parseJson(authority.metadata_json, {}).managed_system_key === CONNECTED_SYSTEM_KEY,
+  );
+  const capabilityCoreReady = Boolean(
     capability && policy && equalNullable(capability.policy_key, policy.policy_key),
   );
+  const capabilityMetadataReady = Boolean(
+    capability && metadataFlagsReady(
+      capability.metadata_json,
+      "readiness_repair_migration",
+      "20260725_repository_authority_capability_readiness_repair",
+    )
+    && parseJson(capability.metadata_json, {}).policy_authority_source === "capability_apply_authorization_policy_registry",
+  );
+
+  // The migration updates authority/capability metadata only when their core
+  // WHERE predicates match. Metadata-only drift is therefore not repairable by
+  // blindly rerunning this SQL and must fail closed.
+  if (authorityCoreReady && !authorityMetadataReady) {
+    blocking.push("authority_metadata_drift_not_repairable_by_current_sql");
+  }
+  if (capabilityCoreReady && !capabilityMetadataReady) {
+    blocking.push("capability_metadata_drift_not_repairable_by_current_sql");
+  }
+
+  const authorityReady = authorityCoreReady && authorityMetadataReady;
+  const capabilityReady = capabilityCoreReady && capabilityMetadataReady;
   const targetSatisfied = systemReady && authorityReady && capabilityReady;
 
   return {
@@ -334,7 +447,11 @@ export function assessReadinessRepairState(state = {}) {
     target_satisfied: targetSatisfied,
     system_ready: systemReady,
     authority_ready: authorityReady,
+    authority_core_ready: authorityCoreReady,
+    authority_metadata_ready: authorityMetadataReady,
     capability_ready: capabilityReady,
+    capability_core_ready: capabilityCoreReady,
+    capability_metadata_ready: capabilityMetadataReady,
     ledger_present: Boolean(state.ledger),
     secrets_included: false,
   };
@@ -400,7 +517,8 @@ async function ledgerSupportsCapabilityEnvelope(db) {
         AND table_name = 'governed_migration_ledger'
         AND column_name = 'capability_envelope_id'`,
   );
-  return Number(rows[0]?.count || 0) === 1;
+  const [columnEvidence = null] = rows;
+  return Number(columnEvidence?.count || 0) === 1;
 }
 
 async function recordLedger(db, { results, before, after, capabilityEnvelopeId }) {
@@ -541,7 +659,8 @@ async function runDryRun(pool, migration) {
 
 async function acquireLock(connection) {
   const rows = await queryRows(connection, "SELECT GET_LOCK(?, 15) AS acquired", [LOCK_NAME]);
-  if (Number(rows[0]?.acquired || 0) !== 1) {
+  const [lockEvidence = null] = rows;
+  if (Number(lockEvidence?.acquired || 0) !== 1) {
     throw runnerError("readiness_repair_advisory_lock_unavailable", "Could not acquire the migration advisory lock.", {
       advisory_lock: LOCK_NAME,
     });
