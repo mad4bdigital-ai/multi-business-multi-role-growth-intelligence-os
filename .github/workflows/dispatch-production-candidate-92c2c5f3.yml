@@ -1,4 +1,4 @@
-name: Dispatch Production Candidate f9c8260a
+name: Dispatch Production Candidate 5b35701b
 
 on:
   pull_request:
@@ -22,32 +22,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          gh workflow run production-promotion-candidate.yml \
+          RUN_URL="$(gh workflow run production-promotion-candidate.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
-            -f expected_main_sha=f9c8260aec57cf0955d65eb149d732714b837ef8 \
+            -f expected_main_sha=5b35701bab7c557b61e988303958717c55a13ac8 \
             -f expected_production_sha=fbcf77ae19738fcbd31211e874bfa315da83294e \
-            -f release_branch=release/production-candidate-f9c8260a-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-f9c8260a \
-            -f validation_base_branch=gpt/validate-production-base-f9c8260a \
-            -f create_pull_requests=true
-
-          RUN_ID=""
-          for attempt in $(seq 1 40); do
-            RUN_ID="$(gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow production-promotion-candidate.yml \
-              --branch main \
-              --event workflow_dispatch \
-              --limit 30 \
-              --json databaseId,createdAt \
-              --jq "map(select(.createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
-            if [[ -n "$RUN_ID" ]]; then break; fi
-            sleep 3
-          done
-          if [[ -z "$RUN_ID" ]]; then
-            echo 'Unable to resolve governed builder run ID.' >&2
+            -f release_branch=release/production-candidate-5b35701b-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-5b35701b \
+            -f validation_base_branch=gpt/validate-production-base-5b35701b \
+            -f create_pull_requests=true)"
+          printf '%s\n' "$RUN_URL"
+          RUN_ID="${RUN_URL##*/}"
+          if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "Unable to parse governed builder run ID from: $RUN_URL" >&2
             exit 1
           fi
           echo "builder_run_id=$RUN_ID"
