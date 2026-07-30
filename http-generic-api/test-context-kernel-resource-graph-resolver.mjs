@@ -151,13 +151,18 @@ assert.equal(
   false,
 );
 assert.equal(Object.hasOwn(result, "credentialPayload"), false);
+assert.equal(result.nodes.some((node) => Object.hasOwn(node, "tenantMismatch")), false);
+assert.equal(result.bounds.maxEdges, 80);
+assert.equal(result.bounds.maxRestrictions, 40);
 assert.equal(Object.isFrozen(result), true);
 assert.equal(Object.isFrozen(result.nodes), true);
 assert.equal(Object.isFrozen(result.nodes[0]), true);
 
 assert.equal(calls.length, 1);
 assert.deepEqual(calls[0], {
+  principalType: "tenant_user",
   principalRef: "user-a",
+  subjectType: "tenant_user",
   subjectRef: "user-a",
   tenantRef: "tenant-a",
   workspaceRef: "workspace-a",
