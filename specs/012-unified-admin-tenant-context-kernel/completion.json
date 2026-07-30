@@ -56,20 +56,21 @@
       },
       {
         "number": 3628,
-        "status": "current_pr",
+        "status": "merged",
+        "head_sha": "f53d8864e642b42db3a3e08bc9ced615edfa053a",
+        "merge_sha": "35c9ceae7dc4c2af92fbb9697cedd5bffd4f2862",
         "role": "phase_3_connection_ownership_migration_preflight_and_readback_contract"
       }
     ]
   },
   "evidence": {
     "ci": {
-      "status": "persistence_and_preflight_artifact_ci_passed_full_spec_pending",
+      "status": "persistence_and_preflight_artifacts_ci_passed_full_spec_pending",
       "scope": "full_spec_and_hierarchical_connection_ownership_delivery"
     },
     "implementation_ci": {
-      "status": "passed_for_recorded_slices_including_pr_3483_ec0_and_pr_3628_initial_head",
-      "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483],
-      "current_pr": 3628,
+      "status": "passed_for_recorded_slices_including_pr_3483_ec0_and_pr_3628",
+      "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483, 3628],
       "full_spec_status": "pending"
     },
     "connection_ownership_persistence": {
@@ -92,10 +93,25 @@
       "production_deployed": false
     },
     "connection_ownership_migration_preflight": {
-      "status": "current_pr_checksum_bound_repository_preflight_ci_initial_passed",
+      "status": "merged_checksum_bound_repository_preflight_ci_passed",
       "pr_number": 3628,
-      "validated_initial_head_sha": "a42f1fc7e78512cccb67296ac1e496708fff1db6",
-      "initial_ci_run_id": 30539190119,
+      "validated_head_sha": "f53d8864e642b42db3a3e08bc9ced615edfa053a",
+      "merge_sha": "35c9ceae7dc4c2af92fbb9697cedd5bffd4f2862",
+      "ci_run_id": 30540576053,
+      "syntax_check": "passed",
+      "architecture_drift_detection": "passed",
+      "execution_resolver_gate": "passed",
+      "unit_and_integration_tests": "passed",
+      "startup_evidence": "passed",
+      "governance_contract_checks": "passed",
+      "stale_readiness_rejection": "passed",
+      "hardcoding_report": "passed",
+      "frontend_surface_dispatch": "passed",
+      "docs_agent": "passed",
+      "completion_cleanup_readback": "passed",
+      "remaining_scope_scorecard": "passed",
+      "review_threads_resolved": true,
+      "human_architecture_security_review": "passed",
       "migration_file": "20260730_context_kernel_connection_ownership_persistence.sql",
       "migration_checksum_sha256": "8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf",
       "expected_statement_count": 4,
@@ -141,13 +157,17 @@
       "environment_lifecycle": "intentionally_retired"
     },
     "migration": {
-      "status": "pending_separate_authorization_preflight_contract_open",
+      "status": "pending_separate_authorization_preflight_merged",
       "artifact_pr": 3483,
       "artifact_merge_sha": "a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902",
       "preflight_pr": 3628,
+      "preflight_merge_sha": "35c9ceae7dc4c2af92fbb9697cedd5bffd4f2862",
       "migration_checksum_sha256": "8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf",
       "expected_statement_count": 4,
       "typed_apply_confirmation": "APPLY_20260730_CONTEXT_KERNEL_CONNECTION_OWNERSHIP_PERSISTENCE",
+      "live_environment_selected": false,
+      "live_dry_run_executed": false,
+      "authorization_created": false,
       "applied": false,
       "same_cycle_readback": false
     },
@@ -161,13 +181,12 @@
       "status": "pending"
     }
   },
-  "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or connection mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect replacement compares the signed expected connection revision, live connection revision, claimed-state revision, verified claim token, provider identity, owner scope, brand, and provider-account binding; connection mutation, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under fault injection. PR #3483 was merged at a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902 after all required CI gates passed. PR #3628 prepares a repository-only checksum-bound migration preflight and schema-readback contract for checksum 8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf and statement count 4. The preflight computes and verifies exact migration identity, rejects statement-scope drift, row backfill, and destructive SQL, builds exact governed dry-run and schema-readback inputs, and classifies live schema evidence as absent, partial, or ready. It does not select a live environment, call a database, create migration authorization or a capability envelope, execute a live dry-run, apply SQL, enable runtime consumers, call a provider, mutate credentials, deploy, or promote Production. The retired dev.mad4b.com environment remains unavailable. Additive persistence application remains separately authorized and requires approved environment identity, exact checksum binding, typed confirmation, ledger, and same-cycle schema readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks remain release blocking. Runtime implementation remains split across governed PRs for separately authorized migration application, tenant OAuth, context resolution, authority and capability integration, readiness, activation, OpenAPI compatibility, rollout, production verification, and post-merge audit.",
+  "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or connection mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect replacement compares the signed expected connection revision, live connection revision, claimed-state revision, verified claim token, provider identity, owner scope, brand, and provider-account binding; connection mutation, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under fault injection. PR #3483 was merged at a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902 after all required CI gates passed. PR #3628 was merged at 35c9ceae7dc4c2af92fbb9697cedd5bffd4f2862 after all required CI and helper workflows passed on head f53d8864e642b42db3a3e08bc9ced615edfa053a. It adds a repository-only checksum-bound migration preflight and schema-readback contract for checksum 8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf and statement count 4. The preflight computes and verifies exact migration identity, rejects statement-scope drift, row backfill, and destructive SQL, builds exact governed dry-run and schema-readback inputs, and classifies live schema evidence as absent, partial, or ready. It selected no live environment, called no database, created no migration authorization or capability envelope, executed no live dry-run, applied no SQL, enabled no runtime consumer, called no provider, mutated no credential, deployed nothing, and did not promote Production. The retired dev.mad4b.com environment remains unavailable. Additive persistence application remains separately authorized and requires approved environment identity, exact checksum binding, typed confirmation, ledger, and same-cycle schema readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks remain release blocking. Runtime implementation remains split across governed PRs for separately authorized migration application, tenant OAuth, context resolution, authority and capability integration, readiness, activation, OpenAPI compatibility, rollout, production verification, and post-merge audit.",
   "implementation_reconciliation": {
-    "status": "recorded_slices_plus_persistence_merged_ec0_complete_and_migration_preflight_open",
-    "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483],
-    "current_pr": 3628,
+    "status": "recorded_slices_plus_persistence_and_preflight_merged_ec0_complete",
+    "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483, 3628],
     "runtime_authority_granted": false,
-    "remaining_scope": "Merge and read back the checksum-bound migration preflight contract; then separately authorize an approved-environment dry-run, migration apply, and same-cycle readback. Tenant OAuth, exact owner-scope resolution, capability and authority integration, two-stage readiness, OpenAPI v0.2 exposure, low-risk read activation, governed writes, legacy removal, EC1-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
+    "remaining_scope": "Separately authorize an approved-environment live dry-run, migration apply, and same-cycle readback. Tenant OAuth, exact owner-scope resolution, capability and authority integration, two-stage readiness, OpenAPI v0.2 exposure, low-risk read activation, governed writes, legacy removal, EC1-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
   },
   "secrets_included": false
 }

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-012-ec1-execution-capsule-shadow-adapter",
+  "parent_extension": "spec-012-execution-capsule-runtime-integration",
+  "phase": "EC1_shadow_adapter",
+  "status": "in_progress",
+  "runtime_authority": false,
+  "production_activation": false,
+  "provider_call": false,
+  "database_write": false,
+  "migration_apply": false,
+  "route_or_openapi_change": false,
+  "deployment": false,
+  "artifacts": [
+    "ec1-execution-capsule-shadow-adapter.md",
+    "../../http-generic-api/contextKernel/integration/executionCapsuleShadow.js",
+    "../../http-generic-api/contextKernel/integration/index.js",
+    "../../http-generic-api/test-execution-capsule-shadow-adapter.mjs"
+  ],
+  "implemented_contracts": [
+    "resolution_service_decorator",
+    "exact_legacy_resolution_identity_preservation",
+    "canonical_ec0_capsule_service_reuse",
+    "explicit_revision_evidence_provider",
+    "revision_evidence_cannot_replace_resolved_context",
+    "resolved_context_capsule_shadow_build",
+    "unresolved_context_no_attempt",
+    "capsule_security_invariant_verification",
+    "exact_target_parity_comparison",
+    "target_mismatch_bounded_reason_code",
+    "bounded_status_tokens",
+    "shadow_clock_failure_isolation",
+    "bounded_immutable_shadow_telemetry",
+    "sanitized_failure_reason_codes",
+    "telemetry_outage_isolation",
+    "resource_api_shadow_composition_contract",
+    "provider_dispatch_always_false",
+    "legacy_resolution_modified_always_false",
+    "execution_allowed_always_false",
+    "automatic_write_performed_always_false",
+    "no_secret_shadow_projection",
+    "standalone_contract_test",
+    "bounded_contract_review",
+    "human_architecture_security_review",
+    "clean_core_build_readback"
+  ],
+  "pending_contracts": [
+    "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh",
+    "exact_head_ci_evidence",
+    "selected_runtime_shadow_composition_factory",
+    "controlled_non_production_parity_sample",
+    "shadow_adapter_rollback_evidence"
+  ],
+  "core_build": {
+    "status": "passed",
+    "build_run_id": 30542084403,
+    "built_head_sha": "e63cd5aedcb325a2383f505c20697030dfb808d6",
+    "permanent_changed_file_count": 6,
+    "global_test_registration_included": false,
+    "generated_artifact_included": false,
+    "runtime_authority_granted": false
+  },
+  "human_review": {
+    "status": "passed",
+    "blocking_findings": 0,
+    "repaired_findings": [
+      "target_mismatch_bounded_reason_code",
+      "bounded_status_tokens",
+      "shadow_clock_failure_isolation"
+    ],
+    "runtime_authority_granted": false
+  },
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "adapter_returns_exact_legacy_resolution",
+    "no_revision_inference_from_route_or_ttl",
+    "no_secret_payload_in_telemetry",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_route_or_openapi_change",
+    "no_response_or_dispatch_modification",
+    "no_production_activation",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}
