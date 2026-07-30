@@ -3,9 +3,9 @@ import {
   createExecutionCapsule,
   projectExecutionCapsule,
 } from "../domain/executionCapsule.js";
+import { deepFreeze } from "../domain/model.js";
 import {
   ContextApplicationError,
-  freezeApplicationValue,
   requireApplicationFunction,
   requireApplicationObject,
   requireApplicationString,
@@ -65,7 +65,10 @@ function selectedCandidateFromResolution(resolution) {
       { selected_candidate_ref: stableRef, exact_match_count: exactMatches.length },
     );
   }
-  return selected;
+  return requireApplicationObject(
+    exactMatches[0],
+    "resolution.candidates[selectedCandidate]",
+  );
 }
 
 function assertExactContextConsistency(context, selected) {
@@ -74,7 +77,14 @@ function assertExactContextConsistency(context, selected) {
     "resolution.context.selectedCandidate",
   );
   const pairs = [
-    ["stableRef", contextSelected.stableRef, selected.stableRef],
+    ["selectedCandidate.candidateType", contextSelected.candidateType, selected.candidateType],
+    ["selectedCandidate.stableRef", contextSelected.stableRef, selected.stableRef],
+    ["selectedCandidate.tenantRef", contextSelected.tenantRef, selected.tenantRef],
+    ["selectedCandidate.workspaceRef", contextSelected.workspaceRef, selected.workspaceRef],
+    ["selectedCandidate.brandRef", contextSelected.brandRef ?? null, selected.brandRef ?? null],
+    ["selectedCandidate.resourceType", contextSelected.resourceType, selected.resourceType],
+    ["selectedCandidate.resourceRef", contextSelected.resourceRef, selected.resourceRef],
+    ["selectedCandidate.connectionRef", contextSelected.connectionRef, selected.connectionRef],
     ["tenantRef", context.tenantRef, selected.tenantRef],
     ["workspaceRef", context.workspaceRef, selected.workspaceRef],
     ["brandRef", context.brandRef ?? null, selected.brandRef ?? null],
@@ -88,7 +98,7 @@ function assertExactContextConsistency(context, selected) {
   if (mismatches.length > 0) {
     throw new ContextApplicationError(
       "execution_capsule_context_candidate_mismatch",
-      "Resolved context and selected candidate do not describe the same exact target.",
+      "Resolved context and authorized selected candidate do not describe the same exact target.",
       409,
       { mismatch_fields: [...new Set(mismatches)].sort() },
     );
@@ -155,7 +165,7 @@ function validationResult({
   dependencyComparison = null,
   validatedAt,
 }) {
-  return freezeApplicationValue({
+  return deepFreeze({
     status,
     valid: status === ExecutionCapsuleValidationStatus.VALID,
     capsuleRef: capsule.capsuleRef,
@@ -222,6 +232,16 @@ export function createExecutionCapsuleService({
       readiness.capabilityKey,
       "capabilityKey",
     );
+    if (
+      context.capability?.capabilityKey &&
+      context.capability.capabilityKey !== capabilityKey
+    ) {
+      throw new ContextApplicationError(
+        "execution_capsule_capability_context_mismatch",
+        "Resolved context and capability readiness do not reference the same capability.",
+        409,
+      );
+    }
 
     const issued = normalizedDate(clock(), "clock result");
     const expiry = expiresAt == null
@@ -251,7 +271,7 @@ export function createExecutionCapsuleService({
       expiresAt: expiry,
     });
 
-    return freezeApplicationValue({
+    return deepFreeze({
       status: "resolved",
       capsule,
       tenantProjection: projectExecutionCapsule(capsule, "tenant"),
