@@ -22,8 +22,17 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: gpt/spec011-refresh-frontend-dispatch-current-main-20260730
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: true
+
+      - name: Merge latest main without rewriting branch history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --prune --no-tags origin main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
 
       - uses: actions/setup-node@v6
         with:
@@ -52,8 +61,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/spec011-frontend-dispatch-refresh-bootstrap.yml
-          rm .github/spec011-frontend-dispatch-refresh-trigger.json
+          rm -f .github/workflows/spec011-frontend-dispatch-refresh-bootstrap.yml
+          rm -f .github/spec011-frontend-dispatch-refresh-trigger.json
           python3 - <<'PY'
           import subprocess
           allowed = {
