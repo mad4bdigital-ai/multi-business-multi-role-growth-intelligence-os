@@ -77,4 +77,4 @@ jobs:
         run: |
           gh pr comment 3295 --repo "${{ github.repository }}" --body "PR #3162 recovery scaffolding removed in workflow run ${GITHUB_RUN_ID}; trusted CI workflows restored from current main before commit."
 
-# Serial direct trigger; no parallel merge mutation follows.
+# Native merge trigger for the serial cleanup run; no further branch mutation follows.
