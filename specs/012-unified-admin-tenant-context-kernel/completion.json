@@ -41,6 +41,13 @@
         "role": "execution_capsule_ec0_core_contract"
       },
       {
+        "number": 3500,
+        "status": "merged",
+        "head_sha": "119536e32875e6b2e6e6ba834bf7a2bda77e1314",
+        "merge_sha": "347af76b8a2c053f4e83b0e76799c98614b2199f",
+        "role": "execution_capsule_ec0_repository_registration_and_evidence"
+      },
+      {
         "number": 3483,
         "status": "merged",
         "head_sha": "0b05d0e79ea63c341170acd4eb2f7334fc3d0cef",
@@ -55,8 +62,8 @@
       "scope": "full_spec_and_hierarchical_connection_ownership_delivery"
     },
     "implementation_ci": {
-      "status": "passed_for_recorded_slices_including_pr_3483",
-      "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3483],
+      "status": "passed_for_recorded_slices_including_pr_3483_and_ec0_registration",
+      "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483],
       "full_spec_status": "pending"
     },
     "connection_ownership_persistence": {
@@ -79,9 +86,22 @@
       "production_deployed": false
     },
     "execution_capsule_ec0": {
-      "status": "contract_merged_follow_up_pending",
-      "runtime_authority": false,
-      "repository_test_manifest_registration": "pending"
+      "status": "complete_ec1_pending",
+      "core_pr": 3348,
+      "core_merge_sha": "66d4e5c6c014e124970421f9e3c877a647d2c04e",
+      "registration_pr": 3500,
+      "validated_head_sha": "119536e32875e6b2e6e6ba834bf7a2bda77e1314",
+      "registration_merge_sha": "347af76b8a2c053f4e83b0e76799c98614b2199f",
+      "main_readback_sha": "347af76b8a2c053f4e83b0e76799c98614b2199f",
+      "ci_run_id": 30536190557,
+      "generated_artifact_run_id": 30536190587,
+      "frontend_surface_dispatch_run_id": 30536190574,
+      "repository_test_manifest_registration": "complete",
+      "generated_evidence_refresh": "complete",
+      "exact_head_ci": "passed",
+      "human_architecture_security_review": "passed",
+      "review_threads_resolved": true,
+      "runtime_authority": false
     },
     "staging_post_deploy_verification": {
       "status": "manual_only",
@@ -107,10 +127,10 @@
   },
   "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or connection mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect replacement compares the signed expected connection revision, live connection revision, claimed-state revision, verified claim token, provider identity, owner scope, brand, and provider-account binding; connection mutation, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under fault injection. PR #3483 was merged at a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902 after Syntax Check, Architecture Drift Detection, Execution Resolver Gate, Unit and Integration Tests, activation-surface coverage, startup evidence, governance checks, and stale-evidence rejection passed on head 0b05d0e79ea63c341170acd4eb2f7334fc3d0cef. The PR added the persistence artifact, repositories, compatibility view, explicit persistence-only activation-surface exclusions, and contract tests. Its migration file has not been applied and no database, runtime, provider, connection, deployment, Production, or protected-branch mutation was performed by that PR. Additive persistence application remains separately authorized and requires same-cycle readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks remain release blocking. Runtime implementation remains split across governed PRs for separately authorized migration application, tenant OAuth, context resolution, authority and capability integration, readiness, activation, OpenAPI compatibility, rollout, production verification, and post-merge audit.",
   "implementation_reconciliation": {
-    "status": "recorded_slices_plus_persistence_merged",
-    "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3483],
+    "status": "recorded_slices_plus_persistence_merged_and_ec0_complete",
+    "recorded_prs": [3178, 3204, 3228, 3329, 3348, 3500, 3483],
     "runtime_authority_granted": false,
-    "remaining_scope": "Separately authorized migration and same-cycle readback, Tenant OAuth, exact owner-scope resolution, capability and authority integration, two-stage readiness, OpenAPI v0.2 exposure, low-risk read activation, governed writes, legacy removal, production verification, post-merge audit, rollback certification, and final closeout remain pending."
+    "remaining_scope": "Separately authorized migration and same-cycle readback, Tenant OAuth, exact owner-scope resolution, capability and authority integration, two-stage readiness, OpenAPI v0.2 exposure, low-risk read activation, governed writes, legacy removal, EC1-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
   },
   "secrets_included": false
 }

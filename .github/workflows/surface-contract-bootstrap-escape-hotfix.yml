@@ -1,0 +1,106 @@
+name: Surface Contract Bootstrap Validation Hotfix
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-contract-bootstrap-validation-hotfix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.event.pull_request.head.ref == 'gpt/surface-contract-classification-hardening-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout governed Surface branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/surface-contract-classification-hardening-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch bootstrap validation and cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/surface-contract-classification-bootstrap.yml')
+          source = path.read_text(encoding='utf-8')
+
+          old_escape = r"elif '(?:[-*]\\s*)?${token}' not in script:"
+          new_escape = r"elif '(?:[-*]\\\\s*)?${token}' not in script:"
+          if new_escape not in source:
+              count = source.count(old_escape)
+              if count != 1:
+                  raise SystemExit(f'bootstrap_escape_anchor_count:{count}')
+              source = source.replace(old_escape, new_escape, 1)
+
+          cleanup_old = "          git rm .github/workflows/surface-contract-classification-bootstrap.yml\n          git add \\\n"
+          cleanup_new = "          git rm .github/workflows/surface-contract-classification-bootstrap.yml\n          git rm -f docs/surface-contract-classification-trigger-20260730.md\n          git add \\\n"
+          if cleanup_new not in source:
+              count = source.count(cleanup_old)
+              if count != 1:
+                  raise SystemExit(f'bootstrap_trigger_cleanup_anchor_count:{count}')
+              source = source.replace(cleanup_old, cleanup_new, 1)
+
+          allowed_old = "            '.github/workflows/surface-contract-classification-bootstrap.yml',\n"
+          allowed_new = allowed_old + "            'docs/surface-contract-classification-trigger-20260730.md',\n"
+          if allowed_new not in source:
+              count = source.count(allowed_old)
+              if count != 1:
+                  raise SystemExit(f'bootstrap_trigger_allowlist_anchor_count:{count}')
+              source = source.replace(allowed_old, allowed_new, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+
+      - name: Verify exact bootstrap contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/surface-contract-classification-bootstrap.yml').read_text(encoding='utf-8')
+          expected_escape = r"elif '(?:[-*]\\\\s*)?${token}' not in script:"
+          obsolete_escape = r"elif '(?:[-*]\\s*)?${token}' not in script:"
+          required = [
+              expected_escape,
+              'git rm -f docs/surface-contract-classification-trigger-20260730.md',
+              "'docs/surface-contract-classification-trigger-20260730.md',",
+          ]
+          for marker in required:
+              if source.count(marker) != 1:
+                  raise SystemExit(f'bootstrap_required_marker_missing_or_duplicated:{marker}')
+          if obsolete_escape in source:
+              raise SystemExit('obsolete_escape_validation_still_present')
+          print({'bootstrap_escape_validation': 'corrected', 'trigger_cleanup': True, 'secrets_included': False})
+          PY
+
+      - name: Commit bounded hotfix and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/surface-contract-bootstrap-escape-hotfix.yml
+          git add .github/workflows/surface-contract-classification-bootstrap.yml
+          python3 <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/surface-contract-bootstrap-escape-hotfix.yml',
+              '.github/workflows/surface-contract-classification-bootstrap.yml',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if changed != expected:
+              raise SystemExit(f'bounded_write_set_mismatch:expected={sorted(expected)}:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(ci): correct Surface bootstrap validation and cleanup'
+          git push origin HEAD:gpt/surface-contract-classification-hardening-20260730
