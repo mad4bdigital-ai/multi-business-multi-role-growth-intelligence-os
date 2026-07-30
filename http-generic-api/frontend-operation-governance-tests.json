@@ -10,7 +10,7 @@
       "evidence_scope": "canary-closeout-transaction"
     },
     {
-      "file": "test-dynamic-container-canary-state-change-evidence.mjs",
+      "file": "test-frontend-operation-governance-generator.mjs",
       "evidence_scope": "canary-promotion-rollback-closeout-transactions"
     },
     {
