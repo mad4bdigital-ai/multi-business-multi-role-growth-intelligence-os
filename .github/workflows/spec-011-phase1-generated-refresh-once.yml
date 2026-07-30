@@ -172,17 +172,7 @@ jobs:
           rm -f .github/workflows/spec-011-phase1-generated-refresh-once.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add http-generic-api/durableExecutionControlService.js \
-                  http-generic-api/routes/plannerRoutes.js \
-                  http-generic-api/openapi.yaml \
-                  http-generic-api/frontend-operation-governance.generated.json \
-                  http-generic-api/frontend-surface-dispatch.generated.json \
-                  http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
-                  http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml \
-                  http-generic-api/openapi/openapi.tenant-gpt.auth.yaml \
-                  http-generic-api/openapi/openapi.tenant-gpt.activation.yaml \
-                  http-generic-api/openapi.gpt-action.local-connector.yaml \
-                  .github/workflows/spec-011-phase1-generated-refresh-once.yml
+          git add -A
           git diff --cached --quiet && exit 0
           git commit -m "fix(spec-011): preserve status validation and generated parity"
           git push origin HEAD:gpt/spec-011-phase1-durable-control-20260730
