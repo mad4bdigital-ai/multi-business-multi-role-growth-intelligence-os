@@ -1,0 +1,95 @@
+name: X0 Sequential Baseline Integration
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "http-generic-api/scripts/apply-x0-sequential-baseline-integration.mjs"
+      - "http-generic-api/governedExecutionBaselineTelemetry.js"
+      - "http-generic-api/sequentialPlanOrchestrator.js"
+      - "http-generic-api/test-sequential-plan-orchestrator.mjs"
+      - ".github/workflows/x0-sequential-baseline-integration.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x0-sequential-baseline-integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec-011-x0-governed-execution-baseline-20260730' &&
+      github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact governed PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply exact sequential integration
+        working-directory: http-generic-api
+        run: node scripts/apply-x0-sequential-baseline-integration.mjs
+
+      - name: Verify source and parity contracts
+        working-directory: http-generic-api
+        run: |
+          node --check governedExecutionBaselineTelemetry.js
+          node --check sequentialPlanOrchestrator.js
+          node test-governed-execution-baseline-telemetry.mjs
+          node test-governed-execution-baseline-benchmark.mjs
+          node test-sequential-plan-orchestrator.mjs
+
+      - name: Enforce exact write set
+        shell: bash
+        run: |
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          EXPECTED=(
+            "http-generic-api/governedExecutionBaselineTelemetry.js"
+            "http-generic-api/sequentialPlanOrchestrator.js"
+            "http-generic-api/test-sequential-plan-orchestrator.mjs"
+          )
+          if [[ ${#CHANGED[@]} -ne ${#EXPECTED[@]} ]]; then
+            echo "::error::Sequential integration changed an unexpected number of files"
+            printf 'changed: %s\n' "${CHANGED[@]}"
+            exit 1
+          fi
+          for expected in "${EXPECTED[@]}"; do
+            if ! printf '%s\n' "${CHANGED[@]}" | grep -Fxq "$expected"; then
+              echo "::error::Expected change missing: $expected"
+              exit 1
+            fi
+          done
+
+      - name: Commit sequential instrumentation
+        shell: bash
+        env:
+          TARGET_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            http-generic-api/governedExecutionBaselineTelemetry.js \
+            http-generic-api/sequentialPlanOrchestrator.js \
+            http-generic-api/test-sequential-plan-orchestrator.mjs
+          git commit -m "feat(x0): instrument sequential plan baseline"
+          git push origin "HEAD:${TARGET_REF}"
