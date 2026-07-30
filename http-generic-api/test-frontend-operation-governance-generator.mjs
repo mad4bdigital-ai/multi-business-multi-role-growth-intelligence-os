@@ -208,8 +208,8 @@ const noPromotionReadinessQueryFixture = createFixture();
 replaceEvidence(
   noPromotionReadinessQueryFixture,
   "dynamicContainerRolloutSafety.js",
-  "FROM v_container_rollout_readiness WHERE policy_key=? LIMIT 1",
-  "FROM v_container_rollout_readiness_removed WHERE policy_key=? LIMIT 1"
+  "v_container_rollout_readiness",
+  "rollout_readiness_removed"
 );
 const noPromotionReadinessQueryPlan = buildOperationGovernance({ apiRoot: noPromotionReadinessQueryFixture });
 assert(
