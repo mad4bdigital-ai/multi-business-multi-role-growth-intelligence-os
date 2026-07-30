@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   governedMigrationApplyConfirmation,
+  governedMigrationEnvelopeBindingSha,
+  governedMigrationResourceUri,
   inspectGovernedMigrationExecution,
   runGovernedMigrationExecution,
   splitGovernedMigrationStatements,
@@ -20,6 +22,7 @@ const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
 const CHECKSUM = createHash("sha256").update(SQL, "utf8").digest("hex");
 const STATEMENT_COUNT = splitGovernedMigrationStatements(SQL).length;
 const ENVELOPE_ID = "11111111-2222-4333-8444-555555555555";
+const DEPLOYED_COMMIT_SHA = "a".repeat(40);
 const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_support.sql";
 const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
 const TRIGGER_MIGRATION = "20260720_tenant_export_manifest_eligibility_hardening.sql";
@@ -174,11 +177,49 @@ function readinessRepairInput(mode = "dry_run") {
   };
 }
 
+function productionManifest(overrides = {}) {
+  return {
+    ok: true,
+    manifest: {
+      branch: "Production",
+      commit_sha: DEPLOYED_COMMIT_SHA,
+      source: "test:deployment-manifest",
+      ...overrides,
+    },
+  };
+}
+
+function atomicDeps(overrides = {}) {
+  return {
+    readDeploymentManifest: () => productionManifest(),
+    ...overrides,
+  };
+}
+
 function authorizedEnvelope(overrides = {}) {
   return {
     envelope_id: ENVELOPE_ID,
     apply_allowed: true,
     readback_required: true,
+    ...overrides,
+  };
+}
+
+function authorizedReadinessEnvelope(inspection, overrides = {}) {
+  return {
+    envelope_id: ENVELOPE_ID,
+    app_key: inspection.required_envelope.app_key,
+    capability_key: inspection.required_envelope.capability_key,
+    operation_intent: inspection.required_envelope.operation_intent,
+    selected_runtime_surface: inspection.required_envelope.selected_runtime_surface,
+    resource_uri: inspection.required_envelope.resource_uri,
+    binding_sha256: inspection.required_envelope.binding_sha256,
+    expected_commit_sha: inspection.required_envelope.expected_commit_sha,
+    apply_allowed: true,
+    dispatch_allowed: true,
+    audit_required: true,
+    readback_required: true,
+    blocking_gap_count: 0,
     ...overrides,
   };
 }
@@ -231,6 +272,8 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(inspected.migration_checksum_sha256, CHECKSUM);
   assert.equal(inspected.statement_count, STATEMENT_COUNT);
   assert.equal(inspected.atomic_runner_required, false);
+  assert.equal(inspected.required_envelope, null);
+  assert.equal(inspected.deployment, null);
 }
 
 {
@@ -239,6 +282,40 @@ function fakeReadinessRepairResult(mode) {
   assert.equal(inspected.statement_count, 3);
   assert.equal(inspected.atomic_runner_required, true);
   assert.equal(path.basename(inspected.runner_path), "repository-authority-capability-readiness-repair-runner.mjs");
+  assert.equal(inspected.required_envelope.resource_uri, governedMigrationResourceUri(READINESS_REPAIR_MIGRATION));
+  assert.equal(
+    inspected.required_envelope.binding_sha256,
+    governedMigrationEnvelopeBindingSha({
+      migration: READINESS_REPAIR_MIGRATION,
+      migrationChecksumSha256: READINESS_REPAIR_CHECKSUM,
+      statementCount: READINESS_REPAIR_STATEMENT_COUNT,
+    }),
+  );
+}
+
+{
+  const inspected = await inspectGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps());
+  assert.equal(inspected.deployment.branch, "Production");
+  assert.equal(inspected.deployment.commit_sha, DEPLOYED_COMMIT_SHA);
+  assert.equal(inspected.required_envelope.expected_commit_sha, DEPLOYED_COMMIT_SHA);
+}
+
+{
+  await assert.rejects(
+    () => inspectGovernedMigrationExecution(readinessRepairInput("apply"), {
+      readDeploymentManifest: () => ({ ok: false, error: { code: "missing" } }),
+    }),
+    (error) => error.code === "governed_migration_deployment_manifest_required",
+  );
+}
+
+{
+  await assert.rejects(
+    () => inspectGovernedMigrationExecution(readinessRepairInput("apply"), {
+      readDeploymentManifest: () => productionManifest({ branch: "main" }),
+    }),
+    (error) => error.code === "governed_migration_production_branch_required",
+  );
 }
 
 {
@@ -352,23 +429,58 @@ function fakeReadinessRepairResult(mode) {
 
 {
   let runnerPath = "";
-  const result = await runGovernedMigrationExecution(readinessRepairInput("apply"), {
-    authorizeApply: async () => authorizedEnvelope(),
+  const result = await runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+    authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection),
     execFile: async (_command, args) => {
       runnerPath = args[0];
       return { stdout: JSON.stringify(fakeReadinessRepairResult("apply")), stderr: "" };
     },
-  });
+  }));
   assert.equal(path.basename(runnerPath), "repository-authority-capability-readiness-repair-runner.mjs");
   assert.equal(result.atomic_transaction, true);
   assert.equal(result.capability_envelope.consumed, true);
+  assert.equal(result.deployed_commit_sha, DEPLOYED_COMMIT_SHA);
   assert.equal(result.same_cycle_readback_verified, true);
 }
 
 {
+  let executed = false;
   await assert.rejects(
-    () => runGovernedMigrationExecution(readinessRepairInput("apply"), {
-      authorizeApply: async () => authorizedEnvelope(),
+    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+      authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection, {
+        expected_commit_sha: "b".repeat(40),
+      }),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeReadinessRepairResult("apply")), stderr: "" };
+      },
+    })),
+    (error) => error.code === "governed_migration_envelope_commit_mismatch",
+  );
+  assert.equal(executed, false);
+}
+
+{
+  let executed = false;
+  await assert.rejects(
+    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+      authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection, {
+        binding_sha256: "0".repeat(64),
+      }),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeReadinessRepairResult("apply")), stderr: "" };
+      },
+    })),
+    (error) => error.code === "governed_migration_envelope_binding_mismatch",
+  );
+  assert.equal(executed, false);
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(readinessRepairInput("apply"), atomicDeps({
+      authorizeApply: async (inspection) => authorizedReadinessEnvelope(inspection),
       execFile: async () => ({
         stdout: JSON.stringify({
           ...fakeReadinessRepairResult("apply"),
@@ -376,7 +488,7 @@ function fakeReadinessRepairResult(mode) {
         }),
         stderr: "",
       }),
-    }),
+    })),
     (error) => error.code === "governed_migration_atomic_readback_failed",
   );
 }
