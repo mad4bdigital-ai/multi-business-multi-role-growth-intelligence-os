@@ -101,6 +101,31 @@ async function lockActivationOperationScope(connection, operationId, tenantId) {
   }
 }
 
+async function lockActivationDeliveryScope(
+  connection,
+  deliveryId,
+  operationId,
+  tenantId,
+) {
+  const row = await readSingle(
+    connection,
+    `SELECT delivery_id
+       FROM activation_deliveries
+      WHERE delivery_id = ?
+        AND operation_id = ?
+        AND tenant_id = ?
+      FOR UPDATE`,
+    [deliveryId, operationId, tenantId],
+  );
+  if (!row?.delivery_id) {
+    fail(
+      "activation_delivery_not_found",
+      "Activation delivery was not found in the authorized tenant and operation scope.",
+      404,
+    );
+  }
+}
+
 function validateAttemptNumber(value) {
   const number = Number(value || 1);
   if (!Number.isSafeInteger(number) || number < 1) {
@@ -185,8 +210,19 @@ export async function appendActivationAcknowledgementRecord(connection, input = 
       { acknowledgement_state: acknowledgementState },
     );
   }
+  const operationId = normalizeUuid(input.operation_id, "operation_id");
+  const tenantId = normalizeText(input.tenant_id, "tenant_id", 36);
+  const deliveryId = input.delivery_id
+    ? normalizeUuid(input.delivery_id, "delivery_id")
+    : null;
+  if (deliveryId) {
+    await lockActivationDeliveryScope(connection, deliveryId, operationId, tenantId);
+  }
   return appendActivationAcknowledgement(connection, {
     ...input,
+    operation_id: operationId,
+    tenant_id: tenantId,
+    delivery_id: deliveryId,
     acknowledgement_state: INITIAL_ACKNOWLEDGEMENT_STATE,
   });
 }
