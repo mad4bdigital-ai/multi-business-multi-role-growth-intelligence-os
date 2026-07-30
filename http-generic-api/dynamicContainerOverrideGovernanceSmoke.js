@@ -100,7 +100,7 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
     }
 
     const [epochRows]=await connection.query(
-      "SELECT tenant_id,authority_epoch FROM container_authority_epochs ORDER BY tenant_id LIMIT 1 FOR UPDATE"
+      "SELECT tenant_id,authority_epoch FROM container_authority_epochs ORDER BY tenant_id LIMIT 2 FOR UPDATE"
     );
     const epochRow=epochRows?.[0];
     if(!epochRow) throw smokeError(409,"override_governance_smoke_fixture_unavailable","No authority epoch fixture candidate is available.");
@@ -329,7 +329,23 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
       secretsIncluded:false
     };
   } catch(error) {
-    if(transactionStarted) await connection.rollback().catch(() => null);
+    if(transactionStarted) {
+      try {
+        await connection.rollback();
+      } catch(rollbackError) {
+        const aggregate = new AggregateError(
+          [error,rollbackError],
+          "Override governance smoke failed and its transaction rollback also failed."
+        );
+        aggregate.status=500;
+        aggregate.code="override_governance_smoke_rollback_failed";
+        aggregate.details=[
+          { stage:"smoke_execution",code:String(error?.code || "unknown"),message:String(error?.message || error) },
+          { stage:"transaction_rollback",code:String(rollbackError?.code || "unknown"),message:String(rollbackError?.message || rollbackError) }
+        ];
+        throw aggregate;
+      }
+    }
     throw error;
   } finally {
     if(releaseConnection) connection.release();
