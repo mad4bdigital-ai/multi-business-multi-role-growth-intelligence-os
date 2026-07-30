@@ -122,22 +122,30 @@ The context hash covers:
 - principal type and stable principal reference;
 - effective subject references;
 - tenant and workspace references;
-- optional brand reference;
-- target resource reference;
-- exact connection reference;
+- operational workspace type, workspace ownership type, and their relevant revisions;
+- optional brand reference and brand revision;
+- target resource reference and resource revision;
+- resolution status;
+- exact selected connection reference when resolved;
+- selected connection owner-scope type and stable owner-scope reference when resolved;
+- owner-scope revision, connection revision, and authorization revision when resolved;
+- candidate revision vector when unresolved;
 - authority evidence revision;
 - capability decision revision;
 - registry snapshot revision.
 
-Secrets and credential payloads are never included.
+A plan, approval, pin, or execution envelope MUST be invalidated when any hashed owner-scope or revision field changes. Substituting owner-scope evidence while retaining the connection reference cannot preserve the same context hash.
+
+Secrets, credential payloads, raw provider-account identifiers that policy forbids retaining, and claim tokens are never included.
 
 ## Invalidation graph
 
 - principal change invalidates everything;
 - tenant change invalidates workspace and all descendants;
 - workspace change invalidates brand, resource, connection, plan, approval, and execution envelope;
+- workspace ownership or owner-scope change invalidates the context hash, connection decision, plan, approval, and execution envelope;
 - resource change invalidates connection, authority, capability, and plan;
-- connection change invalidates credential readiness and plan;
+- connection, authorization, provider-account binding, or owner-scope revision change invalidates credential readiness and plan;
 - authority or registry revision change invalidates affected execution contexts;
 - plan change invalidates approval and idempotency binding.
 
