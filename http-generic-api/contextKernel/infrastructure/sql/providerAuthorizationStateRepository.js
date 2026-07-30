@@ -238,6 +238,38 @@ function providerBindingMatches({ expectedRef, expectedHash, actualRef, actualHa
   return false;
 }
 
+function sameOptionalValue(left, right) {
+  return (left || null) === (right || null);
+}
+
+function validateLockedOwnershipContext(ownership, state) {
+  if (!ownership) return false;
+  return ownership.provider_key === state.provider_key
+    && ownership.owner_scope_type === state.owner_scope_type
+    && ownership.owner_scope_ref === state.owner_scope_ref
+    && sameOptionalValue(ownership.brand_id, state.brand_id);
+}
+
+function assertCredentialMutationStatement(statement, params, { tenantRef, connectionRef }) {
+  const sql = String(statement || "").replace(/\s+/g, " ").trim();
+  const allowed = /^UPDATE\s+user_app_connections\s+SET\s+/i.test(sql)
+    && /\bencrypted_credentials\s*=\s*\?/i.test(sql)
+    && /\bWHERE\b/i.test(sql)
+    && /\btenant_id\s*=\s*\?/i.test(sql)
+    && /\bconnection_id\s*=\s*\?/i.test(sql)
+    && Array.isArray(params)
+    && params.includes(tenantRef)
+    && params.includes(connectionRef);
+  if (!allowed) {
+    throw repositoryError(
+      "credential_mutation_statement_forbidden",
+      "Reconnect completion may mutate only the exact encrypted credential row.",
+      { tenant_ref: tenantRef, connection_ref: connectionRef },
+      400,
+    );
+  }
+}
+
 export function createProviderAuthorizationStateRepository({ pool = null, resolvePool = null } = {}) {
   if (!pool && typeof resolvePool !== "function") {
     throw new TypeError(
@@ -420,6 +452,24 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
           },
         );
       }
+      if (!validateLockedOwnershipContext(ownership, lockedState)) {
+        throw repositoryError(
+          "oauth_state_context_mismatch",
+          "Reconnect state no longer matches the exact connection owner scope.",
+          { tenant_ref: tenant, connection_ref: lockedState.target_connection_id },
+        );
+      }
+      if (!new Set(["active", "expired", "revoked"]).has(ownership.status)) {
+        throw repositoryError(
+          "connection_ownership_inactive",
+          "Connection ownership status does not permit reconnect.",
+          {
+            tenant_ref: tenant,
+            connection_ref: lockedState.target_connection_id,
+            ownership_status: ownership.status,
+          },
+        );
+      }
       if (!providerBindingMatches({
         expectedRef: lockedState.expected_provider_account_ref,
         expectedHash: lockedState.expected_provider_account_binding_hash,
@@ -433,8 +483,25 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
         );
       }
 
-      const callbackResult = await mutateConnection(Object.freeze({
-        connection,
+      let credentialMutationApplied = false;
+      const executeCredentialMutation = async (statement, params = []) => {
+        assertCredentialMutationStatement(statement, params, {
+          tenantRef: tenant,
+          connectionRef: lockedState.target_connection_id,
+        });
+        const result = await mutate(connection, statement, params);
+        if (affectedRows(result) !== 1) {
+          throw repositoryError(
+            "credential_mutation_conflict",
+            "Encrypted credential row was not updated exactly once.",
+            { tenant_ref: tenant, connection_ref: lockedState.target_connection_id },
+          );
+        }
+        credentialMutationApplied = true;
+        return result;
+      };
+
+      await mutateConnection(Object.freeze({
         state: freezeRecord({
           stateRef: lockedState.state_ref,
           tenantRef: lockedState.tenant_id,
@@ -444,12 +511,13 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
           ownerScopeType: lockedState.owner_scope_type,
           ownerScopeRef: lockedState.owner_scope_ref,
         }),
-        execute: (statement, params = []) => mutate(connection, statement, params),
+        execute: executeCredentialMutation,
+        executeCredentialMutation,
       }));
-      if (!callbackResult || callbackResult.credentialMutationApplied !== true) {
+      if (!credentialMutationApplied) {
         throw repositoryError(
           "credential_mutation_not_applied",
-          "Reconnect callback did not prove an in-transaction credential mutation.",
+          "Reconnect callback did not execute the guarded credential mutation.",
           { tenant_ref: tenant, state_ref: state },
           500,
         );
@@ -522,6 +590,8 @@ export const _testingProviderAuthorizationStateRepository = Object.freeze({
   UPDATE_CONNECTION_OWNERSHIP_SQL,
   CONSUME_STATE_SQL,
   affectedRows,
+  assertCredentialMutationStatement,
   mapAuthorizationState,
   providerBindingMatches,
+  validateLockedOwnershipContext,
 });
