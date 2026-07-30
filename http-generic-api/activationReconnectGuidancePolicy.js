@@ -148,7 +148,7 @@ function fail(code, message, status = 400, details = undefined) {
 
 function normalizeErrorCode(value) {
   const errorCode = String(value ?? "").trim();
-  if (!ACTIVATION_ERROR_GUIDANCE[errorCode]) {
+  if (!Object.hasOwn(ACTIVATION_ERROR_GUIDANCE, errorCode)) {
     fail(
       "activation_guidance_error_code_invalid",
       "error_code is not declared by the Activation lifecycle guidance contract.",
