@@ -1,0 +1,34 @@
+name: EC1 Shadow Adapter Contract Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  contract-review:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec1-execution-capsule-shadow-adapter-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run EC1 and existing Context Kernel shadow contracts
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-shadow-adapter.mjs
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-shadow-integration.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+      - name: Enforce review-only write set
+        run: test -z "$(git status --porcelain --untracked-files=all)"
