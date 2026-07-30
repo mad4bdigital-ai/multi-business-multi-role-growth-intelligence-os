@@ -69,11 +69,11 @@ function fakeDeps(overrides = {}) {
     async resolveCapabilityExecutionEnvelope(input) {
       order.push("resolve-envelope");
       calls.envelope = input;
-      return { ok: true, envelope_id: baseArgs.capability_envelope_id };
+      return { ok: true, envelope_id: baseArgs.capability_envelope_id, apply_allowed: true };
     },
     capabilityEnvelopeError(result, message) {
       const error = new Error(message);
-      error.code = result?.reason_code || "capability_envelope_required";
+      error.code = result?.status || result?.reason_code || "capability_envelope_required";
       error.status = 403;
       return error;
     },
@@ -122,7 +122,13 @@ assert.deepEqual(acquireDeps.order, ["resolve-envelope", "mark-envelope", "acqui
 assert.equal(acquireDeps.calls.acquire.input.operation_fingerprint, built.operation_fingerprint);
 assert.equal(acquireDeps.calls.acquire.deps.pool, acquireDeps.pool);
 assert.deepEqual(acquireDeps.calls.envelope.acceptedAppKeys, ["github"]);
+assert.equal(
+  acquireDeps.calls.envelope.expectedResourceUri,
+  `github://${baseArgs.owner}/${baseArgs.repo}/branch/${baseArgs.branch}`,
+);
+assert.equal(acquireDeps.calls.envelope.expectedBindingSha256, built.operation_fingerprint);
 assert.ok(acquireDeps.calls.envelope.acceptedIntents.includes("repository_reconciliation_lease_acquire"));
+assert.ok(!acquireDeps.calls.envelope.acceptedIntents.includes("repo_mutation"));
 assert.match(acquireDeps.calls.mark.executionRef, /^repository_reconciliation_lease_control:acquire:/);
 
 const lifecycleBase = {
@@ -166,6 +172,19 @@ await assert.rejects(
   (error) => error?.code === "repository_reconciliation_lease_control_admin_required" && error?.status === 403,
 );
 assert.deepEqual(nonAdminDeps.order, []);
+
+const dispatchOnlyEnvelopeDeps = fakeDeps({
+  async resolveCapabilityExecutionEnvelope(input) {
+    dispatchOnlyEnvelopeDeps.order.push("resolve-envelope");
+    dispatchOnlyEnvelopeDeps.calls.envelope = input;
+    return { ok: true, envelope_id: baseArgs.capability_envelope_id, apply_allowed: false };
+  },
+});
+await assert.rejects(
+  runRepositoryReconciliationLeaseControl(baseArgs, dispatchOnlyEnvelopeDeps),
+  (error) => error?.code === "capability_resolution_envelope_apply_not_allowed" && error?.status === 403,
+);
+assert.deepEqual(dispatchOnlyEnvelopeDeps.order, ["resolve-envelope"]);
 
 const rejectedEnvelopeDeps = fakeDeps({
   async resolveCapabilityExecutionEnvelope() {
