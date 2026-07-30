@@ -92,7 +92,8 @@ jobs:
             return null;
           }
 
-          async function safeRequest(path, body, { attempts = 3 } = {}) {
+          async function safeRequest(path, body, { attempts = 3, acceptedStatuses = [] } = {}) {
+            const accepted = new Set(acceptedStatuses);
             for (let attempt = 1; attempt <= attempts; attempt += 1) {
               const response = await fetch(`${BASE}${path}`, {
                 method: 'POST',
@@ -109,10 +110,10 @@ jobs:
               let payload;
               try { payload = text ? JSON.parse(text) : null; }
               catch { payload = { raw_preview: text.slice(0, 500) }; }
-              const result = { attempt, status: response.status, http_ok: response.ok, payload };
+              const result = { attempt, status: response.status, http_ok: response.ok, accepted_status: accepted.has(response.status), payload };
               console.log(JSON.stringify(sanitize(result), null, 2));
 
-              if (response.ok && payload?.ok !== false) return payload;
+              if ((response.ok && payload?.ok !== false) || accepted.has(response.status)) return { status: response.status, payload };
 
               const retryable = RETRYABLE_STATUS.has(response.status) || payload?.retryable === true;
               if (!retryable || attempt === attempts) {
@@ -121,20 +122,13 @@ jobs:
                 throw error;
               }
               const retryAfterSeconds = Math.max(5, Math.min(Number(payload?.retry_after || 10), 60));
-              console.log(JSON.stringify({
-                retrying_safe_call: true,
-                path,
-                attempt,
-                retry_after_seconds: retryAfterSeconds,
-                migration_sql_applied: false,
-                secrets_included: false,
-              }));
+              console.log(JSON.stringify({ retrying_safe_call: true, path, attempt, retry_after_seconds: retryAfterSeconds, migration_sql_applied: false, secrets_included: false }));
               await new Promise((resolve) => setTimeout(resolve, retryAfterSeconds * 1000));
             }
             throw new Error('safe_request_retry_exhausted');
           }
 
-          const dryRun = await safeRequest('/gpt/tools/call', {
+          const dryRunResponse = await safeRequest('/gpt/tools/call', {
             name: 'governed_migration_execute',
             tool_args: {
               migration: MIGRATION,
@@ -143,32 +137,43 @@ jobs:
               expected_statement_count: STATEMENT_COUNT,
             },
           });
-          const dryRunEvidence = findObjectWithKey(dryRun, 'applies_sql');
+          const dryRunEvidence = findObjectWithKey(dryRunResponse.payload, 'applies_sql');
           assert.equal(dryRunEvidence?.applies_sql, false, 'Migration dry-run must report applies_sql=false');
           assert.equal(dryRunEvidence?.mode, 'dry_run', 'Migration execution mode must remain dry_run');
           assert.equal(Number(dryRunEvidence?.statement_count), STATEMENT_COUNT, 'Dry-run statement count mismatch');
           assert.equal(dryRunEvidence?.migration_checksum_sha256, CHECKSUM, 'Dry-run checksum mismatch');
+          assert.equal(dryRunEvidence?.same_cycle_readback_verified, true, 'Dry-run same-cycle readback was not verified');
 
-          const readback = await safeRequest('/gpt/tools/call', {
+          const readbackResponse = await safeRequest('/gpt/tools/call', {
             name: 'governed_migration_schema_readback',
             tool_args: {
               migration: MIGRATION,
               expected_checksum_sha256: CHECKSUM,
               expected_statement_count: STATEMENT_COUNT,
             },
-          });
+          }, { acceptedStatuses: [409] });
+          const readback = readbackResponse.payload;
+          assert.equal(readbackResponse.status, 409, 'Pre-apply readback must report ledger absence');
+          assert.equal(readback?.readback_status, 'fail', 'Pre-apply readback status must remain fail until apply');
+          assert.equal(readback?.migration_checksum_sha256, CHECKSUM, 'Pre-apply readback checksum mismatch');
+          assert.equal(Number(readback?.statement_count), STATEMENT_COUNT, 'Pre-apply readback statement count mismatch');
+          assert.equal(readback?.ledger?.found, false, 'Migration ledger must be absent before apply');
+          for (const key of ['tables', 'columns', 'indexes', 'rule_conditions']) {
+            assert.deepEqual(readback?.expectations?.missing?.[key] || [], [], `Unexpected missing ${key} expectation before apply`);
+          }
 
           console.log(JSON.stringify({
             ok: true,
-            stage: 'production_dry_run_and_readback_complete',
+            stage: 'production_dry_run_and_pre_apply_readback_complete',
             migration: MIGRATION,
             migration_checksum_sha256: CHECKSUM,
             statement_count: STATEMENT_COUNT,
-            authorization_bootstrap_previously_verified: true,
-            apply_policy_previously_verified: true,
-            dispatch_certification_previously_verified: true,
+            authorization_bootstrap_verified: true,
+            apply_policy_verified: true,
+            dispatch_certification_verified: true,
             dry_run_verified: true,
-            schema_readback_received: Boolean(readback),
+            pre_apply_ledger_absence_verified: true,
+            schema_expectation_gaps: 0,
             migration_sql_applied: false,
             provider_call_executed: false,
             external_write_executed: false,
