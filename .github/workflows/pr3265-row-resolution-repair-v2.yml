@@ -1,0 +1,239 @@
+name: PR 3265 Row Resolution Semantic Repair V2
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'gpt/hostinger-production-resync-policy-20260729'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout governed PR head
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/hostinger-production-resync-policy-20260729
+          fetch-depth: 0
+
+      - name: Apply deterministic row-resolution repair
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_count(text: str, old: str, new: str, expected: int, label: str) -> str:
+              count = text.count(old)
+              if count == expected:
+                  return text.replace(old, new)
+              if count == 0 and text.count(new) == expected:
+                  return text
+              raise SystemExit(f"{label}: expected {expected} old matches, found {count}")
+
+          trigger_path = Path("http-generic-api/repositoryMainMovedTriggerService.js")
+          trigger = trigger_path.read_text(encoding="utf-8")
+          trigger = replace_count(
+              trigger,
+              "`SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 1`",
+              "`SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 2`",
+              1,
+              "trigger fingerprint uniqueness probe",
+          )
+          trigger = replace_count(
+              trigger,
+              "`SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 1`",
+              "`SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 2`",
+              1,
+              "trigger id uniqueness probe",
+          )
+          trigger_path.write_text(trigger, encoding="utf-8")
+
+          advisor_path = Path("http-generic-api/selfHealingReleaseAdvisorService.js")
+          advisor = advisor_path.read_text(encoding="utf-8")
+          unique_block = '''function uniqueAdvisorRow(rowset, context) {
+            if (!Array.isArray(rowset)) {
+              fail("release_advisor_resolution_invalid", "Release advisor resolution returned an invalid rowset.", 500, { context });
+            }
+            if (rowset.length > 1) {
+              fail("release_advisor_resolution_ambiguous", "Release advisor resolution returned multiple candidates.", 409, {
+                context,
+                candidate_count: rowset.length,
+              });
+            }
+            const [row] = rowset;
+            return row || null;
+          }
+          '''
+          resolved_block = unique_block + '''
+          function deterministicLatestAdvisorRow(rowset, context) {
+            if (!Array.isArray(rowset)) {
+              fail("release_advisor_resolution_invalid", "Release advisor deterministic selection returned an invalid rowset.", 500, { context });
+            }
+            const [row] = rowset;
+            return row || null;
+          }
+          '''
+          advisor = replace_count(advisor, unique_block, resolved_block, 1, "latest-row resolver")
+          advisor = replace_count(advisor, "  let verificationRows;", "  let verificationRows;\n  let verification;", 1, "verification declaration")
+          advisor = replace_count(
+              advisor,
+              "`SELECT * FROM runtime_verification_runs WHERE run_id = ? LIMIT 1`",
+              "`SELECT * FROM runtime_verification_runs WHERE run_id = ? LIMIT 2`",
+              1,
+              "verification id uniqueness probe",
+          )
+          advisor = replace_count(
+              advisor,
+              "`SELECT * FROM runtime_verification_runs WHERE environment_key = ? ORDER BY completed_at DESC, started_at DESC LIMIT 1`",
+              "`SELECT * FROM runtime_verification_runs WHERE environment_key = ? ORDER BY completed_at DESC, started_at DESC, run_id DESC LIMIT 1`",
+              1,
+              "latest verification tie breaker",
+          )
+          advisor = replace_count(
+              advisor,
+              '  const verification = uniqueAdvisorRow(verificationRows, "runtime_verification");',
+              '''  verification = input.runtime_verification_run_id
+            ? uniqueAdvisorRow(verificationRows, "runtime_verification_run_id")
+            : deterministicLatestAdvisorRow(verificationRows, "runtime_verification_latest");''',
+              1,
+              "verification resolver mode",
+          )
+          advisor = replace_count(
+              advisor,
+              "`SELECT * FROM release_operations WHERE operation_id = ? LIMIT 1`",
+              "`SELECT * FROM release_operations WHERE operation_id = ? LIMIT 2`",
+              1,
+              "operation id uniqueness probe",
+          )
+          advisor = replace_count(
+              advisor,
+              '`SELECT * FROM release_operations WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC LIMIT 1`',
+              '`SELECT * FROM release_operations WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, operation_id DESC LIMIT 1`',
+              1,
+              "latest operation tie breaker",
+          )
+          latest_operation_suffix = '''      params,
+            );
+            operation = uniqueAdvisorRow(rows, "release_operation");'''
+          latest_operation_repaired = '''      params,
+            );
+            operation = deterministicLatestAdvisorRow(rows, "release_operation_latest");'''
+          advisor = replace_count(advisor, latest_operation_suffix, latest_operation_repaired, 1, "latest operation resolver")
+          advisor = replace_count(
+              advisor,
+              '`SELECT * FROM release_gates WHERE operation_id = ? ORDER BY created_at DESC LIMIT 1`',
+              '`SELECT * FROM release_gates WHERE operation_id = ? ORDER BY created_at DESC, gate_id DESC LIMIT 1`',
+              1,
+              "latest gate tie breaker",
+          )
+          advisor = replace_count(
+              advisor,
+              '    gate = uniqueAdvisorRow(gateRows, "release_gate");',
+              '    gate = deterministicLatestAdvisorRow(gateRows, "release_gate_latest");',
+              1,
+              "latest gate resolver",
+          )
+          advisor = replace_count(
+              advisor,
+              '`SELECT * FROM release_async_deployments WHERE operation_id = ? ORDER BY created_at DESC LIMIT 1`',
+              '`SELECT * FROM release_async_deployments WHERE operation_id = ? ORDER BY created_at DESC, async_deployment_id DESC LIMIT 1`',
+              1,
+              "latest deployment tie breaker",
+          )
+          advisor = replace_count(
+              advisor,
+              '    asyncDeployment = uniqueAdvisorRow(deploymentRows, "release_async_deployment");',
+              '    asyncDeployment = deterministicLatestAdvisorRow(deploymentRows, "release_async_deployment_latest");',
+              1,
+              "latest deployment resolver",
+          )
+          advisor = replace_count(
+              advisor,
+              "`SELECT * FROM release_advisor_runs WHERE advisor_run_id = ? LIMIT 1`",
+              "`SELECT * FROM release_advisor_runs WHERE advisor_run_id = ? LIMIT 2`",
+              1,
+              "advisor run uniqueness probe",
+          )
+          advisor = replace_count(
+              advisor,
+              "`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 1`",
+              "`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 2`",
+              2,
+              "advisor fingerprint uniqueness probes",
+          )
+          advisor = advisor.replace(
+              '''      const duplicateRun = uniqueAdvisorRow(rows, "duplicate_plan_fingerprint_sha256");
+            if (duplicateRun) return { ...(await getReleaseAdvisorRun(duplicateRun.advisor_run_id, { pool })), deduplicated: true };''',
+              '''      const duplicateRun = uniqueAdvisorRow(rows, "duplicate_plan_fingerprint_sha256");
+              if (duplicateRun) return { ...(await getReleaseAdvisorRun(duplicateRun.advisor_run_id, { pool })), deduplicated: true };''',
+              1,
+          )
+          advisor_path.write_text(advisor, encoding="utf-8")
+
+          trigger_test_path = Path("http-generic-api/test-repository-main-moved-trigger-coordinator.mjs")
+          trigger_test = trigger_test_path.read_text(encoding="utf-8")
+          trigger_test = replace_count(
+              trigger_test,
+              'assert.match(service, /repository_main_moved_resolution_ambiguous/);',
+              '''assert.match(service, /repository_main_moved_resolution_ambiguous/);
+          assert.equal(service.includes("event_fingerprint_sha256 = ? LIMIT 2"), true);
+          assert.equal(service.includes("trigger_event_id = ? LIMIT 2"), true);''',
+              1,
+              "trigger query regressions",
+          )
+          trigger_test_path.write_text(trigger_test, encoding="utf-8")
+
+          advisor_test_path = Path("http-generic-api/test-self-healing-release-advisor.mjs")
+          advisor_test = advisor_test_path.read_text(encoding="utf-8")
+          advisor_test = replace_count(
+              advisor_test,
+              'assert.match(advisorService, /release_advisor_resolution_ambiguous/);',
+              '''assert.match(advisorService, /release_advisor_resolution_ambiguous/);
+          for (const sqlContract of [
+            "run_id = ? LIMIT 2",
+            "operation_id = ? LIMIT 2",
+            "advisor_run_id = ? LIMIT 2",
+            "plan_fingerprint_sha256 = ? LIMIT 2",
+            "completed_at DESC, started_at DESC, run_id DESC LIMIT 1",
+            "created_at DESC, operation_id DESC LIMIT 1",
+            "created_at DESC, gate_id DESC LIMIT 1",
+            "created_at DESC, async_deployment_id DESC LIMIT 1",
+          ]) assert.equal(advisorService.includes(sqlContract), true, `missing deterministic row contract: ${sqlContract}`);''',
+              1,
+              "advisor query regressions",
+          )
+          advisor_test_path.write_text(advisor_test, encoding="utf-8")
+          PY
+
+      - name: Install focused dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate focused contracts
+        shell: bash
+        run: |
+          node http-generic-api/test-repository-main-moved-trigger-coordinator.mjs
+          node http-generic-api/test-self-healing-release-advisor.mjs
+          if grep -En '\b(rows|rowset|verificationRows|gateRows|deploymentRows|existingRows)\s*\[\s*0\s*\]' \
+            http-generic-api/repositoryMainMovedTriggerService.js \
+            http-generic-api/selfHealingReleaseAdvisorService.js; then
+            echo "Direct first-candidate selection remains" >&2
+            exit 1
+          fi
+
+      - name: Commit repair and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            http-generic-api/repositoryMainMovedTriggerService.js \
+            http-generic-api/selfHealingReleaseAdvisorService.js \
+            http-generic-api/test-repository-main-moved-trigger-coordinator.mjs \
+            http-generic-api/test-self-healing-release-advisor.mjs
+          git rm .github/workflows/pr3265-row-resolution-repair-v2.yml
+          git diff --cached --check
+          git commit -m "fix(release): distinguish unique and latest row resolution"
+          git push origin HEAD:gpt/hostinger-production-resync-policy-20260729
