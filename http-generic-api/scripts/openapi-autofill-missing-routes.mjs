@@ -112,9 +112,14 @@ function normalizeContractRegistry(input) {
     if (!pathItemRef.startsWith("./openapi/") || !pathItemRef.includes("#/")) {
       throw new Error(`OpenAPI route contract ${method} ${routePath} requires a local ./openapi/...#/ path_item_ref.`);
     }
+    const routeFile = String(rawContract?.route_file || "").trim().replace(/\\/g, "/");
+    if (!routeFile.startsWith("routes/") || !routeFile.endsWith(".js")) {
+      throw new Error(`OpenAPI route contract ${method} ${routePath} requires a source-bound routes/*.js route_file.`);
+    }
     registry.set(`${method} ${routePath}`, {
       ...rawContract,
       path_item_ref:pathItemRef,
+      route_file:routeFile,
     });
   }
   return registry;
@@ -229,9 +234,11 @@ function buildStub(route) {
   return { method, stub };
 }
 
-function findMissing(doc, allowlist) {
+function findMissing(doc, allowlist, contracts) {
   const { operations,referencedPaths } = collectOpenApiCoverage(doc);
-  const routes = collectRoutes(allowlist.required_files);
+  const requiredFiles = new Set(allowlist.required_files || []);
+  for (const contract of contracts.values()) requiredFiles.add(contract.route_file);
+  const routes = collectRoutes([...requiredFiles]);
   const isAllowed = allowlistMatchers(allowlist);
   const missing = [];
   const seen = new Set();
@@ -261,7 +268,7 @@ function main() {
   const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
   const contracts = normalizeContractRegistry(loadYaml(CONTRACT_REGISTRY_PATH, { contracts:{} }));
-  const missing = findMissing(doc, allowlist);
+  const missing = findMissing(doc, allowlist, contracts);
 
   if (!write) {
     const result = {
