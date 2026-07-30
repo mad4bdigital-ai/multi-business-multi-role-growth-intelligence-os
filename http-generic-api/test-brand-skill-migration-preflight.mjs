@@ -33,9 +33,9 @@ function buildPool({
   const queries = [];
   return {
     queries,
-    async query(sql) {
+    async query(sql, params = []) {
       const text = String(sql).replace(/\s+/g, " ").trim();
-      queries.push(text);
+      queries.push({ sql: text, params: [...params] });
       assert.match(text, /^SELECT\b/i, `preflight query must be read-only: ${text}`);
       if (text.includes("SELECT VERSION()")) {
         return [[{ version: "10.11.8-MariaDB", version_comment: "MariaDB Server" }]];
@@ -46,10 +46,10 @@ function buildPool({
       if (text.includes("SELECT SHA2")) {
         return [[{ sha2_probe: "a".repeat(64) }]];
       }
-      if (text.includes("information_schema.TABLES") && text.includes("v_effective_user_brand_skill_grants")) {
+      if (text.includes("information_schema.TABLES") && params.includes("v_effective_user_brand_skill_grants")) {
         return [targetObjects];
       }
-      if (text.includes("information_schema.TABLES") && text.includes("v_effective_agent_skill_grants")) {
+      if (text.includes("information_schema.TABLES") && params.includes("v_effective_agent_skill_grants")) {
         return [baselineObjects];
       }
       if (text.includes("information_schema.COLUMNS") && text.includes("TABLE_NAME = 'agent_skills'")) {
@@ -78,7 +78,7 @@ assert.equal(compatible.applies_sql, false);
 assert.equal(compatible.provider_calls, false);
 assert.equal(compatible.external_writes, false);
 assert.equal(compatible.secrets_included, false);
-assert(compatiblePool.queries.every((sql) => /^SELECT\b/i.test(sql)));
+assert(compatiblePool.queries.every(({ sql }) => /^SELECT\b/i.test(sql)));
 
 const missingView = await assessBrandSkillMigrationPreflight({
   pool: buildPool({
