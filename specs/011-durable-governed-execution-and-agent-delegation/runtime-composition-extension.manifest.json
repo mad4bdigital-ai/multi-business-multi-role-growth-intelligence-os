@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "extension_key": "spec-011-runtime-composition-performance-closure",
+  "parent_spec_key": "011-durable-governed-execution-and-agent-delegation",
+  "status": "in_progress",
+  "specification_authority": true,
+  "runtime_authority": false,
+  "primary_artifact": "runtime-composition-performance-addendum.md",
+  "requirement_range": {
+    "prefix": "FR-RC",
+    "first": "FR-RC-001",
+    "last": "FR-RC-035"
+  },
+  "owned_concerns": [
+    "unified_governed_dispatch",
+    "compiled_governed_plan",
+    "dependency_graph_scheduler",
+    "resource_locks_and_bounded_concurrency",
+    "fast_and_durable_lanes",
+    "approval_frontier",
+    "execution_ledger_and_outbox",
+    "mutation_receipts_and_readback",
+    "compact_result_integrity",
+    "performance_and_safety_equivalence"
+  ],
+  "dependencies": [
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
+    "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md",
+    "../integration-governed-execution-runtime-composition/manifest.json"
+  ],
+  "current_phase": "X0_evidence_baseline",
+  "current_slice": {
+    "key": "RC0_instrumentation",
+    "status": "in_progress",
+    "manifest": "x0-evidence-baseline.manifest.json",
+    "primary_artifact": "x0-evidence-baseline.md",
+    "runtime_authority": false
+  },
+  "delivery_slices": [
+    { "key": "RC0_instrumentation", "status": "in_progress" },
+    { "key": "RC1_execution_input_shadow", "status": "not_started" },
+    { "key": "RC2_unified_in_process_dispatch", "status": "not_started" },
+    { "key": "RC3_graph_scheduler", "status": "not_started" },
+    { "key": "RC4_approval_frontier", "status": "not_started" },
+    { "key": "RC5_ledger_outbox_split", "status": "not_started" },
+    { "key": "RC6_fast_lane_mutation", "status": "not_started" },
+    { "key": "RC7_durable_lane", "status": "not_started" },
+    { "key": "RC8_intent_first_cutover", "status": "not_started" }
+  ],
+  "constraints": [
+    "no_runtime_cutover_from_specification",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment",
+    "no_merge",
+    "no_authority_weakening",
+    "no_retry_after_unknown_outcome",
+    "legacy_compatibility_until_certified_retirement"
+  ],
+  "secrets_included": false
+}

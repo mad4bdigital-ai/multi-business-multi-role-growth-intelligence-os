@@ -37,7 +37,18 @@
     "plan.md",
     "completion.json",
     "checklists/specification-readiness.md",
+    "execution-capsule-runtime-addendum.md",
+    "execution-capsule-runtime-extension.manifest.json",
     "manifest.json"
+  ],
+  "extensions": [
+    {
+      "extension_key": "spec-012-execution-capsule-runtime-integration",
+      "manifest": "execution-capsule-runtime-extension.manifest.json",
+      "primary_artifact": "execution-capsule-runtime-addendum.md",
+      "status": "draft",
+      "runtime_authority": false
+    }
   ],
   "public_api_boundary": {
     "version": "0.1.0",
