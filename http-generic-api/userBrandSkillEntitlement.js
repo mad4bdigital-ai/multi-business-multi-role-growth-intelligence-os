@@ -2,6 +2,22 @@ function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function parseArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function operationAllowed(operation, allowedOperations) {
+  const allowed = new Set(parseArray(allowedOperations).map(normalize).filter(Boolean));
+  return allowed.has("*") || allowed.has(normalize(operation));
+}
+
 function safeErrorCode(error) {
   const code = String(error?.code || "").trim();
   return /^[A-Z0-9_:-]{1,128}$/i.test(code) ? code : null;
@@ -52,7 +68,7 @@ async function resolveUserBrandSkillEntitlementInternal(pool, skill, context = {
   }
 
   const [policyRows] = await pool.query(
-    `SELECT p.policy_id, p.activation_mode
+    `SELECT p.policy_id, p.activation_mode, p.allowed_operations_json
        FROM brand_skill_policies p
        JOIN agent_skills s ON s.skill_id = p.skill_id AND s.status = 'active'
       WHERE p.tenant_id = ? AND p.brand_key = ? AND s.skill_key = ? AND p.status = 'active'
@@ -91,6 +107,17 @@ async function resolveUserBrandSkillEntitlementInternal(pool, skill, context = {
   }
 
   const operation = inferBrandSkillOperation(toolName, args, action, context);
+  if (!operationAllowed(operation, policy.allowed_operations_json)) {
+    return {
+      configured: true,
+      granted: false,
+      grant_id: null,
+      operation,
+      policy_id: policy.policy_id,
+      reason: "brand_skill_policy_operation_denied",
+    };
+  }
+
   const resourceType = String(context.resource_type || "").trim();
   const resourceRef = String(context.resource_ref || context.target_ref || "").trim();
   const [grantRows] = await pool.query(
