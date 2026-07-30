@@ -11,7 +11,7 @@
     "default_branch": "main",
     "review_started_from_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
     "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
-    "evidence_timestamp": "2026-07-30T22:36:00Z",
+    "evidence_timestamp": "2026-07-30T22:38:00Z",
     "production_behavior_verified": false,
     "classification": "repository_brownfield_review_only"
   },
@@ -121,8 +121,8 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": null,
-      "status": "pending"
+      "number": 3922,
+      "status": "open_draft"
     },
     "implementation_prs": [],
     "closeout_pr": {
