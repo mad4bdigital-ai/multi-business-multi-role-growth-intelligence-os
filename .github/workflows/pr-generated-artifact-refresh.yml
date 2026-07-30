@@ -1,5 +1,4 @@
 # Trigger bounded generated-artifact reconciliation for Brand Skills.
-# Reconcile PR #3694 against the current main generated-contract baseline.
 name: PR Generated Artifact Refresh
 
 on:
