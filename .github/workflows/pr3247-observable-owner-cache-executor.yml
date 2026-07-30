@@ -24,15 +24,14 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
-      - name: Apply exact patch and run targeted regression
+      - name: Apply robust patch and run targeted regression
         id: patch
         shell: bash
         run: |
           set +e
           (
             set -euo pipefail
-            python .github/scripts/pr3247_extract_patch.py
-            bash /tmp/pr3247_patch.sh
+            python .github/scripts/pr3247_apply_owner_cache_patch.py
             node --check http-generic-api/routes/gptToolsRoutes.js
             node --check http-generic-api/test-gpt-tools-response-chunking.mjs
             git diff --check
@@ -74,6 +73,7 @@ jobs:
           rm -f .github/workflows/pr3247-one-shot-owner-cache.yml
           rm -f .github/workflows/pr3247-observable-owner-cache-executor.yml
           rm -f .github/scripts/pr3247_extract_patch.py
+          rm -f .github/scripts/pr3247_apply_owner_cache_patch.py
           rm -rf .tmp/pr3247
           rmdir .tmp 2>/dev/null || true
           git diff --check
