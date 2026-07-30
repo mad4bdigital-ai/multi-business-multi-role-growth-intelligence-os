@@ -74,6 +74,19 @@ The dedicated runner:
 
 Any failure before commit rolls back the migration statements, ledger write, and envelope consumption together.
 
+## Repository and rollout gates
+
+Before production execution:
+
+1. required PR CI and contract checks must pass on the exact head;
+2. the PR must be merged into `main` without bypassing freshness checks;
+3. `main` must be promoted to `Production` through the governed release path;
+4. production runtime parity must identify the exact promoted commit;
+5. the deployed migration file must be re-read and its SHA-256 must still equal the approved checksum;
+6. the production dry-run and capability envelope must be created after deployment.
+
+PR validation, merge approval, release promotion, and database apply are separate authorizations. None implies another.
+
 ## Post-commit readback
 
 The runner verifies after commit that:
