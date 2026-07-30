@@ -36,7 +36,15 @@ export function createResourceGraphResolverService({ boundedResourceGraphReposit
   async function resolve(input = {}) {
     const principal = requireApplicationObject(input.principal, "principal");
     const effectiveSubject = requireApplicationObject(input.effectiveSubject, "effectiveSubject");
+    const principalType = requireApplicationString(
+      principal.principalType,
+      "principal.principalType",
+    );
     const principalRef = requireApplicationString(principal.principalRef, "principal.principalRef");
+    const subjectType = requireApplicationString(
+      effectiveSubject.subjectType,
+      "effectiveSubject.subjectType",
+    );
     const subjectRef = requireApplicationString(effectiveSubject.subjectRef, "effectiveSubject.subjectRef");
     const tenantRef = requireApplicationString(
       input.tenantRef || effectiveSubject.tenantRef,
@@ -96,7 +104,9 @@ export function createResourceGraphResolverService({ boundedResourceGraphReposit
     if (Number.isNaN(now.getTime())) throw new TypeError("now must be a valid Date.");
 
     const snapshot = await boundedResourceGraphRepository.findBoundedResourceGraph({
+      principalType,
       principalRef,
+      subjectType,
       subjectRef,
       tenantRef,
       workspaceRef,
@@ -135,11 +145,11 @@ export function createResourceGraphResolverService({ boundedResourceGraphReposit
     return freezeApplicationValue({
       ...decision,
       actor: {
-        principalType: principal.principalType,
+        principalType,
         principalRef,
       },
       effectiveSubject: {
-        subjectType: effectiveSubject.subjectType,
+        subjectType,
         subjectRef,
         tenantRef,
         workspaceRef,
