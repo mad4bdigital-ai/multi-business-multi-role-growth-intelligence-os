@@ -76,13 +76,10 @@
     }
   ],
   "public_api_boundary": {
-    "version": "0.2.0",
+    "version": "0.1.0",
     "exposed": [
       "context_resolution",
       "context_pinning",
-      "connection_ownership_projection",
-      "connection_resolution",
-      "provider_authorization_state_projection",
       "execution_context_compilation",
       "execution_context_validation"
     ],
@@ -91,6 +88,16 @@
       "provider_dispatch",
       "provider_readback",
       "unknown_outcome_reconciliation"
+    ]
+  },
+  "planned_public_api_boundary": {
+    "version": "0.2.0",
+    "status": "contract_pending",
+    "not_exposed_until_openapi_and_implementation_pr": true,
+    "planned": [
+      "connection_ownership_projection",
+      "connection_resolution",
+      "provider_authorization_state_projection"
     ]
   },
   "delivery_mode": "multi_pr",
