@@ -16657,7 +16657,7 @@ paths:
               additionalProperties: false
               properties:
                 connection_id: { type: string }
-                system_id: { type: string, default: "98d6a18b-5578-11f1-9baf-8e76a7e1749f" }
+                system_id: { type: string, description: Governed connected-system registry identifier selected for the promotion target. }
                 owner_id: { type: string, default: growth_intelligence_platform }
                 target_key: { type: string, default: hostinger_ssh_prod_platform }
                 provider_family: { type: string, default: hostinger }
