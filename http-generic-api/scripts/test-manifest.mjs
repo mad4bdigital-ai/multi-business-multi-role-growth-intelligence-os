@@ -174,6 +174,7 @@ export const testCommands = [
   "node test-governed-repository-intelligence-engine.mjs",
   "node test-repository-governance-v6.mjs",
   "node test-repository-operation-lease-service.mjs",
+  "node test-repository-reconciliation-lease-control.mjs",
   "node test-repository-coordination-plane.mjs",
   "node test-repository-mutation-coordination-telemetry.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
