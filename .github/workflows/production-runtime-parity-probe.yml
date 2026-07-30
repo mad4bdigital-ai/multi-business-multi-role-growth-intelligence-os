@@ -1,11 +1,6 @@
 name: Production Runtime Parity Probe
 
 on:
-  push:
-    branches:
-      - gpt/probe-production-runtime-parity-20260730
-    paths:
-      - .github/workflows/production-runtime-parity-probe.yml
   pull_request:
     branches:
       - Production
@@ -21,13 +16,32 @@ concurrency:
 
 jobs:
   probe:
-    name: Read-only auth.mad4b.com parity
+    name: Read-only runtime parity and Migration 1006 checksum
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       EXPECTED_PRODUCTION_SHA: abdeed2c5a588c19a2d1f2e35046e7b120d97016
+      MIGRATION_PATH: http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql
     steps:
+      - name: Checkout Production-pinned probe branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Derive Migration 1006 checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$MIGRATION_PATH"
+          checksum="$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')"
+          bytes="$(wc -c < "$MIGRATION_PATH" | tr -d ' ')"
+          statements="$(grep -Ec '^[[:space:]]*CREATE[[:space:]]+(TABLE|OR[[:space:]]+REPLACE[[:space:]]+VIEW)' "$MIGRATION_PATH")"
+          echo "MIGRATION_1006_SHA256=$checksum"
+          echo "MIGRATION_1006_BYTES=$bytes"
+          echo "MIGRATION_1006_CREATE_STATEMENTS=$statements"
+          test "$statements" -eq 5
+
       - name: Probe health, version, and deployment info
         shell: bash
         run: |
@@ -41,9 +55,7 @@ jobs:
           function collectStrings(value, out = []) {
             if (typeof value === "string") out.push(value);
             else if (Array.isArray(value)) value.forEach((item) => collectStrings(item, out));
-            else if (value && typeof value === "object") {
-              Object.values(value).forEach((item) => collectStrings(item, out));
-            }
+            else if (value && typeof value === "object") Object.values(value).forEach((item) => collectStrings(item, out));
             return out;
           }
 
@@ -52,20 +64,13 @@ jobs:
             for (let attempt = 1; attempt <= 4; attempt += 1) {
               try {
                 const response = await fetch(`${base}${path}`, {
-                  headers: {
-                    Accept: "application/json",
-                    "User-Agent": "mad4b-runtime-parity-probe/1.0",
-                  },
+                  headers: { Accept: "application/json", "User-Agent": "mad4b-runtime-parity-probe/1.1" },
                   redirect: "follow",
                   signal: AbortSignal.timeout(15000),
                 });
                 const text = await response.text();
                 let body;
-                try {
-                  body = JSON.parse(text);
-                } catch {
-                  body = { raw_preview: text.slice(0, 500) };
-                }
+                try { body = JSON.parse(text); } catch { body = { raw_preview: text.slice(0, 500) }; }
                 return { path, attempt, status: response.status, ok: response.ok, body };
               } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error);
@@ -88,15 +93,10 @@ jobs:
             process.exit(1);
           }
 
-          const strings = evidence.flatMap((item) => collectStrings(item.body));
-          const normalized = strings.map((value) => value.trim().toLowerCase());
-          const matchedValue = normalized.find(
-            (value) => value === expected || value.includes(expected) || value.includes(expected.slice(0, 12))
-          );
-
+          const normalized = evidence.flatMap((item) => collectStrings(item.body)).map((value) => value.trim().toLowerCase());
+          const matchedValue = normalized.find((value) => value === expected || value.includes(expected) || value.includes(expected.slice(0, 12)));
           if (!matchedValue) {
             console.error(`::error::Runtime responses do not expose expected Production SHA ${expected}`);
-            console.error(`Observed string values: ${JSON.stringify(normalized.slice(0, 100))}`);
             process.exit(1);
           }
 
