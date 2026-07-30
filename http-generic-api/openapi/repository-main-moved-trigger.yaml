@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Repository Main Moved Trigger API
-  version: 1.0.0
+  version: 1.1.0
   description: Internal allowlisted main-branch event coordination for runtime verification and advisory planning only.
 servers:
   - url: https://auth.mad4b.com
@@ -21,17 +21,27 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/CreateRepositoryMainMovedEventRequest' }
+            schema:
+              $ref: '#/components/schemas/CreateRepositoryMainMovedEventRequest'
       responses:
         '201':
           description: Event coordinated and persisted
-          content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryMainMovedEventResponse' } } }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryMainMovedEventResponse'
         '200':
           description: Existing event for the same repository, branch, and after SHA returned
-          content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryMainMovedEventResponse' } } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryMainMovedEventResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /admin/repository-main-moved-events/{triggerEventId}:
     get:
       tags: [repository-main-moved-events]
@@ -42,8 +52,12 @@ paths:
       responses:
         '200':
           description: Bounded verification and advisor handoff summary
-          content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryMainMovedEventResponse' } } }
-        '404': { $ref: '#/components/responses/NotFound' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryMainMovedEventResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     adminBearerAuth:
@@ -57,57 +71,161 @@ components:
       name: x-api-key
       description: |
         Admin/service Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
-    backendApiKey: { type: apiKey, in: header, name: x-api-key }
+    backendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
   parameters:
     TriggerEventId:
       in: path
       name: triggerEventId
       required: true
-      schema: { type: string, format: uuid }
+      schema:
+        type: string
+        format: uuid
   schemas:
     CreateRepositoryMainMovedEventRequest:
       type: object
       required: [source_event_id, repository, before_sha, after_sha]
       properties:
-        source_event_id: { type: string, minLength: 1, maxLength: 191 }
-        repository: { type: string, minLength: 3, maxLength: 255 }
-        branch: { type: string, enum: [main, refs/heads/main], default: main }
-        before_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
-        after_sha: { type: string, pattern: '^[0-9a-fA-F]{40}$' }
-        forced: { type: boolean, default: false }
-        deleted: { type: boolean, enum: [false], default: false }
-        environment_key: { type: string, enum: [production, staging], default: production }
-        target_id: { type: string, format: uuid }
-        occurred_at: { type: string, format: date-time }
+        source_event_id:
+          type: string
+          minLength: 1
+          maxLength: 191
+        repository:
+          type: string
+          minLength: 3
+          maxLength: 255
+        branch:
+          type: string
+          enum: [main, refs/heads/main]
+          default: main
+        before_sha:
+          type: string
+          pattern: "^[0-9a-fA-F]{40}$"
+        after_sha:
+          type: string
+          pattern: "^[0-9a-fA-F]{40}$"
+        forced:
+          type: boolean
+          default: false
+        deleted:
+          type: boolean
+          enum: [false]
+          default: false
+        environment_key:
+          type: string
+          enum: [production, staging]
+          default: production
+        target_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
       additionalProperties: false
     RepositoryMainMovedEventResponse:
       type: object
       required: [ok, trigger_event, execution_allowed, provider_write, external_write, secrets_included]
       properties:
-        ok: { type: boolean, const: true }
-        deduplicated: { type: boolean }
+        ok:
+          type: boolean
+          const: true
+        deduplicated:
+          type: boolean
         trigger_event:
           type: object
-          required: [trigger_event_id, repository_full_name, branch_name, before_sha, after_sha, coordination_status, next_action_key, execution_allowed, provider_write, external_write, secrets_included]
+          required:
+            - trigger_event_id
+            - repository_full_name
+            - branch_name
+            - source_branch
+            - deployment_branch
+            - before_sha
+            - after_sha
+            - coordination_status
+            - next_action_key
+            - production_sync_required
+            - fresh_hostinger_build_required
+            - same_cycle_readback_required
+            - execution_allowed
+            - provider_write
+            - external_write
+            - secrets_included
           properties:
-            trigger_event_id: { type: string, format: uuid }
-            source_event_id: { type: string }
-            outbox_event_id: { type: string, format: uuid }
-            repository_full_name: { type: string }
-            branch_name: { type: string, const: main }
-            source_branch: { type: string, const: main }
-            deployment_branch: { type: string, const: Production }
-            trigger_mode: { type: string, enum: [source_branch_moved, runtime_deployment_reconciliation] }
-            before_sha: { type: string, pattern: '^[0-9a-f]{40}
-            execution_allowed: { type: boolean, const: false }
-            provider_write: { type: boolean, const: false }
-            external_write: { type: boolean, const: false }
-            secrets_included: { type: boolean, const: false }
+            trigger_event_id:
+              type: string
+              format: uuid
+            source_event_id:
+              type: string
+            outbox_event_id:
+              type: string
+              format: uuid
+            repository_full_name:
+              type: string
+            branch_name:
+              type: string
+              const: main
+            source_branch:
+              type: string
+              const: main
+            deployment_branch:
+              type: string
+              const: Production
+            trigger_mode:
+              type: string
+              enum: [source_branch_moved, runtime_deployment_reconciliation]
+            before_sha:
+              type: string
+              pattern: "^[0-9a-f]{40}$"
+            after_sha:
+              type: string
+              pattern: "^[0-9a-f]{40}$"
+            runtime_verification_run_id:
+              type: [string, 'null']
+              format: uuid
+            release_advisor_run_id:
+              type: [string, 'null']
+              format: uuid
+            coordination_status:
+              type: string
+              enum: [received, verifying, evaluated, production_sync_required, approval_required, no_action, blocked, failed, superseded]
+            next_action_key:
+              type: string
+            production_sync_required:
+              type: boolean
+            fresh_hostinger_build_required:
+              type: boolean
+            same_cycle_readback_required:
+              type: boolean
+            summary_json:
+              type: object
+              additionalProperties: true
+            execution_allowed:
+              type: boolean
+              const: false
+            provider_write:
+              type: boolean
+              const: false
+            external_write:
+              type: boolean
+              const: false
+            secrets_included:
+              type: boolean
+              const: false
           additionalProperties: true
-        execution_allowed: { type: boolean, const: false }
-        provider_write: { type: boolean, const: false }
-        external_write: { type: boolean, const: false }
-        secrets_included: { type: boolean, const: false }
+        execution_allowed:
+          type: boolean
+          const: false
+        provider_write:
+          type: boolean
+          const: false
+        external_write:
+          type: boolean
+          const: false
+        secrets_included:
+          type: boolean
+          const: false
       additionalProperties: false
     ErrorEnvelope:
       type: object
@@ -117,83 +235,37 @@ components:
           type: object
           required: [code, message]
           properties:
-            code: { type: string }
-            message: { type: string }
+            code:
+              type: string
+            message:
+              type: string
             details: {}
-            requestId: { type: string }
+            requestId:
+              type: string
           additionalProperties: false
       additionalProperties: false
   responses:
-    BadRequest: { description: Invalid repository event, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Forbidden: { description: Repository is not allowlisted, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    NotFound: { description: Trigger event not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Conflict: { description: Event has no movement or refers to a deleted main ref, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
- }
-            after_sha: { type: string, pattern: '^[0-9a-f]{40}
-            execution_allowed: { type: boolean, const: false }
-            provider_write: { type: boolean, const: false }
-            external_write: { type: boolean, const: false }
-            secrets_included: { type: boolean, const: false }
-          additionalProperties: true
-        execution_allowed: { type: boolean, const: false }
-        provider_write: { type: boolean, const: false }
-        external_write: { type: boolean, const: false }
-        secrets_included: { type: boolean, const: false }
-      additionalProperties: false
-    ErrorEnvelope:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code: { type: string }
-            message: { type: string }
-            details: {}
-            requestId: { type: string }
-          additionalProperties: false
-      additionalProperties: false
-  responses:
-    BadRequest: { description: Invalid repository event, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Forbidden: { description: Repository is not allowlisted, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    NotFound: { description: Trigger event not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Conflict: { description: Event has no movement or refers to a deleted main ref, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
- }
-            runtime_verification_run_id: { type: [string, 'null'], format: uuid }
-            release_advisor_run_id: { type: [string, 'null'], format: uuid }
-            coordination_status: { type: string, enum: [received, verifying, evaluated, production_sync_required, approval_required, no_action, blocked, failed, superseded] }
-            next_action_key: { type: string }
-            production_sync_required: { type: boolean }
-            fresh_hostinger_build_required: { type: boolean }
-            same_cycle_readback_required: { type: boolean }
-            summary_json: { type: object, additionalProperties: true }
-            execution_allowed: { type: boolean, const: false }
-            provider_write: { type: boolean, const: false }
-            external_write: { type: boolean, const: false }
-            secrets_included: { type: boolean, const: false }
-          additionalProperties: true
-        execution_allowed: { type: boolean, const: false }
-        provider_write: { type: boolean, const: false }
-        external_write: { type: boolean, const: false }
-        secrets_included: { type: boolean, const: false }
-      additionalProperties: false
-    ErrorEnvelope:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code: { type: string }
-            message: { type: string }
-            details: {}
-            requestId: { type: string }
-          additionalProperties: false
-      additionalProperties: false
-  responses:
-    BadRequest: { description: Invalid repository event, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Forbidden: { description: Repository is not allowlisted, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    NotFound: { description: Trigger event not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
-    Conflict: { description: Event has no movement or refers to a deleted main ref, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    BadRequest:
+      description: Invalid repository event
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Repository is not allowlisted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Trigger event not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Event has no movement or refers to a deleted main ref
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
