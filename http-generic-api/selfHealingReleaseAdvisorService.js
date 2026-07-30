@@ -51,6 +51,20 @@ function hash(value) {
   return createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
 }
 
+function uniqueAdvisorRow(rowset, context) {
+  if (!Array.isArray(rowset)) {
+    fail("release_advisor_resolution_invalid", "Release advisor resolution returned an invalid rowset.", 500, { context });
+  }
+  if (rowset.length > 1) {
+    fail("release_advisor_resolution_ambiguous", "Release advisor resolution returned multiple candidates.", 409, {
+      context,
+      candidate_count: rowset.length,
+    });
+  }
+  const [row] = rowset;
+  return row || null;
+}
+
 export function sanitizeReleaseAdvisorEvidence(value, depth = 0) {
   if (depth > 8) return "[depth_limited]";
   if (Array.isArray(value)) return value.slice(0, 100).map((item) => sanitizeReleaseAdvisorEvidence(item, depth + 1));
@@ -280,7 +294,7 @@ async function loadAdvisorEvidence(input, pool) {
   } else {
     [verificationRows] = await pool.query(`SELECT * FROM runtime_verification_runs WHERE environment_key = ? ORDER BY completed_at DESC, started_at DESC LIMIT 1`, [input.environment_key]);
   }
-  const verification = verificationRows[0];
+  const verification = uniqueAdvisorRow(verificationRows, "runtime_verification");
   if (!verification) fail("release_advisor_verification_not_found", "Runtime verification evidence was not found.", 404);
 
   const [gaps] = await pool.query(
@@ -298,7 +312,7 @@ async function loadAdvisorEvidence(input, pool) {
   let operation = null;
   if (input.release_operation_id) {
     const [rows] = await pool.query(`SELECT * FROM release_operations WHERE operation_id = ? LIMIT 1`, [input.release_operation_id]);
-    operation = rows[0] || null;
+    operation = uniqueAdvisorRow(rows, "release_operation");
     if (!operation) fail("release_advisor_operation_not_found", "Release operation was not found.", 404);
   } else {
     const clauses = ["environment_key = ?", "expected_commit_sha = ?"];
@@ -308,16 +322,16 @@ async function loadAdvisorEvidence(input, pool) {
       `SELECT * FROM release_operations WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC LIMIT 1`,
       params,
     );
-    operation = rows[0] || null;
+    operation = uniqueAdvisorRow(rows, "release_operation");
   }
 
   let gate = null;
   let asyncDeployment = null;
   if (operation) {
     const [gateRows] = await pool.query(`SELECT * FROM release_gates WHERE operation_id = ? ORDER BY created_at DESC LIMIT 1`, [operation.operation_id]);
-    gate = gateRows[0] || null;
+    gate = uniqueAdvisorRow(gateRows, "release_gate");
     const [deploymentRows] = await pool.query(`SELECT * FROM release_async_deployments WHERE operation_id = ? ORDER BY created_at DESC LIMIT 1`, [operation.operation_id]);
-    asyncDeployment = deploymentRows[0] || null;
+    asyncDeployment = uniqueAdvisorRow(deploymentRows, "release_async_deployment");
   }
 
   return {
@@ -362,11 +376,12 @@ export async function getReleaseAdvisorRun(advisorRunId, deps = {}) {
   const pool = deps.pool || getPool();
   const id = uuid(advisorRunId, "advisor_run_id", { required: true });
   const [rows] = await pool.query(`SELECT * FROM release_advisor_runs WHERE advisor_run_id = ? LIMIT 1`, [id]);
-  if (!rows[0]) fail("release_advisor_run_not_found", "Release advisor run was not found.", 404);
+  const row = uniqueAdvisorRow(rows, "advisor_run_id");
+  if (!row) fail("release_advisor_run_not_found", "Release advisor run was not found.", 404);
   const [recommendations] = await pool.query(`SELECT * FROM release_advisor_recommendations WHERE advisor_run_id = ? ORDER BY sequence_no, recommendation_id`, [id]);
   return {
     ok: true,
-    advisor_run: shapeRun(rows[0]),
+    advisor_run: shapeRun(row),
     recommendations: recommendations.map(shapeRecommendation),
     execution_allowed: false,
     provider_write: false,
@@ -384,8 +399,9 @@ export async function createReleaseAdvisorRun(rawInput = {}, deps = {}) {
   }
   const plan = buildReleaseAdvisorPlan(evidence);
   const [existingRows] = await pool.query(`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 1`, [plan.plan_fingerprint_sha256]);
-  if (existingRows[0]) {
-    return { ...(await getReleaseAdvisorRun(existingRows[0].advisor_run_id, { pool })), deduplicated: true };
+  const existingRun = uniqueAdvisorRow(existingRows, "plan_fingerprint_sha256");
+  if (existingRun) {
+    return { ...(await getReleaseAdvisorRun(existingRun.advisor_run_id, { pool })), deduplicated: true };
   }
 
   const advisorRunId = randomUUID();
@@ -449,7 +465,8 @@ export async function createReleaseAdvisorRun(rawInput = {}, deps = {}) {
     await connection.rollback();
     if (error?.code === "ER_DUP_ENTRY") {
       const [rows] = await pool.query(`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 1`, [plan.plan_fingerprint_sha256]);
-      if (rows[0]) return { ...(await getReleaseAdvisorRun(rows[0].advisor_run_id, { pool })), deduplicated: true };
+      const duplicateRun = uniqueAdvisorRow(rows, "duplicate_plan_fingerprint_sha256");
+    if (duplicateRun) return { ...(await getReleaseAdvisorRun(duplicateRun.advisor_run_id, { pool })), deduplicated: true };
     }
     throw error;
   } finally {

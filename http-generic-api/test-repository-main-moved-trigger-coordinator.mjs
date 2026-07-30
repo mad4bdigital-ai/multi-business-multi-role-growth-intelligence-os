@@ -166,6 +166,8 @@ const metadataSlice = service.slice(service.indexOf("metadata: {"), service.inde
 assert.doesNotMatch(metadataSlice, /secrets_included/);
 assert.match(service, /execution_allowed: false/);
 assert.match(service, /job_enqueued: false/);
+assert.doesNotMatch(service, /\brows\s*\[\s*0\s*\]/);
+assert.match(service, /repository_main_moved_resolution_ambiguous/);
 
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_repository_main_moved_trigger_coordinator.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS repository_main_moved_trigger_events/);
@@ -190,7 +192,7 @@ assert.match(openapi, /openapi: 3\.1\.0/);
 assert.match(openapi, /operationId: createRepositoryMainMovedEvent/);
 assert.match(openapi, /operationId: getRepositoryMainMovedEvent/);
 assert.match(openapi, /\/admin\/repository-main-moved-events/);
-assert.match(openapi, /execution_allowed: \{ type: boolean, const: false \}/);
+assert.match(openapi, /execution_allowed:\s*(?:\{\s*type:\s*boolean,\s*const:\s*false\s*\}|\n\s+type:\s*boolean\n\s+const:\s*false)/);
 
 const activation = JSON.parse(fs.readFileSync(
   path.join(__dirname, "activation-surfaces", "repository_main_moved_trigger_events.json"),

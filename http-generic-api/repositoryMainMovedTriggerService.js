@@ -221,12 +221,26 @@ function shapeTrigger(row) {
   };
 }
 
+function uniqueTriggerRow(rowset, context) {
+  if (!Array.isArray(rowset)) {
+    fail("repository_main_moved_resolution_invalid", "Repository trigger resolution returned an invalid rowset.", 500, { context });
+  }
+  if (rowset.length > 1) {
+    fail("repository_main_moved_resolution_ambiguous", "Repository trigger resolution returned multiple candidates.", 409, {
+      context,
+      candidate_count: rowset.length,
+    });
+  }
+  const [row] = rowset;
+  return row || null;
+}
+
 async function loadByFingerprint(pool, fingerprint) {
   const [rows] = await pool.query(
     `SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 1`,
     [fingerprint],
   );
-  return shapeTrigger(rows[0] || null);
+  return shapeTrigger(uniqueTriggerRow(rows, "event_fingerprint_sha256"));
 }
 
 export async function getRepositoryMainMovedTriggerEvent(triggerEventId, deps = {}) {
@@ -237,10 +251,11 @@ export async function getRepositoryMainMovedTriggerEvent(triggerEventId, deps = 
     `SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 1`,
     [id],
   );
-  if (!rows[0]) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
+  const row = uniqueTriggerRow(rows, "trigger_event_id");
+  if (!row) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
   return {
     ok: true,
-    trigger_event: shapeTrigger(rows[0]),
+    trigger_event: shapeTrigger(row),
     execution_allowed: false,
     provider_write: false,
     external_write: false,

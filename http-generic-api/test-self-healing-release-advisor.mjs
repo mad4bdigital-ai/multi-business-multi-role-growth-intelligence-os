@@ -152,6 +152,10 @@ assert.equal(sanitized.nested.password, undefined);
 assert.equal(sanitized.nested.value, "kept");
 assert.equal(sanitized.secrets_included, false);
 
+const advisorService = fs.readFileSync(path.join(__dirname, "selfHealingReleaseAdvisorService.js"), "utf8");
+assert.doesNotMatch(advisorService, /\b(?:rows|rowset|verificationRows|gateRows|deploymentRows|existingRows)\s*\[\s*0\s*\]/);
+assert.match(advisorService, /release_advisor_resolution_ambiguous/);
+
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_self_healing_release_advisor.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_advisor_runs/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_advisor_recommendations/);
