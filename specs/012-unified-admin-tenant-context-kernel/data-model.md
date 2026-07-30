@@ -155,6 +155,7 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 ## ProviderAuthorizationState
 
 - `stateRef`
+- `flowType`: `authorize` or `reconnect`
 - `providerKey`
 - `principalRef`
 - `userRef`
@@ -163,6 +164,10 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `brandRef` optional
 - `ownerScopeType`
 - `ownerScopeRef`
+- `targetConnectionRef` optional; required for reconnect
+- `expectedConnectionRevision` optional; required for reconnect
+- `expectedProviderAccountRef` optional; required for reconnect when a safe stable provider account reference exists
+- `expectedProviderAccountBindingHash` optional privacy-preserving alternative to the raw account reference
 - `requestedProviderScopes`
 - `redirectTargetRef`
 - `nonceHash`
@@ -173,6 +178,8 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `signatureVersion`
 
 Authorization state is signed, expiring, nonce-bound, single-use, and context-bound. It contains no credential value.
+
+Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the expected provider account by safe stable reference or privacy-preserving binding hash. A reconnect callback that returns a different provider account or observes a different connection revision fails closed before credential replacement.
 
 ## ConnectionResolutionDecision
 
@@ -189,8 +196,8 @@ Authorization state is signed, expiring, nonce-bound, single-use, and context-bo
 - `operationRiskClass`
 - `explicitConnectionRef` optional
 - `selectedConnectionRef` optional
-- `selectedOwnerScopeType` optional
-- `selectedOwnerScopeRef` optional
+- `selectedOwnerScopeType` required whenever `selectedConnectionRef` is present; omitted for unresolved outcomes
+- `selectedOwnerScopeRef` required whenever `selectedConnectionRef` is present; omitted for unresolved outcomes
 - `candidateRefs`
 - `candidateRevisionVector` for unresolved candidate sets
 - `rejectedCandidateReasonCodes`
@@ -213,7 +220,25 @@ Statuses include:
 
 A service principal or delegated agent may resolve a company-workspace connection without an `effectiveUserRef` when its explicit service or delegation binding supplies the required authority. Implementations MUST NOT invent or borrow a user identity. Personal connection selection always requires `effectiveUserRef` to equal the connection owner.
 
+A resolved decision is incomplete unless `selectedConnectionRef`, `selectedOwnerScopeType`, `selectedOwnerScopeRef`, and `connectionRevision` are present together. Downstream consumers use the immutable owner-scope evidence from this decision and MUST NOT re-fetch mutable ownership metadata to reconstruct it.
+
 `connectionRevision` is singular only for a resolved selected connection. `interpretation_required` records each eligible candidate revision in `candidateRevisionVector`; `connection_required` carries no selected connection revision and an empty candidate vector.
+
+## ConnectionReadinessDecision
+
+- `readinessRef`
+- `connectionResolutionRef`
+- `preCredentialReadiness`: configuration, context, ownership, capability, authority, approval, and non-secret policy evidence
+- `credentialMaterializationAllowed`
+- `credentialMaterializationRef` internal and non-exportable when materialization occurs
+- `providerReadiness`: credential validity, provider scopes, reachability, quota, schema, and readback capability
+- `blockingGaps`
+- `status`
+- `evaluatedAt`
+- `expiresAt`
+- `secretsIncluded`: always `false`
+
+Credential materialization is allowed only after `preCredentialReadiness` passes for one exact selected connection. The materialized secret is passed directly to the provider-readiness or dispatch adapter and is never embedded in this decision.
 
 ## AuthorityPath
 
@@ -249,6 +274,7 @@ A service principal or delegated agent may resolve a company-workspace connectio
 - `connectionRef`
 - `connectionResolutionRef`
 - `connectionOwnerScopeType`
+- `connectionOwnerScopeRef`
 - `connectionRevision`
 - `authorizationRevision`
 - `steps`
