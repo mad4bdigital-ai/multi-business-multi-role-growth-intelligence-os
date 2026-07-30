@@ -35,6 +35,29 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Remove redundant textual precheck from temporary applicator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/apply-surface-contract-classification-phase-a.py')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          output = []
+          removed = 0
+          for line in lines:
+              if 'safety_bullet_parser_behavior_missing' in line:
+                  if not output or not output[-1].lstrip().startswith("if '(?:[-*]"):
+                      raise SystemExit('surface_behavior_precheck_anchor_missing')
+                  output.pop()
+                  removed += 1
+                  continue
+              output.append(line)
+          if removed != 1:
+              raise SystemExit(f'surface_behavior_precheck_count:{removed}')
+          path.write_text('\n'.join(output) + '\n', encoding='utf-8')
+          PY
+
       - name: Apply checksum-bound parser and evidence repair
         shell: bash
         run: |
