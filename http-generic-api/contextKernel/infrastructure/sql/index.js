@@ -5,6 +5,7 @@ export { createContextPinRepository } from "./contextPinRepository.js";
 export { createExactConnectionRepository } from "./exactConnectionRepository.js";
 export { createExecutionLedgerRepository } from "./executionLedgerRepository.js";
 export { createProviderAuthorizationStateRepository } from "./providerAuthorizationStateRepository.js";
+export { createProviderConsentStateRepository } from "./providerConsentStateRepository.js";
 export { createResourceGraphRepository } from "./resourceGraphRepository.js";
 export { createWorkspaceOwnershipRepository } from "./workspaceOwnershipRepository.js";
 
