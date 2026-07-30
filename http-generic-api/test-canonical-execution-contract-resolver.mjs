@@ -70,7 +70,7 @@ await assert.rejects(() => resolveCanonicalExecutionContract({ parent_action_key
 await assert.rejects(() => resolveCanonicalExecutionContract({ parent_action_key: ACTION_KEY, endpoint_key: ENDPOINT_KEY, capability_key: CAPABILITY_KEY, expected_contract_hash: "0".repeat(64) }, { pool: new FakePool(), now: fixedNow, capabilityEvaluator: capabilityDecision("allow_preview") }), (error) => error.status === 409 && error.code === "EXECUTION_CONTRACT_STALE");
 
 let receivedTenantInput = null;
-await resolveCanonicalExecutionContract({ parent_action_key: ACTION_KEY, endpoint_key: ENDPOINT_KEY, capability_key: CAPABILITY_KEY, principal_scope: "tenant", tenant_ref: "tenant-1", workspace_ref: "workspace-1" }, { pool: new FakePool(), now: fixedNow, capabilityEvaluator: async (input) => { receivedTenantInput = input; return capabilityDecision("allow_preview")(input); } });
+await resolveCanonicalExecutionContract({ parent_action_key: ACTION_KEY, endpoint_key: ENDPOINT_KEY, capability_key: CAPABILITY_KEY, principal_scope: "tenant", tenant_ref: "tenant-1", workspace_ref: "workspace-1" }, { pool: new FakePool({ resources: [baseResource({ actor_scope: "tenant" })] }), now: fixedNow, capabilityEvaluator: async (input) => { receivedTenantInput = input; return capabilityDecision("allow_preview")(input); } });
 assert.equal(receivedTenantInput.principal_scope, "tenant");
 assert.equal(receivedTenantInput.tenant_ref, "tenant-1");
 assert.equal(receivedTenantInput.workspace_ref, "workspace-1");
