@@ -1,0 +1,144 @@
+name: PR3708 Exact Candidate Build Once
+
+on:
+  push:
+    branches:
+      - gpt/build-production-candidate-07f6a70c-pr3708-v4
+    paths:
+      - .github/workflows/pr3708-exact-candidate-build-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr3708-exact-candidate-build-once
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full repository history
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/build-production-candidate-07f6a70c-pr3708-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Build exact-main-tree candidate with governed ancestry
+        id: build
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: 07f6a70cc824befc2017dc48d25becf98f54b8f6
+          EXPECTED_PRODUCTION_SHA: 1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041
+          PREVIOUS_CANDIDATE_SHA: 87b3f155caf613bd5504718ab8b2822de965f1a5
+          TARGET_BRANCH: release/production-candidate-07f6a70c-pr3708-v4
+        run: |
+          set -euo pipefail
+
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          ACTUAL_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          ACTUAL_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+
+          if [[ "$ACTUAL_MAIN_SHA" != "$EXPECTED_MAIN_SHA" ]]; then
+            echo "::error::main moved: expected $EXPECTED_MAIN_SHA, actual $ACTUAL_MAIN_SHA"
+            exit 1
+          fi
+          if [[ "$ACTUAL_PRODUCTION_SHA" != "$EXPECTED_PRODUCTION_SHA" ]]; then
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA, actual $ACTUAL_PRODUCTION_SHA"
+            exit 1
+          fi
+
+          git cat-file -e "$PREVIOUS_CANDIDATE_SHA^{commit}"
+          MAIN_TREE="$(git rev-parse "$EXPECTED_MAIN_SHA^{tree}")"
+          CANDIDATE_DATE="$(git show -s --format=%cI "$EXPECTED_MAIN_SHA")"
+          CANDIDATE_SHA="$(
+            printf '%s\n\n%s\n%s\n%s\n' \
+              'release: build exact governed Production candidate' \
+              "main=$EXPECTED_MAIN_SHA" \
+              "production=$EXPECTED_PRODUCTION_SHA" \
+              "previous_candidate=$PREVIOUS_CANDIDATE_SHA" |
+            GIT_AUTHOR_NAME='mad4b-release-bot' \
+            GIT_AUTHOR_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_AUTHOR_DATE="$CANDIDATE_DATE" \
+            GIT_COMMITTER_NAME='mad4b-release-bot' \
+            GIT_COMMITTER_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_COMMITTER_DATE="$CANDIDATE_DATE" \
+            git commit-tree "$MAIN_TREE" \
+              -p "$EXPECTED_MAIN_SHA" \
+              -p "$EXPECTED_PRODUCTION_SHA" \
+              -p "$PREVIOUS_CANDIDATE_SHA"
+          )"
+
+          git diff --quiet "$EXPECTED_MAIN_SHA" "$CANDIDATE_SHA" || {
+            echo '::error::candidate tree differs from pinned main'
+            exit 1
+          }
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$EXPECTED_PRODUCTION_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$PREVIOUS_CANDIDATE_SHA" "$CANDIDATE_SHA"
+
+          REMOTE_HEAD="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          if [[ -z "$REMOTE_HEAD" ]]; then
+            echo '::error::target release branch missing'
+            exit 1
+          fi
+          git merge-base --is-ancestor "$REMOTE_HEAD" "$CANDIDATE_SHA" || {
+            echo "::error::target branch cannot fast-forward: $REMOTE_HEAD -> $CANDIDATE_SHA"
+            exit 1
+          }
+
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$EXPECTED_MAIN_SHA" \
+             || "$(git rev-parse refs/remotes/origin/Production)" != "$EXPECTED_PRODUCTION_SHA" ]]; then
+            echo '::error::protected refs moved during candidate construction'
+            exit 1
+          fi
+
+          git push origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
+          READBACK="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ "$READBACK" == "$CANDIDATE_SHA" ]] || {
+            echo '::error::target branch readback mismatch'
+            exit 1
+          }
+
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          echo "main_tree=$MAIN_TREE" >> "$GITHUB_OUTPUT"
+
+          jq -n \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --arg production_sha "$EXPECTED_PRODUCTION_SHA" \
+            --arg previous_candidate_sha "$PREVIOUS_CANDIDATE_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg main_tree "$MAIN_TREE" \
+            --arg target_branch "$TARGET_BRANCH" \
+            '{
+              schema_version: "production_candidate_exact_tree_build.v1",
+              ok: true,
+              main_sha: $main_sha,
+              production_sha: $production_sha,
+              previous_candidate_sha: $previous_candidate_sha,
+              candidate_sha: $candidate_sha,
+              candidate_tree: $main_tree,
+              target_branch: $target_branch,
+              tree_matches_main: true,
+              fast_forward_only: true,
+              protected_branch_mutation: false,
+              deployment_executed: false,
+              migration_executed: false,
+              database_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/pr3708-exact-candidate-build.json"
+
+      - name: Upload bounded build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3708-exact-candidate-build-${{ steps.build.outputs.candidate_sha }}
+          path: ${{ runner.temp }}/pr3708-exact-candidate-build.json
+          if-no-files-found: error
+          retention-days: 30
