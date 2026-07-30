@@ -117,7 +117,8 @@ SELECT
 FROM logic_definitions ld
 LEFT JOIN capability_invocations ci
   ON ci.capability_type = 'logic'
- AND ci.capability_key = ld.logic_key
+ AND ci.capability_key COLLATE utf8mb4_unicode_ci
+     = ld.logic_key COLLATE utf8mb4_unicode_ci
 GROUP BY ld.logic_key, ld.status;
 
 CREATE OR REPLACE VIEW `v_engine_runtime_coverage` AS
