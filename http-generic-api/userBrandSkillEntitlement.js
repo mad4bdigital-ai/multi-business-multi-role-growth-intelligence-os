@@ -2,6 +2,11 @@ function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function safeErrorCode(error) {
+  const code = String(error?.code || "").trim();
+  return /^[A-Z0-9_:-]{1,128}$/i.test(code) ? code : null;
+}
+
 export function inferBrandSkillOperation(toolName = "", args = {}, action = null, context = {}) {
   const explicit = normalize(context.operation_intent || context.operation || "");
   if (explicit) return explicit;
@@ -21,7 +26,7 @@ export function inferBrandSkillOperation(toolName = "", args = {}, action = null
   return "use";
 }
 
-export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}, {
+async function resolveUserBrandSkillEntitlementInternal(pool, skill, context = {}, {
   toolName = "",
   args = {},
   action = null,
@@ -52,7 +57,7 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
        JOIN agent_skills s ON s.skill_id = p.skill_id AND s.status = 'active'
       WHERE p.tenant_id = ? AND p.brand_key = ? AND s.skill_key = ? AND p.status = 'active'
       LIMIT 1`,
-    [tenantId, brandKey, skillKey]
+    [tenantId, brandKey, skillKey],
   );
   const policy = policyRows[0] || null;
   if (!policy) {
@@ -96,7 +101,7 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
              OR JSON_CONTAINS(allowed_operations_json, JSON_QUOTE(?)))
         AND (resource_type IS NULL OR (resource_type = ? AND resource_ref = ?))
       LIMIT 1`,
-    [tenantId, userId, brandKey, agentId, skillKey, operation, resourceType, resourceRef]
+    [tenantId, userId, brandKey, agentId, skillKey, operation, resourceType, resourceRef],
   );
   const grant = grantRows[0] || null;
   return {
@@ -107,4 +112,20 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     policy_id: policy.policy_id,
     reason: grant ? null : "user_brand_skill_grant_missing",
   };
+}
+
+export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}, options = {}) {
+  try {
+    return await resolveUserBrandSkillEntitlementInternal(pool, skill, context, options);
+  } catch (error) {
+    return {
+      configured: true,
+      granted: false,
+      grant_id: null,
+      operation: inferBrandSkillOperation(options.toolName, options.args, options.action, context),
+      reason: "user_brand_skill_grant_resolution_failed",
+      resolution_error_code: safeErrorCode(error),
+      secrets_included: false,
+    };
+  }
 }
