@@ -17,7 +17,7 @@ const action = {
   allowed_governance_levels: "",
 };
 
-function buildPool({ policy = null, grants = [] } = {}) {
+function buildPool({ policy = null, grants = [], policyError = null, grantError = null } = {}) {
   return {
     async query(sql, params = []) {
       const text = String(sql).replace(/\s+/g, " ");
@@ -25,17 +25,21 @@ function buildPool({ policy = null, grants = [] } = {}) {
       if (text.includes(" FROM v_effective_agent_skill_grants ")) {
         return [[{ skill_key: "api.wordpress_write", grant_id: "agent-skill-grant-1" }]];
       }
-      if (text.includes(" FROM brand_skill_policies p ")) return [[policy].filter(Boolean)];
+      if (text.includes(" FROM brand_skill_policies p ")) {
+        if (policyError) throw policyError;
+        return [[policy].filter(Boolean)];
+      }
       if (text.includes(" FROM v_effective_user_brand_skill_grants ")) {
+        if (grantError) throw grantError;
         const [tenantId, userId, brandKey, agentId, skillKey, operation, resourceType, resourceRef] = params;
         const match = grants.find((grant) =>
-          grant.tenant_id === tenantId &&
-          grant.user_id === userId &&
-          grant.brand_key === brandKey &&
-          grant.agent_id === agentId &&
-          grant.skill_key === skillKey &&
-          grant.allowed_operations.includes(operation) &&
-          (!grant.resource_type || (grant.resource_type === resourceType && grant.resource_ref === resourceRef))
+          grant.tenant_id === tenantId
+          && grant.user_id === userId
+          && grant.brand_key === brandKey
+          && grant.agent_id === agentId
+          && grant.skill_key === skillKey
+          && grant.allowed_operations.includes(operation)
+          && (!grant.resource_type || (grant.resource_type === resourceType && grant.resource_ref === resourceRef))
         );
         return [match ? [{ grant_id: match.grant_id, resource_type: match.resource_type, resource_ref: match.resource_ref }] : []];
       }
@@ -70,7 +74,7 @@ const backwardCompatible = await resolveUserBrandSkillEntitlement(
   buildPool(),
   { required: true, granted: true, matched_skill_key: "api.wordpress_write" },
   { tenant_id: "tenant-1", brand_key: "brand-1", agent_id: "content-agent" },
-  { toolName: "wordpress_publish", action }
+  { toolName: "wordpress_publish", action },
 );
 assert.equal(backwardCompatible.configured, false);
 assert.equal(backwardCompatible.granted, true);
@@ -84,10 +88,32 @@ const explicitPolicyRequired = await resolveUserBrandSkillEntitlement(
     agent_id: "content-agent",
     enforce_brand_skill_entitlement: true,
   },
-  { toolName: "wordpress_publish", action }
+  { toolName: "wordpress_publish", action },
 );
 assert.equal(explicitPolicyRequired.granted, false);
 assert.equal(explicitPolicyRequired.reason, "brand_skill_policy_required");
+
+for (const failurePool of [
+  buildPool({ policyError: Object.assign(new Error("policy unavailable"), { code: "ER_NO_SUCH_TABLE" }) }),
+  buildPool({ policy: selfServicePolicy, grantError: Object.assign(new Error("view unavailable"), { code: "ER_VIEW_INVALID" }) }),
+]) {
+  const failedClosed = await resolveUserBrandSkillEntitlement(
+    failurePool,
+    { required: true, granted: true, matched_skill_key: "api.wordpress_write" },
+    {
+      tenant_id: "tenant-1",
+      brand_key: "brand-1",
+      agent_id: "content-agent",
+      user_id: "user-1",
+      resource_type: "site",
+      resource_ref: "site-1",
+    },
+    { toolName: "wordpress_publish", action },
+  );
+  assert.equal(failedClosed.configured, true);
+  assert.equal(failedClosed.granted, false);
+  assert.equal(failedClosed.reason, "user_brand_skill_grant_resolution_failed");
+}
 
 const deniedWithoutUserGrant = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",
@@ -106,6 +132,22 @@ assert.equal(deniedWithoutUserGrant.allowed, false);
 assert(deniedWithoutUserGrant.blockers.includes("user_brand_skill_grant_missing"));
 assert.equal(deniedWithoutUserGrant.user_brand_skill_grant.configured, true);
 assert.equal(deniedWithoutUserGrant.user_brand_skill_grant.operation, "publish");
+
+const deniedOnResolutionFailure = await authorizeAgentToolCall({
+  tool_name: "wordpress_publish",
+  args: { status: "publish" },
+  context: {
+    agent_id: "content-agent",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    brand_key: "brand-1",
+    resource_type: "site",
+    resource_ref: "site-1",
+  },
+  pool: buildPool({ policyError: Object.assign(new Error("policy unavailable"), { code: "ER_NO_SUCH_TABLE" }) }),
+});
+assert.equal(deniedOnResolutionFailure.allowed, false);
+assert(deniedOnResolutionFailure.blockers.includes("user_brand_skill_grant_resolution_failed"));
 
 const allowedExactScope = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",
