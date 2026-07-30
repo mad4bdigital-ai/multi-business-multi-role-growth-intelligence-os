@@ -185,4 +185,6 @@ for (const token of [
 }
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
 
+await import("./test-repository-reconciliation-lease-control.mjs");
+
 console.log("repository operation lease service tests passed");
