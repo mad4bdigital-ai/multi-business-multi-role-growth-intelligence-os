@@ -4,6 +4,7 @@ import {
   compileSequentialPlanSteps,
   decideSequentialPlanApproval,
   persistCompiledSequentialPlan,
+  resolveUniqueSequentialRow,
   runSequentialPlan,
   tickSequentialPlan,
   verifySequentialStepResult,
@@ -30,6 +31,16 @@ assert.equal(verifySequentialStepResult({ success_criteria: { result_ok: true, r
 assert.deepEqual(
   verifySequentialStepResult({ success_criteria: { result_ok: true, required_output_fields: ["output.id"] } }, { ok: true, output: {} }).failures,
   ["missing_output_field:output.id"]
+);
+assert.equal(resolveUniqueSequentialRow([]), null);
+const uniqueSequentialRow = { id: "single" };
+assert.equal(resolveUniqueSequentialRow([uniqueSequentialRow]), uniqueSequentialRow);
+assert.throws(
+  () => resolveUniqueSequentialRow([{}, {}], {
+    ambiguityCode: "sequential_test_identity_ambiguous",
+    ambiguityMessage: "Test identity is ambiguous.",
+  }),
+  (error) => error?.code === "sequential_test_identity_ambiguous" && error?.status === 409,
 );
 
 const state = {

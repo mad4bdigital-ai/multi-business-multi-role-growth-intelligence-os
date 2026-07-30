@@ -99,6 +99,20 @@ function validationError(message, code = "sequential_plan_validation_failed") {
   return error;
 }
 
+export function resolveUniqueSequentialRow(rows, {
+  ambiguityCode = "sequential_row_ambiguous",
+  ambiguityMessage = "Sequential runtime identity resolved to multiple rows.",
+} = {}) {
+  const candidates = Array.isArray(rows) ? rows : [];
+  if (candidates.length === 0) return null;
+  if (candidates.length > 1) {
+    const error = validationError(ambiguityMessage, ambiguityCode);
+    error.status = 409;
+    throw error;
+  }
+  return candidates.slice().pop();
+}
+
 async function withTransaction(pool, operation) {
   if (typeof pool.getConnection !== "function") return operation(pool);
   const connection = await pool.getConnection();
@@ -174,8 +188,11 @@ export function compileSequentialPlanSteps(steps = [], { planId, tenantId } = {}
 export async function persistCompiledSequentialPlan({ pool, planId, tenantId, steps, actorId = null }) {
   const compiled = compileSequentialPlanSteps(steps, { planId, tenantId });
   return withTransaction(pool, async (connection) => {
-    const [planRows] = await connection.query("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
-    const plan = planRows[0];
+    const [planRows] = await connection.query("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans WHERE plan_id = ? LIMIT 2 FOR UPDATE", [planId]);
+    const plan = resolveUniqueSequentialRow(planRows, {
+      ambiguityCode: "sequential_plan_identity_ambiguous",
+      ambiguityMessage: "Execution plan identity resolved to multiple rows.",
+    });
     if (!plan || plan.tenant_id !== tenantId) throw validationError("Execution plan not found for tenant.", "sequential_plan_not_found");
     if (!["draft", "validated"].includes(effectivePlanStatus(plan))) throw validationError("Only draft or validated plans may be recompiled.", "sequential_plan_recompile_forbidden");
     await connection.query("DELETE FROM execution_plan_steps WHERE plan_id = ?", [planId]);
@@ -329,10 +346,13 @@ async function defaultStepExecutor(step, { pool, actorId = null }) {
 async function finalizeClaim(pool, claim, result, error, actorId) {
   return withTransaction(pool, async (connection) => {
     const [rows] = await connection.query(
-      "SELECT * FROM execution_plan_steps WHERE plan_step_id = ? AND claim_token = ? LIMIT 1 FOR UPDATE",
+      "SELECT * FROM execution_plan_steps WHERE plan_step_id = ? AND claim_token = ? LIMIT 2 FOR UPDATE",
       [claim.step.plan_step_id, claim.claim_token]
     );
-    const step = rows[0];
+    const step = resolveUniqueSequentialRow(rows, {
+      ambiguityCode: "sequential_step_claim_ambiguous",
+      ambiguityMessage: "Plan step claim resolved to multiple rows.",
+    });
     if (!step) throw validationError("Plan step claim was lost.", "sequential_step_claim_lost");
     const succeeded = !error && result?.ok !== false;
     const retryable = !succeeded && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
