@@ -10,6 +10,8 @@ Implement one shared, registry-driven context kernel for administrators, tenant 
 
 The connection extension must support personal-workspace, company-workspace, and brand ownership while preventing cross-user, cross-brand, cross-workspace, and cross-tenant credential use.
 
+The existing operational `workspaceType` classification remains unchanged. Personal versus company ownership is represented separately as `workspaceOwnershipType` and persisted through an additive `workspace_ownership_type` field.
+
 ## Architectural boundaries
 
 - API and interface adapters authenticate, validate, and project responses.
@@ -19,6 +21,7 @@ The connection extension must support personal-workspace, company-workspace, and
 - Shared domain and application code must not contain customer-specific tenant, user, workspace, brand, resource, connection, or provider-account identifiers.
 - The Context Kernel selects one exact owned connection; Effective Capability Envelope and Effective Authority consume that decision and must not implement competing selectors.
 - Provider identity login and provider API consent remain separate contracts.
+- Operational workspace classification and workspace ownership classification must not be overloaded into one field.
 
 ## Delivery sequence
 
@@ -28,7 +31,7 @@ The connection extension must support personal-workspace, company-workspace, and
 2. Identify first-result selection, provider-key-only selection, default-customer fallbacks, caller-supplied identity authority, and customer-specific routing branches.
 3. Add or extend report-only scanners for fixed production customer identifiers and unsafe selection patterns.
 4. Establish baseline telemetry for current and shadow resolution outcomes.
-5. Build a compatibility ledger for `user_app_connections`, `workspace_app_links`, OAuth callbacks, and open overlapping PRs.
+5. Build a compatibility ledger for `workspace_registry.workspace_type`, `user_app_connections`, `workspace_app_links`, OAuth callbacks, and open overlapping PRs.
 
 ### Phase 2: Domain kernel
 
@@ -42,12 +45,13 @@ The connection extension must support personal-workspace, company-workspace, and
 ### Phase 3: Persistence and infrastructure adapters
 
 1. Add authorized-scope and membership repositories.
-2. Add workspace-type and exact connection-ownership repositories.
-3. Add tenant-safe resource graph, brand connection binding, capability, readiness, authority, context-pin, and execution-ledger repositories.
-4. Add signed, expiring, nonce-bound, single-use provider authorization-state persistence.
-5. Preserve and classify legacy rows before additive backfill.
-6. Keep SQL table names, credential values, and provider SDK details outside domain policy code.
-7. Add structured error translation and redacted observability.
+2. Add a workspace-ownership-type repository while preserving existing operational workspace-type semantics.
+3. Add exact connection-ownership and brand connection-binding repositories.
+4. Add tenant-safe resource graph, capability, readiness, authority, context-pin, and execution-ledger repositories.
+5. Add signed, expiring, nonce-bound, single-use provider authorization-state persistence.
+6. Preserve and classify legacy rows before additive backfill.
+7. Keep SQL table names, credential values, and provider SDK details outside domain policy code.
+8. Add structured error translation and redacted observability.
 
 ### Phase 4: Tenant provider consent lifecycle
 
@@ -105,6 +109,7 @@ The connection extension must support personal-workspace, company-workspace, and
 - Security tests for direct-object references, implicit impersonation, cross-user connection use, cross-brand substitution, OAuth replay, redirect mismatch, connection substitution, and projection leakage.
 - Contract validation for OpenAPI 3.1, strict input, stable errors, idempotency, and pagination.
 - Static checks for hardcoded customer identifiers, caller-supplied authority, provider-key-only selection, and unsafe first-result selection.
+- Compatibility tests proving `workspace_registry.workspace_type` keeps its operational values while `workspace_ownership_type` carries personal/company ownership.
 - Compatibility tests for legacy connection records through the additive adapter.
 
 ## Release gates
@@ -116,6 +121,7 @@ The connection extension must support personal-workspace, company-workspace, and
 - OAuth state replay and context-mismatch tests pass.
 - Ambiguity and no-silent-fallback tests pass.
 - No-secret API, log, context, plan, and evidence tests pass.
+- Operational workspace-type compatibility tests pass.
 - Critical integration and security tests pass.
 - Backward compatibility and rollout risks are reviewed.
 - CI passes on every implementation change.
@@ -123,4 +129,4 @@ The connection extension must support personal-workspace, company-workspace, and
 
 ## Rollback and continuity
 
-Rollout remains additive and feature-flagged. Rollback returns traffic to the prior routing implementation while preserving execution, approval, audit, OAuth-state, and reconciliation evidence. Legacy records are not destructively removed during the compatibility window. Operations with unknown outcomes remain in reconciliation and are never blindly retried.
+Rollout remains additive and feature-flagged. Rollback returns traffic to the prior routing implementation while preserving execution, approval, audit, OAuth-state, and reconciliation evidence. Legacy records are not destructively removed during the compatibility window. Existing operational workspace classifications remain unchanged. Operations with unknown outcomes remain in reconciliation and are never blindly retried.
