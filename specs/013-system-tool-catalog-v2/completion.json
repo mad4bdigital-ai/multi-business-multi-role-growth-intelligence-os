@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "feature_key": "013-system-tool-catalog-v2",
+  "status": "in_progress",
+  "delivery_mode": "single_pr",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/013-system-tool-catalog-v2",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "pure_service": {
+      "status": "implemented"
+    },
+    "large_catalog_tests": {
+      "status": "implemented"
+    },
+    "route_wiring": {
+      "status": "implemented"
+    },
+    "openapi": {
+      "status": "implemented_pending_ci"
+    },
+    "ci": {
+      "status": "pending"
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "production_verification": {
+      "status": "not_required"
+    }
+  },
+  "secrets_included": false
+}

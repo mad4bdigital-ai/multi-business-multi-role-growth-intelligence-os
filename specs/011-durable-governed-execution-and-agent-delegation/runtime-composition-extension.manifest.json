@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "extension_key": "spec-011-runtime-composition-performance-closure",
+  "parent_spec_key": "011-durable-governed-execution-and-agent-delegation",
+  "status": "draft",
+  "specification_authority": true,
+  "runtime_authority": false,
+  "primary_artifact": "runtime-composition-performance-addendum.md",
+  "requirement_range": {
+    "prefix": "FR-RC",
+    "first": "FR-RC-001",
+    "last": "FR-RC-035"
+  },
+  "owned_concerns": [
+    "unified_governed_dispatch",
+    "compiled_governed_plan",
+    "dependency_graph_scheduler",
+    "resource_locks_and_bounded_concurrency",
+    "fast_and_durable_lanes",
+    "approval_frontier",
+    "execution_ledger_and_outbox",
+    "mutation_receipts_and_readback",
+    "compact_result_integrity",
+    "performance_and_safety_equivalence"
+  ],
+  "dependencies": [
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
+    "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md",
+    "../integration-governed-execution-runtime-composition/manifest.json"
+  ],
+  "delivery_slices": [
+    "RC0_instrumentation",
+    "RC1_execution_input_shadow",
+    "RC2_unified_in_process_dispatch",
+    "RC3_graph_scheduler",
+    "RC4_approval_frontier",
+    "RC5_ledger_outbox_split",
+    "RC6_fast_lane_mutation",
+    "RC7_durable_lane",
+    "RC8_intent_first_cutover"
+  ],
+  "constraints": [
+    "no_runtime_cutover_from_specification",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment",
+    "no_merge",
+    "no_authority_weakening",
+    "no_retry_after_unknown_outcome",
+    "legacy_compatibility_until_certified_retirement"
+  ],
+  "secrets_included": false
+}
