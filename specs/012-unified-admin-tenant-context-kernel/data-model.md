@@ -132,7 +132,8 @@ Invariants:
 
 - `connectionRef`
 - `providerKey`
-- `providerAccountRef` when safe
+- `providerAccountRef` when policy permits retaining a safe stable reference
+- `providerAccountBindingHash` when the raw provider account reference is unavailable or policy forbids retaining it
 - `resourceRef`
 - `tenantRef`
 - `workspaceRef`
@@ -149,6 +150,10 @@ Invariants:
 - `status`
 - `readinessVector`
 - `secretsIncluded`: always `false`
+
+Every authorized connection MUST persist at least one durable provider-account binding: a safe stable `providerAccountRef` or a privacy-preserving `providerAccountBindingHash`. The hash is derived from the verified provider account through a versioned, domain-separated one-way binding process and is not a credential or customer-visible identifier.
+
+Authorization and reconnect completion MUST populate or rotate the durable provider-account binding in the same atomic connection update as the credential and connection revision. An expired or revoked credential does not erase this non-secret binding evidence.
 
 Credential values are never stored in the execution context.
 
@@ -168,8 +173,8 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `ownerScopeRef`
 - `targetConnectionRef` optional; required for reconnect
 - `expectedConnectionRevision` optional; required for reconnect
-- `expectedProviderAccountRef` optional; required for reconnect when a safe stable provider account reference exists
-- `expectedProviderAccountBindingHash` optional privacy-preserving alternative to the raw account reference
+- `expectedProviderAccountRef` optional; used for reconnect when a safe stable provider account reference is retained
+- `expectedProviderAccountBindingHash` optional; required for reconnect when the connection retains the privacy-preserving binding instead of a raw account reference
 - `requestedProviderScopes`
 - `redirectTargetRef`
 - `nonceHash`
@@ -189,9 +194,9 @@ Before any authorization-code exchange, provider call, credential lookup, or cre
 
 The claim token is internal, short-lived, state-specific, and non-exportable. Completion from `claimed` to `consumed` is revision-bound. A failed exchange moves the state only through a governed terminal or recoverable transition; it does not make the same state freely claimable again.
 
-Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the expected provider account by safe stable reference or privacy-preserving binding hash. A reconnect callback that returns a different provider account fails closed before credential replacement.
+Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the durable expected provider account by safe stable reference or privacy-preserving binding hash read from the target connection. A reconnect callback that returns a different provider account fails closed before credential replacement.
 
-Reconnect credential replacement MUST itself be a compare-and-set conditioned on the signed `expectedConnectionRevision`, the live target connection revision, the authorization state's current `claimRevision`, `status=claimed`, and the valid internal claim token. The encrypted credential replacement, connection revision increment, and authorization-state transition from `claimed` to `consumed` MUST commit in one governed atomic completion boundary. If either revision moved, no credential replacement becomes visible and a new authorization attempt is required.
+Reconnect credential replacement MUST itself be a compare-and-set conditioned on the signed `expectedConnectionRevision`, the live target connection revision, the authorization state's current `claimRevision`, `status=claimed`, and the valid internal claim token. The encrypted credential replacement, provider-account binding update, connection revision increment, and authorization-state transition from `claimed` to `consumed` MUST commit in one governed atomic completion boundary. If either revision moved, no credential replacement becomes visible and a new authorization attempt is required.
 
 ## ConnectionResolutionDecision
 
@@ -311,6 +316,6 @@ Credential materialization is allowed only after `preCredentialReadiness` passes
 
 ## Revision rules
 
-Context revisions MUST change when any authority, membership, operational workspace type, workspace ownership type, brand ownership, resource binding, connection ownership, connection authorization, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
+Context revisions MUST change when any authority, membership, operational workspace type, workspace ownership type, brand ownership, resource binding, connection ownership, connection authorization, provider-account binding, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
 
-Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, approval, and unconsumed authorization-state binding. Changing workspace or either workspace classification invalidates dependent brand, resource, connection, plan, approval, and authorization-state bindings. Changing brand or connection ownership invalidates all plans, approvals, and reconnect states that reference the previous revision.
+Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, approval, and unconsumed authorization-state binding. Changing workspace or either workspace classification invalidates dependent brand, resource, connection, plan, approval, and authorization-state bindings. Changing brand, connection ownership, or provider-account binding invalidates all plans, approvals, and reconnect states that reference the previous revision.
