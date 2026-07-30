@@ -11,7 +11,9 @@
     "ec0-execution-capsule-contract.manifest.json",
     "ec1-execution-capsule-shadow-adapter.md",
     "ec1-execution-capsule-shadow-closeout.md",
-    "ec1-execution-capsule-shadow-adapter.manifest.json"
+    "ec1-execution-capsule-shadow-adapter.manifest.json",
+    "ec2-execution-capsule-selected-read-pilot.md",
+    "ec2-execution-capsule-selected-read-pilot.manifest.json"
   ],
   "requirement_range": {
     "prefix": "FR-EC",
@@ -43,7 +45,7 @@
   "slice_status": {
     "EC0_contract_and_tests": "complete",
     "EC1_shadow_adapter": "complete",
-    "EC2_selected_read_pilot": "not_started",
+    "EC2_selected_read_pilot": "complete",
     "EC3_unified_dispatch_integration": "not_started",
     "EC4_mutation_validation_pilot": "not_started",
     "EC5_rollout_and_duplicate_resolver_retirement": "not_started"

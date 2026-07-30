@@ -256,8 +256,46 @@ assert.match(planRunner, /events\.length > 200/);
 assert.match(architecture, /isolated clean worktree/);
 assert.match(executionLog, /Dependency failures are classified before tests/);
 
+const apiDirectory = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "interruption-readiness-test-"));
 try {
+  const headRun = spawnSync("git", ["rev-parse", "HEAD"], { cwd: apiDirectory, encoding: "utf8", shell: false });
+  assert.equal(headRun.status, 0);
+  const headSha = headRun.stdout.trim();
+  assert.match(headSha, /^[a-f0-9]{40}$/);
+
+  const pullRequestEvent = path.join(temporaryDirectory, "pull-request-event.json");
+  writeFileSync(pullRequestEvent, JSON.stringify({ pull_request: { base: { sha: headSha } } }));
+  const eventTargetRun = spawnSync(
+    process.execPath,
+    ["scripts/interruption-readiness.mjs", "--ci", "--json", "--skip-dependencies", "--skip-merge", "--skip-worktree", "--skip-engine"],
+    {
+      cwd: apiDirectory,
+      encoding: "utf8",
+      shell: false,
+      env: { ...process.env, GITHUB_EVENT_PATH: pullRequestEvent },
+    },
+  );
+  assert.equal(eventTargetRun.status, 0, eventTargetRun.stderr);
+  const eventTargetReport = JSON.parse(eventTargetRun.stdout);
+  assert.equal(eventTargetReport.continuity_snapshot.target_ref, headSha);
+  assert.equal(eventTargetReport.continuity_snapshot.target_sha, headSha);
+
+  const explicitTargetRun = spawnSync(
+    process.execPath,
+    ["scripts/interruption-readiness.mjs", "--ci", "--json", "--skip-dependencies", "--skip-merge", "--skip-worktree", "--skip-engine", "--target", "HEAD"],
+    {
+      cwd: apiDirectory,
+      encoding: "utf8",
+      shell: false,
+      env: { ...process.env, GITHUB_EVENT_PATH: pullRequestEvent },
+    },
+  );
+  assert.equal(explicitTargetRun.status, 0, explicitTargetRun.stderr);
+  const explicitTargetReport = JSON.parse(explicitTargetRun.stdout);
+  assert.equal(explicitTargetReport.continuity_snapshot.target_ref, "HEAD");
+  assert.equal(explicitTargetReport.continuity_snapshot.target_sha, headSha);
+
   const unauthorizedEvidence = path.join(temporaryDirectory, "unauthorized-evidence.json");
   writeFileSync(unauthorizedEvidence, JSON.stringify({
     schema_version: "interruption_readiness.v1",
@@ -280,7 +318,7 @@ try {
   const unauthorizedRun = spawnSync(
     process.execPath,
     ["scripts/run-interruption-verification-plan.mjs", "--evidence", unauthorizedEvidence, "--dry-run"],
-    { cwd: path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), encoding: "utf8", shell: false },
+    { cwd: apiDirectory, encoding: "utf8", shell: false },
   );
   assert.equal(unauthorizedRun.status, 1);
   assert.match(unauthorizedRun.stderr, /unauthorized command/);
