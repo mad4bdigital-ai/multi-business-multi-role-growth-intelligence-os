@@ -125,7 +125,7 @@ if (migration229QueueItem) {
 
 const migration190 = report.all_migrations.find((entry) => entry.migration_file === "190_sprint66_workspace_lifecycle_foundation.sql");
 assert(migration190, "migration 190 must remain discoverable");
-assert.equal(migration190.coverage.route_coverage.callability_review_count, 5, "only the five lifecycle mutation tools must remain in callability review");
+assert.equal(migration190.coverage.route_coverage.callability_review_count, 3, "three mutation-only route paths must remain in callability review while five mutation tools remain unverified");
 for (const toolKey of ["workspace_members_list", "workspace_invitations_list", "workspace_access_requests_list"]) {
   assert(migration190.surfaces.callability_covered_tools.includes(toolKey), `${toolKey} must be callability covered`);
   assert(!migration190.surfaces.callability_unverified_tools.includes(toolKey), `${toolKey} must leave callability review`);
