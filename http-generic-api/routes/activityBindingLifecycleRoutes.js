@@ -69,7 +69,7 @@ export function buildActivityBindingLifecycleRoutes({
   const router = Router();
   const repository = service ? null : createActivityBindingLifecycleRepository({ resolvePool });
   const lifecycle = service || createActivityBindingLifecycleService({ repository });
-  const guards = [requireBackendApiKey, requireAdminPrincipal].filter((guard) => typeof guard === "function");
+  const guards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
 
   router.post(
     "/admin/control-plane/brand-activity-bindings/:activityBindingId/readiness",
