@@ -1,0 +1,135 @@
+schemas:
+  OverrideGovernanceSmokeRequest:
+    type: object
+    additionalProperties: false
+    required: [mode]
+    properties:
+      mode:
+        type: string
+        enum: [dry_run, apply]
+        default: dry_run
+      confirm:
+        type: string
+        maxLength: 255
+      capabilityEnvelopeId:
+        type: string
+        format: uuid
+    allOf:
+      - if:
+          properties:
+            mode: { const: apply }
+        then:
+          required: [confirm, capabilityEnvelopeId]
+
+  OverrideGovernanceSmokePlan:
+    type: object
+    additionalProperties: false
+    required:
+      - confirmation
+      - tests
+      - closureThreadKey
+      - fixtureStrategy
+      - targetExecuted
+      - providerCalls
+      - credentialPayloadReads
+      - externalWrites
+      - rolloutChanged
+      - enforcementApplied
+      - secretsIncluded
+    properties:
+      confirmation: { type: string, const: RUN_DYNAMIC_CONTAINER_OVERRIDE_GOVERNANCE_SMOKE }
+      tests:
+        type: array
+        minItems: 5
+        maxItems: 5
+        items: { type: string }
+      closureThreadKey: { type: string, const: dynamic_container_override_governance }
+      fixtureStrategy: { type: string, const: transactional_disposable_rows }
+      targetExecuted: { type: boolean, const: false }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      rolloutChanged: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
+  OverrideGovernanceSmokeResponse:
+    type: object
+    additionalProperties: true
+    required:
+      - ok
+      - mode
+      - plan
+      - results
+      - cleanup
+      - capabilityEnvelope
+      - sameCycleReadbackVerified
+      - targetExecuted
+      - providerCalls
+      - credentialPayloadReads
+      - externalWrites
+      - rolloutChanged
+      - enforcementApplied
+      - secretsIncluded
+    properties:
+      ok: { type: boolean, const: true }
+      mode: { type: string, enum: [dry_run, apply] }
+      plan: { $ref: '#/schemas/OverrideGovernanceSmokePlan' }
+      results:
+        type: [object, 'null']
+        additionalProperties: true
+      cleanup:
+        type: [object, 'null']
+        additionalProperties: true
+      closureThread:
+        type: [object, 'null']
+        additionalProperties: true
+      capabilityEnvelope:
+        type: [object, 'null']
+        additionalProperties: false
+        properties:
+          envelopeId: { type: [string, 'null'], format: uuid }
+          executionStatus: { type: [string, 'null'] }
+      sameCycleReadbackVerified: { type: boolean }
+      targetExecuted: { type: boolean, const: false }
+      providerCalls: { type: boolean, const: false }
+      credentialPayloadReads: { type: boolean, const: false }
+      externalWrites: { type: boolean, const: false }
+      rolloutChanged: { type: boolean, const: false }
+      enforcementApplied: { type: boolean, const: false }
+      secretsIncluded: { type: boolean, const: false }
+
+adminContainerAuthorityOverrideGovernanceSmokes:
+  post:
+    tags: [container-authority, admin-control]
+    operationId: createAdminContainerAuthorityOverrideGovernanceSmoke
+    summary: Dry-run or execute the bounded Dynamic Container override-governance smoke
+    description: Verifies destructive no-self-approval policy, distinct dual approvals, stale authority-epoch rejection, one-time consumption, fixture cleanup, closure evidence, and transactional capability-envelope consumption. Apply requires typed confirmation and an apply-authorized envelope. The smoke never executes an override target, changes rollout or enforcement, calls providers, reads credential payloads, exposes secrets, or performs external writes.
+    x-registry-exposure: admin_tool
+    x-registry-tool-key: dynamic_container_override_governance_smoke
+    x-openai-isConsequential: true
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/OverrideGovernanceSmokeRequest' }
+          example:
+            mode: dry_run
+    responses:
+      '200':
+        description: Governance smoke dry-run plan; no fixture or target mutation was executed.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/OverrideGovernanceSmokeResponse' }
+      '201':
+        description: Transactional governance smoke completed, disposable fixtures were removed, closure evidence was read back, and the capability envelope was consumed.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/OverrideGovernanceSmokeResponse' }
+      '400': { $ref: './container-authority.yaml#/responses/BadRequest' }
+      '401': { $ref: './container-authority.yaml#/responses/Unauthorized' }
+      '403': { $ref: './container-authority.yaml#/responses/Forbidden' }
+      '409': { $ref: './container-authority.yaml#/responses/Conflict' }
+      '422': { $ref: './container-authority.yaml#/responses/Unprocessable' }
+      '500': { $ref: './container-authority.yaml#/responses/InternalError' }
