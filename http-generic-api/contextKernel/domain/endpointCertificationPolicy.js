@@ -254,7 +254,7 @@ function normalizeList(records, maximumCount, normalizer, malformedCode, ambiguo
     const result = normalizer(record);
     if (result.errorCode) return result;
     const reference =
-      result.value.aliasRef || result.value.endpointRef || result.value.certificationRef;
+      result.value.aliasRef || result.value.certificationRef || result.value.endpointRef;
     if (references.has(reference)) return { errorCode: ambiguousCode };
     references.add(reference);
     values.push(result.value);
