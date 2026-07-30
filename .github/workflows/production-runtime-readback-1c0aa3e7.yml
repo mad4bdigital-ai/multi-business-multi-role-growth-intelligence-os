@@ -1,0 +1,124 @@
+name: Production Runtime Readback 1c0aa3e7
+
+on:
+  pull_request:
+    branches:
+      - gpt/runtime-readback-base-1c0aa3e7
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  production-runtime-readback:
+    if: github.event.pull_request.head.ref == 'gpt/runtime-readback-head-1c0aa3e7'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      EXPECTED_PRODUCTION_SHA: 1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041
+      EXPECTED_BRANCH: Production
+    steps:
+      - name: Probe production runtime with bounded retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-evidence
+          success=0
+          for attempt in $(seq 1 18); do
+            echo "Runtime parity attempt ${attempt}/18"
+            for endpoint in health version deployment-info; do
+              url="${RUNTIME_BASE_URL}/${endpoint}"
+              code="$(curl -L -sS --connect-timeout 15 --max-time 35 --retry 2 --retry-delay 2 --retry-all-errors \
+                -o "runtime-evidence/${endpoint}.json" -w '%{http_code}' "$url" || true)"
+              printf '%s\n' "$code" > "runtime-evidence/${endpoint}.status"
+            done
+
+            ATTEMPT="$attempt" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('runtime-evidence')
+          expected_sha = os.environ['EXPECTED_PRODUCTION_SHA'].lower()
+          expected_branch = os.environ['EXPECTED_BRANCH'].lower()
+          attempt = int(os.environ['ATTEMPT'])
+
+          def load(name):
+              status_text = (root / f'{name}.status').read_text(errors='replace').strip()
+              try:
+                  status = int(status_text or '0')
+              except ValueError:
+                  status = 0
+              body = (root / f'{name}.json').read_text(errors='replace') if (root / f'{name}.json').exists() else ''
+              try:
+                  parsed = json.loads(body)
+              except Exception:
+                  parsed = None
+              return status, body, parsed
+
+          def values(value):
+              if isinstance(value, dict):
+                  for key, item in value.items():
+                      yield str(key)
+                      yield from values(item)
+              elif isinstance(value, list):
+                  for item in value:
+                      yield from values(item)
+              elif value is not None:
+                  yield str(value)
+
+          health_status, health_body, health = load('health')
+          version_status, version_body, version = load('version')
+          info_status, info_body, info = load('deployment-info')
+
+          health_ok = 200 <= health_status < 300 and health is not None
+          combined_values = [item.lower() for document in (version, info) if document is not None for item in values(document)]
+          sha_matches = any(expected_sha == item or expected_sha in item for item in combined_values)
+          branch_matches = any(expected_branch == item or expected_branch in item for item in combined_values)
+
+          result = {
+              'schema_version': 'production_runtime_readback.v1',
+              'attempt': attempt,
+              'runtime_base_url': os.environ['RUNTIME_BASE_URL'],
+              'expected_production_sha': os.environ['EXPECTED_PRODUCTION_SHA'],
+              'expected_branch': os.environ['EXPECTED_BRANCH'],
+              'health_http_status': health_status,
+              'version_http_status': version_status,
+              'deployment_info_http_status': info_status,
+              'health_json': health is not None,
+              'health_ok': health_ok,
+              'expected_sha_observed': sha_matches,
+              'expected_branch_observed': branch_matches,
+              'runtime_parity_ok': health_ok and sha_matches,
+              'provider_call_executed': False,
+              'credential_payload_read': False,
+              'external_write_executed': False,
+              'secrets_included': False,
+          }
+          (root / 'result.json').write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
+          print(json.dumps(result, indent=2, ensure_ascii=False))
+          raise SystemExit(0 if result['runtime_parity_ok'] else 1)
+          PY
+            rc=$?
+            if [[ "$rc" -eq 0 ]]; then
+              success=1
+              break
+            fi
+            sleep 20
+          done
+
+          if [[ "$success" -ne 1 ]]; then
+            echo '::error::Production runtime did not report the expected deployed SHA with healthy JSON within the bounded retry window.'
+            cat runtime-evidence/result.json || true
+            exit 1
+          fi
+
+      - name: Upload production runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-readback-1c0aa3e7
+          path: runtime-evidence/
+          if-no-files-found: error
+          retention-days: 30
