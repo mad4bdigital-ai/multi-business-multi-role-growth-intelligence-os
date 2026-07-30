@@ -8,6 +8,7 @@ export {
 export { createContextPinService } from "./contextPinService.js";
 export { createContextResolutionService } from "./contextResolutionService.js";
 export { createContextSwitchService } from "./contextSwitchService.js";
+export { createEndpointCertificationResolverService } from "./endpointCertificationResolverService.js";
 export {
   ExecutionCapsuleValidationStatus,
   createExecutionCapsuleService,
@@ -27,6 +28,7 @@ export {
   assertBoundedResourceGraphRepository,
   assertCapabilityReadinessRepository,
   assertPolicyGrantEvidenceRepository,
+  assertEndpointCertificationEvidenceRepository,
   assertContextPinRepository,
   assertExactConnectionRepository,
   assertExecutionLedgerRepository,
