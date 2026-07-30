@@ -95,12 +95,78 @@ components:
             outbox_event_id: { type: string, format: uuid }
             repository_full_name: { type: string }
             branch_name: { type: string, const: main }
-            before_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
-            after_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
+            source_branch: { type: string, const: main }
+            deployment_branch: { type: string, const: Production }
+            trigger_mode: { type: string, enum: [source_branch_moved, runtime_deployment_reconciliation] }
+            before_sha: { type: string, pattern: '^[0-9a-f]{40}
+            execution_allowed: { type: boolean, const: false }
+            provider_write: { type: boolean, const: false }
+            external_write: { type: boolean, const: false }
+            secrets_included: { type: boolean, const: false }
+          additionalProperties: true
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        external_write: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid repository event, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Repository is not allowlisted, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Trigger event not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Event has no movement or refers to a deleted main ref, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+ }
+            after_sha: { type: string, pattern: '^[0-9a-f]{40}
+            execution_allowed: { type: boolean, const: false }
+            provider_write: { type: boolean, const: false }
+            external_write: { type: boolean, const: false }
+            secrets_included: { type: boolean, const: false }
+          additionalProperties: true
+        execution_allowed: { type: boolean, const: false }
+        provider_write: { type: boolean, const: false }
+        external_write: { type: boolean, const: false }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest: { description: Invalid repository event, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Forbidden: { description: Repository is not allowlisted, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    NotFound: { description: Trigger event not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+    Conflict: { description: Event has no movement or refers to a deleted main ref, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } } }
+ }
             runtime_verification_run_id: { type: [string, 'null'], format: uuid }
             release_advisor_run_id: { type: [string, 'null'], format: uuid }
-            coordination_status: { type: string, enum: [received, verifying, evaluated, approval_required, no_action, blocked, failed, superseded] }
+            coordination_status: { type: string, enum: [received, verifying, evaluated, production_sync_required, approval_required, no_action, blocked, failed, superseded] }
             next_action_key: { type: string }
+            production_sync_required: { type: boolean }
+            fresh_hostinger_build_required: { type: boolean }
+            same_cycle_readback_required: { type: boolean }
             summary_json: { type: object, additionalProperties: true }
             execution_allowed: { type: boolean, const: false }
             provider_write: { type: boolean, const: false }
