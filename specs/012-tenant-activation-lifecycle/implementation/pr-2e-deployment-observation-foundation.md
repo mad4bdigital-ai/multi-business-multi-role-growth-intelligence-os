@@ -9,10 +9,12 @@ Implementation slice for Spec 012 task T024. This slice supplies an application/
 - Normalize explicit expected-release, deployed-release, runtime-health, contract, and optional migration observations.
 - Require every authoritative evidence value to carry its own source type, opaque governed source reference, and observation timestamp.
 - Preserve complete full-SHA evidence internally without deriving authority from route names, environment variables, branch names, request input, or opaque release identifiers.
+- Reject component evidence observed after the enclosing deployment observation; reject a deployment timestamp later than its deployed-release observation.
 - Compute evidence completeness and missing-evidence fields without claiming deployment parity.
 - Bound and sanitize supplemental metadata; secret-like keys are omitted and the full evidence object is size-limited.
 - Correlate a request with the newest observation whose `observed_at` is at or before the request timestamp.
 - Ignore later observations so a later converged deployment cannot rewrite the historical diagnosis of an earlier request.
+- Limit each correlation read to 256 observations and require the repository port to receive the same bounded limit.
 - Use a repository port with `appendObservation` and `listObservations`; no persistence implementation or migration apply is introduced in this slice.
 
 ## Deliberate exclusions
@@ -32,6 +34,7 @@ The following remain outside T024 and open in later tasks:
 - A caller-supplied SHA or release ID is not treated as authoritative without source metadata.
 - Opaque release IDs never become authorization, idempotency, ordering, or resource authority.
 - Correlation is read-only and request-time pinned.
+- No component evidence from after the observation time may influence that observation or an earlier request.
 - Incomplete evidence remains incomplete; the service emits `classification_status=not_computed` rather than guessing parity.
 - Source references must be opaque governed references without query parameters or secret-like names.
 - No public response mapper is exported from this slice.
@@ -47,8 +50,10 @@ The test proves:
 - bounded no-secret metadata;
 - explicit missing-evidence projection;
 - rejection of malformed SHA, unsupported evidence state, and unsafe source reference;
+- rejection of future-dated component evidence and impossible deployed timestamps;
 - latest-at-or-before request-time selection;
 - future observation exclusion;
+- bounded observation-set processing;
 - environment scoping;
 - no observation result when all evidence is later than the request;
 - repository-port and service behavior;
