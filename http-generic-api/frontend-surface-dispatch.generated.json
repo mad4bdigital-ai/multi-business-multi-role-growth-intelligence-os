@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "8c7edb789bd8fc0f7923312e41039e6f6f88b98ee03284851fba9216cf380db2",
+    "source_digest": "7e907932bceca129704a8235eb6bf53dacef4731757da927d5d82c5ee720d3e9",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -361,7 +361,7 @@
       },
       {
         "file": "routes/brandSkillRoutes.js",
-        "sha256": "739d481fa7a308a29200ce633ee57bbea9053c3131efc2e945bc189cf14d5cd1",
+        "sha256": "0eab82a0c9081cf7a1c2ae4f48d1accfea64155d848b7c7a608d7493b44cb78f",
         "present": true
       },
       {
@@ -27176,7 +27176,7 @@
       "family_key": "brand-skill",
       "label": "brand skill",
       "source_file": "routes/brandSkillRoutes.js",
-      "source_digest": "739d481fa7a308a29200ce633ee57bbea9053c3131efc2e945bc189cf14d5cd1",
+      "source_digest": "0eab82a0c9081cf7a1c2ae4f48d1accfea64155d848b7c7a608d7493b44cb78f",
       "mount_prefix": "/",
       "mount_order": 15726,
       "split_from_mixed_scope_file": false,
