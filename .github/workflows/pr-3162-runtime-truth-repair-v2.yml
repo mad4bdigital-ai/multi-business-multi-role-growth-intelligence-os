@@ -87,3 +87,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment 3295 --repo "${{ github.repository }}" --body "Runtime-truth repair completed in workflow run ${GITHUB_RUN_ID}; all five parity counters are zero."
+
+# Native GitHub merge trigger for the isolated repair.
