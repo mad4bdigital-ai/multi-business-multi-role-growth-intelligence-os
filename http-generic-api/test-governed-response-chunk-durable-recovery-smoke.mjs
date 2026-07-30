@@ -17,7 +17,23 @@ function createFakePool() {
     rows,
     async query(sql, params = []) {
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
-        const [chunkId, sourceToolKey, hash, bytes, serialized, cursorPolicy, redactionStatus, createdAtMs, expiresAt] = params;
+        const [
+          chunkId,
+          sourceToolKey,
+          hash,
+          bytes,
+          serialized,
+          cursorPolicy,
+          redactionStatus,
+          ownerTenantId,
+          ownerUserId,
+          ownerWorkspaceId,
+          ownerPrincipalType,
+          ownerPrincipalId,
+          sourceSurface,
+          createdAtMs,
+          expiresAt,
+        ] = params;
         rows.set(chunkId, {
           chunk_id: chunkId,
           source_tool_key: sourceToolKey,
@@ -27,6 +43,12 @@ function createFakePool() {
           cursor_policy: cursorPolicy,
           redaction_status: redactionStatus,
           secrets_included: 0,
+          owner_tenant_id: ownerTenantId,
+          owner_user_id: ownerUserId,
+          owner_workspace_id: ownerWorkspaceId,
+          owner_principal_type: ownerPrincipalType,
+          owner_principal_id: ownerPrincipalId,
+          source_surface: sourceSurface,
           created_at: new Date(createdAtMs),
           expires_at: new Date(expiresAt),
           updated_at: new Date(createdAtMs),
@@ -38,9 +60,23 @@ function createFakePool() {
         return [[...(row ? [{ ...row }] : [])]];
       }
       if (sql.includes("UPDATE governed_tool_response_chunks")) {
-        const [candidate, , chunkId] = params;
+        const [
+          candidate,
+          ,
+          chunkId,
+          privileged,
+          ownerTenantId,
+          ownerUserId,
+          ownerPrincipalType,
+          ownerPrincipalId,
+        ] = params;
         const row = rows.get(chunkId);
         if (!row) return [{ affectedRows: 0 }];
+        const ownerMatches = row.owner_tenant_id === ownerTenantId
+          && row.owner_user_id === ownerUserId
+          && row.owner_principal_type === ownerPrincipalType
+          && row.owner_principal_id === ownerPrincipalId;
+        if (Number(privileged) !== 1 && !ownerMatches) return [{ affectedRows: 0 }];
         if (new Date(candidate).getTime() > new Date(row.expires_at).getTime()) {
           row.expires_at = new Date(candidate);
           row.updated_at = new Date(candidate);
