@@ -9,14 +9,10 @@ const PORT_METHODS = Object.freeze({
   workspaceOwnership: Object.freeze(["findWorkspaceOwnership"]),
   connectionOwnership: Object.freeze(["findConnectionOwnership"]),
   providerAuthorizationState: Object.freeze([
-    "findAuthorizationState",
-    "claimAuthorizationState",
-    "completeClaimedAuthorization",
-  ]),
-  providerConsentState: Object.freeze([
     "issueAuthorizationState",
     "findAuthorizationState",
     "claimAuthorizationState",
+    "completeClaimedAuthorization",
   ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   policyGrantEvidence: Object.freeze(["findPolicyGrantEvidence"]),
@@ -83,11 +79,14 @@ export function assertProviderAuthorizationStateRepository(repository) {
   );
 }
 
+// Compatibility validator for the default-off application service. It validates
+// the ingress subset of the single canonical providerAuthorizationState port;
+// it does not define or expose a second repository port.
 export function assertProviderConsentStateRepository(repository) {
   return assertRepositoryMethods(
     repository,
-    "Provider consent state",
-    PORT_METHODS.providerConsentState,
+    "Provider authorization state ingress",
+    ["issueAuthorizationState", "findAuthorizationState", "claimAuthorizationState"],
   );
 }
 
