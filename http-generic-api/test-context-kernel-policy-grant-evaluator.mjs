@@ -33,6 +33,19 @@ function evidenceRecord(sourceType, overrides = {}) {
   };
 }
 
+function collectObjectKeys(value, keys = []) {
+  if (Array.isArray(value)) {
+    for (const child of value) collectObjectKeys(child, keys);
+    return keys;
+  }
+  if (!value || typeof value !== "object") return keys;
+  for (const [key, child] of Object.entries(value)) {
+    keys.push(key);
+    collectObjectKeys(child, keys);
+  }
+  return keys;
+}
+
 const repositoryCalls = [];
 const service = createPolicyGrantEvaluatorService({
   policyGrantEvidenceRepository: {
@@ -132,16 +145,20 @@ assert.equal(result.credentialPayloadRead, false);
 assert.equal(result.secretsIncluded, false);
 
 const serialized = JSON.stringify(result);
-for (const forbidden of [
-  "must-not-leak",
+assert.equal(serialized.includes("must-not-leak"), false, "secret value leaked into the decision");
+const outputKeys = new Set(collectObjectKeys(result));
+for (const forbiddenKey of [
   "accessToken",
   "privateKey",
   "credentialPayload",
   "authorizationHeader",
   "password",
+  "secret",
 ]) {
-  assert.equal(serialized.includes(forbidden), false, `${forbidden} leaked into the decision`);
+  assert.equal(outputKeys.has(forbiddenKey), false, `${forbiddenKey} leaked into the decision`);
 }
+assert.equal(outputKeys.has("credentialPayloadRead"), true);
+assert.equal(outputKeys.has("secretsIncluded"), true);
 
 assert.equal(Object.isFrozen(result), true);
 assert.equal(Object.isFrozen(result.policyEvidence), true);
