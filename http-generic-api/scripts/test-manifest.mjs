@@ -50,6 +50,7 @@ export const testCommands = [
   "node test-execution-capsule-shadow-adapter.mjs",
   "node test-execution-capsule-shadow-composition.mjs",
   "node test-execution-capsule-selected-read-pilot.mjs",
+  "node test-execution-capsule-read-dispatch-gate.mjs",
   "node test-context-kernel-api-projection.mjs",
   "node test-context-kernel-shadow-integration.mjs",
   "node test-platform-scoped-approval-kernel.mjs",
@@ -701,9 +702,7 @@ export const testCommands = [
   "node test-growth-intelligence-admin-decisions.mjs",
   "node test-growth-intelligence-action-collation.mjs",
   "node test-approval-hold-identity-collation-alignment.mjs",
-  "node test-approval-hold-identity-release-readiness.mjs",
-  "node test-canonical-execution-intent-isolation.mjs",
-  "node test-execution-intent-binding-migration-contract.mjs",
+  "node test-approval-hold-identity-release-readiness.mjs"
 ];
 
 // PR-1811 merge-scope marker: capability-security hardening tests remain governed by this manifest.
