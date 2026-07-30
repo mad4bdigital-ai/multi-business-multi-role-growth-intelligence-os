@@ -58,6 +58,37 @@ jobs:
           path.write_text('\n'.join(output) + '\n', encoding='utf-8')
           PY
 
+      - name: Adapt docs coverage call to current source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/apply-surface-contract-classification-phase-a.py')
+          source = path.read_text(encoding='utf-8')
+          old = '''    call_marker = "const documentation = docsCoverageFor(fileName, docsByPath);"
+              if call_marker not in script:
+                  raise SystemExit("docs_coverage_call_marker_missing")
+              script = script.replace(call_marker, "const documentation = docsCoverageFor(fileName, docsByPath, source);", 1)
+          '''
+          new = '''    call_replacements = [
+                  ("const documentation = docsCoverageFor(fileName, docsByPath);", "const documentation = docsCoverageFor(fileName, docsByPath, source);"),
+                  ("const docs = docsCoverageFor(name, docsByPath);", "const docs = docsCoverageFor(name, docsByPath, source);"),
+              ]
+              matched_call = False
+              for old_call, new_call in call_replacements:
+                  if old_call in script:
+                      script = script.replace(old_call, new_call, 1)
+                      matched_call = True
+                      break
+              if not matched_call and not any(new_call in script for _, new_call in call_replacements):
+                  raise SystemExit("docs_coverage_call_marker_missing")
+          '''
+          if old not in source:
+              raise SystemExit('docs_coverage_applicator_block_missing')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Apply checksum-bound parser and evidence repair
         shell: bash
         run: |
