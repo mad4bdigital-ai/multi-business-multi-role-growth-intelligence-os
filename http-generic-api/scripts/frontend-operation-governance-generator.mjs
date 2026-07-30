@@ -15,16 +15,14 @@ const RESOURCE_REPOSITORY_FILE = "src/infrastructure/resourceApi/resourceReposit
 const RESOURCE_TEST_FILE = "test-resource-api-service.mjs";
 const CANARY_ROUTE_FILE = "routes/dynamicContainerAuthorityRoutes.js";
 const CANARY_SERVICE_FILE = "dynamicContainerRolloutSafety.js";
-const CANARY_TEST_FILE = "test-dynamic-container-rollout-safety.mjs";
+const CANARY_TEST_FILE = "test-frontend-operation-governance-generator.mjs";
+const CANARY_BEHAVIOR_TEST_FILE = "test-dynamic-container-rollout-safety.mjs";
 const BOOTSTRAP_ROUTE_FILE = "routes/connectRoutes.js";
 const BOOTSTRAP_SERVICE_FILE = "tenantConnectBootstrapService.js";
 const BOOTSTRAP_TRANSACTION_FILE = "tenantConnectBootstrapTransaction.js";
 const BOOTSTRAP_TEST_FILE = "test-tenant-connect-bootstrap-transaction.mjs";
-const LEASE_ROUTE_FILE = "routes/repositoryAutomationRoutes.js";
-const LEASE_CONTROL_FILE = "repositoryReconciliationLeaseControl.js";
-const LEASE_SERVICE_FILE = "repositoryOperationLeaseService.js";
-const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
+const TEST_MANIFEST_FILE = "scripts/test-manifest.mjs";
 
 const RESOURCE_RECIPES = [
   {
@@ -35,11 +33,7 @@ const RESOURCE_RECIPES = [
     service_function: "tenantCreateResource",
     mutation_call: "transactionRepository.insertAsset",
     rationale: "Creates a tenant asset and verifies its scoped readback before committing the same SQL transaction; any mutation or readback failure rolls the transaction back.",
-    parameter_bindings: {
-      tenant_id: "path.tenant_id",
-      resource_key: "path.resourceKey",
-      resource_id: "response.id",
-    },
+    parameter_bindings: { tenant_id: "path.tenant_id", resource_key: "path.resourceKey", resource_id: "response.id" },
   },
   {
     recipe_id: "tenant-resource-update-transaction-v1",
@@ -49,11 +43,7 @@ const RESOURCE_RECIPES = [
     service_function: "tenantUpdateResource",
     mutation_call: "transactionRepository.updateAssetFields",
     rationale: "Checks tenant ownership and update capability, mutates the asset, and verifies the scoped readback before committing the same SQL transaction.",
-    parameter_bindings: {
-      tenant_id: "path.tenant_id",
-      resource_key: "path.resourceKey",
-      resource_id: "path.resourceId",
-    },
+    parameter_bindings: { tenant_id: "path.tenant_id", resource_key: "path.resourceKey", resource_id: "path.resourceId" },
   },
   {
     recipe_id: "tenant-resource-archive-transaction-v1",
@@ -63,11 +53,7 @@ const RESOURCE_RECIPES = [
     service_function: "tenantSetResourceLifecycle",
     mutation_call: "transactionRepository.setAssetLifecycle",
     rationale: "Checks tenant ownership and archive capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
-    parameter_bindings: {
-      tenant_id: "path.tenant_id",
-      resource_key: "path.resourceKey",
-      resource_id: "path.resourceId",
-    },
+    parameter_bindings: { tenant_id: "path.tenant_id", resource_key: "path.resourceKey", resource_id: "path.resourceId" },
   },
   {
     recipe_id: "tenant-resource-restore-transaction-v1",
@@ -77,10 +63,55 @@ const RESOURCE_RECIPES = [
     service_function: "tenantSetResourceLifecycle",
     mutation_call: "transactionRepository.setAssetLifecycle",
     rationale: "Checks tenant ownership and restore capability, changes lifecycle state, and verifies the scoped readback before committing the same SQL transaction.",
+    parameter_bindings: { tenant_id: "path.tenant_id", resource_key: "path.resourceKey", resource_id: "path.resourceId" },
+  },
+];
+
+const CANARY_RECIPES = [
+  {
+    recipe_id: "dynamic-container-canary-promotion-transaction-v1",
+    rule_id: "generated-dynamic-container-canary-promotion-governance",
+    operation: "POST /admin/container-authority/canary-promotions",
+    service_function: "runContainerCanaryPromotion",
+    mutation_sql: "SET rollout_mode='read_only_canary'",
+    rationale: "Promotes one exact read-only canary only after capability-envelope authorization, rollout-readiness validation, and typed confirmation, then verifies the exact promoted state and consumes the envelope before committing one SQL transaction.",
+    preflight_mode: "capability_envelope_and_rollout_readiness_check",
     parameter_bindings: {
-      tenant_id: "path.tenant_id",
-      resource_key: "path.resourceKey",
-      resource_id: "path.resourceId",
+      target_canary_key: "request.body.targetCanaryKey",
+      capability_envelope_id: "request.body.capabilityEnvelopeId",
+      confirmation: "request.body.confirm",
+      rollout_mode: "response.readback.rollout_mode",
+    },
+  },
+  {
+    recipe_id: "dynamic-container-canary-rollback-transaction-v1",
+    rule_id: "generated-dynamic-container-canary-rollback-governance",
+    operation: "POST /admin/container-authority/canary-rollbacks",
+    service_function: "runContainerCanaryRollback",
+    mutation_sql: "SET rollout_mode='shadow'",
+    rationale: "Returns one exact active canary to shadow mode only after capability-envelope authorization and typed confirmation, then verifies the exact shadow state and consumes the envelope before committing one SQL transaction.",
+    preflight_mode: "capability_envelope_and_active_canary_lock",
+    parameter_bindings: {
+      target_canary_key: "request.body.targetCanaryKey",
+      capability_envelope_id: "request.body.capabilityEnvelopeId",
+      confirmation: "request.body.confirm",
+      reason: "request.body.reason|runtime_canary_not_observed",
+      rollout_mode: "response.readback.rollout_mode",
+    },
+  },
+  {
+    recipe_id: "dynamic-container-canary-closeout-transaction-v1",
+    rule_id: "generated-dynamic-container-canary-closeout-governance",
+    operation: "POST /admin/container-authority/canary-closeouts",
+    service_function: "runContainerCanaryCloseout",
+    mutation_sql: "SET rollout_mode='shadow'",
+    rationale: "Applies a capability-envelope-authorized canary closeout only after typed confirmation, then verifies the exact accepted shadow state and consumes the envelope before committing one SQL transaction.",
+    preflight_mode: "capability_envelope_and_monitoring_check",
+    parameter_bindings: {
+      target_canary_key: "request.body.targetCanaryKey",
+      capability_envelope_id: "request.body.capabilityEnvelopeId",
+      confirmation: "request.body.confirm",
+      canary_key: "response.readback.canary_key",
     },
   },
 ];
@@ -130,10 +161,12 @@ function registeredTestEvidence(apiRoot) {
 }
 
 export function extractFunctionBlock(source = "", functionName = "") {
-  const matcher = new RegExp(`(?:export\\s+)?async\\s+function\\s+${functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(`);
-  const start = canonicalText(source).search(matcher);
+  const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matcher = new RegExp(`(?:export\\s+)?(?:async\\s+)?function\\s+${escapedName}\\s*\\(`);
+  const normalized = canonicalText(source);
+  const start = normalized.search(matcher);
   if (start < 0) return "";
-  const bodyStart = /\)\s*\{/.exec(source.slice(start));
+  const bodyStart = /\)\s*\{/.exec(normalized.slice(start));
   const open = bodyStart ? start + bodyStart.index + bodyStart[0].lastIndexOf("{") : -1;
   if (open < 0) return "";
   let depth = 0;
@@ -141,18 +174,15 @@ export function extractFunctionBlock(source = "", functionName = "") {
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
-  for (let index = open; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1];
+  for (let index = open; index < normalized.length; index += 1) {
+    const character = normalized[index];
+    const next = normalized[index + 1];
     if (lineComment) {
       if (character === "\n") lineComment = false;
       continue;
     }
     if (blockComment) {
-      if (character === "*" && next === "/") {
-        blockComment = false;
-        index += 1;
-      }
+      if (character === "*" && next === "/") { blockComment = false; index += 1; }
       continue;
     }
     if (quote) {
@@ -161,24 +191,13 @@ export function extractFunctionBlock(source = "", functionName = "") {
       else if (character === quote) quote = null;
       continue;
     }
-    if (character === "/" && next === "/") {
-      lineComment = true;
-      index += 1;
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      blockComment = true;
-      index += 1;
-      continue;
-    }
-    if (["\"", "'", "`"].includes(character)) {
-      quote = character;
-      continue;
-    }
+    if (character === "/" && next === "/") { lineComment = true; index += 1; continue; }
+    if (character === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    if (["\"", "'", "`"].includes(character)) { quote = character; continue; }
     if (character === "{") depth += 1;
     if (character === "}") {
       depth -= 1;
-      if (depth === 0) return source.slice(start, index + 1);
+      if (depth === 0) return normalized.slice(start, index + 1);
     }
   }
   return "";
@@ -212,11 +231,7 @@ function generatedRule(recipe, evidenceFiles, sourceByFile) {
     rollback: { mode: "transaction", on: ["mutation_failure", "readback_failure"] },
     parameter_bindings: recipe.parameter_bindings,
     evidence_refs: evidenceFiles,
-    generated_evidence: {
-      recipe_id: recipe.recipe_id,
-      source_digest: evidenceDigest,
-      fail_closed: true,
-    },
+    generated_evidence: { recipe_id: recipe.recipe_id, source_digest: evidenceDigest, fail_closed: true },
   };
 }
 
@@ -242,58 +257,61 @@ function evaluateResourceRecipe(recipe, context) {
     evidenceGate("registered_operation_test", claimedTests.includes(RESOURCE_TEST_FILE), RESOURCE_TEST_FILE),
   ];
   return {
-    recipe: {
-      ...recipe,
-      source_file: RESOURCE_ROUTE_FILE,
-      owner: "resource-platform",
-      preflight_mode: "inline_capability_check",
-      approval_mode: "runtime_authorization",
-    },
+    recipe: { ...recipe, source_file: RESOURCE_ROUTE_FILE, owner: "resource-platform", preflight_mode: "inline_capability_check", approval_mode: "runtime_authorization" },
     gates,
     evidenceFiles: [RESOURCE_ROUTE_FILE, RESOURCE_SERVICE_FILE, RESOURCE_REPOSITORY_FILE, RESOURCE_TEST_FILE],
   };
 }
 
-function evaluateCanaryRecipe(context) {
-  const recipe = {
-    recipe_id: "dynamic-container-canary-closeout-transaction-v1",
-    rule_id: "generated-dynamic-container-canary-closeout-governance",
-    operation: "POST /admin/container-authority/canary-closeouts",
-    source_file: CANARY_ROUTE_FILE,
-    owner: "platform-governance",
-    rationale: "Applies a capability-envelope-authorized canary closeout only after typed confirmation, then verifies the exact accepted shadow state and consumes the envelope before committing one SQL transaction.",
-    preflight_mode: "capability_envelope_and_monitoring_check",
-    approval_mode: "runtime_authorization_and_typed_confirmation",
-    parameter_bindings: {
-      target_canary_key: "request.body.targetCanaryKey",
-      capability_envelope_id: "request.body.capabilityEnvelopeId",
-      confirmation: "request.body.confirm",
-      canary_key: "response.readback.canary_key",
-    },
-  };
-  const route = context.canaryRoutes.get(recipe.operation);
-  const serviceBlock = extractFunctionBlock(context.sourceByFile.get(CANARY_SERVICE_FILE), "runContainerCanaryCloseout");
-  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
-  const mutationSql = "UPDATE container_shadow_canary_registry";
+function evaluateCanaryRecipe(recipe, context) {
+  const normalizedRecipe = { ...recipe, source_file: CANARY_ROUTE_FILE, owner: "platform-governance", approval_mode: "runtime_authorization_and_typed_confirmation" };
+  const route = context.canaryRoutes.get(normalizedRecipe.operation);
+  const serviceSource = context.sourceByFile.get(CANARY_SERVICE_FILE);
+  const serviceBlock = extractFunctionBlock(serviceSource, normalizedRecipe.service_function);
+  const requiresRolloutReadiness = normalizedRecipe.service_function === "runContainerCanaryPromotion";
+  const promotionPlanBlock = requiresRolloutReadiness
+    ? extractFunctionBlock(serviceSource, "buildContainerCanaryPromotionPlan")
+    : "";
+  const evidenceTest = context.sourceByFile.get(CANARY_TEST_FILE) || "";
+  const testManifest = context.sourceByFile.get(TEST_MANIFEST_FILE) || "";
+  const claimedTests = context.testEvidence.byOperation.get(normalizedRecipe.operation) || [];
   const readbackSql = "FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1";
   const gates = [
     evidenceGate("route_present", route, CANARY_ROUTE_FILE),
     evidenceGate("admin_guard", route?.route_guards?.includes("requireAdminPrincipal") && route?.route_guards?.includes("requireBackendApiKey"), "requireAdminPrincipal/requireBackendApiKey"),
-    evidenceGate("route_service_binding", route?.declaration?.includes("runContainerCanaryCloseout"), "runContainerCanaryCloseout"),
-    evidenceGate("service_function_present", serviceBlock, "runContainerCanaryCloseout"),
+    evidenceGate("route_service_binding", route?.declaration?.includes(normalizedRecipe.service_function), normalizedRecipe.service_function),
+    evidenceGate("service_function_present", serviceBlock, normalizedRecipe.service_function),
     evidenceGate("transaction_begin_commit", serviceBlock.includes("beginTransaction") && serviceBlock.includes("executor.commit"), "beginTransaction/commit"),
     evidenceGate("transaction_rollback", serviceBlock.includes("executor.rollback"), "executor.rollback"),
     evidenceGate("capability_envelope_preflight", serviceBlock.includes("resolveCapabilityExecutionEnvelope") && serviceBlock.includes("envelope.apply_allowed"), "capability envelope/apply_allowed"),
+    evidenceGate(
+      "rollout_readiness_query",
+      !requiresRolloutReadiness
+        || (serviceBlock.includes("v_container_rollout_readiness")
+          && serviceBlock.includes("readinessRows?.[0]")
+          && serviceBlock.includes("buildContainerCanaryPromotionPlan")),
+      "v_container_rollout_readiness/readinessRows/buildContainerCanaryPromotionPlan"
+    ),
+    evidenceGate(
+      "rollout_readiness_validation",
+      !requiresRolloutReadiness
+        || (promotionPlanBlock.includes("readinessCode ?? readiness.readiness_code")
+          && promotionPlanBlock.includes('!== "ready_for_review"')),
+      "buildContainerCanaryPromotionPlan/ready_for_review"
+    ),
     evidenceGate("typed_confirmation", serviceBlock.includes("confirm !== plan.confirmation"), "plan.confirmation"),
-    evidenceGate("mutation_present", serviceBlock.includes(mutationSql), mutationSql),
-    evidenceGate("transactional_readback_follows_mutation", ordered(serviceBlock, mutationSql, readbackSql), readbackSql),
+    evidenceGate("mutation_present", serviceBlock.includes(normalizedRecipe.mutation_sql), normalizedRecipe.mutation_sql),
+    evidenceGate("transactional_readback_follows_mutation", ordered(serviceBlock, normalizedRecipe.mutation_sql, readbackSql), readbackSql),
     evidenceGate("envelope_consumed_before_commit", ordered(serviceBlock, "transitionCapabilityEnvelopeLifecycle", "executor.commit"), "envelope lifecycle/commit"),
+    evidenceGate("provider_write_denial", serviceBlock.includes("providerCalls:false") && serviceBlock.includes("externalWrites:false"), "providerCalls:false/externalWrites:false"),
+    evidenceGate("behavioral_test_bound", evidenceTest.includes(`await import("./${CANARY_BEHAVIOR_TEST_FILE}")`), CANARY_BEHAVIOR_TEST_FILE),
+    evidenceGate("executable_test_registered", testManifest.includes(`node ${CANARY_TEST_FILE}`), TEST_MANIFEST_FILE),
     evidenceGate("registered_operation_test", claimedTests.includes(CANARY_TEST_FILE), CANARY_TEST_FILE),
   ];
   return {
-    recipe,
+    recipe: normalizedRecipe,
     gates,
-    evidenceFiles: [CANARY_ROUTE_FILE, CANARY_SERVICE_FILE, CANARY_TEST_FILE],
+    evidenceFiles: [CANARY_ROUTE_FILE, CANARY_SERVICE_FILE, CANARY_TEST_FILE, CANARY_BEHAVIOR_TEST_FILE, TEST_MANIFEST_FILE],
   };
 }
 
@@ -307,11 +325,7 @@ function evaluateBootstrapRecipe(context) {
     rationale: "Serializes bootstrap for the signed user, checks workspace eligibility, optionally creates the tenant and membership, activates Managed mode, and verifies the exact membership and connection before committing one SQL transaction.",
     preflight_mode: "inline_capability_check",
     approval_mode: "runtime_authorization",
-    parameter_bindings: {
-      user_id: "auth.user_id",
-      tenant_id: "auth.tenant_id|response.principal.workspace_key",
-      mode: "request.body.mode|managed",
-    },
+    parameter_bindings: { user_id: "auth.user_id", tenant_id: "auth.tenant_id|response.principal.workspace_key", mode: "request.body.mode|managed" },
   };
   const route = context.bootstrapRoutes.get(recipe.operation);
   const routeSource = context.sourceByFile.get(BOOTSTRAP_ROUTE_FILE);
@@ -340,70 +354,7 @@ function evaluateBootstrapRecipe(context) {
     evidenceGate("connection_release", transactionBlock.includes("transaction.release"), "transaction.release"),
     evidenceGate("registered_operation_test", claimedTests.includes(BOOTSTRAP_TEST_FILE), BOOTSTRAP_TEST_FILE),
   ];
-  return {
-    recipe,
-    gates,
-    evidenceFiles: [BOOTSTRAP_ROUTE_FILE, BOOTSTRAP_SERVICE_FILE, BOOTSTRAP_TRANSACTION_FILE, BOOTSTRAP_TEST_FILE],
-  };
-}
-
-function evaluateLeaseRecipe(context) {
-  const recipe = {
-    recipe_id: "repository-reconciliation-lease-control-v1",
-    rule_id: "generated-repository-reconciliation-lease-control-governance",
-    operation: "POST /admin/repository-automation/reconciliation-lease",
-    source_file: LEASE_ROUTE_FILE,
-    owner: "repository-automation",
-    rationale: "Acquires, renews, or releases one repository reconciliation lease only after Admin authentication, exact resource and fingerprint capability-envelope binding, apply authorization, and typed confirmation; each durable mutation is verified inside the same SQL transaction before commit and rolls back on mutation or readback failure.",
-    preflight_mode: "capability_envelope_resource_and_fingerprint_binding",
-    approval_mode: "runtime_authorization_and_typed_confirmation",
-    parameter_bindings: {
-      action: "request.body.action",
-      capability_envelope_id: "request.body.capability_envelope_id",
-      repository_owner: "request.body.owner|request.body.repository_owner",
-      repository_name: "request.body.repo|request.body.repository_name",
-      branch_name: "request.body.branch|request.body.branch_name",
-      expected_base_sha: "request.body.expected_base_sha",
-      expected_branch_sha: "request.body.expected_branch_sha",
-      lease_id: "response.lease.lease_id",
-      resource_fingerprint: "response.lease.resource_fingerprint",
-    },
-  };
-  const route = context.leaseRoutes.get(recipe.operation);
-  const controlSource = context.sourceByFile.get(LEASE_CONTROL_FILE);
-  const runBlock = extractFunctionBlock(controlSource, "runRepositoryReconciliationLeaseControl");
-  const envelopeBlock = extractFunctionBlock(controlSource, "requireCapabilityEnvelope");
-  const leaseSource = context.sourceByFile.get(LEASE_SERVICE_FILE);
-  const acquireBlock = extractFunctionBlock(leaseSource, "acquireRepositoryOperationLease");
-  const renewBlock = extractFunctionBlock(leaseSource, "renewRepositoryOperationLease");
-  const releaseBlock = extractFunctionBlock(leaseSource, "releaseRepositoryOperationLease");
-  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
-  const transactionalBlocks = [acquireBlock, renewBlock, releaseBlock];
-  const gates = [
-    evidenceGate("route_present", route, LEASE_ROUTE_FILE),
-    evidenceGate("admin_guard", route?.route_guards?.includes("requireAdminPrincipal") && route?.route_guards?.includes("requireBackendApiKey"), "requireAdminPrincipal/requireBackendApiKey"),
-    evidenceGate("route_service_binding", route?.declaration?.includes("runRepositoryReconciliationLeaseControl"), "runRepositoryReconciliationLeaseControl"),
-    evidenceGate("control_function_present", runBlock, "runRepositoryReconciliationLeaseControl"),
-    evidenceGate("defense_in_depth_admin_check", runBlock.includes("assertAdminCaller"), "assertAdminCaller"),
-    evidenceGate("typed_confirmation", runBlock.includes("assertTypedConfirmation"), "assertTypedConfirmation"),
-    evidenceGate("force_bypass_rejected", controlSource.includes("assertNoForceFlags") && controlSource.includes("repository_reconciliation_lease_control_force_forbidden"), "assertNoForceFlags/force_forbidden"),
-    evidenceGate("capability_envelope_exact_binding", envelopeBlock.includes("resolveCapabilityExecutionEnvelope") && envelopeBlock.includes("expectedResourceUri") && envelopeBlock.includes("expectedBindingSha256"), "expectedResourceUri/expectedBindingSha256"),
-    evidenceGate("capability_envelope_apply_authorization", envelopeBlock.includes("resolved.apply_allowed !== true"), "apply_allowed"),
-    evidenceGate("lease_specific_intent", envelopeBlock.includes("repository_reconciliation_lease_control") && !envelopeBlock.includes('"repo_mutation"'), "lease-specific intent/no generic repo_mutation"),
-    evidenceGate("envelope_reference_before_service_dispatch", ordered(envelopeBlock, "markCapabilityEnvelopeReferenced", "return resolved") && ordered(runBlock, "await requireCapabilityEnvelope", "await leaseDependencies"), "envelope reference before lease service dispatch"),
-    evidenceGate("all_actions_dispatched", runBlock.includes("acquireRepositoryOperationLease") && runBlock.includes("renewRepositoryOperationLease") && runBlock.includes("releaseRepositoryOperationLease"), "acquire/renew/release dispatch"),
-    evidenceGate("transaction_scope_all_actions", transactionalBlocks.every((block) => block.includes("getConnection") && block.includes("beginTransaction") && block.includes("connection.commit")), "getConnection/beginTransaction/commit"),
-    evidenceGate("transaction_rollback_all_actions", transactionalBlocks.every((block) => block.includes("connection.rollback") && block.includes("connection.release")), "rollback/release"),
-    evidenceGate("acquire_transactional_readback", (ordered(acquireBlock, "INSERT INTO repository_operation_leases", "const created = await readLeaseById") || ordered(acquireBlock, "UPDATE repository_operation_leases", "const renewed = await readLeaseById")) && acquireBlock.includes("repository_operation_lease_readback_failed"), "acquire/reuse readback before commit"),
-    evidenceGate("renew_transactional_readback", ordered(renewBlock, "UPDATE repository_operation_leases", "const renewed = await readLeaseById"), "renew readback before commit"),
-    evidenceGate("release_transactional_readback", ordered(releaseBlock, "UPDATE repository_operation_leases", "const released = await readLeaseById") && releaseBlock.includes('released.status !== "released"'), "release readback before commit"),
-    evidenceGate("registered_operation_test", claimedTests.includes(LEASE_TEST_FILE), LEASE_TEST_FILE),
-  ];
-  return {
-    recipe,
-    gates,
-    evidenceFiles: [LEASE_ROUTE_FILE, LEASE_CONTROL_FILE, LEASE_SERVICE_FILE, LEASE_TEST_FILE],
-  };
+  return { recipe, gates, evidenceFiles: [BOOTSTRAP_ROUTE_FILE, BOOTSTRAP_SERVICE_FILE, BOOTSTRAP_TRANSACTION_FILE, BOOTSTRAP_TEST_FILE] };
 }
 
 export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
@@ -412,6 +363,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const evidenceFiles = unique([
     generatorFile,
     TEST_REGISTRY_FILE,
+    TEST_MANIFEST_FILE,
     RESOURCE_ROUTE_FILE,
     RESOURCE_SERVICE_FILE,
     RESOURCE_REPOSITORY_FILE,
@@ -419,14 +371,11 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     CANARY_ROUTE_FILE,
     CANARY_SERVICE_FILE,
     CANARY_TEST_FILE,
+    CANARY_BEHAVIOR_TEST_FILE,
     BOOTSTRAP_ROUTE_FILE,
     BOOTSTRAP_SERVICE_FILE,
     BOOTSTRAP_TRANSACTION_FILE,
     BOOTSTRAP_TEST_FILE,
-    LEASE_ROUTE_FILE,
-    LEASE_CONTROL_FILE,
-    LEASE_SERVICE_FILE,
-    LEASE_TEST_FILE,
   ]);
   const sourceByFile = new Map(evidenceFiles.map((file) => [file, readText(apiRoot, file)]));
   const context = {
@@ -435,13 +384,11 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     resourceRoutes: routeRegistry(sourceByFile.get(RESOURCE_ROUTE_FILE), RESOURCE_ROUTE_FILE),
     canaryRoutes: routeRegistry(sourceByFile.get(CANARY_ROUTE_FILE), CANARY_ROUTE_FILE),
     bootstrapRoutes: routeRegistry(sourceByFile.get(BOOTSTRAP_ROUTE_FILE), BOOTSTRAP_ROUTE_FILE),
-    leaseRoutes: routeRegistry(sourceByFile.get(LEASE_ROUTE_FILE), LEASE_ROUTE_FILE),
   };
   const evaluations = [
     ...RESOURCE_RECIPES.map((recipe) => evaluateResourceRecipe(recipe, context)),
-    evaluateCanaryRecipe(context),
+    ...CANARY_RECIPES.map((recipe) => evaluateCanaryRecipe(recipe, context)),
     evaluateBootstrapRecipe(context),
-    evaluateLeaseRecipe(context),
   ];
   const operationRules = [];
   const rejectedCandidates = [];
@@ -462,33 +409,15 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   }
   operationRules.sort((left, right) => left.operation.localeCompare(right.operation));
   rejectedCandidates.sort((left, right) => left.operation.localeCompare(right.operation));
-  const sourceAuthority = evidenceFiles.map((file) => ({
-    file,
-    sha256: digest(sourceByFile.get(file)),
-    present: Boolean(sourceByFile.get(file)),
-  }));
+  const sourceAuthority = evidenceFiles.map((file) => ({ file, sha256: digest(sourceByFile.get(file)), present: Boolean(sourceByFile.get(file)) }));
   return {
     schema_version: "frontend-operation-governance-v1",
-    generator: {
-      id: "frontend-operation-governance-generator-v1",
-      source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
-      fail_closed: true,
-    },
+    generator: { id: "frontend-operation-governance-generator-v1", source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")), fail_closed: true },
     source_authority: sourceAuthority,
-    coverage: {
-      candidate_count: evaluations.length,
-      generated_rule_count: operationRules.length,
-      rejected_candidate_count: rejectedCandidates.length,
-    },
+    coverage: { candidate_count: evaluations.length, generated_rule_count: operationRules.length, rejected_candidate_count: rejectedCandidates.length },
     operation_rules: operationRules,
     rejected_candidates: rejectedCandidates,
-    safety: {
-      writes_runtime_source: false,
-      writes_database: false,
-      executes_provider_calls: false,
-      deploys: false,
-      secrets_included: false,
-    },
+    safety: { writes_runtime_source: false, writes_database: false, executes_provider_calls: false, deploys: false, secrets_included: false },
   };
 }
 
@@ -518,12 +447,6 @@ if (isDirectExecution(import.meta.url)) {
   const result = args.mode === "json"
     ? { ok: true, mode: "json", output: args.output, drift: false, plan: buildOperationGovernance() }
     : syncOperationGovernance({ mode: args.mode, output: args.output });
-  process.stdout.write(`${JSON.stringify({
-    ok: result.ok,
-    mode: result.mode,
-    output: result.output,
-    drift: result.drift,
-    coverage: result.plan.coverage,
-  }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: result.ok, mode: result.mode, output: result.output, drift: result.drift, coverage: result.plan.coverage }, null, 2)}\n`);
   if (!result.ok) process.exit(1);
 }
