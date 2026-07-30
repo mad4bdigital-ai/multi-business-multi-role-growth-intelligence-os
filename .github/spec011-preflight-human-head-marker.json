@@ -1,0 +1,6 @@
+{
+  "purpose": "create a linked-account head after current-main ancestry synchronization",
+  "source_head": "dabf07fa686dcae0db27be76d178d561c4b0e64a",
+  "sql_executed": false,
+  "secrets_included": false
+}
