@@ -86,16 +86,14 @@ jobs:
           '''
           service = replace_once(service, helper_anchor, helper_replacement, 'service-helper')
 
-          fast_anchor = '''      if (grantCoversOperations(existing.allowed_operations_json, operations)) {
-                const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
-          '''
-          fast_replacement = '''      if (canReuseExistingGrantUnderPolicy(
-                existing.allowed_operations_json,
-                operations,
-                policy.allowed_operations_json,
-              )) {
-                const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
-          '''
+          fast_anchor = '      if (grantCoversOperations(existing.allowed_operations_json, operations)) {'
+          fast_replacement = (
+              '      if (canReuseExistingGrantUnderPolicy(\n'
+              '        existing.allowed_operations_json,\n'
+              '        operations,\n'
+              '        policy.allowed_operations_json,\n'
+              '      )) {'
+          )
           service = replace_once(service, fast_anchor, fast_replacement, 'service-fast-path')
 
           testing_anchor = '''  normalizeTtlHours,
