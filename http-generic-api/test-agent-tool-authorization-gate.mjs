@@ -27,6 +27,8 @@ function buildPool({
         const matched = alternatives.find((skillKey) => granted.has(skillKey));
         return [matched ? [{ skill_key: matched, grant_id: `grant-${agentId}-${matched}` }] : []];
       }
+      if (text.includes(" FROM brand_skill_policies p ")) return [[]];
+      if (text.includes(" FROM v_effective_user_brand_skill_grants ")) return [[]];
       if (text.includes("COUNT(*) AS configured_count") && text.includes("FROM app_action_grants")) {
         const actionKey = params[0];
         return [[{ configured_count: configuredAppGrants[actionKey] || 0 }]];
