@@ -19,6 +19,7 @@
     "../../http-generic-api/test-execution-capsule-shadow-adapter.mjs",
     "../../http-generic-api/test-execution-capsule-shadow-composition.mjs",
     "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-operation-governance.generated.json",
     "../../http-generic-api/frontend-surface-dispatch.generated.json"
   ],
   "implemented_contracts": [
@@ -50,12 +51,12 @@
     "standalone_contract_test",
     "standalone_composition_test",
     "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh",
     "bounded_contract_review",
     "human_architecture_security_review",
     "clean_core_build_readback"
   ],
   "pending_contracts": [
-    "generated_test_manifest_evidence_refresh",
     "follow_up_exact_head_ci_evidence",
     "follow_up_human_architecture_security_review"
   ],
@@ -81,6 +82,14 @@
     "exact_registration_count_per_command": 1,
     "temporary_workflow_removed": true,
     "bounded_regressions_passed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30545235037,
+    "generated_head_sha": "6c866fc7e4e299a30276eb15f8dafea5c7e30c05",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true
   },
   "human_review": {
     "status": "passed_for_core",
