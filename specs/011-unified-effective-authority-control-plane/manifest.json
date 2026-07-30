@@ -47,10 +47,25 @@
         "role": "t014_shadow_policy_grant_evaluator",
         "head_sha": "46b226b85f1a28ad978c9d912332c31091f0b3b0",
         "merge_sha": "5ff7748ed1bb9fba6301001be0a0069057c03bdd"
+      },
+      {
+        "number": 3811,
+        "role": "t016_shadow_endpoint_certification_resolver",
+        "head_sha": "71a84a874740d9b90ee5f0e92017b0b758245783",
+        "merge_sha": "53731f12575866e59e4645abff52f8c9446b1d8a"
       }
     ],
-    "superseded_prs": [3351],
-    "completed_tasks": ["T010", "T011", "T012", "T013", "T014"],
+    "superseded_prs": [
+      3351
+    ],
+    "completed_tasks": [
+      "T010",
+      "T011",
+      "T012",
+      "T013",
+      "T014",
+      "T016"
+    ],
     "runtime_enforcement_enabled": false,
     "remaining_delivery": "bounded_current_main_prs"
   },
@@ -76,6 +91,9 @@
     "semantic_capability_precedes_provider_selection",
     "explicit_policy_or_grant_denial_precedes_allow",
     "resolved_policy_grant_evidence_does_not_grant_execution_authority",
+    "canonical_endpoint_identity_must_be_unique",
+    "explicit_endpoint_or_certification_denial_precedes_allow",
+    "resolved_endpoint_certification_evidence_does_not_grant_execution_authority",
     "ambiguous_top_ranked_connections_block",
     "state_changing_manifests_are_bound_and_single_use",
     "high_risk_execution_revalidates_mutable_authority",
