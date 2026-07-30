@@ -1,4 +1,4 @@
-name: Dispatch Production Candidate 541c85ab
+name: Dispatch Production Candidate cb48ac88
 
 on:
   pull_request:
@@ -25,10 +25,10 @@ jobs:
           gh workflow run production-promotion-candidate.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
-            -f expected_main_sha=541c85abcd21963dd49fa80eb7250f3b69e9cd32 \
+            -f expected_main_sha=cb48ac885b9991c8417b1fee16e097fdb24e55c0 \
             -f expected_production_sha=9d75a5e13cbe674448e4f52a341c5b9615f1e2d0 \
-            -f release_branch=release/production-candidate-541c85ab-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-541c85ab \
-            -f validation_base_branch=gpt/validate-production-base-541c85ab \
+            -f release_branch=release/production-candidate-cb48ac88-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-cb48ac88 \
+            -f validation_base_branch=gpt/validate-production-base-cb48ac88 \
             -f create_pull_requests=true
           echo 'Governed candidate builder dispatched. This workflow performs no branch merge, deployment, migration, provider call, credential read, or external send.'
