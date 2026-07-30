@@ -1,3 +1,4 @@
+// This manifest-registered Activation suite owns the repository-only T028 regression.
 import "./test-activation-reconnect-guidance-policy.mjs";
 import { buildRateLimitedClassification } from "./activationClassification.js";
 import { buildProgressState } from "./activationProgress.js";
