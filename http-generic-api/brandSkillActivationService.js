@@ -50,6 +50,11 @@ export function operationsAllowed(requested = [], allowed = []) {
   return allowedSet.has("*") || requested.every((item) => allowedSet.has(item));
 }
 
+export function canReuseExistingGrantUnderPolicy(existingOperations, requestedOperations, policyOperations) {
+  return grantCoversOperations(existingOperations, requestedOperations)
+    && grantCoversOperations(policyOperations, existingOperations);
+}
+
 export function normalizeTtlHours(value, mode, maxTtlHours) {
   const numericMaximum = Number(maxTtlHours);
   const hasConfiguredMaximum = maxTtlHours !== null && maxTtlHours !== undefined && maxTtlHours !== "" && Number.isFinite(numericMaximum);
@@ -384,7 +389,11 @@ export async function activateBrandSkillForUser({
       if (!existing) {
         throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The existing user brand skill grant could not be verified.");
       }
-      if (grantCoversOperations(existing.allowed_operations_json, operations)) {
+      if (canReuseExistingGrantUnderPolicy(
+        existing.allowed_operations_json,
+        operations,
+        policy.allowed_operations_json,
+      )) {
         const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
         const readback = ttlClamped ? await loadGrantReadback(connection, existingId) : existing;
         if (!readback) {
@@ -579,6 +588,7 @@ export const _testingBrandSkillActivationService = {
   normalizeRequestedOperations,
   operationsAllowed,
   normalizeTtlHours,
+  canReuseExistingGrantUnderPolicy,
   validatePolicy,
   clampActiveGrantTtl,
 };
