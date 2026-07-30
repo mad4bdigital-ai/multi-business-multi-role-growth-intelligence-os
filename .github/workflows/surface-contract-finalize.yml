@@ -1,6 +1,10 @@
 name: Surface Contract Finalize
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/surface-contract-finalize.yml
   issue_comment:
     types: [created]
 
@@ -14,10 +18,13 @@ concurrency:
 jobs:
   finalize:
     if: >-
-      github.event.issue.number == 3478 &&
-      github.event.issue.pull_request != null &&
-      github.event.comment.body == '/surface-contract-finalize-3478' &&
-      github.event.comment.user.login == 'mad4bdigital-ai'
+      github.event_name == 'push' ||
+      (
+        github.event.issue.number == 3478 &&
+        github.event.issue.pull_request != null &&
+        github.event.comment.body == '/surface-contract-finalize-3478' &&
+        github.event.comment.user.login == 'mad4bdigital-ai'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
