@@ -72,7 +72,12 @@ assert.match(exactValidation, /contents:\s*read/, "exact validation must keep re
 assert.match(exactValidation, /git diff --quiet "\$BASE_SHA" "\$HEAD_SHA"/, "exact validation must require identical trees");
 assert.match(exactValidation, /validation branches moved before exact-CI dispatch/, "exact validation must read refs before dispatch");
 assert.match(exactValidation, /gh workflow run ci\.yml --ref "\$HEAD_REF"/, "exact validation must dispatch Full CI on the candidate branch");
-assert.match(exactValidation, /gh run watch "\$RUN_ID" --exit-status/, "exact validation must wait for CI success");
+assert.doesNotMatch(exactValidation, /gh run watch/, "exact validation must not use API-intensive gh run watch polling");
+assert.match(exactValidation, /POLL_INTERVAL_SECONDS=30/, "exact validation must poll at a bounded low frequency");
+assert.match(exactValidation, /RATE_LIMIT_BACKOFF_SECONDS=60/, "exact validation must back off after GitHub API throttling");
+assert.match(exactValidation, /rate limit exceeded\|HTTP 403/, "exact validation must recognize rate-limit failures explicitly");
+assert.match(exactValidation, /POLL_DEADLINE_EPOCH/, "exact validation polling must have a hard deadline");
+assert.match(exactValidation, /gh run view "\$RUN_ID"/, "exact validation must read the dispatched run deterministically");
 assert.match(exactValidation, /Syntax Check/, "exact validation must require Syntax Check success");
 assert.match(exactValidation, /Unit & Integration Tests/, "exact validation must require Unit and Integration success");
 assert.match(exactValidation, /Execution Resolver Gate/, "exact validation must require Execution Resolver success");
