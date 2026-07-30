@@ -2,7 +2,7 @@ name: Spec 011 Phase1 Latest Main Reconcile Once
 
 on:
   pull_request:
-    types: [reopened]
+    types: [synchronize, reopened]
 
 permissions:
   contents: write
