@@ -305,10 +305,15 @@ await expectCode(
   }),
   "subject_delegation_context_required",
 );
+const missingDelegationSubjectCalls = [];
 await expectCode(
-  () => createResolver({ delegationRecord: null }).resolve(delegatedInput()),
+  () => createResolver({
+    delegationRecord: null,
+    subjectCalls: missingDelegationSubjectCalls,
+  }).resolve(delegatedInput()),
   "subject_delegation_context_not_found",
 );
+assert.equal(missingDelegationSubjectCalls.length, 0);
 await expectCode(
   () => createResolver({
     delegationRecord: {
@@ -338,33 +343,32 @@ await expectCode(
   "subject_delegation_blocked",
   "SUPPORT_DELEGATION_OPERATION_NOT_ALLOWED",
 );
+const actorMismatchSubjectCalls = [];
 await expectCode(
   () => createResolver({
     delegationRecord: { ...delegationContext, actorPrincipalRef: "support-b" },
+    subjectCalls: actorMismatchSubjectCalls,
   }).resolve(delegatedInput()),
-  "subject_delegation_blocked",
-  "SUPPORT_DELEGATION_ACTOR_MISMATCH",
+  "subject_delegation_actor_mismatch",
 );
+assert.equal(actorMismatchSubjectCalls.length, 0);
 await expectCode(
   () => createResolver({
     delegationRecord: { ...delegationContext, subjectRef: "user-b" },
   }).resolve(delegatedInput()),
-  "subject_delegation_blocked",
-  "SUPPORT_DELEGATION_SUBJECT_MISMATCH",
+  "subject_delegation_subject_mismatch",
 );
 await expectCode(
   () => createResolver({
     delegationRecord: { ...delegationContext, tenantRef: "tenant-b" },
   }).resolve(delegatedInput()),
-  "subject_delegation_blocked",
-  "SUPPORT_DELEGATION_TENANT_MISMATCH",
+  "subject_delegation_tenant_mismatch",
 );
 await expectCode(
   () => createResolver({
     delegationRecord: { ...delegationContext, workspaceRef: "workspace-b" },
   }).resolve(delegatedInput()),
-  "subject_delegation_blocked",
-  "SUPPORT_DELEGATION_WORKSPACE_MISMATCH",
+  "subject_delegation_workspace_mismatch",
 );
 await expectCode(
   () => createResolver().resolve(delegatedInput({
