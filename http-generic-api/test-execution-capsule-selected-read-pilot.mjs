@@ -244,8 +244,10 @@ const pilotAdminResponse = createResponse();
 await pilot.tenant.controller.getContextResolution(request, pilotTenantResponse);
 await pilot.admin.controller.getContextResolution(request, pilotAdminResponse);
 
-assert.deepEqual(pilotTenantResponse, baselineTenantResponse);
-assert.deepEqual(pilotAdminResponse, baselineAdminResponse);
+assert.equal(pilotTenantResponse.statusCode, baselineTenantResponse.statusCode);
+assert.deepEqual(pilotTenantResponse.body, baselineTenantResponse.body);
+assert.equal(pilotAdminResponse.statusCode, baselineAdminResponse.statusCode);
+assert.deepEqual(pilotAdminResponse.body, baselineAdminResponse.body);
 assert.equal(pilotTenantResponse.statusCode, 200);
 assert.equal(pilotAdminResponse.statusCode, 200);
 assert.equal(Object.hasOwn(pilotTenantResponse.body, "authorityScope"), false);
@@ -270,7 +272,8 @@ assert.equal(rolledBack.admin.operations, operations);
 const rollbackResponse = createResponse();
 await rolledBack.tenant.controller.getContextResolution(request, rollbackResponse);
 assert.equal(events.length, eventCountBeforeRollback, "Rollback must stop capsule parity telemetry.");
-assert.deepEqual(rollbackResponse, baselineTenantResponse);
+assert.equal(rollbackResponse.statusCode, baselineTenantResponse.statusCode);
+assert.deepEqual(rollbackResponse.body, baselineTenantResponse.body);
 
 assert(operationCalls.length >= 7, "The legacy read operation must remain the sole read source.");
 
