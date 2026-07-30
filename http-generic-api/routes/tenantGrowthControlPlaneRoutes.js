@@ -18,7 +18,7 @@ function assertAllowedQuery(query = {}) {
   }
 }
 
-function requireTenantProjectionPrincipal(req, res, next) {
+function requireTenantUserJwt(req, res, next) {
   const auth = req.auth || {};
   if (auth.mode !== "user_jwt" || !auth.user_id || !auth.tenant_id || auth.is_admin === true) {
     return res.status(401).json({
@@ -52,7 +52,7 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   const service = createTenantGrowthControlProjectionService({ repository });
 
   // frontend-surface-operation: GET /tenant/control-plane/configuration-versions
-  router.get("/tenant/control-plane/configuration-versions", requireTenantProjectionPrincipal, async (req, res) => {
+  router.get("/tenant/control-plane/configuration-versions", requireTenantUserJwt, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listConfigurationVersions(req.auth, req.query);
@@ -63,7 +63,7 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   });
 
   // frontend-surface-operation: GET /tenant/control-plane/activity-bindings
-  router.get("/tenant/control-plane/activity-bindings", requireTenantProjectionPrincipal, async (req, res) => {
+  router.get("/tenant/control-plane/activity-bindings", requireTenantUserJwt, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listActivityBindings(req.auth, req.query);
@@ -78,6 +78,6 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
 
 export const _testingTenantGrowthControlPlaneRoutes = Object.freeze({
   assertAllowedQuery,
-  requireTenantProjectionPrincipal,
+  requireTenantProjectionPrincipal: requireTenantUserJwt,
   errorResponse
 });
