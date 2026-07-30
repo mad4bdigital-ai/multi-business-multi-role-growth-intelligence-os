@@ -55,6 +55,12 @@
         "role": "t020_t021_t023_activation_persistence_repository",
         "status": "merged",
         "merge_sha": "f9baec28296019ad72971364a54acb96b9d2a143"
+      },
+      {
+        "number": 3700,
+        "role": "t022_delivery_and_acknowledgement_repository_services",
+        "status": "merged",
+        "merge_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b"
       }
     ],
     "closeout_pr": {
@@ -108,27 +114,60 @@
         "T017",
         "T020",
         "T021",
+        "T022",
         "T023",
         "T027",
         "T028",
         "T029",
         "T076"
       ],
-      "latest_completed_task": "T023",
+      "latest_completed_task": "T022",
       "runtime_authority": false,
-      "remaining_scope": "All unchecked tasks in tasks.md remain open. T020/T021/T023 are merged persistence repository foundations only; T022 delivery and acknowledgement persistence, T026 governed migration apply/readback, public runtime wiring, production deployment, protected-user-path verification, and full-spec closeout remain pending."
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T020/T021/T022/T023 are merged persistence repository foundations only; T026 governed migration apply/readback, public runtime wiring, production deployment, protected-user-path verification, rollback verification, and full-spec closeout remain pending."
     },
     "ci": {
       "status": "pass_for_latest_slice",
-      "pull_request": 3606,
-      "head_sha": "2faffcd4e24d9ce10d1103b6f71ae68e64344d11",
-      "ci_run_id": "30540165456",
-      "frontend_surface_dispatch_run_id": "30540165439",
-      "remaining_scope_scorecard_run_id": "30540165500",
-      "completion_cleanup_readback_run_id": "30540165449",
-      "docs_agent_run_id": "30540165537",
-      "context_kernel_report_run_id": "30540165444",
-      "automation_overlap_guard_run_id": "30540165428"
+      "pull_request": 3700,
+      "head_sha": "bc6835890b3f001d4cee2c7ddbf4c94e516037a7",
+      "ci_run_id": "30578229348",
+      "frontend_surface_dispatch_run_id": "30578229346",
+      "remaining_scope_scorecard_run_id": "30578229317",
+      "completion_cleanup_readback_run_id": "30578229303",
+      "docs_agent_run_id": "30578229342",
+      "context_kernel_report_run_id": "30578229355",
+      "automation_overlap_guard_run_id": "30578229376"
+    },
+    "t022_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3700,
+      "validated_head_sha": "bc6835890b3f001d4cee2c7ddbf4c94e516037a7",
+      "merge_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b",
+      "main_readback_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b",
+      "repository_module": "http-generic-api/activationDeliveryAcknowledgementRepository.js",
+      "regression_test": "http-generic-api/test-activation-delivery-acknowledgement-repository.mjs",
+      "implementation_note": "implementation/pr-2d-delivery-acknowledgement-repository.md",
+      "repository_blob_sha": "14ac04028d1f5a8060732f6e2e656993a8765982",
+      "test_blob_sha": "dae1018b139abf12e2e30414c82cfb7bc5edf8dc",
+      "implementation_note_blob_sha": "a7ecd8144eb8f7e4746d211ae608027aa997c304",
+      "ci_blob_sha": "bd674521b63ae126fe301d63cd34e7d26cbd9552",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "post_merge_frontend_surface_dispatch_run_id": "30578675469",
+      "post_merge_custom_gpt_contract_guard_run_id": "30578675471",
+      "review_threads_resolved": true,
+      "parent_operation_lock_before_attempt_numbering_and_writes": true,
+      "exact_delivery_scope_lock_before_linked_acknowledgement": true,
+      "delivery_initial_state": "prepared",
+      "acknowledgement_initial_state": "pending",
+      "cross_tenant_delivery_linkage_allowed": false,
+      "tenant_operation_scoped_reads": true,
+      "free_form_sensitive_fields_exposed_by_read_projection": false,
+      "same_connection_attempt_allocation_and_insert": true,
+      "runtime_wiring": false,
+      "database_migration_applied": false,
+      "external_delivery": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "t020_t021_t023_post_merge": {
       "status": "complete_on_main",
@@ -234,6 +273,7 @@
       "completed_slices": [
         "T020",
         "T021",
+        "T022",
         "T023",
         "T027",
         "T028",
