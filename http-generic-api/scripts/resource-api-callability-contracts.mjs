@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
+const MUTATION_CONTRACT_FILE = "resource-api-mutation-callability.manifest.json";
+const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
 }
@@ -41,22 +44,32 @@ function requireMarkers({ source, markers, findings, contractKey, role, file }) 
       findings.push({ type: "direct_route_contract_marker_invalid", contract_key: contractKey, role, file });
       continue;
     }
-    if (source !== null && !source.includes(marker)) {
-      findings.push({ type: "direct_route_contract_marker_missing", contract_key: contractKey, role, file, marker });
+    if (source !== null && !source.includes(marker)) findings.push({ type: "direct_route_contract_marker_missing", contract_key: contractKey, role, file, marker });
+  }
+}
+
+function loadMutationContracts(root, findings) {
+  const filePath = path.join(path.resolve(root), MUTATION_CONTRACT_FILE);
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (payload.schema_version !== "resource-api-mutation-callability-v1" || !Array.isArray(payload.contracts)) {
+      findings.push({ type: "mutation_callability_manifest_invalid", file: MUTATION_CONTRACT_FILE });
+      return [];
     }
+    return payload.contracts;
+  } catch (error) {
+    findings.push({ type: "mutation_callability_manifest_invalid", file: MUTATION_CONTRACT_FILE, message: String(error?.message || error) });
+    return [];
   }
 }
 
 export function validateDirectRouteCallabilityContracts({ root = process.cwd(), manifest, fileOverrides = {} } = {}) {
   const findings = [];
-  const contracts = manifest?.callability_gate?.direct_route_contracts;
-  if (contracts === undefined) {
-    return { ok: true, findings, contracts: [], covered_contracts: [], covered_tool_keys: [], covered_route_signatures: [], covered_migration_files: [], secrets_included: false };
-  }
-  if (!Array.isArray(contracts)) {
-    findings.push({ type: "direct_route_contracts_invalid" });
-    return { ok: false, findings, contracts: [], covered_contracts: [], covered_tool_keys: [], covered_route_signatures: [], covered_migration_files: [], secrets_included: false };
-  }
+  const baseContracts = manifest?.callability_gate?.direct_route_contracts;
+  if (baseContracts !== undefined && !Array.isArray(baseContracts)) findings.push({ type: "direct_route_contracts_invalid" });
+  const contracts = [...(Array.isArray(baseContracts) ? baseContracts : []), ...loadMutationContracts(root, findings)];
+  if (baseContracts === undefined && contracts.length === 0) return { ok: findings.length === 0, findings, contracts: [], covered_contracts: [], covered_tool_keys: [], covered_route_signatures: [], covered_migration_files: [], secrets_included: false };
 
   const seenContractKeys = new Set();
   const seenToolKeys = new Set();
@@ -70,10 +83,11 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
     const toolKey = String(contract?.tool_key || "").trim();
     const routeSignature = String(contract?.route_signature || "").trim().replace(/^([a-z]+)\s+/i, (_, method) => `${method.toUpperCase()} `);
     const migrationFile = String(contract?.migration_file || "").trim();
+    const method = routeSignature.split(/\s+/, 1)[0] || "";
 
     if (!contractKey) findings.push({ type: "direct_route_contract_key_missing" });
     if (!toolKey) findings.push({ type: "direct_route_contract_tool_key_missing", contract_key: contractKey || null });
-    if (!/^GET\s+\//.test(routeSignature)) findings.push({ type: "direct_route_contract_route_signature_invalid", contract_key: contractKey || null, route_signature: routeSignature || null });
+    if (!ALLOWED_METHODS.has(method) || !/^[A-Z]+\s+\//.test(routeSignature)) findings.push({ type: "direct_route_contract_route_signature_invalid", contract_key: contractKey || null, route_signature: routeSignature || null });
     if (!migrationFile) findings.push({ type: "direct_route_contract_migration_file_missing", contract_key: contractKey || null });
     if (contractKey && seenContractKeys.has(contractKey)) findings.push({ type: "direct_route_contract_key_duplicate", contract_key: contractKey });
     if (toolKey && seenToolKeys.has(toolKey)) findings.push({ type: "direct_route_contract_tool_key_duplicate", contract_key: contractKey || null, tool_key: toolKey });
@@ -84,12 +98,13 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
 
     const expectedPolicy = {
       auth_model: "user_jwt",
-      read_only: true,
+      read_only: method === "GET",
       runtime_execution_allowed: true,
       provider_calls_allowed: false,
       external_writes_allowed: false,
       credential_payload_reads_allowed: false,
       secrets_included: false,
+      ...(method === "GET" ? {} : { database_writes_allowed: true, transaction_required: true, same_cycle_readback_required: true }),
     };
     for (const [field, expected] of Object.entries(expectedPolicy)) {
       if (contract?.[field] !== expected) findings.push({ type: "direct_route_contract_policy_mismatch", contract_key: contractKey || null, field, expected, actual: contract?.[field] });
