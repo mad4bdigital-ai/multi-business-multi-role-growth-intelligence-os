@@ -51,7 +51,7 @@ Because that generated commit is authored by `github-actions[bot]`, a subsequent
 
 The bounded refresh is accepted only when all of the following remain true:
 
-- operation-governance coverage reports seven candidates, seven generated rules, and zero rejected candidates;
+- operation-governance coverage reports all discovered candidates as generated rules with zero rejected candidates;
 - the lease endpoint is classified as a governed `state_change` from a generated operation rule with no blockers;
 - preflight, typed approval, transactional readback, rollback, and parameter bindings are present;
 - runtime and OpenAPI authentication remain equivalent with no route-contract gaps;
@@ -59,9 +59,9 @@ The bounded refresh is accepted only when all of the following remain true:
 
 ## Final reconciliation checkpoint
 
-The source set was reconciled without force over `main` at `a8982f6b66aaac9dabd76f72a35da7573fbfab1f`. Workflow-owned generated artifacts were then rebuilt and verified on `5555e09b6c36c8d88c3ba93b6e84a7175f4be262` with coverage `7/7/0`, the Lease operation classified as a governed `state_change`, and its exact focused test attached.
+The source set was reconciled without force over the then-current `main`. Workflow-owned generated artifacts must be rebuilt after semantic integration with the expanded Canary governance rules. The temporary one-shot workflow is limited to that semantic merge, runs the focused Governance and Lease regressions, and removes itself after committing the integrated source set.
 
-This source-neutral checkpoint exists to run the complete pull-request checks on the generated artifact head before review finalization and merge. Migration apply, deployment, and reuse of prior capability envelopes or lease identifiers remain separately governed.
+This source-neutral checkpoint exists to trigger and record that bounded semantic reconciliation before review finalization and merge. Migration apply, deployment, and reuse of prior capability envelopes or lease identifiers remain separately governed.
 
 ## Actions
 
