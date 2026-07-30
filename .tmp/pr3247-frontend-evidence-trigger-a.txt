@@ -1,0 +1,5 @@
+trigger=pr3247-frontend-evidence-a
+base=50dbb6a884681344a75b08f4fe3f47909d2963d2
+purpose=observable-executor-only
+merge_allowed=false
+secrets_included=false
