@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 export const ACTIVATION_DEPLOYMENT_EVIDENCE_MAX_BYTES = 32768;
+export const ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS = 256;
 export const ACTIVATION_DEPLOYMENT_CORRELATION_STATUS = Object.freeze({
   FOUND: "found",
   NOT_FOUND: "not_found",
@@ -45,10 +46,7 @@ function normalizeUuid(value, field, { required = true } = {}) {
 function normalizeKey(value, field, fallback = null) {
   const normalized = String(value || fallback || "").trim().toLowerCase();
   if (!KEY_PATTERN.test(normalized)) {
-    fail(
-      `activation_deployment_${field}_invalid`,
-      `${field} must use lowercase key syntax.`,
-    );
+    fail(`activation_deployment_${field}_invalid`, `${field} must use lowercase key syntax.`);
   }
   return normalized;
 }
@@ -100,7 +98,9 @@ function normalizeEvidenceStatus(value, field, allowed) {
 function canonicalize(value, depth = 0) {
   if (depth > 12) return "[depth-limited]";
   if (value === null || value === undefined) return null;
-  if (Array.isArray(value)) return value.slice(0, 100).map((item) => canonicalize(item, depth + 1));
+  if (Array.isArray(value)) {
+    return value.slice(0, 100).map((item) => canonicalize(item, depth + 1));
+  }
   if (typeof value === "object") {
     return Object.fromEntries(
       Object.keys(value)
@@ -116,7 +116,9 @@ function canonicalize(value, depth = 0) {
 function sanitizeMetadata(value, depth = 0) {
   if (depth > 8) return "[depth-limited]";
   if (value === null || value === undefined) return null;
-  if (Array.isArray(value)) return value.slice(0, 50).map((item) => sanitizeMetadata(item, depth + 1));
+  if (Array.isArray(value)) {
+    return value.slice(0, 50).map((item) => sanitizeMetadata(item, depth + 1));
+  }
   if (typeof value === "object") {
     const sanitized = {};
     for (const [key, item] of Object.entries(value)) {
@@ -141,10 +143,7 @@ function sha256(value) {
 function normalizeAuthorityEvidence(input, field, valueNormalizer) {
   if (input === null || input === undefined) return null;
   if (!input || typeof input !== "object" || Array.isArray(input)) {
-    fail(
-      `activation_deployment_${field}_invalid`,
-      `${field} must be an evidence object.`,
-    );
+    fail(`activation_deployment_${field}_invalid`, `${field} must be an evidence object.`);
   }
   const value = valueNormalizer(input.value, `${field}_value`);
   if (value === null || value === undefined || value === "") return null;
@@ -170,13 +169,69 @@ function normalizeReleaseEvidence(input, field) {
     source_type: normalizeKey(input.source_type, `${field}_source_type`),
     source_ref: normalizeSourceRef(input.source_ref, `${field}_source_ref`),
     observed_at: normalizeInstant(input.observed_at, `${field}_observed_at`),
-    deployed_at: normalizeInstant(input.deployed_at, `${field}_deployed_at`, { required: false }),
+    deployed_at: normalizeInstant(input.deployed_at, `${field}_deployed_at`, {
+      required: false,
+    }),
   });
+}
+
+function normalizeContractEvidence(input) {
+  if (input === null || input === undefined) return null;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    fail("activation_deployment_contract_invalid", "contract must be an evidence object.");
+  }
+  return Object.freeze({
+    version: normalizeText(input.version, "contract_version", 160),
+    status: normalizeEvidenceStatus(input.status, "contract_status", CONTRACT_STATES),
+    source_type: normalizeKey(input.source_type, "contract_source_type"),
+    source_ref: normalizeSourceRef(input.source_ref, "contract_source_ref"),
+    observed_at: normalizeInstant(input.observed_at, "contract_observed_at"),
+  });
+}
+
+function assertNotAfter(value, upperBound, field, upperField = "observed_at") {
+  if (!value || !upperBound) return;
+  if (new Date(value).getTime() > new Date(upperBound).getTime()) {
+    fail(
+      `activation_deployment_${field}_after_${upperField}`,
+      `${field} cannot be later than ${upperField}.`,
+      409,
+      { field, upper_field: upperField },
+    );
+  }
+}
+
+function assertObservationTimeline({
+  observedAt,
+  expectedRelease,
+  deployedRelease,
+  health,
+  contract,
+  migration,
+}) {
+  for (const [field, evidence] of [
+    ["expected_release_observed_at", expectedRelease],
+    ["deployed_release_observed_at", deployedRelease],
+    ["health_observed_at", health],
+    ["contract_observed_at", contract],
+    ["migration_observed_at", migration],
+  ]) {
+    assertNotAfter(evidence?.observed_at, observedAt, field);
+  }
+  assertNotAfter(
+    deployedRelease?.deployed_at,
+    deployedRelease?.observed_at,
+    "deployed_release_deployed_at",
+    "deployed_release_observed_at",
+  );
 }
 
 export function buildActivationDeploymentObservation(input = {}) {
   const observationId = normalizeUuid(input.observation_id || randomUUID(), "observation_id");
-  const environmentKey = normalizeKey(input.environment_key || input.environment, "environment_key");
+  const environmentKey = normalizeKey(
+    input.environment_key || input.environment,
+    "environment_key",
+  );
   const observedAt = normalizeInstant(input.observed_at, "observed_at");
   const expectedRelease = normalizeReleaseEvidence(input.expected_release, "expected_release");
   const deployedRelease = normalizeReleaseEvidence(input.deployed_release, "deployed_release");
@@ -185,20 +240,20 @@ export function buildActivationDeploymentObservation(input = {}) {
     "health",
     (value, field) => normalizeEvidenceStatus(value, field, HEALTH_STATES),
   );
-  const contract = input.contract
-    ? Object.freeze({
-        version: normalizeText(input.contract.version, "contract_version", 160),
-        status: normalizeEvidenceStatus(input.contract.status, "contract_status", CONTRACT_STATES),
-        source_type: normalizeKey(input.contract.source_type, "contract_source_type"),
-        source_ref: normalizeSourceRef(input.contract.source_ref, "contract_source_ref"),
-        observed_at: normalizeInstant(input.contract.observed_at, "contract_observed_at"),
-      })
-    : null;
+  const contract = normalizeContractEvidence(input.contract);
   const migration = normalizeAuthorityEvidence(
     input.migration,
     "migration",
     (value, field) => normalizeEvidenceStatus(value, field, HEALTH_STATES),
   );
+  assertObservationTimeline({
+    observedAt,
+    expectedRelease,
+    deployedRelease,
+    health,
+    contract,
+    migration,
+  });
   const metadata = sanitizeMetadata(input.metadata || {});
 
   const missingEvidence = [];
@@ -254,8 +309,21 @@ function requireRepository(repository) {
   }
 }
 
+function normalizeObservationList(observations) {
+  const values = Array.isArray(observations) ? observations : [];
+  if (values.length > ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS) {
+    fail(
+      "activation_deployment_observation_set_too_large",
+      `No more than ${ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS} observations may be correlated at once.`,
+      413,
+    );
+  }
+  return values.map((item) => buildActivationDeploymentObservation(item));
+}
+
 function compareObservationOrder(left, right) {
-  const timeDelta = new Date(right.observed_at).getTime() - new Date(left.observed_at).getTime();
+  const timeDelta =
+    new Date(right.observed_at).getTime() - new Date(left.observed_at).getTime();
   if (timeDelta !== 0) return timeDelta;
   return String(right.observation_id).localeCompare(String(left.observation_id));
 }
@@ -267,9 +335,7 @@ export function correlateActivationDeploymentObservation(
   const environmentKey = normalizeKey(environment_key, "environment_key");
   const requestTime = normalizeInstant(request_time, "request_time");
   const requestEpoch = new Date(requestTime).getTime();
-  const normalized = (Array.isArray(observations) ? observations : []).map((item) =>
-    buildActivationDeploymentObservation(item),
-  );
+  const normalized = normalizeObservationList(observations);
   const matchingEnvironment = normalized.filter(
     (item) => item.environment_key === environmentKey,
   );
@@ -297,7 +363,10 @@ export function correlateActivationDeploymentObservation(
     environment_key: environmentKey,
     request_time: requestTime,
     observation: selected,
-    observation_age_ms: Math.max(0, requestEpoch - new Date(selected.observed_at).getTime()),
+    observation_age_ms: Math.max(
+      0,
+      requestEpoch - new Date(selected.observed_at).getTime(),
+    ),
     future_observations_ignored: futureIgnored,
     historical_correlation: true,
     classification_status: "not_computed",
@@ -319,6 +388,7 @@ export function createActivationDeploymentObservationService({ repository } = {}
       const observations = await repository.listObservations({
         environment_key: environmentKey,
         observed_at_lte: requestTime,
+        limit: ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS,
       });
       return correlateActivationDeploymentObservation(observations, {
         environment_key: environmentKey,
