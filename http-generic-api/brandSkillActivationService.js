@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import {
+  assertRequestedResourceBelongsToBrand,
+  grantCoversOperations,
+  mergeAllowedOperations,
+} from "./brandSkillResourceBinding.js";
 
 const OWNER_ROLES = new Set(["owner", "admin", "tenant_owner", "tenant_admin"]);
 const ACTIVE_MODES = new Set(["self_service", "temporary_only"]);
@@ -46,9 +51,14 @@ export function operationsAllowed(requested = [], allowed = []) {
 }
 
 export function normalizeTtlHours(value, mode, maxTtlHours) {
-  const maximum = Math.max(1, Math.min(Number(maxTtlHours || 24 * 365), 24 * 365));
+  const numericMaximum = Number(maxTtlHours);
+  const hasConfiguredMaximum = maxTtlHours !== null && maxTtlHours !== undefined && maxTtlHours !== "" && Number.isFinite(numericMaximum);
+  const maximum = hasConfiguredMaximum
+    ? Math.max(1, Math.min(numericMaximum, 24 * 365))
+    : 24 * 365;
   if (value === null || value === undefined || value === "") {
     if (mode === "temporary_only") return Math.min(maximum, 24);
+    if (hasConfiguredMaximum) return Math.floor(maximum);
     return null;
   }
   const parsed = Number(value);
@@ -80,7 +90,7 @@ async function withTransaction(pool, callback) {
 
 async function resolveMembership(connection, tenantId, userId) {
   const [rows] = await connection.query(
-    `SELECT m.user_id, m.tenant_id, m.role_key AS role, m.status, t.status AS tenant_status
+    `SELECT m.user_id, m.tenant_id, m.role AS role, m.status, t.status AS tenant_status
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.tenant_id = ?
@@ -88,11 +98,11 @@ async function resolveMembership(connection, tenantId, userId) {
       FOR UPDATE`,
     [userId, tenantId]
   );
-  const row = rows[0] || null;
-  if (!row || row.status !== "active" || row.tenant_status !== "active") {
+  const [membership] = rows;
+  if (!membership || membership.status !== "active" || membership.tenant_status !== "active") {
     throw httpError(403, "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED", "Active tenant membership is required.");
   }
-  return row;
+  return membership;
 }
 
 async function resolveWorkspace(connection, tenantId, brandKey) {
@@ -102,11 +112,12 @@ async function resolveWorkspace(connection, tenantId, brandKey) {
       WHERE tenant_id = ?
         AND workspace_type = 'brand'
         AND linked_brand_key = ?
-      ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC
+      ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC, workspace_id ASC
       LIMIT 1`,
     [tenantId, brandKey]
   );
-  return rows[0] || null;
+  const [workspace] = rows;
+  return workspace || null;
 }
 
 async function resolveResourceAuthority(connection, {
@@ -143,19 +154,21 @@ async function resolveResourceAuthority(connection, {
         AND status = 'active'
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
         AND ${scopeClause}
-      ORDER BY FIELD(permission, 'owner','admin','manage','operate','edit','comment','view')
+      ORDER BY FIELD(permission, 'owner','admin','manage','operate','edit','comment','view'),
+               grant_id ASC
       LIMIT 1
       FOR UPDATE`,
     params
   );
-  if (!rows[0]) {
+  const [authority] = rows;
+  if (!authority) {
     throw httpError(403, "BRAND_SKILL_RESOURCE_GRANT_REQUIRED", "An active resource grant for the selected brand or resource is required.", {
       brand_key: brandKey,
       resource_type: requestedResourceType || null,
       resource_ref: requestedResourceRef || null,
     });
   }
-  return rows[0];
+  return authority;
 }
 
 async function resolveSkillAndAgent(connection, { tenantId, brandKey, skillKey, agentId }) {
@@ -171,14 +184,18 @@ async function resolveSkillAndAgent(connection, { tenantId, brandKey, skillKey, 
         AND (g.brand_key IS NULL OR g.brand_key = ?)
       WHERE s.skill_key = ?
         AND s.status = 'active'
+      ORDER BY (g.brand_key IS NOT NULL) DESC,
+               (g.tenant_id IS NOT NULL) DESC,
+               g.grant_id ASC
       LIMIT 1
       FOR UPDATE`,
     [agentId, tenantId, brandKey, skillKey]
   );
-  if (!rows[0]) {
+  const [skill] = rows;
+  if (!skill) {
     throw httpError(403, "BRAND_SKILL_AGENT_GRANT_REQUIRED", "The selected agent does not have an effective grant for this skill and brand.");
   }
-  return rows[0];
+  return skill;
 }
 
 async function resolvePolicy(connection, { tenantId, brandKey, skillId }) {
@@ -192,10 +209,11 @@ async function resolvePolicy(connection, { tenantId, brandKey, skillId }) {
       FOR UPDATE`,
     [tenantId, brandKey, skillId]
   );
-  if (!rows[0]) {
+  const [policy] = rows;
+  if (!policy) {
     throw httpError(403, "BRAND_SKILL_POLICY_REQUIRED", "This skill is not enabled for self-service activation on the selected brand.");
   }
-  return rows[0];
+  return policy;
 }
 
 function validatePolicy(policy, { membershipRole, agentId, operations }) {
@@ -246,6 +264,19 @@ async function expireStaleUserBrandSkillGrants(connection, {
   return Number(result.affectedRows || 0);
 }
 
+async function clampActiveGrantTtl(connection, { grantId, ttlHours }) {
+  if (ttlHours === null || ttlHours === undefined) return false;
+  const [result] = await connection.query(
+    `UPDATE user_brand_skill_grants
+        SET expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR), updated_at = NOW()
+      WHERE grant_id = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > DATE_ADD(NOW(), INTERVAL ? HOUR))`,
+    [ttlHours, grantId, ttlHours]
+  );
+  return Number(result.affectedRows || 0) > 0;
+}
+
 async function loadGrantReadback(connection, grantId) {
   const [rows] = await connection.query(
     `SELECT grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, skill_key,
@@ -257,7 +288,8 @@ async function loadGrantReadback(connection, grantId) {
       LIMIT 1`,
     [grantId]
   );
-  return rows[0] || null;
+  const [grant] = rows;
+  return grant || null;
 }
 
 export async function activateBrandSkillForUser({
@@ -286,6 +318,13 @@ export async function activateBrandSkillForUser({
   return withTransaction(pool, async (connection) => {
     const membership = await resolveMembership(connection, normalizedTenantId, userId);
     const workspace = await resolveWorkspace(connection, normalizedTenantId, normalizedBrandKey);
+    const resourceBrandBinding = await assertRequestedResourceBelongsToBrand(connection, {
+      tenantId: normalizedTenantId,
+      brandKey: normalizedBrandKey,
+      workspace,
+      requestedResourceType,
+      requestedResourceRef,
+    });
     const skill = await resolveSkillAndAgent(connection, {
       tenantId: normalizedTenantId,
       brandKey: normalizedBrandKey,
@@ -315,45 +354,7 @@ export async function activateBrandSkillForUser({
       throw httpError(403, "BRAND_SKILL_RESOURCE_BINDING_REQUIRED", "The policy requires a verified resource binding.");
     }
     const ttlHours = normalizeTtlHours(input.ttl_hours, mode, policy.max_ttl_hours);
-    const grantId = uuid();
-    await connection.query(
-      `UPDATE user_brand_skill_grants
-          SET status = 'expired', updated_at = NOW()
-        WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_id = ?
-          AND COALESCE(resource_type, '') = COALESCE(?, '')
-          AND COALESCE(resource_ref, '') = COALESCE(?, '')
-          AND status = 'active'
-          AND expires_at IS NOT NULL
-          AND expires_at <= CURRENT_TIMESTAMP`,
-      [
-        normalizedTenantId,
-        userId,
-        normalizedBrandKey,
-        normalizedAgentId,
-        skill.skill_id,
-        authority.resource_type,
-        authority.resource_ref,
-      ]
-    );
-    await connection.query(
-      `UPDATE user_brand_skill_grants
-          SET status = 'expired', updated_at = NOW()
-        WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_id = ?
-          AND COALESCE(resource_type, '') = COALESCE(?, '')
-          AND COALESCE(resource_ref, '') = COALESCE(?, '')
-          AND status = 'active'
-          AND expires_at IS NOT NULL
-          AND expires_at <= CURRENT_TIMESTAMP`,
-      [
-        normalizedTenantId,
-        userId,
-        normalizedBrandKey,
-        normalizedAgentId,
-        skill.skill_id,
-        authority.resource_type,
-        authority.resource_ref,
-      ]
-    );
+
     await expireStaleUserBrandSkillGrants(connection, {
       tenantId: normalizedTenantId,
       userId,
@@ -363,8 +364,9 @@ export async function activateBrandSkillForUser({
       resourceType: authority.resource_type,
       resourceRef: authority.resource_ref,
     });
+
     const [existingRows] = await connection.query(
-      `SELECT grant_id
+      `SELECT grant_id, allowed_operations_json
          FROM user_brand_skill_grants
         WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_id = ?
           AND COALESCE(resource_type, '') = COALESCE(?, '')
@@ -375,11 +377,70 @@ export async function activateBrandSkillForUser({
         FOR UPDATE`,
       [normalizedTenantId, userId, normalizedBrandKey, normalizedAgentId, skill.skill_id, authority.resource_type, authority.resource_ref]
     );
-    const existingId = existingRows[0]?.grant_id || null;
+    const [existingRow] = existingRows;
+    const existingId = existingRow?.grant_id || null;
     if (existingId) {
       const existing = await loadGrantReadback(connection, existingId);
-      return { ok: true, changed: false, grant: existing, activation_mode: mode, secrets_included: false };
+      if (!existing) {
+        throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The existing user brand skill grant could not be verified.");
+      }
+      if (grantCoversOperations(existing.allowed_operations_json, operations)) {
+        const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
+        const readback = ttlClamped ? await loadGrantReadback(connection, existingId) : existing;
+        if (!readback) {
+          throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The TTL-clamped user brand skill grant could not be verified.");
+        }
+        return {
+          ok: true,
+          created: false,
+          changed: ttlClamped,
+          ttl_clamped: ttlClamped,
+          grant: readback,
+          activation_mode: mode,
+          resource_brand_binding: resourceBrandBinding,
+          secrets_included: false,
+        };
+      }
+      const mergedOperations = mergeAllowedOperations(
+        existing.allowed_operations_json,
+        operations,
+        policy.allowed_operations_json,
+      );
+      await connection.query(
+        `UPDATE user_brand_skill_grants
+            SET allowed_operations_json = ?, policy_id = ?, workspace_id = ?, resource_grant_id = ?,
+                constraints_json = ?,
+                expires_at = CASE WHEN ? IS NULL THEN expires_at ELSE DATE_ADD(NOW(), INTERVAL ? HOUR) END,
+                updated_at = NOW()
+          WHERE grant_id = ? AND status = 'active'`,
+        [
+          JSON.stringify(mergedOperations),
+          policy.policy_id,
+          workspace?.workspace_id || null,
+          authority.grant_id,
+          policy.constraints_json || null,
+          ttlHours,
+          ttlHours,
+          existingId,
+        ]
+      );
+      const updated = await loadGrantReadback(connection, existingId);
+      if (!updated || !grantCoversOperations(updated.allowed_operations_json, operations)) {
+        throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The expanded user brand skill grant could not be verified.");
+      }
+      return {
+        ok: true,
+        created: false,
+        changed: true,
+        operation_set_extended: true,
+        activation_mode: mode,
+        grant: updated,
+        resource_brand_binding: resourceBrandBinding,
+        secrets_included: false,
+      };
     }
+
+    const grantId = uuid();
     await connection.query(
       `INSERT INTO user_brand_skill_grants (
          grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, policy_id,
@@ -415,6 +476,7 @@ export async function activateBrandSkillForUser({
     }
     return {
       ok: true,
+      created: true,
       changed: true,
       activation_mode: mode,
       membership_role: membership.role,
@@ -424,6 +486,7 @@ export async function activateBrandSkillForUser({
         resource_ref: authority.resource_ref,
         permission: authority.permission,
       },
+      resource_brand_binding: resourceBrandBinding,
       grant: readback,
       policy: {
         user_jwt_required: true,
@@ -517,4 +580,5 @@ export const _testingBrandSkillActivationService = {
   operationsAllowed,
   normalizeTtlHours,
   validatePolicy,
+  clampActiveGrantTtl,
 };
