@@ -1,134 +1,184 @@
 name: Frontend surface dispatch
 
 on:
-  pull_request:
+  push:
+    branches:
+      - gpt/pr-3162-final-current-main-20260730
     paths:
-      - "http-generic-api/routes/**"
-      - "http-generic-api/dynamicContainerRolloutSafety.js"
-      - "http-generic-api/tenantConnectBootstrapService.js"
-      - "http-generic-api/tenantConnectBootstrapTransaction.js"
-      - "http-generic-api/userJwtAuth.js"
-      - "http-generic-api/requestSecretBoundary.js"
-      - "http-generic-api/src/application/resourceApi/**"
-      - "http-generic-api/src/infrastructure/resourceApi/**"
-      - "http-generic-api/openapi.yaml"
-      - "http-generic-api/openapi/**"
-      - "http-generic-api/openapi-route-coverage.allowlist.json"
-      - "http-generic-api/resource-api-coverage.manifest.json"
-      - "http-generic-api/frontend-surface-policy.json"
-      - "http-generic-api/frontend-operation-governance.generated.json"
-      - "http-generic-api/frontend-operation-governance-tests.json"
-      - "http-generic-api/frontend-surface-dispatch.generated.json"
-      - "http-generic-api/public/connect/**"
-      - "http-generic-api/public/platform/**"
-      - "http-generic-api/package.json"
-      - "http-generic-api/package-lock.json"
-      - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
-      - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
-      - "http-generic-api/scripts/openapi-route-coverage.mjs"
-      - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
-      - "http-generic-api/scripts/test-manifest.mjs"
-      - "http-generic-api/scripts/user-jwt-auth-governance.mjs"
-      - "http-generic-api/test-*.mjs"
-      - "canonicals/openapi/custom-gpt-surfaces.yaml"
-      - "specs/010-unified-platform-frontend/**"
-      - ".github/workflows/frontend-surface-dispatch.yml"
-  workflow_dispatch:
+      - .github/workflows/frontend-surface-dispatch.yml
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: pr-3162-finalizer-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  dispatch-plan:
+  finalize-pr-3162:
+    name: Finalize PR 3162 on latest main
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: http-generic-api
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: gpt/pr-3162-final-current-main-20260730
+          fetch-depth: 0
+
+      - name: Reconcile latest main and remove recovery scaffolding
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main gpt/pr-3162-rebuild-main-20260730-v2
+
+          if ! git diff --quiet 75be7437d72127b41ebf18a082bcc6a8fd85c58e..origin/main -- \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs; then
+            echo "::error::latest main changed the validated parser or its regression suite"
+            exit 1
+          fi
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          MERGE_STATUS=$?
+          set -e
+
+          git checkout origin/main -- \
+            .github/workflows/ci.yml \
+            .github/workflows/frontend-surface-dispatch.yml
+          git add \
+            .github/workflows/ci.yml \
+            .github/workflows/frontend-surface-dispatch.yml
+
+          rm -f \
+            .github/pr3162-finalize-dispatch-marker \
+            .github/workflows/pr-3162-final-rebuild.yml
+          git add -A -- \
+            .github/pr3162-finalize-dispatch-marker \
+            .github/workflows/pr-3162-final-rebuild.yml
+
+          REMAINING_CONFLICTS="$(git diff --name-only --diff-filter=U)"
+          if [[ -n "${REMAINING_CONFLICTS}" ]]; then
+            echo "::error::unexpected reconciliation conflicts"
+            printf '%s\n' "${REMAINING_CONFLICTS}"
+            exit 1
+          fi
+
+          if [[ "${MERGE_STATUS}" -ne 0 ]] && ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            echo "::error::main reconciliation failed without a merge state"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git commit -m "chore: reconcile latest main and remove PR 3162 scaffolding"
+          elif ! git diff --cached --quiet; then
+            git commit -m "chore: remove PR 3162 scaffolding"
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
-      - run: npm ci
-      - name: Generate source-pinned dispatch plan
-        env:
-          CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
-          TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply validated parser and canonical auth contracts
+        shell: bash
         run: |
-          echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
-          npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
-      - name: Verify generator contract
+          set -euo pipefail
+          git checkout origin/gpt/pr-3162-rebuild-main-20260730-v2 -- \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs \
+            http-generic-api/openapi/local-connector-uninstall.yaml
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/openapi.yaml")
+          text = path.read_text()
+          start_marker = "  /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:"
+          end_marker = "  /tenants/{tenant_id}/relationships:"
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit("Growth Intelligence OpenAPI start marker not found")
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("Growth Intelligence OpenAPI end marker not found")
+
+          section = text[start:end]
+          old = "      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]"
+          new = "      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]"
+          old_count = section.count(old)
+          new_count = section.count(new)
+          if old_count + new_count != 7:
+              raise SystemExit(
+                  f"Growth Intelligence auth contracts: expected 7 total matches, "
+                  f"found old={old_count}, new={new_count}"
+              )
+          path.write_text(text[:start] + section.replace(old, new) + text[end:])
+          PY
+
+      - name: Generate and prove final parity
+        working-directory: http-generic-api
+        shell: bash
         run: |
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
+          set -euo pipefail
+          node test-frontend-surface-dispatch.mjs
+          npm run frontend:dispatch:generate -- --baseline-ref=main
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
-      - name: Enforce committed deterministic output
-        run: |
-          if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            echo "::error::frontend operation governance/dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
-            exit 1
-          fi
-      - name: Upload dispatch evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-surface-dispatch
-          path: |
-            http-generic-api/frontend-operation-governance.generated.json
-            http-generic-api/frontend-surface-dispatch.generated.json
-            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          if-no-files-found: error
-          retention-days: 14
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const counts = plan.coverage?.auth_parity_counts || {};
+          const result = {
+            mismatch: counts.mismatch || 0,
+            unknown: counts.unknown || 0,
+            missing_openapi: counts.missing_openapi || 0,
+            auth_contract_gap_count: plan.coverage?.auth_contract_gap_count || 0,
+            openapi_gap_count: plan.coverage?.openapi_gap_count || 0,
+          };
+          console.log(JSON.stringify(result, null, 2));
+          if (Object.values(result).some((value) => value !== 0)) process.exit(1);
+          NODE
 
-  refresh-generated:
-    if: github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: http-generic-api
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-      - run: npm ci
-      - name: Generate and commit bounded dispatch evidence
+      - name: Commit bounded final product tree
         shell: bash
         run: |
-          if [[ "${GITHUB_REF_NAME}" != gpt/* ]]; then
-            echo "::error::generated evidence refresh is restricted to gpt/* work branches"
-            exit 1
-          fi
-          git fetch origin main --depth=1
-          BASE_REF="main"
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          if [[ -n "${UNEXPECTED}" ]]; then
-            echo "::error::generator changed files outside the bounded evidence set"
-            printf '%s\n' "${UNEXPECTED}"
-            exit 1
-          fi
-          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
-            echo "Generated evidence is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
-          git commit -m "chore(ci): refresh frontend dispatch evidence"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          for path in "${changed[@]}"; do
+            case "$path" in
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi.yaml|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/local-connector-uninstall.yaml|\
+              http-generic-api/scripts/frontend-surface-dispatch.mjs|\
+              http-generic-api/test-frontend-surface-dispatch.mjs)
+                ;;
+              *)
+                echo "::error::unexpected final product path: ${path}"
+                exit 1
+                ;;
+            esac
+          done
+
+          git add \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi.yaml \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
+            http-generic-api/openapi/local-connector-uninstall.yaml \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs
+          git commit -m "fix: finalize PR 3162 auth parity on latest main"
+          git push origin HEAD:gpt/pr-3162-final-current-main-20260730
