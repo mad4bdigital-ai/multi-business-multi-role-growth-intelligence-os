@@ -19,6 +19,11 @@
   },
   "artifacts": [
     "README.md",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "completion.json",
+    "checklists/specification-readiness.md",
     "architecture-and-runtime-topology.md",
     "architecture-decisions-and-tradeoffs.md",
     "domain-model-and-state-machines.md",
