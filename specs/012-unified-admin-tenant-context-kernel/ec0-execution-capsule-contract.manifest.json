@@ -3,7 +3,7 @@
   "slice_key": "spec-012-ec0-execution-capsule-contract",
   "parent_extension": "spec-012-execution-capsule-runtime-integration",
   "phase": "EC0_contract_and_tests",
-  "status": "in_progress",
+  "status": "complete",
   "runtime_authority": false,
   "provider_call": false,
   "database_write": false,
@@ -55,6 +55,19 @@
     "EC4_mutation_validation_pilot",
     "EC5_rollout_and_duplicate_resolver_retirement"
   ],
+  "delivery_evidence": {
+    "core_pr": 3348,
+    "core_merge_sha": "66d4e5c6c014e124970421f9e3c877a647d2c04e",
+    "registration_pr": 3500,
+    "validated_head_sha": "119536e32875e6b2e6e6ba834bf7a2bda77e1314",
+    "registration_merge_sha": "347af76b8a2c053f4e83b0e76799c98614b2199f",
+    "main_readback_sha": "347af76b8a2c053f4e83b0e76799c98614b2199f",
+    "ci_run_id": "30536190557",
+    "generated_artifact_run_id": "30536190587",
+    "frontend_surface_dispatch_run_id": "30536190574",
+    "human_review": "passed",
+    "review_threads_resolved": true
+  },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
     "no_secret_payload_in_capsule",
