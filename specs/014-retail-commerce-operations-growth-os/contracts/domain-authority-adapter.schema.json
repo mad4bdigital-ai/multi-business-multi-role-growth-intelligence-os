@@ -28,9 +28,31 @@
         "commerce.payments",
         "commerce.fulfillment",
         "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
         "workspace.files",
+        "workspace.files.brand",
         "workspace.documents",
         "workspace.media",
+        "measurement.events",
+        "ads.performance",
+        "customer.communication"
+      ]
+    },
+    "brandRequiredDomainKey": {
+      "type": "string",
+      "enum": [
+        "commerce.catalog",
+        "commerce.inventory",
+        "commerce.orders",
+        "commerce.payments",
+        "commerce.fulfillment",
+        "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
+        "workspace.files.brand",
         "measurement.events",
         "ads.performance",
         "customer.communication"
@@ -44,13 +66,31 @@
         "tenant_ref": { "$ref": "#/$defs/reference" },
         "workspace_ref": { "$ref": "#/$defs/reference" },
         "brand_ref": { "$ref": "#/$defs/reference" },
+        "location_ref": { "$ref": "#/$defs/reference" },
+        "channel_ref": { "$ref": "#/$defs/reference" },
         "owner_scope_type": {
           "type": "string",
-          "enum": ["personal_workspace", "company_workspace", "brand"]
+          "enum": ["personal_workspace", "company_workspace", "brand", "platform"]
         },
         "owner_scope_ref": { "$ref": "#/$defs/reference" },
         "owner_user_ref": { "$ref": "#/$defs/reference" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "owner_scope_type": { "const": "brand" } },
+            "required": ["owner_scope_type"]
+          },
+          "then": { "required": ["brand_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "owner_scope_type": { "const": "personal_workspace" } },
+            "required": ["owner_scope_type"]
+          },
+          "then": { "required": ["owner_user_ref"] }
+        }
+      ]
     },
     "domainAuthorityBinding": {
       "type": "object",
@@ -63,6 +103,8 @@
         "authority_mode",
         "adapter_key",
         "connection_ref",
+        "connection_binding_mode",
+        "connection_binding_revision",
         "authority_revision",
         "status"
       ],
@@ -78,6 +120,18 @@
         "adapter_key": { "$ref": "#/$defs/reference" },
         "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
         "connection_ref": { "$ref": "#/$defs/reference" },
+        "connection_binding_mode": {
+          "type": "string",
+          "enum": ["brand_owned", "workspace_delegated", "personal_owned", "platform_managed"]
+        },
+        "explicit_delegation_ref": { "$ref": "#/$defs/reference" },
+        "connection_binding_revision": { "type": "integer", "minimum": 1 },
+        "capability_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
         "mapping_profile_version": { "type": "string", "minLength": 1, "maxLength": 64 },
         "authority_revision": { "type": "integer", "minimum": 1 },
         "status": { "type": "string", "enum": ["draft", "active", "degraded", "blocked", "retired"] },
@@ -86,7 +140,45 @@
         "context_hash": { "$ref": "#/$defs/sha256" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "domain_key": { "$ref": "#/$defs/brandRequiredDomainKey" } },
+            "required": ["domain_key"]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "allOf": [
+                  { "required": ["brand_ref"] },
+                  { "properties": { "owner_scope_type": { "const": "brand" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "connection_binding_mode": { "const": "workspace_delegated" } },
+            "required": ["connection_binding_mode"]
+          },
+          "then": { "required": ["explicit_delegation_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "connection_binding_mode": { "const": "personal_owned" } },
+            "required": ["connection_binding_mode"]
+          },
+          "then": {
+            "properties": {
+              "domain_key": {
+                "enum": ["workspace.files", "workspace.documents", "workspace.media"]
+              }
+            }
+          }
+        }
+      ]
     },
     "capabilityClaim": {
       "type": "object",
