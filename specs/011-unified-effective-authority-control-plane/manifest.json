@@ -4,12 +4,23 @@
   "status": "in_progress",
   "created_at": "2026-07-20",
   "recovered_at": "2026-07-30",
-  "branch": "gpt/011-ueacp-spec-recovery-20260730",
-  "base_sha": "bd68dec624259513a4bdccbc1fa038d090a7ba89",
+  "canonical_location": "main",
   "recovery_source": {
     "pull_request": 2888,
     "branch": "gpt/011-unified-effective-authority-control-plane-20260720",
-    "boundary": "spec_directory_only"
+    "boundary": "spec_directory_only",
+    "final_status": "closed_unmerged"
+  },
+  "specification_delivery": {
+    "status": "merged",
+    "pull_request": 3498,
+    "branch": "gpt/011-ueacp-spec-recovery-20260730",
+    "head_sha": "d375a56bfc5df11517e53ea6ead595f3b14033f4",
+    "merge_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
+    "merged_at": "2026-07-30T11:08:09Z",
+    "file_count": 29,
+    "scope": "spec_directory_only",
+    "runtime_effect": "none"
   },
   "implementation_delivery": {
     "merged_prs": [
