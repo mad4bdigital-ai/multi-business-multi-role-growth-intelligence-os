@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fffeb5acbdc5843484a0689d18de47ce4d898957dd9a410132675566dccf228a",
+    "source_digest": "2debf7cdcb4d87c84873b26b85d538f6c1ea183ac3894c531b74a65edbcb3a13",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "c75c2a773283e342bb713199c2f5d5fa4944b2fdea960b6666690ac91efb0f56",
+        "sha256": "cee4e323abba1ef99549b9ead3387170d1040556ff4d1ab4b1f5517b14dec3c6",
         "present": true
       },
       {
@@ -72,6 +72,11 @@
       {
         "file": "openapi/github-repository-main-moved-webhook.yaml",
         "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
+        "present": true
+      },
+      {
+        "file": "openapi/local-connector-uninstall.yaml",
+        "sha256": "da76ab4568b36b8d9d62ed965a4154c3702edc5008411cd96f0ab4e2dfe0237f",
         "present": true
       },
       {
@@ -960,6 +965,11 @@
         "present": true
       },
       {
+        "file": "test-local-connector-uninstall-rotates-secrets.mjs",
+        "sha256": "f64d5d5144be26ece84ac4cb5cea4bf897b5636b09aba60dc4034584fe4b6735",
+        "present": true
+      },
+      {
         "file": "test-orchestration-readback-surface.mjs",
         "sha256": "a2d402998c5dc5a03b252f80a007fcf22346ecafe290408257d3387da6f60c3a",
         "present": true
@@ -1126,11 +1136,11 @@
     "mixed_scope_route_file_count": 25,
     "operation_count": 1003,
     "openapi_documented_count": 987,
-    "openapi_canonical_documented_count": 604,
-    "openapi_generated_index_count": 383,
+    "openapi_canonical_documented_count": 605,
+    "openapi_generated_index_count": 382,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 383,
+    "openapi_detail_gap_count": 382,
     "auth_parity_counts": {
       "equivalent": 987,
       "exempt": 16
@@ -1145,8 +1155,8 @@
     "unresolved_surface_decision_count": 152,
     "test_owned_family_count": 6,
     "untested_family_count": 161,
-    "test_owned_operation_count": 53,
-    "untested_operation_count": 950,
+    "test_owned_operation_count": 54,
+    "untested_operation_count": 949,
     "ready_task_count": 3,
     "blocked_task_count": 164,
     "coverage_complete": false
@@ -5176,7 +5186,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/local-connector-uninstall.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -5193,14 +5203,16 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-local-connector-uninstall-rotates-secrets.mjs"
+          ],
           "governance": {
             "classification": "unresolved",
             "classification_source": "fail_closed",
@@ -5220,19 +5232,19 @@
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "POST /local-connector/install",
-        "GET /local-connector/install/status",
-        "DELETE /local-connector/uninstall"
+        "GET /local-connector/install/status"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /local-connector/install/status"
       ],
-      "tests": [],
+      "tests": [
+        "test-local-connector-uninstall-rotates-secrets.mjs"
+      ],
       "untested_operations": [
         "POST /local-connector/install/download-link",
         "POST /local-connector/install",
-        "GET /local-connector/install/status",
-        "DELETE /local-connector/uninstall"
+        "GET /local-connector/install/status"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -5244,12 +5256,14 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorInstallRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-local-connector-uninstall-rotates-secrets.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -86351,12 +86365,14 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorInstallRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-local-connector-uninstall-rotates-secrets.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -86368,7 +86384,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-local-connector-uninstall-rotates-secrets.mjs"
       ]
     },
     {
