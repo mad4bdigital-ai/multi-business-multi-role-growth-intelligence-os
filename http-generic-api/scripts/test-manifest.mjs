@@ -33,6 +33,7 @@ const staticDiscoveryCommands = [
   "node test-phase10-status-observability-readiness-audit.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-status-database-lifecycle-component.mjs",
+  "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
   "node test-tenant-blocked-capability-export-cleanup.mjs",
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",
