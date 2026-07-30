@@ -1,0 +1,14 @@
+{
+  "schema_version": "spec011.production_migration_dryrun_trigger.v1",
+  "expected_production_sha": "93a4280046130c36a41ed0fd74f88df773ce55bd",
+  "expected_candidate_sha": "607d08c5c18c732bead94b5f18e2eb1e5a6dc93a",
+  "production_promotion_pr": 3573,
+  "migration": "20260728_operation_managed_git_ephemeral_checkout.sql",
+  "expected_checksum_sha256": "8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c",
+  "expected_statement_count": 1,
+  "authorize_only_and_dry_run": true,
+  "apply_allowed": false,
+  "provider_call_allowed": false,
+  "external_write_allowed": false,
+  "secrets_included": false
+}
