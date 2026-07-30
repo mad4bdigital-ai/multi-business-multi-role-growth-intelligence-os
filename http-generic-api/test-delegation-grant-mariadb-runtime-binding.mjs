@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import {
   createDelegationGrantMariaDbRuntimeBinding,
   _testingDelegationGrantMariaDbRuntimeBinding,
@@ -9,7 +10,7 @@ import {
 } from "./delegationGrantLifecycleShadowService.js";
 
 const HASH = "a".repeat(64);
-const TENANT_ID = "11111111-1111-4111-8111-111111111111";
+const TENANT_ID = randomUUID();
 
 function fakePool() {
   return {
@@ -145,11 +146,11 @@ function verifiedReadiness(overrides = {}) {
       grant_hash: "d".repeat(64),
       grant: {
         schema_version: "spec011-delegation-grant-shadow-v1",
-        grant_id: "22222222-2222-4222-8222-222222222222",
+        grant_id: randomUUID(),
         delegated_by: "user-1",
         delegated_to: "agent-1",
         approval_mode: "delegated_plan_bound",
-        plan_id: "33333333-3333-4333-8333-333333333333",
+        plan_id: randomUUID(),
         plan_hash: HASH,
         resource_scope: [{ resource_uri: "github://owner/repo", snapshot_hash: "e".repeat(64) }],
         allowed_intents: ["repo.patch.apply"],
@@ -167,8 +168,8 @@ function verifiedReadiness(overrides = {}) {
       },
     },
     schemaReadiness: verifiedReadiness(),
-    operationId: "44444444-4444-4444-8444-444444444444",
-    stepId: "55555555-5555-4555-8555-555555555555",
+    operationId: randomUUID(),
+    stepId: randomUUID(),
     idempotencyKey: "active-hash-regression",
     requestedBy: "user-1",
     now: "2026-07-30T07:30:00.000Z",

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,10 +19,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
 const MIGRATION = "20260725_agent_delegation_grant_persistence_contract.sql";
 const ARTIFACT_PATH = path.join(API_DIR, "artifacts", "delegation-mariadb-certification.json");
-const TENANT_ID = "11111111-1111-4111-8111-111111111111";
-const PLAN_ID = "22222222-2222-4222-8222-222222222222";
-const CAPABILITY_ENVELOPE_ID = "33333333-3333-4333-8333-333333333333";
-const APPROVAL_HOLD_ID = "44444444-4444-4444-8444-444444444444";
+const TENANT_ID = randomUUID();
+const PLAN_ID = randomUUID();
+const CAPABILITY_ENVELOPE_ID = randomUUID();
+const APPROVAL_HOLD_ID = randomUUID();
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 
