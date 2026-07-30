@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "package_key": "integration-governed-execution-runtime-composition",
+  "package_type": "cross_spec_integration_kit",
+  "status": "in_progress",
+  "runtime_authority": false,
+  "functional_authority": false,
+  "owner_specs": {
+    "durable_execution_and_orchestration": "011-durable-governed-execution-and-agent-delegation",
+    "execution_context": "012-unified-admin-tenant-context-kernel",
+    "catalog_and_execution_surface": "013-system-tool-catalog-v2"
+  },
+  "baseline_dependencies": {
+    "system_tool_catalog_v2": {
+      "pull_request": 3260,
+      "merge_sha": "0de0cdd6727040a2670821025c32615991cb3251",
+      "state": "merged_on_main"
+    }
+  },
+  "artifacts": [
+    "README.md",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "completion.json",
+    "checklists/specification-readiness.md",
+    "architecture-and-runtime-topology.md",
+    "architecture-decisions-and-tradeoffs.md",
+    "domain-model-and-state-machines.md",
+    "contracts-and-schema-blueprint.md",
+    "persistence-transaction-and-outbox-model.md",
+    "failure-retry-reconciliation-and-compensation.md",
+    "security-and-threat-model.md",
+    "observability-slos-and-benchmark-protocol.md",
+    "acceptance-and-certification-matrix.md",
+    "tasks-and-gates.md",
+    "implementation-map-and-pr-slicing.md",
+    "rollout-migration-compatibility-and-rollback.md",
+    "openapi-and-public-execution-contract-plan.md",
+    "repository-workflow-optimization-profile.md",
+    "owner-extension-registration.md",
+    "traceability-and-functional-results.md",
+    "manifest.json"
+  ],
+  "extension_artifacts": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-performance-addendum.md",
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
+    "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md"
+  ],
+  "extension_manifests": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-extension.manifest.json",
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
+    "../013-system-tool-catalog-v2/intent-execution-surface-extension.manifest.json"
+  ],
+  "owner_manifests": [
+    "../011-durable-governed-execution-and-agent-delegation/manifest.json",
+    "../012-unified-admin-tenant-context-kernel/manifest.json",
+    "../013-system-tool-catalog-v2/manifest.json"
+  ],
+  "coverage_domains": [
+    "cross_spec_ownership",
+    "runtime_topology",
+    "architecture_decisions",
+    "domain_entities_and_state_machines",
+    "public_and_internal_contracts",
+    "canonical_hashing_and_versioning",
+    "persistence_and_transaction_boundaries",
+    "idempotency_and_resource_locks",
+    "failure_retry_reconciliation_and_compensation",
+    "security_and_privacy",
+    "observability_slos_and_benchmarks",
+    "acceptance_and_certification",
+    "implementation_pr_slicing",
+    "rollout_migration_compatibility_and_rollback",
+    "openapi_and_custom_gpt_contracts",
+    "repository_workflow_optimization",
+    "traceability_and_closeout"
+  ],
+  "functional_results": [
+    "single_orchestration_authority",
+    "single_exact_execution_context",
+    "server_side_plan_continuation",
+    "bounded_dependency_graph_concurrency",
+    "plan_bound_approval_frontier",
+    "plan_derived_fast_and_durable_lanes",
+    "authoritative_execution_ledger_with_verified_projections",
+    "compact_result_with_full_result_integrity",
+    "legacy_contract_compatibility",
+    "safety_equivalent_performance_measurement",
+    "structured_failure_and_unknown_outcome_recovery",
+    "restart_safe_durable_execution",
+    "repository_workflow_to_verified_pr_handoff"
+  ],
+  "delivery_mode": "multi_pr_by_gate",
+  "rollout_mode": "instrumentation_then_shadow_then_read_then_dag_preparation_then_approval_then_projection_shadow_then_low_risk_mutation_then_durable_then_public_surface_then_percent_cutover",
+  "certification_levels": [
+    "C0_contract",
+    "C1_shadow",
+    "C2_read",
+    "C3_preparation_dag",
+    "C4_low_risk_mutation",
+    "C5_durable",
+    "C6_public_surface",
+    "C7_production_closeout"
+  ],
+  "implementation_phases": [
+    "X0_evidence_baseline",
+    "X1_contract_composition_shadow",
+    "X2_unified_in_process_read",
+    "X3_dag_read_and_preparation",
+    "X4_approval_frontier",
+    "X5_ledger_and_projection_split",
+    "X6_fast_lane_mutation",
+    "X7_durable_lane",
+    "X8_execution_surface",
+    "X9_percent_rollout_and_closeout"
+  ],
+  "constraints": [
+    "no_provider_call",
+    "no_external_send",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment",
+    "no_merge",
+    "no_protected_branch_write",
+    "no_runtime_cutover",
+    "no_feature_removal",
+    "no_authority_weakening",
+    "no_secret_exposure",
+    "reuse_existing_outbox_and_execution_surfaces",
+    "legacy_compatibility_until_measured_retirement",
+    "no_automatic_retry_after_unknown_outcome",
+    "no_silent_context_or_connection_substitution",
+    "performance_requires_safety_equality"
+  ],
+  "secrets_included": false
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "extension_key": "spec-013-intent-execution-surface",
+  "parent_spec_key": "013-system-tool-catalog-v2",
+  "status": "draft",
+  "specification_authority": true,
+  "runtime_authority": false,
+  "primary_artifact": "intent-execution-surface-addendum.md",
+  "requirement_range": {
+    "prefix": "FR-IE",
+    "first": "FR-IE-001",
+    "last": "FR-IE-028"
+  },
+  "owned_concerns": [
+    "execute_intent_public_contract",
+    "execute_operation_public_contract",
+    "execution_status_result_cancel_resume_contracts",
+    "descriptor_execution_metadata",
+    "dynamic_consequential_projection",
+    "compact_and_full_result_transport",
+    "legacy_tool_compatibility_adapters"
+  ],
+  "baseline_dependencies": {
+    "catalog_v2_merge_sha": "0de0cdd6727040a2670821025c32615991cb3251",
+    "catalog_v2_pr": 3260
+  },
+  "cross_spec_dependencies": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-performance-addendum.md",
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
+    "../integration-governed-execution-runtime-composition/manifest.json"
+  ],
+  "delivery_slices": [
+    "IE0_schema_only_draft",
+    "IE1_read_only_shadow",
+    "IE2_read_only_fast_lane",
+    "IE3_durable_read_workflow",
+    "IE4_low_risk_mutation_pilot",
+    "IE5_custom_gpt_percent_rollout",
+    "IE6_compatibility_closeout"
+  ],
+  "constraints": [
+    "catalog_visibility_never_grants_execution",
+    "intent_ranking_never_grants_execution",
+    "ambiguous_intent_performs_no_provider_call",
+    "no_generic_nonconsequential_masking",
+    "legacy_list_and_call_until_certified_retirement",
+    "no_runtime_route_from_specification",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}
