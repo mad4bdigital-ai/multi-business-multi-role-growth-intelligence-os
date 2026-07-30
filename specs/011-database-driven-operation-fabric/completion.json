@@ -9,13 +9,19 @@
     "post_merge_audit": false
   },
   "delivery": {
-    "implementation_prs": [3394],
-    "closeout_pr": {
+    "implementation_prs": [3394, 3499],
+    "t500_t501_closeout": {
       "number": 3394,
       "branch": "gpt/reconcile/011-managed-git-worker-main-v4-20260730",
       "role": "t500_t501_reconciliation",
       "status": "merged",
       "merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6"
+    },
+    "t502_implementation": {
+      "number": 3499,
+      "branch": "gpt/spec-011-t502-governed-remote-git-transport-20260730",
+      "role": "t502_remote_git_transport",
+      "status": "current_pr"
     },
     "superseded_prs": [3240, 3259, 3326]
   },
@@ -31,9 +37,18 @@
       "main_blob_sha": "89c919b84ac920a1af1510e08e4d5440e0f22597"
     },
     "t502_remote_git_transport": {
-      "status": "not_implemented"
+      "status": "implemented_pending_ci",
+      "pr": 3499,
+      "focused_tests": [
+        "test-managed-git-remote-transport.mjs",
+        "test-operation-orchestrator-managed-git-transport.mjs"
+      ],
+      "force_push_allowed": false,
+      "credential_secret_exposed": false,
+      "persistent_credential_file_created": false,
+      "workspace_path_exposed": false
     },
-    "ci": {
+    "t500_t501_ci": {
       "status": "passed",
       "run_id": 30528817727,
       "validated_head_sha": "585dcb705a88422d08bad9526ec65f28f2c8b69c",
@@ -44,10 +59,19 @@
         "unit_and_integration_tests": "success"
       }
     },
+    "t502_ci": {
+      "status": "pending",
+      "required_jobs": {
+        "syntax_check": "pending",
+        "architecture_drift_detection": "pending",
+        "execution_resolver_gate": "pending",
+        "unit_and_integration_tests": "pending"
+      }
+    },
     "release_readiness": {
-      "status": "passed",
-      "merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6",
-      "default_branch_readback": "passed",
+      "status": "t500_t501_passed_t502_pending",
+      "t500_t501_merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6",
+      "t500_t501_default_branch_readback": "passed",
       "superseded_prs_closed": true
     },
     "migration": {

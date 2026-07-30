@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Workspace Lifecycle Mutation Contracts
+  version: 1.0.0
+paths:
+  /me/workspaces/{tenant_id}/invitations:
+    post:
+      operationId: createWorkspaceInvitation
+      summary: Create or refresh a pending workspace invitation without returning its token
+      tags: [workspace-lifecycle]
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - { in: path, name: tenant_id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string }
+                metadata_json: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Existing pending invitation refreshed }
+        '201': { description: Pending invitation created }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '403': { description: Workspace owner or admin required }
+        '409': { description: Ambiguous invitation state }
+  /me/invitations/accept:
+    post:
+      operationId: acceptWorkspaceInvitation
+      summary: Accept one pending invitation for the signed-in email
+      tags: [workspace-lifecycle]
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, minLength: 1, writeOnly: true }
+      responses:
+        '200': { description: Invitation accepted with membership and grant readback }
+        '400': { description: Token required }
+        '401': { description: Authentication required }
+        '403': { description: Invitation email mismatch }
+        '404': { description: Invitation not pending }
+        '409': { description: Invitation state changed }
+        '410': { description: Invitation expired }
+  /me/workspaces/{tenant_id}/access-requests:
+    post:
+      operationId: createWorkspaceAccessRequest
+      summary: Create or refresh the signed-in user's pending workspace access request
+      tags: [workspace-lifecycle]
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - { in: path, name: tenant_id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requested_role: { type: string }
+                reason: { type: string }
+                metadata_json: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Existing pending request refreshed }
+        '201': { description: Pending request created }
+        '401': { description: Authentication required }
+        '404': { description: User not found }
+        '409': { description: Existing membership or ambiguous pending requests }
+  /me/workspaces/{tenant_id}/access-requests/{request_id}/approve:
+    post:
+      operationId: approveWorkspaceAccessRequest
+      summary: Approve one pending access request and provision membership authority
+      tags: [workspace-lifecycle]
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - { in: path, name: tenant_id, required: true, schema: { type: string } }
+        - { in: path, name: request_id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string }
+      responses:
+        '200': { description: Request approved with membership and grant readback }
+        '401': { description: Authentication required }
+        '403': { description: Workspace owner or admin required }
+        '404': { description: Pending request not found }
+        '409': { description: Request state changed }
+  /me/workspaces/{tenant_id}/access-requests/{request_id}/reject:
+    post:
+      operationId: rejectWorkspaceAccessRequest
+      summary: Reject one pending workspace access request
+      tags: [workspace-lifecycle]
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - { in: path, name: tenant_id, required: true, schema: { type: string } }
+        - { in: path, name: request_id, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: Request rejected with exact readback }
+        '401': { description: Authentication required }
+        '403': { description: Workspace owner or admin required }
+        '404': { description: Pending request not found }
+        '409': { description: Request state changed }
+components:
+  securitySchemes:
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
