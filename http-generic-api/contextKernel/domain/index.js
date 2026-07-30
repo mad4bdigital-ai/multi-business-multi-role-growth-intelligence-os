@@ -35,3 +35,9 @@ export {
   createExecutionCapsuleDependencyVector,
   projectExecutionCapsule,
 } from "./executionCapsule.js";
+
+export {
+  SUPPORT_DELEGATION_MODES,
+  createSupportDelegationEvidence,
+  evaluateSupportDelegation,
+} from "./supportDelegationPolicy.js";
