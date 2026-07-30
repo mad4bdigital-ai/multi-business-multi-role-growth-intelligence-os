@@ -101,11 +101,11 @@ WHERE g.status = 'active'
   AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP);
 
 -- Runtime policy markers:
--- no_provider_call=true
--- no_credential_payload_read=true
--- no_raw_secrets=true
--- no_external_send=true
--- no_external_write=true
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- authority=user_jwt_plus_membership_plus_workspace_resource_grants
 -- legacy_agent_skill_grants_preserved=true
 -- configured_brand_policy_enforcement_fail_closed=true
@@ -113,4 +113,4 @@ WHERE g.status = 'active'
 -- same_cycle_readback_required=true
 -- read_only_preflight=brand_skill_migration_preflight_v1
 -- rollback_runbook=docs/runbooks/brand-skill-migration.md
--- secrets_included=false
+-- secrets_included_false
