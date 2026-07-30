@@ -1,0 +1,198 @@
+openapi: 3.1.0
+info:
+  title: Repository Reconciliation Lease Control Contract
+  version: 1.0.0
+  description: Governed Admin contract for acquiring, renewing, and releasing one repository reconciliation operation lease.
+servers:
+  - url: https://auth.mad4b.com
+    description: Governed platform control plane
+tags:
+  - name: repository-reconciliation
+    description: Narrow repository reconciliation coordination controls.
+paths:
+  /admin/repository-automation/reconciliation-lease:
+    post:
+      operationId: controlRepositoryReconciliationLease
+      summary: Control a repository reconciliation lease
+      description: >
+        Acquires, renews, or releases one exclusive repository reconciliation lease.
+        The runtime requires an Admin or service principal, an apply-authorized GitHub
+        capability envelope bound to the exact resource and fingerprint, and the exact
+        action-specific typed confirmation. It never creates commits or updates refs.
+      tags: [repository-reconciliation]
+      x-openai-isConsequential: true
+      x-custom-gpt-exclude: true
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/RepositoryReconciliationLeaseAcquireRequest'
+                - $ref: '#/components/schemas/RepositoryReconciliationLeaseRenewRequest'
+                - $ref: '#/components/schemas/RepositoryReconciliationLeaseReleaseRequest'
+      responses:
+        '200':
+          description: Lease action completed with bounded readback evidence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryReconciliationLeaseControlResponse'
+        '400':
+          description: Invalid or incomplete lease-control input.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryReconciliationLeaseControlError' }
+        '401':
+          description: Backend authentication is missing or invalid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryReconciliationLeaseControlError' }
+        '403':
+          description: Admin authority, apply authorization, or exact resource binding is missing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryReconciliationLeaseControlError' }
+        '409':
+          description: Confirmation, ownership, fingerprint, expiry, or active-lease state conflicts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryReconciliationLeaseControlError' }
+        '500':
+          description: Unexpected lease-control failure.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryReconciliationLeaseControlError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Backend API key accepted only with the runtime Admin-principal guard.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Admin or service backend API key.
+  schemas:
+    RepositoryReconciliationLeaseAcquireRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - action
+        - capability_envelope_id
+        - confirm
+        - owner
+        - repo
+        - branch
+        - expected_base_sha
+        - expected_branch_sha
+        - holder_run_id
+      properties:
+        action: { type: string, enum: [acquire] }
+        capability_envelope_id: { type: string, minLength: 1, maxLength: 64 }
+        confirm: { type: string, enum: [ACQUIRE_REPOSITORY_RECONCILIATION_LEASE] }
+        owner: { type: string, pattern: '^[A-Za-z0-9_.-]+$', minLength: 1, maxLength: 100 }
+        repo: { type: string, pattern: '^[A-Za-z0-9_.-]+$', minLength: 1, maxLength: 100 }
+        branch: { type: string, minLength: 1, maxLength: 255 }
+        default_branch: { type: string, default: main, minLength: 1, maxLength: 255 }
+        expected_base_sha: { type: string, pattern: '^[a-f0-9]{40}$' }
+        expected_branch_sha: { type: string, pattern: '^[a-f0-9]{40}$' }
+        operation_key:
+          type: string
+          pattern: '^[A-Za-z0-9._:-]+$'
+          default: repo.pr.reconcile_and_finalize
+          minLength: 1
+          maxLength: 128
+        holder_run_id: { type: string, pattern: '^[A-Za-z0-9._:-]+$', minLength: 1, maxLength: 64 }
+        holder_actor_type:
+          type: string
+          pattern: '^[A-Za-z0-9._:-]+$'
+          default: platform_orchestrator
+          minLength: 1
+          maxLength: 64
+        holder_actor_id: { type: string, pattern: '^[A-Za-z0-9._:-]+$', minLength: 1, maxLength: 64 }
+        ttl_seconds: { type: integer, minimum: 60, maximum: 3600, default: 300 }
+        operation_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+    RepositoryReconciliationLeaseRenewRequest:
+      type: object
+      additionalProperties: false
+      required: [action, capability_envelope_id, confirm, lease_id, holder_run_id, resource_fingerprint]
+      properties:
+        action: { type: string, enum: [renew] }
+        capability_envelope_id: { type: string, minLength: 1, maxLength: 64 }
+        confirm: { type: string, enum: [RENEW_REPOSITORY_RECONCILIATION_LEASE] }
+        lease_id: { type: string, minLength: 1, maxLength: 64 }
+        holder_run_id: { type: string, pattern: '^[A-Za-z0-9._:-]+$', minLength: 1, maxLength: 64 }
+        resource_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        ttl_seconds: { type: integer, minimum: 60, maximum: 3600, default: 300 }
+    RepositoryReconciliationLeaseReleaseRequest:
+      type: object
+      additionalProperties: false
+      required: [action, capability_envelope_id, confirm, lease_id, holder_run_id, resource_fingerprint]
+      properties:
+        action: { type: string, enum: [release] }
+        capability_envelope_id: { type: string, minLength: 1, maxLength: 64 }
+        confirm: { type: string, enum: [RELEASE_REPOSITORY_RECONCILIATION_LEASE] }
+        lease_id: { type: string, minLength: 1, maxLength: 64 }
+        holder_run_id: { type: string, pattern: '^[A-Za-z0-9._:-]+$', minLength: 1, maxLength: 64 }
+        resource_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        release_reason: { type: string, maxLength: 500, default: operation_complete }
+    RepositoryReconciliationLeaseRecord:
+      type: object
+      additionalProperties: true
+      required: [lease_id, status, resource_fingerprint, secrets_included]
+      properties:
+        lease_id: { type: string }
+        status: { type: string, enum: [active, released, expired] }
+        resource_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        holder_run_id: { type: string }
+        acquired_at: { type: [string, 'null'], format: date-time }
+        renewed_at: { type: [string, 'null'], format: date-time }
+        expires_at: { type: [string, 'null'], format: date-time }
+        released_at: { type: [string, 'null'], format: date-time }
+        release_reason: { type: [string, 'null'] }
+        secrets_included: { type: boolean, enum: [false] }
+    RepositoryReconciliationLeaseControlResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, action, capability_envelope_id, lease, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        action: { type: string, enum: [acquire, renew, release] }
+        classification: { type: string }
+        reused: { type: boolean }
+        capability_envelope_id: { type: string }
+        lease: { $ref: '#/components/schemas/RepositoryReconciliationLeaseRecord' }
+        operation_binding:
+          type: object
+          additionalProperties: false
+          properties:
+            repository_owner: { type: string }
+            repository_name: { type: string }
+            branch_name: { type: string }
+            default_branch: { type: string }
+            expected_base_sha: { type: string, pattern: '^[a-f0-9]{40}$' }
+            expected_branch_sha: { type: string, pattern: '^[a-f0-9]{40}$' }
+            operation_key: { type: string }
+            operation_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        secrets_included: { type: boolean, enum: [false] }
+    RepositoryReconciliationLeaseControlError:
+      type: object
+      additionalProperties: false
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          additionalProperties: true
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: [object, 'null'], additionalProperties: true }
+        secrets_included: { type: boolean, enum: [false] }

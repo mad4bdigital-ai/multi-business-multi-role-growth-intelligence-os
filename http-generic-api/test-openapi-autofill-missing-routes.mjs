@@ -15,6 +15,7 @@ assert(workflow.includes('openapi-autofill-missing-routes.mjs') || workflow.incl
 assert(script.includes('ROUTE_FILE_RE'), 'autofill must parse express route declarations');
 assert(script.includes('ALLOWLIST_PATH'), 'autofill must honor openapi route coverage allowlist');
 assert(script.includes('CONTRACT_REGISTRY_PATH'), 'autofill must support precise route contracts discovered with runtime routes');
+assert(script.includes('route_file'), 'precise route contracts must bind to a runtime route source');
 assert(script.includes('operationIdFor'), 'autofill must create stable operationIds');
 assert(script.includes('x-openai-isConsequential'), 'autofill must mark consequential operations');
 assert(script.includes('TODO document'), 'autofill stubs must be clearly review-required');
@@ -52,16 +53,29 @@ try {
     'import express from "express";',
     'const router = express.Router();',
     'router.post("/auto-sync-fixture/:id", (req, res) => res.json({ ok: true }));',
+    'export default router;',
+    '',
+  ].join('\n'));
+  writeFileSync(join(tempRoot, 'routes/preciseRoutes.js'), [
+    'import express from "express";',
+    'const router = express.Router();',
     'router.post("/precise-fixture", (req, res) => res.json({ ok: true }));',
     'export default router;',
     '',
   ].join('\n'));
-  writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({ exact: [], prefixes: [], files: [], required_files: [] }, null, 2));
+  writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({
+    exact: [],
+    prefixes: [],
+    files: [],
+    required_files: ['routes/exampleRoutes.js'],
+  }, null, 2));
   writeFileSync(join(tempRoot, 'openapi-route-contracts.yaml'), [
     'contracts:',
     '  POST /precise-fixture:',
+    "    route_file: 'routes/preciseRoutes.js'",
     "    path_item_ref: './openapi/precise-fixture.yaml#/preciseFixture'",
     '  POST /registry-only-fixture:',
+    "    route_file: 'routes/registryOnlyRoutes.js'",
     "    path_item_ref: './openapi/registry-only-fixture.yaml#/registryOnlyFixture'",
     '',
   ].join('\n'));
@@ -72,7 +86,7 @@ try {
   const routeCheckOutput = execFileSync(process.execPath, [autofillScriptPath], { cwd: tempRoot, encoding: 'utf8' });
   const routeCheckJson = JSON.parse(routeCheckOutput);
   assert.equal(routeCheckJson.ok, false, 'route-derived autofill should report missing runtime routes before write');
-  assert.equal(routeCheckJson.missing_count, 2, 'route-derived autofill should detect the stub and runtime-discovered precise route');
+  assert.equal(routeCheckJson.missing_count, 2, 'route-derived autofill should detect the allowlisted stub and source-bound precise route');
   assert(routeCheckJson.missing.some((entry) => entry.signature === 'POST /auto-sync-fixture/{id}'));
   assert(routeCheckJson.missing.some((entry) => entry.signature === 'POST /precise-fixture'));
   assert(!routeCheckJson.missing.some((entry) => entry.signature === 'POST /registry-only-fixture'), 'generic route discovery cannot be trusted to discover separately mounted registry-only paths');
