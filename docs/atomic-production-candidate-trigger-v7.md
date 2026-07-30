@@ -1,7 +1,7 @@
 # Atomic Production Candidate Trigger V7
 
 - protected refs captured atomically at workflow start
-- previous candidate: `e6a1e51a8c6947f4979234eb0b93ae7303ed90a4`
+- previous candidate: `2c60c8a552368e5406fac684cabb9c7e3826ec86`
 - target non-protected release branch: `release/production-candidate-live-v7`
 - exact-main tree required: true
 - protected-ref readback required before push: true
@@ -9,3 +9,4 @@
 - protected branch mutation: false
 - deployment: false
 - database apply: false
+- trigger revision: 2
