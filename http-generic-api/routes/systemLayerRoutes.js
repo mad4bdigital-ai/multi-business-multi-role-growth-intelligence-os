@@ -890,16 +890,57 @@ async function toolsForPrincipalWithPlatformEndpoints(auth) {
   return [...baseTools, ...tenantTools, ...platformTools];
 }
 
+function systemToolCatalogMetadata(tools = []) {
+  return (Array.isArray(tools) ? tools : []).map((tool) => {
+    const descriptorEntry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(tool?.name);
+    return {
+      ...tool,
+      source_key: tool?.source_key
+        || descriptorEntry?.source_key
+        || tool?.x_platform_endpoint?.source
+        || tool?.source
+        || "local_system_layer",
+      capability_key: tool?.capability_key
+        || tool?.capabilityKey
+        || tool?.["x-capability-key"]
+        || null,
+    };
+  });
+}
+
+async function visibleSystemToolCatalog(auth) {
+  return systemToolCatalogMetadata(await toolsForPrincipalWithPlatformEndpoints(auth));
+}
+
+function normalizeSystemToolCatalogQuery(query = {}) {
+  const normalized = query && typeof query === "object" ? { ...query } : {};
+  const cursor = String(normalized.cursor ?? "").trim();
+  if (/^\d+$/.test(cursor)) {
+    normalized.offset = cursor;
+    delete normalized.cursor;
+  }
+  return normalized;
+}
+
 async function buildSystemToolsListResponse(auth, query = {}) {
-  const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
-  const { items, page } = paginateItems(allTools, query || {});
+  const { listSystemToolCatalog } = await import("../systemToolCatalogV2.js");
+  const catalog = listSystemToolCatalog(
+    await visibleSystemToolCatalog(auth),
+    normalizeSystemToolCatalogQuery(query),
+    { legacyCompleteDefault: true },
+  );
   return {
     ok: true,
     protocol: "openapi-mcp-facade",
     list_mode: "bounded_paginated_chunkable",
-    tools: items,
-    page,
-    total_available_tools: page.total_count,
+    catalog_mode: "stable_cursor_catalog_v2",
+    tools: catalog.items,
+    items: catalog.items,
+    page: catalog.page,
+    total_available_tools: catalog.page.total_count,
+    catalog_version: catalog.catalog_version,
+    snapshot_id: catalog.snapshot_id,
+    compatibility: catalog.compatibility,
     continuation_contract: {
       response_chunked_when_large: true,
       required_tool: "response_chunk_read",
@@ -914,17 +955,84 @@ async function buildSystemToolsListResponse(auth, query = {}) {
   };
 }
 
+async function getSystemToolCatalogDescriptor(auth, toolName) {
+  const { getSystemToolDescriptorByName } = await import("../systemToolCatalogV2.js");
+  return getSystemToolDescriptorByName(await visibleSystemToolCatalog(auth), toolName);
+}
+
+async function resolveSystemToolCatalogIntent(auth, request = {}) {
+  const { resolveSystemCapabilityIntent } = await import("../systemToolCatalogV2.js");
+  return resolveSystemCapabilityIntent(await visibleSystemToolCatalog(auth), request);
+}
+
+async function readSystemToolCatalogObservability() {
+  const {
+    auditSystemToolDescriptorRuntimeParity,
+    getSystemToolCatalogObservability,
+  } = await import("../systemToolCatalogV2.js");
+  const descriptors = [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => ({
+    ...entry.tool,
+    name,
+    source_key: entry.source_key,
+  }));
+  const handlers = new Map(
+    [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([name, entry]) => [name, entry.handler]),
+  );
+  return {
+    ...getSystemToolCatalogObservability(),
+    descriptor_parity: auditSystemToolDescriptorRuntimeParity(descriptors, handlers),
+  };
+}
+
+function sendSystemToolCatalogError(res, error, fallbackCode) {
+  return res.status(error?.status || 500).json({
+    ok: false,
+    error: {
+      code: error?.code || fallbackCode,
+      message: error?.message || "System tool catalog request failed.",
+      ...(error?.details !== undefined ? { details: error.details } : {}),
+      ...(res.locals?.request_id ? { requestId: res.locals.request_id } : {}),
+    },
+    secrets_included: false,
+  });
+}
+
 async function chunkSystemLayerResponse(body, source = {}) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
-  return await maybeChunkToolResponseBody(body, {
-    response_options: {
-      max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
-      cursor: Number(responseOptions.cursor || source?.cursor || 0),
-      chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
-      chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
-    },
-    source_tool_key: source?.source_tool_key || "system_layer_response",
-  });
+  const sourceToolKey = source?.source_tool_key || "system_layer_response";
+  try {
+    return await maybeChunkToolResponseBody(body, {
+      response_options: {
+        max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        cursor: Number(responseOptions.cursor || source?.cursor || 0),
+        chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+        chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+      },
+      source_tool_key: sourceToolKey,
+    });
+  } catch (error) {
+    const { buildBoundedInlineChunkFallback } = await import("../systemLayerResponseFallback.js");
+    const fallback = buildBoundedInlineChunkFallback(body, error, {
+      sourceToolKey,
+      maxChars: Number(
+        responseOptions.inline_fallback_max_chars
+        || source?.inline_fallback_max_chars
+        || 150000,
+      ),
+    });
+    console.warn(
+      "[systemLayerResponse] durable chunk persistence unavailable; returning bounded inline response",
+      JSON.stringify({
+        error_code: error?.code || null,
+        cause_code: error?.details?.cause_code || error?.cause?.code || null,
+        source_tool_key: sourceToolKey,
+        serialized_chars: fallback.continuation_contract?.serialized_chars || null,
+        bounded_inline_max_chars: fallback.continuation_contract?.bounded_inline_max_chars || null,
+        secrets_included: false,
+      }),
+    );
+    return fallback;
+  }
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
@@ -1195,7 +1303,7 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
         AND x.status = 'active'
         AND x.scope_class IN (?, ?)
         ${tenantClause.sql}
-      LIMIT 1`,
+      LIMIT 2`,
     [name, ...scopeClasses, ...tenantClause.params]
   );
 
@@ -1203,7 +1311,19 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     return { handled: false };
   }
 
-  const row = rows[0];
+  if (rows.length > 1) {
+    const err = new Error("The visible platform endpoint tool name resolves to more than one active binding.");
+    err.status = 409;
+    err.code = "platform_endpoint_tool_binding_ambiguous";
+    err.details = {
+      tool_name: String(name || ""),
+      candidate_count: rows.length,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const [row] = rows;
 
   if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
     const err = new Error("This platform endpoint tool requires admin access.");
@@ -1834,7 +1954,7 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
        LEFT JOIN \`installations\` i ON i.system_id = cs.system_id
       WHERE cs.system_id = ?
       GROUP BY cs.id
-      LIMIT 1`,
+      LIMIT 2`,
     [systemId]
   );
 
@@ -1845,7 +1965,19 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
     throw err;
   }
 
-  const row = rows[0];
+  if (rows.length > 1) {
+    const err = new Error(`Connector system ${systemId} is ambiguous in the registry.`);
+    err.status = 409;
+    err.code = "connector_system_ambiguous";
+    err.details = {
+      system_id: systemId,
+      candidate_count: rows.length,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const [row] = rows;
   if (auth && !isAdminPrincipal(auth) && row.tenant_id !== principalTenantId(auth)) {
     const err = new Error("Tenant-scoped system tools cannot access another tenant.");
     err.status = 403;
@@ -2263,13 +2395,50 @@ export function buildSystemLayerRoutes(deps) {
   const authenticated = [requireBackendApiKey];
 
   router.get("/system/tools", ...authenticated, async (req, res) => {
-    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    body.principal = {
-      mode: req.auth?.mode || null,
-      is_admin: isAdminPrincipal(req.auth),
-      tenant_id: principalTenantId(req.auth),
-    };
-    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+    try {
+      const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+      body.principal = {
+        mode: req.auth?.mode || null,
+        is_admin: isAdminPrincipal(req.auth),
+        tenant_id: principalTenantId(req.auth),
+      };
+      return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
+    }
+  });
+
+  router.get("/system/tools/catalog-observability", ...adminOnly, async (_req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await readSystemToolCatalogObservability()),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_observability_failed");
+    }
+  });
+
+  router.get("/system/tools/:toolName", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await getSystemToolCatalogDescriptor(req.auth, req.params.toolName)),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_lookup_failed");
+    }
+  });
+
+  router.post("/system/capabilities/resolve", ...authenticated, async (req, res) => {
+    try {
+      return res.status(200).json({
+        ok: true,
+        ...(await resolveSystemToolCatalogIntent(req.auth, req.body || {})),
+      });
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_capability_resolution_failed");
+    }
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
