@@ -1,0 +1,104 @@
+name: Final Sprint 69 Disposable Cleanup
+
+on:
+  pull_request:
+    branches:
+      - Production
+    paths:
+      - .github/workflows/final-sprint69-disposable-cleanup.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: final-sprint69-disposable-cleanup-20260730
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete closed evidence and cleanup branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify and delete disposable branches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: mad4bdigital-ai
+          REPO: multi-business-multi-role-growth-intelligence-os
+          TARGET_BRANCH: gpt/probe-production-runtime-parity-20260730
+          TARGET_PR: "3441"
+          SELF_BRANCH: ${{ github.event.pull_request.head.ref }}
+          SELF_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const owner = process.env.OWNER;
+          const repo = process.env.REPO;
+          const targetBranch = process.env.TARGET_BRANCH;
+          const targetPr = Number(process.env.TARGET_PR);
+          const selfBranch = process.env.SELF_BRANCH;
+          const selfPr = Number(process.env.SELF_PR);
+          const token = process.env.GH_TOKEN || "";
+          if (!token) throw new Error("GITHUB_TOKEN unavailable");
+          const encodeBranch = (value) => value.split("/").map(encodeURIComponent).join("/");
+          async function request(path, { method = "GET", body, allow404 = false } = {}) {
+            const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${path}`, {
+              method,
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${token}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+                "User-Agent": "mad4b-final-sprint69-disposable-cleanup/1.0",
+              },
+              body: body === undefined ? undefined : JSON.stringify(body),
+              signal: AbortSignal.timeout(60000),
+            });
+            const text = await response.text();
+            let payload;
+            try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw_preview: text.slice(0, 500) }; }
+            if (!response.ok && !(allow404 && response.status === 404)) {
+              throw new Error(`${method} ${path} failed: HTTP ${response.status} ${JSON.stringify(payload).slice(0, 300)}`);
+            }
+            return { status: response.status, ok: response.ok, payload };
+          }
+
+          const repository = await request("");
+          const defaultBranch = String(repository.payload?.default_branch || "");
+          if (!defaultBranch) throw new Error("Default branch unavailable");
+          const defaultRef = await request(`/git/ref/heads/${encodeBranch(defaultBranch)}`);
+          const defaultSha = String(defaultRef.payload?.object?.sha || "").toLowerCase();
+          if (!/^[0-9a-f]{40}$/.test(defaultSha)) throw new Error("Default branch SHA unavailable");
+
+          const targetPrState = await request(`/pulls/${targetPr}`);
+          if (targetPrState.payload?.state !== "closed" || targetPrState.payload?.merged === true) {
+            throw new Error("Target PR is not safely closed without merge");
+          }
+          const targetRef = await request(`/git/ref/heads/${encodeBranch(targetBranch)}`, { allow404: true });
+          if (targetRef.status !== 404) {
+            const targetSha = String(targetRef.payload?.object?.sha || "").toLowerCase();
+            if (targetSha !== defaultSha) throw new Error(`Target branch is not reset to default SHA: ${targetSha}`);
+            await request(`/git/refs/heads/${encodeBranch(targetBranch)}`, { method: "DELETE" });
+          }
+          const targetAbsence = await request(`/git/ref/heads/${encodeBranch(targetBranch)}`, { allow404: true });
+          if (targetAbsence.status !== 404) throw new Error("Target branch absence readback failed");
+
+          const selfPrClosed = await request(`/pulls/${selfPr}`, { method: "PATCH", body: { state: "closed" } });
+          if (selfPrClosed.payload?.state !== "closed" || selfPrClosed.payload?.merged === true) throw new Error("Cleanup PR close failed");
+          const selfRef = await request(`/git/ref/heads/${encodeBranch(selfBranch)}`);
+          const selfSha = String(selfRef.payload?.object?.sha || "").toLowerCase();
+          if (!/^[0-9a-f]{40}$/.test(selfSha)) throw new Error("Cleanup branch SHA unavailable");
+
+          console.log(`CLEANUP_DEFAULT_BRANCH=${defaultBranch}`);
+          console.log(`CLEANUP_DEFAULT_SHA=${defaultSha}`);
+          console.log("TARGET_PR_CLOSED=true");
+          console.log("TARGET_PR_MERGED=false");
+          console.log("TARGET_BRANCH_DELETED=true");
+          console.log("TARGET_BRANCH_ABSENCE_READBACK=PASS");
+          console.log("SELF_PR_CLOSED=true");
+          console.log(`SELF_BRANCH_SHA=${selfSha}`);
+
+          await request(`/git/refs/heads/${encodeBranch(selfBranch)}`, { method: "DELETE" });
+          NODE
