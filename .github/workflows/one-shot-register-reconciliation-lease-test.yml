@@ -24,6 +24,17 @@ jobs:
           ref: gpt/reconciliation-lease-control-surface-v2-20260730
           fetch-depth: 0
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
       - name: Register exact test command
         shell: bash
         run: |
