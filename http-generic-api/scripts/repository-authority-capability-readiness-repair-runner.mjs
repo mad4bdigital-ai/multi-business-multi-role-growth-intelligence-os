@@ -8,8 +8,8 @@ import { getPool } from "../db.js";
 import {
   capabilityEnvelopeError,
   resolveCapabilityExecutionEnvelope,
-  transitionCapabilityEnvelopeLifecycle,
 } from "../capabilityResolutionEnvelopeGuard.js";
+import { readDeploymentManifest } from "../deploymentManifest.js";
 import { splitMigrationSqlStatements } from "../migrationSqlStatements.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +23,7 @@ export const READINESS_REPAIR_CHECKSUM =
 export const READINESS_REPAIR_APPLY_CONFIRMATION =
   "APPLY_20260725_REPOSITORY_AUTHORITY_CAPABILITY_READINESS_REPAIR";
 export const READINESS_REPAIR_RUNNER_VERSION =
-  "repository-authority-capability-readiness-repair-runner-v1";
+  "repository-authority-capability-readiness-repair-runner-v2";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const CONNECTED_SYSTEM_TENANT_ID = "f2795a7f-8d06-4053-8bee-35ca9af8b460";
@@ -45,6 +45,11 @@ const CAPABILITY_BINDING_KEY =
   "growth_intelligence_platform.github.repository_main_moved_webhook.production";
 const POLICY_KEY = "github_repository_main_moved_webhook_provision_apply_v1";
 const LOCK_NAME = "migration:20260725:repository-authority-capability-readiness-repair";
+const PRODUCTION_BRANCH = "Production";
+const ENVELOPE_APP_KEY = "platform_orchestration";
+const ENVELOPE_CAPABILITY_KEY = "governed_migration_execute";
+const ENVELOPE_OPERATION_INTENT = "governed_migration_execute";
+const ENVELOPE_RUNTIME_SURFACE = "auth_host";
 const TARGET_TABLES = Object.freeze([
   "connected_systems",
   "repository_authority_bindings",
@@ -56,6 +61,7 @@ const TARGET_TABLES = Object.freeze([
 ]);
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 function runnerError(code, message, details = {}, status = 409) {
   const error = new Error(message);
@@ -65,22 +71,8 @@ function runnerError(code, message, details = {}, status = 409) {
   return error;
 }
 
-function parseJson(value, fallback = {}) {
-  if (value === null || value === undefined || value === "") return fallback;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(String(value));
-  } catch {
-    return fallback;
-  }
-}
-
 function sha256(value = "") {
   return createHash("sha256").update(String(value), "utf8").digest("hex");
-}
-
-function equalNullable(left, right) {
-  return (left ?? null) === (right ?? null);
 }
 
 function normalizeRows(result) {
@@ -88,10 +80,10 @@ function normalizeRows(result) {
 }
 
 function oneRow(rows, name, { allowMissing = false } = {}) {
-  if (rows.length > 1) {
+  if (!Array.isArray(rows) || rows.length > 1) {
     throw runnerError("readiness_repair_row_ambiguous", `${name} matched multiple rows.`, {
       row_kind: name,
-      row_count: rows.length,
+      row_count: Array.isArray(rows) ? rows.length : null,
     });
   }
   if (!allowMissing && rows.length !== 1) {
@@ -100,13 +92,40 @@ function oneRow(rows, name, { allowMissing = false } = {}) {
       row_count: rows.length,
     });
   }
-  const [onlyRow = null] = rows;
-  return onlyRow;
+  const [row = null] = rows;
+  return row;
+}
+
+function parseJsonObject(value) {
+  if (value === null || value === undefined || value === "") {
+    return { valid: true, value: {} };
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return { valid: true, value };
+  }
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? { valid: true, value: parsed }
+      : { valid: false, value: {} };
+  } catch {
+    return { valid: false, value: {} };
+  }
+}
+
+function boolNumber(value) {
+  return value === true || Number(value || 0) === 1;
+}
+
+function equalNullable(left, right) {
+  return (left ?? null) === (right ?? null);
 }
 
 function publicMetadata(value) {
-  const metadata = parseJson(value, {});
+  const parsed = parseJsonObject(value);
+  const metadata = parsed.value;
   return {
+    json_valid: parsed.valid,
     readiness_repair_migration: metadata.readiness_repair_migration || null,
     system_authority_source: metadata.system_authority_source || null,
     managed_system_key: metadata.managed_system_key || null,
@@ -189,7 +208,8 @@ function publicState(state = {}) {
           applied_at: state.ledger.applied_at,
         }
       : null,
-    collations: state.collations || [],
+    system_id_collision: Boolean(state.system_id_collision),
+    collations: Array.isArray(state.collations) ? state.collations : [],
   };
 }
 
@@ -197,11 +217,20 @@ async function queryRows(db, sql, params = []) {
   return normalizeRows(await db.query(sql, params));
 }
 
+export function detectConnectedSystemIdCollision({
+  system = null,
+  systemById = null,
+} = {}) {
+  if (system && String(system.system_id || "") !== CONNECTED_SYSTEM_ID) return true;
+  if (!systemById) return false;
+  if (String(systemById.tenant_id || "") !== CONNECTED_SYSTEM_TENANT_ID) return true;
+  if (String(systemById.system_key || "") !== CONNECTED_SYSTEM_KEY) return true;
+  return Boolean(system && String(systemById.system_id || "") !== String(system.system_id || ""));
+}
+
 async function readState(db, { forUpdate = false } = {}) {
   const lockSuffix = forUpdate ? " FOR UPDATE" : "";
-  // Keep reads sequential. A transaction-scoped mysql2 connection must never
-  // receive overlapping queries because that can reorder lock acquisition or
-  // fail with a connection-level command sequencing error.
+
   const systemRows = await queryRows(
     db,
     `SELECT system_id, tenant_id, system_key, display_name, provider_family, provider_domain,
@@ -264,7 +293,6 @@ async function readState(db, { forUpdate = false } = {}) {
       LIMIT 2${lockSuffix}`,
     [READINESS_REPAIR_MIGRATION, READINESS_REPAIR_CHECKSUM],
   );
-
   const collations = await queryRows(
     db,
     `SELECT table_name, column_name, collation_name
@@ -277,17 +305,10 @@ async function readState(db, { forUpdate = false } = {}) {
 
   const system = oneRow(systemRows, "connected_system", { allowMissing: true });
   const systemById = oneRow(systemIdRows, "connected_system_id", { allowMissing: true });
-  const systemIdCollision = Boolean(
-    systemById && (
-      systemById.tenant_id !== CONNECTED_SYSTEM_TENANT_ID
-      || systemById.system_key !== CONNECTED_SYSTEM_KEY
-      || (system && system.system_id !== systemById.system_id)
-    ),
-  );
 
   return {
     system,
-    system_id_collision: systemIdCollision,
+    system_id_collision: detectConnectedSystemIdCollision({ system, systemById }),
     authority: oneRow(authorityRows, "repository_authority_binding"),
     capability: oneRow(capabilityRows, "repository_capability_binding"),
     policy: oneRow(policyRows, "capability_policy"),
@@ -313,40 +334,31 @@ function stripLeadingSqlComments(statement = "") {
 
 export function assertReadinessRepairStatements(statements = []) {
   if (!Array.isArray(statements) || statements.length !== 3) {
-    throw runnerError("readiness_repair_statement_count_mismatch", "Readiness repair must contain exactly three statements.", {
-      statement_count: Array.isArray(statements) ? statements.length : null,
-    });
+    throw runnerError(
+      "readiness_repair_statement_count_mismatch",
+      "Readiness repair must contain exactly three statements.",
+      { statement_count: Array.isArray(statements) ? statements.length : null },
+    );
   }
   const unsafe = statements.filter(
     (statement) => !/^(?:INSERT|UPDATE)\b/i.test(stripLeadingSqlComments(statement)),
   );
   if (unsafe.length) {
-    throw runnerError("readiness_repair_non_transactional_statement_blocked", "Only transaction-safe INSERT and UPDATE statements are permitted.", {
-      unsafe_statement_count: unsafe.length,
-    });
+    throw runnerError(
+      "readiness_repair_non_transactional_statement_blocked",
+      "Only transaction-safe INSERT and UPDATE statements are permitted.",
+      { unsafe_statement_count: unsafe.length },
+    );
   }
   return true;
 }
 
-function metadataFlagsReady(value, expectedSourceKey, expectedSourceValue) {
-  const metadata = parseJson(value, {});
+function metadataFlagsReady(metadata, expectedSourceKey, expectedSourceValue) {
   return metadata[expectedSourceKey] === expectedSourceValue
     && metadata.provider_call_executed === false
     && metadata.external_write_executed === false
     && metadata.credential_payload_read === false
     && metadata.secrets_included === false;
-}
-
-function systemConfigReady(value) {
-  const config = parseJson(value, {});
-  return config.source === "migration:20260725_repository_authority_capability_readiness_repair"
-    && config.execution_readiness === "ready"
-    && config.authority_role === "repository_shared_platform_adapter"
-    && config.provider_transport === "http_generic_api"
-    && config.provider_call_executed === false
-    && config.external_write_executed === false
-    && config.credential_payload_read === false
-    && config.secrets_included === false;
 }
 
 export function assessReadinessRepairState(state = {}) {
@@ -356,19 +368,34 @@ export function assessReadinessRepairState(state = {}) {
   const capability = state.capability || null;
   const policy = state.policy || null;
   const authorization = state.authorization || null;
+  const systemConfig = parseJsonObject(system?.config_json);
+  const authorityMetadata = parseJsonObject(authority?.metadata_json);
+  const capabilityMetadata = parseJsonObject(capability?.metadata_json);
 
   if (!authority) blocking.push("authority_binding_missing");
   if (!capability) blocking.push("capability_binding_missing");
   if (!policy) blocking.push("policy_missing");
   if (!authorization) blocking.push("migration_authorization_missing");
+  if (system && !systemConfig.valid) blocking.push("connected_system_config_json_invalid");
+  if (authority && !authorityMetadata.valid) blocking.push("authority_metadata_json_invalid");
+  if (capability && !capabilityMetadata.valid) blocking.push("capability_metadata_json_invalid");
   if (authorization && authorization.authorization_status !== "authorized") {
     blocking.push("migration_authorization_not_authorized");
   }
   if (authorization && Number(authorization.allow_apply || 0) !== 1) {
     blocking.push("migration_apply_not_allowed");
   }
+  if (authorization && Number(authorization.requires_preflight || 0) !== 1) {
+    blocking.push("migration_preflight_requirement_missing");
+  }
+  if (authorization && Number(authorization.requires_confirmation || 0) !== 1) {
+    blocking.push("migration_confirmation_requirement_missing");
+  }
   if (policy && policy.status !== "active") blocking.push("policy_not_active");
-  if (policy && policy.runtime_surface !== "system_layer") blocking.push("policy_runtime_surface_mismatch");
+  if (policy && policy.runtime_surface !== "system_layer") {
+    blocking.push("policy_runtime_surface_mismatch");
+  }
+  if (policy && policy.app_key !== "github") blocking.push("policy_app_key_mismatch");
   if (authority && authority.system_binding_mode !== "shared_platform_adapter") {
     blocking.push("authority_binding_mode_mismatch");
   }
@@ -378,13 +405,6 @@ export function assessReadinessRepairState(state = {}) {
     blocking.push("system_id_collation_evidence_incomplete");
   }
   if (state.system_id_collision) blocking.push("connected_system_id_collision");
-  if (authorization && Number(authorization.requires_preflight || 0) !== 1) {
-    blocking.push("migration_preflight_requirement_missing");
-  }
-  if (authorization && Number(authorization.requires_confirmation || 0) !== 1) {
-    blocking.push("migration_confirmation_requirement_missing");
-  }
-  if (policy && policy.app_key !== "github") blocking.push("policy_app_key_mismatch");
   if (policy && capability && policy.capability_key !== capability.capability_key) {
     blocking.push("policy_capability_key_mismatch");
   }
@@ -392,6 +412,7 @@ export function assessReadinessRepairState(state = {}) {
     blocking.push("policy_operation_intent_mismatch");
   }
 
+  const config = systemConfig.value;
   const systemReady = Boolean(
     system
     && system.system_id === CONNECTED_SYSTEM_ID
@@ -400,39 +421,52 @@ export function assessReadinessRepairState(state = {}) {
         ? Number(system[key] || 0) === value
         : system[key] === value
     ))
-    && systemConfigReady(system.config_json)
+    && systemConfig.valid
+    && config.source === "migration:20260725_repository_authority_capability_readiness_repair"
+    && config.execution_readiness === "ready"
+    && config.authority_role === "repository_shared_platform_adapter"
+    && config.provider_transport === "http_generic_api"
+    && config.provider_call_executed === false
+    && config.external_write_executed === false
+    && config.credential_payload_read === false
+    && config.secrets_included === false
   );
+
   const authorityCoreReady = Boolean(
-    system && authority && equalNullable(authority.system_id, system.system_id) && authority.installation_id === null,
+    system && authority
+    && equalNullable(authority.system_id, system.system_id)
+    && authority.installation_id === null,
   );
   const authorityMetadataReady = Boolean(
-    authority && metadataFlagsReady(
-      authority.metadata_json,
+    authority
+    && authorityMetadata.valid
+    && metadataFlagsReady(
+      authorityMetadata.value,
       "readiness_repair_migration",
       "20260725_repository_authority_capability_readiness_repair",
     )
-    && parseJson(authority.metadata_json, {}).system_authority_source === "platform_managed_connected_system"
-    && parseJson(authority.metadata_json, {}).managed_system_key === CONNECTED_SYSTEM_KEY,
+    && authorityMetadata.value.system_authority_source === "platform_managed_connected_system"
+    && authorityMetadata.value.managed_system_key === CONNECTED_SYSTEM_KEY,
   );
   const capabilityCoreReady = Boolean(
     capability && policy && equalNullable(capability.policy_key, policy.policy_key),
   );
   const capabilityMetadataReady = Boolean(
-    capability && metadataFlagsReady(
-      capability.metadata_json,
+    capability
+    && capabilityMetadata.valid
+    && metadataFlagsReady(
+      capabilityMetadata.value,
       "readiness_repair_migration",
       "20260725_repository_authority_capability_readiness_repair",
     )
-    && parseJson(capability.metadata_json, {}).policy_authority_source === "capability_apply_authorization_policy_registry",
+    && capabilityMetadata.value.policy_authority_source
+      === "capability_apply_authorization_policy_registry",
   );
 
-  // The migration updates authority/capability metadata only when their core
-  // WHERE predicates match. Metadata-only drift is therefore not repairable by
-  // blindly rerunning this SQL and must fail closed.
-  if (authorityCoreReady && !authorityMetadataReady) {
+  if (authorityCoreReady && !authorityMetadataReady && authorityMetadata.valid) {
     blocking.push("authority_metadata_drift_not_repairable_by_current_sql");
   }
-  if (capabilityCoreReady && !capabilityMetadataReady) {
+  if (capabilityCoreReady && !capabilityMetadataReady && capabilityMetadata.valid) {
     blocking.push("capability_metadata_drift_not_repairable_by_current_sql");
   }
 
@@ -440,10 +474,14 @@ export function assessReadinessRepairState(state = {}) {
   const capabilityReady = capabilityCoreReady && capabilityMetadataReady;
   const targetSatisfied = systemReady && authorityReady && capabilityReady;
 
+  if (state.ledger && !targetSatisfied) {
+    blocking.push("matching_migration_ledger_state_drift");
+  }
+
   return {
     status: blocking.length ? "blocked" : targetSatisfied ? "already_satisfied" : "ready",
     recommended_action: blocking.length ? "diagnose" : targetSatisfied ? "record_only" : "apply",
-    blocking_reasons: blocking,
+    blocking_reasons: [...new Set(blocking)],
     target_satisfied: targetSatisfied,
     system_ready: systemReady,
     authority_ready: authorityReady,
@@ -459,30 +497,38 @@ export function assessReadinessRepairState(state = {}) {
 
 function assertApplyReady(state, assessment) {
   if (state.ledger) {
-    throw runnerError("readiness_repair_already_recorded", "A matching checksum is already present in the migration ledger.", {
-      ledger: publicState(state).ledger,
-    });
+    throw runnerError(
+      "readiness_repair_already_recorded",
+      "A matching checksum is already present in the migration ledger.",
+      { ledger: publicState(state).ledger },
+    );
   }
   if (assessment.status === "blocked") {
-    throw runnerError("readiness_repair_preflight_blocked", "Readiness repair preflight contains blocking gaps.", {
-      blocking_reasons: assessment.blocking_reasons,
-    });
+    throw runnerError(
+      "readiness_repair_preflight_blocked",
+      "Readiness repair preflight contains blocking gaps.",
+      { blocking_reasons: assessment.blocking_reasons },
+    );
   }
   if (assessment.status === "already_satisfied") {
-    throw runnerError("readiness_repair_record_only_required", "Target rows already satisfy the migration contract; do not reapply version increments.", {
-      recommended_action: "record_only",
-    });
+    throw runnerError(
+      "readiness_repair_record_only_required",
+      "Target rows already satisfy the migration contract; do not reapply version increments.",
+      { recommended_action: "record_only" },
+    );
   }
 }
 
 function verifyAfter(before, after) {
   const assessment = assessReadinessRepairState(after);
   if (assessment.status !== "already_satisfied") {
-    throw runnerError("readiness_repair_post_apply_state_invalid", "Post-apply rows do not satisfy the target contract.", {
-      assessment,
-      after: publicState(after),
-    });
+    throw runnerError(
+      "readiness_repair_post_apply_state_invalid",
+      "Post-apply rows do not satisfy the target contract.",
+      { assessment, after: publicState(after) },
+    );
   }
+
   const authorityChanged = Boolean(
     before.authority && (
       !equalNullable(before.authority.system_id, after.authority.system_id)
@@ -490,22 +536,232 @@ function verifyAfter(before, after) {
     ),
   );
   if (authorityChanged) {
-    if (Number(after.authority.authority_version || 0) <= Number(before.authority.authority_version || 0)) {
-      throw runnerError("readiness_repair_authority_version_not_incremented", "Authority version did not increment after authority change.");
+    if (Number(after.authority.authority_version || 0)
+      <= Number(before.authority.authority_version || 0)) {
+      throw runnerError(
+        "readiness_repair_authority_version_not_incremented",
+        "Authority version did not increment after authority change.",
+      );
     }
-    if (Number(after.authority.lock_version || 0) <= Number(before.authority.lock_version || 0)) {
-      throw runnerError("readiness_repair_authority_lock_version_not_incremented", "Authority lock version did not increment after authority change.");
+    if (Number(after.authority.lock_version || 0)
+      <= Number(before.authority.lock_version || 0)) {
+      throw runnerError(
+        "readiness_repair_authority_lock_version_not_incremented",
+        "Authority lock version did not increment after authority change.",
+      );
     }
   }
+
   if (before.capability && !equalNullable(before.capability.policy_key, after.capability.policy_key)) {
-    if (Number(after.capability.capability_version || 0) <= Number(before.capability.capability_version || 0)) {
-      throw runnerError("readiness_repair_capability_version_not_incremented", "Capability version did not increment after policy change.");
+    if (Number(after.capability.capability_version || 0)
+      <= Number(before.capability.capability_version || 0)) {
+      throw runnerError(
+        "readiness_repair_capability_version_not_incremented",
+        "Capability version did not increment after policy change.",
+      );
     }
-    if (Number(after.capability.lock_version || 0) <= Number(before.capability.lock_version || 0)) {
-      throw runnerError("readiness_repair_capability_lock_version_not_incremented", "Capability lock version did not increment after policy change.");
+    if (Number(after.capability.lock_version || 0)
+      <= Number(before.capability.lock_version || 0)) {
+      throw runnerError(
+        "readiness_repair_capability_lock_version_not_incremented",
+        "Capability lock version did not increment after policy change.",
+      );
     }
   }
   return assessment;
+}
+
+function migrationResourceUri() {
+  return `db-migration://growth_intelligence_platform/${READINESS_REPAIR_MIGRATION}`;
+}
+
+function migrationBindingSha() {
+  return sha256(JSON.stringify({
+    schema_version: "governed_migration_envelope_binding.v1",
+    app_key: ENVELOPE_APP_KEY,
+    capability_key: ENVELOPE_CAPABILITY_KEY,
+    operation_intent: ENVELOPE_OPERATION_INTENT,
+    resource_uri: migrationResourceUri(),
+    migration_file: READINESS_REPAIR_MIGRATION,
+    migration_checksum_sha256: READINESS_REPAIR_CHECKSUM,
+    statement_count: 3,
+  }));
+}
+
+function resolveProductionDeployment(env = process.env) {
+  const result = readDeploymentManifest(env);
+  if (!result?.ok) {
+    throw runnerError(
+      "readiness_repair_deployment_manifest_required",
+      "Readiness repair apply requires a readable deployment manifest.",
+      { error: result?.error || null },
+    );
+  }
+  const branch = String(result.manifest?.branch || "").trim();
+  const commitSha = String(result.manifest?.commit_sha || "").trim().toLowerCase();
+  if (branch !== PRODUCTION_BRANCH) {
+    throw runnerError(
+      "readiness_repair_production_branch_required",
+      "Readiness repair apply is permitted only from Production.",
+      { deployed_branch: branch || null, required_branch: PRODUCTION_BRANCH },
+    );
+  }
+  if (!COMMIT_SHA_PATTERN.test(commitSha)) {
+    throw runnerError(
+      "readiness_repair_deployed_commit_required",
+      "Deployment manifest must contain a full 40-character commit SHA.",
+      { deployed_commit_sha: commitSha || null },
+    );
+  }
+  return { branch, commit_sha: commitSha, source: result.manifest?.source || null };
+}
+
+export function assertEnvelopeFresh(row = {}, now = Date.now()) {
+  const expiresAt = new Date(row.expires_at || "").getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= Number(now)) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_expired",
+      "Capability envelope expired before atomic consumption.",
+      { envelope_id: row.envelope_id || null, expires_at: row.expires_at || null },
+      403,
+    );
+  }
+  if (row.envelope_status !== "ready_for_dispatch") {
+    throw runnerError(
+      "readiness_repair_capability_envelope_not_ready",
+      "Capability envelope is not ready for dispatch.",
+      { envelope_id: row.envelope_id || null, envelope_status: row.envelope_status || null },
+      403,
+    );
+  }
+  if (!["not_executed", "referenced"].includes(String(row.execution_status || "not_executed"))) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_already_consumed",
+      "Capability envelope was already consumed or cancelled.",
+      { envelope_id: row.envelope_id || null, execution_status: row.execution_status || null },
+      403,
+    );
+  }
+  if (!boolNumber(row.apply_allowed) || !boolNumber(row.dispatch_allowed)) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_not_allowed",
+      "Capability envelope no longer permits apply and dispatch.",
+      { envelope_id: row.envelope_id || null },
+      403,
+    );
+  }
+  return true;
+}
+
+async function lockEnvelope(db, envelopeId) {
+  const rows = await queryRows(
+    db,
+    `SELECT envelope_id, envelope_status, execution_status, dispatch_allowed, apply_allowed,
+            audit_required, readback_required, expires_at, secrets_included
+       FROM capability_resolution_envelope_ledger
+      WHERE envelope_id = ?
+      LIMIT 2
+      FOR UPDATE`,
+    [envelopeId],
+  );
+  const row = oneRow(rows, "capability_resolution_envelope");
+  if (boolNumber(row.secrets_included)) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_secret_boundary_failed",
+      "Capability envelope violates the secret boundary.",
+      { envelope_id: envelopeId },
+      403,
+    );
+  }
+  assertEnvelopeFresh(row);
+  return row;
+}
+
+async function resolveApplyEnvelope(db, envelopeId, env = process.env) {
+  const deployment = resolveProductionDeployment(env);
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: db,
+    envelopeId,
+    acceptedAppKeys: [ENVELOPE_APP_KEY],
+    acceptedCapabilityKeys: [ENVELOPE_CAPABILITY_KEY],
+    acceptedIntents: [ENVELOPE_OPERATION_INTENT],
+    expectedTenantId: PLATFORM_TENANT_ID,
+    expectedResourceUri: migrationResourceUri(),
+    expectedCommitSha: deployment.commit_sha,
+    expectedBindingSha256: migrationBindingSha(),
+    requireCommitHint: true,
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+    allowReferenced: true,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(
+      resolved,
+      "Readiness repair apply requires a checksum- and Production-commit-bound capability envelope.",
+    );
+  }
+  if (resolved.selected_runtime_surface !== ENVELOPE_RUNTIME_SURFACE) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_runtime_surface_mismatch",
+      "Capability envelope must use the governed auth-host runtime surface.",
+      { envelope_id: resolved.envelope_id, selected_runtime_surface: resolved.selected_runtime_surface },
+      403,
+    );
+  }
+  if (resolved.apply_allowed !== true || resolved.readback_required !== true
+      || resolved.audit_required !== true) {
+    throw runnerError(
+      "readiness_repair_capability_envelope_policy_mismatch",
+      "Capability envelope must permit apply and require audit plus readback.",
+      {
+        envelope_id: resolved.envelope_id,
+        apply_allowed: resolved.apply_allowed,
+        audit_required: resolved.audit_required,
+        readback_required: resolved.readback_required,
+      },
+      403,
+    );
+  }
+  return { ...resolved, deployment };
+}
+
+async function consumeEnvelopeAtomically(db, envelopeId, executionRef) {
+  const [result] = await db.query(
+    `UPDATE capability_resolution_envelope_ledger
+        SET execution_status = 'executed',
+            execution_ref = COALESCE(NULLIF(?, ''), execution_ref),
+            dispatch_allowed = 0,
+            apply_allowed = 0,
+            updated_at = NOW()
+      WHERE envelope_id = ?
+        AND envelope_status = 'ready_for_dispatch'
+        AND execution_status IN ('not_executed','referenced')
+        AND dispatch_allowed = 1
+        AND apply_allowed = 1
+        AND expires_at > NOW()`,
+    [String(executionRef || "").slice(0, 191), envelopeId],
+  );
+  if (Number(result?.affectedRows || 0) !== 1) {
+    const rows = await queryRows(
+      db,
+      `SELECT envelope_id, envelope_status, execution_status, dispatch_allowed, apply_allowed,
+              expires_at
+         FROM capability_resolution_envelope_ledger
+        WHERE envelope_id = ?
+        LIMIT 1`,
+      [envelopeId],
+    );
+    const [current = null] = rows;
+    throw runnerError(
+      "readiness_repair_capability_envelope_consume_blocked",
+      "Capability envelope could not be consumed before commit.",
+      { envelope_id: envelopeId, current },
+      403,
+    );
+  }
+  return { ok: true, envelope_id: envelopeId, consumed: true };
 }
 
 async function ledgerSupportsCapabilityEnvelope(db) {
@@ -517,8 +773,8 @@ async function ledgerSupportsCapabilityEnvelope(db) {
         AND table_name = 'governed_migration_ledger'
         AND column_name = 'capability_envelope_id'`,
   );
-  const [columnEvidence = null] = rows;
-  return Number(columnEvidence?.count || 0) === 1;
+  const [evidence = null] = rows;
+  return Number(evidence?.count || 0) === 1;
 }
 
 async function recordLedger(db, { results, before, after, capabilityEnvelopeId }) {
@@ -564,53 +820,23 @@ async function recordLedger(db, { results, before, after, capabilityEnvelopeId }
   return runId;
 }
 
-async function resolveApplyEnvelope(db, envelopeId) {
-  const resolved = await resolveCapabilityExecutionEnvelope({
-    pool: db,
-    envelopeId,
-    acceptedAppKeys: ["platform_orchestration"],
-    acceptedIntents: [
-      "governed_migration_execute",
-      "governed_migration_apply",
-      "migration_apply",
-      "governed_migration_runner",
-    ],
-    expectedTenantId: PLATFORM_TENANT_ID,
-    requireReadyForDispatch: true,
-    requireDispatchAllowed: true,
-    requireNoBlockingGaps: true,
-    requireNoSecrets: true,
-    allowReferenced: true,
-  });
-  if (!resolved.ok) {
-    throw capabilityEnvelopeError(resolved, "Readiness repair apply requires a ready platform_orchestration capability envelope.");
-  }
-  if (resolved.apply_allowed !== true) {
-    throw runnerError("readiness_repair_capability_envelope_apply_not_allowed", "Capability envelope does not permit apply.", {
-      envelope_id: resolved.envelope_id,
-    }, 403);
-  }
-  if (resolved.readback_required !== true) {
-    throw runnerError("readiness_repair_capability_envelope_readback_required", "Capability envelope must require readback.", {
-      envelope_id: resolved.envelope_id,
-    }, 403);
-  }
-  return resolved;
-}
-
 async function loadMigration() {
   const migrationPath = path.join(MIGRATION_DIR, READINESS_REPAIR_MIGRATION);
   const sql = await fs.readFile(migrationPath, "utf8");
   const checksum = sha256(sql);
   if (checksum !== READINESS_REPAIR_CHECKSUM) {
-    throw runnerError("readiness_repair_checksum_mismatch", "Deployed migration checksum differs from the approved checksum.", {
-      expected_checksum_sha256: READINESS_REPAIR_CHECKSUM,
-      actual_checksum_sha256: checksum,
-    });
+    throw runnerError(
+      "readiness_repair_checksum_mismatch",
+      "Deployed migration checksum differs from the approved checksum.",
+      {
+        expected_checksum_sha256: READINESS_REPAIR_CHECKSUM,
+        actual_checksum_sha256: checksum,
+      },
+    );
   }
   const statements = splitMigrationSqlStatements(sql);
   assertReadinessRepairStatements(statements);
-  return { sql, statements, checksum };
+  return { statements, checksum };
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -621,15 +847,22 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (value === "--apply") args.mode = "apply";
     else if (value === "--confirm") args.confirm = String(argv[++index] || "");
     else if (value.startsWith("--confirm=")) args.confirm = value.slice("--confirm=".length);
-    else if (value === "--capability-envelope-id") args.capabilityEnvelopeId = String(argv[++index] || "");
-    else if (value.startsWith("--capability-envelope-id=")) {
+    else if (value === "--capability-envelope-id") {
+      args.capabilityEnvelopeId = String(argv[++index] || "");
+    } else if (value.startsWith("--capability-envelope-id=")) {
       args.capabilityEnvelopeId = value.slice("--capability-envelope-id=".length);
     } else if (value === `--migration=${READINESS_REPAIR_MIGRATION}`) {
-      // Compatibility with governedMigrationExecutionTool runner arguments.
-    } else if (value === "--migration" && String(argv[index + 1] || "") === READINESS_REPAIR_MIGRATION) {
+      // Compatibility with governedMigrationExecutionTool arguments.
+    } else if (value === "--migration"
+      && String(argv[index + 1] || "") === READINESS_REPAIR_MIGRATION) {
       index += 1;
     } else {
-      throw runnerError("readiness_repair_argument_unsupported", `Unsupported argument: ${value}`, {}, 400);
+      throw runnerError(
+        "readiness_repair_argument_unsupported",
+        `Unsupported argument: ${value}`,
+        {},
+        400,
+      );
     }
   }
   return args;
@@ -659,11 +892,13 @@ async function runDryRun(pool, migration) {
 
 async function acquireLock(connection) {
   const rows = await queryRows(connection, "SELECT GET_LOCK(?, 15) AS acquired", [LOCK_NAME]);
-  const [lockEvidence = null] = rows;
-  if (Number(lockEvidence?.acquired || 0) !== 1) {
-    throw runnerError("readiness_repair_advisory_lock_unavailable", "Could not acquire the migration advisory lock.", {
-      advisory_lock: LOCK_NAME,
-    });
+  const [evidence = null] = rows;
+  if (Number(evidence?.acquired || 0) !== 1) {
+    throw runnerError(
+      "readiness_repair_advisory_lock_unavailable",
+      "Could not acquire the migration advisory lock.",
+      { advisory_lock: LOCK_NAME },
+    );
   }
 }
 
@@ -674,14 +909,21 @@ async function releaseLock(connection) {
   }
 }
 
-async function runApply(pool, migration, args) {
+async function runApply(pool, migration, args, env = process.env) {
   if (args.confirm !== READINESS_REPAIR_APPLY_CONFIRMATION) {
-    throw runnerError("readiness_repair_confirmation_required", `Apply requires --confirm=${READINESS_REPAIR_APPLY_CONFIRMATION}.`, {
-      required_confirmation: READINESS_REPAIR_APPLY_CONFIRMATION,
-    });
+    throw runnerError(
+      "readiness_repair_confirmation_required",
+      `Apply requires --confirm=${READINESS_REPAIR_APPLY_CONFIRMATION}.`,
+      { required_confirmation: READINESS_REPAIR_APPLY_CONFIRMATION },
+    );
   }
   if (!UUID_PATTERN.test(args.capabilityEnvelopeId)) {
-    throw runnerError("readiness_repair_capability_envelope_required", "Apply requires a valid capability envelope UUID.", {}, 403);
+    throw runnerError(
+      "readiness_repair_capability_envelope_required",
+      "Apply requires a valid capability envelope UUID.",
+      {},
+      403,
+    );
   }
 
   const connection = await pool.getConnection();
@@ -693,7 +935,8 @@ async function runApply(pool, migration, args) {
     await connection.beginTransaction();
     transactionStarted = true;
 
-    const envelope = await resolveApplyEnvelope(connection, args.capabilityEnvelopeId);
+    await lockEnvelope(connection, args.capabilityEnvelopeId);
+    const envelope = await resolveApplyEnvelope(connection, args.capabilityEnvelopeId, env);
     const before = await readState(connection, { forUpdate: true });
     const beforeAssessment = assessReadinessRepairState(before);
     assertApplyReady(before, beforeAssessment);
@@ -718,15 +961,11 @@ async function runApply(pool, migration, args) {
       capabilityEnvelopeId: envelope.envelope_id,
     });
 
-    const consumed = await transitionCapabilityEnvelopeLifecycle({
-      pool: connection,
-      envelopeId: envelope.envelope_id,
-      action: "consume",
-      executionRef: `governed_migration:${runId}`,
-    });
-    if (!consumed.ok) {
-      throw capabilityEnvelopeError(consumed, "Capability envelope could not be consumed atomically with the migration.");
-    }
+    const consumed = await consumeEnvelopeAtomically(
+      connection,
+      envelope.envelope_id,
+      `governed_migration:${runId}`,
+    );
 
     await connection.commit();
     committed = true;
@@ -734,14 +973,20 @@ async function runApply(pool, migration, args) {
 
     const postCommit = await readState(pool);
     const postCommitAssessment = assessReadinessRepairState(postCommit);
-    if (postCommitAssessment.status !== "already_satisfied" || postCommit.ledger?.run_id !== runId) {
-      throw runnerError("readiness_repair_post_commit_readback_failed", "Committed migration could not be verified by post-commit readback.", {
-        committed: true,
-        retry_allowed: false,
-        run_id: runId,
-        assessment: postCommitAssessment,
-        ledger: publicState(postCommit).ledger,
-      }, 502);
+    if (postCommitAssessment.status !== "already_satisfied"
+      || postCommit.ledger?.run_id !== runId) {
+      throw runnerError(
+        "readiness_repair_post_commit_readback_failed",
+        "Committed migration could not be verified by post-commit readback.",
+        {
+          committed: true,
+          retry_allowed: false,
+          run_id: runId,
+          assessment: postCommitAssessment,
+          ledger: publicState(postCommit).ledger,
+        },
+        502,
+      );
     }
 
     return {
@@ -762,15 +1007,13 @@ async function runApply(pool, migration, args) {
       after_schema_objects: TARGET_TABLES,
       before_state: publicState(before),
       after_state: publicState(postCommit),
+      deployment: envelope.deployment,
       ledger: {
         recorded: true,
         run_id: runId,
         capability_envelope_id: envelope.envelope_id,
       },
-      capability_envelope: {
-        envelope_id: envelope.envelope_id,
-        consumed: true,
-      },
+      capability_envelope: consumed,
       retry_without_readback_allowed: false,
       same_cycle_row_readback_verified: true,
       secrets_included: false,
@@ -802,7 +1045,7 @@ export async function runReadinessRepairMigration(args = parseArgs(), deps = {})
   const pool = deps.pool || getPool();
   const migration = await loadMigration();
   return args.mode === "apply"
-    ? runApply(pool, migration, args)
+    ? runApply(pool, migration, args, deps.env || process.env)
     : runDryRun(pool, migration);
 }
 
