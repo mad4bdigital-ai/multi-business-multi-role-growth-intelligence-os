@@ -20,6 +20,10 @@ const BOOTSTRAP_ROUTE_FILE = "routes/connectRoutes.js";
 const BOOTSTRAP_SERVICE_FILE = "tenantConnectBootstrapService.js";
 const BOOTSTRAP_TRANSACTION_FILE = "tenantConnectBootstrapTransaction.js";
 const BOOTSTRAP_TEST_FILE = "test-tenant-connect-bootstrap-transaction.mjs";
+const LEASE_ROUTE_FILE = "routes/repositoryAutomationRoutes.js";
+const LEASE_CONTROL_FILE = "repositoryReconciliationLeaseControl.js";
+const LEASE_SERVICE_FILE = "repositoryOperationLeaseService.js";
+const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 
 const RESOURCE_RECIPES = [
@@ -315,7 +319,7 @@ function evaluateBootstrapRecipe(context) {
   const serviceBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_SERVICE_FILE), "orchestrateTenantConnectBootstrap");
   const transactionBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_TRANSACTION_FILE), "executeTenantConnectBootstrapTransaction");
   const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
-  const connectionMutation = "INSERT INTO \\`tenant_backend_connections\\`";
+  const connectionMutation = "INSERT INTO \`tenant_backend_connections\`";
   const membershipReadback = "const [readbackMembershipRows]";
   const verifiedReadback = "verifyReadback({ membership, connection, tenantId })";
   const gates = [
@@ -327,7 +331,7 @@ function evaluateBootstrapRecipe(context) {
     evidenceGate("transaction_scope_present", transactionBlock.includes("getConnection") && transactionBlock.includes("beginTransaction"), "getConnection/beginTransaction"),
     evidenceGate("principal_concurrency_lock", transactionBlock.includes("FROM `users`") && transactionBlock.includes("FOR UPDATE"), "signed user FOR UPDATE"),
     evidenceGate("membership_preflight_in_transaction", transactionBlock.includes("activeWorkspaceOptions") && transactionBlock.includes("tenant_selection_required") && transactionBlock.includes("tenant_membership_required"), "membership selection gates"),
-    evidenceGate("workspace_mutation_present", transactionBlock.includes("INSERT INTO \\`tenants\\`") && transactionBlock.includes("INSERT INTO \\`memberships\\`"), "tenant/membership inserts"),
+    evidenceGate("workspace_mutation_present", transactionBlock.includes("INSERT INTO \`tenants\`") && transactionBlock.includes("INSERT INTO \`memberships\`"), "tenant/membership inserts"),
     evidenceGate("managed_connection_mutation_present", transactionBlock.includes(connectionMutation), connectionMutation),
     evidenceGate("integration_policy_uses_transaction", transactionBlock.includes("upsertIntegrationPolicies") && transactionBlock.includes("db: transaction"), "upsertIntegrationPolicies/db: transaction"),
     evidenceGate("transactional_readback_follows_mutation", ordered(transactionBlock, connectionMutation, membershipReadback) && ordered(transactionBlock, membershipReadback, verifiedReadback), "membership/connection readback after mutation"),
@@ -340,6 +344,65 @@ function evaluateBootstrapRecipe(context) {
     recipe,
     gates,
     evidenceFiles: [BOOTSTRAP_ROUTE_FILE, BOOTSTRAP_SERVICE_FILE, BOOTSTRAP_TRANSACTION_FILE, BOOTSTRAP_TEST_FILE],
+  };
+}
+
+function evaluateLeaseRecipe(context) {
+  const recipe = {
+    recipe_id: "repository-reconciliation-lease-control-v1",
+    rule_id: "generated-repository-reconciliation-lease-control-governance",
+    operation: "POST /admin/repository-automation/reconciliation-lease",
+    source_file: LEASE_ROUTE_FILE,
+    owner: "repository-automation",
+    rationale: "Acquires, renews, or releases one repository reconciliation lease only after Admin authentication, exact resource and fingerprint capability-envelope binding, apply authorization, and typed confirmation; each durable mutation is verified inside the same SQL transaction before commit and rolls back on mutation or readback failure.",
+    preflight_mode: "capability_envelope_resource_and_fingerprint_binding",
+    approval_mode: "runtime_authorization_and_typed_confirmation",
+    parameter_bindings: {
+      action: "request.body.action",
+      capability_envelope_id: "request.body.capability_envelope_id",
+      repository_owner: "request.body.owner|request.body.repository_owner",
+      repository_name: "request.body.repo|request.body.repository_name",
+      branch_name: "request.body.branch|request.body.branch_name",
+      expected_base_sha: "request.body.expected_base_sha",
+      expected_branch_sha: "request.body.expected_branch_sha",
+      lease_id: "response.lease.lease_id",
+      resource_fingerprint: "response.lease.resource_fingerprint",
+    },
+  };
+  const route = context.leaseRoutes.get(recipe.operation);
+  const controlSource = context.sourceByFile.get(LEASE_CONTROL_FILE);
+  const runBlock = extractFunctionBlock(controlSource, "runRepositoryReconciliationLeaseControl");
+  const envelopeBlock = extractFunctionBlock(controlSource, "requireCapabilityEnvelope");
+  const leaseSource = context.sourceByFile.get(LEASE_SERVICE_FILE);
+  const acquireBlock = extractFunctionBlock(leaseSource, "acquireRepositoryOperationLease");
+  const renewBlock = extractFunctionBlock(leaseSource, "renewRepositoryOperationLease");
+  const releaseBlock = extractFunctionBlock(leaseSource, "releaseRepositoryOperationLease");
+  const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
+  const transactionalBlocks = [acquireBlock, renewBlock, releaseBlock];
+  const gates = [
+    evidenceGate("route_present", route, LEASE_ROUTE_FILE),
+    evidenceGate("admin_guard", route?.route_guards?.includes("requireAdminPrincipal") && route?.route_guards?.includes("requireBackendApiKey"), "requireAdminPrincipal/requireBackendApiKey"),
+    evidenceGate("route_service_binding", route?.declaration?.includes("runRepositoryReconciliationLeaseControl"), "runRepositoryReconciliationLeaseControl"),
+    evidenceGate("control_function_present", runBlock, "runRepositoryReconciliationLeaseControl"),
+    evidenceGate("defense_in_depth_admin_check", runBlock.includes("assertAdminCaller"), "assertAdminCaller"),
+    evidenceGate("typed_confirmation", runBlock.includes("assertTypedConfirmation"), "assertTypedConfirmation"),
+    evidenceGate("force_bypass_rejected", controlSource.includes("assertNoForceFlags") && controlSource.includes("repository_reconciliation_lease_control_force_forbidden"), "assertNoForceFlags/force_forbidden"),
+    evidenceGate("capability_envelope_exact_binding", envelopeBlock.includes("resolveCapabilityExecutionEnvelope") && envelopeBlock.includes("expectedResourceUri") && envelopeBlock.includes("expectedBindingSha256"), "expectedResourceUri/expectedBindingSha256"),
+    evidenceGate("capability_envelope_apply_authorization", envelopeBlock.includes("resolved.apply_allowed !== true"), "apply_allowed"),
+    evidenceGate("lease_specific_intent", envelopeBlock.includes("repository_reconciliation_lease_control") && !envelopeBlock.includes('"repo_mutation"'), "lease-specific intent/no generic repo_mutation"),
+    evidenceGate("envelope_reference_before_service_dispatch", ordered(envelopeBlock, "markCapabilityEnvelopeReferenced", "return resolved") && ordered(runBlock, "await requireCapabilityEnvelope", "await leaseDependencies"), "envelope reference before lease service dispatch"),
+    evidenceGate("all_actions_dispatched", runBlock.includes("acquireRepositoryOperationLease") && runBlock.includes("renewRepositoryOperationLease") && runBlock.includes("releaseRepositoryOperationLease"), "acquire/renew/release dispatch"),
+    evidenceGate("transaction_scope_all_actions", transactionalBlocks.every((block) => block.includes("getConnection") && block.includes("beginTransaction") && block.includes("connection.commit")), "getConnection/beginTransaction/commit"),
+    evidenceGate("transaction_rollback_all_actions", transactionalBlocks.every((block) => block.includes("connection.rollback") && block.includes("connection.release")), "rollback/release"),
+    evidenceGate("acquire_transactional_readback", (ordered(acquireBlock, "INSERT INTO repository_operation_leases", "const created = await readLeaseById") || ordered(acquireBlock, "UPDATE repository_operation_leases", "const renewed = await readLeaseById")) && acquireBlock.includes("repository_operation_lease_readback_failed"), "acquire/reuse readback before commit"),
+    evidenceGate("renew_transactional_readback", ordered(renewBlock, "UPDATE repository_operation_leases", "const renewed = await readLeaseById"), "renew readback before commit"),
+    evidenceGate("release_transactional_readback", ordered(releaseBlock, "UPDATE repository_operation_leases", "const released = await readLeaseById") && releaseBlock.includes('released.status !== "released"'), "release readback before commit"),
+    evidenceGate("registered_operation_test", claimedTests.includes(LEASE_TEST_FILE), LEASE_TEST_FILE),
+  ];
+  return {
+    recipe,
+    gates,
+    evidenceFiles: [LEASE_ROUTE_FILE, LEASE_CONTROL_FILE, LEASE_SERVICE_FILE, LEASE_TEST_FILE],
   };
 }
 
@@ -360,6 +423,10 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     BOOTSTRAP_SERVICE_FILE,
     BOOTSTRAP_TRANSACTION_FILE,
     BOOTSTRAP_TEST_FILE,
+    LEASE_ROUTE_FILE,
+    LEASE_CONTROL_FILE,
+    LEASE_SERVICE_FILE,
+    LEASE_TEST_FILE,
   ]);
   const sourceByFile = new Map(evidenceFiles.map((file) => [file, readText(apiRoot, file)]));
   const context = {
@@ -368,11 +435,13 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
     resourceRoutes: routeRegistry(sourceByFile.get(RESOURCE_ROUTE_FILE), RESOURCE_ROUTE_FILE),
     canaryRoutes: routeRegistry(sourceByFile.get(CANARY_ROUTE_FILE), CANARY_ROUTE_FILE),
     bootstrapRoutes: routeRegistry(sourceByFile.get(BOOTSTRAP_ROUTE_FILE), BOOTSTRAP_ROUTE_FILE),
+    leaseRoutes: routeRegistry(sourceByFile.get(LEASE_ROUTE_FILE), LEASE_ROUTE_FILE),
   };
   const evaluations = [
     ...RESOURCE_RECIPES.map((recipe) => evaluateResourceRecipe(recipe, context)),
     evaluateCanaryRecipe(context),
     evaluateBootstrapRecipe(context),
+    evaluateLeaseRecipe(context),
   ];
   const operationRules = [];
   const rejectedCandidates = [];
