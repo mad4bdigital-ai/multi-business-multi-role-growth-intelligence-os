@@ -1,0 +1,57 @@
+{
+  "spec_key": "011-tenant-gpt-effective-capability-envelope",
+  "title": "Tenant GPT Effective Capability Envelope and Context-Aware Questionnaires",
+  "status": "specification_implementation_started",
+  "created_at": "2026-07-21",
+  "delivery_mode": "multi_pr",
+  "branch": "gpt/011-tenant-gpt-effective-capability-envelope",
+  "source_ticket": "0314ec00-6ca0-4f4d-af4a-7532f85c4a7c",
+  "dependencies": [
+    "001-capability-security-hardening",
+    "001-resource-api-coverage",
+    "002-resource-surface-policy-governance",
+    "006-adaptive-authorization-execution-governance",
+    "006-platform-dynamic-workflow-runtime",
+    "007-dynamic-capability-governance",
+    "009-platform-request-execution-hardening"
+  ],
+  "architecture": {
+    "authority": "existing_governance_and_resource_authority_only",
+    "intent": "natural_language_discovery_not_authority",
+    "projection": "tenant_safe_effective_capability_envelope",
+    "readiness": "multi_dimensional_freshness_bound_vector",
+    "questionnaire": "verified_schema_driven_with_evidence_classes",
+    "recommendation": "live_state_contradiction_checked",
+    "execution": "operation_orchestrator_only",
+    "verification": "capability_specific_same_cycle_readback",
+    "support": "operation_linked_retry_continuity"
+  },
+  "initial_pilots": [
+    "brand_resource_discovery",
+    "wordpress_content_schema_discovery",
+    "analytics_source_freshness",
+    "crm_schema_discovery",
+    "workflow_inspection",
+    "healthy_device_reinstall_suppression",
+    "brand_scoped_grant_preview",
+    "wordpress_draft_preview"
+  ],
+  "invariants": [
+    "questionnaire_option_never_grants_authority",
+    "exact_resource_and_connection_binding_before_execution",
+    "metadata_only_or_invalid_credentials_never_operation_ready",
+    "brand_scope_never_silently_widens_to_workspace",
+    "tenant_projection_excludes_internal_and_cross_tenant_details",
+    "mutation_requires_preview_idempotency_approval_and_readback",
+    "unknown_provider_outcome_forbids_blind_retry",
+    "healthy_existing_device_suppresses_reinstall_recommendation",
+    "live_evidence_overrides_indexed_evidence",
+    "no_global_cutover"
+  ],
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed_in_specification_pr": false,
+  "device_action_allowed_in_specification_pr": false,
+  "migration_apply_allowed_in_specification_pr": false,
+  "production_deploy_allowed_in_specification_pr": false,
+  "sensitive_values_included": false
+}

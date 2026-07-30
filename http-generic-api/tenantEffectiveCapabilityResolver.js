@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
+import { resolveExactResourceConnection } from "./tenantResourceConnectionResolver.js";
 
 const READ_OPERATIONS = new Set(["read", "list", "inspect", "preview", "status", "search"]);
 const MUTATION_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit"]);
@@ -795,11 +796,67 @@ export async function tenantEffectiveCapabilityReadinessSmoke(_args = {}, { pool
 }
 
 export async function tenantEffectiveCapabilityPreview(args = {}, context = {}) {
-  return resolveTenantEffectiveCapability(args, context);
+  const first = await resolveTenantEffectiveCapability(args, context);
+  if (!first?.ok || !first.capability?.requires_connection) return first;
+
+  const pool = context.pool || getPool();
+  const binding = await resolveExactResourceConnection({
+    tenantId: first.principal?.tenant_id,
+    userId: first.principal?.user_id,
+    workspaceId: first.workspace?.workspace_id,
+    appKey: first.binding?.app_key,
+    resourceRef: args.resource_ref || first.decision_input?.resource?.requested_ref,
+    requestedConnectionId: args.connection_id || "",
+  }, { pool });
+
+  if (!binding.ok) {
+    return {
+      ...first,
+      ok: false,
+      status: binding.status,
+      ready: false,
+      error: binding.error,
+      resource_binding: binding,
+      checks: {
+        ...first.checks,
+        connection_resource_binding_ready: false,
+      },
+      secrets_included: false,
+    };
+  }
+
+  let resolved = first;
+  if (binding.selected_connection_id !== first.connection?.connection_id) {
+    resolved = await resolveTenantEffectiveCapability({
+      ...args,
+      connection_id: binding.selected_connection_id,
+    }, context);
+  }
+  return {
+    ...resolved,
+    resource_binding: binding,
+    connection: resolved.connection ? {
+      ...resolved.connection,
+      resource_binding_verified: true,
+      resource_binding_source: binding.selection_reason,
+    } : null,
+    checks: {
+      ...resolved.checks,
+      connection_resource_binding_ready: true,
+    },
+    obligations: {
+      ...resolved.obligations,
+      obligations: [...new Set([
+        ...(resolved.obligations?.obligations || []),
+        "exact_resource_connection_binding_required",
+      ])],
+    },
+    secrets_included: false,
+  };
 }
 
 export async function tenantCapabilityShadowCompare(args = {}, { auth = {}, pool = getPool() } = {}) {
-  const resolved = await resolveTenantEffectiveCapability(args, { auth, pool });
+  const resolved = await tenantEffectiveCapabilityPreview(args, { auth, pool });
   if (!resolved.ok) return resolved;
   const legacyDecision = safeText(args.legacy_decision, 96) || null;
   const differenceClass = !legacyDecision ? "legacy_decision_not_supplied" : normalize(legacyDecision) === normalize(resolved.status) ? "matched" : "different";
