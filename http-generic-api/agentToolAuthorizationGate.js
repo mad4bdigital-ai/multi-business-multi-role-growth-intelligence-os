@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolveUserBrandSkillEntitlement } from "./userBrandSkillEntitlement.js";
 
 const CONSEQUENCE_PATTERN = /(?:^|[._-])(write|create|insert|update|delete|remove|apply|execute|dispatch|send|publish|deploy|restart|stop|start|install|uninstall|trigger|mutate|mutation|shell|control|approve|revoke|rollback|migrate|sync)(?:$|[._-])/i;
 const READ_ONLY_PATTERN = /(?:^|[._-])(read|get|list|search|inspect|status|preview|diagnostic|health|lookup|resolve|validate|verify|dry[_-]?run|plan)(?:$|[._-])/i;
@@ -193,6 +194,21 @@ export async function authorizeAgentToolCall({
   }));
   if (classification.consequential && skill.required && !skill.granted) blockers.push(skill.reason || "required_agent_skill_grant_missing");
 
+  const userBrandSkillGrant = await resolveUserBrandSkillEntitlement(db, skill, context, {
+    toolName,
+    args,
+    action,
+  }).catch(() => ({
+    configured: context.enforce_brand_skill_entitlement === true,
+    granted: context.enforce_brand_skill_entitlement !== true,
+    grant_id: null,
+    operation: null,
+    reason: "user_brand_skill_grant_resolution_failed",
+  }));
+  if (classification.consequential && userBrandSkillGrant.configured && !userBrandSkillGrant.granted) {
+    blockers.push(userBrandSkillGrant.reason || "user_brand_skill_grant_missing");
+  }
+
   const appGrant = await resolveAppActionGrant(db, action?.action_key, context).catch(() => ({
     configured: true,
     granted: false,
@@ -214,6 +230,13 @@ export async function authorizeAgentToolCall({
       alternatives: requiredSkills,
       granted: skill.granted,
       matched_skill_key: skill.matched_skill_key || null,
+    },
+    user_brand_skill_grant: {
+      configured: userBrandSkillGrant.configured,
+      granted: userBrandSkillGrant.granted,
+      grant_id: userBrandSkillGrant.grant_id || null,
+      operation: userBrandSkillGrant.operation || null,
+      reason: userBrandSkillGrant.reason || null,
     },
     app_action_grant: {
       configured: appGrant.configured,
