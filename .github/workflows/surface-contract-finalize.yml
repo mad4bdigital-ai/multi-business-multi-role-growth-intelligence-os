@@ -55,14 +55,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Remove redundant textual precheck from temporary applicator
+      - name: Adapt temporary applicator to current Surface source
         shell: bash
         run: |
           set -euo pipefail
           python3 <<'PY'
           from pathlib import Path
+
           path = Path('http-generic-api/scripts/apply-surface-contract-classification-phase-a.py')
-          lines = path.read_text(encoding='utf-8').splitlines()
+          source = path.read_text(encoding='utf-8')
+
+          lines = source.splitlines()
           output = []
           removed = 0
           for line in lines:
@@ -75,7 +78,30 @@ jobs:
               output.append(line)
           if removed != 1:
               raise SystemExit(f'surface_behavior_precheck_count:{removed}')
-          path.write_text('\n'.join(output) + '\n', encoding='utf-8')
+          source = '\n'.join(output) + '\n'
+
+          old_call_block = '''    call_marker = "const documentation = docsCoverageFor(fileName, docsByPath);"
+              if call_marker not in script:
+                  raise SystemExit("docs_coverage_call_marker_missing")
+              script = script.replace(call_marker, "const documentation = docsCoverageFor(fileName, docsByPath, source);", 1)
+          '''
+          new_call_block = '''    call_replacements = [
+                  ("const documentation = docsCoverageFor(fileName, docsByPath);", "const documentation = docsCoverageFor(fileName, docsByPath, source);"),
+                  ("const docs = docsCoverageFor(name, docsByPath);", "const docs = docsCoverageFor(name, docsByPath, source);"),
+              ]
+              matched_call = False
+              for old_call, new_call in call_replacements:
+                  if old_call in script:
+                      script = script.replace(old_call, new_call, 1)
+                      matched_call = True
+                      break
+              if not matched_call and not any(new_call in script for _, new_call in call_replacements):
+                  raise SystemExit("docs_coverage_call_marker_missing")
+          '''
+          if old_call_block not in source:
+              raise SystemExit('docs_coverage_applicator_block_missing')
+          source = source.replace(old_call_block, new_call_block, 1)
+          path.write_text(source, encoding='utf-8')
           PY
 
       - name: Apply reviewed Surface Phase A applicator
