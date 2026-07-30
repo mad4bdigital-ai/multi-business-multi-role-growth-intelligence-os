@@ -1,4 +1,4 @@
-name: Dispatch Production Candidate 120aa1e9
+name: Dispatch Production Candidate f9c8260a
 
 on:
   pull_request:
@@ -26,11 +26,11 @@ jobs:
           gh workflow run production-promotion-candidate.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
-            -f expected_main_sha=120aa1e94da37faa5665c357cfdb0afa7b8f0c47 \
-            -f expected_production_sha=9d75a5e13cbe674448e4f52a341c5b9615f1e2d0 \
-            -f release_branch=release/production-candidate-120aa1e9-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-120aa1e9 \
-            -f validation_base_branch=gpt/validate-production-base-120aa1e9 \
+            -f expected_main_sha=f9c8260aec57cf0955d65eb149d732714b837ef8 \
+            -f expected_production_sha=fbcf77ae19738fcbd31211e874bfa315da83294e \
+            -f release_branch=release/production-candidate-f9c8260a-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-f9c8260a \
+            -f validation_base_branch=gpt/validate-production-base-f9c8260a \
             -f create_pull_requests=true
 
           RUN_ID=""
