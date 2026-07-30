@@ -8,7 +8,9 @@
   "primary_artifact": "execution-capsule-runtime-addendum.md",
   "implementation_artifacts": [
     "ec0-execution-capsule-contract.md",
-    "ec0-execution-capsule-contract.manifest.json"
+    "ec0-execution-capsule-contract.manifest.json",
+    "ec1-execution-capsule-shadow-adapter.md",
+    "ec1-execution-capsule-shadow-adapter.manifest.json"
   ],
   "requirement_range": {
     "prefix": "FR-EC",
@@ -38,8 +40,8 @@
     "EC5_rollout_and_duplicate_resolver_retirement"
   ],
   "slice_status": {
-    "EC0_contract_and_tests": "in_progress",
-    "EC1_shadow_adapter": "not_started",
+    "EC0_contract_and_tests": "complete",
+    "EC1_shadow_adapter": "in_progress",
     "EC2_selected_read_pilot": "not_started",
     "EC3_unified_dispatch_integration": "not_started",
     "EC4_mutation_validation_pilot": "not_started",
