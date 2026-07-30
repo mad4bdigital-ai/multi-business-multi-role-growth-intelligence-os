@@ -1,0 +1,13 @@
+name: Reconcile PR 3182 (superseded)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  superseded:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Superseded after main moved; no repository mutation is permitted from this workflow."
