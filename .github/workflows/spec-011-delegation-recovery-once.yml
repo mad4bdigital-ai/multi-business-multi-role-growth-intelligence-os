@@ -1,0 +1,79 @@
+name: Spec 011 Delegation Recovery Once
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  recover:
+    if: github.head_ref == 'gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730
+          fetch-depth: 0
+
+      - name: Import bounded implementation files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_BRANCH='gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730'
+          git fetch origin "${SOURCE_BRANCH}"
+          git checkout "origin/${SOURCE_BRANCH}" -- \
+            .github/workflows/spec-011-delegation-mariadb-certification.yml \
+            http-generic-api/delegationGrantLifecycleShadowService.js \
+            http-generic-api/delegationGrantMariaDbReadinessCollector.js \
+            http-generic-api/delegationGrantMariaDbRepository.js \
+            http-generic-api/delegationGrantMariaDbRuntimeBinding.js \
+            http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs \
+            http-generic-api/scripts/delegation-mariadb-production-cycle.mjs \
+            http-generic-api/scripts/test-manifest.mjs \
+            http-generic-api/test-delegation-grant-mariadb-readiness-collector.mjs \
+            http-generic-api/test-delegation-grant-mariadb-runtime-binding.mjs \
+            specs/011-durable-governed-execution-and-agent-delegation/phase3-delegation-mariadb-certification-runtime-binding.md
+
+      - name: Regenerate canonical frontend evidence
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Validate focused delegation contracts
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          node --check delegationGrantMariaDbRepository.js
+          node --check delegationGrantMariaDbReadinessCollector.js
+          node --check delegationGrantMariaDbRuntimeBinding.js
+          node --check scripts/delegation-mariadb-disposable-certification.mjs
+          node --check scripts/delegation-mariadb-production-cycle.mjs
+          node test-delegation-grant-lifecycle-shadow.mjs
+          node test-delegation-grant-repository-mutation.mjs
+          node test-delegation-grant-mariadb-adapter-contract.mjs
+          node test-delegation-grant-mariadb-readiness-collector.mjs
+          node test-delegation-grant-mariadb-runtime-binding.mjs
+
+      - name: Commit recovered implementation and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/spec-011-delegation-recovery-once.yml
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --check
+          git commit -m "feat(spec-011): recover delegation MariaDB certification on latest main"
+          git push origin HEAD:gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730
