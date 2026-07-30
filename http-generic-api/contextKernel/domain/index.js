@@ -37,6 +37,11 @@ export {
 } from "./executionCapsule.js";
 
 export {
+  RESOURCE_GRAPH_LIMITS,
+  evaluateBoundedResourceGraph,
+} from "./resourceGraphPolicy.js";
+
+export {
   SUPPORT_DELEGATION_MODES,
   createSupportDelegationEvidence,
   evaluateSupportDelegation,
