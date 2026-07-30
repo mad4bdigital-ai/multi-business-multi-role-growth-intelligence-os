@@ -8,7 +8,7 @@ const execFile = promisify(execFileCallback);
 const TRANSPORT_STATE = Symbol("managed_git_remote_transport_state");
 const SAFE_WORKER_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,190}$/;
 const REPOSITORY_PART = /^[A-Za-z0-9_.-]{1,100}$/;
-const SAFE_BRANCH = /^(?!\/)(?!.*(?:\.\.|@\{|\/\/|[\u0000-\u0020\u007f~^:?*\[\\]))(?!.*(?:\/|\.|\.lock)$).{1,255}$/;
+const SAFE_BRANCH = /^(?!-)(?!\/)(?!.*(?:\.\.|@\{|\/\/|[\u0000-\u0020\u007f~^:?*\[\\]))(?!.*(?:\/|\.|\.lock)$).{1,255}$/;
 const SAFE_SHA = /^[a-f0-9]{40}$/;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_BUFFER_BYTES = 2 * 1024 * 1024;
@@ -59,11 +59,11 @@ function normalizeSha(value, field = "expected_head_sha") {
 }
 
 function normalizeWorkspacePath(value) {
-  const workspacePath = resolve(text(value, "workspace_path", { max: 4096 }));
-  if (!isAbsolute(workspacePath)) {
+  const rawPath = text(value, "workspace_path", { max: 4096 });
+  if (!isAbsolute(rawPath)) {
     fail("MANAGED_GIT_REMOTE_WORKSPACE_INVALID", "workspace_path must be absolute.", 500);
   }
-  return workspacePath;
+  return resolve(rawPath);
 }
 
 function canonicalRemoteUrl(owner, repo) {
