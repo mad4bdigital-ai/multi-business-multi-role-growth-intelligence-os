@@ -32,15 +32,19 @@ export function classifyCiGuardWorkflowOutcome({
     };
   }
 
-  const candidates = (Array.isArray(workflowRuns) ? workflowRuns : [])
+  const supersedingRun = (Array.isArray(workflowRuns) ? workflowRuns : [])
     .filter((candidate) => String(candidate?.id ?? "") !== currentRunId)
     .filter((candidate) => numericRunNumber(candidate?.run_number) > currentRunNumber)
     .filter((candidate) => sameOptionalIdentity(candidate?.workflow_id, currentRun?.workflow_id))
     .filter((candidate) => sameOptionalIdentity(candidate?.event, currentRun?.event))
     .filter((candidate) => sameOptionalIdentity(candidate?.head_branch, currentRun?.head_branch))
-    .sort((left, right) => numericRunNumber(right?.run_number) - numericRunNumber(left?.run_number));
+    .reduce((selected, candidate) => {
+      if (!selected) return candidate;
+      return numericRunNumber(candidate?.run_number) > numericRunNumber(selected?.run_number)
+        ? candidate
+        : selected;
+    }, null);
 
-  const supersedingRun = candidates[0] || null;
   return supersedingRun
     ? {
         classification: SUPERSEDED_CLASSIFICATION,
