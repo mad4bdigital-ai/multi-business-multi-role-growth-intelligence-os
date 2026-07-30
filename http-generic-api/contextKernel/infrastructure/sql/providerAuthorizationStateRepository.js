@@ -6,6 +6,35 @@ import {
   requireUniqueRow,
 } from "./sqlRepositorySupport.js";
 
+const ISSUE_AUTHORIZATION_STATE_SQL = `
+  INSERT INTO provider_authorization_states (
+    state_ref,
+    flow_type,
+    provider_key,
+    principal_ref,
+    user_id,
+    tenant_id,
+    workspace_id,
+    brand_id,
+    owner_scope_type,
+    owner_scope_ref,
+    target_connection_id,
+    expected_connection_revision,
+    expected_provider_account_ref,
+    expected_provider_account_binding_hash,
+    requested_provider_scopes_json,
+    redirect_target_ref,
+    nonce_hash,
+    state_signature_hash,
+    signature_version,
+    state_revision,
+    claim_revision,
+    status,
+    issued_at,
+    expires_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'issued', ?, ?)
+`;
+
 const AUTHORIZATION_STATE_SQL = `
   SELECT
     state_ref,
@@ -43,7 +72,7 @@ const AUTHORIZATION_STATE_SQL = `
   LIMIT 2
 `;
 
-const CLAIM_STATE_SQL = `
+const CLAIM_AUTHORIZATION_STATE_SQL = `
   UPDATE provider_authorization_states
   SET status = 'claimed',
       claimed_at = UTC_TIMESTAMP(),
@@ -55,6 +84,19 @@ const CLAIM_STATE_SQL = `
     AND state_ref = ?
     AND status = 'issued'
     AND state_revision = ?
+    AND nonce_hash = ?
+    AND state_signature_hash = ?
+    AND signature_version = ?
+    AND provider_key = ?
+    AND principal_ref = ?
+    AND workspace_id = ?
+    AND (brand_id <=> ?)
+    AND owner_scope_type = ?
+    AND owner_scope_ref = ?
+    AND (target_connection_id <=> ?)
+    AND (expected_connection_revision <=> ?)
+    AND (expected_provider_account_ref <=> ?)
+    AND (expected_provider_account_binding_hash <=> ?)
     AND claim_token_hash IS NULL
     AND consumed_at IS NULL
     AND expires_at > UTC_TIMESTAMP()
@@ -145,15 +187,47 @@ const CONSUME_STATE_SQL = `
     AND claim_token_hash = ?
 `;
 
+const FLOW_TYPES = new Set(["authorize", "reconnect"]);
+const OWNER_SCOPE_TYPES = new Set(["personal_workspace", "company_workspace", "brand"]);
+
 function repositoryError(code, message, details = {}, status = 409) {
   const error = new Error(message);
+  error.name = "ProviderAuthorizationStateRepositoryError";
   error.code = code;
   error.status = status;
   error.details = { ...details };
   return error;
 }
 
-function cleanRevision(value, fieldName) {
+function activeMethod(executor) {
+  if (typeof executor?.execute === "function") return executor.execute.bind(executor);
+  if (typeof executor?.query === "function") return executor.query.bind(executor);
+  throw new TypeError("Provider authorization state SQL executor is invalid.");
+}
+
+async function executeRaw(executor, statement, params = []) {
+  return activeMethod(executor)(statement, params);
+}
+
+async function queryRows(executor, statement, params = []) {
+  const result = await executeRaw(executor, statement, params);
+  if (!Array.isArray(result)) return [];
+  return Array.isArray(result[0]) ? result[0] : [];
+}
+
+async function mutate(executor, statement, params = []) {
+  const result = await executeRaw(executor, statement, params);
+  if (!Array.isArray(result)) return result || {};
+  return result[0] || {};
+}
+
+function affectedRows(result) {
+  const count = Number(result?.affectedRows ?? result?.rowCount ?? 0);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function cleanRevision(value, fieldName, { nullable = false } = {}) {
+  if (nullable && (value == null || value === "")) return null;
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new TypeError(`${fieldName} must be a non-negative safe integer.`);
@@ -161,12 +235,25 @@ function cleanRevision(value, fieldName) {
   return parsed;
 }
 
-function cleanSha256(value, fieldName) {
+function cleanSha256(value, fieldName, { nullable = false } = {}) {
+  if (nullable && (value == null || value === "")) return null;
   const normalized = cleanRequired(value, fieldName).toLowerCase();
   if (!/^[a-f0-9]{64}$/.test(normalized)) {
     throw new TypeError(`${fieldName} must be a 64-character hexadecimal SHA-256 value.`);
   }
   return normalized;
+}
+
+function cleanTimestamp(value, fieldName) {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new TypeError(`${fieldName} must be a valid date.`);
+  return date;
+}
+
+function cleanScopes(value) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) throw new TypeError("requestedProviderScopes must be an array.");
+  return [...new Set(value.map((scope) => cleanRequired(scope, "requestedProviderScopes[]")))].sort();
 }
 
 function mapAuthorizationState(row) {
@@ -205,31 +292,78 @@ function mapAuthorizationState(row) {
   });
 }
 
-function activeMethod(executor) {
-  if (typeof executor?.execute === "function") return executor.execute.bind(executor);
-  if (typeof executor?.query === "function") return executor.query.bind(executor);
-  throw new TypeError("Provider authorization state SQL executor is invalid.");
-}
-
-async function executeRaw(executor, statement, params = []) {
-  return activeMethod(executor)(statement, params);
-}
-
-async function queryRows(executor, statement, params = []) {
-  const result = await executeRaw(executor, statement, params);
-  if (!Array.isArray(result)) return [];
-  return Array.isArray(result[0]) ? result[0] : [];
-}
-
-async function mutate(executor, statement, params = []) {
-  const result = await executeRaw(executor, statement, params);
-  if (!Array.isArray(result)) return result || {};
-  return result[0] || {};
-}
-
-function affectedRows(result) {
-  const count = Number(result?.affectedRows ?? result?.rowCount ?? 0);
-  return Number.isFinite(count) ? count : 0;
+function normalizeAuthorizationContext(input = {}, { requireTimestamps = false } = {}) {
+  const flowType = cleanRequired(input.flowType, "flowType");
+  if (!FLOW_TYPES.has(flowType)) throw new TypeError("flowType must be authorize or reconnect.");
+  const ownerScopeType = cleanRequired(input.ownerScopeType, "ownerScopeType");
+  if (!OWNER_SCOPE_TYPES.has(ownerScopeType)) {
+    throw new TypeError("ownerScopeType must be personal_workspace, company_workspace, or brand.");
+  }
+  const targetConnectionRef = cleanOptional(input.targetConnectionRef);
+  const expectedConnectionRevision = cleanRevision(
+    input.expectedConnectionRevision,
+    "expectedConnectionRevision",
+    { nullable: true },
+  );
+  const expectedProviderAccountRef = cleanOptional(input.expectedProviderAccountRef);
+  const expectedProviderAccountBindingHash = cleanSha256(
+    input.expectedProviderAccountBindingHash,
+    "expectedProviderAccountBindingHash",
+    { nullable: true },
+  );
+  if (flowType === "authorize") {
+    if (targetConnectionRef || expectedConnectionRevision != null || expectedProviderAccountRef || expectedProviderAccountBindingHash) {
+      throw repositoryError(
+        "oauth_state_context_invalid",
+        "Authorize flow cannot carry reconnect target or provider-account bindings.",
+        {},
+        422,
+      );
+    }
+  } else if (
+    !targetConnectionRef
+    || expectedConnectionRevision == null
+    || (!expectedProviderAccountRef && !expectedProviderAccountBindingHash)
+  ) {
+    throw repositoryError(
+      "oauth_state_context_invalid",
+      "Reconnect flow requires target connection, expected revision, and provider-account binding.",
+      {},
+      422,
+    );
+  }
+  let issuedAt = null;
+  let expiresAt = null;
+  if (requireTimestamps) {
+    issuedAt = cleanTimestamp(input.issuedAt, "issuedAt");
+    expiresAt = cleanTimestamp(input.expiresAt, "expiresAt");
+    if (expiresAt.getTime() <= issuedAt.getTime()) {
+      throw repositoryError("oauth_state_expiry_invalid", "expiresAt must be later than issuedAt.", {}, 422);
+    }
+  }
+  return Object.freeze({
+    stateRef: cleanRequired(input.stateRef, "stateRef"),
+    flowType,
+    providerKey: cleanRequired(input.providerKey, "providerKey"),
+    principalRef: cleanRequired(input.principalRef, "principalRef"),
+    userRef: cleanOptional(input.userRef),
+    tenantRef: cleanRequired(input.tenantRef, "tenantRef"),
+    workspaceRef: cleanRequired(input.workspaceRef, "workspaceRef"),
+    brandRef: cleanOptional(input.brandRef),
+    ownerScopeType,
+    ownerScopeRef: cleanRequired(input.ownerScopeRef, "ownerScopeRef"),
+    targetConnectionRef,
+    expectedConnectionRevision,
+    expectedProviderAccountRef,
+    expectedProviderAccountBindingHash,
+    requestedProviderScopes: cleanScopes(input.requestedProviderScopes),
+    redirectTargetRef: cleanRequired(input.redirectTargetRef, "redirectTargetRef"),
+    nonceHash: cleanSha256(input.nonceHash, "nonceHash"),
+    stateSignatureHash: cleanSha256(input.stateSignatureHash, "stateSignatureHash"),
+    signatureVersion: cleanRequired(input.signatureVersion, "signatureVersion"),
+    issuedAt,
+    expiresAt,
+  });
 }
 
 function providerBindingMatches({ expectedRef, expectedHash, actualRef, actualHash }) {
@@ -295,37 +429,114 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
     return row ? mapAuthorizationState(row) : null;
   }
 
-  async function claimAuthorizationState({
-    tenantRef,
-    stateRef,
-    expectedStateRevision,
-    claimTokenHash,
-  }) {
-    const tenant = cleanRequired(tenantRef, "tenantRef");
-    const state = cleanRequired(stateRef, "stateRef");
-    const stateRevision = cleanRevision(expectedStateRevision, "expectedStateRevision");
-    const verifier = cleanSha256(claimTokenHash, "claimTokenHash");
-    const executor = await activePool();
-    const result = await mutate(executor, CLAIM_STATE_SQL, [verifier, tenant, state, stateRevision]);
+  async function issueAuthorizationState(input) {
+    const normalized = normalizeAuthorizationContext(input, { requireTimestamps: true });
+    try {
+      const result = await mutate(await activePool(), ISSUE_AUTHORIZATION_STATE_SQL, [
+        normalized.stateRef,
+        normalized.flowType,
+        normalized.providerKey,
+        normalized.principalRef,
+        normalized.userRef,
+        normalized.tenantRef,
+        normalized.workspaceRef,
+        normalized.brandRef,
+        normalized.ownerScopeType,
+        normalized.ownerScopeRef,
+        normalized.targetConnectionRef,
+        normalized.expectedConnectionRevision,
+        normalized.expectedProviderAccountRef,
+        normalized.expectedProviderAccountBindingHash,
+        JSON.stringify(normalized.requestedProviderScopes),
+        normalized.redirectTargetRef,
+        normalized.nonceHash,
+        normalized.stateSignatureHash,
+        normalized.signatureVersion,
+        normalized.issuedAt,
+        normalized.expiresAt,
+      ]);
+      if (affectedRows(result) !== 1) {
+        throw repositoryError(
+          "oauth_state_issue_conflict",
+          "Provider authorization state was not inserted exactly once.",
+          { tenant_ref: normalized.tenantRef, state_ref: normalized.stateRef },
+        );
+      }
+    } catch (error) {
+      if (error?.code === "ER_DUP_ENTRY") {
+        throw repositoryError(
+          "oauth_state_nonce_conflict",
+          "Provider authorization state or nonce already exists.",
+          { tenant_ref: normalized.tenantRef, state_ref: normalized.stateRef },
+        );
+      }
+      throw error;
+    }
+    const issued = await findAuthorizationState({
+      tenantRef: normalized.tenantRef,
+      stateRef: normalized.stateRef,
+    });
+    if (!issued || issued.status !== "issued" || issued.stateRevision !== 1) {
+      throw repositoryError(
+        "oauth_state_issue_readback_failed",
+        "Issued provider authorization state failed same-cycle readback.",
+        { tenant_ref: normalized.tenantRef, state_ref: normalized.stateRef },
+        500,
+      );
+    }
+    return issued;
+  }
+
+  async function claimAuthorizationState(input = {}) {
+    const normalized = normalizeAuthorizationContext(input);
+    const expectedStateRevision = cleanRevision(input.expectedStateRevision, "expectedStateRevision");
+    const claimTokenHash = cleanSha256(input.claimTokenHash, "claimTokenHash");
+    const result = await mutate(await activePool(), CLAIM_AUTHORIZATION_STATE_SQL, [
+      claimTokenHash,
+      normalized.tenantRef,
+      normalized.stateRef,
+      expectedStateRevision,
+      normalized.nonceHash,
+      normalized.stateSignatureHash,
+      normalized.signatureVersion,
+      normalized.providerKey,
+      normalized.principalRef,
+      normalized.workspaceRef,
+      normalized.brandRef,
+      normalized.ownerScopeType,
+      normalized.ownerScopeRef,
+      normalized.targetConnectionRef,
+      normalized.expectedConnectionRevision,
+      normalized.expectedProviderAccountRef,
+      normalized.expectedProviderAccountBindingHash,
+    ]);
     if (affectedRows(result) !== 1) {
       throw repositoryError(
         "oauth_state_claim_conflict",
-        "OAuth authorization state could not be claimed atomically.",
-        { tenant_ref: tenant, state_ref: state, expected_state_revision: stateRevision },
+        "Provider authorization state could not be claimed atomically with the signed context.",
+        {
+          tenant_ref: normalized.tenantRef,
+          state_ref: normalized.stateRef,
+          expected_state_revision: expectedStateRevision,
+        },
       );
     }
-    const claimed = await findAuthorizationState({ tenantRef: tenant, stateRef: state });
+    const claimed = await findAuthorizationState({
+      tenantRef: normalized.tenantRef,
+      stateRef: normalized.stateRef,
+    });
     if (
       !claimed
       || claimed.status !== "claimed"
-      || !claimed.claimedAt
+      || claimed.stateRevision !== expectedStateRevision + 1
       || claimed.claimRevision <= 0
+      || !claimed.claimedAt
       || !claimed.claimVerifierPersisted
     ) {
       throw repositoryError(
         "oauth_state_claim_readback_failed",
-        "Claimed OAuth authorization state failed same-cycle verifier readback.",
-        { tenant_ref: tenant, state_ref: state },
+        "Claimed provider authorization state failed same-cycle verifier readback.",
+        { tenant_ref: normalized.tenantRef, state_ref: normalized.stateRef },
         500,
       );
     }
@@ -348,10 +559,7 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
     const state = cleanRequired(stateRef, "stateRef");
     const stateRevision = cleanRevision(expectedStateRevision, "expectedStateRevision");
     const claim = cleanRevision(claimRevision, "claimRevision");
-    const connectionRevision = cleanRevision(
-      expectedConnectionRevision,
-      "expectedConnectionRevision",
-    );
+    const connectionRevision = cleanRevision(expectedConnectionRevision, "expectedConnectionRevision");
     const verifier = cleanSha256(claimTokenHash, "claimTokenHash");
     const accountRef = cleanOptional(providerAccountRef);
     const accountHash = providerAccountBindingHash == null
@@ -576,6 +784,7 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
   }
 
   return Object.freeze({
+    issueAuthorizationState,
     findAuthorizationState,
     claimAuthorizationState,
     completeClaimedAuthorization,
@@ -583,15 +792,18 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
 }
 
 export const _testingProviderAuthorizationStateRepository = Object.freeze({
+  ISSUE_AUTHORIZATION_STATE_SQL,
   AUTHORIZATION_STATE_SQL,
-  CLAIM_STATE_SQL,
+  CLAIM_AUTHORIZATION_STATE_SQL,
   LOCK_CLAIMED_STATE_SQL,
   LOCK_CONNECTION_OWNERSHIP_SQL,
   UPDATE_CONNECTION_OWNERSHIP_SQL,
   CONSUME_STATE_SQL,
   affectedRows,
   assertCredentialMutationStatement,
+  cleanScopes,
   mapAuthorizationState,
+  normalizeAuthorizationContext,
   providerBindingMatches,
   validateLockedOwnershipContext,
 });
