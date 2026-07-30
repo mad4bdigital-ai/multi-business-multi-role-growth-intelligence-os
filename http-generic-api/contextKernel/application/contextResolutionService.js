@@ -186,6 +186,32 @@ export function createContextResolutionService({
       });
     }
 
+    const capability = input.capabilityKey
+      ? await capabilityReadinessRepository.findCapabilityReadiness({ capabilityKey: input.capabilityKey })
+      : null;
+    const safeCapability = capabilitySummary(capability);
+    const preProviderCandidates = ensureUniqueCandidateReferences(candidates);
+    if (input.capabilityKey && !capability) {
+      return blockedResolution("capability_readiness_not_found", {
+        candidates: preProviderCandidates,
+        authority,
+      });
+    }
+    if (safeCapability?.hardBlockCount > 0) {
+      return blockedResolution("capability_hard_blocked", {
+        candidates: preProviderCandidates,
+        authority,
+        capability: safeCapability,
+      });
+    }
+    if (safeCapability && !safeCapability.dispatchAllowed) {
+      return blockedResolution("capability_dispatch_not_allowed", {
+        candidates: preProviderCandidates,
+        authority,
+        capability: safeCapability,
+      });
+    }
+
     const explicitConnectionRef = input.connectionRef || null;
     const requestedWorkspaceRef = input.workspaceRef || effectiveSubject?.workspaceRef || null;
     const connectionRef = explicitConnectionRef || (pin && requestedWorkspaceRef ? pin.stableRef : null);
@@ -202,30 +228,6 @@ export function createContextResolutionService({
     }
 
     const authorizedCandidates = ensureUniqueCandidateReferences(candidates);
-    const capability = input.capabilityKey
-      ? await capabilityReadinessRepository.findCapabilityReadiness({ capabilityKey: input.capabilityKey })
-      : null;
-    const safeCapability = capabilitySummary(capability);
-    if (input.capabilityKey && !capability) {
-      return blockedResolution("capability_readiness_not_found", {
-        candidates: authorizedCandidates,
-        authority,
-      });
-    }
-    if (safeCapability?.hardBlockCount > 0) {
-      return blockedResolution("capability_hard_blocked", {
-        candidates: authorizedCandidates,
-        authority,
-        capability: safeCapability,
-      });
-    }
-    if (safeCapability && !safeCapability.dispatchAllowed) {
-      return blockedResolution("capability_dispatch_not_allowed", {
-        candidates: authorizedCandidates,
-        authority,
-        capability: safeCapability,
-      });
-    }
 
     let currentContextRevision = input.currentContextRevision || null;
     if (pin && !currentContextRevision) {
