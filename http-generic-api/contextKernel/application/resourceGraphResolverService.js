@@ -5,6 +5,7 @@ import {
   freezeApplicationValue,
   requireApplicationObject,
   requireApplicationString,
+  sanitizeApplicationValue,
 } from "./applicationSupport.js";
 
 function fail(code, message, status = 403, details = {}) {
@@ -127,8 +128,9 @@ export function createResourceGraphResolverService({ boundedResourceGraphReposit
       );
     }
 
+    const sanitizedSnapshot = sanitizeApplicationValue(snapshot);
     const decision = evaluateBoundedResourceGraph({
-      snapshot,
+      snapshot: sanitizedSnapshot,
       tenantRef,
       workspaceRef,
       rootNodeRef,
