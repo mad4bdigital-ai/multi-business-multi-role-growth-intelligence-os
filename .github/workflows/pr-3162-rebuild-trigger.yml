@@ -1,26 +1,30 @@
 name: Trigger PR 3162 rebuild
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - gpt/pr-3162-rebuild-main-20260730-v2
     paths:
-      - .github/workflows/pr-3162-rebuild-main.yml
       - .github/workflows/pr-3162-rebuild-trigger.yml
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   run-bounded-rebuild:
-    if: github.head_ref == 'gpt/pr-3162-rebuild-main-20260730-v2'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: gpt/pr-3162-rebuild-main-20260730-v2
           fetch-depth: 0
+      - name: Publish run start
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 3295 --repo "${{ github.repository }}" --body "Bounded rebuild started in workflow run ${GITHUB_RUN_ID} for head ${GITHUB_SHA}."
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,18 +35,21 @@ jobs:
       - name: Execute bounded rebuild steps
         shell: bash
         run: |
+          if grep -q 'profile: "backend_local_manager"' http-generic-api/scripts/frontend-surface-dispatch.mjs; then
+            echo "PR 3162 rebuild already applied."
+            exit 0
+          fi
           node <<'NODE'
           const fs = require('node:fs');
           const { spawnSync } = require('node:child_process');
           const YAML = require('./http-generic-api/node_modules/yaml');
           const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
           const steps = workflow.jobs.rebuild.steps;
-          const selectedNames = [
+          for (const name of [
             'Apply bounded reconciliation patch',
             'Generate and validate frontend surface evidence',
             'Commit bounded reconciliation result',
-          ];
-          for (const name of selectedNames) {
+          ]) {
             const step = steps.find((entry) => entry.name === name);
             if (!step || typeof step.run !== 'string') {
               throw new Error(`Missing bounded workflow step: ${name}`);
@@ -55,3 +62,9 @@ jobs:
             if (result.status !== 0) process.exit(result.status || 1);
           }
           NODE
+      - name: Publish run completion
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 3295 --repo "${{ github.repository }}" --body "Bounded rebuild completed successfully in workflow run ${GITHUB_RUN_ID}."
