@@ -14,6 +14,7 @@ on:
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
+      - "http-generic-api/scripts/repo-maintenance-sync.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
@@ -58,6 +59,20 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Verify generator entrypoints
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          required=(
+            scripts/openapi-autofill-missing-routes.mjs
+            scripts/frontend-operation-governance-generator.mjs
+            scripts/frontend-surface-dispatch.mjs
+            scripts/generate-custom-gpt-schemas.mjs
+          )
+          for entrypoint in "${required[@]}"; do
+            test -f "$entrypoint" || { echo "::error file=$entrypoint::Required generated-artifact entrypoint is missing"; exit 1; }
+          done
+
       - name: Generate bounded artifacts
         working-directory: http-generic-api
         run: |
@@ -69,6 +84,7 @@ jobs:
       - name: Verify generated contracts before commit
         working-directory: http-generic-api
         run: |
+          node test-openapi-autofill-missing-routes.mjs
           node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
