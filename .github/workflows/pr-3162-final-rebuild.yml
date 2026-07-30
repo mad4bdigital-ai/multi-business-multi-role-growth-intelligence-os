@@ -133,3 +133,5 @@ jobs:
             http-generic-api/test-frontend-surface-dispatch.mjs
           git commit -m "fix: rebuild PR 3162 auth parity on current main"
           git push origin HEAD:gpt/pr-3162-final-current-main-20260730
+
+# Native GitHub merge trigger for the one-shot final rebuild.
