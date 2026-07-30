@@ -1,0 +1,21 @@
+{
+  "schema_version": "spec011.production_promotion_candidate.v2",
+  "ok": true,
+  "main_sha": "5b35701bab7c557b61e988303958717c55a13ac8",
+  "production_sha": "fbcf77ae19738fcbd31211e874bfa315da83294e",
+  "candidate_sha": "7fbeda850c717549d587d8d782e9c2b2e04287a3",
+  "candidate_tree": "823e2fe485a0226f68b9e0089b182253f18d423f",
+  "required_fix_sha": "ae93d1557bf259a1272333951f27852c271aa4ab",
+  "release_branch": "release/spec011-production-candidate-ae93d155-20260730",
+  "validation_branch": "gpt/validate-production-candidate-spec011-ae93d155-20260730",
+  "validation_base_branch": "gpt/validate-production-base-spec011-ae93d155-20260730",
+  "tree_policy": "exact_main_tree",
+  "protected_refs_pinned_at_runner_start": true,
+  "same_cycle_ref_readback": true,
+  "merge_executed": false,
+  "deployment_executed": false,
+  "migration_executed": false,
+  "provider_call_executed": false,
+  "credential_payload_read": false,
+  "secrets_included": false
+}
