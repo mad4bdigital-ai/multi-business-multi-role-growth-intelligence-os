@@ -240,7 +240,7 @@ async function revalidateSubjectScope({ effectiveSubject, authorizedScopeReposit
   let workspaceEvidence = null;
   if (effectiveSubject.workspaceRef) {
     const workspace = findWorkspace(scope.workspaces, effectiveSubject.workspaceRef);
-    const workspaceStatus = workspace?.status || "active";
+    const workspaceStatus = workspace?.status || null;
     if (!workspace || workspaceStatus !== "active") {
       fail(
         "subject_workspace_not_authorized",
@@ -404,7 +404,7 @@ export function createSubjectScopeDelegationResolverService({
       }
       effectiveSubject = createEffectiveSubject(authoritativeSubject);
     } else {
-      if (subjectScope.delegationAllowed === false) {
+      if (subjectScope.delegationAllowed !== true) {
         fail(
           "subject_delegation_not_allowed",
           "The authoritative subject scope does not permit delegation.",
