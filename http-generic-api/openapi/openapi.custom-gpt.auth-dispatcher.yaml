@@ -430,6 +430,232 @@ paths:
                       properties: {}
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /system/tools/catalog-observability:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: getSystemToolCatalogObservability
+      x-openai-isConsequential: false
+      summary: Read System Tool Catalog V2 observability and descriptor parity
+      description: Returns bounded no-secret Catalog V2 counters and descriptor/runtime handler parity evidence. Admin/service authentication is required.
+      responses:
+        "200":
+          description: Catalog observability and parity evidence.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - counters
+                  - observed_at
+                  - descriptor_parity
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  counters:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      minimum: 0
+                    properties: {}
+                  observed_at:
+                    type: string
+                    format: date-time
+                  descriptor_parity:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Catalog observability failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /system/tools/{toolName}:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: getSystemToolDescriptor
+      x-openai-isConsequential: false
+      summary: Read one visible System Layer tool descriptor
+      description: Resolves one stable tool name against the principal-scoped Catalog V2 projection. A hidden tool is indistinguishable from an absent tool.
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 191
+      responses:
+        "200":
+          description: Visible System Layer descriptor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - tool
+                  - catalog_version
+                  - snapshot_id
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  tool:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  catalog_version:
+                    type: string
+                    pattern: ^[a-f0-9]{64}$
+                  snapshot_id:
+                    type: string
+                    pattern: ^[a-f0-9]{64}$
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Tool is absent or not visible to this principal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Catalog lookup failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /system/capabilities/resolve:
+    post:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: resolveSystemToolCapability
+      x-openai-isConsequential: false
+      summary: Resolve intent or a stable selector against visible System Layer tools
+      description: Read-only discovery over the principal-scoped Catalog V2 projection. The response never grants execution authority and routes a unique match to capability preview.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                intent:
+                  type: string
+                  maxLength: 4000
+                tool_name:
+                  type: string
+                  maxLength: 191
+                capability_key:
+                  type: string
+                  maxLength: 191
+                max_candidates:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  default: 10
+              anyOf:
+                - required:
+                    - intent
+                - required:
+                    - tool_name
+                - required:
+                    - capability_key
+      responses:
+        "200":
+          description: Read-only capability discovery result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - status
+                  - candidates
+                  - execution_allowed
+                  - next_step
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  status:
+                    type: string
+                    enum:
+                      - resolved
+                      - clarification_required
+                      - not_found
+                  candidates:
+                    type: array
+                    maxItems: 200
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+                  selected_tool:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  execution_allowed:
+                    type: boolean
+                    enum:
+                      - false
+                  next_step:
+                    type: string
+                    enum:
+                      - capability_preview
+                      - clarification_required
+                      - not_found
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          description: Intent or selector is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Capability discovery failed unexpectedly.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /system/tools/call:
     post:
       tags:
