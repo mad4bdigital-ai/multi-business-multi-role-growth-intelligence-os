@@ -26,6 +26,11 @@ export {
 } from "./contextIntegrity.js";
 
 export {
+  ENDPOINT_CERTIFICATION_LIMITS,
+  evaluateEndpointCertificationDecision,
+} from "./endpointCertificationDecision.js";
+
+export {
   EXECUTION_CAPSULE_SCHEMA_VERSION,
   ExecutionCapsuleDependencyDomains,
   ExecutionCapsuleProjectionModes,
@@ -35,6 +40,11 @@ export {
   createExecutionCapsuleDependencyVector,
   projectExecutionCapsule,
 } from "./executionCapsule.js";
+
+export {
+  POLICY_GRANT_LIMITS,
+  evaluatePolicyGrantDecision,
+} from "./policyGrantDecision.js";
 
 export {
   RESOURCE_GRAPH_LIMITS,

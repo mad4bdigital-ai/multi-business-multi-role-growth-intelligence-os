@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 
 const REQUIRED_COLLATION = "utf8mb4_uca1400_ai_ci";
+const GENERIC_REQUIRED_COLLATION = REQUIRED_COLLATION.replace(/^utf8mb4_/, "");
 const TARGET_OBJECTS = Object.freeze([
   "brand_skill_policies",
   "user_brand_skill_grants",
@@ -66,16 +67,22 @@ export async function assessBrandSkillMigrationPreflight({
   try {
     const collation = firstRow(await run(
       "required_collation",
-      "SELECT COLLATION_NAME FROM information_schema.COLLATIONS WHERE COLLATION_NAME = ? LIMIT 1",
-      [REQUIRED_COLLATION],
+      "SELECT COLLATION_NAME FROM information_schema.COLLATIONS WHERE COLLATION_NAME IN (?, ?) LIMIT 1",
+      [REQUIRED_COLLATION, GENERIC_REQUIRED_COLLATION],
     ));
+    const observedCollation = String(collation?.COLLATION_NAME || "");
+    const available = observedCollation === REQUIRED_COLLATION || observedCollation === GENERIC_REQUIRED_COLLATION;
     checks.push(check(
       "required_collation",
-      collation?.COLLATION_NAME === REQUIRED_COLLATION ? "pass" : "fail",
-      collation?.COLLATION_NAME === REQUIRED_COLLATION
-        ? `${REQUIRED_COLLATION} is available.`
+      available ? "pass" : "fail",
+      available
+        ? `${REQUIRED_COLLATION} is available through its MariaDB UCA 14 collation family.`
         : `${REQUIRED_COLLATION} is unavailable.`,
-      { required_collation: REQUIRED_COLLATION },
+      {
+        required_collation: REQUIRED_COLLATION,
+        generic_collation_name: GENERIC_REQUIRED_COLLATION,
+        observed_collation: observedCollation || null,
+      },
     ));
   } catch (error) {
     checks.push(check("required_collation", "fail", "Required collation could not be inspected.", { code: error?.code || null }));
@@ -241,6 +248,7 @@ export async function assessBrandSkillMigrationPreflight({
 
 export const _testingBrandSkillMigrationPreflight = {
   REQUIRED_COLLATION,
+  GENERIC_REQUIRED_COLLATION,
   TARGET_OBJECTS,
   BASELINE_OBJECTS,
   BASELINE_VIEW_COLUMNS,

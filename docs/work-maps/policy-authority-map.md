@@ -261,7 +261,7 @@ flowchart TD
 | `release_readiness_orchestration_gate_policy_v1` | 1 |
 | `repo_conflict_policy_v1` | 1 |
 | `repository_close_superseded_positive_smoke_policy_v1` | 1 |
-| `repository_main_moved_trigger_policy_v1` | 1 |
+| `repository_main_moved_trigger_policy_v1` | 2 |
 | `resource_authority_policy_v1` | 2 |
 | `resource_reference_interpretation_policy_v1` | 1 |
 | `runtime_agent_loop_policy_v1` | 1 |

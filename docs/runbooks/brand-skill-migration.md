@@ -55,10 +55,85 @@ sha256sum http-generic-api/migrations/20260728_brand_scoped_user_skill_activatio
 
 Also verify the governed SQL parser reports exactly three statements. The approval must expire if the commit SHA, checksum, statement count, target environment, or preflight evidence changes.
 
+## Automated certification
+
+Workflow:
+
+```text
+.github/workflows/brand-skill-mariadb-certification.yml
+```
+
+Every matching pull request runs `disposable-mariadb-certification` against a MariaDB 11.4 service container. This job may apply the migration only to that disposable CI database. It validates:
+
+- static preflight status and exactly three SQL statements;
+- live compatibility preflight before migration apply;
+- creation of the three target objects;
+- `suspended` lifecycle support;
+- stored, delimiter-safe active-scope hashing;
+- unique active-scope index presence;
+- empty policy/grant/effective state immediately after schema creation;
+- two scopes that collide under raw delimiter concatenation remain distinct under the HEX-based hash;
+- suspended grants receive no active-scope hash;
+- the effective view returns active grants only;
+- fixture data is rolled back and the database returns to empty state.
+
+The uploaded artifact is:
+
+```text
+brand-skill-mariadb-certification
+```
+
+It must state:
+
+- `applies_to_disposable_only=true`
+- `production_authorized=false`
+- `staging_apply_authorized=false`
+- `applies_sql_to_external_environment=false`
+- `secrets_included=false`
+
+### Staging read-only mode
+
+Run the same workflow manually with:
+
+```text
+run_mode=staging_read_only
+expected_commit_sha=<full reviewed 40-character SHA>
+expected_migration_sha256=<exact migration SHA-256>
+```
+
+The job is bound to the GitHub environment named `staging` and requires these environment secrets:
+
+- `STAGING_DB_HOST`
+- `STAGING_DB_NAME`
+- `STAGING_DB_USER`
+- `STAGING_DB_PASSWORD`
+- `STAGING_DB_PORT` — optional; defaults to `3306`
+
+The job checks out the exact typed commit, rejects a checkout mismatch, verifies the exact migration checksum and statement count, then executes only the read-only compatibility preflight. It does not invoke the governed migration runner, pass `--apply`, write the migration ledger, create schema objects, seed policies, or create grants.
+
+The uploaded artifact is:
+
+```text
+brand-skill-staging-read-only-preflight
+```
+
+A successful artifact must state:
+
+- `target_environment=staging`
+- `ready=true`
+- `applies_sql=false`
+- `records_ledger=false`
+- `migration_apply_authorized=false`
+- `production_authorized=false`
+- `requires_separate_apply_authorization=true`
+- `secrets_included=false`
+
+Missing secrets, a non-Staging target, an incorrect commit, an incorrect checksum, incompatible baseline objects, existing target objects, or any failed compatibility check must fail closed.
+
 ## Staging apply sequence
 
 1. Confirm a current backup or environment-appropriate snapshot.
-2. Run the read-only compatibility preflight.
+2. Run the checksum-bound Staging read-only workflow and retain its artifact.
 3. Confirm the target object set is absent.
 4. Confirm baseline agent-skill table/view authority passes readback.
 5. Create a fresh governed migration authorization bound to the final SHA-256 and statement count.
