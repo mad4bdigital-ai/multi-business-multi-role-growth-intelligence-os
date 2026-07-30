@@ -5,6 +5,7 @@ import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
 const authorityRecoveryTestCommands = Object.freeze([
   "node test-context-kernel-principal-resolver.mjs",
   "node test-context-kernel-subject-scope-delegation-resolver.mjs",
+  "node test-context-kernel-subject-delegation-fail-closed.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,
