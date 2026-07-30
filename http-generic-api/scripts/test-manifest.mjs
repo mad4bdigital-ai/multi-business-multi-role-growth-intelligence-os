@@ -580,6 +580,7 @@ export const testCommands = [
   "node test-github-create-reference-201-contract-reconciliation.mjs",
   "node test-github-issue-label-response-schema-alignment.mjs",
   "node test-platform-endpoint-export-schema-parity.mjs",
+  "node test-registry-export-legacy-hygiene.mjs",
   "node test-runtime-profile-contract.mjs",
   "node test-cms-account-claim-resolver.mjs",
   "node test-cms-site-access-grants-foundation.mjs",
