@@ -13,7 +13,9 @@ on:
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
+      - "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
+      - "http-generic-api/scripts/repo-maintenance-sync.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
@@ -62,6 +64,7 @@ jobs:
         working-directory: http-generic-api
         run: |
           git fetch origin main --depth=1
+          node scripts/openapi-precise-contract-registry-sync.mjs --write
           node scripts/openapi-autofill-missing-routes.mjs --write
           npm run frontend:dispatch:generate -- --baseline-ref=main
           node scripts/generate-custom-gpt-schemas.mjs --write
@@ -69,6 +72,7 @@ jobs:
       - name: Verify generated contracts before commit
         working-directory: http-generic-api
         run: |
+          node test-openapi-autofill-missing-routes.mjs
           node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
