@@ -16045,6 +16045,65 @@ paths:
       responses:
         "200": { description: Current user profile, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /me/workspaces/{tenant_id}/members:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceMembers
+      summary: List members visible to an active workspace member
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Workspace members, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Active workspace membership required }
+        "500": { description: Workspace member listing failed }
+  /me/workspaces/{tenant_id}/invitations:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceInvitations
+      summary: List workspace invitations visible to an owner or admin
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { type: string, default: pending }
+      responses:
+        "200": { description: Workspace invitations, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Workspace owner or admin role required }
+        "500": { description: Workspace invitation listing failed }
+  /me/workspaces/{tenant_id}/access-requests:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceAccessRequests
+      summary: List workspace access requests visible to an owner or admin
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { type: string, default: pending }
+      responses:
+        "200": { description: Workspace access requests, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Workspace owner or admin role required }
+        "500": { description: Workspace access request listing failed }
   /me/workspaces/{tenant_id}/brands:
     get:
       tags: [connected-systems]

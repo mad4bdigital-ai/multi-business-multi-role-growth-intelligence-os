@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   formatReport,
+  parseChangedLineRanges,
   readChangedFiles,
   scanRepository,
 } from "./scripts/context-kernel-hardcoding-scan.mjs";
@@ -139,6 +140,37 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   assert.ok(failingChangedReport.summary.runtime_finding_count > 0);
   assert.ok(failingChangedReport.findings.every((item) => item.path === "src/resolver.js"));
 
+  const parsedRanges = parseChangedLineRanges([
+    "diff --git a/src/resolver.js b/src/resolver.js",
+    "--- a/src/resolver.js",
+    "+++ b/src/resolver.js",
+    "@@ -1,0 +2,1 @@",
+    "+const tenantId = synthetic;",
+    "@@ -8,2 +10,0 @@",
+  ].join("\n"));
+  assert.deepEqual(parsedRanges.get("src/resolver.js"), [{ start: 2, end: 2 }]);
+
+  const changedLineReport = scanRepository({
+    repositoryRoot: temporaryRoot,
+    config,
+    changedFiles: ["src/resolver.js"],
+    changedLineRanges: new Map([["src/resolver.js", [{ start: 2, end: 2 }]]]),
+  });
+  assert.equal(changedLineReport.scan_scope, "changed_lines");
+  assert.deepEqual(
+    changedLineReport.findings.filter((item) => !item.suppressed).map((item) => item.rule_id),
+    ["fixed_customer_identifier"],
+  );
+
+  const unchangedDebtReport = scanRepository({
+    repositoryRoot: temporaryRoot,
+    config,
+    changedFiles: ["src/resolver.js"],
+    changedLineRanges: new Map([["src/resolver.js", [{ start: 1, end: 1 }]]]),
+  });
+  assert.equal(unchangedDebtReport.scan_scope, "changed_lines");
+  assert.equal(unchangedDebtReport.summary.runtime_finding_count, 0);
+
   const changedFilesPath = path.join(temporaryRoot, "changed-files.txt");
   fs.writeFileSync(changedFilesPath, "./src/clean.js\n\nsrc/resolver.js\n", "utf8");
   assert.deepEqual(readChangedFiles(changedFilesPath), ["src/clean.js", "src/resolver.js"]);
@@ -152,6 +184,7 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   assert.match(formatReport(report, "text"), /Scope: repository/);
   assert.match(formatReport(failingChangedReport, "github"), /::warning/);
   assert.match(formatReport(failingChangedReport, "github"), /changed_files/);
+  assert.match(formatReport(changedLineReport, "github"), /changed_lines/);
 
   console.log("context-kernel hardcoding scanner tests passed");
 } finally {

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c77548bf4f6e34f228970892c1aedd311c7a5b683dbef34671db6340b671d5bd",
+    "source_digest": "8c7edb789bd8fc0f7923312e41039e6f6f88b98ee03284851fba9216cf380db2",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "b87d2e346edf37d9d79adc7ee7d9f3357a03925eb1f108afb97f4492ef860e9c",
+        "sha256": "286e4cddd6497f84d553f49baedf50977b4e0973a105f15095a43bc9fa1c8d3a",
         "present": true
       },
       {
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ef92df92dd6a30e9266a86014cd3c043183fecb6d1ccea10b9c5708b244b892f",
+        "sha256": "ce66f7157b8d26482fddb31cbf4fddcc8d3c2cbf6a828777539c337bc71e8067",
         "present": true
       },
       {
@@ -241,7 +241,7 @@
       },
       {
         "file": "resource-api-coverage.manifest.json",
-        "sha256": "3be4a5365a3d5e20d88e2587e3a286f48341fcbf9ee146459739b7bc80eda686",
+        "sha256": "3824fc66014516b7f726bb3bef7d07a15dd83c976bd823bf803d66c317d4abca",
         "present": true
       },
       {
@@ -881,7 +881,7 @@
       },
       {
         "file": "routes/tenantLifecycleRoutes.js",
-        "sha256": "c19b0a84299625ea9826adde57d77d2821813a7fec8a73bba6de7c0bf6472942",
+        "sha256": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
         "present": true
       },
       {
@@ -921,7 +921,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "e7ea77226a011d6c2229d469d94b0150e056266b77bf661896bcf7c55aed0e13",
+        "sha256": "b23aae8a8bcad603e68f2e17be13c26376b82419549112b0cd36276e5123339a",
         "present": true
       },
       {
@@ -1121,11 +1121,11 @@
     "mixed_scope_route_file_count": 25,
     "operation_count": 1002,
     "openapi_documented_count": 986,
-    "openapi_canonical_documented_count": 601,
-    "openapi_generated_index_count": 385,
+    "openapi_canonical_documented_count": 604,
+    "openapi_generated_index_count": 382,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 385,
+    "openapi_detail_gap_count": 382,
     "auth_parity_counts": {
       "equivalent": 986,
       "exempt": 16
@@ -20105,7 +20105,7 @@
       "family_key": "tenant-lifecycle",
       "label": "tenant lifecycle",
       "source_file": "routes/tenantLifecycleRoutes.js",
-      "source_digest": "c19b0a84299625ea9826adde57d77d2821813a7fec8a73bba6de7c0bf6472942",
+      "source_digest": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
       "mount_prefix": "/",
       "mount_order": 15113,
       "split_from_mixed_scope_file": false,
@@ -20202,7 +20202,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20216,9 +20216,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -20712,7 +20712,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20726,9 +20726,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21142,7 +21142,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21156,9 +21156,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21308,7 +21308,6 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "GET /me/workspaces/{tenant_id}/members",
         "PATCH /me/workspaces/{tenant_id}/members/{user_id}",
         "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
         "POST /me/workspaces/{tenant_id}/ownership/transfer",
@@ -21316,14 +21315,12 @@
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
-        "GET /me/workspaces/{tenant_id}/invitations",
         "POST /me/invitations/accept",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "POST /me/workspaces/{tenant_id}/access-requests",
-        "GET /me/workspaces/{tenant_id}/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
       ],
@@ -21353,7 +21350,13 @@
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
