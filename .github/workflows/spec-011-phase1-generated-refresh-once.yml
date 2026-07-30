@@ -28,23 +28,8 @@ jobs:
 
           service_path = Path('http-generic-api/durableExecutionControlService.js')
           service = service_path.read_text()
-          old_service = '''export async function transitionDurableExecution({
-            pool,
-            planId,
-            tenantId = null,
-            toStatus,
-            actorId = null,
-            reason = null,
-          }) {
-            return withTransaction(pool, async (connection) => {'''
-          new_service = '''export async function transitionDurableExecution({
-            pool,
-            planId,
-            tenantId = null,
-            toStatus,
-            actorId = null,
-            reason = null,
-          }) {
+          transition_marker = 'export async function transitionDurableExecution({' 
+          validator = '''export function assertDurableRequestedStatus(toStatus) {
             const requestedStatus = String(toStatus || "").trim();
             if (!PLAN_TRANSITIONS.has(requestedStatus)) {
               throw durableError(
@@ -53,19 +38,70 @@ jobs:
                 400,
               );
             }
-            toStatus = requestedStatus;
+            return requestedStatus;
+          }
+
+          '''
+          if 'export function assertDurableRequestedStatus' not in service:
+              if service.count(transition_marker) != 1:
+                  raise SystemExit(f'expected one transition marker, found {service.count(transition_marker)}')
+              service = service.replace(transition_marker, validator + transition_marker, 1)
+          old_transition = '''export async function transitionDurableExecution({
+            pool,
+            planId,
+            tenantId = null,
+            toStatus,
+            actorId = null,
+            reason = null,
+          }) {
             return withTransaction(pool, async (connection) => {'''
-          if service.count(old_service) != 1:
-              raise SystemExit(f'expected one transition insertion point, found {service.count(old_service)}')
-          service_path.write_text(service.replace(old_service, new_service, 1))
+          new_transition = '''export async function transitionDurableExecution({
+            pool,
+            planId,
+            tenantId = null,
+            toStatus,
+            actorId = null,
+            reason = null,
+          }) {
+            toStatus = assertDurableRequestedStatus(toStatus);
+            return withTransaction(pool, async (connection) => {'''
+          if service.count(old_transition) != 1:
+              raise SystemExit(f'expected one transition insertion point, found {service.count(old_transition)}')
+          service_path.write_text(service.replace(old_transition, new_transition, 1))
 
           route_path = Path('http-generic-api/routes/plannerRoutes.js')
           routes = route_path.read_text()
-          old_route = '''    } catch (err) {
+          old_import = '''import {
+            cancelDurableExecution,'''
+          new_import = '''import {
+            assertDurableRequestedStatus,
+            cancelDurableExecution,'''
+          if routes.count(old_import) != 1:
+              raise SystemExit(f'expected one durable import point, found {routes.count(old_import)}')
+          routes = routes.replace(old_import, new_import, 1)
+
+          old_body = '''      const { status, tenant_id, reason } = req.body || {};
+                const result = await transitionDurableExecution({
+                  pool: getPool(),
+                  planId: req.params.id,
+                  tenantId: tenant_id || null,
+                  toStatus: status,'''
+          new_body = '''      const { status, tenant_id, reason } = req.body || {};
+                const requestedStatus = assertDurableRequestedStatus(status);
+                const result = await transitionDurableExecution({
+                  pool: getPool(),
+                  planId: req.params.id,
+                  tenantId: tenant_id || null,
+                  toStatus: requestedStatus,'''
+          if routes.count(old_body) != 1:
+              raise SystemExit(f'expected one status route body, found {routes.count(old_body)}')
+          routes = routes.replace(old_body, new_body, 1)
+
+          old_catch = '''    } catch (err) {
                 return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
               }
             });'''
-          new_route = '''    } catch (err) {
+          new_catch = '''    } catch (err) {
                 return res.status(err.status || 500).json({
                   ok: false,
                   error: { code: err.code || "plan_update_failed", message: err.message },
@@ -73,9 +109,9 @@ jobs:
                 });
               }
             });'''
-          if routes.count(old_route) != 1:
-              raise SystemExit(f'expected one status error transport point, found {routes.count(old_route)}')
-          route_path.write_text(routes.replace(old_route, new_route, 1))
+          if routes.count(old_catch) != 1:
+              raise SystemExit(f'expected one status error transport point, found {routes.count(old_catch)}')
+          route_path.write_text(routes.replace(old_catch, new_catch, 1))
           PY
 
       - name: Set up Node.js
