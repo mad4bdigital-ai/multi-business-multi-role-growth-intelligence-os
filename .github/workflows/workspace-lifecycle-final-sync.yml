@@ -54,7 +54,12 @@ jobs:
           mapfile -t CONFLICTS < <(git diff --name-only --diff-filter=U)
           ALLOWED_A='http-generic-api/frontend-surface-dispatch.generated.json'
           ALLOWED_B='http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
+          TEMP_SYNC='.github/workflows/workspace-lifecycle-final-sync.yml'
           for file in "${CONFLICTS[@]}"; do
+            if [[ "$file" == "$TEMP_SYNC" ]]; then
+              git rm -f -- "$file"
+              continue
+            fi
             if [[ "$file" != "$ALLOWED_A" && "$file" != "$ALLOWED_B" ]]; then
               echo "::error::Unexpected merge conflict: $file"
               git merge --abort || true
