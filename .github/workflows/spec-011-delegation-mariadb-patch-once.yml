@@ -1,9 +1,6 @@
 name: Spec 011 Delegation MariaDB Patch Once
 
 on:
-  push:
-    branches:
-      - gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
   pull_request:
     types: [opened, reopened, synchronize]
     branches: [main]
@@ -14,7 +11,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.head_ref == '' || github.head_ref == 'gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730'
+    if: github.head_ref == 'gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -39,45 +36,35 @@ jobs:
 
           lifecycle = Path('http-generic-api/delegationGrantLifecycleShadowService.js')
           source = lifecycle.read_text(encoding='utf-8')
-          old = '''  const grantHash = canonicalGrantHash(grant);
-          const command = {
-            action: "create",
-            expected_status: "preview",
-            proposed_status: "active",
-            grant,
-          '''
-          new = '''  const persistedGrant = normalizeCanonicalGrant({ ...grant, status: "active" });
-          const grantHash = canonicalGrantHash(persistedGrant);
-          const command = {
-            action: "create",
-            expected_status: "preview",
-            proposed_status: "active",
-            grant: persistedGrant,
-          '''
-          if old not in source:
-              raise SystemExit('Lifecycle active hash anchor missing')
-          lifecycle.write_text(source.replace(old, new, 1), encoding='utf-8')
+          anchors = [
+            (
+              '  const grantHash = canonicalGrantHash(grant);',
+              '  const persistedGrant = normalizeCanonicalGrant({ ...grant, status: "active" });\n  const grantHash = canonicalGrantHash(persistedGrant);',
+            ),
+            (
+              '    grant,\n    preview_grant_hash: previewHash,',
+              '    grant: persistedGrant,\n    preview_grant_hash: previewHash,',
+            ),
+          ]
+          for old, new in anchors:
+              if source.count(old) != 1:
+                  raise SystemExit(f'Lifecycle patch anchor count invalid: {old}')
+              source = source.replace(old, new, 1)
+          lifecycle.write_text(source, encoding='utf-8')
 
           repository = Path('http-generic-api/delegationGrantMariaDbRepository.js')
           source = repository.read_text(encoding='utf-8')
-          anchor = '''function iso(value) {
-            if (value === null || value === undefined || value === "") return null;
-            const timestamp = new Date(value).getTime();
-            if (!Number.isFinite(timestamp)) {
-              throw adapterError(409, "DELEGATION_MARIADB_DATE_INVALID", "Persisted date-time is invalid.");
-            }
-            return new Date(timestamp).toISOString();
-          }
-          '''
-          replacement = anchor + '''
+          marker = '\nfunction assertUuid(value, field) {'
+          helper = '''
+
           function sqlDateTime(value) {
             const normalized = iso(value);
             return normalized ? normalized.replace("T", " ").replace("Z", "") : null;
           }
           '''
-          if anchor not in source:
-              raise SystemExit('MariaDB ISO anchor missing')
-          source = source.replace(anchor, replacement, 1)
+          if source.count(marker) != 1 or 'function sqlDateTime(value)' in source:
+              raise SystemExit('MariaDB SQL date helper anchor invalid')
+          source = source.replace(marker, helper + marker, 1)
           replacements = {
             'const createdAt = iso(grant.created_at || receipt.created_at);': 'const createdAt = sqlDateTime(grant.created_at || receipt.created_at);',
             'const expiresAt = iso(grant.expires_at);': 'const expiresAt = sqlDateTime(grant.expires_at);',
@@ -85,18 +72,18 @@ jobs:
             'iso(command.expired_at),': 'sqlDateTime(command.expired_at),',
             '  iso,\n  tenantOperationKey,': '  iso,\n  sqlDateTime,\n  tenantOperationKey,',
           }
-          for old_value, new_value in replacements.items():
-              if old_value not in source:
-                  raise SystemExit(f'MariaDB patch anchor missing: {old_value}')
-              source = source.replace(old_value, new_value)
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit(f'MariaDB patch anchor missing: {old}')
+              source = source.replace(old, new)
           repository.write_text(source, encoding='utf-8')
 
           manifest = Path('http-generic-api/scripts/test-manifest.mjs')
           source = manifest.read_text(encoding='utf-8')
           anchor = '  "node test-delegation-grant-mariadb-adapter-contract.mjs",\n'
           addition = anchor + '  "node test-delegation-grant-mariadb-readiness-collector.mjs",\n  "node test-delegation-grant-mariadb-runtime-binding.mjs",\n'
-          if anchor not in source:
-              raise SystemExit('Test manifest anchor missing')
+          if source.count(anchor) != 1:
+              raise SystemExit('Test manifest anchor count invalid')
           manifest.write_text(source.replace(anchor, addition, 1), encoding='utf-8')
           PY
 
