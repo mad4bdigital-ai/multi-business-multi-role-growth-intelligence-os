@@ -57,11 +57,11 @@
     "bounded_dispatch_telemetry",
     "telemetry_outage_isolation",
     "exact_legacy_dispatch_rollback",
-    "standalone_read_dispatch_gate_test"
+    "standalone_read_dispatch_gate_test",
+    "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh"
   ],
   "pending_contracts": [
-    "complete_test_manifest_registration",
-    "generated_test_manifest_evidence_refresh",
     "exact_head_ci_evidence",
     "human_architecture_security_review",
     "post_merge_main_readback"
@@ -70,7 +70,29 @@
     "status": "rebuilt_on_current_main",
     "baseline_sha": "9879e844918355e8945105d8a231ff65ffbd524b",
     "stale_generated_artifacts_carried_forward": false,
-    "same_branch_preserved": true
+    "same_branch_preserved": true,
+    "parallel_pr_closed": 3895,
+    "latest_main_non_overlap_checked_through": "4737558b89114117093dbef135e9592ab3cdf1c3"
+  },
+  "registration_evidence": {
+    "status": "passed_readback",
+    "registration_commit_sha": "1468bad8445f09d32cc27db06839664316859c4e",
+    "registered_commands": [
+      "node test-execution-capsule-read-dispatch-gate.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_removed": true,
+    "bounded_regressions_passed": true,
+    "bounded_write_set_passed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30583901004,
+    "generated_head_sha": "1f7252c7f26294a6ffdf985602db506982fdd7c1",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true,
+    "baseline_reconciled_with_main": true
   },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
