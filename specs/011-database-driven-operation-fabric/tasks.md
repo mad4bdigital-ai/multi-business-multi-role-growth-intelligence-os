@@ -19,7 +19,7 @@
 - [x] Release credential authority before workspace cleanup on success and failure.
 - [x] Add containment, expiry, scope, fallback, and orchestrator regression tests.
 
-## Reconciliation and delivery
+## T500/T501 reconciliation and delivery
 
 - [x] Rebuild T500/T501 over current `main` without force-pushing stale stacked branches.
 - [x] Preserve current operation security, capability, ownership, artifact, and finalization behavior.
@@ -29,8 +29,19 @@
 - [x] Merge reconciliation PR #3394 and verify default-branch readback at `cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6`.
 - [x] Close superseded PRs #3240, #3259, and #3326 with replacement references.
 
+## T502 — Governed remote Git transport
+
+- [x] Bind canonical remote transport to the isolated workspace and credential scope.
+- [x] Fetch and checkout the exact governed branch head.
+- [x] Add bounded commit and fast-forward-only push operations.
+- [x] Reject remote drift, non-fast-forward history, and force push.
+- [x] Verify same-cycle push readback and secret/path containment.
+- [x] Attach the transport as a non-enumerable operation-orchestrator dependency.
+- [x] Register focused real-Git and orchestrator regression tests.
+- [ ] Pass all required repository CI gates for T502.
+- [ ] Merge PR #3499 and verify default-branch readback.
+
 ## Remaining feature scope
 
-- [ ] Implement T502 governed remote Git transport.
 - [ ] Apply the additive ephemeral-checkout migration through governed migration authority.
-- [ ] Record migration and runtime readback evidence.
+- [ ] Record migration ledger and runtime readback evidence.
