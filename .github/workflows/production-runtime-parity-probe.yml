@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-migration-1007-readiness-20260730
+  group: production-migration-1007-apply-20260730
   cancel-in-progress: false
 
 jobs:
-  readiness:
-    name: Prepare governed Migration 1007 authorization and dry-run
+  apply-and-verify:
+    name: Apply and verify governed Migration 1007
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -24,28 +24,27 @@ jobs:
       EXPECTED_PRODUCTION_SHA: abdeed2c5a588c19a2d1f2e35046e7b120d97016
       MIGRATION_NAME: 1007_sprint69_agent_capability_coverage_admin_tools.sql
       MIGRATION_PATH: http-generic-api/migrations/1007_sprint69_agent_capability_coverage_admin_tools.sql
+      MIGRATION_SHA256: 11b93401bbd0ed64e3e564d183c5a5d9775bcabbe3ccd7002d97e38b0d107a40
       MIGRATION_STATEMENTS: "1"
-      SOURCE_PR: "3403"
-      PLATFORM_TENANT_ID: 00000000-0000-0000-0000-000000000000
-      PLATFORM_ADMIN_USER_ID: 00000000-0000-4000-a000-000000000002
-      AUTHORIZATION_CONFIRMATION: AUTHORIZE_GOVERNED_MIGRATION_1007_SPRINT69_AGENT_CAPABILITY_COVERAGE_ADMIN_TOOLS
+      APPLY_ENVELOPE_ID: 42ce2f3b-d416-41dc-b1b3-b1f589b74791
       APPLY_CONFIRMATION: APPLY_1007_SPRINT69_AGENT_CAPABILITY_COVERAGE_ADMIN_TOOLS
       MIGRATION_1006_NAME: 1006_sprint69_agent_capability_evidence_coverage.sql
       MIGRATION_1006_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
     steps:
-      - name: Checkout Production-pinned readiness branch
+      - name: Checkout Production-pinned apply branch
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Verify Production, runtime, and Migration 1007 source pins
+      - name: Verify Production, runtime, checksum, confirmation, and dependency pins
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin Production
           test "$(git rev-parse origin/Production)" = "$EXPECTED_PRODUCTION_SHA"
-          test -f "$MIGRATION_PATH"
+          test "$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')" = "$MIGRATION_SHA256"
           test "$(grep -Ec '^[[:space:]]*INSERT[[:space:]]+INTO' "$MIGRATION_PATH")" -eq "$MIGRATION_STATEMENTS"
+          test "$APPLY_CONFIRMATION" = "APPLY_1007_SPRINT69_AGENT_CAPABILITY_COVERAGE_ADMIN_TOOLS"
           grep -F "agent_governance_logic_coverage" "$MIGRATION_PATH"
           grep -F "agent_governance_engine_coverage" "$MIGRATION_PATH"
           node <<'NODE'
@@ -54,7 +53,7 @@ jobs:
           const strings = [];
           for (const path of ["/health", "/version", "/deployment-info"]) {
             const response = await fetch(`${base}${path}`, {
-              headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1007-readiness/1.0" },
+              headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1007-apply/1.0" },
               signal: AbortSignal.timeout(15000),
             });
             const body = await response.json();
@@ -71,22 +70,16 @@ jobs:
           console.log(`PRODUCTION_RUNTIME_PARITY=PASS expected_sha=${expected}`);
           NODE
 
-      - name: Create authorization, apply envelope, and governed dry-run
+      - name: Governed apply and same-cycle verification
         shell: bash
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           node <<'NODE'
-          import crypto from "node:crypto";
-          import fs from "node:fs";
-
           const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
           const apiKey = process.env.BACKEND_API_KEY || "";
           if (!apiKey) throw new Error("BACKEND_API_KEY is unavailable");
-          const sql = fs.readFileSync(process.env.MIGRATION_PATH, "utf8");
-          const checksum = crypto.createHash("sha256").update(sql).digest("hex");
-          const statementCount = Number(process.env.MIGRATION_STATEMENTS);
 
           const sensitive = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
           const sanitize = (value) => {
@@ -95,23 +88,17 @@ jobs:
             return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sensitive.test(key) ? "[redacted]" : sanitize(child)]));
           };
           const print = (label, value) => console.log(`${label}=${JSON.stringify(sanitize(value), null, 2)}`);
-          const parseJson = (value) => {
-            if (value && typeof value === "object") return value;
-            try { return JSON.parse(String(value || "")); } catch { return null; }
-          };
-          const unwrapShell = (response) => parseJson(response?.body?.result?.stdout) || response?.body?.result || response?.body;
           const unwrapTool = (response) => response?.body?.result || response?.body?.data || response?.body;
 
-          async function request(path, body, timeout = 360000) {
+          async function request(path, options = {}, timeout = 360000) {
             const response = await fetch(`${base}${path}`, {
-              method: "POST",
+              ...options,
               headers: {
                 Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
                 Accept: "application/json",
-                "User-Agent": "mad4b-migration-1007-readiness/1.0",
+                "User-Agent": "mad4b-migration-1007-apply/1.0",
+                ...(options.headers || {}),
               },
-              body: JSON.stringify(body),
               signal: AbortSignal.timeout(timeout),
             });
             const text = await response.text();
@@ -119,53 +106,11 @@ jobs:
             try { payload = JSON.parse(text); } catch { payload = { raw_preview: text.slice(0, 1000) }; }
             return { status: response.status, ok: response.ok, body: payload };
           }
-          const toolCall = (name, toolArgs) => request("/gpt/tools/call", { name, tool_args: toolArgs });
-          const shellAlias = (alias, extraArgs) => request("/admin/control", {
-            tool: "shell",
-            action: "run",
-            alias,
-            authority_context: {
-              resource_type: "shell_alias",
-              resource_uri: `shell://${alias}`,
-              operation_mode: alias,
-              required: true,
-            },
-            extra_args: extraArgs,
+          const toolCall = (name, toolArgs) => request("/gpt/tools/call", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, tool_args: toolArgs }),
           });
-
-          async function createApprovedEnvelope({ capabilityKey, operationIntent, note }) {
-            const createResponse = await shellAlias("capability_resolution_envelope_create", [
-              "--requested-by=gpt_admin",
-              "--ttl-minutes=240",
-              `--tenant-id=${process.env.PLATFORM_TENANT_ID}`,
-              `--user-id=${process.env.PLATFORM_ADMIN_USER_ID}`,
-              "--user-role=platform_admin",
-              "--app-key=platform_orchestration",
-              `--capability-key=${capabilityKey}`,
-              `--operation-intent=${operationIntent}`,
-              "--runtime-surface=auth_host",
-              "--requested-source-tier=platform_managed_fallback",
-              `--expected-commit-sha=${process.env.EXPECTED_PRODUCTION_SHA}`,
-              "--explain",
-            ]);
-            const created = unwrapShell(createResponse);
-            print(`${capabilityKey.toUpperCase()}_ENVELOPE_CREATE`, created);
-            if (!createResponse.ok || created?.ok === false || !created?.envelope_id || Number(created?.blocking_gap_count) !== 0) process.exit(1);
-            if (created.envelope_status === "ready_requires_approval") {
-              const approvalResponse = await shellAlias("capability_resolution_envelope_approve", [
-                `--envelope-id=${created.envelope_id}`,
-                `--approved-by=${process.env.PLATFORM_ADMIN_USER_ID}`,
-                `--decision-note=${note}`,
-                "--ttl-minutes=240",
-              ]);
-              const approved = unwrapShell(approvalResponse);
-              print(`${capabilityKey.toUpperCase()}_ENVELOPE_APPROVAL`, approved);
-              if (!approvalResponse.ok || approved?.ok === false || approved?.envelope_status !== "ready_for_dispatch") process.exit(1);
-            } else if (created.envelope_status !== "ready_for_dispatch") {
-              process.exit(1);
-            }
-            return created.envelope_id;
-          }
 
           const dependencyReadbackResponse = await toolCall("governed_migration_schema_readback", {
             migration: process.env.MIGRATION_1006_NAME,
@@ -176,63 +121,73 @@ jobs:
           print("MIGRATION_1006_DEPENDENCY_READBACK", dependencyReadbackResponse);
           if (!dependencyReadbackResponse.ok || dependencyReadback?.ok !== true || dependencyReadback?.ledger?.found !== true) process.exit(1);
 
-          const authorizationEnvelopeId = await createApprovedEnvelope({
-            capabilityKey: "governed_migration_authorization_bootstrap",
-            operationIntent: "governed_migration_authorization_bootstrap",
-            note: "Approve checksum-bound Migration 1007 authorization after verified Migration 1006 ledger dependency and Production runtime parity. No migration SQL is executed by authorization bootstrap.",
-          });
-
-          const authorizationResponse = await toolCall("governed_migration_authorization_bootstrap", {
+          const migrationArgs = {
             migration: process.env.MIGRATION_NAME,
-            expected_checksum_sha256: checksum,
-            expected_statement_count: statementCount,
-            pull_request: Number(process.env.SOURCE_PR),
-            merge_sha: process.env.EXPECTED_PRODUCTION_SHA,
-            confirm: process.env.AUTHORIZATION_CONFIRMATION,
-            capability_envelope_id: authorizationEnvelopeId,
-            decision_note: "Authorize additive idempotent Migration 1007 admin coverage tools after Migration 1006 completion and Production runtime parity.",
-          });
-          const authorization = unwrapTool(authorizationResponse);
-          print("MIGRATION_1007_AUTHORIZATION", authorizationResponse);
-          if (!authorizationResponse.ok || authorization?.ok !== true || authorization?.applies_migration !== false || authorization?.migration_sql_executed !== false) process.exit(1);
+            expected_checksum_sha256: process.env.MIGRATION_SHA256,
+            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
+            capability_envelope_id: process.env.APPLY_ENVELOPE_ID,
+          };
 
-          const applyEnvelopeId = await createApprovedEnvelope({
-            capabilityKey: "governed_migration_execute",
-            operationIntent: "governed_migration_execute",
-            note: "Approve Migration 1007 apply-readiness envelope after checksum-bound authorization. SQL remains blocked by a fresh exact typed confirmation.",
-          });
-          const applyAuthorizationResponse = await toolCall("capability_resolution_envelope_apply_authorize", {
-            envelope_id: applyEnvelopeId,
-            authorized_by: process.env.PLATFORM_ADMIN_USER_ID,
-            decision_note: "Apply-authorize Migration 1007 under governed_migration_execute_apply_v1 after zero-risk preflight and dependency readback. SQL remains blocked by typed confirmation.",
-            ttl_minutes: 240,
-          });
-          const applyAuthorization = unwrapTool(applyAuthorizationResponse);
-          print("MIGRATION_1007_APPLY_ENVELOPE_AUTHORIZATION", applyAuthorizationResponse);
-          if (!applyAuthorizationResponse.ok || applyAuthorization?.ok !== true || applyAuthorization?.apply_allowed !== true) process.exit(1);
-
-          const dryRunResponse = await toolCall("governed_migration_execute", {
-            migration: process.env.MIGRATION_NAME,
-            mode: "dry_run",
-            expected_checksum_sha256: checksum,
-            expected_statement_count: statementCount,
-            capability_envelope_id: applyEnvelopeId,
-          });
+          const dryRunResponse = await toolCall("governed_migration_execute", { ...migrationArgs, mode: "dry_run" });
           const dryRun = unwrapTool(dryRunResponse);
-          print("MIGRATION_1007_DRY_RUN", dryRunResponse);
+          print("PRE_APPLY_DRY_RUN", dryRunResponse);
           if (!dryRunResponse.ok || dryRun?.ok !== true || dryRun?.mode !== "dry_run" || dryRun?.applies_sql !== false) process.exit(1);
-          if (dryRun?.migration_checksum_sha256 !== checksum || Number(dryRun?.statement_count) !== statementCount) process.exit(1);
+          if (dryRun?.migration_checksum_sha256 !== process.env.MIGRATION_SHA256 || Number(dryRun?.statement_count) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
           if (dryRun?.preflight?.status !== "pass" || Number(dryRun?.preflight?.risk_count || 0) !== 0) process.exit(1);
-          const requiredAdminTools = new Set(dryRun?.requirements?.admin_tools || []);
-          for (const tool of ["agent_governance_logic_coverage", "agent_governance_engine_coverage"]) {
-            if (!requiredAdminTools.has(tool)) process.exit(1);
+
+          const applyResponse = await toolCall("governed_migration_execute", {
+            ...migrationArgs,
+            mode: "apply",
+            confirm: process.env.APPLY_CONFIRMATION,
+          });
+          const apply = unwrapTool(applyResponse);
+          print("MIGRATION_APPLY_RESULT", applyResponse);
+          if (!applyResponse.ok || apply?.ok !== true || apply?.mode !== "apply" || apply?.applies_sql !== true) process.exit(1);
+          if (Number(apply?.statements_executed) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
+          if (apply?.ledger?.recorded !== true || !apply?.ledger?.run_id) process.exit(1);
+
+          const requiredTools = ["agent_governance_logic_coverage", "agent_governance_engine_coverage"];
+          const afterTools = new Set(apply?.after_admin_tools || []);
+          for (const tool of requiredTools) {
+            if (!afterTools.has(tool)) {
+              console.error(`Missing post-apply Admin tool: ${tool}`);
+              process.exit(1);
+            }
           }
 
-          console.log(`MIGRATION_1007_CHECKSUM=${checksum}`);
-          console.log(`MIGRATION_1007_STATEMENTS=${statementCount}`);
-          console.log(`MIGRATION_1007_APPLY_ENVELOPE_READY=${applyEnvelopeId}`);
-          console.log(`MIGRATION_1007_REQUIRED_CONFIRMATION=${process.env.APPLY_CONFIRMATION}`);
-          console.log(`MIGRATION_1007_BEFORE_ADMIN_TOOLS=${JSON.stringify(dryRun?.before_admin_tools || [])}`);
-          console.log("MIGRATION_1007_GOVERNED_DRY_RUN=PASS");
-          console.log("MIGRATION_1007_SQL_EXECUTED=false");
+          const ledgerReadbackResponse = await toolCall("governed_migration_schema_readback", {
+            migration: process.env.MIGRATION_NAME,
+            expected_checksum_sha256: process.env.MIGRATION_SHA256,
+            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
+          });
+          const ledgerReadback = unwrapTool(ledgerReadbackResponse);
+          print("MIGRATION_SCHEMA_LEDGER_READBACK", ledgerReadbackResponse);
+          if (!ledgerReadbackResponse.ok || ledgerReadback?.ok !== true || ledgerReadback?.ledger?.found !== true) process.exit(1);
+
+          for (const tool of requiredTools) {
+            const catalogResponse = await toolCall("admin_tool_catalog_search", { q: tool, limit: 10 });
+            const catalog = unwrapTool(catalogResponse);
+            print(`CATALOG_READBACK_${tool.toUpperCase()}`, catalogResponse);
+            const items = Array.isArray(catalog?.items) ? catalog.items : [];
+            const found = items.some((item) => [item?.name, item?.tool_key, item?.key].includes(tool));
+            if (!catalogResponse.ok || catalog?.ok === false || !found) process.exit(1);
+          }
+
+          const logicToolResponse = await toolCall("agent_governance_logic_coverage", { limit: 1 });
+          const logicTool = unwrapTool(logicToolResponse);
+          print("LOGIC_COVERAGE_ADMIN_TOOL_CALL", logicToolResponse);
+          if (!logicToolResponse.ok || logicTool?.ok !== true || !Array.isArray(logicTool?.coverage?.rows)) process.exit(1);
+
+          const engineToolResponse = await toolCall("agent_governance_engine_coverage", { limit: 1 });
+          const engineTool = unwrapTool(engineToolResponse);
+          print("ENGINE_COVERAGE_ADMIN_TOOL_CALL", engineToolResponse);
+          if (!engineToolResponse.ok || engineTool?.ok !== true || !Array.isArray(engineTool?.coverage?.rows)) process.exit(1);
+
+          console.log(`MIGRATION_1007_APPLY=PASS run_id=${apply.ledger.run_id}`);
+          console.log(`MIGRATION_1007_CHECKSUM=${process.env.MIGRATION_SHA256}`);
+          console.log("MIGRATION_1007_ADMIN_TOOLS=2/2");
+          console.log("MIGRATION_1007_LEDGER_READBACK=PASS");
+          console.log("MIGRATION_1007_CATALOG_READBACK=PASS");
+          console.log("MIGRATION_1007_LOGIC_TOOL_CALL=PASS");
+          console.log("MIGRATION_1007_ENGINE_TOOL_CALL=PASS");
           NODE
