@@ -1,0 +1,127 @@
+name: Deployment Runtime Documentation Parity Bootstrap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/deployment-runtime-doc-parity-bootstrap.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deployment-runtime-doc-parity-20260730
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.event.pull_request.head.ref == 'gpt/deployment-runtime-doc-parity-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout documentation branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/deployment-runtime-doc-parity-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Append bounded deployment-runtime guidance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          sections = {
+              Path('deployment_parity_checklist.md'): '''
+
+## Request-time deployment observation and superseded CI-guard parity
+
+- [ ] A cancelled Custom GPT Contract Guard run is treated as neutral only when a newer run exists for the same workflow, event, and head branch with a greater run number. The neutral classification is `cancelled_due_to_superseding_run`; genuine cancellations, failures, and recoveries retain their existing operational behavior.
+- [ ] A neutral superseded cancellation does not ingest a SQL operational signal and does not open, update, or resolve a GitHub incident. The newer matching run must still complete and its result remains authoritative for release readiness.
+- [ ] Request-time deployment observations keep expected release, deployed release, runtime health, contract, and optional migration evidence as independent source-attributed records. Every authoritative value carries a source type, opaque governed source reference, and observation time.
+- [ ] Historical correlation selects only the newest observation at or before the request time, ignores later observations, scopes by environment, processes at most 256 observations, bounds evidence to 32,768 bytes, and removes secret-like metadata keys.
+- [ ] The T024 foundation reports evidence completeness and `classification_status=not_computed`; it does not infer `current`, `deploying`, `stale`, `diverged`, or `unknown`, does not expose a public response projection, and does not replace direct `/health`, `/version`, and `/deployment-info` parity readback.
+- [ ] Repository merge or documentation does not authorize deployment, restart, migration apply, provider access, credential reads, external writes, or Production promotion. T024A classification/exposure, T024B policy, T026 persistence/apply/readback, public runtime wiring, and rollback certification remain separately gated.
+''',
+              Path('docs/hostinger-node-deploy.md'): '''
+
+## Deployment evidence interpretation
+
+The request-time deployment-observation foundation is an evidence collector and historical correlator, not a deployment-state authority. It records independently sourced expected-release, deployed-release, health, contract, and optional migration evidence; rejects future-dated component evidence; and selects the newest observation that existed at or before the request being diagnosed. Later convergence must never rewrite the diagnosis of an earlier request.
+
+Until the separately governed T024A/T024B/T026 work is complete, operators must continue to prove Hostinger parity through direct protected-ref and runtime readback. Confirm the exact `Production` SHA, wait for Hostinger auto-deploy, then verify `/health`, `/version`, and `/deployment-info` against that same SHA. An observation with incomplete evidence remains incomplete and returns `classification_status=not_computed`; it is not proof that a deployment is current or safe.
+
+A cancelled Custom GPT Contract Guard run may be operationally neutral only when a newer run matches the same workflow, event, and head branch. In that case the cancelled run must not create or resolve an incident or ingest a SQL alert signal; the newer run's completed result is the evidence to review. A cancellation without a matching newer run remains actionable and must not be suppressed.
+
+Neither neutral cancellation handling nor deployment-observation recording authorizes a deploy, restart, migration apply, provider call, credential read, external send/write, or bypass of candidate-specific Production approval.
+''',
+              Path('http-generic-api/docs/hostinger-runtime-sync-runbook.md'): '''
+
+## Superseded guard runs and historical deployment observations
+
+When a Custom GPT Contract Guard run is cancelled, first search for a newer run with the same workflow identity, event, and head branch. Classify the cancelled run as `cancelled_due_to_superseding_run` only when the newer run number is greater. This classification is neutral: skip SQL signal ingestion and skip GitHub issue open, update, or resolution mutations. Continue the release decision from the newer run. If no matching newer run exists, preserve the original cancellation/failure handling.
+
+The deployment-observation foundation may be used only for bounded historical correlation. Each observation must carry independent source metadata for expected release, deployed release, health, contract, and optional migration evidence. For a request timestamp, select the latest observation whose `observed_at` is not later than the request; ignore future observations so later recovery cannot rewrite earlier evidence. Source references must be opaque governed references without query parameters or secret-like names, metadata is sanitized, evidence is size-bounded, and the correlation read is capped at 256 observations.
+
+The current foundation deliberately emits `classification_status=not_computed`. Do not translate it into `current`, `stale`, `diverged`, or another deployment state, and do not expose the full evidence object to Tenant or public callers. Direct `/health`, `/version`, and `/deployment-info` readback against the exact protected `Production` SHA remains mandatory after Hostinger auto-deploy. Persistence migration, public runtime wiring, exposure policy, classification policy, rollback certification, and Production activation require separate governed work and authorization.
+''',
+          }
+
+          for path, section in sections.items():
+              text = path.read_text(encoding='utf-8')
+              marker = section.strip().splitlines()[0]
+              if marker in text:
+                  if text.count(marker) != 1:
+                      raise SystemExit(f'duplicate_marker:{path}:{marker}')
+                  continue
+              path.write_text(text.rstrip() + section + '\n', encoding='utf-8')
+
+          for path, section in sections.items():
+              text = path.read_text(encoding='utf-8')
+              marker = section.strip().splitlines()[0]
+              if text.count(marker) != 1:
+                  raise SystemExit(f'marker_missing_or_duplicated:{path}:{marker}')
+
+          forbidden = [
+              'classification_status=current',
+              'automatic deployment authorized',
+              'skip /health',
+              'skip /version',
+              'skip /deployment-info',
+          ]
+          combined = '\n'.join(path.read_text(encoding='utf-8') for path in sections)
+          for value in forbidden:
+              if value in combined:
+                  raise SystemExit(f'forbidden_guidance:{value}')
+          PY
+
+      - name: Verify bounded documentation write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/deployment-runtime-doc-parity-bootstrap.yml
+          git add deployment_parity_checklist.md docs/hostinger-node-deploy.md http-generic-api/docs/hostinger-runtime-sync-runbook.md
+          python3 <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/deployment-runtime-doc-parity-bootstrap.yml',
+              'deployment_parity_checklist.md',
+              'docs/hostinger-node-deploy.md',
+              'http-generic-api/docs/hostinger-runtime-sync-runbook.md',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if changed != expected:
+              raise SystemExit(f'bounded_write_set_mismatch:expected={sorted(expected)}:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+
+      - name: Commit documentation parity and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(deploy): align runtime observation and CI guard guidance'
+          git push origin HEAD:gpt/deployment-runtime-doc-parity-20260730
