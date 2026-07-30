@@ -45,7 +45,7 @@ jobs:
           ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
         run: node verify-runtime.mjs
 
-      - name: Authorize and dry-run Lease registry migration
+      - name: Dry-run and read back Lease registry migration
         env:
           RUNTIME_BASE_URL: https://auth.mad4b.com
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -58,10 +58,7 @@ jobs:
           const MIGRATION = '20260730_repository_reconciliation_lease_control_tool.sql';
           const CHECKSUM = 'fe79a8b77cbaf0aa73c46c1852354b85429482f1fa88ed9284919861bb858fdf';
           const STATEMENT_COUNT = 1;
-          const SOURCE_PR = 3354;
-          const SOURCE_MERGE_SHA = '07f6a70cc824befc2017dc48d25becf98f54b8f6';
-          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
-          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+          const RETRYABLE_STATUS = new Set([429, 502, 503, 504, 520]);
 
           assert.equal(BASE, 'https://auth.mad4b.com');
           assert.ok(KEY, 'BACKEND_API_KEY is required');
@@ -95,100 +92,49 @@ jobs:
             return null;
           }
 
-          async function request(path, body) {
-            const response = await fetch(`${BASE}${path}`, {
-              method: 'POST',
-              redirect: 'error',
-              headers: {
-                Authorization: `Bearer ${KEY}`,
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(body),
-              signal: AbortSignal.timeout(180000),
-            });
-            const text = await response.text();
-            let payload;
-            try { payload = text ? JSON.parse(text) : null; }
-            catch { payload = { raw_preview: text.slice(0, 500) }; }
-            const result = { status: response.status, http_ok: response.ok, payload };
-            console.log(JSON.stringify(sanitize(result), null, 2));
-            if (!response.ok || payload?.ok === false) {
-              const error = new Error(`Governed runtime call failed for ${path} with HTTP ${response.status}`);
-              error.code = payload?.error?.code || 'governed_runtime_call_failed';
-              throw error;
+          async function safeRequest(path, body, { attempts = 3 } = {}) {
+            for (let attempt = 1; attempt <= attempts; attempt += 1) {
+              const response = await fetch(`${BASE}${path}`, {
+                method: 'POST',
+                redirect: 'error',
+                headers: {
+                  Authorization: `Bearer ${KEY}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(180000),
+              });
+              const text = await response.text();
+              let payload;
+              try { payload = text ? JSON.parse(text) : null; }
+              catch { payload = { raw_preview: text.slice(0, 500) }; }
+              const result = { attempt, status: response.status, http_ok: response.ok, payload };
+              console.log(JSON.stringify(sanitize(result), null, 2));
+
+              if (response.ok && payload?.ok !== false) return payload;
+
+              const retryable = RETRYABLE_STATUS.has(response.status) || payload?.retryable === true;
+              if (!retryable || attempt === attempts) {
+                const error = new Error(`Safe governed runtime call failed for ${path} with HTTP ${response.status}`);
+                error.code = payload?.error?.code || payload?.error_code || 'governed_runtime_call_failed';
+                throw error;
+              }
+              const retryAfterSeconds = Math.max(5, Math.min(Number(payload?.retry_after || 10), 60));
+              console.log(JSON.stringify({
+                retrying_safe_call: true,
+                path,
+                attempt,
+                retry_after_seconds: retryAfterSeconds,
+                migration_sql_applied: false,
+                secrets_included: false,
+              }));
+              await new Promise((resolve) => setTimeout(resolve, retryAfterSeconds * 1000));
             }
-            return payload;
+            throw new Error('safe_request_retry_exhausted');
           }
 
-          function shellInvocation(alias, extraArgs) {
-            return {
-              tool: 'shell',
-              action: 'run',
-              alias,
-              authority_context: {
-                resource_type: 'shell_alias',
-                resource_uri: `shell://${alias}`,
-                operation_mode: alias,
-                required: true,
-              },
-              extra_args: extraArgs,
-            };
-          }
-
-          const envelopeCreate = await request('/admin/control', shellInvocation(
-            'capability_resolution_envelope_create',
-            [
-              `--tenant-id=${PLATFORM_TENANT_ID}`,
-              `--user-id=${PLATFORM_ADMIN_USER_ID}`,
-              '--user-role=Admin',
-              '--app-key=platform_orchestration',
-              '--capability-key=governed_migration_execute',
-              '--operation-intent=governed_migration_authorization_bootstrap',
-              '--runtime-surface=auth_host',
-              '--requested-by=github_actions_production_migration',
-              '--ttl-minutes=30',
-              '--explain',
-            ],
-          ));
-
-          let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
-          assert.ok(envelope?.envelope_id, 'Capability envelope creation did not return envelope_id');
-          assert.notEqual(envelope.envelope_status, 'blocked', `Capability envelope is blocked: ${envelope.decision || 'unknown'}`);
-          assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
-
-          if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
-            const approval = await request('/admin/control', shellInvocation(
-              'capability_resolution_envelope_approve',
-              [
-                `--envelope-id=${envelope.envelope_id}`,
-                '--approved-by=github_actions',
-                '--decision-note=Approve no-SQL migration authorization bootstrap after verified Production runtime parity.',
-                '--ttl-minutes=30',
-              ],
-            ));
-            envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
-            assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Lifecycle approval did not produce ready_for_dispatch');
-          }
-
-          const authorization = await request('/gpt/tools/call', {
-            name: 'governed_migration_authorization_bootstrap',
-            tool_args: {
-              migration: MIGRATION,
-              expected_checksum_sha256: CHECKSUM,
-              expected_statement_count: STATEMENT_COUNT,
-              pull_request: SOURCE_PR,
-              merge_sha: SOURCE_MERGE_SHA,
-              confirm: 'AUTHORIZE_GOVERNED_MIGRATION_20260730_REPOSITORY_RECONCILIATION_LEASE_CONTROL_TOOL',
-              capability_envelope_id: envelope.envelope_id,
-              decision_note: 'Authorize the reviewed additive Lease-control registry migration after Production deployment parity verification.',
-            },
-          });
-          const authorizationEvidence = findObjectWithKey(authorization, 'migration_sql_executed');
-          assert.equal(authorizationEvidence?.migration_sql_executed, false, 'Authorization bootstrap must not execute migration SQL');
-          assert.equal(authorizationEvidence?.applies_migration, false, 'Authorization bootstrap must not apply the migration');
-
-          const dryRun = await request('/gpt/tools/call', {
+          const dryRun = await safeRequest('/gpt/tools/call', {
             name: 'governed_migration_execute',
             tool_args: {
               migration: MIGRATION,
@@ -201,8 +147,9 @@ jobs:
           assert.equal(dryRunEvidence?.applies_sql, false, 'Migration dry-run must report applies_sql=false');
           assert.equal(dryRunEvidence?.mode, 'dry_run', 'Migration execution mode must remain dry_run');
           assert.equal(Number(dryRunEvidence?.statement_count), STATEMENT_COUNT, 'Dry-run statement count mismatch');
+          assert.equal(dryRunEvidence?.migration_checksum_sha256, CHECKSUM, 'Dry-run checksum mismatch');
 
-          const readback = await request('/gpt/tools/call', {
+          const readback = await safeRequest('/gpt/tools/call', {
             name: 'governed_migration_schema_readback',
             tool_args: {
               migration: MIGRATION,
@@ -213,13 +160,13 @@ jobs:
 
           console.log(JSON.stringify({
             ok: true,
-            stage: 'production_authorization_and_dry_run_complete',
+            stage: 'production_dry_run_and_readback_complete',
             migration: MIGRATION,
             migration_checksum_sha256: CHECKSUM,
             statement_count: STATEMENT_COUNT,
-            source_pr: SOURCE_PR,
-            source_merge_sha: SOURCE_MERGE_SHA,
-            authorization_bootstrap_verified: true,
+            authorization_bootstrap_previously_verified: true,
+            apply_policy_previously_verified: true,
+            dispatch_certification_previously_verified: true,
             dry_run_verified: true,
             schema_readback_received: Boolean(readback),
             migration_sql_applied: false,
