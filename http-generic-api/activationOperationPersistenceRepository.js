@@ -154,6 +154,16 @@ function validateNextAttemptNumber(value, code, message) {
   return next;
 }
 
+export async function appendActivationStageAttemptRecord(pool, input = {}) {
+  const attemptStatus = input.attempt_status
+    ? normalizeState(input.attempt_status, "attempt_status")
+    : "pending";
+  return appendActivationStageAttempt(pool, {
+    ...input,
+    attempt_status: attemptStatus,
+  });
+}
+
 export async function nextActivationStageAttemptNumber(
   pool,
   { operation_id, tenant_id, stage_key } = {},
@@ -375,7 +385,7 @@ export function createActivationOperationPersistenceRepository() {
     createOperation: createActivationOperationProjection,
     readOperation: readActivationOperationProjection,
     updateOperation: updateActivationOperationProjection,
-    appendStageAttempt: appendActivationStageAttempt,
+    appendStageAttempt: appendActivationStageAttemptRecord,
     nextStageAttemptNumber: nextActivationStageAttemptNumber,
     readStageAttempt: readActivationStageAttempt,
     transitionStageAttempt: transitionActivationStageAttempt,
