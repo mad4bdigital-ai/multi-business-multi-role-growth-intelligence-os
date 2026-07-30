@@ -1,5 +1,9 @@
 # Deployment Parity Checklist
 
+## Brand-scoped user skill activation parity
+
+Migration `20260728_brand_scoped_user_skill_activation.sql` is parity-complete only when a separately authorized governed migration run records the reviewed checksum and statement count, schema readback confirms `brand_skill_policies`, `user_brand_skill_grants`, generated `active_scope_hash`, and `v_effective_user_brand_skill_grants`, and runtime readback confirms baseline `agent_skill_grants` remain required with no automatic policy seeding or skill activation. The migration performs no provider call, credential payload read, raw-secret access, external send/write, deployment, or restart; `secrets_included=false`. Repository merge and documentation do not authorize apply.
+
 ## Hostinger Production deploy-branch allowlist parity
 
 Migration `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` is parity-complete only when registry readback confirms the command allowlist, Admin tool schema, execution policy, and certification metadata all allow exactly `main` and `Production`, while the runtime executor still requires an exact 40-character commit SHA, approved target/path, bounded output, and same-cycle health readback. The migration itself has `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, and `secrets_included_false`; merge or documentation alone never applies it or authorizes deployment.

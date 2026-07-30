@@ -25,12 +25,15 @@ assert.match(normalized, /brand:growth_intelligence_platform/i);
 assert.match(normalized, /brand_target_key/i);
 assert.match(normalized, /growth_intelligence_platform/i);
 assert.match(normalized, /relationship_type_key\s*=\s*'contains'/i);
+assert.match(statements[1], /FROM containers brand_container/i);
+assert.match(statements[1], /brand_container\.container_id/i);
+assert.doesNotMatch(statements[1], /ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f/i);
 
 const notExistsCount = (normalized.match(/NOT EXISTS\s*\(/gi) ?? []).length;
 assert.equal(notExistsCount, 2, 'container and relationship inserts must both be idempotent');
 
 const existsCount = (normalized.match(/EXISTS\s*\(/gi) ?? []).length;
-assert.ok(existsCount >= 9, 'migration must guard tenant, brand, type, workspace, and relationship prerequisites');
+assert.ok(existsCount >= 8, 'migration must guard tenant, brand, type, workspace, and relationship prerequisites');
 
 assert.doesNotMatch(normalized, /\b(?:UPDATE|DELETE|ALTER|DROP|TRUNCATE|REPLACE)\b/i);
 assert.doesNotMatch(normalized, /tenant_id\s+IS\s+NULL/i);
