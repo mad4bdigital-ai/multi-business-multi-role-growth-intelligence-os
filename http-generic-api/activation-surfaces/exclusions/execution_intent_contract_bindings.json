@@ -1,0 +1,7 @@
+{
+  "surface_key": "execution_intent_contract_bindings",
+  "source_table": "execution_intent_contract_bindings",
+  "reason": "Excluded because this is a global internal execution-contract routing registry, not tenant or user activation state; exposing it through activation bootstrap would disclose control-plane topology without granting user-visible authority.",
+  "owner": "platform-governance",
+  "review_after": "2027-01-31"
+}
