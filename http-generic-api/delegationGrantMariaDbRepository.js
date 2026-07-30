@@ -51,6 +51,12 @@ function iso(value) {
   return new Date(timestamp).toISOString();
 }
 
+
+function sqlDateTime(value) {
+  const normalized = iso(value);
+  return normalized ? normalized.replace("T", " ").replace("Z", "") : null;
+}
+
 function assertUuid(value, field) {
   const normalized = compact(value, 64).toLowerCase();
   if (!UUID_PATTERN.test(normalized)) {
@@ -260,8 +266,8 @@ export function createDelegationGrantMariaDbRepository({ pool } = {}) {
           if (allowedIntents.length === 0) {
             throw adapterError(400, "DELEGATION_MARIADB_ALLOWED_INTENT_REQUIRED", "At least one allowed intent is required.");
           }
-          const createdAt = iso(grant.created_at || receipt.created_at);
-          const expiresAt = iso(grant.expires_at);
+          const createdAt = sqlDateTime(grant.created_at || receipt.created_at);
+          const expiresAt = sqlDateTime(grant.expires_at);
           const grantHash = assertHash(command.canonical_grant_hash, "command.canonical_grant_hash");
           const resourceScopeJson = JSON.stringify(grant.resource_scope || []);
           const requestedBy = compact(command.requested_by, 191);
@@ -331,9 +337,9 @@ export function createDelegationGrantMariaDbRepository({ pool } = {}) {
                   AND canonical_status = ? AND grant_hash = ?`,
               [
                 requestedBy,
-                iso(command.revoked_at),
+                sqlDateTime(command.revoked_at),
                 compact(command.revocation_reason, 500) || null,
-                iso(command.revoked_at),
+                sqlDateTime(command.revoked_at),
                 normalizedTenantId,
                 grantId,
                 compact(command.expected_status, 32),
@@ -349,8 +355,8 @@ export function createDelegationGrantMariaDbRepository({ pool } = {}) {
                 WHERE tenant_id = ? AND delegation_id = ?
                   AND canonical_status = ? AND grant_hash = ?`,
               [
-                iso(command.expired_at),
-                iso(command.expired_at),
+                sqlDateTime(command.expired_at),
+                sqlDateTime(command.expired_at),
                 normalizedTenantId,
                 grantId,
                 compact(command.expected_status, 32),
@@ -493,6 +499,7 @@ export const _testingDelegationGrantMariaDbRepository = {
   sha256,
   parseJson,
   iso,
+  sqlDateTime,
   tenantOperationKey,
   canonicalGrantFromRow,
   receiptFromRow,
