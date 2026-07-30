@@ -67,6 +67,56 @@ assert.equal(tamperedRouteCallability.ok, false);
 assert(!tamperedRouteCallability.covered_tool_keys.includes("workspace_brands_list"));
 assert(tamperedRouteCallability.findings.some((row) => row.type === "direct_route_contract_marker_missing" && row.role === "route"));
 
+const groupedContract = {
+  contract_key: "grouped_route_example",
+  tool_keys: ["grouped_tool_alpha", "grouped_tool_beta"],
+  route_signature: "GET /me/grouped-example",
+  migration_file: "migrations/grouped-example.sql",
+  route_file: "routes/grouped-example.js",
+  mount_file: "routes/grouped-index.js",
+  test_file: "test-grouped-example.mjs",
+  openapi_file: "openapi-grouped-example.yaml",
+  migration_markers: ["grouped_tool_alpha", "grouped_tool_beta"],
+  route_markers: ["router.get grouped example", "requireUserJwt", "readback marker"],
+  mount_markers: ["mount grouped example"],
+  test_markers: ["grouped example test"],
+  openapi_markers: ["/me/grouped-example:", "operationId: groupedExample"],
+  auth_model: "user_jwt",
+  read_only: true,
+  runtime_execution_allowed: true,
+  provider_calls_allowed: false,
+  external_writes_allowed: false,
+  credential_payload_reads_allowed: false,
+  secrets_included: false,
+};
+const groupedCallability = validateDirectRouteCallabilityContracts({
+  root: process.cwd(),
+  manifest: { callability_gate: { direct_route_contracts: [groupedContract] } },
+  fileOverrides: {
+    "migrations/grouped-example.sql": "grouped_tool_alpha grouped_tool_beta",
+    "routes/grouped-example.js": "router.get grouped example requireUserJwt readback marker",
+    "routes/grouped-index.js": "mount grouped example",
+    "test-grouped-example.mjs": "grouped example test",
+    "openapi-grouped-example.yaml": "/me/grouped-example:\noperationId: groupedExample",
+  },
+});
+assert.equal(groupedCallability.ok, true, JSON.stringify(groupedCallability.findings));
+assert.deepEqual(groupedCallability.covered_tool_keys.filter((key) => key.startsWith("grouped_tool_")), ["grouped_tool_alpha", "grouped_tool_beta"]);
+assert.equal(groupedCallability.covered_contracts.filter((row) => row.contract_key === "grouped_route_example").length, 2);
+const duplicateGroupedCallability = validateDirectRouteCallabilityContracts({
+  root: process.cwd(),
+  manifest: { callability_gate: { direct_route_contracts: [groupedContract, { ...groupedContract, contract_key: "grouped_route_duplicate", route_signature: "GET /me/grouped-example-duplicate", tool_keys: ["grouped_tool_beta"] }] } },
+  fileOverrides: {
+    "migrations/grouped-example.sql": "grouped_tool_alpha grouped_tool_beta",
+    "routes/grouped-example.js": "router.get grouped example requireUserJwt readback marker",
+    "routes/grouped-index.js": "mount grouped example",
+    "test-grouped-example.mjs": "grouped example test",
+    "openapi-grouped-example.yaml": "/me/grouped-example:\noperationId: groupedExample",
+  },
+});
+assert.equal(duplicateGroupedCallability.ok, false);
+assert(duplicateGroupedCallability.findings.some((row) => row.type === "direct_route_contract_tool_key_duplicate" && row.tool_key === "grouped_tool_beta"));
+
 const internalPolicy = { exposure_class: "internal_registry", resource_key: null, descriptor_requirement: "not_applicable", operation_requirement: "not_applicable", archive_requirement: "not_applicable", version_requirement: "not_applicable" };
 assert.deepEqual(evaluateResourceSurfacePolicy({ surfaceKind: "table", surfaceRef: "internal_registry_example", policy: internalPolicy }), []);
 const resourcePolicy = { exposure_class: "resource_source", resource_key: "assets", descriptor_requirement: "required", operation_requirement: "not_applicable", archive_requirement: "resource_state", version_requirement: "resource_state" };
