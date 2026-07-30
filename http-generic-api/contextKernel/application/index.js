@@ -13,6 +13,7 @@ export {
   createExecutionCapsuleService,
 } from "./executionCapsuleService.js";
 export { createExecutionPlanService } from "./executionPlanService.js";
+export { createPolicyGrantEvaluatorService } from "./policyGrantEvaluatorService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
 export { createProviderConsentService } from "./providerConsentService.js";
 export { createProviderConsentStateCodec } from "./providerConsentStateCodec.js";
@@ -31,6 +32,7 @@ export {
   assertContextPinRepository,
   assertExactConnectionRepository,
   assertExecutionLedgerRepository,
+  assertPolicyGrantEvidenceRepository,
   assertProviderAuthorizationStateRepository,
   assertProviderConsentStateRepository,
   assertResourceGraphRepository,
