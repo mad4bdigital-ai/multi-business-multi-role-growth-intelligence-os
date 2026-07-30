@@ -31,20 +31,17 @@ jobs:
 
           old_params = 'const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerPrincipalType, ownerPrincipalId] = params;'
           new_params = 'const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerWorkspaceId, ownerPrincipalType, ownerPrincipalId] = params;'
-          old_match = '''          row.owner_tenant_id === ownerTenantId
-          && row.owner_user_id === ownerUserId
-          && row.owner_principal_type === ownerPrincipalType'''
-          new_match = '''          row.owner_tenant_id === ownerTenantId
-          && row.owner_user_id === ownerUserId
-          && row.owner_workspace_id === ownerWorkspaceId
-          && row.owner_principal_type === ownerPrincipalType'''
+          old_user_line = '&& row.owner_user_id === ownerUserId\n'
+          new_user_lines = '&& row.owner_user_id === ownerUserId\n          && row.owner_workspace_id === ownerWorkspaceId\n'
 
           if text.count(old_params) != 1:
               raise SystemExit(f'expected one stale parameter destructure, found {text.count(old_params)}')
-          if text.count(old_match) != 1:
-              raise SystemExit(f'expected one stale owner comparison, found {text.count(old_match)}')
+          if text.count(old_user_line) != 1:
+              raise SystemExit(f'expected one owner-user comparison, found {text.count(old_user_line)}')
+          if 'owner_workspace_id === ownerWorkspaceId' in text:
+              raise SystemExit('workspace comparison already present')
 
-          path.write_text(text.replace(old_params, new_params, 1).replace(old_match, new_match, 1), encoding='utf-8')
+          path.write_text(text.replace(old_params, new_params, 1).replace(old_user_line, new_user_lines, 1), encoding='utf-8')
           PY
 
       - name: Validate syntax and bounded diff
