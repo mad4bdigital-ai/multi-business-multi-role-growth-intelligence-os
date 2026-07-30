@@ -1,4 +1,4 @@
-name: Lease Migration Production Apply
+name: Lease Migration Production Final Readback
 
 on:
   pull_request:
@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: lease-migration-production-apply
+  group: lease-migration-production-final-readback
   cancel-in-progress: false
 
 jobs:
-  governed-production-apply:
+  governed-production-final-readback:
     if: github.event.pull_request.head.ref == 'ops/lease-migration-production-apply-20260730'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Check out deployed Production source
@@ -45,7 +45,7 @@ jobs:
           ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
         run: node verify-runtime.mjs
 
-      - name: Apply and verify Lease registry migration
+      - name: Verify migration ledger and Admin tool catalog
         env:
           RUNTIME_BASE_URL: https://auth.mad4b.com
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -58,10 +58,7 @@ jobs:
           const MIGRATION = '20260730_repository_reconciliation_lease_control_tool.sql';
           const CHECKSUM = 'fe79a8b77cbaf0aa73c46c1852354b85429482f1fa88ed9284919861bb858fdf';
           const STATEMENT_COUNT = 1;
-          const APPLY_CONFIRMATION = 'APPLY_20260730_REPOSITORY_RECONCILIATION_LEASE_CONTROL_TOOL';
           const TOOL_KEY = 'repository_reconciliation_lease_control';
-          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
-          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
           const TRANSIENT_STATUS = new Set([429, 502, 503, 504, 520]);
 
           assert.equal(BASE, 'https://auth.mad4b.com');
@@ -84,18 +81,6 @@ jobs:
             try { return JSON.parse(text); } catch { return value; }
           }
 
-          function findObjectWithKey(value, key, seen = new Set()) {
-            value = parsedValue(value);
-            if (!value || typeof value !== 'object' || seen.has(value)) return null;
-            seen.add(value);
-            if (Object.prototype.hasOwnProperty.call(value, key)) return value;
-            for (const child of Object.values(value)) {
-              const found = findObjectWithKey(child, key, seen);
-              if (found) return found;
-            }
-            return null;
-          }
-
           function collectObjects(value, output = [], seen = new Set()) {
             value = parsedValue(value);
             if (!value || typeof value !== 'object' || seen.has(value)) return output;
@@ -105,152 +90,35 @@ jobs:
             return output;
           }
 
-          async function httpCall(path, body) {
-            const response = await fetch(`${BASE}${path}`, {
-              method: 'POST',
-              redirect: 'error',
-              headers: {
-                Authorization: `Bearer ${KEY}`,
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(body),
-              signal: AbortSignal.timeout(180000),
-            });
-            const text = await response.text();
-            let payload;
-            try { payload = text ? JSON.parse(text) : null; }
-            catch { payload = { raw_preview: text.slice(0, 500) }; }
-            const result = { status: response.status, http_ok: response.ok, payload };
-            console.log(JSON.stringify(sanitize(result), null, 2));
-            return result;
-          }
-
-          function requireSuccess(result, label) {
-            if (!result.http_ok || result.payload?.ok === false) {
-              const error = new Error(`${label} failed with HTTP ${result.status}`);
-              error.code = result.payload?.error?.code || result.payload?.error_code || `${label}_failed`;
-              throw error;
-            }
-            return result.payload;
-          }
-
-          async function safeRead(path, body, { attempts = 4, retry409 = false } = {}) {
+          async function safeRead(path, body, attempts = 4) {
             for (let attempt = 1; attempt <= attempts; attempt += 1) {
-              const result = await httpCall(path, body);
-              if (result.http_ok && result.payload?.ok !== false) return result.payload;
-              const retryable = TRANSIENT_STATUS.has(result.status) || result.payload?.retryable === true || (retry409 && result.status === 409);
-              if (!retryable || attempt === attempts) return requireSuccess(result, 'safe_read');
-              const delaySeconds = Math.max(5, Math.min(Number(result.payload?.retry_after || 10), 60));
-              console.log(JSON.stringify({ retrying_read_only_call: true, path, attempt, delay_seconds: delaySeconds, apply_retried: false, secrets_included: false }));
+              const response = await fetch(`${BASE}${path}`, {
+                method: 'POST',
+                redirect: 'error',
+                headers: {
+                  Authorization: `Bearer ${KEY}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(180000),
+              });
+              const text = await response.text();
+              let payload;
+              try { payload = text ? JSON.parse(text) : null; }
+              catch { payload = { raw_preview: text.slice(0, 500) }; }
+              console.log(JSON.stringify(sanitize({ attempt, status: response.status, http_ok: response.ok, payload }), null, 2));
+              if (response.ok && payload?.ok !== false) return payload;
+              const retryable = TRANSIENT_STATUS.has(response.status) || payload?.retryable === true || response.status === 409;
+              if (!retryable || attempt === attempts) {
+                const error = new Error(`Final readback failed for ${path} with HTTP ${response.status}`);
+                error.code = payload?.error?.code || payload?.error_code || 'final_readback_failed';
+                throw error;
+              }
+              const delaySeconds = Math.max(5, Math.min(Number(payload?.retry_after || 10), 60));
               await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
             }
-            throw new Error('safe_read_retry_exhausted');
-          }
-
-          function shellInvocation(alias, extraArgs) {
-            return {
-              tool: 'shell',
-              action: 'run',
-              alias,
-              authority_context: {
-                resource_type: 'shell_alias',
-                resource_uri: `shell://${alias}`,
-                operation_mode: alias,
-                required: true,
-              },
-              extra_args: extraArgs,
-            };
-          }
-
-          const dryRun = await safeRead('/gpt/tools/call', {
-            name: 'governed_migration_execute',
-            tool_args: {
-              migration: MIGRATION,
-              mode: 'dry_run',
-              expected_checksum_sha256: CHECKSUM,
-              expected_statement_count: STATEMENT_COUNT,
-            },
-          });
-          const dryRunEvidence = findObjectWithKey(dryRun, 'applies_sql');
-          assert.equal(dryRunEvidence?.applies_sql, false, 'Same-cycle dry-run must report applies_sql=false');
-          assert.equal(dryRunEvidence?.mode, 'dry_run', 'Same-cycle dry-run mode mismatch');
-          assert.equal(dryRunEvidence?.migration_checksum_sha256, CHECKSUM, 'Same-cycle dry-run checksum mismatch');
-          assert.equal(Number(dryRunEvidence?.statement_count), STATEMENT_COUNT, 'Same-cycle dry-run statement count mismatch');
-          assert.equal(dryRunEvidence?.same_cycle_readback_verified, true, 'Same-cycle dry-run readback missing');
-
-          const envelopeCreate = requireSuccess(await httpCall('/admin/control', shellInvocation(
-            'capability_resolution_envelope_create',
-            [
-              `--tenant-id=${PLATFORM_TENANT_ID}`,
-              `--user-id=${PLATFORM_ADMIN_USER_ID}`,
-              '--user-role=Admin',
-              '--app-key=platform_orchestration',
-              '--capability-key=governed_migration_execute',
-              '--operation-intent=governed_migration_execute',
-              '--runtime-surface=auth_host',
-              '--requested-by=github_actions_production_migration_apply',
-              '--ttl-minutes=30',
-              '--explain',
-            ],
-          )), 'envelope_create');
-          let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
-          assert.ok(envelope?.envelope_id, 'Apply envelope creation returned no envelope_id');
-          assert.notEqual(envelope.envelope_status, 'blocked', `Apply envelope blocked: ${envelope.decision || 'unknown'}`);
-          assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Apply envelope has blocking gaps');
-          assert.equal(envelope.dispatch_allowed, true, 'Apply envelope is not dispatchable');
-
-          if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
-            const approval = requireSuccess(await httpCall('/admin/control', shellInvocation(
-              'capability_resolution_envelope_approve',
-              [
-                `--envelope-id=${envelope.envelope_id}`,
-                '--approved-by=github_actions',
-                '--decision-note=Approve one checksum-bound governed Lease migration apply after successful same-cycle dry-run.',
-                '--ttl-minutes=30',
-              ],
-            )), 'lifecycle_approval');
-            envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
-          }
-          assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Apply envelope is not ready_for_dispatch');
-
-          const applyAuthorization = requireSuccess(await httpCall('/gpt/tools/call', {
-            name: 'capability_resolution_envelope_apply_authorize',
-            tool_args: {
-              envelope_id: envelope.envelope_id,
-              authorized_by: 'github_actions',
-              decision_note: 'Apply-authorize one governed Lease registry migration after successful Production parity and same-cycle dry-run.',
-              ttl_minutes: 30,
-            },
-          }), 'apply_authorization');
-          const applyAuthorizationEvidence = findObjectWithKey(applyAuthorization, 'apply_allowed');
-          assert.equal(applyAuthorizationEvidence?.apply_allowed, true, 'Envelope was not apply-authorized');
-          assert.equal(applyAuthorizationEvidence?.external_write_allowed, false, 'Apply policy unexpectedly permits external write');
-          assert.equal(applyAuthorizationEvidence?.no_provider_call, true, 'Apply authorization must preserve no-provider boundary');
-          assert.equal(applyAuthorizationEvidence?.no_credential_payload_read, true, 'Apply authorization must preserve credential boundary');
-
-          const applyRequest = {
-            name: 'governed_migration_execute',
-            tool_args: {
-              migration: MIGRATION,
-              mode: 'apply',
-              expected_checksum_sha256: CHECKSUM,
-              expected_statement_count: STATEMENT_COUNT,
-              confirm: APPLY_CONFIRMATION,
-              capability_envelope_id: envelope.envelope_id,
-            },
-          };
-
-          const applyResult = await httpCall('/gpt/tools/call', applyRequest);
-          let applyEvidence = null;
-          let recoveredFromAmbiguousResponse = false;
-          if (applyResult.http_ok && applyResult.payload?.ok !== false) {
-            applyEvidence = findObjectWithKey(applyResult.payload, 'applies_sql');
-          } else if (TRANSIENT_STATUS.has(applyResult.status) || applyResult.payload?.retryable === true) {
-            console.log(JSON.stringify({ apply_response_ambiguous: true, apply_retried: false, proceeding_to_readback: true, secrets_included: false }));
-            recoveredFromAmbiguousResponse = true;
-          } else {
-            requireSuccess(applyResult, 'migration_apply');
+            throw new Error('final_readback_retry_exhausted');
           }
 
           const readback = await safeRead('/gpt/tools/call', {
@@ -260,50 +128,55 @@ jobs:
               expected_checksum_sha256: CHECKSUM,
               expected_statement_count: STATEMENT_COUNT,
             },
-          }, { retry409: true });
-          assert.equal(readback?.ok, true, 'Final migration readback is not successful');
-          assert.equal(readback?.readback_status, 'pass', 'Final migration readback did not pass');
-          assert.equal(readback?.migration_checksum_sha256, CHECKSUM, 'Final readback checksum mismatch');
-          assert.equal(Number(readback?.statement_count), STATEMENT_COUNT, 'Final readback statement count mismatch');
-          assert.equal(readback?.ledger?.found, true, 'Governed migration ledger row not found');
-          assert.equal(readback?.ledger?.mode, 'apply', 'Governed migration ledger mode mismatch');
+          });
+          assert.equal(readback?.ok, true, 'Migration readback is not successful');
+          assert.equal(readback?.readback_status, 'pass', 'Migration readback status mismatch');
+          assert.equal(readback?.migration_checksum_sha256, CHECKSUM, 'Migration readback checksum mismatch');
+          assert.equal(Number(readback?.statement_count), STATEMENT_COUNT, 'Migration readback statement count mismatch');
+          assert.equal(readback?.ledger?.found, true, 'Migration ledger row is absent');
+          assert.ok(String(readback?.ledger?.run_id || ''), 'Migration ledger run_id is absent');
+          assert.equal(readback?.ledger?.mode, 'apply', 'Migration ledger mode mismatch');
+          assert.equal(readback?.ledger?.preflight_status, 'pass', 'Migration ledger preflight status mismatch');
+          assert.equal(Number(readback?.ledger?.preflight_risk_count), 0, 'Migration ledger risk count mismatch');
+          assert.ok(String(readback?.ledger?.capability_envelope_id || ''), 'Migration ledger capability envelope evidence is absent');
           for (const key of ['tables', 'columns', 'indexes', 'rule_conditions']) {
-            assert.deepEqual(readback?.expectations?.missing?.[key] || [], [], `Final readback has missing ${key}`);
-          }
-
-          if (applyEvidence) {
-            assert.equal(applyEvidence.applies_sql, true, 'Apply response did not confirm applies_sql=true');
-            assert.equal(applyEvidence.mode, 'apply', 'Apply response mode mismatch');
-            assert.equal(Number(applyEvidence.statements_executed), STATEMENT_COUNT, 'Apply response statement count mismatch');
-            assert.equal(applyEvidence?.ledger?.recorded, true, 'Apply response did not confirm ledger recording');
-            assert.equal(applyEvidence?.same_cycle_readback_verified, true, 'Apply response did not confirm same-cycle readback');
-          } else {
-            assert.equal(recoveredFromAmbiguousResponse, true, 'Missing apply evidence without an ambiguous response');
+            assert.deepEqual(readback?.expectations?.missing?.[key] || [], [], `Migration readback has missing ${key}`);
           }
 
           const catalog = await safeRead('/gpt/tools/call', {
             name: 'admin_tool_catalog_search',
             tool_args: { q: TOOL_KEY, cursor: 0, limit: 20 },
           });
-          const toolRows = collectObjects(catalog).filter((item) => String(item.tool_key || '') === TOOL_KEY);
+          const toolRows = collectObjects(catalog).filter((item) => String(item.name || '') === TOOL_KEY);
           assert.ok(toolRows.length >= 1, 'Lease control tool is absent from the Admin tool catalog');
-          const enabledTool = toolRows.find((item) => item.is_enabled === true || Number(item.is_enabled) === 1) || toolRows[0];
-          assert.equal(String(enabledTool.http_method || '').toUpperCase(), 'POST', 'Lease control tool method mismatch');
-          assert.equal(String(enabledTool.http_path || ''), '/admin/repository-automation/reconciliation-lease', 'Lease control tool path mismatch');
+          const tool = toolRows[0];
+          assert.equal(String(tool.method || '').toUpperCase(), 'POST', 'Lease control tool method mismatch');
+          assert.equal(String(tool.path || ''), '/admin/repository-automation/reconciliation-lease', 'Lease control tool path mismatch');
+          const tags = new Set(Array.isArray(tool.tags) ? tool.tags.map(String) : []);
+          for (const tag of ['capability_envelope', 'apply_authorized', 'typed_confirmation', 'no_force', 'same_cycle_readback', 'no_secrets']) {
+            assert.equal(tags.has(tag), true, `Lease control catalog entry is missing tag ${tag}`);
+          }
+          const required = new Set(Array.isArray(tool.inputSchema?.required) ? tool.inputSchema.required.map(String) : []);
+          for (const field of ['action', 'capability_envelope_id', 'confirm']) {
+            assert.equal(required.has(field), true, `Lease control input schema is missing required field ${field}`);
+          }
 
           console.log(JSON.stringify({
             ok: true,
-            stage: 'production_apply_and_readback_complete',
+            stage: 'production_migration_final_readback_complete',
             migration: MIGRATION,
             migration_checksum_sha256: CHECKSUM,
             statement_count: STATEMENT_COUNT,
-            apply_confirmation_verified: true,
-            capability_envelope_apply_authorized: true,
-            apply_response_recovered_by_readback: recoveredFromAmbiguousResponse,
-            ledger_recorded: true,
-            schema_readback_passed: true,
+            ledger_run_id: readback.ledger.run_id,
+            ledger_mode: readback.ledger.mode,
+            preflight_status: readback.ledger.preflight_status,
+            preflight_risk_count: Number(readback.ledger.preflight_risk_count),
+            schema_expectation_gaps: 0,
             admin_tool_registry_readback_passed: true,
             registered_tool_key: TOOL_KEY,
+            registered_method: tool.method,
+            registered_path: tool.path,
+            migration_sql_applied: true,
             provider_call_executed: false,
             external_write_executed: false,
             secrets_included: false,
