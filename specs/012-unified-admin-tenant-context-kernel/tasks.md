@@ -16,6 +16,8 @@
 - [ ] Implement personal-owner, workspace, brand, and tenant eligibility predicates.
 - [ ] Require exact owner scope in every resolved selected-connection decision.
 - [ ] Omit selected connection and owner-scope fields from unresolved decisions; expose candidate and revision evidence without fabricated ownership.
+- [ ] Bind workspace ownership, selected owner-scope type/ref, owner-scope revision, connection revision, authorization revision, and unresolved candidate revision vector into the context hash.
+- [ ] Invalidate pins, plans, approvals, and envelopes when any hashed ownership or revision field changes.
 - [ ] Implement context hash and tenant/workspace/brand/resource/connection invalidation graph.
 - [ ] Implement high-risk and consequential-write fallback prohibition.
 - [ ] Add unit and property tests.
@@ -26,11 +28,13 @@
 - [ ] Add an additive `workspace_ownership_type` persistence field without redefining `workspace_registry.workspace_type`.
 - [ ] Add exact connection-ownership repository.
 - [ ] Add brand connection binding repository.
+- [ ] Persist a safe stable `providerAccountRef` or a versioned, domain-separated `providerAccountBindingHash` for every authorized connection.
+- [ ] Preserve the non-secret provider-account binding after credential expiry or revocation and rotate it only through governed authorization completion.
 - [ ] Add provider authorization-state repository with reconnect target/account/revision binding and explicit `issued → claimed → consumed` lifecycle.
 - [ ] Implement revision-bound atomic compare-and-set claim so exactly one concurrent OAuth callback can continue.
 - [ ] Keep claim tokens internal, short-lived, state-specific, and non-exportable.
 - [ ] Add compare-and-set credential replacement keyed by target connection revision, claimed-state revision, and claim token.
-- [ ] Atomically commit encrypted credential replacement, connection revision increment, and authorization-state consumption, or leave all three unapplied.
+- [ ] Atomically commit encrypted credential replacement, provider-account binding update, connection revision increment, and authorization-state consumption, or leave all effects unapplied.
 - [ ] Add capability, two-stage readiness, context pin, and execution ledger repositories.
 - [ ] Prepare additive migration, dry-run, compatibility, and same-cycle readback contracts.
 - [ ] Classify legacy rows before additive backfill.
@@ -56,7 +60,7 @@
 - [ ] Implement signed, expiring, nonce-bound, redirect-allowlisted OAuth state.
 - [ ] Atomically claim OAuth state before code exchange, provider calls, credential lookup, or credential mutation.
 - [ ] Reject concurrent claim losers with `OAUTH_STATE_CLAIM_CONFLICT` and sequential replays with `OAUTH_STATE_REPLAYED`.
-- [ ] Bind reconnect state to target connection, expected connection revision, and expected provider account reference or binding hash.
+- [ ] Bind reconnect state to target connection, expected connection revision, and the durable expected provider-account reference or binding hash.
 - [ ] Reject reconnect account mismatch before credential replacement.
 - [ ] Re-read the target connection revision immediately before replacement and enforce the signed expected revision in the credential-write compare-and-set.
 - [ ] Couple reconnect credential replacement and `claimed → consumed` state completion atomically; reject partial completion and require a new authorization attempt after conflict.
@@ -93,8 +97,8 @@
 - [ ] Integrate resource-first and brand-scoped flows.
 - [ ] Compare exact owner-scope decisions and investigate every isolation, ambiguity, fallback, or readiness discrepancy.
 - [ ] Keep cross-tenant, cross-user, and cross-brand isolation tests release blocking.
-- [ ] Add release-blocking OAuth sequential replay, concurrent claim, expiry, redirect, reconnect-account, reconnect-revision-race, atomic-completion, and context-mismatch tests.
-- [ ] Add release-blocking ambiguity, unresolved-owner-scope omission, no-silent-fallback, approval-order, no-approval-plan, two-stage-readiness, and no-secret tests.
+- [ ] Add release-blocking OAuth sequential replay, concurrent claim, expiry, redirect, reconnect-account, durable-binding-after-expiry, reconnect-revision-race, atomic-completion, and context-mismatch tests.
+- [ ] Add release-blocking context-hash owner-scope substitution, ambiguity, unresolved-owner-scope omission, no-silent-fallback, approval-order, no-approval-plan, two-stage-readiness, and no-secret tests.
 - [ ] Enable bounded low-risk reads only after parity and all gates pass.
 
 ## Phase 9: Governed writes, rollback, and closeout
@@ -106,7 +110,7 @@
 - [ ] Keep exact-owner isolation active during rollback; disable or fail closed affected provider operations when the guard is unavailable.
 - [ ] Add rollback tests that reject restoration of owner-unsafe selectors.
 - [ ] Verify production deployment against expected commit SHA.
-- [ ] Run post-merge isolation, no-secret, OAuth concurrent-claim, reconnect-account, reconnect-revision-race, atomic-completion, readiness, migration, and rollback audit.
+- [ ] Run post-merge isolation, context-hash integrity, no-secret, OAuth concurrent-claim, durable account-binding, reconnect-account, reconnect-revision-race, atomic-completion, readiness, migration, and rollback audit.
 - [ ] Record all implementation PRs and closeout evidence in `completion.json`.
 
 ## Definition of done
@@ -116,6 +120,8 @@
 - [ ] No production hardcoding or unsafe selection findings remain.
 - [ ] Existing operational workspace-type semantics remain unchanged.
 - [ ] Cross-tenant, cross-user, and cross-brand isolation gates pass.
+- [ ] Context hash changes on owner-scope or relevant revision movement and invalidates dependent state.
+- [ ] Every connection retains a durable raw or privacy-preserving provider-account binding.
 - [ ] OAuth atomic claim, replay, reconnect binding, reconnect-write concurrency, and no-silent-fallback gates pass.
 - [ ] Reconnect credential replacement and authorization-state consumption commit together or remain unapplied.
 - [ ] Unresolved decisions omit selected connection and owner-scope fields.
