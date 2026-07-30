@@ -47,6 +47,16 @@ Changes to routes or modular OpenAPI contracts trigger the bounded PR artifact r
 
 Because that generated commit is authored by `github-actions[bot]`, a subsequent human-authored, source-neutral commit may be required to run the repository's full pull-request checks on the generated head. This does not authorize merging or applying the registry migration.
 
+## Verified generated readback
+
+The bounded refresh is accepted only when all of the following remain true:
+
+- operation-governance coverage reports seven candidates, seven generated rules, and zero rejected candidates;
+- the lease endpoint is classified as a governed `state_change` from a generated operation rule with no blockers;
+- preflight, typed approval, transactional readback, rollback, and parameter bindings are present;
+- runtime and OpenAPI authentication remain equivalent with no route-contract gaps;
+- `test-repository-reconciliation-lease-control.mjs` is attached to the endpoint and is absent from `untested_operations`.
+
 ## Actions
 
 ### Acquire
