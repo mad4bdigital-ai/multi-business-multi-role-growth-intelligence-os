@@ -683,15 +683,8 @@ const checkResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fix
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
 const implicitBaselineCheck = syncDispatchPlan({ apiRoot, mode: "check" });
-console.error(`::warning title=frontend-implicit-check::${JSON.stringify({
-  ok: implicitBaselineCheck.ok,
-  drift: implicitBaselineCheck.drift,
-  baseline_ref: implicitBaselineCheck.plan?.baseline?.ref,
-})}`);
 assert.equal(implicitBaselineCheck.ok, true);
-console.error("::warning title=frontend-checkpoint::implicit-check-ok");
 assert.equal(implicitBaselineCheck.plan.baseline.ref, "fixture-sha");
-console.error("::warning title=frontend-checkpoint::implicit-baseline-ok");
 
 fs.appendFileSync(path.join(apiRoot, "routes/tenantRoutes.js"), "\nrouter.get('/me/new-surface', handler);\n");
 const driftResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
