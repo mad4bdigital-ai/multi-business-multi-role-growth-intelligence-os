@@ -1,0 +1,4 @@
+candidate_base=71475ad136684da1ec86dfb2c9d1f4ff50af7b54
+production_base=28c3a74982050340b2b49f86bc77d1997164c642
+purpose=temporary exact validation synchronize trigger; deleted in next commit
+secrets_included=false
