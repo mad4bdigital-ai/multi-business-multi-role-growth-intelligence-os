@@ -1,0 +1,76 @@
+name: T016 Certification Identity Hotfix
+
+on:
+  push:
+    branches:
+      - gpt/011-ueacp-t016-endpoint-certification-recovery-20260730
+
+permissions:
+  contents: write
+
+concurrency:
+  group: t016-certification-reference-hotfix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout T016 recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/011-ueacp-t016-endpoint-certification-recovery-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply exact certification identity repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/contextKernel/domain/endpointCertificationPolicy.js')
+          source = path.read_text(encoding='utf-8')
+          old = 'result.value.aliasRef || result.value.endpointRef || result.value.certificationRef;'
+          new = 'result.value.aliasRef || result.value.certificationRef || result.value.endpointRef;'
+          if source.count(old) != 1:
+              raise SystemExit(f't016_reference_anchor_count:{source.count(old)}')
+          if new in source:
+              raise SystemExit('t016_reference_repair_already_present')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Run focused T016 regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-context-kernel-endpoint-certification-resolver.mjs
+          node test-context-kernel-endpoint-certification-fail-closed.mjs
+
+      - name: Commit bounded repair and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/t016-certification-reference-hotfix.yml
+          git add http-generic-api/contextKernel/domain/endpointCertificationPolicy.js
+          python3 <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/t016-certification-reference-hotfix.yml',
+              'http-generic-api/contextKernel/domain/endpointCertificationPolicy.js',
+          }
+          changed = set(filter(None, subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-only'], text=True
+          ).splitlines()))
+          if changed != expected:
+              raise SystemExit(f'bounded_write_set_mismatch:expected={sorted(expected)}:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(spec-011): distinguish certification record identity'
+          git push origin HEAD:gpt/011-ueacp-t016-endpoint-certification-recovery-20260730
