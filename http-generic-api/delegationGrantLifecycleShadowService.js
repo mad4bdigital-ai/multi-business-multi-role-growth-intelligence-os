@@ -378,12 +378,13 @@ export function planDelegationGrantCreateShadow({
     blockers.push("DELEGATION_CREATE_NOT_AUTHORIZED");
   }
   if (new Date(grant.expires_at).getTime() <= new Date(now).getTime()) blockers.push("DELEGATION_ALREADY_EXPIRED");
-  const grantHash = canonicalGrantHash(grant);
+  const persistedGrant = normalizeCanonicalGrant({ ...grant, status: "active" });
+  const grantHash = canonicalGrantHash(persistedGrant);
   const command = {
     action: "create",
     expected_status: "preview",
     proposed_status: "active",
-    grant,
+    grant: persistedGrant,
     preview_grant_hash: previewHash,
     canonical_grant_hash: grantHash,
     requested_by: context.requested_by,
