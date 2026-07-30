@@ -2,6 +2,13 @@ import { getPool } from "./db.js";
 
 export const CANONICAL_IDENTIFIER_CONTRACT_VERSION = "canonical_identifier_contract_v1";
 
+const REPOSITORY_AUTHORITY_READINESS_REPAIR_MARKERS = Object.freeze([
+  "migration:20260725_repository_authority_capability_readiness_repair",
+  "growth_intelligence_platform.github.primary.production",
+  "authority.system_id COLLATE utf8mb4_unicode_ci",
+  "system.system_id COLLATE utf8mb4_unicode_ci",
+]);
+
 function defineUuidContract(identifierName) {
   return Object.freeze({
     contract_key: `uuid.${identifierName}.v1`,
@@ -108,7 +115,39 @@ function mismatchFields(left = {}, right = {}) {
     .filter((field) => normalize(left[field]) !== normalize(right[field]));
 }
 
+export function requiresDedicatedIdentifierRepairRunner(sql = "") {
+  const source = String(sql || "");
+  return REPOSITORY_AUTHORITY_READINESS_REPAIR_MARKERS.every((marker) => source.includes(marker));
+}
+
+function dedicatedIdentifierRepairFinding() {
+  return {
+    code: "IDENTIFIER_REPAIR_DEDICATED_ATOMIC_RUNNER_REQUIRED",
+    contract_key: "uuid.system_id.v1",
+    identifier_name: "system_id",
+    migration_file: "20260725_repository_authority_capability_readiness_repair.sql",
+    required_runner: "repository-authority-capability-readiness-repair-runner.mjs",
+    reason: "The comparison-time collation repair, target-row readback, ledger write, and capability-envelope consumption must commit atomically.",
+  };
+}
+
 export async function assessLiveIdentifierComparisonContracts(sql = "", { query } = {}) {
+  if (requiresDedicatedIdentifierRepairRunner(sql)) {
+    const finding = dedicatedIdentifierRepairFinding();
+    return {
+      status: "block",
+      contract_version: CANONICAL_IDENTIFIER_CONTRACT_VERSION,
+      checked_comparison_count: 1,
+      issue_count: 1,
+      protected_mismatch_count: 0,
+      issues: [finding],
+      protected_mismatches: [],
+      dedicated_atomic_runner_required: true,
+      required_runner: finding.required_runner,
+      secrets_included: false,
+    };
+  }
+
   const comparisons = extractCanonicalIdentifierComparisons(sql);
   if (!comparisons.length) {
     return {
