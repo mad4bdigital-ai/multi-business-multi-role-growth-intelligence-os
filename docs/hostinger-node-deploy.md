@@ -238,3 +238,13 @@ checksums, `github_rest_endpoint_dispatch` to list `github_get_git_ref_head`,
 integrity to report zero gaps, and read-only same-cycle GitHub ref/workflow-run
 readback to succeed through endpoint authority. A restart or redeploy alone must not
 be used as a substitute for those SQL and dispatcher readbacks.
+
+## Deployment evidence interpretation
+
+The request-time deployment-observation foundation is an evidence collector and historical correlator, not a deployment-state authority. It records independently sourced expected-release, deployed-release, health, contract, and optional migration evidence; rejects future-dated component evidence; and selects the newest observation that existed at or before the request being diagnosed. Later convergence must never rewrite the diagnosis of an earlier request.
+
+Until the separately governed T024A/T024B/T026 work is complete, operators must continue to prove Hostinger parity through direct protected-ref and runtime readback. Confirm the exact `Production` SHA, wait for Hostinger auto-deploy, then verify `/health`, `/version`, and `/deployment-info` against that same SHA. An observation with incomplete evidence remains incomplete and returns `classification_status=not_computed`; it is not proof that a deployment is current or safe.
+
+A cancelled Custom GPT Contract Guard run may be operationally neutral only when a newer run matches the same workflow, event, and head branch. In that case the cancelled run must not create or resolve an incident or ingest a SQL alert signal; the newer run's completed result is the evidence to review. A cancellation without a matching newer run remains actionable and must not be suppressed.
+
+Neither neutral cancellation handling nor deployment-observation recording authorizes a deploy, restart, migration apply, provider call, credential read, external send/write, or bypass of candidate-specific Production approval.

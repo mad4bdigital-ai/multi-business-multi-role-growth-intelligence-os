@@ -543,3 +543,12 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 
 - `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
 - Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
+
+## Request-time deployment observation and superseded CI-guard parity
+
+- [ ] A cancelled Custom GPT Contract Guard run is treated as neutral only when a newer run exists for the same workflow, event, and head branch with a greater run number. The neutral classification is `cancelled_due_to_superseding_run`; genuine cancellations, failures, and recoveries retain their existing operational behavior.
+- [ ] A neutral superseded cancellation does not ingest a SQL operational signal and does not open, update, or resolve a GitHub incident. The newer matching run must still complete and its result remains authoritative for release readiness.
+- [ ] Request-time deployment observations keep expected release, deployed release, runtime health, contract, and optional migration evidence as independent source-attributed records. Every authoritative value carries a source type, opaque governed source reference, and observation time.
+- [ ] Historical correlation selects only the newest observation at or before the request time, ignores later observations, scopes by environment, processes at most 256 observations, bounds evidence to 32,768 bytes, and removes secret-like metadata keys.
+- [ ] The T024 foundation reports evidence completeness and `classification_status=not_computed`; it does not infer `current`, `deploying`, `stale`, `diverged`, or `unknown`, does not expose a public response projection, and does not replace direct `/health`, `/version`, and `/deployment-info` parity readback.
+- [ ] Repository merge or documentation does not authorize deployment, restart, migration apply, provider access, credential reads, external writes, or Production promotion. T024A classification/exposure, T024B policy, T026 persistence/apply/readback, public runtime wiring, and rollback certification remain separately gated.
