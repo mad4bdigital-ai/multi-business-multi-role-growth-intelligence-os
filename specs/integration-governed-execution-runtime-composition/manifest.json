@@ -33,6 +33,7 @@
     "rollout-migration-compatibility-and-rollback.md",
     "openapi-and-public-execution-contract-plan.md",
     "repository-workflow-optimization-profile.md",
+    "owner-extension-registration.md",
     "traceability-and-functional-results.md",
     "manifest.json"
   ],
