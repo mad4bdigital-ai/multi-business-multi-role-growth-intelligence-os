@@ -52,12 +52,12 @@
     "standalone_contract_test",
     "standalone_composition_test",
     "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh",
     "bounded_contract_review",
     "human_architecture_security_review",
     "clean_core_build_readback"
   ],
   "pending_contracts": [
-    "generated_test_manifest_evidence_refresh",
     "follow_up_exact_head_ci_evidence",
     "follow_up_human_architecture_security_review"
   ],
@@ -82,6 +82,15 @@
     "temporary_workflow_removed": true,
     "bounded_regressions_passed": true,
     "bounded_write_set_passed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30549614086,
+    "generated_head_sha": "db5fdbe246b003787a862c42fb8a8414bb4a8847",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true,
+    "baseline_reconciled_with_main": true
   },
   "controlled_parity_sample": {
     "status": "implemented_pending_exact_head_ci",
