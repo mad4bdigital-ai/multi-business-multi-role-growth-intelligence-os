@@ -697,7 +697,7 @@ export const testCommands = [
   "node test-growth-intelligence-admin-decisions.mjs",
   "node test-growth-intelligence-action-collation.mjs",
   "node test-approval-hold-identity-collation-alignment.mjs",
-  "node test-approval-hold-identity-release-readiness.mjs"
+  "node test-approval-hold-identity-release-readiness.mjs",
   "node test-durable-execution-control-service.mjs",
 ];
 
