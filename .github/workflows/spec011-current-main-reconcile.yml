@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   reconcile:
-    if: github.event_name == 'push' || (github.event.pull_request.number == 2878 && github.event.pull_request.head.ref == 'gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720')
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
