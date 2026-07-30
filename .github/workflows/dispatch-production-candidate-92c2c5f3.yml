@@ -1,4 +1,4 @@
-name: Dispatch Production Candidate 630a3545
+name: Dispatch Production Candidate f6740854
 
 on:
   pull_request:
@@ -25,11 +25,11 @@ jobs:
           RUN_URL="$(gh workflow run production-promotion-candidate.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
-            -f expected_main_sha=630a3545f0670268745ff66a94a510d6999b38ae \
+            -f expected_main_sha=f674085417a20fd88385633826d1a22ee677c955 \
             -f expected_production_sha=fae54a372350d23d915bbe564e972b714ca363f4 \
-            -f release_branch=release/production-candidate-630a3545-fae54a37-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-630a3545-fae54a37 \
-            -f validation_base_branch=gpt/validate-production-base-630a3545-fae54a37 \
+            -f release_branch=release/production-candidate-f6740854-fae54a37-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-f6740854-fae54a37 \
+            -f validation_base_branch=gpt/validate-production-base-f6740854-fae54a37 \
             -f create_pull_requests=true)"
           printf '%s\n' "$RUN_URL"
           RUN_ID="${RUN_URL##*/}"
