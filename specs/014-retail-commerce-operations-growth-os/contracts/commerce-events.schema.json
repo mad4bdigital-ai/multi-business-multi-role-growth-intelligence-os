@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/commerce/commerce-events-v1.schema.json",
+  "title": "Commerce Event Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_name",
+    "event_time",
+    "source",
+    "tenant_ref",
+    "workspace_ref",
+    "consent",
+    "payload",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": "commerce-event-v1" },
+    "event_id": { "type": "string", "minLength": 8, "maxLength": 200 },
+    "event_name": {
+      "type": "string",
+      "enum": [
+        "view_item_list",
+        "select_item",
+        "view_item",
+        "search",
+        "add_to_cart",
+        "view_cart",
+        "begin_checkout",
+        "add_shipping_info",
+        "add_payment_info",
+        "purchase",
+        "refund",
+        "offline_purchase"
+      ]
+    },
+    "event_time": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "enum": ["browser", "server", "pos", "provider", "import"] },
+    "tenant_ref": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "workspace_ref": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "brand_ref": { "type": ["string", "null"], "maxLength": 128 },
+    "site_ref": { "type": ["string", "null"], "maxLength": 200 },
+    "channel_key": { "type": ["string", "null"], "maxLength": 64 },
+    "anonymous_session_ref": { "type": ["string", "null"], "maxLength": 200 },
+    "customer_pseudonymous_ref": { "type": ["string", "null"], "maxLength": 200 },
+    "transaction_id": { "type": ["string", "null"], "maxLength": 200 },
+    "order_id": { "type": ["string", "null"], "maxLength": 200 },
+    "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" },
+    "value": { "type": ["number", "null"], "minimum": 0 },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analytics_storage", "ad_storage", "ad_user_data", "ad_personalization", "policy_version"],
+      "properties": {
+        "analytics_storage": { "type": "string", "enum": ["granted", "denied"] },
+        "ad_storage": { "type": "string", "enum": ["granted", "denied"] },
+        "ad_user_data": { "type": "string", "enum": ["granted", "denied"] },
+        "ad_personalization": { "type": "string", "enum": ["granted", "denied"] },
+        "policy_version": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "utm_source": { "type": ["string", "null"], "maxLength": 200 },
+        "utm_medium": { "type": ["string", "null"], "maxLength": 200 },
+        "utm_campaign": { "type": ["string", "null"], "maxLength": 300 },
+        "utm_content": { "type": ["string", "null"], "maxLength": 300 },
+        "utm_term": { "type": ["string", "null"], "maxLength": 300 },
+        "click_id_type": { "type": ["string", "null"], "enum": ["gclid", "gbraid", "wbraid", "fbclid", "ttclid", null] },
+        "click_id_hash": { "type": ["string", "null"], "maxLength": 128 },
+        "landing_page_path": { "type": ["string", "null"], "maxLength": 1000 }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "search_term": { "type": ["string", "null"], "maxLength": 300 },
+        "item_list_id": { "type": ["string", "null"], "maxLength": 200 },
+        "item_list_name": { "type": ["string", "null"], "maxLength": 300 },
+        "coupon": { "type": ["string", "null"], "maxLength": 200 },
+        "shipping_tier": { "type": ["string", "null"], "maxLength": 200 },
+        "payment_type": { "type": ["string", "null"], "maxLength": 200 },
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/item" }
+        }
+      }
+    },
+    "destinations": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 20,
+      "items": { "type": "string", "enum": ["internal", "ga4", "google_ads", "meta", "tiktok"] }
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "item_name", "price", "quantity"],
+      "properties": {
+        "item_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "item_name": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "item_brand": { "type": ["string", "null"], "maxLength": 200 },
+        "item_category": { "type": ["string", "null"], "maxLength": 200 },
+        "item_category2": { "type": ["string", "null"], "maxLength": 200 },
+        "item_variant": { "type": ["string", "null"], "maxLength": 200 },
+        "item_list_id": { "type": ["string", "null"], "maxLength": 200 },
+        "item_list_name": { "type": ["string", "null"], "maxLength": 300 },
+        "location_id": { "type": ["string", "null"], "maxLength": 128 },
+        "price": { "type": "number", "minimum": 0 },
+        "quantity": { "type": "integer", "minimum": 1, "maximum": 9999 },
+        "discount": { "type": ["number", "null"], "minimum": 0 },
+        "coupon": { "type": ["string", "null"], "maxLength": 200 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event_name": { "enum": ["view_item_list", "select_item", "view_item", "add_to_cart", "view_cart", "begin_checkout", "add_shipping_info", "add_payment_info", "purchase", "refund", "offline_purchase"] } } },
+      "then": { "properties": { "payload": { "required": ["items"] } } }
+    },
+    {
+      "if": { "properties": { "event_name": { "enum": ["purchase", "refund", "offline_purchase"] } } },
+      "then": { "required": ["transaction_id", "currency", "value"] }
+    },
+    {
+      "if": { "required": ["value"] },
+      "then": { "required": ["currency"] }
+    }
+  ]
+}
