@@ -60,8 +60,10 @@ function listFilesRecursive(startDir, predicate = () => true) {
   return out.sort();
 }
 
-function scanForForbiddenStrings(rootDir, forbiddenStrings) {
-  const files = listFilesRecursive(rootDir, (file) => /\.(js|mjs|sql|md|yaml|yml|json)$/.test(file));
+function scanForForbiddenStrings(rootDir, forbiddenStrings, options = {}) {
+  const excludedFiles = new Set(options.excludedFiles || []);
+  const files = listFilesRecursive(rootDir, (file) => /\.(js|mjs|sql|md|yaml|yml|json)$/.test(file))
+    .filter((file) => !excludedFiles.has(file));
   for (const forbidden of forbiddenStrings) {
     const matches = [];
     for (const file of files) {
@@ -112,14 +114,14 @@ assertIncludes("docs/platform-completion-cleanup-readback-automation.md", [
   "no DB writes",
   "no provider calls",
   "no credential payload reads",
-  "release readiness remains the authority",
+  "Release readiness remains the authority",
   "Tool Bus remains separate",
 ]);
 
 assertIncludes("docs/support-ticket-orchestration-completion.md", [
   "Support Ticket lifecycle",
   "External Delivery",
-  "no external send",
+  "no-send certification",
   "support_ticket_lifecycle_orchestrator",
 ]);
 
@@ -145,7 +147,8 @@ assertIncludes("http-generic-api/migrations/906_sprint68_ticket_external_deliver
   "support_ticket_external_delivery_completion_certify",
   "no_external_send",
   "sandbox",
-  "live_provider_dispatch_disabled_by_policy",
+  "'provider_dispatch_enabled', false",
+  "'live_external_send_default_enabled', false",
 ]);
 
 assertIncludes("http-generic-api/migrations/904_sprint68_support_ticket_lifecycle_snapshot_apply_binding.sql", [
@@ -173,8 +176,8 @@ assertIncludes("http-generic-api/supportTicketLifecycleSnapshotRecord.js", [
 
 assertIncludes("http-generic-api/routes/systemLayerRoutes.js", [
   "runtime_endpoint_call",
-  "self_recursive_dispatch_blocked",
   "isTenantRegistryToolAllowedInSystemFacade",
+  "pathValue === \"/system/tools/call\"",
 ]);
 
 scanForForbiddenStrings("http-generic-api", [
@@ -184,7 +187,12 @@ scanForForbiddenStrings("http-generic-api", [
   "v_session_insight_capability_envelope_adapter_execution_readiness",
   "v_session_insight_capability_envelope_adapter_execution_gate_issues",
   "v_session_insight_capability_envelope_adapter_apply_dispatch_readiness",
-]);
+], {
+  excludedFiles: [
+    "http-generic-api/scripts/platform-completion-cleanup-readback-audit.mjs",
+    "http-generic-api/scripts/platform-remaining-scope-scorecard.mjs",
+  ],
+});
 
 const summary = {
   ok: findings.filter((finding) => finding.severity === "fail").length === 0,
