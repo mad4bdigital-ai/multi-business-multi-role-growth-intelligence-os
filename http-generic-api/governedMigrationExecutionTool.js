@@ -10,6 +10,14 @@ const execFileAsync = promisify(execFile);
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner.mjs");
+const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
+const MIGRATION_RUNNER_PATHS = Object.freeze({
+  [READINESS_REPAIR_MIGRATION]: path.join(
+    API_DIR,
+    "scripts",
+    "repository-authority-capability-readiness-repair-runner.mjs",
+  ),
+});
 const MIGRATION_PATTERN = /^[A-Za-z0-9._-]+\.sql$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -105,6 +113,8 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
     required_confirmation: requiredConfirmation,
+    runner_path: MIGRATION_RUNNER_PATHS[normalized.migration] || DEFAULT_RUNNER_PATH,
+    atomic_runner_required: normalized.migration === READINESS_REPAIR_MIGRATION,
     secrets_included: false,
   };
 }
@@ -166,6 +176,7 @@ function runnerFailureDetails(error, inspection) {
     stderr_summary: stderrSummary || null,
     stdout_summary: stdoutSummary || null,
     diagnostic_truncated: String(error?.stderr || "").length > 2000 || String(error?.stdout || "").length > 2000,
+    retry_without_readback_allowed: false,
     secrets_included: false,
   };
 }
@@ -176,9 +187,7 @@ function parseRunnerErrorPayload(value = "") {
   const candidates = [raw];
   const firstBrace = raw.indexOf("{");
   const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  }
+  if (firstBrace >= 0 && lastBrace > firstBrace) candidates.push(raw.slice(firstBrace, lastBrace + 1));
   for (const candidate of candidates) {
     try {
       const parsed = JSON.parse(candidate);
@@ -193,7 +202,7 @@ function classifyRunnerFailure(error, inspection) {
   const payload = parseRunnerErrorPayload(error?.stderr) || parseRunnerErrorPayload(error?.stdout);
   const runnerMessage = String(payload?.error || payload?.message || error?.message || "").trim();
   const authorizationMatch = runnerMessage.match(
-    /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i
+    /Migration is not authorized for governed runner:\s*([A-Za-z0-9._-]+\.sql)\s*\(([^)]+)\)/i,
   );
   if (!authorizationMatch) return null;
   return {
@@ -249,6 +258,43 @@ function validateRunnerReadback(result, inspection) {
       secrets_included: false,
     });
   }
+  if (inspection.atomic_runner_required) {
+    if (result.atomic_transaction !== true || result.same_cycle_row_readback_verified !== true) {
+      throw toolError(
+        "governed_migration_atomic_readback_failed",
+        "Readiness repair apply must confirm one atomic transaction and same-cycle row readback.",
+        502,
+      );
+    }
+    if (result.capability_envelope?.consumed !== true) {
+      throw toolError(
+        "governed_migration_capability_envelope_consume_failed",
+        "Readiness repair apply must consume the capability envelope in the same transaction.",
+        502,
+      );
+    }
+  }
+}
+
+function assertApplyCapability(capability, inspection) {
+  if (!capability || !capability.envelope_id) {
+    throw toolError("governed_migration_apply_capability_envelope_unresolved", "Apply authorizer did not return a capability envelope.", 403);
+  }
+  if (capability.apply_allowed !== true) {
+    throw toolError("governed_migration_apply_not_allowed", "Capability envelope does not permit migration apply.", 403, {
+      migration: inspection.migration,
+      capability_envelope_id: capability.envelope_id,
+      apply_allowed: false,
+      secrets_included: false,
+    });
+  }
+  if (capability.readback_required !== true) {
+    throw toolError("governed_migration_readback_not_required", "Capability envelope must require migration readback.", 403, {
+      migration: inspection.migration,
+      capability_envelope_id: capability.envelope_id,
+      secrets_included: false,
+    });
+  }
 }
 
 export async function runGovernedMigrationExecution(input = {}, deps = {}) {
@@ -259,15 +305,18 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
       throw toolError("governed_migration_apply_authorizer_missing", "Apply authorization callback is required.", 500);
     }
     capability = await deps.authorizeApply(inspection);
+    assertApplyCapability(capability, inspection);
   }
 
-  const runnerPath = deps.runnerPath || DEFAULT_RUNNER_PATH;
+  const configuredRunner = deps.runnerPathByMigration?.[inspection.migration];
+  const runnerPath = deps.runnerPath || configuredRunner || inspection.runner_path || DEFAULT_RUNNER_PATH;
   const args = [runnerPath, `--migration=${inspection.migration}`, inspection.mode === "apply" ? "--apply" : "--dry-run"];
   if (inspection.mode === "apply") args.push(`--confirm=${inspection.required_confirmation}`);
   const approvedCapabilityEnvelopeId = capability?.envelope_id || inspection.capabilityEnvelopeId || "";
   if (inspection.mode === "apply" && approvedCapabilityEnvelopeId) {
     args.push(`--capability-envelope-id=${approvedCapabilityEnvelopeId}`);
   }
+
   const execute = deps.execFile || execFileAsync;
   let execution;
   try {
@@ -279,19 +328,12 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
     });
   } catch (error) {
     const classified = classifyRunnerFailure(error, inspection);
-    if (classified) {
-      throw toolError(classified.code, classified.message, classified.status, classified.details);
-    }
+    if (classified) throw toolError(classified.code, classified.message, classified.status, classified.details);
     const details = runnerFailureDetails(error, inspection);
     const diagnostic = details.runner_error_code
       || details.stderr_summary?.split(/\r?\n/, 1)?.[0]
       || "runner process exited unsuccessfully";
-    throw toolError(
-      "governed_migration_runner_failed",
-      `Governed migration runner failed: ${diagnostic}`,
-      409,
-      details
-    );
+    throw toolError("governed_migration_runner_failed", `Governed migration runner failed: ${diagnostic}`, 409, details);
   }
 
   const result = parseRunnerOutput(execution?.stdout);
