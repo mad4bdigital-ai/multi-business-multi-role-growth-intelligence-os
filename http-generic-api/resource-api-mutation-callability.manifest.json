@@ -1,0 +1,245 @@
+{
+  "schema_version": "resource-api-mutation-callability-v1",
+  "contracts": [
+    {
+      "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "mount_file": "routes/index.js",
+      "test_file": "test-workspace-lifecycle-foundation.mjs",
+      "openapi_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+        "app.use(buildTenantLifecycleRoutes());"
+      ],
+      "auth_model": "user_jwt",
+      "read_only": false,
+      "runtime_execution_allowed": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "secrets_included": false,
+      "contract_key": "workspace_invitation_create",
+      "tool_key": "workspace_invitation_create",
+      "route_signature": "POST /me/workspaces/{tenant_id}/invitations",
+      "migration_markers": [
+        "INSERT INTO tenant_platform_endpoint_tools",
+        "'workspace_invitation_create'",
+        "'POST'",
+        "'/me/workspaces/{tenant_id}/invitations'"
+      ],
+      "route_markers": [
+        "RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create",
+        "router.post(\"/me/workspaces/:tenant_id/invitations\", requireUserJwt",
+        "MUTATION_TRANSACTION: workspace_invitation_create",
+        "MUTATION_READBACK: workspace_invitation_create",
+        "workspace_invitation_create_failed",
+        "secrets_included: false"
+      ],
+      "test_markers": [
+        "\"workspace_invitation_create\"",
+        "mutationCallability.covered_tool_keys",
+        "duplicate lifecycle routes must be removed"
+      ],
+      "openapi_markers": [
+        "/me/workspaces/{tenant_id}/invitations:",
+        "operationId: createWorkspaceInvitation",
+        "x-openai-isConsequential: true"
+      ]
+    },
+    {
+      "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "mount_file": "routes/index.js",
+      "test_file": "test-workspace-lifecycle-foundation.mjs",
+      "openapi_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+        "app.use(buildTenantLifecycleRoutes());"
+      ],
+      "auth_model": "user_jwt",
+      "read_only": false,
+      "runtime_execution_allowed": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "secrets_included": false,
+      "contract_key": "workspace_invitation_accept",
+      "tool_key": "workspace_invitation_accept",
+      "route_signature": "POST /me/invitations/accept",
+      "migration_markers": [
+        "INSERT INTO tenant_platform_endpoint_tools",
+        "'workspace_invitation_accept'",
+        "'POST'",
+        "'/me/invitations/accept'"
+      ],
+      "route_markers": [
+        "RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_accept",
+        "router.post(\"/me/invitations/accept\", requireUserJwt",
+        "MUTATION_TRANSACTION: workspace_invitation_accept",
+        "MUTATION_READBACK: workspace_invitation_accept",
+        "workspace_invitation_accept_failed",
+        "secrets_included: false"
+      ],
+      "test_markers": [
+        "\"workspace_invitation_accept\"",
+        "mutationCallability.covered_tool_keys",
+        "duplicate lifecycle routes must be removed"
+      ],
+      "openapi_markers": [
+        "/me/invitations/accept:",
+        "operationId: acceptWorkspaceInvitation",
+        "x-openai-isConsequential: true"
+      ]
+    },
+    {
+      "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "mount_file": "routes/index.js",
+      "test_file": "test-workspace-lifecycle-foundation.mjs",
+      "openapi_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+        "app.use(buildTenantLifecycleRoutes());"
+      ],
+      "auth_model": "user_jwt",
+      "read_only": false,
+      "runtime_execution_allowed": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "secrets_included": false,
+      "contract_key": "workspace_access_request_create",
+      "tool_key": "workspace_access_request_create",
+      "route_signature": "POST /me/workspaces/{tenant_id}/access-requests",
+      "migration_markers": [
+        "INSERT INTO tenant_platform_endpoint_tools",
+        "'workspace_access_request_create'",
+        "'POST'",
+        "'/me/workspaces/{tenant_id}/access-requests'"
+      ],
+      "route_markers": [
+        "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_create",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt",
+        "MUTATION_TRANSACTION: workspace_access_request_create",
+        "MUTATION_READBACK: workspace_access_request_create",
+        "workspace_access_request_create_failed",
+        "secrets_included: false"
+      ],
+      "test_markers": [
+        "\"workspace_access_request_create\"",
+        "mutationCallability.covered_tool_keys",
+        "duplicate lifecycle routes must be removed"
+      ],
+      "openapi_markers": [
+        "/me/workspaces/{tenant_id}/access-requests:",
+        "operationId: createWorkspaceAccessRequest",
+        "x-openai-isConsequential: true"
+      ]
+    },
+    {
+      "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "mount_file": "routes/index.js",
+      "test_file": "test-workspace-lifecycle-foundation.mjs",
+      "openapi_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+        "app.use(buildTenantLifecycleRoutes());"
+      ],
+      "auth_model": "user_jwt",
+      "read_only": false,
+      "runtime_execution_allowed": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "secrets_included": false,
+      "contract_key": "workspace_access_request_approve",
+      "tool_key": "workspace_access_request_approve",
+      "route_signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
+      "migration_markers": [
+        "INSERT INTO tenant_platform_endpoint_tools",
+        "'workspace_access_request_approve'",
+        "'POST'",
+        "'/me/workspaces/{tenant_id}/access-requests/{request_id}/approve'"
+      ],
+      "route_markers": [
+        "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_approve",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/approve\", requireUserJwt",
+        "MUTATION_TRANSACTION: workspace_access_request_approve",
+        "MUTATION_READBACK: workspace_access_request_approve",
+        "workspace_access_request_approve_failed",
+        "secrets_included: false"
+      ],
+      "test_markers": [
+        "\"workspace_access_request_approve\"",
+        "mutationCallability.covered_tool_keys",
+        "duplicate lifecycle routes must be removed"
+      ],
+      "openapi_markers": [
+        "/me/workspaces/{tenant_id}/access-requests/{request_id}/approve:",
+        "operationId: approveWorkspaceAccessRequest",
+        "x-openai-isConsequential: true"
+      ]
+    },
+    {
+      "migration_file": "migrations/190_sprint66_workspace_lifecycle_foundation.sql",
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "mount_file": "routes/index.js",
+      "test_file": "test-workspace-lifecycle-foundation.mjs",
+      "openapi_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes } from \"./tenantLifecycleRoutes.js\";",
+        "app.use(buildTenantLifecycleRoutes());"
+      ],
+      "auth_model": "user_jwt",
+      "read_only": false,
+      "runtime_execution_allowed": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "secrets_included": false,
+      "contract_key": "workspace_access_request_reject",
+      "tool_key": "workspace_access_request_reject",
+      "route_signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject",
+      "migration_markers": [
+        "INSERT INTO tenant_platform_endpoint_tools",
+        "'workspace_access_request_reject'",
+        "'POST'",
+        "'/me/workspaces/{tenant_id}/access-requests/{request_id}/reject'"
+      ],
+      "route_markers": [
+        "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_reject",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/reject\", requireUserJwt",
+        "MUTATION_TRANSACTION: workspace_access_request_reject",
+        "MUTATION_READBACK: workspace_access_request_reject",
+        "workspace_access_request_reject_failed",
+        "secrets_included: false"
+      ],
+      "test_markers": [
+        "\"workspace_access_request_reject\"",
+        "mutationCallability.covered_tool_keys",
+        "duplicate lifecycle routes must be removed"
+      ],
+      "openapi_markers": [
+        "/me/workspaces/{tenant_id}/access-requests/{request_id}/reject:",
+        "operationId: rejectWorkspaceAccessRequest",
+        "x-openai-isConsequential: true"
+      ]
+    }
+  ]
+}

@@ -50,6 +50,11 @@ const directRouteCallability = validateDirectRouteCallabilityContracts({ root: p
 assert.equal(directRouteCallability.ok, true, JSON.stringify(directRouteCallability.findings));
 assert(directRouteCallability.covered_tool_keys.includes("workspace_brands_list"));
 assert(directRouteCallability.covered_route_signatures.includes("GET /me/workspaces/{tenant_id}/brands"));
+for (const toolKey of ["workspace_invitation_create", "workspace_invitation_accept", "workspace_access_request_create", "workspace_access_request_approve", "workspace_access_request_reject"]) {
+  assert(directRouteCallability.covered_tool_keys.includes(toolKey), `${toolKey} mutation contract must be covered`);
+}
+assert(directRouteCallability.covered_route_signatures.includes("POST /me/invitations/accept"));
+assert(directRouteCallability.covered_route_signatures.includes("POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve"));
 const workspaceRouteSource = readFileSync("routes/workspaceResourceRoutes.js", "utf8");
 const tamperedRouteCallability = validateDirectRouteCallabilityContracts({
   root: process.cwd(),
