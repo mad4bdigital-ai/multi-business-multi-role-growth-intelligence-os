@@ -73,6 +73,12 @@ function createHarness(readiness) {
       async findContextPin() {
         throw new Error("context pin lookup must not occur without pinRef");
       },
+      async createPin() {
+        throw new Error("T013 resolution must not create a context pin");
+      },
+      async invalidatePin() {
+        throw new Error("T013 resolution must not invalidate a context pin");
+      },
     },
   });
   return { calls, service };
