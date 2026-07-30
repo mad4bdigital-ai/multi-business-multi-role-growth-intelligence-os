@@ -148,10 +148,13 @@ await persistCompiledSequentialPlan({
 assert.equal(state.steps.length, 3);
 
 const executed = [];
+let firstBaselineSnapshot = null;
 const run = await runSequentialPlan({
   pool,
   planId: "plan-1",
   executeStep: async (step) => { executed.push(step.step_key); return { ok: true, step_key: step.step_key }; },
+  baselineEmitter: (snapshot) => { firstBaselineSnapshot = snapshot; },
+  baselineTraceInput: { trace_id: "sequential-trace-1", request_id: "request-1" },
 });
 assert.deepEqual(executed, ["first", "second"]);
 assert.equal(run.last_tick.reason, "awaiting_approval");
@@ -161,6 +164,24 @@ assert.equal(state.holds.length, 1);
 assert.equal(state.steps[2].status, "awaiting_approval");
 assert.equal(state.workflowRuns[0].run_id, "plan-1");
 assert.equal(state.workflowRuns[0].status, "awaiting_approval");
+assert.deepEqual(Object.keys(run).sort(), [
+  "last_tick", "ok", "plan_id", "recovered_failure_count", "secrets_included", "tick_count", "ticks",
+]);
+assert(firstBaselineSnapshot, "baseline emitter must receive a snapshot without changing the run result");
+assert.equal(firstBaselineSnapshot.trace_id, "sequential-trace-1");
+assert.equal(firstBaselineSnapshot.request_id, "request-1");
+assert.equal(firstBaselineSnapshot.plan_id, "plan-1");
+assert.equal(firstBaselineSnapshot.entry_point, "sequential_plan");
+assert.equal(firstBaselineSnapshot.outcome, "awaiting_approval");
+assert.equal(firstBaselineSnapshot.counters.plan_steps, 3);
+assert.equal(firstBaselineSnapshot.counters.ready_set_width, 1);
+assert.equal(firstBaselineSnapshot.counters.critical_path_steps, 2);
+assert(firstBaselineSnapshot.coverage.stages.observed.includes("ledger"));
+assert(firstBaselineSnapshot.coverage.stages.unobserved.includes("provider_dispatch"));
+assert(firstBaselineSnapshot.coverage.counters.observed.includes("plan_steps"));
+assert(firstBaselineSnapshot.coverage.counters.unobserved.includes("provider_calls"));
+assert.equal(firstBaselineSnapshot.provider_call_made, null);
+assert.equal(firstBaselineSnapshot.secrets_included, false);
 const claimedEvent = state.events.find(({ params }) => params[4] === "step_claimed");
 assert(claimedEvent, "step_claimed event must be recorded");
 const claimEvidence = JSON.parse(claimedEvent.params[8]);
@@ -187,12 +208,22 @@ assert.equal(state.steps[2].status, "ready");
 assert.equal(state.workflowRuns[0].status, "pending");
 assert.equal(state.plans[0].runtime_status, "validated");
 
+let resumedBaselineSnapshot = null;
 const resumed = await runSequentialPlan({
   pool, planId: "plan-1",
   executeStep: async (step) => ({ ok: true, step_key: step.step_key }),
+  baselineEmitter: (snapshot) => { resumedBaselineSnapshot = snapshot; },
+  baselineTraceInput: { trace_id: "sequential-trace-2" },
 });
 assert.equal(resumed.last_tick.plan_status, "completed");
 assert.equal(state.steps[2].status, "completed");
+assert(resumedBaselineSnapshot.coverage.stages.observed.includes("provider_dispatch"));
+assert(resumedBaselineSnapshot.coverage.stages.observed.includes("ledger"));
+assert.equal(resumedBaselineSnapshot.counters.plan_steps, 3);
+assert.equal(resumedBaselineSnapshot.counters.ready_set_width, 1);
+assert.equal(resumedBaselineSnapshot.counters.critical_path_steps, 1);
+assert.equal(resumedBaselineSnapshot.outcome, "success");
+assert.equal(resumedBaselineSnapshot.provider_call_made, null, "provider count remains explicitly unobserved");
 
 const migration = readFileSync("migrations/244_sprint68_sequential_plan_orchestrator.sql", "utf8");
 const plannerRoutes = readFileSync("routes/plannerRoutes.js", "utf8");

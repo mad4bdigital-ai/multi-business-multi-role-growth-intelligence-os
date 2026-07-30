@@ -1,4 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import {
+  createGovernedExecutionBaselineTrace,
+  emitGovernedExecutionBaselineSnapshot,
+} from "./governedExecutionBaselineTelemetry.js";
 
 const STEP_TYPES = new Set(["workflow", "analysis", "checkpoint", "approval", "stop"]);
 const TERMINAL_STEP_STATUSES = new Set(["completed", "failed", "skipped", "cancelled"]);
@@ -248,7 +252,7 @@ async function createApprovalHold(connection, plan, step, actorId) {
   return holdId;
 }
 
-async function claimNextStep(pool, planId, actorId) {
+async function claimNextStep(pool, planId, actorId, baselineTrace = null) {
   return withTransaction(pool, async (connection) => {
     const [planRows] = await connection.query("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
     const plan = planRows[0];
@@ -256,6 +260,7 @@ async function claimNextStep(pool, planId, actorId) {
     if (TERMINAL_PLAN_STATUSES.has(effectivePlanStatus(plan))) return { stop: true, reason: "plan_terminal", plan_status: effectivePlanStatus(plan) };
     const [steps] = await connection.query("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order FOR UPDATE", [planId]);
     if (!steps.length) throw validationError("Plan has no compiled steps.", "sequential_plan_not_compiled");
+    baselineTrace?.setCounter?.("plan_steps", steps.length);
     const byKey = new Map(steps.map((step) => [step.step_key, step]));
     for (const step of steps) {
       if (step.status === "pending" && dependenciesCompleted(step, byKey)) {
@@ -263,7 +268,9 @@ async function claimNextStep(pool, planId, actorId) {
         await connection.query("UPDATE execution_plan_steps SET status = 'ready' WHERE plan_step_id = ? AND status = 'pending'", [step.plan_step_id]);
       }
     }
-    const next = steps.find((step) => step.status === "ready");
+    const readySteps = steps.filter((step) => step.status === "ready");
+    baselineTrace?.maxCounter?.("ready_set_width", readySteps.length);
+    const next = readySteps[0];
     if (!next) {
       const failed = steps.some((step) => step.status === "failed" || step.status === "blocked");
       const completed = steps.every((step) => TERMINAL_STEP_STATUSES.has(step.status));
@@ -347,9 +354,24 @@ async function finalizeClaim(pool, claim, result, error, actorId) {
   });
 }
 
-export async function tickSequentialPlan({ pool, planId, actorId = null, executeStep = defaultStepExecutor }) {
-  const claim = await claimNextStep(pool, planId, actorId);
+export async function tickSequentialPlan({
+  pool,
+  planId,
+  actorId = null,
+  executeStep = defaultStepExecutor,
+  baselineTrace = null,
+}) {
+  const finishClaimLedger = baselineTrace?.startStage?.("ledger");
+  let claim;
+  try {
+    claim = await claimNextStep(pool, planId, actorId, baselineTrace);
+  } finally {
+    finishClaimLedger?.();
+  }
   if (claim.stop) return { ok: true, plan_id: planId, ...claim, secrets_included: false };
+  const finishDispatch = claim.step.step_type === "workflow"
+    ? baselineTrace?.startStage?.("provider_dispatch")
+    : null;
   let result;
   let executionError = null;
   try {
@@ -363,8 +385,17 @@ export async function tickSequentialPlan({ pool, planId, actorId = null, execute
     }
   } catch (error) {
     executionError = error;
+  } finally {
+    finishDispatch?.();
   }
-  const final = await finalizeClaim(pool, claim, result, executionError, actorId);
+  baselineTrace?.increment?.("critical_path_steps", 1);
+  const finishFinalizeLedger = baselineTrace?.startStage?.("ledger");
+  let final;
+  try {
+    final = await finalizeClaim(pool, claim, result, executionError, actorId);
+  } finally {
+    finishFinalizeLedger?.();
+  }
   return {
     ok: !executionError && result?.ok !== false,
     plan_id: planId,
@@ -377,24 +408,74 @@ export async function tickSequentialPlan({ pool, planId, actorId = null, execute
   };
 }
 
-export async function runSequentialPlan({ pool, planId, actorId = null, maxTicks = 25, executeStep = defaultStepExecutor }) {
+export async function runSequentialPlan({
+  pool,
+  planId,
+  actorId = null,
+  maxTicks = 25,
+  executeStep = null,
+  baselineEmitter = null,
+  baselineTraceInput = {},
+}) {
+  const executor = executeStep || defaultStepExecutor;
+  const baselineTrace = typeof baselineEmitter === "function"
+    ? createGovernedExecutionBaselineTrace({
+        ...baselineTraceInput,
+        plan_id: planId,
+        entry_point: "sequential_plan",
+      })
+    : null;
+  if (baselineTrace && !executeStep) baselineTrace.observeCounter("internal_http_hops");
+
   const ticks = [];
-  for (let index = 0; index < Math.max(1, Math.min(Number(maxTicks) || 25, 100)); index += 1) {
-    const tick = await tickSequentialPlan({ pool, planId, actorId, executeStep });
-    ticks.push(tick);
-    if (tick.stop || ["blocked", "failed", "completed", "awaiting_approval", "paused"].includes(tick.plan_status)) break;
+  let finalOutcome = "running";
+  let resultClassification = "sequential_plan_running";
+  try {
+    for (let index = 0; index < Math.max(1, Math.min(Number(maxTicks) || 25, 100)); index += 1) {
+      const tick = await tickSequentialPlan({
+        pool,
+        planId,
+        actorId,
+        executeStep: executor,
+        baselineTrace,
+      });
+      ticks.push(tick);
+      if (tick.stop || ["blocked", "failed", "completed", "awaiting_approval", "paused"].includes(tick.plan_status)) break;
+    }
+    const lastTick = ticks.at(-1);
+    const ok = !["blocked", "failed"].includes(lastTick?.plan_status);
+    finalOutcome = lastTick?.plan_status === "completed"
+      ? "success"
+      : lastTick?.plan_status === "awaiting_approval"
+        ? "awaiting_approval"
+        : lastTick?.plan_status === "cancelled"
+          ? "cancelled"
+          : ["blocked", "failed"].includes(lastTick?.plan_status)
+            ? "failure"
+            : "running";
+    resultClassification = `sequential_plan_${lastTick?.reason || lastTick?.plan_status || "tick_budget_reached"}`;
+    return {
+      ok,
+      plan_id: planId,
+      tick_count: ticks.length,
+      recovered_failure_count: ok ? ticks.filter((tick) => tick.ok === false).length : 0,
+      last_tick: lastTick,
+      ticks,
+      secrets_included: false,
+    };
+  } catch (error) {
+    finalOutcome = "failure";
+    resultClassification = String(error?.code || "sequential_plan_failed");
+    throw error;
+  } finally {
+    if (baselineTrace) {
+      const snapshot = baselineTrace.finalize({
+        outcome: finalOutcome,
+        result_classification: resultClassification,
+      });
+      void emitGovernedExecutionBaselineSnapshot(snapshot, baselineEmitter);
+    }
   }
-  const lastTick = ticks.at(-1);
-  const ok = !["blocked", "failed"].includes(lastTick?.plan_status);
-  return {
-    ok,
-    plan_id: planId,
-    tick_count: ticks.length,
-    recovered_failure_count: ok ? ticks.filter((tick) => tick.ok === false).length : 0,
-    last_tick: lastTick,
-    ticks,
-    secrets_included: false,
-  };
 }
 
 export async function decideSequentialPlanApproval({

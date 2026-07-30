@@ -177,6 +177,18 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
     return true;
   }
 
+  function setCounter(counter, value) {
+    if (!observeCounter(counter)) return false;
+    counters[counter] = boundedCounterValue(value);
+    return true;
+  }
+
+  function maxCounter(counter, value) {
+    if (!observeCounter(counter)) return false;
+    counters[counter] = Math.max(counters[counter], boundedCounterValue(value));
+    return true;
+  }
+
   function increment(counter, amount = 1) {
     if (!observeCounter(counter)) return false;
     counters[counter] = boundedCounterValue(counters[counter] + safeNumber(amount));
@@ -274,6 +286,8 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
     step_id: stepId,
     entry_point: entryPoint,
     increment,
+    setCounter,
+    maxCounter,
     observeCounter,
     startStage,
     finalize,
