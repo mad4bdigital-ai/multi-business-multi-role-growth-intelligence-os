@@ -10,5 +10,15 @@
 | Plan and approval binding | FR-031 to FR-036 | execution plan and context hash | stale approval and concurrency tests | high-risk writes gate |
 | Unknown outcome | FR-037 to FR-040 | outcome state machine | timeout and readback tests | reconciliation flag |
 | No hardcoding | FR-041 to FR-045 | registry adapters and CI policy | static scanner and fixture tests | release blocking |
+| Workspace ownership classification | FR-046, FR-057, FR-062, NFR-011 | independent `workspaceOwnershipType`; additive `workspace_ownership_type`; operational `workspaceType` preserved | operational-type compatibility, unclassified legacy, owner-conflict, revision invalidation tests | persistence migration and compatibility gate |
+| Exact connection owner scope | FR-047 to FR-050 | `ConnectionOwnershipScope` and exact brand/workspace/user predicates | personal owner, company membership, brand/workspace, cross-user, cross-brand tests | cross-user and cross-brand release gate |
+| Deterministic connection precedence | FR-051 to FR-055 | explicit → brand → workspace → policy-allowed personal; deny silent widening | equal-rank ambiguity, invalid explicit pin, revoked brand write, personal inheritance tests | ambiguity and no-silent-fallback gate |
+| Credential boundary and invalidation | FR-056 to FR-057 | delayed credential materialization and revision-bound decisions | no-secret, pre-materialization rejection, membership/scope/revision invalidation tests | credential-boundary and stale-decision gate |
+| Identity versus provider consent | FR-058 | separate identity and provider readiness states | Google login without consent and reconnect-required tests | provider-consent readiness gate |
+| OAuth authorization state | FR-059 to FR-060, NFR-010 | signed, expiring, nonce-bound, single-use, redirect-allowlisted exact-context state | signature, replay, expiry, redirect, provider-account, and context-mismatch tests | OAuth security release gate |
+| Planned connection APIs | FR-061, NFR-006, NFR-007 | planned public boundary remains unexposed until OpenAPI and implementation PR | OpenAPI 3.1 validation, strict input, no-secret projection, pagination, idempotency tests | API contract review gate |
+| Legacy connection compatibility | FR-062 | additive classification and compatibility adapter | legacy personal/workspace ambiguity, no-destructive-backfill, parity tests | compatibility support-window gate |
+| ECE and Effective Authority integration | FR-063 | Context Kernel decision consumed by downstream authority/capability planes | competing-selector rejection and exact-decision binding tests | authority/capability integration gate |
 | Cross-tenant isolation | NFR-008 | visibility/candidate/execution sets | direct-object and graph tests | release blocking |
+| Cross-user and cross-brand isolation | NFR-009 | exact owner predicates and tenant-safe repositories | A-31 to A-34 and A-39 to A-40 | release blocking |
 | API consistency | NFR-006, NFR-007 | OpenAPI contract | contract validation | API review gate |
