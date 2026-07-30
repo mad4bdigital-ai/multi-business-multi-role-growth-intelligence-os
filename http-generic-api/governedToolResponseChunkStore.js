@@ -92,12 +92,18 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
   const sourceToolKey = text(input.sourceToolKey || input.source_tool_key).slice(0, 191) || null;
   const cursorPolicy = text(input.cursorPolicy || input.cursor_policy) || GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY;
   const redactionStatus = text(input.redactionStatus || input.redaction_status) || "redacted_or_non_secret";
-  const writeAllowed = `(VALUES(owner_principal_type) IN ('admin','backend_service','trusted_internal') OR (
-    owner_tenant_id <=> VALUES(owner_tenant_id)
+  const existingOwnerless = `(owner_tenant_id IS NULL
+    AND owner_user_id IS NULL
+    AND owner_workspace_id IS NULL
+    AND owner_principal_type IS NULL
+    AND owner_principal_id IS NULL)`;
+  const incomingPrivileged = `(VALUES(owner_principal_type) IN ('admin','backend_service','trusted_internal'))`;
+  const sameOwner = `(owner_tenant_id <=> VALUES(owner_tenant_id)
     AND owner_user_id <=> VALUES(owner_user_id)
+    AND owner_workspace_id <=> VALUES(owner_workspace_id)
     AND owner_principal_type <=> VALUES(owner_principal_type)
-    AND owner_principal_id <=> VALUES(owner_principal_id)
-  ))`;
+    AND owner_principal_id <=> VALUES(owner_principal_id))`;
+  const writeAllowed = `(${sameOwner} OR (${existingOwnerless} AND ${incomingPrivileged}))`;
 
   try {
     await executor(deps).query(
@@ -236,6 +242,7 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
           AND (? = 1 OR (
             owner_tenant_id <=> ?
             AND owner_user_id <=> ?
+            AND owner_workspace_id <=> ?
             AND owner_principal_type <=> ?
             AND owner_principal_id <=> ?
           ))`,
@@ -246,6 +253,7 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
         principal.privileged === true ? 1 : 0,
         owner.owner_tenant_id,
         owner.owner_user_id,
+        owner.owner_workspace_id,
         owner.owner_principal_type,
         owner.owner_principal_id,
       ]
