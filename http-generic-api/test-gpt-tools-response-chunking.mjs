@@ -300,7 +300,12 @@ async function main() {
 
   const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
   assert.ok(systemLayerRoutes.includes("response_chunk_read"), "system layer must expose response_chunk_read for admin and tenant callers");
-  assert.ok(systemLayerRoutes.includes("await readCachedToolResponseChunk(args)"), "system layer chunk reads must await durable recovery");
+  assert.equal(systemLayerRoutes.includes("await readCachedToolResponseChunk(args)"), false, "system layer chunk reads must not trust caller arguments as principal context");
+  assert.ok(systemLayerRoutes.includes('source_surface: "system_layer_response_chunk_read"'), "system layer chunk reads must bind a trusted source surface");
+  assert.ok(systemLayerRoutes.includes("...(args || {})"), "system layer chunk reads must preserve pagination arguments before overriding auth");
+  assert.ok(systemLayerRoutes.includes("auth,"), "system layer chunk reads must receive middleware auth separately");
+  assert.ok(systemLayerRoutes.includes('"system_tools_list"'), "system tools list chunk ownership must use a fixed trusted source");
+  assert.ok(systemLayerRoutes.includes('"admin_system_tools_call"'), "admin system calls must use a fixed trusted source surface");
   assert.ok(systemLayerRoutes.includes("buildSystemToolsListResponse"), "system layer tools list must be bounded and page-aware");
   assert.ok(systemLayerRoutes.includes("bounded_paginated_chunkable"), "system layer tools list must advertise bounded chunkable mode");
   assert.ok(systemLayerRoutes.includes("chunk_ttl_minutes"), "system layer must expose controllable chunk TTL options");
