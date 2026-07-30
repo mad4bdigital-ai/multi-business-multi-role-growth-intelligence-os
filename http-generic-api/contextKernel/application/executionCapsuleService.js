@@ -1,4 +1,5 @@
 import {
+  assertExecutionCapsuleIntegrity,
   compareExecutionCapsuleDependencies,
   createExecutionCapsule,
   projectExecutionCapsule,
@@ -157,6 +158,29 @@ function capsuleContextMismatchFields(capsule, current) {
     .sort();
 }
 
+function integrityFailureResult(rawCapsule, validatedAt) {
+  const safeCapsuleRef = typeof rawCapsule?.capsuleRef === "string" &&
+    /^ctxc-[0-9a-f]{32}$/u.test(rawCapsule.capsuleRef)
+    ? rawCapsule.capsuleRef
+    : null;
+  return deepFreeze({
+    status: ExecutionCapsuleValidationStatus.BLOCKED,
+    valid: false,
+    capsuleRef: safeCapsuleRef,
+    contextHash: null,
+    contextRevision: null,
+    reasonCodes: ["execution_capsule_integrity_invalid"],
+    mismatchFields: [],
+    dependencyComparison: null,
+    requiresContextReresolution: true,
+    dynamicRefreshRequired: false,
+    executionAllowed: false,
+    automaticWritePerformed: false,
+    validatedAt,
+    secretsIncluded: false,
+  });
+}
+
 function validationResult({
   status,
   capsule,
@@ -220,6 +244,17 @@ export function createExecutionCapsuleService({
     const selected = selectedCandidateFromResolution(resolved);
     assertExactContextConsistency(context, selected);
     const identity = contextIdentity(context);
+    const authorityScope = requireApplicationObject(
+      resolved.authorityScope || context.authority,
+      "resolution.authorityScope",
+    );
+    if (authorityScope.tenantRef && authorityScope.tenantRef !== identity.tenantRef) {
+      throw new ContextApplicationError(
+        "execution_capsule_authority_context_mismatch",
+        "Resolved authority scope and exact context do not reference the same Tenant.",
+        409,
+      );
+    }
     const readiness = resolved.capabilityReadiness || context.capability || null;
     if (!readiness || readiness.dispatchAllowed !== true) {
       throw new ContextApplicationError(
@@ -233,8 +268,11 @@ export function createExecutionCapsuleService({
       "capabilityKey",
     );
     if (
-      context.capability?.capabilityKey &&
-      context.capability.capabilityKey !== capabilityKey
+      context.capability && (
+        context.capability.capabilityKey !== capabilityKey ||
+        Boolean(context.capability.dispatchAllowed) !== Boolean(readiness.dispatchAllowed) ||
+        Boolean(context.capability.applyAllowed) !== Boolean(readiness.applyAllowed)
+      )
     ) {
       throw new ContextApplicationError(
         "execution_capsule_capability_context_mismatch",
@@ -292,7 +330,14 @@ export function createExecutionCapsuleService({
     blockedReasonCodes = [],
     now = clock(),
   }) {
-    const value = requireApplicationObject(capsule, "capsule");
+    const rawCapsule = requireApplicationObject(capsule, "capsule");
+    const validatedAt = normalizedDate(now, "now").toISOString();
+    let value;
+    try {
+      value = assertExecutionCapsuleIntegrity(rawCapsule);
+    } catch {
+      return integrityFailureResult(rawCapsule, validatedAt);
+    }
     const context = requireApplicationObject(currentContext, "currentContext");
     if (!OPERATION_KINDS.has(operationKind)) {
       throw new TypeError(`Unsupported operationKind: ${operationKind}`);
@@ -303,8 +348,6 @@ export function createExecutionCapsuleService({
     if (!Array.isArray(blockedReasonCodes)) {
       throw new TypeError("blockedReasonCodes must be an array.");
     }
-    const validatedAt = normalizedDate(now, "now").toISOString();
-
     if (blockedReasonCodes.length > 0) {
       return validationResult({
         status: ExecutionCapsuleValidationStatus.BLOCKED,

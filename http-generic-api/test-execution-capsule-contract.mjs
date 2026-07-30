@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+  assertExecutionCapsuleIntegrity,
   compareExecutionCapsuleDependencies,
   createExecutionCapsule,
   createExecutionCapsuleDependencyVector,
@@ -74,6 +75,30 @@ assert.equal(capsule.secretsIncluded, false);
 assert(Object.isFrozen(capsule));
 assert(Object.isFrozen(capsule.invalidationDependencies));
 assert(capsule.invalidationDependencies.every(Object.isFrozen));
+assert.equal(assertExecutionCapsuleIntegrity(capsule).capsuleHash, capsule.capsuleHash);
+assert.throws(
+  () => assertExecutionCapsuleIntegrity({ ...capsule, capsuleHash: "0".repeat(64) }),
+  /canonical hash does not match/u,
+);
+assert.throws(
+  () => projectExecutionCapsule({ ...capsule, executionAllowed: true }, "tenant"),
+  /security invariants/u,
+);
+assert.throws(
+  () => createBaseCapsule({ principalRef: "x".repeat(513) }),
+  /at most 512 characters/u,
+);
+assert.throws(
+  () => createBaseCapsule({
+    invalidationDependencies: Array.from({ length: 129 }, (_, index) => ({
+      domain: "resourceVersion",
+      ref: "resource-version-" + index,
+      revision: "revision-" + index,
+      refreshClass: "dynamic",
+    })),
+  }),
+  /at most 128 dependencies/u,
+);
 
 for (const [field, value] of [
   ["authorityRevision", "authority-revision-b"],
@@ -206,7 +231,7 @@ function createResolution(overrides = {}) {
     status: overrides.status || "resolved",
     selectedCandidate: selected,
     candidates: overrides.candidates || [selectedCandidate],
-    authorityScope: {
+    authorityScope: overrides.authorityScope || {
       tenantRef: "tenant-a",
       role: "member",
     },
@@ -332,6 +357,12 @@ assert.throws(
 );
 assert.throws(
   () => resolveCapsule(createResolution({
+    authorityScope: { tenantRef: "tenant-b", role: "member" },
+  })),
+  (error) => error?.code === "execution_capsule_authority_context_mismatch",
+);
+assert.throws(
+  () => resolveCapsule(createResolution({
     capabilityReadiness: {
       capabilityKey: "repository.read",
       dispatchAllowed: false,
@@ -349,6 +380,14 @@ const currentContext = createResolution().context;
 const currentDependencies = resolved.capsule.invalidationDependencies.map((dependency) => ({
   ...dependency,
 }));
+const forgedIntegrity = service.validate({
+  capsule: { ...resolved.capsule, capsuleHash: "0".repeat(64) },
+  currentContext,
+  currentDependencies,
+});
+assert.equal(forgedIntegrity.status, ExecutionCapsuleValidationStatus.BLOCKED);
+assert.deepEqual(forgedIntegrity.reasonCodes, ["execution_capsule_integrity_invalid"]);
+assert.equal(forgedIntegrity.executionAllowed, false);
 
 const validRead = service.validate({
   capsule: resolved.capsule,
@@ -493,10 +532,32 @@ assert.throws(
 
 const dependencyVector = createExecutionCapsuleDependencyVector({
   ...baseCapsuleInput,
+  invalidationDependencies: [
+    { domain: "approval", ref: "approval-a", revision: "approval-revision-a", refreshClass: "dynamic" },
+    { domain: "capabilityEnvelope", ref: "envelope-a", revision: "envelope-revision-a", refreshClass: "dynamic" },
+    { domain: "effectiveAuthority", ref: "grant-a", revision: "grant-revision-a", refreshClass: "dynamic" },
+    { domain: "resourceVersion", ref: "resource-version-a", revision: "resource-version-revision-a", refreshClass: "dynamic" },
+    { domain: "providerVersion", ref: "provider-version-a", revision: "provider-version-revision-a", refreshClass: "dynamic" },
+    { domain: "connectionStatus", ref: "connection-a", revision: "connection-status-revision-a", refreshClass: "dynamic" },
+    { domain: "expectedVersion", ref: "branch-main", revision: "expected-sha-a", refreshClass: "dynamic" },
+  ],
 });
 assert(dependencyVector.some((dependency) =>
   dependency.domain === "credentialReadiness" &&
   dependency.refreshClass === "dynamic"
 ));
+for (const domain of [
+  "approval",
+  "capabilityEnvelope",
+  "effectiveAuthority",
+  "resourceVersion",
+  "providerVersion",
+  "connectionStatus",
+  "expectedVersion",
+]) {
+  assert(dependencyVector.some((dependency) =>
+    dependency.domain === domain && dependency.refreshClass === "dynamic"
+  ));
+}
 
 console.log("execution capsule contract tests passed");

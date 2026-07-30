@@ -16,6 +16,13 @@ export const ExecutionCapsuleDependencyDomains = deepFreeze([
   "capability",
   "registry",
   "credentialReadiness",
+  "approval",
+  "capabilityEnvelope",
+  "effectiveAuthority",
+  "resourceVersion",
+  "providerVersion",
+  "connectionStatus",
+  "expectedVersion",
 ]);
 
 export const ExecutionCapsuleProjectionModes = deepFreeze([
@@ -31,12 +38,19 @@ const SECRET_VALUE_PATTERNS = Object.freeze([
   /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|credential|authorization|cookie|session)=/iu,
   /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u,
 ]);
+const MAX_FIELD_LENGTH = 512;
+const MAX_CAPSULE_DEPENDENCIES = 128;
+const MAX_CURRENT_DEPENDENCIES = 256;
+const MAX_CANONICAL_BYTES = 256 * 1024;
 
 function requireString(value, fieldName) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new TypeError(`${fieldName} must be a non-empty string.`);
   }
   const normalized = value.trim();
+  if (normalized.length > MAX_FIELD_LENGTH) {
+    throw new TypeError(fieldName + " must contain at most " + MAX_FIELD_LENGTH + " characters.");
+  }
   if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(normalized))) {
     throw new TypeError(`${fieldName} must not contain a secret-like value.`);
   }
@@ -93,7 +107,10 @@ function addDependency(target, dependency) {
   target.set(key, dependency);
 }
 
-function buildDependencyMap(dependencies, fieldName) {
+function buildDependencyMap(dependencies, fieldName, maxDependencies) {
+  if (dependencies.length > maxDependencies) {
+    throw new TypeError(fieldName + " may contain at most " + maxDependencies + " dependencies.");
+  }
   const result = new Map();
   dependencies.forEach((dependency, index) => {
     const normalized = normalizeDependency(dependency, index, fieldName);
@@ -113,8 +130,11 @@ function canonicalize(value) {
     .join(",")}}`;
 }
 
-export function createExecutionCapsuleHash(value) {
+function createExecutionCapsuleHash(value) {
   const canonical = canonicalize(value);
+  if (Buffer.byteLength(canonical, "utf8") > MAX_CANONICAL_BYTES) {
+    throw new TypeError("Execution capsule canonical form exceeds the maximum size.");
+  }
   return crypto
     .createHash("sha256")
     .update(`execution-capsule-v1:${canonical}`)
@@ -160,6 +180,9 @@ export function createExecutionCapsuleDependencyVector({
 
   if (!Array.isArray(invalidationDependencies)) {
     throw new TypeError("invalidationDependencies must be an array.");
+  }
+  if (invalidationDependencies.length > MAX_CAPSULE_DEPENDENCIES) {
+    throw new TypeError("invalidationDependencies may contain at most " + MAX_CAPSULE_DEPENDENCIES + " dependencies.");
   }
 
   const dependencies = new Map();
@@ -275,12 +298,94 @@ export function createExecutionCapsule(input = {}) {
   });
 }
 
+export function assertExecutionCapsuleIntegrity(capsule) {
+  if (!capsule || typeof capsule !== "object" || Array.isArray(capsule)) {
+    throw new TypeError("capsule must be an object.");
+  }
+  if (capsule.schemaVersion !== EXECUTION_CAPSULE_SCHEMA_VERSION) {
+    throw new TypeError("Execution capsule schema version is invalid.");
+  }
+  if (capsule.executionAllowed !== false || capsule.secretsIncluded !== false) {
+    throw new TypeError("Execution capsule security invariants are invalid.");
+  }
+  if (!Array.isArray(capsule.invalidationDependencies)) {
+    throw new TypeError("Execution capsule dependencies are invalid.");
+  }
+  if (typeof capsule.capsuleHash !== "string" || !/^[0-9a-f]{64}$/u.test(capsule.capsuleHash)) {
+    throw new TypeError("Execution capsule hash is invalid.");
+  }
+  const normalizedDependencies = buildDependencyMap(
+    capsule.invalidationDependencies,
+    "capsuleDependencies",
+    MAX_CAPSULE_DEPENDENCIES + ExecutionCapsuleDependencyDomains.length,
+  );
+  const automaticDependencies = createExecutionCapsuleDependencyVector({
+    contextRevision: capsule.contextRevision,
+    principalRef: capsule.principalRef,
+    effectiveSubjectRef: capsule.effectiveSubjectRef,
+    tenantRef: capsule.tenantRef,
+    workspaceRef: capsule.workspaceRef,
+    brandRef: capsule.brandRef,
+    resourceType: capsule.resourceType,
+    resourceRef: capsule.resourceRef,
+    connectionRef: capsule.connectionRef,
+    authorityPathRef: capsule.authorityPathRef,
+    capabilityKey: capsule.capabilityKey,
+    authorityRevision: capsule.authorityRevision,
+    capabilityRevision: capsule.capabilityRevision,
+    registryRevision: capsule.registryRevision,
+    credentialReadinessRevision: capsule.credentialReadinessRevision,
+    invalidationDependencies: [],
+  });
+  const automaticKeys = new Set(automaticDependencies.map(dependencyKey));
+  const additionalDependencies = [...normalizedDependencies.values()]
+    .filter((dependency) => !automaticKeys.has(dependencyKey(dependency)));
+  if (additionalDependencies.length > MAX_CAPSULE_DEPENDENCIES) {
+    throw new TypeError("Execution capsule contains too many additional dependencies.");
+  }
+  const canonical = createExecutionCapsule({
+    contextHash: capsule.contextHash,
+    contextRevision: capsule.contextRevision,
+    principalType: capsule.principalType,
+    principalRef: capsule.principalRef,
+    effectiveSubjectRef: capsule.effectiveSubjectRef,
+    tenantRef: capsule.tenantRef,
+    workspaceRef: capsule.workspaceRef,
+    brandRef: capsule.brandRef,
+    resourceType: capsule.resourceType,
+    resourceRef: capsule.resourceRef,
+    connectionRef: capsule.connectionRef,
+    authorityPathRef: capsule.authorityPathRef,
+    capabilityKey: capsule.capabilityKey,
+    authorityRevision: capsule.authorityRevision,
+    capabilityRevision: capsule.capabilityRevision,
+    registryRevision: capsule.registryRevision,
+    credentialReadinessRevision: capsule.credentialReadinessRevision,
+    issuedAt: capsule.issuedAt,
+    expiresAt: capsule.expiresAt,
+    invalidationDependencies: additionalDependencies,
+    capsuleRef: capsule.capsuleRef,
+  });
+  if (canonical.capsuleHash !== capsule.capsuleHash) {
+    throw new TypeError("Execution capsule canonical hash does not match.");
+  }
+  return canonical;
+}
+
 export function compareExecutionCapsuleDependencies(capsuleDependencies, currentDependencies) {
   if (!Array.isArray(capsuleDependencies) || !Array.isArray(currentDependencies)) {
     throw new TypeError("capsuleDependencies and currentDependencies must be arrays.");
   }
-  const expected = buildDependencyMap(capsuleDependencies, "capsuleDependencies");
-  const current = buildDependencyMap(currentDependencies, "currentDependencies");
+  const expected = buildDependencyMap(
+    capsuleDependencies,
+    "capsuleDependencies",
+    MAX_CAPSULE_DEPENDENCIES + ExecutionCapsuleDependencyDomains.length,
+  );
+  const current = buildDependencyMap(
+    currentDependencies,
+    "currentDependencies",
+    MAX_CURRENT_DEPENDENCIES,
+  );
 
   const changed = [];
   for (const [key, dependency] of expected.entries()) {
@@ -316,29 +421,27 @@ export function compareExecutionCapsuleDependencies(capsuleDependencies, current
 }
 
 export function projectExecutionCapsule(capsule, mode = "tenant") {
-  if (!capsule || typeof capsule !== "object" || Array.isArray(capsule)) {
-    throw new TypeError("capsule must be an object.");
-  }
+  const canonical = assertExecutionCapsuleIntegrity(capsule);
   if (!ExecutionCapsuleProjectionModes.includes(mode)) {
-    throw new TypeError(`Unsupported execution capsule projection mode: ${mode}`);
+    throw new TypeError("Unsupported execution capsule projection mode: " + mode);
   }
 
   const tenantProjection = {
-    schemaVersion: capsule.schemaVersion,
-    capsuleRef: capsule.capsuleRef,
-    capsuleHash: capsule.capsuleHash,
-    contextHash: capsule.contextHash,
-    contextRevision: capsule.contextRevision,
-    effectiveSubjectRef: capsule.effectiveSubjectRef,
-    tenantRef: capsule.tenantRef,
-    workspaceRef: capsule.workspaceRef,
-    brandRef: capsule.brandRef,
-    resourceType: capsule.resourceType,
-    resourceRef: capsule.resourceRef,
-    connectionRef: capsule.connectionRef,
-    capabilityKey: capsule.capabilityKey,
-    issuedAt: capsule.issuedAt,
-    expiresAt: capsule.expiresAt,
+    schemaVersion: canonical.schemaVersion,
+    capsuleRef: canonical.capsuleRef,
+    capsuleHash: canonical.capsuleHash,
+    contextHash: canonical.contextHash,
+    contextRevision: canonical.contextRevision,
+    effectiveSubjectRef: canonical.effectiveSubjectRef,
+    tenantRef: canonical.tenantRef,
+    workspaceRef: canonical.workspaceRef,
+    brandRef: canonical.brandRef,
+    resourceType: canonical.resourceType,
+    resourceRef: canonical.resourceRef,
+    connectionRef: canonical.connectionRef,
+    capabilityKey: canonical.capabilityKey,
+    issuedAt: canonical.issuedAt,
+    expiresAt: canonical.expiresAt,
     executionAllowed: false,
     secretsIncluded: false,
   };
@@ -346,13 +449,13 @@ export function projectExecutionCapsule(capsule, mode = "tenant") {
 
   return deepFreeze({
     ...tenantProjection,
-    principalType: capsule.principalType,
-    principalRef: capsule.principalRef,
-    authorityPathRef: capsule.authorityPathRef,
-    authorityRevision: capsule.authorityRevision,
-    capabilityRevision: capsule.capabilityRevision,
-    registryRevision: capsule.registryRevision,
-    credentialReadinessRevision: capsule.credentialReadinessRevision,
-    invalidationDependencies: capsule.invalidationDependencies,
+    principalType: canonical.principalType,
+    principalRef: canonical.principalRef,
+    authorityPathRef: canonical.authorityPathRef,
+    authorityRevision: canonical.authorityRevision,
+    capabilityRevision: canonical.capabilityRevision,
+    registryRevision: canonical.registryRevision,
+    credentialReadinessRevision: canonical.credentialReadinessRevision,
+    invalidationDependencies: canonical.invalidationDependencies,
   });
 }

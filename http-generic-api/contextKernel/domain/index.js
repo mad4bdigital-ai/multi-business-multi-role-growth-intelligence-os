@@ -29,9 +29,9 @@ export {
   EXECUTION_CAPSULE_SCHEMA_VERSION,
   ExecutionCapsuleDependencyDomains,
   ExecutionCapsuleProjectionModes,
+  assertExecutionCapsuleIntegrity,
   compareExecutionCapsuleDependencies,
   createExecutionCapsule,
   createExecutionCapsuleDependencyVector,
-  createExecutionCapsuleHash,
   projectExecutionCapsule,
 } from "./executionCapsule.js";
