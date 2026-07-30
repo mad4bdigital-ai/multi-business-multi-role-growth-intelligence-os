@@ -1,4 +1,0 @@
-expected_production_sha=1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041
-runtime_base_url=https://auth.mad4b.com
-read_only=true
-secrets_included=false
