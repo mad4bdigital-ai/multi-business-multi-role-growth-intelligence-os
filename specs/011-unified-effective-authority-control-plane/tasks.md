@@ -12,7 +12,7 @@
 ## P1 — Shadow decision plane
 
 - [x] T010 Implement Principal Resolver.
-- [ ] T011 Implement Subject Scope and delegation resolver.
+- [x] T011 Implement Subject Scope and delegation resolver.
 - [ ] T012 Implement bounded Resource Graph resolver.
 - [ ] T013 Integrate semantic capability before provider selection.
 - [ ] T014 Implement policy/grant evaluator.
