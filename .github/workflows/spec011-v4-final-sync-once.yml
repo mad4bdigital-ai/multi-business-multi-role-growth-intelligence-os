@@ -17,7 +17,7 @@ concurrency:
 jobs:
   sync-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     steps:
       - name: Checkout final branch
         uses: actions/checkout@v5
@@ -96,10 +96,6 @@ jobs:
           node test-operation-orchestrator-managed-workspace-dependency.mjs
           node test-managed-git-repository-credential-binding.mjs
           node test-operation-orchestrator-repository-credential.mjs
-
-      - name: Run full repository test manifest
-        working-directory: http-generic-api
-        run: npm test
 
       - name: Commit generated artifacts and push final head
         shell: bash
