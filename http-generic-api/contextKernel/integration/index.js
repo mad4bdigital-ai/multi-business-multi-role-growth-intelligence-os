@@ -5,3 +5,6 @@ export {
 export {
   createExecutionCapsuleShadowResolutionService,
 } from "./executionCapsuleShadow.js";
+export {
+  createExecutionCapsuleResourceApiShadowComposition,
+} from "./executionCapsuleShadowComposition.js";
