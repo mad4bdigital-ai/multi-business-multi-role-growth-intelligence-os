@@ -87,7 +87,7 @@ SELECT
   '2a619ab8-1138-537a-a2c2-352233a70945',
   '00000000-0000-0000-0000-000000000000',
   '2b387496-c9f3-4f4e-a131-0249dd9714f1',
-  'ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f',
+  brand_container.container_id,
   'contains',
   100,
   NULL,
@@ -96,23 +96,19 @@ SELECT
   'platform_admin_service',
   'platform_admin_service',
   '{"topology_role":"platform_admin_workspace_contains_platform_brand","managed_by":"20260730_growth_intelligence_platform_brand_container"}'
-WHERE EXISTS (
-  SELECT 1
-  FROM containers
-  WHERE container_id = '2b387496-c9f3-4f4e-a131-0249dd9714f1'
-    AND tenant_id = '00000000-0000-0000-0000-000000000000'
-    AND container_type_key = 'workspace'
-    AND status = 'active'
-)
+FROM containers brand_container
+WHERE brand_container.tenant_id = '00000000-0000-0000-0000-000000000000'
+  AND brand_container.container_type_key = 'brand'
+  AND brand_container.canonical_subject_type = 'brand_target_key'
+  AND brand_container.canonical_subject_ref = 'growth_intelligence_platform'
+  AND brand_container.status = 'active'
   AND EXISTS (
     SELECT 1
-    FROM containers
-    WHERE container_id = 'ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f'
-      AND tenant_id = '00000000-0000-0000-0000-000000000000'
-      AND container_type_key = 'brand'
-      AND canonical_subject_type = 'brand_target_key'
-      AND canonical_subject_ref = 'growth_intelligence_platform'
-      AND status = 'active'
+    FROM containers workspace_container
+    WHERE workspace_container.container_id = '2b387496-c9f3-4f4e-a131-0249dd9714f1'
+      AND workspace_container.tenant_id = '00000000-0000-0000-0000-000000000000'
+      AND workspace_container.container_type_key = 'workspace'
+      AND workspace_container.status = 'active'
   )
   AND EXISTS (
     SELECT 1
@@ -122,13 +118,13 @@ WHERE EXISTS (
   )
   AND NOT EXISTS (
     SELECT 1
-    FROM container_relationships
-    WHERE relationship_id = '2a619ab8-1138-537a-a2c2-352233a70945'
+    FROM container_relationships existing_relationship
+    WHERE existing_relationship.relationship_id = '2a619ab8-1138-537a-a2c2-352233a70945'
        OR (
-         tenant_id = '00000000-0000-0000-0000-000000000000'
-         AND from_container_id = '2b387496-c9f3-4f4e-a131-0249dd9714f1'
-         AND to_container_id = 'ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f'
-         AND relationship_type_key = 'contains'
-         AND status = 'active'
+         existing_relationship.tenant_id = '00000000-0000-0000-0000-000000000000'
+         AND existing_relationship.from_container_id = '2b387496-c9f3-4f4e-a131-0249dd9714f1'
+         AND existing_relationship.to_container_id = brand_container.container_id
+         AND existing_relationship.relationship_type_key = 'contains'
+         AND existing_relationship.status = 'active'
        )
   );
