@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { _testingTenantLifecycleRoutes } from "./routes/tenantLifecycleRoutes.js";
+import { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";
 
 const migration = readFileSync("migrations/190_sprint66_workspace_lifecycle_foundation.sql", "utf8");
 const routeSource = readFileSync("routes/tenantLifecycleRoutes.js", "utf8");
@@ -39,5 +40,20 @@ assert.equal(_testingTenantLifecycleRoutes.normalizeRole("owner"), "member", "se
 assert.equal(_testingTenantLifecycleRoutes.normalizeRole("editor"), "editor");
 assert(_testingTenantLifecycleRoutes.OWNER_ROLES.has("owner"), "owner role must be recognized");
 assert(_testingTenantLifecycleRoutes.OWNER_ROLES.has("admin"), "admin role may manage lifecycle foundation");
+
+const resourceManifest = JSON.parse(readFileSync("resource-api-coverage.manifest.json", "utf8"));
+const mutationCallability = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: resourceManifest });
+assert.equal(mutationCallability.ok, true, JSON.stringify(mutationCallability.findings));
+for (const toolKey of [
+  "workspace_invitation_create",
+  "workspace_invitation_accept",
+  "workspace_access_request_create",
+  "workspace_access_request_approve",
+  "workspace_access_request_reject",
+]) assert(mutationCallability.covered_tool_keys.includes(toolKey), `${toolKey} must have fail-closed mutation callability evidence`);
+assert.equal((routeSource.match(/router\.get\("\/me\/access-requests"/g) || []).length, 1, "duplicate lifecycle routes must be removed");
+assert.equal((routeSource.match(/router\.post\("\/me\/workspaces\/:tenant_id\/access-requests\/:request_id\/cancel"/g) || []).length, 1, "duplicate lifecycle routes must be removed");
+assert(routeSource.includes("token_returned: false"), "invitation creation must not return the raw invitation token");
+assert(routeSource.includes("workspace_access_request_create_readback_invalid"), "access request creation must return the persisted request identity");
 
 console.log("workspace lifecycle foundation tests passed");
