@@ -5,6 +5,13 @@ const PORT_METHODS = Object.freeze({
   authorizedScope: Object.freeze(["findAuthorizedScope"]),
   resourceGraph: Object.freeze(["listAuthorizedResources"]),
   exactConnection: Object.freeze(["findExactConnection"]),
+  workspaceOwnership: Object.freeze(["findWorkspaceOwnership"]),
+  connectionOwnership: Object.freeze(["findConnectionOwnership"]),
+  providerAuthorizationState: Object.freeze([
+    "findAuthorizationState",
+    "claimAuthorizationState",
+    "completeClaimedAuthorization",
+  ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   contextPin: Object.freeze(["findContextPin", "createPin", "invalidatePin"]),
   executionLedger: Object.freeze(["findExecutionPlan", "listExecutionEvents", "appendExecutionEvent"]),
@@ -43,6 +50,22 @@ export function assertResourceGraphRepository(repository) {
 
 export function assertExactConnectionRepository(repository) {
   return assertRepositoryMethods(repository, "Exact connection", PORT_METHODS.exactConnection);
+}
+
+export function assertWorkspaceOwnershipRepository(repository) {
+  return assertRepositoryMethods(repository, "Workspace ownership", PORT_METHODS.workspaceOwnership);
+}
+
+export function assertConnectionOwnershipRepository(repository) {
+  return assertRepositoryMethods(repository, "Connection ownership", PORT_METHODS.connectionOwnership);
+}
+
+export function assertProviderAuthorizationStateRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Provider authorization state",
+    PORT_METHODS.providerAuthorizationState,
+  );
 }
 
 export function assertCapabilityReadinessRepository(repository) {
