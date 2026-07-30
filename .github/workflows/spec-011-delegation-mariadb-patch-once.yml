@@ -4,17 +4,23 @@ on:
   push:
     branches:
       - gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   patch:
+    if: github.head_ref == '' || github.head_ref == 'gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
         uses: actions/checkout@v5
         with:
+          ref: gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
           fetch-depth: 0
 
       - name: Patch lifecycle, adapter, and test manifest
