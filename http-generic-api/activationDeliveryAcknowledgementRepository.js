@@ -244,7 +244,13 @@ export async function readActivationAcknowledgement(
     connection,
     `SELECT acknowledgement_id, operation_id, delivery_id, tenant_id,
             actor_type, actor_ref_sha256, acknowledgement_key_sha256,
-            acknowledgement_state, acknowledged_at, created_at
+            acknowledgement_state,
+            CASE
+              WHEN acknowledgement_state IN ('acknowledged', 'rejected', 'expired')
+                THEN acknowledged_at
+              ELSE NULL
+            END AS acknowledged_at,
+            created_at
        FROM activation_acknowledgements
       WHERE acknowledgement_id = ?
         AND operation_id = ?
