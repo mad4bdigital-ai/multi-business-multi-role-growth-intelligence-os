@@ -110,12 +110,27 @@ The registered coverage includes:
 - sequential replay rejection;
 - absence of provider calls, credential reads, credential mutation, secrets, and raw claim-token output.
 
-The repository-owned generated-artifact workflow regenerated and verified the bounded frontend dispatch evidence after the focused command was registered. The bounded write set contained only the governed generated evidence files; no runtime or OpenAPI surface was introduced by the generator.
+The repository-owned generated-artifact workflow regenerated and verified the bounded frontend dispatch evidence after the focused command was registered. The bounded write set contained only governed generated evidence; no runtime or OpenAPI surface was introduced by the generator.
+
+## Canonical repository consolidation gate
+
+The repository already contains `createProviderAuthorizationStateRepository`, which owns claimed-state readback and atomic reconnect completion. This default-off slice adds a stricter issuance and ingress-claim adapter over the same persistence aggregate so the signed nonce, signature, owner scope, reconnect revision, and provider-account binding can participate in the claim CAS.
+
+That temporary split is not runtime authority. Before any route, provider adapter, worker callback, or feature flag can use this slice, a separate governed implementation must:
+
+1. consolidate issuance, signed-context claim, claimed-state resume, and atomic completion behind one canonical authorization-state repository port;
+2. remove or make unreachable every weaker alternate claim path;
+3. retain the full signed-context CAS and reconnect completion transaction guarantees;
+4. update all repository tests and consumers to the single canonical authority;
+5. prove no duplicate SQL claim implementation remains reachable from runtime composition.
+
+Until those conditions and migration readback are complete, this slice must remain unmounted and default-off.
 
 ## Remaining work
 
 This slice does not complete Phase 5. Remaining provider-consent work includes:
 
+- canonical authorization-state repository consolidation described above;
 - authenticated personal, company-workspace, and brand list/authorize/reconnect/revoke use cases;
 - live membership and brand-management authority checks;
 - an internal callback adapter that generates and transports the raw claim token without logging or exporting it;
