@@ -91,6 +91,13 @@
     "generated_contracts_passed": true,
     "generator_owned": true
   },
+  "certification_request": {
+    "status": "pending_exact_head_ci",
+    "technical_changes_complete": true,
+    "requested_from_pr": 3719,
+    "required_trigger": "new_pull_request_open",
+    "runtime_authority_granted": false
+  },
   "human_review": {
     "status": "passed_for_core",
     "reviewed_head_sha": "63a96bc953e9b78cbd1e0a06833ecbbe1d7aea6c",
