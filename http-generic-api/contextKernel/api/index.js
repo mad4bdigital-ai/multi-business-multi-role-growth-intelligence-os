@@ -1,6 +1,9 @@
 export { ContextApiValidationError } from "./apiSupport.js";
 export { paginateCandidates } from "./candidatePagination.js";
 export { createContextKernelController } from "./controller.js";
+export {
+  createExecutionCapsuleSelectedReadPilot,
+} from "./executionCapsuleSelectedReadPilot.js";
 export { mapContextKernelError } from "./errorMapping.js";
 export {
   projectContextPin,
