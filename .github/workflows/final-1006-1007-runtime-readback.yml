@@ -16,12 +16,13 @@ concurrency:
 
 jobs:
   verify-and-clean:
-    name: Verify current Production runtime and remove readback branch
+    name: Verify current Production runtime and remove readback branches
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       READBACK_BRANCH: gpt/final-1006-1007-runtime-readback-20260730
+      EXTRA_READBACK_BRANCH: gpt/final-1006-1007-runtime-readback-pr-20260730
       MIGRATION_1006_NAME: 1006_sprint69_agent_capability_evidence_coverage.sql
       MIGRATION_1006_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
       MIGRATION_1006_STATEMENTS: "5"
@@ -156,10 +157,18 @@ jobs:
           console.log("FINAL_SQL_EXECUTED=false");
           NODE
 
-      - name: Delete readback branch through Git transport
+      - name: Delete readback branches through Git transport
         shell: bash
         run: |
           set -euo pipefail
+          git push origin --delete "$EXTRA_READBACK_BRANCH"
+          if git ls-remote --exit-code --heads origin "refs/heads/${EXTRA_READBACK_BRANCH}" >/dev/null 2>&1; then
+            echo "Extra readback branch still exists after deletion" >&2
+            exit 1
+          fi
+          echo "EXTRA_READBACK_BRANCH_DELETED=true"
+          echo "EXTRA_READBACK_BRANCH_ABSENCE_READBACK=PASS"
+
           git push origin --delete "$READBACK_BRANCH"
           if git ls-remote --exit-code --heads origin "refs/heads/${READBACK_BRANCH}" >/dev/null 2>&1; then
             echo "Readback branch still exists after deletion" >&2
