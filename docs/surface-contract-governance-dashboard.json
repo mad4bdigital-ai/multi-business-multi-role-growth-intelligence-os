@@ -7,14 +7,14 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 580,
-    "docs_complete_count": 576,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.31,
+    "docs_complete_count": 577,
+    "docs_gap_count": 3,
+    "docs_completion_percent": 99.48,
     "gap_severity_counts": {
       "high": 22,
       "medium": 2,
-      "low": 1,
-      "none": 555
+      "low": 0,
+      "none": 556
     },
     "surface_totals": {
       "plugins": 14,
@@ -31,17 +31,17 @@
       "routes": 287
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 4,
-      "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 3,
+      "deployment_parity_checklist.md": 3,
+      "docs/ai-docs-agent-governance.md": 3,
+      "docs/auto-docs-agent/README.md": 3,
+      "docs/change-documentation-governance.md": 3
     },
     "safety_marker_counts": {
       "no_provider_call": 577,
-      "no_credential_payload_read": 576,
-      "no_raw_secrets": 576,
-      "no_external_send": 576,
+      "no_credential_payload_read": 577,
+      "no_raw_secrets": 577,
+      "no_external_send": 577,
       "no_external_write": 577,
       "secrets_included_false": 579
     },
@@ -66,28 +66,27 @@
     }
   },
   "queue": {
-    "total_items": 25,
+    "total_items": 24,
     "class_counts": {
       "critical_review": 22,
       "high_review": 2,
-      "medium_review": 1,
+      "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 25,
+    "total_items": 24,
     "class_counts": {
       "legacy_baseline_backlog": 18,
-      "new_surface_immediate_review": 6,
-      "safety_marker_review": 1
+      "new_surface_immediate_review": 6
     },
     "gate_candidate_count": 6
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 7,
-    "blocking_new_item_count": 7
+    "new_item_count": 6,
+    "blocking_new_item_count": 6
   },
   "top_immediate_items": [
     {
