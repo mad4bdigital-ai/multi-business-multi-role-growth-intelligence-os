@@ -49,7 +49,7 @@
 - [ ] **T025** `[FR-037][concerns]` Implement operational attention projection rules.
 - [ ] **T026** `[migration]` Add governed additive migration and readback if inventory requires schema change.
 - [ ] **T027** `[domain]` Implement activation lifecycle state machine.
-- [x] **T028** `[domain]` Implement stage classification and reconnect-guidance policy. Evidence: `http-generic-api/activationReconnectGuidancePolicy.js`, deterministic contract and inherited-key regressions in `http-generic-api/test-activation-reconnect-guidance-policy.mjs`, explicit CI registration, green CI and Frontend surface dispatch on PR #3296, squash merge `3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0`, and same-cycle `main` readback.
+- [ ] **T028** `[domain]` Implement stage classification and reconnect-guidance policy.
 - [ ] **T029** `[domain]` Implement retry, idempotency, and reconcile-before-retry policy.
 - [ ] **T029A** `[ADR-005]` Implement versioned questionnaire definitions, context-aware question selection, pinned answer sessions, and schema validation.
 - [ ] **T029B** `[ADR-005]` Implement deterministic policy compilation, immutable safety-bound validation, impact preview, risk classification, and approval resolution.
@@ -71,7 +71,7 @@
 - [ ] **T041** `[FR-016..018][OP-006..007]` Implement Managed default and Dedicated/mixed readiness classification.
 - [ ] **T042** `[FR-019][OP-006]` Enforce backend runtime bootstrap authority and remove deprecated Sheets path usage.
 - [ ] **T043** `[FR-020..021][OP-008]` Integrate provider-bootstrap stage and evidence classifications.
-- [ ] **T044** `[FR-022..024][OP-009..010]` Integrate tenant tool discovery and separate visibility/dependency/credential/execution readiness.
+- [ ] **T044** `[FR-022..024][OP-009]` Integrate tenant tool discovery and separate visibility/dependency/credential/execution readiness.
 - [ ] **T045** `[FR-023..025][OP-010]` Integrate registry-resolved dispatch preparation and sensitive-action block policy.
 - [ ] **T046** `[FR-038][OP-004..008]` Replace generic connection fallback with stage-specific remediation.
 
