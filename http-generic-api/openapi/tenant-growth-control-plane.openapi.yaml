@@ -12,7 +12,7 @@ tags:
   - name: tenant-growth-control-plane
     description: Tenant-scoped metadata projections.
 security:
-  - tenantBearerAuth: []
+  - userJwtAuth: []
 paths:
   /tenant/control-plane/configuration-versions:
     get:
@@ -140,7 +140,7 @@ paths:
         '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
-    tenantBearerAuth:
+    userJwtAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
