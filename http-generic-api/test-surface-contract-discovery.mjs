@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import { extractRegistryToolKeys } from "./scripts/surface-contract-sql-registry-extractor.mjs";
 
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
 assert.equal(
@@ -44,6 +45,26 @@ secrets_included=false
 assert.equal(explicitBooleanMarkers.no_provider_call, true, "explicit true provider marker must remain supported");
 assert.equal(explicitBooleanMarkers.no_external_write, true, "explicit true external-write marker must remain supported");
 assert.equal(explicitBooleanMarkers.secrets_included_false, true, "secrets_included=false must remain supported");
+
+const bulletedMarkers = detectSafetyMarkers(`
+-- - no_provider_call
+-- * no_credential_payload_read
+-- - no_raw_secrets
+-- * no_external_send
+-- - no_external_write
+-- * secrets_included_false
+`);
+assert(Object.values(bulletedMarkers).every(Boolean), "bulleted standalone SQL safety markers must be recognized");
+
+const registryToolKeys = extractRegistryToolKeys(`
+CREATE TABLE demo (source enum('invitation_accept','access_request_approval'));
+INSERT INTO tenant_platform_endpoint_tools (tool_key, display_name, tags) VALUES
+('workspace_assets_list', 'Assets', 'read_only'),
+('workspace_vaults_list', JSON_OBJECT('sample','preview_created'), 'read_only')
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name);
+CREATE INDEX idx_user_request_created ON demo (created_at);
+`);
+assert.deepEqual(registryToolKeys, ["workspace_assets_list", "workspace_vaults_list"], "tool extraction must use the declared tool_key column only");
 
 const negativeMarkers = detectSafetyMarkers(`
 -- no_provider_call=false
@@ -144,6 +165,23 @@ if (migration190QueueItem) {
   assert(!migration190QueueItem.remediation.some((action) => action.action_key === "verify_callable_handler_or_admin_preview"));
   assert(!migration190QueueItem.remediation.some((action) => action.action_key === "verify_tool_registry_binding"));
 }
+
+
+const migration193 = report.all_migrations.find((entry) => entry.migration_file === "193_sprint67_workspace_resource_authority_foundation.sql");
+assert(migration193, "migration 193 must remain discoverable");
+assert.deepEqual(migration193.surfaces.tools, ["workspace_assets_list", "workspace_resource_grants_list", "workspace_vaults_list"], "migration 193 must expose only registry-declared tool keys");
+assert(!migration193.surfaces.tools.includes("invitation_accept"));
+assert(!migration193.surfaces.tools.includes("access_request_approval"));
+
+const hostingerEvidence = report.all_migrations.find((entry) => entry.migration_file === "20260714_validate_hostinger_connection_and_complete_continuation_task.sql");
+assert(hostingerEvidence, "Hostinger continuation evidence migration must remain discoverable");
+assert.equal(hostingerEvidence.documentation_complete, true, "checksum-bound evidence manifest must satisfy documentation coverage");
+assert.equal(hostingerEvidence.coverage.route_coverage.missing_count, 0, "historical provider evidence literals must not be treated as platform OpenAPI routes");
+assert(hostingerEvidence.coverage.route_coverage.route_classifications.every((entry) => entry.evidence_status === "verified_checksum_bound_evidence_only"));
+for (const marker of ["no_provider_call", "no_credential_payload_read", "no_raw_secrets", "no_external_send", "no_external_write", "secrets_included_false"]) {
+  assert.equal(hostingerEvidence.surfaces.safety[marker], true, `Hostinger evidence migration must expose ${marker}`);
+}
+assert.equal(report.gap_queue.top_items.some((entry) => entry.migration_file === hostingerEvidence.migration_file), false, "verified Hostinger evidence must leave the actionable queue");
 
 const migration287 = report.all_migrations.find((entry) => entry.migration_file === "287_sprint68_external_delivery_orchestration_graph_plugin.sql");
 assert(migration287, "migration 287 must be discoverable as a SQL-backed surface migration");
