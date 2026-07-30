@@ -1,0 +1,71 @@
+name: Spec 011 Production Migration Dry Run Cycle
+
+on:
+  push:
+    branches:
+      - gpt/spec011-production-migration-dryrun-cycle-20260730
+    paths:
+      - .github/spec011-production-migration-dryrun-trigger.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-production-migration-dryrun
+  cancel-in-progress: false
+
+jobs:
+  production-readback-and-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout bounded operational branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate bounded cycle inputs
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_API_KEY" || {
+            echo "::error::BACKEND_API_KEY repository secret is unavailable"
+            exit 1
+          }
+          node --check http-generic-api/scripts/spec011-production-migration-dryrun-cycle.mjs
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = '.github/spec011-production-migration-dryrun-trigger.json';
+          const trigger = JSON.parse(fs.readFileSync(path, 'utf8'));
+          if (trigger.authorize_only_and_dry_run !== true || trigger.apply_allowed === true) {
+            throw new Error('trigger must forbid migration apply');
+          }
+          NODE
+
+      - name: Verify deployed Production and run authorization plus dry-run
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BASE_URL: https://auth.mad4b.com
+          TRIGGER_PATH: .github/spec011-production-migration-dryrun-trigger.json
+          EVIDENCE_PATH: ${{ runner.temp }}/spec011-production-migration-dryrun-evidence.json
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec011-production-migration-dryrun-cycle.mjs
+
+      - name: Upload non-secret governed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-production-migration-dryrun-${{ github.sha }}
+          path: ${{ runner.temp }}/spec011-production-migration-dryrun-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
