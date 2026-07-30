@@ -1303,7 +1303,7 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
         AND x.status = 'active'
         AND x.scope_class IN (?, ?)
         ${tenantClause.sql}
-      LIMIT 1`,
+      LIMIT 2`,
     [name, ...scopeClasses, ...tenantClause.params]
   );
 
@@ -1311,7 +1311,19 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     return { handled: false };
   }
 
-  const row = rows[0];
+  if (rows.length > 1) {
+    const err = new Error("The visible platform endpoint tool name resolves to more than one active binding.");
+    err.status = 409;
+    err.code = "platform_endpoint_tool_binding_ambiguous";
+    err.details = {
+      tool_name: String(name || ""),
+      candidate_count: rows.length,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const [row] = rows;
 
   if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
     const err = new Error("This platform endpoint tool requires admin access.");
@@ -1942,7 +1954,7 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
        LEFT JOIN \`installations\` i ON i.system_id = cs.system_id
       WHERE cs.system_id = ?
       GROUP BY cs.id
-      LIMIT 1`,
+      LIMIT 2`,
     [systemId]
   );
 
@@ -1953,7 +1965,19 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
     throw err;
   }
 
-  const row = rows[0];
+  if (rows.length > 1) {
+    const err = new Error(`Connector system ${systemId} is ambiguous in the registry.`);
+    err.status = 409;
+    err.code = "connector_system_ambiguous";
+    err.details = {
+      system_id: systemId,
+      candidate_count: rows.length,
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const [row] = rows;
   if (auth && !isAdminPrincipal(auth) && row.tenant_id !== principalTenantId(auth)) {
     const err = new Error("Tenant-scoped system tools cannot access another tenant.");
     err.status = 403;

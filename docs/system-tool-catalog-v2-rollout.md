@@ -19,6 +19,12 @@ Track list requests, direct lookups, lookup misses, legacy full-list requests, i
 
 Remove legacy compatibility only through a later reviewed contract change after usage reaches zero, all clients have migrated, and CI/production verification pass.
 
+## Governed generated-artifact refresh
+
+Internal pull requests from `gpt/*` branches use the bounded `PR Generated Artifact Refresh` workflow when Catalog, route, or canonical OpenAPI sources change. The workflow regenerates Frontend dispatch evidence and Custom GPT schemas, runs the existing parity and contract guards before writing, rejects any file outside its explicit generated-artifact allowlist, and commits only artifacts that actually changed. Fork pull requests, non-governed branches, failed contract validation, and unbounded generator output cannot write to the source branch.
+
+The generated commit is not itself treated as completion evidence. A following source-authorized commit or reviewed rerun must produce final required-check evidence on the exact branch head before the PR is marked ready or merged.
+
 ## Chunk-store dependency degradation
 
 Durable governed response chunks remain the normal behavior for oversized catalog responses. If the durable store is unavailable with the exact error `response_chunk_persistence_unavailable`, the System Layer can return a bounded inline response marked with `persistence_degraded=true` and `fallback_mode=bounded_inline_response`. The response is limited to 150000 serialized characters and remains secret-free.

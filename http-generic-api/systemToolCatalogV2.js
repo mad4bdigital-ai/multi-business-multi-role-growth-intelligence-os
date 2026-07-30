@@ -11,6 +11,7 @@ const OBSERVABILITY_KEYS = Object.freeze([
   "capability_resolution_requests",
   "snapshot_mismatch",
   "descriptor_runtime_mismatch",
+  "descriptor_name_collision",
 ]);
 
 const counters = Object.fromEntries(OBSERVABILITY_KEYS.map((key) => [key, 0]));
@@ -34,7 +35,11 @@ function text(value = "", max = 4096) {
 }
 
 function normalizedText(value = "") {
-  return text(value).toLowerCase().replace(/[^a-z0-9._:-]+/g, " ").trim();
+  return text(value)
+    .normalize("NFKC")
+    .toLocaleLowerCase("und")
+    .replace(/[^\p{L}\p{N}._:-]+/gu, " ")
+    .trim();
 }
 
 function stableValue(value) {
@@ -110,11 +115,33 @@ function projectedDescriptor(descriptor) {
   return projection;
 }
 
+function descriptorFingerprint(descriptor) {
+  return stableStringify(projectedDescriptor(descriptor));
+}
+
 function normalizeVisibleTools(tools = []) {
   const index = new Map();
   for (const tool of Array.isArray(tools) ? tools : []) {
     const descriptor = normalizeSystemToolDescriptor(tool);
-    index.set(descriptor.name, descriptor);
+    const existing = index.get(descriptor.name);
+    if (!existing) {
+      index.set(descriptor.name, descriptor);
+      continue;
+    }
+    if (descriptorFingerprint(existing) === descriptorFingerprint(descriptor)) continue;
+
+    bump("descriptor_name_collision");
+    throw new SystemToolCatalogError(
+      "SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION",
+      "Multiple visible system tool descriptors share the same stable name.",
+      {
+        status: 500,
+        details: {
+          tool_name: descriptor.name,
+          source_keys: [...new Set([existing.source_key, descriptor.source_key])].sort(),
+        },
+      },
+    );
   }
   return [...index.values()].sort((a, b) => a.sort_key.localeCompare(b.sort_key));
 }

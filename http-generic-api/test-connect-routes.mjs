@@ -947,15 +947,15 @@ assert("local connector requires fresh Local Manager authorization for privilege
       source.includes("canonical_device_id") &&
       source.includes("run_as_admin_required: true") &&
       source.includes("auth_context: device.auth_context") &&
-      source.includes("reauth_required_for_stale_device_tokens: true") &&
+      source.includes("reauth_required_for_stale_device_tokens: false") &&
       source.includes("secrets_included: false"));
     assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
-assert("Local Manager privileged installer guard returns structured fresh-auth error context",
+assert("Local Manager privileged installer authorization uses a long-lived revocable device token without repeated sign-in",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
-      deviceLinkSource.includes("fresh_local_manager_authorization_required") &&
-      deviceLinkSource.includes("saved_device_token") &&
-      deviceLinkSource.includes("privileged_authorization_fresh") &&
-      deviceLinkSource.includes("reauth_action"));
+      deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
+      deviceLinkSource.includes("PRIVILEGED_DEVICE_AUTH_MAX_AGE_SECONDS = DEVICE_TOKEN_TTL_SECONDS") &&
+      deviceLinkSource.includes("requires_reauth_for_privileged_installers: false") &&
+      deviceLinkSource.includes("return requireLocalManagerDevice(req);") && !deviceLinkSource.includes("fresh_local_manager_authorization_required") && !deviceLinkSource.includes("forget_device_and_link_again"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
       deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
@@ -1046,7 +1046,7 @@ assert("Local Manager privileged installer guard returns structured fresh-auth e
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.25.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.26.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

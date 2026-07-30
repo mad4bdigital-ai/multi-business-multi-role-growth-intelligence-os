@@ -22,6 +22,12 @@ assert(sql.includes("authority.installation_id=NULL"));
 assert(sql.includes("authority.authority_version=authority.authority_version+1"));
 assert(sql.includes("authority.lock_version=authority.lock_version+1"));
 assert(!sql.includes("binding_version"));
+assert.match(
+  sql,
+  /NOT\s*\(\s*authority\.system_id\s+COLLATE\s+utf8mb4_unicode_ci\s*<=>\s*system\.system_id\s+COLLATE\s+utf8mb4_unicode_ci\s*\)/i,
+);
+assert(!sql.includes("BINARY authority.system_id<>BINARY system.system_id"));
+assert(!sql.includes("authority.system_id<>system.system_id"));
 assert.match(sql, /WHERE\s+authority\.binding_key='growth_intelligence_platform\.github\.primary\.production'/i);
 
 assert.match(sql, /UPDATE\s+repository_capability_bindings\s+capability\s+JOIN\s+capability_apply_authorization_policy_registry\s+policy/i);
@@ -33,6 +39,9 @@ assert(sql.includes("capability.lock_version=capability.lock_version+1"));
 assert(!sql.includes("SET policy_key = 'github_repository_main_moved_webhook_dynamic_binding_apply_v2'"));
 assert(!sql.includes("runtime_surface = 'repo_patch_apply'"));
 assert(!sql.includes("UPDATE capability_apply_authorization_policy_registry"));
+assert.match(sql, /NOT\s*\(\s*capability\.policy_key\s*<=>\s*policy\.policy_key\s*\)/i);
+assert(!sql.includes("capability.policy_key<>policy.policy_key"));
+assert(!/\bBINARY\b/i.test(sql));
 
 assert(sql.includes("provider_call_executed',FALSE"));
 assert(sql.includes("external_write_executed',FALSE"));

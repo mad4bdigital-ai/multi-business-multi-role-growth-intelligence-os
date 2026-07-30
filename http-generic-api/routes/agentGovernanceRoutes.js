@@ -14,6 +14,10 @@ import {
   revokeAgentHandoffState,
   resolveMemoryScope,
 } from "../agentGovernanceRuntime.js";
+import {
+  getEngineRuntimeCoverage,
+  getLogicRuntimeCoverage,
+} from "../capabilityCoverageRuntime.js";
 
 function sendError(res, error, fallback) {
   res.status(error.status || 500).json({ ok: false, error: { code: error.code || fallback, message: error.message } });
@@ -88,6 +92,14 @@ export function buildAgentGovernanceRoutes(deps = {}) {
   router.get("/platform/agent-governance/skill-coverage", ...guards, async (req, res) => {
     try { res.json({ ok: true, coverage: await getSkillRuntimeCoverage(req.query || {}, deps) }); }
     catch (error) { sendError(res, error, "skill_runtime_coverage_failed"); }
+  });
+  router.get("/platform/agent-governance/logic-coverage", ...guards, async (req, res) => {
+    try { res.json({ ok: true, coverage: await getLogicRuntimeCoverage(req.query || {}, deps) }); }
+    catch (error) { sendError(res, error, "logic_runtime_coverage_failed"); }
+  });
+  router.get("/platform/agent-governance/engine-coverage", ...guards, async (req, res) => {
+    try { res.json({ ok: true, coverage: await getEngineRuntimeCoverage(req.query || {}, deps) }); }
+    catch (error) { sendError(res, error, "engine_runtime_coverage_failed"); }
   });
   router.get("/platform/agent-governance/readiness", ...guards, async (req, res) => {
     try { res.json({ ok: true, readiness: await getAgentGovernanceReadiness(req.query || {}, deps) }); }
