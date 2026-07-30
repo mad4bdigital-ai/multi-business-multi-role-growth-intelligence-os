@@ -112,6 +112,16 @@ The registered coverage includes:
 
 The repository-owned generated-artifact workflow regenerated and verified the bounded frontend dispatch evidence after the focused command was registered. The bounded write set contained only governed generated evidence; no runtime or OpenAPI surface was introduced by the generator.
 
+## Generated evidence readback
+
+The bounded generated-evidence refresh committed the required deterministic artifact at:
+
+```text
+f2a0214b57b9fb43e2ab908e48eff75c7b15f6f5
+```
+
+The branch was then reconciled with current `main` while preserving the generated artifact and all provider-consent source blobs. The subsequent refresh completed generation, contract verification, and bounded-write-set enforcement successfully. This evidence does not grant runtime authority and does not represent deployment or database execution.
+
 ## Canonical repository consolidation gate
 
 The repository already contains `createProviderAuthorizationStateRepository`, which owns claimed-state readback and atomic reconnect completion. This default-off slice adds a stricter issuance and ingress-claim adapter over the same persistence aggregate so the signed nonce, signature, owner scope, reconnect revision, and provider-account binding can participate in the claim CAS.
