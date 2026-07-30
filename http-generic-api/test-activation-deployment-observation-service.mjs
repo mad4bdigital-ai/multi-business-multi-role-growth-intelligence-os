@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   ACTIVATION_DEPLOYMENT_CORRELATION_STATUS,
   ACTIVATION_DEPLOYMENT_EVIDENCE_MAX_BYTES,
+  ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS,
   buildActivationDeploymentObservation,
   correlateActivationDeploymentObservation,
   createActivationDeploymentObservationService,
@@ -153,6 +154,33 @@ assert.throws(
 assert.throws(
   () =>
     buildActivationDeploymentObservation(
+      observation({
+        observed_at: "2026-07-30T10:00:00.000Z",
+        health: { observed_at: "2026-07-30T10:00:01.000Z" },
+      }),
+    ),
+  (error) =>
+    error?.code === "activation_deployment_health_observed_at_after_observed_at" &&
+    error?.status === 409,
+);
+assert.throws(
+  () =>
+    buildActivationDeploymentObservation(
+      observation({
+        deployed_release: {
+          observed_at: "2026-07-30T10:00:00.000Z",
+          deployed_at: "2026-07-30T10:00:01.000Z",
+        },
+      }),
+    ),
+  (error) =>
+    error?.code ===
+      "activation_deployment_deployed_release_deployed_at_after_deployed_release_observed_at" &&
+    error?.status === 409,
+);
+assert.throws(
+  () =>
+    buildActivationDeploymentObservation(
       observation({ metadata: { values: Array.from({ length: 50 }, () => "x".repeat(1000)) } }),
     ),
   (error) =>
@@ -220,6 +248,22 @@ assert.deepEqual(noHistoricalObservation, {
   secrets_included: false,
 });
 
+assert.throws(
+  () =>
+    correlateActivationDeploymentObservation(
+      Array.from({ length: ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS + 1 }, () =>
+        observation(),
+      ),
+      {
+        environment_key: "production",
+        request_time: "2026-07-30T10:30:00.000Z",
+      },
+    ),
+  (error) =>
+    error?.code === "activation_deployment_observation_set_too_large" &&
+    error?.status === 413,
+);
+
 const calls = [];
 const repository = {
   async appendObservation(value) {
@@ -258,6 +302,7 @@ assert.deepEqual(calls[1], {
   filter: {
     environment_key: "production",
     observed_at_lte: "2026-07-30T10:30:00.000Z",
+    limit: ACTIVATION_DEPLOYMENT_OBSERVATION_MAX_ITEMS,
   },
 });
 
