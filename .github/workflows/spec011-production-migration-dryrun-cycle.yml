@@ -8,11 +8,11 @@ on:
       - .github/spec011-production-migration-dryrun-trigger.json
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: spec011-production-migration-dryrun
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   production-readback-and-dry-run:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -60,6 +60,53 @@ jobs:
         run: |
           set -euo pipefail
           node http-generic-api/scripts/spec011-production-migration-dryrun-cycle.mjs
+
+      - name: Persist sanitized governed evidence
+        if: always()
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          SOURCE_EVIDENCE: ${{ runner.temp }}/spec011-production-migration-dryrun-evidence.json
+          TARGET_EVIDENCE: ops-evidence/spec011/production-migration-dryrun-latest.json
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$TARGET_EVIDENCE")"
+          if [[ ! -s "$SOURCE_EVIDENCE" ]]; then
+            printf '%s\n' '{"schema_version":"spec011.production_migration_dryrun.v1","ok":false,"error":{"message":"workflow ended before the bounded script wrote evidence"},"apply_executed":false,"migration_sql_executed":false,"secrets_included":false}' > "$SOURCE_EVIDENCE"
+          fi
+          node - "$SOURCE_EVIDENCE" "$TARGET_EVIDENCE" "$JOB_STATUS" "$RUN_ID" "$RUN_ATTEMPT" "$HEAD_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const [source, target, jobStatus, runId, runAttempt, headSha] = process.argv.slice(2);
+          const evidence = JSON.parse(fs.readFileSync(source, 'utf8'));
+          evidence.workflow = {
+            name: 'Spec 011 Production Migration Dry Run Cycle',
+            job_status: jobStatus,
+            run_id: Number(runId),
+            run_attempt: Number(runAttempt),
+            trigger_sha: headSha,
+          };
+          evidence.apply_executed = false;
+          evidence.migration_sql_executed = false;
+          evidence.secrets_included = false;
+          fs.writeFileSync(target, JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+          if grep -Fq -- "$BACKEND_API_KEY" "$TARGET_EVIDENCE"; then
+            echo "::error::credential material detected in evidence"
+            rm -f "$TARGET_EVIDENCE"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$TARGET_EVIDENCE"
+          if ! git diff --cached --quiet; then
+            git commit -m "evidence(spec-011): record Production migration dry-run cycle"
+            git push origin "HEAD:$BRANCH_NAME"
+          fi
 
       - name: Upload non-secret governed evidence
         if: always()
