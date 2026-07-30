@@ -1,0 +1,178 @@
+name: Brand Skill MariaDB Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: Certification mode
+        required: true
+        default: disposable_only
+        type: choice
+        options:
+          - disposable_only
+          - staging_read_only
+      expected_commit_sha:
+        description: Exact 40-character commit SHA to inspect on staging
+        required: false
+        type: string
+      expected_migration_sha256:
+        description: Exact SHA-256 of the Brand Skills migration
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - "http-generic-api/brandSkillMigrationPreflight.js"
+      - "http-generic-api/migrations/20260728_brand_scoped_user_skill_activation.sql"
+      - "http-generic-api/scripts/brand-skill-migration-preflight.mjs"
+      - "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs"
+      - "http-generic-api/scripts/brand-skill-staging-preflight-evidence.mjs"
+      - "http-generic-api/test-brand-skill-*.mjs"
+      - "docs/runbooks/brand-skill-migration.md"
+      - ".github/workflows/brand-skill-mariadb-certification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-mariadb-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: brand_skill_cert_ci
+          MARIADB_USER: brand_skill_cert
+          MARIADB_PASSWORD: brand_skill_cert
+          MARIADB_ROOT_PASSWORD: brand_skill_cert_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused Brand Skills contracts
+        run: |
+          node test-brand-skill-migration-preflight.mjs
+          node test-brand-skill-mariadb-certification-contract.mjs
+          node test-brand-skill-activation.mjs
+
+      - name: Certify migration on disposable MariaDB
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: brand_skill_cert_ci
+          DB_USER: brand_skill_cert
+          DB_PASSWORD: brand_skill_cert
+          DB_CONNECT_TIMEOUT_MS: 10000
+        run: node scripts/brand-skill-mariadb-disposable-certification.mjs
+
+      - name: Validate bounded disposable evidence
+        run: |
+          node -e 'const fs=require("fs"); const p="artifacts/brand-skill-mariadb-certification.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ok||v.statement_count!==3||v.live_preflight?.ready!==true||v.lifecycle?.delimiter_collision_prevented!==true||v.lifecycle?.suspended_status_accepted!==true||v.production_authorized!==false||v.staging_apply_authorized!==false||v.applies_sql_to_external_environment!==false||v.secrets_included!==false) process.exit(1);'
+
+      - name: Upload disposable certification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: brand-skill-mariadb-certification
+          path: http-generic-api/artifacts/brand-skill-mariadb-certification.json
+          if-no-files-found: error
+          retention-days: 30
+
+  staging-read-only-preflight:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'staging_read_only'
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Validate typed binding inputs
+        shell: bash
+        env:
+          EXPECTED_COMMIT_SHA: ${{ inputs.expected_commit_sha }}
+          EXPECTED_MIGRATION_SHA256: ${{ inputs.expected_migration_sha256 }}
+        run: |
+          [[ "${EXPECTED_COMMIT_SHA}" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::expected_commit_sha must be a full commit SHA"; exit 1; }
+          [[ "${EXPECTED_MIGRATION_SHA256}" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "::error::expected_migration_sha256 must be a SHA-256 digest"; exit 1; }
+
+      - name: Check out exact reviewed commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.expected_commit_sha }}
+          fetch-depth: 1
+
+      - name: Bind checked-out commit
+        shell: bash
+        env:
+          EXPECTED_COMMIT_SHA: ${{ inputs.expected_commit_sha }}
+        run: |
+          ACTUAL_COMMIT_SHA="$(git rev-parse HEAD)"
+          [[ "${ACTUAL_COMMIT_SHA}" == "${EXPECTED_COMMIT_SHA}" ]] || { echo "::error::checked-out commit does not match typed binding"; exit 1; }
+          echo "CHECKED_OUT_COMMIT_SHA=${ACTUAL_COMMIT_SHA}" >> "${GITHUB_ENV}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate staging database secret presence
+        shell: bash
+        env:
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          for name in DB_HOST DB_NAME DB_USER DB_PASSWORD; do
+            [[ -n "${!name}" ]] || { echo "::error::missing required staging database secret: ${name}"; exit 1; }
+          done
+
+      - name: Run checksum-bound staging read-only preflight
+        env:
+          TARGET_ENVIRONMENT: staging
+          EXPECTED_COMMIT_SHA: ${{ inputs.expected_commit_sha }}
+          EXPECTED_MIGRATION_SHA256: ${{ inputs.expected_migration_sha256 }}
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_CONNECT_TIMEOUT_MS: 10000
+        run: node scripts/brand-skill-staging-preflight-evidence.mjs
+
+      - name: Validate no-apply staging evidence
+        run: |
+          node -e 'const fs=require("fs"); const p="artifacts/brand-skill-staging-preflight.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ready||v.target_environment!=="staging"||v.statement_count!==3||v.applies_sql!==false||v.records_ledger!==false||v.migration_apply_authorized!==false||v.production_authorized!==false||v.secrets_included!==false) process.exit(1);'
+
+      - name: Upload staging preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: brand-skill-staging-read-only-preflight
+          path: http-generic-api/artifacts/brand-skill-staging-preflight.json
+          if-no-files-found: error
+          retention-days: 30
