@@ -1,15 +1,15 @@
 name: EC0 Final Latest Main Build
 
 on:
-  push:
-    branches:
-      - gpt/spec-012-ec0-final-latest-main-20260730
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec0-final-latest-main-20260730'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout final EC0 branch
