@@ -1,11 +1,8 @@
 name: EC1 Closeout Test Registration
 
-# registration-bootstrap: 2
 on:
-  push:
-    branches:
-      - gpt/spec-012-ec1-closeout-20260730
-  workflow_dispatch:
+  pull_request:
+    types: [opened]
 
 permissions:
   contents: write
@@ -16,6 +13,7 @@ concurrency:
 
 jobs:
   register:
+    if: github.head_ref == 'gpt/spec-012-ec1-closeout-20260730'
     runs-on: ubuntu-latest
     steps:
       - name: Check out exact branch
