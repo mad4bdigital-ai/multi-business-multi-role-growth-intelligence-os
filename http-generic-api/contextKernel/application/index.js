@@ -16,6 +16,8 @@ export {
 export { createExecutionPlanService } from "./executionPlanService.js";
 export { createPolicyGrantEvaluatorService } from "./policyGrantEvaluatorService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
+export { createProviderConsentService } from "./providerConsentService.js";
+export { createProviderConsentStateCodec } from "./providerConsentStateCodec.js";
 export { createResourceGraphResolverService } from "./resourceGraphResolverService.js";
 export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
@@ -27,11 +29,15 @@ export {
   assertAuthorizedScopeRepository,
   assertBoundedResourceGraphRepository,
   assertCapabilityReadinessRepository,
-  assertPolicyGrantEvidenceRepository,
-  assertEndpointCertificationEvidenceRepository,
+  assertConnectionOwnershipRepository,
   assertContextPinRepository,
+  assertEndpointCertificationEvidenceRepository,
   assertExactConnectionRepository,
   assertExecutionLedgerRepository,
+  assertPolicyGrantEvidenceRepository,
+  assertProviderAuthorizationStateRepository,
+  assertProviderConsentStateRepository,
   assertResourceGraphRepository,
+  assertWorkspaceOwnershipRepository,
   ContextKernelRepositoryPorts,
 } from "./repositoryPorts.js";
