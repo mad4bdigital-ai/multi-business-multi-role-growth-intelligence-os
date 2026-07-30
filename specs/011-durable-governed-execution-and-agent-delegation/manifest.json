@@ -198,7 +198,12 @@
     "phase1_pending_mutation_receipt_before_dispatch",
     "phase1_unknown_outcome_readback_fail_closed",
     "phase1_canonical_status_explain_cancel_next_action",
-    "phase1_unique_candidate_resolution_fail_closed"
+    "phase1_unique_candidate_resolution_fail_closed",
+    "phase2_intent_first_execution_contract_resolution",
+    "phase2_admin_tenant_scope_isolation",
+    "phase2_no_secret_resolver_evidence",
+    "phase2_intent_binding_ambiguity_fail_closed",
+    "phase2_activation_surface_explicit_classification"
   ],
   "constraints": [
     "no_provider_call",
@@ -250,5 +255,20 @@
   "phase1_durable_control_production_database_write": false,
   "phase1_durable_control_production_deployment_performed": false,
   "phase1_durable_control_production_runtime_verified": false,
-  "phase1_durable_control_tasks_status": "t100_t106_complete_on_main"
+  "phase1_durable_control_tasks_status": "t100_t106_complete_on_main",
+  "phase2_intent_isolation_branch": "gpt/spec-011-phase2-intent-isolation-20260730",
+  "phase2_intent_isolation_pull_request": 3913,
+  "phase2_intent_isolation_merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+  "phase2_intent_isolation_source_main_sha": "e2e98ac7d208ed2d3ca579dd0cdff16dd0554d1f",
+  "phase2_intent_isolation_final_ci_head_sha": "5072bbad0561b50c174dbdf37a47877ae6477655",
+  "phase2_intent_isolation_ci_run_id": 30587108003,
+  "phase2_intent_isolation_generated_refresh_run_id": 30587107913,
+  "phase2_intent_isolation_frontend_dispatch_run_id": 30587107894,
+  "phase2_intent_isolation_hardcoding_report_run_id": 30587107876,
+  "phase2_intent_binding_migration_contract": "http-generic-api/migrations/20260730_spec011_execution_intent_contract_bindings.sql",
+  "phase2_intent_binding_production_migration_applied": false,
+  "phase2_intent_binding_production_database_write": false,
+  "phase2_intent_binding_production_deployment_performed": false,
+  "phase2_intent_binding_production_runtime_verified": false,
+  "phase2_intent_isolation_tasks_status": "t123_t124_complete_on_main"
 }
