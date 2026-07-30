@@ -37,6 +37,11 @@ export {
 } from "./executionCapsule.js";
 
 export {
+  POLICY_GRANT_LIMITS,
+  evaluatePolicyGrantDecision,
+} from "./policyGrantDecision.js";
+
+export {
   RESOURCE_GRAPH_LIMITS,
   evaluateBoundedResourceGraph,
 } from "./resourceGraphPolicy.js";
