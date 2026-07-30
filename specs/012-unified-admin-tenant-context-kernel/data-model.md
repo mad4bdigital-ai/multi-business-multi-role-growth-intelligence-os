@@ -173,11 +173,18 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `nonceHash`
 - `issuedAt`
 - `expiresAt`
+- `claimedAt` optional
+- `claimRevision`
+- `claimTokenHash` optional, internal and non-exportable
 - `consumedAt` optional
-- `status`
+- `status`: `issued`, `claimed`, `consumed`, `expired`, `cancelled`, or governed terminal failure
 - `signatureVersion`
 
 Authorization state is signed, expiring, nonce-bound, single-use, and context-bound. It contains no credential value.
+
+Before any authorization-code exchange, provider call, credential lookup, or credential mutation, the callback MUST atomically claim the state through a compare-and-set from `issued` to `claimed`, conditioned on current revision, expiry, and unconsumed status. Exactly one concurrent callback may receive the claim token and continue. All losing or later callbacks fail closed and perform no provider exchange or credential mutation.
+
+The claim token is internal, short-lived, state-specific, and non-exportable. Completion from `claimed` to `consumed` is revision-bound. A failed exchange moves the state only through a governed terminal or recoverable transition; it does not make the same state freely claimable again.
 
 Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the expected provider account by safe stable reference or privacy-preserving binding hash. A reconnect callback that returns a different provider account or observes a different connection revision fails closed before credential replacement.
 
@@ -238,7 +245,7 @@ A resolved decision is incomplete unless `selectedConnectionRef`, `selectedOwner
 - `expiresAt`
 - `secretsIncluded`: always `false`
 
-Credential materialization is allowed only after `preCredentialReadiness` passes for one exact selected connection. The materialized secret is passed directly to the provider-readiness or dispatch adapter and is never embedded in this decision.
+Credential materialization is allowed only after `preCredentialReadiness` passes for one exact selected connection, the execution plan exists, and any required approval is obtained and revalidated. The materialized secret is passed directly to the provider-readiness or dispatch adapter and is never embedded in this decision.
 
 ## AuthorityPath
 
@@ -301,4 +308,4 @@ Credential materialization is allowed only after `preCredentialReadiness` passes
 
 Context revisions MUST change when any authority, membership, operational workspace type, workspace ownership type, brand ownership, resource binding, connection ownership, connection authorization, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
 
-Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, and approval binding. Changing workspace or either workspace classification invalidates dependent brand, resource, connection, plan, and approval bindings. Changing brand or connection ownership invalidates all plans and approvals that reference the previous revision.
+Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, approval, and unconsumed authorization-state binding. Changing workspace or either workspace classification invalidates dependent brand, resource, connection, plan, approval, and authorization-state bindings. Changing brand or connection ownership invalidates all plans, approvals, and reconnect states that reference the previous revision.
