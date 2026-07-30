@@ -22,7 +22,14 @@ const resolver = createResourceGraphResolverService({
             status: "active",
             sourceRef: "workspace-row-a",
             versionRef: "workspace-v3",
-            metadata: { safeValue: "keep-me", secret: "drop-me" },
+            metadata: {
+              safeValue: "keep-me",
+              secret: "drop-me",
+              nested: {
+                safeNestedValue: "keep-nested",
+                accessToken: "drop-nested",
+              },
+            },
           },
           {
             nodeRef: "project:project-a",
@@ -145,11 +152,13 @@ assert.deepEqual(result.reasonCodes, [
   "RESOURCE_GRAPH_BRANCH_RESTRICTED",
   "RESOURCE_GRAPH_INHERITANCE_POLICY_NOT_ALLOWED",
 ]);
-assert.equal(result.nodes.find((node) => node.nodeRef === "workspace:workspace-a").metadata.safeValue, "keep-me");
-assert.equal(
-  Object.hasOwn(result.nodes.find((node) => node.nodeRef === "workspace:workspace-a").metadata, "secret"),
-  false,
-);
+const workspaceMetadata = result.nodes.find(
+  (node) => node.nodeRef === "workspace:workspace-a",
+).metadata;
+assert.equal(workspaceMetadata.safeValue, "keep-me");
+assert.equal(Object.hasOwn(workspaceMetadata, "secret"), false);
+assert.equal(workspaceMetadata.nested.safeNestedValue, "keep-nested");
+assert.equal(Object.hasOwn(workspaceMetadata.nested, "accessToken"), false);
 assert.equal(Object.hasOwn(result, "credentialPayload"), false);
 assert.equal(result.nodes.some((node) => Object.hasOwn(node, "tenantMismatch")), false);
 assert.equal(result.bounds.maxEdges, 80);
@@ -157,6 +166,7 @@ assert.equal(result.bounds.maxRestrictions, 40);
 assert.equal(Object.isFrozen(result), true);
 assert.equal(Object.isFrozen(result.nodes), true);
 assert.equal(Object.isFrozen(result.nodes[0]), true);
+assert.equal(Object.isFrozen(workspaceMetadata.nested), true);
 
 assert.equal(calls.length, 1);
 assert.deepEqual(calls[0], {
