@@ -68,6 +68,13 @@ export function normalizeTtlHours(value, mode, maxTtlHours) {
   return Math.floor(parsed);
 }
 
+export function resolveCanonicalAuthorityScope(resourceBrandBinding = {}, requestedResourceType = null, requestedResourceRef = null) {
+  return {
+    resource_type: resourceBrandBinding.resource_type || requestedResourceType || null,
+    resource_ref: resourceBrandBinding.resource_ref || requestedResourceRef || null,
+  };
+}
+
 function actorUserId(actor = {}) {
   return safeText(actor.user_id || actor.subject_id, 36);
 }
@@ -325,6 +332,11 @@ export async function activateBrandSkillForUser({
       requestedResourceType,
       requestedResourceRef,
     });
+    const canonicalAuthorityScope = resolveCanonicalAuthorityScope(
+      resourceBrandBinding,
+      requestedResourceType,
+      requestedResourceRef,
+    );
     const skill = await resolveSkillAndAgent(connection, {
       tenantId: normalizedTenantId,
       brandKey: normalizedBrandKey,
@@ -347,8 +359,8 @@ export async function activateBrandSkillForUser({
       brandKey: normalizedBrandKey,
       membershipRole: membership.role,
       workspace,
-      requestedResourceType,
-      requestedResourceRef,
+      requestedResourceType: canonicalAuthorityScope.resource_type,
+      requestedResourceRef: canonicalAuthorityScope.resource_ref,
     });
     if (Number(policy.requires_resource_binding || 0) === 1 && !authority?.grant_id) {
       throw httpError(403, "BRAND_SKILL_RESOURCE_BINDING_REQUIRED", "The policy requires a verified resource binding.");
@@ -579,6 +591,7 @@ export const _testingBrandSkillActivationService = {
   normalizeRequestedOperations,
   operationsAllowed,
   normalizeTtlHours,
+  resolveCanonicalAuthorityScope,
   validatePolicy,
   clampActiveGrantTtl,
 };
