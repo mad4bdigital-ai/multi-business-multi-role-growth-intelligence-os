@@ -17,9 +17,14 @@ on:
         default: release/production-candidate
         type: string
       validation_branch:
-        description: Source-pinned branch for the non-merge main validation PR
+        description: Source-pinned candidate branch for exact CI
         required: true
         default: gpt/validate-production-candidate
+        type: string
+      validation_base_branch:
+        description: Source-pinned base branch matching the expected main SHA
+        required: true
+        default: gpt/validate-production-base
         type: string
       create_pull_requests:
         description: Create or update release and validation PRs
@@ -46,6 +51,7 @@ jobs:
       candidate_tree: ${{ steps.prepare.outputs.candidate_tree }}
       release_branch: ${{ steps.prepare.outputs.release_branch }}
       validation_branch: ${{ steps.prepare.outputs.validation_branch }}
+      validation_base_branch: ${{ steps.prepare.outputs.validation_base_branch }}
       candidate_mode: ${{ steps.prepare.outputs.candidate_mode }}
     steps:
       - name: Checkout repository history
@@ -63,6 +69,7 @@ jobs:
           EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
           RELEASE_BRANCH: ${{ inputs.release_branch }}
           VALIDATION_BRANCH: ${{ inputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ inputs.validation_base_branch }}
         run: |
           set -euo pipefail
 
@@ -94,10 +101,21 @@ jobs:
           require_sha EXPECTED_PRODUCTION_SHA "$EXPECTED_PRODUCTION_SHA"
           require_branch RELEASE_BRANCH "$RELEASE_BRANCH"
           require_branch VALIDATION_BRANCH "$VALIDATION_BRANCH"
-          if [[ "$RELEASE_BRANCH" == "$VALIDATION_BRANCH" ]]; then
-            echo "::error::release and validation branches must be distinct"
+          require_branch VALIDATION_BASE_BRANCH "$VALIDATION_BASE_BRANCH"
+
+          if [[ "$RELEASE_BRANCH" == "$VALIDATION_BRANCH" \
+             || "$RELEASE_BRANCH" == "$VALIDATION_BASE_BRANCH" \
+             || "$VALIDATION_BRANCH" == "$VALIDATION_BASE_BRANCH" ]]; then
+            echo "::error::release, validation, and validation-base branches must be distinct"
             exit 1
           fi
+          case "$VALIDATION_BASE_BRANCH" in
+            gpt/validate-production-base|gpt/validate-production-base-*) ;;
+            *)
+              echo "::error::validation base must use the governed gpt/validate-production-base prefix"
+              exit 1
+              ;;
+          esac
 
           git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
 
@@ -187,26 +205,31 @@ jobs:
 
           push_fast_forward_only() {
             local branch="$1"
+            local target_sha="$2"
             local remote_head=""
             remote_head="$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')"
-            if [[ "$remote_head" == "$CANDIDATE_SHA" ]]; then
-              echo "$branch already points to $CANDIDATE_SHA"
+            if [[ "$remote_head" == "$target_sha" ]]; then
+              echo "$branch already points to $target_sha"
               return 0
             fi
-            if [[ -n "$remote_head" ]] && ! git merge-base --is-ancestor "$remote_head" "$CANDIDATE_SHA"; then
-              echo "::error::$branch cannot move by fast-forward to $CANDIDATE_SHA"
+            if [[ -n "$remote_head" ]] && ! git merge-base --is-ancestor "$remote_head" "$target_sha"; then
+              echo "::error::$branch cannot move by fast-forward to $target_sha"
               exit 1
             fi
-            git push origin "$CANDIDATE_SHA:refs/heads/$branch"
+            git push origin "$target_sha:refs/heads/$branch"
           }
 
-          push_fast_forward_only "$RELEASE_BRANCH"
-          push_fast_forward_only "$VALIDATION_BRANCH"
+          push_fast_forward_only "$VALIDATION_BASE_BRANCH" "$ACTUAL_MAIN"
+          push_fast_forward_only "$RELEASE_BRANCH" "$CANDIDATE_SHA"
+          push_fast_forward_only "$VALIDATION_BRANCH" "$CANDIDATE_SHA"
 
           RELEASE_READBACK="$(git ls-remote --heads origin "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')"
           VALIDATION_READBACK="$(git ls-remote --heads origin "refs/heads/$VALIDATION_BRANCH" | awk '{print $1}')"
-          if [[ "$RELEASE_READBACK" != "$CANDIDATE_SHA" || "$VALIDATION_READBACK" != "$CANDIDATE_SHA" ]]; then
-            echo "::error::candidate branch readback mismatch"
+          VALIDATION_BASE_READBACK="$(git ls-remote --heads origin "refs/heads/$VALIDATION_BASE_BRANCH" | awk '{print $1}')"
+          if [[ "$RELEASE_READBACK" != "$CANDIDATE_SHA" \
+             || "$VALIDATION_READBACK" != "$CANDIDATE_SHA" \
+             || "$VALIDATION_BASE_READBACK" != "$ACTUAL_MAIN" ]]; then
+            echo "::error::candidate or validation-base branch readback mismatch"
             exit 1
           fi
 
@@ -218,6 +241,7 @@ jobs:
             echo "candidate_tree=$CANDIDATE_TREE"
             echo "release_branch=$RELEASE_BRANCH"
             echo "validation_branch=$VALIDATION_BRANCH"
+            echo "validation_base_branch=$VALIDATION_BASE_BRANCH"
             echo "candidate_mode=$CANDIDATE_MODE"
           } >> "$GITHUB_OUTPUT"
 
@@ -228,9 +252,10 @@ jobs:
             --arg candidate_tree "$CANDIDATE_TREE" \
             --arg release_branch "$RELEASE_BRANCH" \
             --arg validation_branch "$VALIDATION_BRANCH" \
+            --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
             --arg candidate_mode "$CANDIDATE_MODE" \
             '{
-              schema_version: "production_promotion_candidate.v1",
+              schema_version: "production_promotion_candidate.v2",
               ok: true,
               main_sha: $main_sha,
               production_sha: $production_sha,
@@ -238,8 +263,10 @@ jobs:
               candidate_tree: $candidate_tree,
               release_branch: $release_branch,
               validation_branch: $validation_branch,
+              validation_base_branch: $validation_base_branch,
               candidate_mode: $candidate_mode,
               tree_policy: "exact_main_tree",
+              validation_policy: "pinned_base_exact_ci_dispatch",
               merge_executed: false,
               deployment_executed: false,
               migration_executed: false,
@@ -266,6 +293,7 @@ jobs:
           CANDIDATE_SHA: ${{ steps.prepare.outputs.candidate_sha }}
           RELEASE_BRANCH: ${{ steps.prepare.outputs.release_branch }}
           VALIDATION_BRANCH: ${{ steps.prepare.outputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ steps.prepare.outputs.validation_base_branch }}
         run: |
           set -euo pipefail
 
@@ -275,19 +303,20 @@ jobs:
           - pinned main: \`$MAIN_SHA\`
           - pinned Production: \`$PRODUCTION_SHA\`
           - exact candidate: \`$CANDIDATE_SHA\`
+          - validation base: \`$VALIDATION_BASE_BRANCH\`
           - tree policy: exact pinned-main tree
 
           This PR only promotes Git ancestry. It does not execute deployment, SQL, migrations, provider calls, credential reads, restarts, or external writes.
 
-          Merge remains blocked until explicit authorization, exact-head validation, protected-ref freshness readback, and post-merge Hostinger/runtime verification.
+          Merge remains blocked until explicit authorization, exact-candidate CI evidence, Production freshness readback, and post-merge Hostinger/runtime verification.
           EOF
 
           cat > "$RUNNER_TEMP/validation-pr.md" <<EOF
-          Temporary non-merge validation surface for candidate \`$CANDIDATE_SHA\`.
+          Temporary non-merge exact-candidate validation surface for \`$CANDIDATE_SHA\`.
 
-          Candidate tree is identical to pinned main \`$MAIN_SHA\` and contains pinned Production \`$PRODUCTION_SHA\` as ancestry.
+          Candidate tree is identical to pinned main \`$MAIN_SHA\`. The base branch \`$VALIDATION_BASE_BRANCH\` is pinned to the same main SHA. The exact-validation launcher dispatches Full CI on the candidate branch itself and verifies SHA/readback before and after execution.
 
-          Close without merge after CI and evidence readback. No deployment, SQL, migration, provider, credential, restart, or Production mutation is authorized.
+          Close without merge after evidence readback. No deployment, SQL, migration, provider, credential, restart, or Production mutation is authorized.
           EOF
 
           upsert_pr() {
@@ -296,16 +325,16 @@ jobs:
             local title="$3"
             local body_file="$4"
             local existing=""
-            existing="$(gh pr list --state open --head "$head" --base "$base" --json number --jq '.[0].number // empty')"
+            existing="$(gh pr list --state open --head "$head" --json number,baseRefName --jq ".[] | select(.baseRefName == \"$base\") | .number" | head -n1)"
             if [[ -n "$existing" ]]; then
-              gh pr edit "$existing" --title "$title" --body-file "$body_file"
+              gh pr edit "$existing" --base "$base" --title "$title" --body-file "$body_file"
             else
               gh pr create --head "$head" --base "$base" --title "$title" --body-file "$body_file"
             fi
           }
 
           upsert_pr "$RELEASE_BRANCH" Production "release: promote pinned main ${MAIN_SHA:0:8} to Production" "$RUNNER_TEMP/release-pr.md"
-          upsert_pr "$VALIDATION_BRANCH" main "ci: validate Production candidate ${CANDIDATE_SHA:0:8}" "$RUNNER_TEMP/validation-pr.md"
+          upsert_pr "$VALIDATION_BRANCH" "$VALIDATION_BASE_BRANCH" "ci: validate exact Production candidate ${CANDIDATE_SHA:0:8}" "$RUNNER_TEMP/validation-pr.md"
 
       - name: Publish summary
         shell: bash
@@ -320,6 +349,7 @@ jobs:
           - tree policy: exact main tree
           - release branch: \`${{ steps.prepare.outputs.release_branch }}\`
           - validation branch: \`${{ steps.prepare.outputs.validation_branch }}\`
+          - validation base branch: \`${{ steps.prepare.outputs.validation_base_branch }}\`
           - merge executed: false
           - deployment executed: false
           - secrets included: false
