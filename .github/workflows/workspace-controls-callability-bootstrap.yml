@@ -1,0 +1,560 @@
+name: Workspace Controls Callability Bootstrap
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: workspace-controls-callability-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.ref == 'gpt/workspace-controls-callability-hardening-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout governed Workspace controls branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/workspace-controls-callability-hardening-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply atomic Workspace controls repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('http-generic-api')
+          route_path = root / 'routes' / 'tenantLifecycleRoutes.js'
+          route = route_path.read_text(encoding='utf-8')
+
+          def replace_between(text, start_marker, end_marker, replacement, label):
+              start = text.find(start_marker)
+              if start < 0:
+                  raise SystemExit(f'{label}:start_marker_missing')
+              end = text.find(end_marker, start)
+              if end < 0:
+                  raise SystemExit(f'{label}:end_marker_missing')
+              return text[:start] + replacement.rstrip() + '\n\n' + text[end:]
+
+          member_update = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_member_update
+            router.patch("/me/workspaces/:tenant_id/members/:user_id", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                const role = normalizeManagedRole(req.body?.role || "member");
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_member_update
+                await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.params.user_id, nextRole: role, nextStatus: "active" });
+                const [result] = await connection.query(
+                  "UPDATE memberships SET role=?, status='active', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND status='active'",
+                  [role, req.params.tenant_id, req.params.user_id]
+                );
+                if (result.affectedRows !== 1) throw Object.assign(new Error("Workspace member was not found or changed concurrently."), { status: 404, code: "workspace_member_not_found" });
+                const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: req.params.user_id, role, source: "owner_assignment", grantedBy: req.auth.user_id });
+                const [readbackRows] = await connection.query("SELECT user_id, tenant_id, role, status, updated_at FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 2", [req.params.tenant_id, req.params.user_id]);
+                const membership = requireExactlyOneRow(readbackRows, { code: "workspace_member_update_readback_invalid", message: "Workspace member update readback must resolve exactly one membership.", status: 409 }); // MUTATION_READBACK: workspace_member_update
+                if (membership.role !== role || membership.status !== "active") throw Object.assign(new Error("Workspace member update readback did not match the requested state."), { status: 409, code: "workspace_member_update_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: membership.tenant_id, user_id: membership.user_id, role: membership.role, status: membership.status, updated_at: membership.updated_at, default_workspace_grant: defaultGrant, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_member_update_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.patch("/me/workspaces/:tenant_id/members/:user_id", requireUserJwt', '  router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt', member_update, 'workspace_member_update')
+
+          member_remove = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_member_remove
+            router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_member_remove
+                await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.params.user_id, nextStatus: "revoked" });
+                const [result] = await connection.query("UPDATE memberships SET status='revoked', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND status='active'", [req.params.tenant_id, req.params.user_id]);
+                if (result.affectedRows !== 1) throw Object.assign(new Error("Workspace member was not found or changed concurrently."), { status: 404, code: "workspace_member_not_found" });
+                await connection.query("UPDATE workspace_resource_grants SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND grantee_user_id=? AND status='active'", [req.auth.user_id, req.params.tenant_id, req.params.user_id]);
+                const [membershipRows] = await connection.query("SELECT user_id, tenant_id, role, status, updated_at FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 2", [req.params.tenant_id, req.params.user_id]);
+                const membership = requireExactlyOneRow(membershipRows, { code: "workspace_member_remove_readback_invalid", message: "Workspace member removal readback must resolve exactly one membership.", status: 409 });
+                const [grantCountRows] = await connection.query("SELECT COUNT(*) AS active_grant_count FROM workspace_resource_grants WHERE tenant_id=? AND grantee_user_id=? AND status='active'", [req.params.tenant_id, req.params.user_id]);
+                const grantCount = requireExactlyOneRow(grantCountRows, { code: "workspace_member_remove_grant_readback_invalid", message: "Workspace grant revocation readback must resolve one count row.", status: 409 }); // MUTATION_READBACK: workspace_member_remove
+                if (membership.status !== "revoked" || Number(grantCount.active_grant_count) !== 0) throw Object.assign(new Error("Workspace member removal readback did not reach the revoked state."), { status: 409, code: "workspace_member_remove_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: membership.tenant_id, user_id: membership.user_id, status: membership.status, active_grant_count: Number(grantCount.active_grant_count), updated_at: membership.updated_at, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_member_remove_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt', '  router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt', member_remove, 'workspace_member_remove')
+
+          ownership_transfer = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_ownership_transfer
+            router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                const targetUserId = String(req.body?.target_user_id || "").trim();
+                if (!targetUserId) return res.status(400).json({ ok: false, error: { code: "target_user_id_required", message: "target_user_id is required." }, secrets_included: false });
+                const demotePreviousOwner = req.body?.demote_current_owner !== false && targetUserId !== req.auth.user_id;
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_ownership_transfer
+                const [targetRows] = await connection.query("SELECT user_id, role, status FROM memberships WHERE tenant_id=? AND user_id=? AND status='active' LIMIT 2 FOR UPDATE", [req.params.tenant_id, targetUserId]);
+                requireExactlyOneRow(targetRows, { code: "target_member_not_found", message: "Target user must resolve exactly one active workspace membership.", status: 404 });
+                const [targetUpdate] = await connection.query("UPDATE memberships SET role='owner', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND status='active'", [req.params.tenant_id, targetUserId]);
+                if (targetUpdate.affectedRows !== 1) throw Object.assign(new Error("Target ownership update changed concurrently."), { status: 409, code: "workspace_ownership_target_state_changed" });
+                const targetGrant = await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: targetUserId, role: "owner", source: "owner_assignment", grantedBy: req.auth.user_id });
+                let previousOwnerGrant = null;
+                if (demotePreviousOwner) {
+                  await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.auth.user_id, nextRole: "admin", nextStatus: "active" });
+                  const [previousUpdate] = await connection.query("UPDATE memberships SET role='admin', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND role='owner' AND status='active'", [req.params.tenant_id, req.auth.user_id]);
+                  if (previousUpdate.affectedRows !== 1) throw Object.assign(new Error("Previous owner demotion changed concurrently."), { status: 409, code: "workspace_previous_owner_state_changed" });
+                  previousOwnerGrant = await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: req.auth.user_id, role: "admin", source: "owner_assignment", grantedBy: req.auth.user_id });
+                }
+                const [targetReadbackRows] = await connection.query("SELECT user_id, tenant_id, role, status, updated_at FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 2", [req.params.tenant_id, targetUserId]);
+                const targetMembership = requireExactlyOneRow(targetReadbackRows, { code: "workspace_ownership_transfer_readback_invalid", message: "New owner readback must resolve exactly one membership.", status: 409 });
+                let previousMembership = null;
+                if (demotePreviousOwner) {
+                  const [previousReadbackRows] = await connection.query("SELECT user_id, tenant_id, role, status, updated_at FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 2", [req.params.tenant_id, req.auth.user_id]);
+                  previousMembership = requireExactlyOneRow(previousReadbackRows, { code: "workspace_previous_owner_readback_invalid", message: "Previous owner readback must resolve exactly one membership.", status: 409 });
+                }
+                if (targetMembership.role !== "owner" || targetMembership.status !== "active" || (previousMembership && previousMembership.role !== "admin")) throw Object.assign(new Error("Ownership transfer readback did not match the requested state."), { status: 409, code: "workspace_ownership_transfer_readback_mismatch" }); // MUTATION_READBACK: workspace_ownership_transfer
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: targetMembership.tenant_id, previous_owner_user_id: req.auth.user_id, new_owner_user_id: targetMembership.user_id, demoted_previous_owner: demotePreviousOwner, new_owner_membership: targetMembership, previous_owner_membership: previousMembership, new_owner_grant: targetGrant, previous_owner_grant: previousOwnerGrant, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_ownership_transfer_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt', '  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create', ownership_transfer, 'workspace_ownership_transfer')
+
+          invitation_revoke = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_revoke
+            router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_invitation_revoke
+                const [invitationRows] = await connection.query("SELECT invitation_id, tenant_id, status FROM invitations WHERE tenant_id=? AND invitation_id=? LIMIT 2 FOR UPDATE", [req.params.tenant_id, req.params.invitation_id]);
+                const invitation = requireExactlyOneRow(invitationRows, { code: "workspace_invitation_not_found", message: "Invitation revoke must resolve exactly one invitation.", status: 404 });
+                if (invitation.status !== "pending") throw Object.assign(new Error("Only pending invitations may be revoked."), { status: 404, code: "workspace_invitation_not_pending" });
+                const [result] = await connection.query("UPDATE invitations SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND invitation_id=? AND status='pending'", [req.auth.user_id, req.params.tenant_id, req.params.invitation_id]);
+                if (result.affectedRows !== 1) throw Object.assign(new Error("Invitation revoke lost its pending state."), { status: 409, code: "workspace_invitation_state_changed" });
+                const [readbackRows] = await connection.query("SELECT invitation_id, tenant_id, status, revoked_by, revoked_at, updated_at FROM invitations WHERE tenant_id=? AND invitation_id=? LIMIT 2", [req.params.tenant_id, req.params.invitation_id]);
+                const revoked = requireExactlyOneRow(readbackRows, { code: "workspace_invitation_revoke_readback_invalid", message: "Invitation revoke readback must resolve exactly one invitation.", status: 409 }); // MUTATION_READBACK: workspace_invitation_revoke
+                if (revoked.status !== "revoked") throw Object.assign(new Error("Invitation revoke readback did not reach revoked state."), { status: 409, code: "workspace_invitation_revoke_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: revoked.tenant_id, invitation_id: revoked.invitation_id, status: revoked.status, revoked_by: revoked.revoked_by, revoked_at: revoked.revoked_at, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitation_revoke_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt', '  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt', invitation_revoke, 'workspace_invitation_revoke')
+
+          invitation_resend = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_resend
+            router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_invitation_resend
+                const [invitationRows] = await connection.query("SELECT invitation_id, tenant_id, email, role, status FROM invitations WHERE tenant_id=? AND invitation_id=? LIMIT 2 FOR UPDATE", [req.params.tenant_id, req.params.invitation_id]);
+                const invitation = requireExactlyOneRow(invitationRows, { code: "workspace_invitation_not_found", message: "Invitation resend must resolve exactly one invitation.", status: 404 });
+                if (!new Set(["pending", "expired", "revoked"]).has(invitation.status)) throw Object.assign(new Error("Invitation state does not permit resend."), { status: 409, code: "workspace_invitation_resend_not_allowed" });
+                const token = randomBytes(32).toString("hex");
+                const [result] = await connection.query("UPDATE invitations SET token=?, status='pending', created_by=?, expires_at=DATE_ADD(NOW(), INTERVAL 14 DAY), revoked_by=NULL, revoked_at=NULL, updated_at=NOW() WHERE tenant_id=? AND invitation_id=? AND status IN ('pending','expired','revoked')", [token, req.auth.user_id, req.params.tenant_id, req.params.invitation_id]);
+                if (result.affectedRows !== 1) throw Object.assign(new Error("Invitation resend state changed concurrently."), { status: 409, code: "workspace_invitation_state_changed" });
+                const [readbackRows] = await connection.query("SELECT invitation_id, tenant_id, email, role, status, expires_at, created_by, updated_at FROM invitations WHERE tenant_id=? AND invitation_id=? LIMIT 2", [req.params.tenant_id, req.params.invitation_id]);
+                const resent = requireExactlyOneRow(readbackRows, { code: "workspace_invitation_resend_readback_invalid", message: "Invitation resend readback must resolve exactly one invitation.", status: 409 }); // MUTATION_READBACK: workspace_invitation_resend
+                if (resent.status !== "pending") throw Object.assign(new Error("Invitation resend readback did not reach pending state."), { status: 409, code: "workspace_invitation_resend_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: resent.tenant_id, invitation: resent, token_returned: false, delivery_required: true, expires_in_days: 14, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitation_resend_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt', '  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt', invitation_resend, 'workspace_invitation_resend')
+
+          invitation_expire = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_expire_stale
+            router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+                if (!owner) return;
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_invitations_expire_stale
+                const [result] = await connection.query("UPDATE invitations SET status='expired', updated_at=NOW() WHERE tenant_id=? AND status='pending' AND expires_at < NOW()", [req.params.tenant_id]);
+                const [readbackRows] = await connection.query("SELECT COUNT(*) AS stale_pending_count FROM invitations WHERE tenant_id=? AND status='pending' AND expires_at < NOW()", [req.params.tenant_id]);
+                const readback = requireExactlyOneRow(readbackRows, { code: "workspace_invitations_expire_readback_invalid", message: "Expired invitation readback must resolve one count row.", status: 409 }); // MUTATION_READBACK: workspace_invitations_expire_stale
+                if (Number(readback.stale_pending_count) !== 0) throw Object.assign(new Error("Expired invitation readback still contains stale pending invitations."), { status: 409, code: "workspace_invitations_expire_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, tenant_id: req.params.tenant_id, expired_count: result.affectedRows || 0, stale_pending_count: Number(readback.stale_pending_count), secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitations_expire_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt', '  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list', invitation_expire, 'workspace_invitations_expire_stale')
+
+          my_list_marker = '  router.get("/me/access-requests", requireUserJwt'
+          if 'RESOURCE_API_CALLABILITY_CONTRACT: workspace_my_access_requests_list' not in route:
+              if route.count(my_list_marker) != 1:
+                  raise SystemExit(f'workspace_my_access_requests_list:route_count:{route.count(my_list_marker)}')
+              route = route.replace(my_list_marker, '  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_my_access_requests_list\n' + my_list_marker, 1)
+
+          access_cancel = r'''  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_cancel
+            router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
+              const connection = await getPool().getConnection();
+              try {
+                await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_cancel
+                const [requestRows] = await connection.query("SELECT request_id, tenant_id, requester_user_id, status FROM workspace_access_requests WHERE request_id=? AND tenant_id=? AND requester_user_id=? LIMIT 2 FOR UPDATE", [req.params.request_id, req.params.tenant_id, req.auth.user_id]);
+                const request = requireExactlyOneRow(requestRows, { code: "workspace_access_request_not_found", message: "Access request cancel must resolve exactly one requester-owned request.", status: 404 });
+                if (request.status !== "pending") throw Object.assign(new Error("Only pending access requests may be cancelled."), { status: 404, code: "workspace_access_request_not_pending" });
+                const [result] = await connection.query("UPDATE workspace_access_requests SET status='cancelled', updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'", [req.params.request_id, req.params.tenant_id, req.auth.user_id]);
+                if (result.affectedRows !== 1) throw Object.assign(new Error("Access request cancellation lost its pending state."), { status: 409, code: "workspace_access_request_state_changed" });
+                const [readbackRows] = await connection.query("SELECT request_id, tenant_id, requester_user_id, status, updated_at FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2", [req.params.request_id, req.params.tenant_id]);
+                const cancelled = requireExactlyOneRow(readbackRows, { code: "workspace_access_request_cancel_readback_invalid", message: "Access request cancel readback must resolve exactly one request.", status: 409 }); // MUTATION_READBACK: workspace_access_request_cancel
+                if (cancelled.status !== "cancelled" || cancelled.requester_user_id !== req.auth.user_id) throw Object.assign(new Error("Access request cancel readback did not match the requester-owned cancelled state."), { status: 409, code: "workspace_access_request_cancel_readback_mismatch" });
+                await connection.commit();
+                return res.json({ ok: true, request_id: cancelled.request_id, tenant_id: cancelled.tenant_id, status: cancelled.status, updated_at: cancelled.updated_at, secrets_included: false });
+              } catch (err) {
+                await connection.rollback();
+                return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_cancel_failed", message: err.message }, secrets_included: false });
+              } finally {
+                connection.release();
+              }
+            });'''
+          route = replace_between(route, '  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt', '  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_create', access_cancel, 'workspace_access_request_cancel')
+
+          route_path.write_text(route, encoding='utf-8')
+
+          openapi = '''openapi: 3.1.0
+          info:
+            title: Workspace Lifecycle Control Contracts
+            version: 1.0.0
+          paths:
+            /me/workspaces/{tenant_id}/members/{user_id}:
+              patch:
+                operationId: updateWorkspaceMember
+                summary: Update one active workspace member with last-owner and exact-readback safeguards
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                  - { in: path, name: user_id, required: true, schema: { type: string } }
+                requestBody:
+                  required: true
+                  content: { application/json: { schema: { type: object, required: [role], properties: { role: { type: string } } } } }
+                responses: { '200': { description: Persisted membership and grant readback }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '404': { description: Member not found }, '409': { description: Last-owner or readback conflict } }
+            /me/workspaces/{tenant_id}/members/{user_id}/remove:
+              post:
+                operationId: removeWorkspaceMember
+                summary: Revoke one workspace membership and its active grants atomically
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                  - { in: path, name: user_id, required: true, schema: { type: string } }
+                responses: { '200': { description: Revoked membership with zero-active-grant readback }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '404': { description: Member not found }, '409': { description: Last-owner or readback conflict } }
+            /me/workspaces/{tenant_id}/ownership/transfer:
+              post:
+                operationId: transferWorkspaceOwnership
+                summary: Transfer workspace ownership with exact membership and grant readback
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                requestBody:
+                  required: true
+                  content: { application/json: { schema: { type: object, required: [target_user_id], properties: { target_user_id: { type: string }, demote_current_owner: { type: boolean } } } } }
+                responses: { '200': { description: New and previous owner state readback }, '400': { description: Target required }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '404': { description: Target member not found }, '409': { description: Concurrent state or readback conflict } }
+            /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke:
+              post:
+                operationId: revokeWorkspaceInvitation
+                summary: Revoke one pending invitation with exact state readback
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                  - { in: path, name: invitation_id, required: true, schema: { type: string } }
+                responses: { '200': { description: Revoked invitation readback }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '404': { description: Pending invitation not found }, '409': { description: Concurrent state or readback conflict } }
+            /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend:
+              post:
+                operationId: resendWorkspaceInvitation
+                summary: Rotate one invitation token without returning the raw token
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                  - { in: path, name: invitation_id, required: true, schema: { type: string } }
+                responses: { '200': { description: Pending invitation readback with token_returned false }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '404': { description: Invitation not found }, '409': { description: State or readback conflict } }
+            /me/workspaces/{tenant_id}/invitations/expire-stale:
+              post:
+                operationId: expireStaleWorkspaceInvitations
+                summary: Expire stale pending invitations and prove no stale pending rows remain
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                responses: { '200': { description: Expiration count and zero-stale readback }, '401': { description: Authentication required }, '403': { description: Owner or admin required }, '409': { description: Readback conflict } }
+            /me/access-requests:
+              get:
+                operationId: listMyWorkspaceAccessRequests
+                summary: List access requests submitted by the signed-in user
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                responses: { '200': { description: Requester-owned access request list }, '401': { description: Authentication required } }
+            /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel:
+              post:
+                operationId: cancelWorkspaceAccessRequest
+                summary: Cancel one requester-owned pending workspace access request atomically
+                tags: [workspace-controls]
+                security: [{ userJwtAuth: [] }]
+                x-openai-isConsequential: true
+                parameters:
+                  - { in: path, name: tenant_id, required: true, schema: { type: string } }
+                  - { in: path, name: request_id, required: true, schema: { type: string } }
+                responses: { '200': { description: Cancelled requester-owned request readback }, '401': { description: Authentication required }, '404': { description: Pending requester-owned request not found }, '409': { description: Concurrent state or readback conflict } }
+          components:
+            securitySchemes:
+              userJwtAuth:
+                type: http
+                scheme: bearer
+                bearerFormat: JWT
+          '''
+          import textwrap
+          (root / 'openapi' / 'workspace-lifecycle-controls.openapi.yaml').write_text(textwrap.dedent(openapi), encoding='utf-8')
+
+          mutation_manifest_path = root / 'resource-api-mutation-callability.manifest.json'
+          mutation_manifest = json.loads(mutation_manifest_path.read_text(encoding='utf-8'))
+          operation_specs = [
+              ('migrations/199_sprint68_workspace_ownership_member_control_tools.sql', 'workspace_member_update', 'PATCH /me/workspaces/{tenant_id}/members/{user_id}', 'router.patch("/me/workspaces/:tenant_id/members/:user_id", requireUserJwt', '/me/workspaces/{tenant_id}/members/{user_id}:', 'operationId: updateWorkspaceMember'),
+              ('migrations/199_sprint68_workspace_ownership_member_control_tools.sql', 'workspace_member_remove', 'POST /me/workspaces/{tenant_id}/members/{user_id}/remove', 'router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt', '/me/workspaces/{tenant_id}/members/{user_id}/remove:', 'operationId: removeWorkspaceMember'),
+              ('migrations/199_sprint68_workspace_ownership_member_control_tools.sql', 'workspace_ownership_transfer', 'POST /me/workspaces/{tenant_id}/ownership/transfer', 'router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt', '/me/workspaces/{tenant_id}/ownership/transfer:', 'operationId: transferWorkspaceOwnership'),
+              ('migrations/200_sprint68_workspace_invitation_control_tools.sql', 'workspace_invitation_revoke', 'POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke', 'router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt', '/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke:', 'operationId: revokeWorkspaceInvitation'),
+              ('migrations/200_sprint68_workspace_invitation_control_tools.sql', 'workspace_invitation_resend', 'POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend', 'router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt', '/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend:', 'operationId: resendWorkspaceInvitation'),
+              ('migrations/200_sprint68_workspace_invitation_control_tools.sql', 'workspace_invitations_expire_stale', 'POST /me/workspaces/{tenant_id}/invitations/expire-stale', 'router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt', '/me/workspaces/{tenant_id}/invitations/expire-stale:', 'operationId: expireStaleWorkspaceInvitations'),
+              ('migrations/201_sprint68_workspace_access_request_control_tools.sql', 'workspace_access_request_cancel', 'POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel', 'router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt', '/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel:', 'operationId: cancelWorkspaceAccessRequest'),
+          ]
+          existing = {item.get('tool_key') for item in mutation_manifest.get('contracts', [])}
+          for migration_file, key, signature, route_marker, openapi_path, operation_id in operation_specs:
+              if key in existing:
+                  continue
+              method, path = signature.split(' ', 1)
+              mutation_manifest['contracts'].append({
+                  'migration_file': migration_file,
+                  'route_file': 'routes/tenantLifecycleRoutes.js',
+                  'mount_file': 'routes/index.js',
+                  'test_file': 'test-workspace-lifecycle-foundation.mjs',
+                  'openapi_file': 'openapi/workspace-lifecycle-controls.openapi.yaml',
+                  'mount_markers': ['import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";', 'app.use(buildTenantLifecycleRoutes());'],
+                  'auth_model': 'user_jwt',
+                  'read_only': False,
+                  'runtime_execution_allowed': True,
+                  'provider_calls_allowed': False,
+                  'external_writes_allowed': False,
+                  'database_writes_allowed': True,
+                  'transaction_required': True,
+                  'same_cycle_readback_required': True,
+                  'credential_payload_reads_allowed': False,
+                  'secrets_included': False,
+                  'contract_key': key,
+                  'tool_key': key,
+                  'route_signature': signature,
+                  'migration_markers': ['INSERT INTO tenant_platform_endpoint_tools', f"'{key}'", f"'{method}'", f"'{path}'"],
+                  'route_markers': [f'RESOURCE_API_CALLABILITY_CONTRACT: {key}', route_marker, f'MUTATION_TRANSACTION: {key}', f'MUTATION_READBACK: {key}', f'{key}_failed', 'secrets_included: false'],
+                  'test_markers': [f'"{key}"', 'workspaceControlMutationKeys', 'must read back persisted state before commit'],
+                  'openapi_markers': [openapi_path, operation_id, 'x-openai-isConsequential: true'],
+              })
+          mutation_manifest_path.write_text(json.dumps(mutation_manifest, indent=2) + '\n', encoding='utf-8')
+
+          coverage_path = root / 'resource-api-coverage.manifest.json'
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          direct = coverage['callability_gate']['direct_route_contracts']
+          if not any(item.get('tool_key') == 'workspace_my_access_requests_list' for item in direct):
+              direct.append({
+                  'contract_key': 'workspace_my_access_requests_list',
+                  'tool_key': 'workspace_my_access_requests_list',
+                  'route_signature': 'GET /me/access-requests',
+                  'migration_file': 'migrations/201_sprint68_workspace_access_request_control_tools.sql',
+                  'route_file': 'routes/tenantLifecycleRoutes.js',
+                  'mount_file': 'routes/index.js',
+                  'test_file': 'test-workspace-lifecycle-foundation.mjs',
+                  'openapi_file': 'openapi/workspace-lifecycle-controls.openapi.yaml',
+                  'migration_markers': ['INSERT INTO tenant_platform_endpoint_tools', "'workspace_my_access_requests_list'", "'GET'", "'/me/access-requests'"],
+                  'route_markers': ['RESOURCE_API_CALLABILITY_CONTRACT: workspace_my_access_requests_list', 'router.get("/me/access-requests", requireUserJwt', 'r.requester_user_id = ?', 'workspace_my_access_requests_list_failed', 'secrets_included: false'],
+                  'mount_markers': ['import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";', 'app.use(buildTenantLifecycleRoutes());'],
+                  'test_markers': ['"workspace_my_access_requests_list"', 'workspaceMyAccessRequestsList', 'router.get("/me/access-requests"'],
+                  'openapi_markers': ['/me/access-requests:', 'operationId: listMyWorkspaceAccessRequests', 'summary: List access requests submitted by the signed-in user'],
+                  'auth_model': 'user_jwt',
+                  'read_only': True,
+                  'runtime_execution_allowed': True,
+                  'provider_calls_allowed': False,
+                  'external_writes_allowed': False,
+                  'credential_payload_reads_allowed': False,
+                  'secrets_included': False,
+              })
+          coverage_path.write_text(json.dumps(coverage, indent=2) + '\n', encoding='utf-8')
+
+          test_path = root / 'test-workspace-lifecycle-foundation.mjs'
+          test = test_path.read_text(encoding='utf-8')
+          test_block = r'''
+          const workspaceControlMutationKeys = [
+            "workspace_member_update",
+            "workspace_member_remove",
+            "workspace_ownership_transfer",
+            "workspace_invitation_revoke",
+            "workspace_invitation_resend",
+            "workspace_invitations_expire_stale",
+            "workspace_access_request_cancel",
+          ];
+          for (const toolKey of workspaceControlMutationKeys) {
+            assert(mutationCallability.covered_tool_keys.includes(toolKey), `${toolKey} must have fail-closed mutation callability evidence`);
+            const transactionMarker = `MUTATION_TRANSACTION: ${toolKey}`;
+            const readbackMarker = `MUTATION_READBACK: ${toolKey}`;
+            assert.equal(routeSource.split(transactionMarker).length - 1, 1, `${toolKey} must declare exactly one transaction marker`);
+            assert.equal(routeSource.split(readbackMarker).length - 1, 1, `${toolKey} must declare exactly one readback marker`);
+            const transactionIndex = routeSource.indexOf(transactionMarker);
+            const readbackIndex = routeSource.indexOf(readbackMarker, transactionIndex);
+            const commitIndex = routeSource.indexOf("await connection.commit();", readbackIndex);
+            assert(transactionIndex >= 0 && readbackIndex > transactionIndex && commitIndex > readbackIndex, `${toolKey} must read back persisted state before commit`);
+          }
+          const workspaceMyAccessRequestsList = mutationCallability.covered_tool_keys.includes("workspace_my_access_requests_list");
+          assert.equal(workspaceMyAccessRequestsList, true, "workspace_my_access_requests_list must have direct route callability evidence");
+          const resendStart = routeSource.indexOf("RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_resend");
+          const resendEnd = routeSource.indexOf("RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_expire_stale", resendStart);
+          const resendSource = routeSource.slice(resendStart, resendEnd);
+          assert(resendSource.includes("token_returned: false"), "invitation resend must explicitly state that its token is not returned");
+          assert(!/\btoken\s*:/.test(resendSource), "invitation resend response must not expose a token field");
+          '''
+          if 'const workspaceControlMutationKeys =' not in test:
+              marker = 'console.log("workspace lifecycle foundation tests passed");'
+              if marker not in test:
+                  raise SystemExit('workspace_control_test_marker_missing')
+              test = test.replace(marker, textwrap.dedent(test_block) + '\n' + marker)
+              test_path.write_text(test, encoding='utf-8')
+
+          surface_test_path = root / 'test-surface-contract-discovery.mjs'
+          surface_test = surface_test_path.read_text(encoding='utf-8')
+          surface_block = r'''
+          for (const migrationFile of [
+            "199_sprint68_workspace_ownership_member_control_tools.sql",
+            "200_sprint68_workspace_invitation_control_tools.sql",
+            "201_sprint68_workspace_access_request_control_tools.sql",
+          ]) {
+            assert.equal(report.gap_queue.top_items.some((entry) => entry.migration_file === migrationFile), false, `${migrationFile} must leave the Surface Contract queue after callability hardening`);
+          }
+          '''
+          if '199_sprint68_workspace_ownership_member_control_tools.sql' not in surface_test:
+              marker = 'console.log("surface contract discovery tests passed");'
+              if marker not in surface_test:
+                  raise SystemExit('surface_queue_test_marker_missing')
+              surface_test = surface_test.replace(marker, textwrap.dedent(surface_block) + '\n' + marker)
+              surface_test_path.write_text(surface_test, encoding='utf-8')
+          PY
+
+      - name: Verify focused runtime and callability contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/tenantLifecycleRoutes.js
+          node test-workspace-lifecycle-foundation.mjs
+          node test-resource-api-coverage.mjs
+          node test-openapi-route-coverage.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          node test-surface-contract-discovery.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          for (const migrationFile of [
+            '199_sprint68_workspace_ownership_member_control_tools.sql',
+            '200_sprint68_workspace_invitation_control_tools.sql',
+            '201_sprint68_workspace_access_request_control_tools.sql',
+          ]) {
+            assert.equal(queue.top_items.some((entry) => entry.migration_file === migrationFile), false, `${migrationFile} must leave the regenerated queue`);
+          }
+          console.log({ workspace_control_migrations_closed: 3, secrets_included: false });
+          NODE
+
+      - name: Enforce bounded write set and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/workspace-controls-callability-bootstrap.yml
+          git rm -f docs/workspace-controls-callability-trigger-20260730.md || true
+          git add \
+            http-generic-api/routes/tenantLifecycleRoutes.js \
+            http-generic-api/openapi/workspace-lifecycle-controls.openapi.yaml \
+            http-generic-api/resource-api-mutation-callability.manifest.json \
+            http-generic-api/resource-api-coverage.manifest.json \
+            http-generic-api/test-workspace-lifecycle-foundation.mjs \
+            http-generic-api/test-surface-contract-discovery.mjs \
+            docs/surface-contract-discovery-status.md \
+            docs/surface-contract-discovery-status.json \
+            docs/surface-contract-gap-queue.md \
+            docs/surface-contract-gap-queue.json
+          python3 <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/workspace-controls-callability-bootstrap.yml',
+              'docs/workspace-controls-callability-trigger-20260730.md',
+              'http-generic-api/routes/tenantLifecycleRoutes.js',
+              'http-generic-api/openapi/workspace-lifecycle-controls.openapi.yaml',
+              'http-generic-api/resource-api-mutation-callability.manifest.json',
+              'http-generic-api/resource-api-coverage.manifest.json',
+              'http-generic-api/test-workspace-lifecycle-foundation.mjs',
+              'http-generic-api/test-surface-contract-discovery.mjs',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-gap-queue.json',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if changed != expected:
+              raise SystemExit(f'bounded_write_set_mismatch:expected={sorted(expected)}:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(workspace): harden lifecycle controls and callability'
+          git push origin HEAD:gpt/workspace-controls-callability-hardening-20260730
