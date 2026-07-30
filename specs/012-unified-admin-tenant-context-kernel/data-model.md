@@ -68,9 +68,9 @@ A personal workspace has one owner user. A company workspace uses independent me
 - `workspaceOwnershipType`
 - `brandRef` optional
 - `resourceRef`
-- `connectionRef`
-- `connectionOwnerScopeType`
-- `connectionOwnerScopeRef`
+- `connectionRef` optional; required only when one exact connection is selected
+- `connectionOwnerScopeType` optional; required whenever `connectionRef` is present
+- `connectionOwnerScopeRef` optional; required whenever `connectionRef` is present
 - `authorityPathRef`
 - `status`
 - `reasonCodes`
@@ -84,6 +84,8 @@ Statuses:
 - `interpretation_required`
 - `blocked`
 - `stale`
+
+A resolved decision that selects a connection MUST contain `connectionRef`, `connectionOwnerScopeType`, and `connectionOwnerScopeRef` together. A decision that has not selected one exact connection, including workspace or connection ambiguity, MUST omit all three fields and represent the unresolved candidate set separately. Implementations MUST NOT invent an owner scope to serialize `interpretation_required`.
 
 ## ContextPin
 
@@ -177,6 +179,7 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `claimRevision`
 - `claimTokenHash` optional, internal and non-exportable
 - `consumedAt` optional
+- `completionRevision` optional
 - `status`: `issued`, `claimed`, `consumed`, `expired`, `cancelled`, or governed terminal failure
 - `signatureVersion`
 
@@ -186,7 +189,9 @@ Before any authorization-code exchange, provider call, credential lookup, or cre
 
 The claim token is internal, short-lived, state-specific, and non-exportable. Completion from `claimed` to `consumed` is revision-bound. A failed exchange moves the state only through a governed terminal or recoverable transition; it does not make the same state freely claimable again.
 
-Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the expected provider account by safe stable reference or privacy-preserving binding hash. A reconnect callback that returns a different provider account or observes a different connection revision fails closed before credential replacement.
+Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the expected provider account by safe stable reference or privacy-preserving binding hash. A reconnect callback that returns a different provider account fails closed before credential replacement.
+
+Reconnect credential replacement MUST itself be a compare-and-set conditioned on the signed `expectedConnectionRevision`, the live target connection revision, the authorization state's current `claimRevision`, `status=claimed`, and the valid internal claim token. The encrypted credential replacement, connection revision increment, and authorization-state transition from `claimed` to `consumed` MUST commit in one governed atomic completion boundary. If either revision moved, no credential replacement becomes visible and a new authorization attempt is required.
 
 ## ConnectionResolutionDecision
 
@@ -235,7 +240,7 @@ A resolved decision is incomplete unless `selectedConnectionRef`, `selectedOwner
 
 - `readinessRef`
 - `connectionResolutionRef`
-- `preCredentialReadiness`: configuration, context, ownership, capability, authority, approval, and non-secret policy evidence
+- `preCredentialReadiness`: configuration, context, ownership, capability, authority, exact execution plan, approval, and non-secret policy evidence
 - `credentialMaterializationAllowed`
 - `credentialMaterializationRef` internal and non-exportable when materialization occurs
 - `providerReadiness`: credential validity, provider scopes, reachability, quota, schema, and readback capability
@@ -245,7 +250,7 @@ A resolved decision is incomplete unless `selectedConnectionRef`, `selectedOwner
 - `expiresAt`
 - `secretsIncluded`: always `false`
 
-Credential materialization is allowed only after `preCredentialReadiness` passes for one exact selected connection, the execution plan exists, and any required approval is obtained and revalidated. The materialized secret is passed directly to the provider-readiness or dispatch adapter and is never embedded in this decision.
+Credential materialization is allowed only after `preCredentialReadiness` passes for one exact selected connection, the execution plan exists and remains revision-valid, and any required approval is obtained and revalidated. The materialized secret is passed directly to the provider-readiness or dispatch adapter and is never embedded in this decision.
 
 ## AuthorityPath
 
