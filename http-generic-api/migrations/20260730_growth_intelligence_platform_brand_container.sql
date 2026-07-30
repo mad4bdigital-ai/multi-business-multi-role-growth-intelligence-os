@@ -108,6 +108,8 @@ WHERE brand_container.tenant_id = '00000000-0000-0000-0000-000000000000'
     WHERE workspace_container.container_id = '2b387496-c9f3-4f4e-a131-0249dd9714f1'
       AND workspace_container.tenant_id = '00000000-0000-0000-0000-000000000000'
       AND workspace_container.container_type_key = 'workspace'
+      AND workspace_container.canonical_subject_type = 'workspace'
+      AND workspace_container.canonical_subject_ref = 'b50db01b-617e-4b7a-8bda-6bf4876f754f'
       AND workspace_container.status = 'active'
   )
   AND EXISTS (
