@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-migration-1006-dry-run-20260730
+  group: production-migration-1006-apply-readiness-20260730
   cancel-in-progress: false
 
 jobs:
-  governed-dry-run:
-    name: Governed Migration 1006 authorization and dry-run only
+  apply-readiness:
+    name: Prepare Migration 1006 apply envelope and rerun dry-run
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -26,40 +26,28 @@ jobs:
       MIGRATION_PATH: http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql
       MIGRATION_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
       MIGRATION_STATEMENTS: "5"
-      SOURCE_PR: "3371"
-      SOURCE_MERGE_SHA: d14234a6ca478aa6c47e4c561c83a24063789d83
+      PLATFORM_TENANT_ID: 00000000-0000-0000-0000-000000000000
       PLATFORM_ADMIN_USER_ID: 00000000-0000-4000-a000-000000000002
-      AUTHORIZATION_ENVELOPE_ID: 3bce53ec-c7ae-4696-ad0d-12ef18fbe325
     steps:
       - name: Checkout Production-pinned probe branch
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Verify Production and Migration pins
+      - name: Verify Production, runtime, and Migration pins
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin Production
           test "$(git rev-parse origin/Production)" = "$EXPECTED_PRODUCTION_SHA"
-          actual="$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')"
-          statements="$(grep -Ec '^[[:space:]]*CREATE[[:space:]]+(TABLE|OR[[:space:]]+REPLACE[[:space:]]+VIEW)' "$MIGRATION_PATH")"
-          test "$actual" = "$MIGRATION_SHA256"
-          test "$statements" -eq "$MIGRATION_STATEMENTS"
-          echo "PRODUCTION_PIN=$EXPECTED_PRODUCTION_SHA"
-          echo "MIGRATION_1006_SHA256=$actual"
-          echo "MIGRATION_1006_CREATE_STATEMENTS=$statements"
-
-      - name: Reconfirm Production runtime parity
-        shell: bash
-        run: |
-          set -euo pipefail
+          test "$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')" = "$MIGRATION_SHA256"
+          test "$(grep -Ec '^[[:space:]]*CREATE[[:space:]]+(TABLE|OR[[:space:]]+REPLACE[[:space:]]+VIEW)' "$MIGRATION_PATH")" -eq "$MIGRATION_STATEMENTS"
           node <<'NODE'
           const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
           const expected = process.env.EXPECTED_PRODUCTION_SHA.toLowerCase();
           const strings = [];
           for (const path of ["/health", "/version", "/deployment-info"]) {
-            const response = await fetch(`${base}${path}`, { headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1006-governance/1.1" }, signal: AbortSignal.timeout(15000) });
+            const response = await fetch(`${base}${path}`, { headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1006-readiness/1.0" }, signal: AbortSignal.timeout(15000) });
             const body = await response.json();
             console.log(`RUNTIME_PROBE ${path} status=${response.status} ok=${response.ok}`);
             if (!response.ok || body?.ok !== true) process.exit(1);
@@ -74,7 +62,7 @@ jobs:
           console.log(`PRODUCTION_RUNTIME_PARITY=PASS expected_sha=${expected}`);
           NODE
 
-      - name: Approve, authorize, and dry-run Migration 1006
+      - name: Create and apply-authorize Migration 1006 envelope, then dry-run
         shell: bash
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -97,20 +85,11 @@ jobs:
           };
           const unwrapShell = (response) => parseJson(response?.body?.result?.stdout) || response?.body?.result || response?.body;
           const unwrapTool = (response) => response?.body?.result || response?.body?.data || response?.body;
-          const findValue = (value, key) => {
-            if (!value || typeof value !== "object") return undefined;
-            if (Object.prototype.hasOwnProperty.call(value, key)) return value[key];
-            for (const child of Object.values(value)) {
-              const found = findValue(child, key);
-              if (found !== undefined) return found;
-            }
-            return undefined;
-          };
 
           async function request(path, body, timeout = 300000) {
             const response = await fetch(`${base}${path}`, {
               method: "POST",
-              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json", "User-Agent": "mad4b-migration-1006-governance/1.1" },
+              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json", "User-Agent": "mad4b-migration-1006-readiness/1.0" },
               body: JSON.stringify(body),
               signal: AbortSignal.timeout(timeout),
             });
@@ -128,58 +107,61 @@ jobs:
           });
           const toolCall = (name, toolArgs) => request("/gpt/tools/call", { name, tool_args: toolArgs });
 
-          const envelopeId = process.env.AUTHORIZATION_ENVELOPE_ID;
-          const approvalResponse = await shellAlias("capability_resolution_envelope_approve", [
-            `--envelope-id=${envelopeId}`,
-            `--approved-by=${process.env.PLATFORM_ADMIN_USER_ID}`,
-            "--decision-note=Approve checksum-bound Migration 1006 authorization bootstrap after Production parity and zero-gap envelope readback.",
-            "--ttl-minutes=120",
+          const createResponse = await shellAlias("capability_resolution_envelope_create", [
+            "--requested-by=gpt_admin",
+            "--ttl-minutes=240",
+            `--tenant-id=${process.env.PLATFORM_TENANT_ID}`,
+            `--user-id=${process.env.PLATFORM_ADMIN_USER_ID}`,
+            "--user-role=platform_admin",
+            "--app-key=platform_orchestration",
+            "--capability-key=governed_migration_execute",
+            "--operation-intent=governed_migration_execute",
+            "--runtime-surface=auth_host",
+            "--requested-source-tier=platform_managed_fallback",
+            `--expected-commit-sha=${process.env.EXPECTED_PRODUCTION_SHA}`,
+            "--explain",
           ]);
-          const approval = unwrapShell(approvalResponse);
-          print("ENVELOPE_APPROVAL_HTTP", approvalResponse);
-          print("ENVELOPE_APPROVAL_RESULT", approval);
-          if (!approvalResponse.ok || approval?.ok === false || approval?.envelope_status !== "ready_for_dispatch") process.exit(1);
+          const created = unwrapShell(createResponse);
+          print("APPLY_ENVELOPE_CREATE", created);
+          if (!createResponse.ok || created?.ok === false || !created?.envelope_id || Number(created?.blocking_gap_count) !== 0) process.exit(1);
+          const envelopeId = created.envelope_id;
 
-          const authArgs = {
-            migration: process.env.MIGRATION_NAME,
-            expected_checksum_sha256: process.env.MIGRATION_SHA256,
-            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
-            pull_request: Number(process.env.SOURCE_PR),
-            merge_sha: process.env.SOURCE_MERGE_SHA,
-            confirm: "AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE",
-            capability_envelope_id: envelopeId,
-            decision_note: "Authorize reviewed additive Migration 1006 checksum after Production runtime parity. This authorization step executes no migration SQL.",
-          };
-
-          let authorizationResponse = await toolCall("governed_migration_authorization_bootstrap", authArgs);
-          let authorization = unwrapTool(authorizationResponse);
-          print("AUTHORIZATION_ATTEMPT", authorizationResponse);
-          if (!authorizationResponse.ok || authorization?.ok === false) {
-            const errorCode = String(findValue(authorizationResponse.body, "code") || "");
-            const previous = String(findValue(authorizationResponse.body, "recorded_checksum_sha256") || "").toLowerCase();
-            if (errorCode === "governed_migration_authorization_previous_checksum_required" && /^[0-9a-f]{64}$/.test(previous)) {
-              authorizationResponse = await toolCall("governed_migration_authorization_bootstrap", {
-                ...authArgs,
-                previous_checksum_sha256: previous,
-                decision_note: "Rotate the existing unapplied Migration 1006 authorization from its prior checksum to the reviewed Production checksum after runtime parity verification.",
-              });
-              authorization = unwrapTool(authorizationResponse);
-              print("AUTHORIZATION_ROTATION", authorizationResponse);
-            }
+          if (created.envelope_status === "ready_requires_approval") {
+            const approvalResponse = await shellAlias("capability_resolution_envelope_approve", [
+              `--envelope-id=${envelopeId}`,
+              `--approved-by=${process.env.PLATFORM_ADMIN_USER_ID}`,
+              "--decision-note=Approve Migration 1006 apply-readiness envelope after successful checksum-bound authorization and zero-risk governed dry-run. No SQL is executed here.",
+              "--ttl-minutes=240",
+            ]);
+            const approved = unwrapShell(approvalResponse);
+            print("APPLY_ENVELOPE_APPROVAL", approved);
+            if (!approvalResponse.ok || approved?.ok === false || approved?.envelope_status !== "ready_for_dispatch") process.exit(1);
+          } else if (created.envelope_status !== "ready_for_dispatch") {
+            process.exit(1);
           }
-          if (!authorizationResponse.ok || authorization?.ok === false) process.exit(1);
-          console.log(`MIGRATION_1006_AUTHORIZATION=PASS envelope_id=${envelopeId}`);
+
+          const applyAuthorizationResponse = await toolCall("capability_resolution_envelope_apply_authorize", {
+            envelope_id: envelopeId,
+            authorized_by: process.env.PLATFORM_ADMIN_USER_ID,
+            decision_note: "Apply-authorize Migration 1006 envelope under governed_migration_execute_apply_v1 after runtime parity, checksum rotation, and zero-risk dry-run. SQL remains blocked by typed confirmation.",
+            ttl_minutes: 240,
+          });
+          const applyAuthorization = unwrapTool(applyAuthorizationResponse);
+          print("APPLY_ENVELOPE_AUTHORIZATION", applyAuthorizationResponse);
+          if (!applyAuthorizationResponse.ok || applyAuthorization?.ok === false || applyAuthorization?.apply_allowed !== true) process.exit(1);
 
           const dryRunResponse = await toolCall("governed_migration_execute", {
             migration: process.env.MIGRATION_NAME,
             mode: "dry_run",
             expected_checksum_sha256: process.env.MIGRATION_SHA256,
             expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
+            capability_envelope_id: envelopeId,
           });
           const dryRun = unwrapTool(dryRunResponse);
-          print("MIGRATION_DRY_RUN_HTTP", dryRunResponse);
-          print("MIGRATION_DRY_RUN_RESULT", dryRun);
-          if (!dryRunResponse.ok || dryRun?.ok === false) process.exit(1);
-          if (dryRun?.applies_sql !== false || dryRun?.mode !== "dry_run") process.exit(1);
-          console.log(`MIGRATION_1006_GOVERNED_DRY_RUN=PASS envelope_id=${envelopeId}`);
+          print("POST_AUTH_DRY_RUN", dryRunResponse);
+          if (!dryRunResponse.ok || dryRun?.ok === false || dryRun?.applies_sql !== false || dryRun?.mode !== "dry_run") process.exit(1);
+
+          console.log(`MIGRATION_1006_APPLY_ENVELOPE_READY=${envelopeId}`);
+          console.log("MIGRATION_1006_REQUIRED_CONFIRMATION=APPLY_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE");
+          console.log("MIGRATION_1006_SQL_EXECUTED=false");
           NODE
