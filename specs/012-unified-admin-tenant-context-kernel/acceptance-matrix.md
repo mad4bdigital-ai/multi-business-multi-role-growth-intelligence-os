@@ -58,3 +58,7 @@
 | A-54 | Rollback is requested after hierarchical routing is enabled | Exact-owner isolation remains active; if unavailable, affected provider operations fail closed instead of using the prior unsafe selector |
 | A-55 | Two callbacks concurrently submit distinct authorization codes with the same valid issued state | Atomic compare-and-set grants exactly one claim; the loser receives `OAUTH_STATE_CLAIM_CONFLICT` and performs no code exchange or credential mutation |
 | A-56 | A flow requires approval and credential-dependent provider readiness | Plan is compiled and approval obtained/revalidated before guarded credential materialization and provider readiness |
+| A-57 | Reconnect callback validates connection revision R, then another reconnect or revoke advances it before credential storage | Credential replacement compare-and-set fails; no new credential is visible and a new authorization attempt is required |
+| A-58 | Reconnect credential replacement succeeds but authorization-state consumption cannot commit, or vice versa | Atomic completion rolls back both effects; the connection and state never expose a partial result |
+| A-59 | Context or connection resolution remains ambiguous | Selected connection and owner-scope fields are omitted; candidate evidence is returned without fabricated ownership |
+| A-60 | Operation requires no human approval | Exact execution plan still binds operation, target, connection, owner scope, revision, and readback contract before credential materialization |
