@@ -174,7 +174,7 @@ Authorization state is signed, expiring, nonce-bound, single-use, and context-bo
 
 - `resolutionRef`
 - `principalRef`
-- `effectiveUserRef`
+- `effectiveUserRef` optional; required only when the operation or selected personal connection requires an effective user
 - `tenantRef`
 - `workspaceRef`
 - `workspaceType`
@@ -187,12 +187,13 @@ Authorization state is signed, expiring, nonce-bound, single-use, and context-bo
 - `selectedOwnerScopeType` optional
 - `selectedOwnerScopeRef` optional
 - `candidateRefs`
+- `candidateRevisionVector` for unresolved candidate sets
 - `rejectedCandidateReasonCodes`
 - `fallbackPolicyRef`
 - `status`
 - `reasonCodes`
 - `registryRevision`
-- `connectionRevision`
+- `connectionRevision` only when `selectedConnectionRef` is present
 - `decisionHash`
 - `expiresAt`
 - `secretsIncluded`: always `false`
@@ -204,6 +205,10 @@ Statuses include:
 - `connection_required`
 - `blocked`
 - `stale`
+
+A service principal or delegated agent may resolve a company-workspace connection without an `effectiveUserRef` when its explicit service or delegation binding supplies the required authority. Implementations MUST NOT invent or borrow a user identity. Personal connection selection always requires `effectiveUserRef` to equal the connection owner.
+
+`connectionRevision` is singular only for a resolved selected connection. `interpretation_required` records each eligible candidate revision in `candidateRevisionVector`; `connection_required` carries no selected connection revision and an empty candidate vector.
 
 ## AuthorityPath
 
