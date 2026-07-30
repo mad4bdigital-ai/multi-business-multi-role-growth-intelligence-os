@@ -39,10 +39,10 @@
 
 ## Phase 2 — Data and domain foundation
 
-- [ ] **T020** `[FR-026..032][OP-010..014]` Implement or extend durable activation operation repository and optimistic versioning.
-- [ ] **T021** `[FR-027][OP-010..014]` Implement stage attempt and evidence repositories with bounded no-secret summaries.
+- [x] **T020** `[FR-026..032][OP-010..014]` Implement or extend durable activation operation repository and optimistic versioning. Evidence: centralized immutable adapter `http-generic-api/activationOperationPersistenceRepository.js`, optimistic projection delegation, parent-operation row locking, deterministic regression `http-generic-api/test-activation-operation-persistence-repository.mjs`, green CI run `30540165456`, PR #3606, squash merge `f9baec28296019ad72971364a54acb96b9d2a143`, and same-cycle `main` readback.
+- [x] **T021** `[FR-027][OP-010..014]` Implement stage attempt and evidence repositories with bounded no-secret summaries. Evidence: tenant/operation-scoped attempt reads, monotonic numbering after parent-row lock, fail-closed terminal transitions, bounded evidence identity/type checks with free-form references omitted from read projections, regression and CI on PR #3606, squash merge `f9baec28296019ad72971364a54acb96b9d2a143`, and same-cycle `main` readback.
 - [ ] **T022** `[FR-031][OP-011]` Implement delivery and acknowledgement repositories/services.
-- [ ] **T023** `[FR-029..030][OP-014]` Implement reconciliation repository and state transitions.
+- [x] **T023** `[FR-029..030][OP-014]` Implement reconciliation repository and state transitions. Evidence: tenant/operation-scoped reconciliation reads, parent-locked monotonic attempt numbering, delegated append/completion transitions, regression and CI on PR #3606, squash merge `f9baec28296019ad72971364a54acb96b9d2a143`, and same-cycle `main` readback.
 - [ ] **T024** `[FR-033..035][OP-016]` Implement deployment observation adapter/projection with request-time historical correlation and authoritative main/deployed/health/contract evidence.
 - [ ] **T024A** `[ADR-006][FR-033..035]` Implement opaque release-ID generation, `current/deploying/stale/diverged/unknown` classification, tenant `none/opaque/diagnostic` exposure, optional `Deployment-Revision` header, and Admin-only full parity evidence.
 - [ ] **T024B** `[ADR-005][ADR-006]` Implement versioned `deployment_evidence_exposure_policy` questionnaire adapter, immutable principal exposure ceilings, exact-version registry readback, and critical cache invalidation.
