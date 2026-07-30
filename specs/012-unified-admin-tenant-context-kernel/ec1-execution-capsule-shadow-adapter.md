@@ -141,6 +141,18 @@ The temporary read-only EC1 Contract Review succeeded and was removed from the b
 
 The review also proved that execution left the checkout unchanged.
 
+## Repository-wide test registration
+
+The bounded one-shot registration completed successfully and removed itself. The canonical repository test manifest now contains exactly one:
+
+```text
+node test-execution-capsule-shadow-adapter.mjs
+```
+
+immediately after the EC0 capsule contract test. The registration workflow verified EC1, EC0, and the existing Context Kernel shadow integration before committing, and its permanent write set was limited to `http-generic-api/scripts/test-manifest.mjs`.
+
+Generator-owned evidence refresh and exact-head CI remain pending until repository automation processes the human-authored evidence update.
+
 ## Test coverage
 
 `http-generic-api/test-execution-capsule-shadow-adapter.mjs` covers:
@@ -160,7 +172,6 @@ The review also proved that execution left the checkout unchanged.
 
 ## Remaining EC1 work
 
-- repository-wide test-manifest registration;
 - generator-owned evidence refresh;
 - exact-head CI and architecture/security review;
 - one explicit composition factory for selected runtime shadow configuration;
