@@ -121,17 +121,24 @@ jobs:
             return payload;
           }
 
-          const envelopeCreate = await request('/admin/control', {
-            tool: 'shell',
-            action: 'run',
-            alias: 'capability_resolution_envelope_create',
-            authority_context: {
-              resource_type: 'shell_alias',
-              resource_uri: 'shell://capability_resolution_envelope_create',
-              operation_mode: 'capability_resolution_envelope_create',
-              required: true,
-            },
-            extra_args: [
+          function shellInvocation(alias, extraArgs) {
+            return {
+              tool: 'shell',
+              action: 'run',
+              alias,
+              authority_context: {
+                resource_type: 'shell_alias',
+                resource_uri: `shell://${alias}`,
+                operation_mode: alias,
+                required: true,
+              },
+              extra_args: extraArgs,
+            };
+          }
+
+          const envelopeCreate = await request('/admin/control', shellInvocation(
+            'capability_resolution_envelope_create',
+            [
               `--tenant-id=${PLATFORM_TENANT_ID}`,
               `--user-id=${PLATFORM_ADMIN_USER_ID}`,
               '--user-role=Admin',
@@ -143,7 +150,7 @@ jobs:
               '--ttl-minutes=30',
               '--explain',
             ],
-          });
+          ));
 
           let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
           assert.ok(envelope?.envelope_id, 'Capability envelope creation did not return envelope_id');
@@ -151,16 +158,17 @@ jobs:
           assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
 
           if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
-            const approval = await request('/gpt/tools/call', {
-              name: 'capability_resolution_envelope_apply_authorize',
-              tool_args: {
-                envelope_id: envelope.envelope_id,
-                authorized_by: 'github_actions',
-                decision_note: 'Approve the no-SQL authorization-bootstrap envelope for the reviewed Lease registry migration.',
-                ttl_minutes: 30,
-              },
-            });
+            const approval = await request('/admin/control', shellInvocation(
+              'capability_resolution_envelope_approve',
+              [
+                `--envelope-id=${envelope.envelope_id}`,
+                '--approved-by=github_actions',
+                '--decision-note=Approve no-SQL migration authorization bootstrap after verified Production runtime parity.',
+                '--ttl-minutes=30',
+              ],
+            ));
             envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
+            assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Lifecycle approval did not produce ready_for_dispatch');
           }
 
           const authorization = await request('/gpt/tools/call', {
