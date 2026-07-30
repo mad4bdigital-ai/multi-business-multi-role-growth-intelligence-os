@@ -8,7 +8,7 @@ const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligenc
 function manifest(overrides = {}) {
   return {
     repository: REPOSITORY,
-    branch: "main",
+    branch: "Production",
     commit_sha: SHA_NEW,
     deployed_at: "2026-07-17T20:00:00.000Z",
     ...overrides,
@@ -83,6 +83,7 @@ function poolWithParity(row) {
   assert.equal(calls[0][0].after_sha, SHA_NEW);
   assert.equal(calls[0][1].mode, "runtime_parity_startup_reconciler");
   assert.equal(calls[0][2].env.NODE_ENV, "production");
+  assert.equal(calls[0][2].allowDeploymentBranch, true);
 }
 
 {

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { validateDirectRouteCallabilityContracts } from "./resource-api-callability-contracts.mjs";
+import { extractRegistryToolKeys } from "./surface-contract-sql-registry-extractor.mjs";
 
 const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
@@ -17,6 +18,7 @@ const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discover
 const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
 const GAP_QUEUE_JSON_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
 const SAFETY_ATTESTATION_PATH = path.join(REPO_ROOT, "docs", "surface-contract-safety-attestations.json");
+const CLASSIFICATION_EVIDENCE_PATH = path.join(API_ROOT, "surface-contract-classification-evidence.json");
 const CHECKSUM_CANONICALIZATION = "utf8_lf_v1";
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
@@ -68,6 +70,32 @@ function canonicalizeChecksumText(value = "") {
 
 function sha256(value = "") {
   return createHash("sha256").update(canonicalizeChecksumText(value), "utf8").digest("hex");
+}
+
+function gitBlobSha(value = "") {
+  const body = Buffer.from(canonicalizeChecksumText(value), "utf8");
+  return createHash("sha1").update(`blob ${body.length}\0`).update(body).digest("hex");
+}
+
+function collectClassificationEvidence() {
+  if (!fs.existsSync(CLASSIFICATION_EVIDENCE_PATH)) return new Map();
+  try {
+    const payload = JSON.parse(fs.readFileSync(CLASSIFICATION_EVIDENCE_PATH, "utf8"));
+    if (payload.schema_version !== "surface-contract-classification-evidence-v1") return new Map();
+    return new Map((payload.items || []).map((item) => [item.migration_file, item]));
+  } catch {
+    return new Map();
+  }
+}
+
+const CLASSIFICATION_EVIDENCE = collectClassificationEvidence();
+
+function resolveClassificationEvidence(fileName, source) {
+  const item = CLASSIFICATION_EVIDENCE.get(fileName);
+  if (!item || item.classification_status !== "verified_evidence_only") return null;
+  if (!/^[a-f0-9]{40}$/.test(String(item.source_git_blob_sha || ""))) return null;
+  if (item.source_git_blob_sha !== gitBlobSha(source)) return null;
+  return item;
 }
 
 function collectSafetyAttestations() {
@@ -186,6 +214,18 @@ function collectOpenapiPaths() {
 }
 
 function classifyRoute(route, source = "", fileName = "") {
+  const classificationEvidence = resolveClassificationEvidence(fileName, source);
+  const routeEvidence = classificationEvidence?.route_literals?.find((item) => item.route === route) || null;
+  if (routeEvidence?.classification === "evidence_only_external_readback") {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      callability_evidence_required: false,
+      evidence_status: "verified_checksum_bound_evidence_only",
+      reason: routeEvidence.reason,
+    };
+  }
   if (/INSERT\s+INTO\s+admin_platform_endpoint_tools/i.test(source)) {
     return {
       route,
@@ -264,7 +304,7 @@ function hasStandaloneSqlCommentMarker(source = "", marker = "") {
   const token = String(marker || "");
   if (!/^[a-z0-9_]+$/i.test(token)) return false;
   const commentLine = new RegExp(
-    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
+    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*(?:[-*]\\s*)?${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
     "i"
   );
   return commentLine.test(String(source || ""));
@@ -299,8 +339,7 @@ function extractSurfaces(source = "", fileName = "") {
   const views = [...source.matchAll(/`?(v_[A-Za-z0-9_]+)`?/g)].map((m) => m[1]);
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
-  const tools = [...source.matchAll(/['"`]([A-Za-z0-9_]+(?:_tool|_readback|_gate|_request|_approve|_create|_accept|_reject|_decision|_execute|_list|_rollback|_certify|_record|_propose|_lookup|_validate|_blueprint|_dispatch|_preflight|_readiness)[A-Za-z0-9_]*)['"`]/g)].map((m) => m[1]);
-  const detectedTools = unique(tools);
+  const detectedTools = extractRegistryToolKeys(source);
   const callabilityCoveredTools = detectedTools.filter((tool) => DIRECT_ROUTE_CALLABILITY.tools.has(`${fileName}|${tool}`));
   const safety = detectSafetyMarkers(source);
   return {
@@ -316,13 +355,15 @@ function extractSurfaces(source = "", fileName = "") {
   };
 }
 
-function docsCoverageFor(fileName, docsByPath) {
+function docsCoverageFor(fileName, docsByPath, source = "") {
   const legacyClosed = isLegacyBacklogClosed(fileName);
   const shortName = fileName.replace(/\.sql$/i, "");
+  const classificationEvidence = resolveClassificationEvidence(fileName, source);
+  const evidenceTargets = new Set(classificationEvidence?.documentation_targets || []);
   const values = {};
   for (const target of DOC_TARGETS) {
     const body = docsByPath[target] || "";
-    values[target] = legacyClosed || body.includes(fileName) || body.includes(shortName);
+    values[target] = legacyClosed || evidenceTargets.has(target) || body.includes(fileName) || body.includes(shortName);
   }
   return values;
 }
@@ -569,7 +610,7 @@ export function discoverSurfaces({ limit = 80 } = {}) {
           surfaces.safety[marker] || safetyAttestation.safety_markers[marker] === true,
         ]));
       }
-      const docs = docsCoverageFor(name, docsByPath);
+      const docs = docsCoverageFor(name, docsByPath, source);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
       return enrichEntry({
         migration_file: name,

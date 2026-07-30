@@ -6,16 +6,16 @@
       "evidence_scope": "tenant-resource-transactions"
     },
     {
-      "file": "test-dynamic-container-rollout-safety.mjs",
-      "evidence_scope": "canary-closeout-transaction"
-    },
-    {
       "file": "test-frontend-operation-governance-generator.mjs",
-      "evidence_scope": "canary-promotion-rollback-closeout-transactions"
+      "evidence_scope": "canary-transactions"
     },
     {
       "file": "test-tenant-connect-bootstrap-transaction.mjs",
       "evidence_scope": "tenant-connect-bootstrap-transaction"
+    },
+    {
+      "file": "test-repository-reconciliation-lease-control.mjs",
+      "evidence_scope": "repository-reconciliation-lease-control"
     }
   ]
 }
