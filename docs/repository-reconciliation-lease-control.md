@@ -41,6 +41,12 @@ http-generic-api/openapi/repository-reconciliation-lease-control.yaml
 
 It documents three action-specific request variants, the exact confirmations, Admin authentication, consequential classification, bounded responses, and secret-safe structured errors. The direct operation is excluded from compact Custom GPT projections because Admin GPT reaches it through the dynamic tool registry.
 
+## Generated artifact and CI lifecycle
+
+Changes to routes or modular OpenAPI contracts trigger the bounded PR artifact refresh. The workflow regenerates and verifies the frontend dispatch index and compact GPT schemas, then commits only the allowlisted generated files.
+
+Because that generated commit is authored by `github-actions[bot]`, a subsequent human-authored, source-neutral commit may be required to run the repository's full pull-request checks on the generated head. This does not authorize merging or applying the registry migration.
+
 ## Actions
 
 ### Acquire
