@@ -10,7 +10,7 @@
     "delegated_agent",
     "registry_defined_future_principal"
   ],
-  "workspace_types": [
+  "workspace_ownership_types": [
     "personal",
     "company"
   ],
@@ -24,6 +24,8 @@
     "dynamic_registry_resolution",
     "no_fixed_customer_identifiers_in_production_code",
     "effective_subject_required_for_tenant_mutations",
+    "existing_operational_workspace_type_semantics_preserved",
+    "workspace_ownership_type_is_distinct_from_operational_workspace_type",
     "one_tenant_one_workspace_one_resource_one_connection_per_execution_context",
     "exact_connection_owner_scope_required",
     "personal_connection_owner_must_equal_effective_user",
