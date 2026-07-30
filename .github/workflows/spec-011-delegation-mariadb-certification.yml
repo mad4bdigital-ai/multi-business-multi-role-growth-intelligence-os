@@ -1,0 +1,88 @@
+name: Spec 011 Delegation MariaDB Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "http-generic-api/delegationGrantMariaDbRepository.js"
+      - "http-generic-api/delegationGrantMariaDbReadinessCollector.js"
+      - "http-generic-api/delegationGrantMariaDbRuntimeBinding.js"
+      - "http-generic-api/delegationGrantLifecycleShadowService.js"
+      - "http-generic-api/delegationGrantRepositoryMutationService.js"
+      - "http-generic-api/delegationGrantMariaDbValidationService.js"
+      - "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql"
+      - "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs"
+      - "http-generic-api/scripts/delegation-mariadb-production-cycle.mjs"
+      - "http-generic-api/test-delegation-grant-mariadb-*.mjs"
+      - ".github/workflows/spec-011-delegation-mariadb-certification.yml"
+      - "specs/011-durable-governed-execution-and-agent-delegation/**"
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-mariadb-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: spec011_delegation_cert_ci
+          MARIADB_USER: spec011
+          MARIADB_PASSWORD: spec011
+          MARIADB_ROOT_PASSWORD: spec011-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused contract tests
+        run: |
+          node test-delegation-grant-lifecycle-shadow.mjs
+          node test-delegation-grant-repository-mutation.mjs
+          node test-delegation-grant-mariadb-adapter-contract.mjs
+          node test-delegation-grant-mariadb-readiness-collector.mjs
+          node test-delegation-grant-mariadb-runtime-binding.mjs
+
+      - name: Certify governed migration and lifecycle on disposable MariaDB
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: spec011_delegation_cert_ci
+          DB_USER: spec011
+          DB_PASSWORD: spec011
+          DB_CONNECT_TIMEOUT_MS: 10000
+          DELEGATION_MARIADB_CERTIFICATION_MODE: disposable
+        run: node scripts/delegation-mariadb-disposable-certification.mjs
+
+      - name: Validate certification artifact
+        run: |
+          node -e 'const fs=require("fs"); const p="artifacts/delegation-mariadb-certification.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ok||v.production_authorized!==false||!v.lifecycle?.create_verified||!v.lifecycle?.revoke_verified||!v.lifecycle?.expire_verified||v.lifecycle?.runtime_policy_ready_zero!==true) process.exit(1);'
+
+      - name: Upload bounded certification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-delegation-mariadb-certification
+          path: http-generic-api/artifacts/delegation-mariadb-certification.json
+          if-no-files-found: error
+          retention-days: 30
