@@ -30,7 +30,8 @@ assert.equal(dryRun.targetExecuted,false);
 assert.equal(dryRun.rolloutChanged,false);
 
 const service=readFileSync(new URL("./dynamicContainerOverrideGovernanceSmoke.js",import.meta.url),"utf8");
-const routes=readFileSync(new URL("./routes/dynamicContainerAuthorityRoutes.js",import.meta.url),"utf8");
+const routes=readFileSync(new URL("./routes/dynamicContainerOverrideGovernanceSmokeRoutes.js",import.meta.url),"utf8");
+const routeIndex=readFileSync(new URL("./routes/index.js",import.meta.url),"utf8");
 const componentOpenapi=readFileSync(new URL("./openapi/container-authority.yaml",import.meta.url),"utf8");
 const rootOpenapi=readFileSync(new URL("./openapi.yaml",import.meta.url),"utf8");
 const migration=readFileSync(new URL("./migrations/20260723_dynamic_container_override_governance_smoke.sql",import.meta.url),"utf8");
@@ -46,6 +47,7 @@ assert.match(service,/DELETE FROM container_effective_context_ledger/);
 assert.match(service,/platform_closure_threads/);
 assert.match(routes,/\/admin\/container-authority\/override-governance-smokes/);
 assert.match(routes,/runDynamicContainerOverrideGovernanceSmoke/);
+assert.match(routeIndex,/buildDynamicContainerOverrideGovernanceSmokeRoutes/);
 assert.match(componentOpenapi,/OverrideGovernanceSmokeRequest:/);
 assert.match(componentOpenapi,/OverrideGovernanceSmokeResponse:/);
 assert.match(componentOpenapi,/operationId: createAdminContainerAuthorityOverrideGovernanceSmoke/);
