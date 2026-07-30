@@ -44,10 +44,7 @@ function version(value) {
   }
   const normalized = Number(value);
   if (!Number.isSafeInteger(normalized) || normalized < 0) {
-    fail(
-      "activation_expected_version_invalid",
-      "expected_version must be a non-negative integer.",
-    );
+    fail("activation_expected_version_invalid", "expected_version must be a non-negative integer.");
   }
   return normalized;
 }
@@ -154,12 +151,12 @@ const defaultRepository = Object.freeze({
     const placeholders = ACTIVATION_SUCCESS_EVIDENCE_TYPES.map(() => "?").join(",");
     const [rows] = await pool.query(
       `SELECT evidence_id FROM activation_evidence_items
-        WHERE operation_id = ? AND tenant_id = ?
+        WHERE evidence_id = ? AND operation_id = ? AND tenant_id = ?
           AND evidence_type IN (${placeholders})
           AND secrets_included = 0
           AND redaction_state IN ('sanitized','reference_only')
         LIMIT 1`,
-      [input.operation_id, input.tenant_id, ...ACTIVATION_SUCCESS_EVIDENCE_TYPES],
+      [input.evidence_id, input.operation_id, input.tenant_id, ...ACTIVATION_SUCCESS_EVIDENCE_TYPES],
     );
     return Boolean(rows?.[0]?.evidence_id);
   },
@@ -221,16 +218,14 @@ async function appendEvidence(repository, connection, actor, operationId, eviden
   });
 }
 
-function assertStageStartAllowed(operation, targetStatus) {
+function assertOrdinaryStageStartAllowed(operation, targetStatus) {
   if (targetStatus) {
     return assertActivationOperationTransition(operation.operation_status, targetStatus);
   }
   const classification = classifyActivationOperationState(operation.operation_status);
   if (
     classification !== "core_nonterminal" ||
-    ["unknown_outcome", "reconciling", "retry_scheduled"].includes(
-      operation.operation_status,
-    )
+    ["unknown_outcome", "reconciling", "retry_scheduled"].includes(operation.operation_status)
   ) {
     fail(
       "activation_stage_attempt_operation_state_invalid",
@@ -240,6 +235,37 @@ function assertStageStartAllowed(operation, targetStatus) {
     );
   }
   return { allowed: true };
+}
+
+async function requireReservedRetryAttempt(repository, connection, input) {
+  const attemptId = text(input.attempt_id, "attempt_id", 36);
+  const attempt = await repository.readStageAttempt(connection, {
+    attempt_id: attemptId,
+    operation_id: input.operation_id,
+    tenant_id: input.tenant_id,
+  });
+  if (!attempt) {
+    fail(
+      "activation_retry_stage_attempt_not_found",
+      "The governed retry stage attempt was not found in the authorized operation scope.",
+      404,
+    );
+  }
+  if (attempt.stage_key !== input.stage_key || attempt.source_type !== "governed_retry") {
+    fail(
+      "activation_retry_stage_attempt_mismatch",
+      "The reserved retry attempt does not match the requested stage.",
+      409,
+    );
+  }
+  if (attempt.attempt_status !== "pending") {
+    fail(
+      "activation_retry_stage_attempt_not_pending",
+      "The reserved retry attempt is not pending.",
+      409,
+    );
+  }
+  return attempt;
 }
 
 export function createActivationLifecycleOperationService({ repository = defaultRepository } = {}) {
@@ -271,7 +297,14 @@ export function createActivationLifecycleOperationService({ repository = default
       const operationId = text(input.operation_id, "operation_id", 36);
       const expectedVersion = version(input.expected_version);
       const toStatus = text(input.to_status, "to_status", 64);
-      if (toStatus === "active" && input.evidence) {
+      if (toStatus === "active") {
+        if (!input.evidence) {
+          fail(
+            "activation_same_operation_success_evidence_required",
+            "Active classification requires fresh success readback evidence.",
+            409,
+          );
+        }
         assertActivationSuccessEvidenceType(input.evidence.evidence_type);
       }
 
@@ -289,13 +322,14 @@ export function createActivationLifecycleOperationService({ repository = default
         if (
           toStatus === "active" &&
           !(await repository.hasSameOperationSuccessEvidence(connection, {
+            evidence_id: evidenceRecord?.evidence_id,
             operation_id: operationId,
             tenant_id: actor.tenant_id,
           }))
         ) {
           fail(
             "activation_same_operation_success_evidence_required",
-            "Active classification requires success readback evidence from the same operation.",
+            "Active classification requires persisted success readback evidence from the same operation.",
             409,
           );
         }
@@ -329,11 +363,63 @@ export function createActivationLifecycleOperationService({ repository = default
       const targetStatus = input.operation_target_status
         ? text(input.operation_target_status, "operation_target_status", 64)
         : null;
-      const expectedVersion = targetStatus ? version(input.expected_version) : null;
 
       return transaction(input.pool, async (connection) => {
         const operation = await requireOperation(repository, connection, actor, operationId);
-        assertStageStartAllowed(operation, targetStatus);
+
+        if (operation.operation_status === "retry_scheduled") {
+          if (!targetStatus) {
+            fail(
+              "activation_retry_target_status_required",
+              "A scheduled retry requires its declared target operation status.",
+            );
+          }
+          const expectedVersion = version(input.expected_version);
+          assertVersion(operation, expectedVersion, "the scheduled retry started");
+          assertActivationOperationTransition(operation.operation_status, targetStatus);
+          const attempt = await requireReservedRetryAttempt(repository, connection, {
+            attempt_id: input.attempt_id,
+            operation_id: operationId,
+            tenant_id: actor.tenant_id,
+            stage_key: stageKey,
+          });
+          assertActivationStageAttemptTransition("pending", "running");
+          await repository.transitionStageAttempt(connection, {
+            attempt_id: attempt.attempt_id,
+            operation_id: operationId,
+            tenant_id: actor.tenant_id,
+            from_status: "pending",
+            to_status: "running",
+            retryable: true,
+          });
+          const update = await repository.updateOperation(connection, {
+            operation_id: operationId,
+            ...actor,
+            expected_version: expectedVersion,
+            patch: { operation_status: targetStatus, current_stage: stageKey },
+          });
+          return {
+            operation_id: operationId,
+            attempt_id: attempt.attempt_id,
+            attempt_number: Number(attempt.attempt_number),
+            stage_key: stageKey,
+            attempt_status: "running",
+            operation_status: targetStatus,
+            optimistic_version: update.optimistic_version,
+            governed_retry_attempt: true,
+            secrets_included: false,
+          };
+        }
+
+        if (input.attempt_id) {
+          fail(
+            "activation_stage_attempt_id_unexpected",
+            "An existing attempt_id can be supplied only for a governed scheduled retry.",
+            409,
+          );
+        }
+        assertOrdinaryStageStartAllowed(operation, targetStatus);
+        const expectedVersion = targetStatus ? version(input.expected_version) : null;
         if (targetStatus) assertVersion(operation, expectedVersion, "the stage attempt started");
 
         const attemptNumber = await repository.nextStageAttemptNumber(connection, {
@@ -376,6 +462,7 @@ export function createActivationLifecycleOperationService({ repository = default
           attempt_status: "running",
           operation_status: targetStatus || operation.operation_status,
           optimistic_version: nextVersion,
+          governed_retry_attempt: false,
           secrets_included: false,
         };
       });
@@ -447,9 +534,25 @@ export function createActivationLifecycleOperationService({ repository = default
           governed_retry_approved: input.governed_retry_approved,
           approval_ref: input.approval_ref,
         });
+        const stageKey = text(input.stage_key || decision.target_status, "stage_key", 80);
+        const attemptNumber = await repository.nextStageAttemptNumber(connection, {
+          operation_id: operationId,
+          tenant_id: actor.tenant_id,
+          stage_key: stageKey,
+        });
+        const reservedAttempt = await repository.appendStageAttempt(connection, {
+          operation_id: operationId,
+          tenant_id: actor.tenant_id,
+          stage_key: stageKey,
+          attempt_number: attemptNumber,
+          source_type: "governed_retry",
+          attempt_status: "pending",
+          retryable: true,
+        });
         const authorizationEvidence = await repository.appendEvidence(connection, {
           operation_id: operationId,
           tenant_id: actor.tenant_id,
+          attempt_id: reservedAttempt.attempt_id,
           evidence_type: "governed_retry_authorization",
           source_type: "governance_registry",
           source_ref: decision.approval_ref,
@@ -457,6 +560,8 @@ export function createActivationLifecycleOperationService({ repository = default
             source_status: decision.source_status,
             scheduled_status: decision.scheduled_status,
             target_status: decision.target_status,
+            stage_key: stageKey,
+            attempt_number: attemptNumber,
             blind_replay_allowed: false,
           },
         });
@@ -469,6 +574,10 @@ export function createActivationLifecycleOperationService({ repository = default
         return {
           operation_id: operationId,
           ...decision,
+          stage_key: stageKey,
+          attempt_id: reservedAttempt.attempt_id,
+          attempt_number: attemptNumber,
+          attempt_status: "pending",
           authorization_evidence_id: authorizationEvidence.evidence_id,
           optimistic_version: update.optimistic_version,
           secrets_included: false,
@@ -485,10 +594,10 @@ export function createActivationLifecycleOperationService({ repository = default
         const operation = await requireOperation(repository, connection, actor, operationId);
         assertVersion(operation, expectedVersion, "reconciliation started");
         assertActivationOperationTransition(operation.operation_status, "reconciling");
-        const attemptNumber = await repository.nextReconciliationAttemptNumber(
-          connection,
-          { operation_id: operationId, tenant_id: actor.tenant_id },
-        );
+        const attemptNumber = await repository.nextReconciliationAttemptNumber(connection, {
+          operation_id: operationId,
+          tenant_id: actor.tenant_id,
+        });
         const reconciliation = await repository.appendReconciliation(connection, {
           operation_id: operationId,
           tenant_id: actor.tenant_id,
@@ -517,17 +626,13 @@ export function createActivationLifecycleOperationService({ repository = default
     async completeReconciliation(input = {}) {
       const actor = subject(input.subject);
       const operationId = text(input.operation_id, "operation_id", 36);
-      const reconciliationId = text(
-        input.reconciliation_id,
-        "reconciliation_id",
-        36,
-      );
+      const reconciliationId = text(input.reconciliation_id, "reconciliation_id", 36);
       const expectedVersion = version(input.expected_version);
       if (input.outcome === "executed") {
         if (!input.evidence) {
           fail(
             "activation_same_operation_success_evidence_required",
-            "Executed reconciliation requires success readback evidence.",
+            "Executed reconciliation requires fresh success readback evidence.",
             409,
           );
         }
@@ -551,6 +656,20 @@ export function createActivationLifecycleOperationService({ repository = default
           operationId,
           input.evidence,
         );
+        if (
+          input.outcome === "executed" &&
+          !(await repository.hasSameOperationSuccessEvidence(connection, {
+            evidence_id: evidenceRecord?.evidence_id,
+            operation_id: operationId,
+            tenant_id: actor.tenant_id,
+          }))
+        ) {
+          fail(
+            "activation_same_operation_success_evidence_required",
+            "Executed reconciliation requires persisted success evidence from the same operation.",
+            409,
+          );
+        }
         const decision = resolveActivationReconciliationOutcome({
           outcome: input.outcome,
           operation_id: operationId,
@@ -587,5 +706,4 @@ export function createActivationLifecycleOperationService({ repository = default
   });
 }
 
-export const activationLifecycleOperationService =
-  createActivationLifecycleOperationService();
+export const activationLifecycleOperationService = createActivationLifecycleOperationService();
