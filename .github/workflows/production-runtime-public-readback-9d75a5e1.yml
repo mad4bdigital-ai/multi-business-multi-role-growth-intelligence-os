@@ -1,0 +1,120 @@
+name: Production Runtime Public Readback 9d75a5e1
+
+on:
+  push:
+    branches:
+      - gpt/production-runtime-public-readback-9d75a5e1
+    paths:
+      - .github/workflows/production-runtime-public-readback-9d75a5e1.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/production-runtime-public-readback-9d75a5e1.yml
+
+permissions:
+  contents: read
+
+jobs:
+  public-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      EXPECTED_PRODUCTION_SHA: 9d75a5e13cbe674448e4f52a341c5b9615f1e2d0
+      EXPECTED_BRANCH: Production
+    steps:
+      - name: Fetch public runtime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-readback
+          for endpoint in health version deployment-info; do
+            curl --fail --silent --show-error \
+              --connect-timeout 15 \
+              --max-time 60 \
+              --retry 3 \
+              --retry-delay 5 \
+              "${RUNTIME_BASE_URL}/${endpoint}" \
+              --output "runtime-readback/${endpoint}.json"
+            test -s "runtime-readback/${endpoint}.json"
+          done
+
+      - name: Verify health and exact deployed SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const expectedSha = process.env.EXPECTED_PRODUCTION_SHA;
+          const expectedBranch = process.env.EXPECTED_BRANCH;
+          const load = (name) => JSON.parse(fs.readFileSync(`runtime-readback/${name}.json`, 'utf8'));
+          const health = load('health');
+          const version = load('version');
+          const deployment = load('deployment-info');
+
+          const values = (value, out = []) => {
+            if (value == null) return out;
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+              out.push(String(value));
+              return out;
+            }
+            if (Array.isArray(value)) {
+              for (const item of value) values(item, out);
+              return out;
+            }
+            if (typeof value === 'object') {
+              for (const item of Object.values(value)) values(item, out);
+            }
+            return out;
+          };
+
+          const healthStatus = String(health.status ?? health.state ?? '').toLowerCase();
+          const healthy = health.ok === true || health.healthy === true || ['ok', 'healthy', 'ready', 'pass', 'passing'].includes(healthStatus);
+          if (!healthy || health.ok === false || health.healthy === false || ['error', 'failed', 'fail', 'unhealthy'].includes(healthStatus)) {
+            throw new Error(`runtime health is not explicitly healthy: ${JSON.stringify(health)}`);
+          }
+
+          if (!values(version).includes(expectedSha)) {
+            throw new Error(`version endpoint does not report expected Production SHA ${expectedSha}`);
+          }
+          if (!values(deployment).includes(expectedSha)) {
+            throw new Error(`deployment-info does not report expected Production SHA ${expectedSha}`);
+          }
+
+          const branchCandidates = [
+            deployment.branch,
+            deployment.git_branch,
+            deployment.deployed_branch,
+            deployment.deployment?.branch,
+            deployment.manifest?.branch,
+          ].filter(Boolean).map(String);
+          if (!branchCandidates.includes(expectedBranch)) {
+            throw new Error(`deployment-info branch mismatch: ${branchCandidates.join(', ') || '<missing>'}`);
+          }
+
+          const summary = {
+            ok: true,
+            expected_production_sha: expectedSha,
+            expected_branch: expectedBranch,
+            health_status: health.status ?? health.state ?? (health.ok === true || health.healthy === true ? 'healthy' : null),
+            version_sha_match: true,
+            deployment_sha_match: true,
+            deployment_branch_match: true,
+            secrets_included: false,
+            credential_payload_read: false,
+            provider_write_executed: false,
+            deployment_executed: false,
+            migration_executed: false,
+          };
+          fs.writeFileSync('runtime-readback/summary.json', `${JSON.stringify(summary, null, 2)}\n`);
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
+      - name: Upload public runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-public-readback-9d75a5e1
+          path: runtime-readback/
+          if-no-files-found: warn
+          retention-days: 14
