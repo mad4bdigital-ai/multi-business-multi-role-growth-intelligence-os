@@ -21,6 +21,26 @@ The route requires both the backend API key and an Admin principal. The control 
 
 A generic `repo_mutation` intent is not accepted as lease authority. The envelope must carry a lease-control-specific operation intent. Responses and structured errors set `secrets_included: false`.
 
+## Runtime registration and API contract
+
+The additive migration:
+
+```text
+http-generic-api/migrations/20260730_repository_reconciliation_lease_control_tool.sql
+```
+
+registers `repository_reconciliation_lease_control` in `admin_platform_endpoint_tools`. This makes the surface discoverable through `listAdminTools` and callable through `callAdminTool` after governed migration apply and readback.
+
+The PR includes the migration but does not apply it. Authorization, dry-run, apply confirmation, ledger evidence, and post-apply registry readback remain separate governed release steps.
+
+The canonical modular OpenAPI contract is:
+
+```text
+http-generic-api/openapi/repository-reconciliation-lease-control.yaml
+```
+
+It documents three action-specific request variants, the exact confirmations, Admin authentication, consequential classification, bounded responses, and secret-safe structured errors. The direct operation is excluded from compact Custom GPT projections because Admin GPT reaches it through the dynamic tool registry.
+
 ## Actions
 
 ### Acquire
@@ -55,4 +75,4 @@ Requires `lease_id`, `holder_run_id`, and `resource_fingerprint`. Release remain
 
 ## Catalog V2 continuation
 
-After this surface is merged, PR #3033 must still be rebuilt over the latest `main`. A fresh reconciliation operation and lease must be created in the same cycle before any no-force update to the PR branch. Previous resolution commits, envelopes, and lease identifiers are audit evidence only and must not be reused.
+After this surface is merged and its registry migration is governed-applied with readback, PR #3033 must still be rebuilt over the latest `main`. A fresh reconciliation operation, capability envelope, and lease must be created in the same cycle before any no-force update to the PR branch. Previous resolution commits, envelopes, reconciliation identifiers, and lease identifiers are audit evidence only and must not be reused.
