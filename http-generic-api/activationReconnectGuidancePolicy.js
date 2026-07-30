@@ -191,6 +191,7 @@ export function resolveActivationReconnectGuidance(input = {}) {
     );
   }
 
+  // Only strict boolean evidence may unlock reconnect guidance.
   const authFailureVerified = input.auth_failure_verified === true;
   const errorAllowsReconnect =
     guidance.reconnect_required === true && allowedErrorCodeSet.has(errorCode);
