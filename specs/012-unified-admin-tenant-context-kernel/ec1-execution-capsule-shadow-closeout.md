@@ -2,11 +2,11 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
-This addendum closes the remaining EC1 work after the core shadow adapter merged in PR `#3678` at `71475ad136684da1ec86dfb2c9d1f4ff50af7b54`.
+This addendum closes the remaining EC1 work after the core shadow adapter merged in PR `#3678` at `71475ad136684da1ec86dfb2c9d1f4ff50af7b54` and the exact-head certification merged in PR `#3783` at `cef4f138645940362c43fe1486a1c7ce7c146ce2`.
 
-EC1 remains a default-off, framework-independent shadow contract. This follow-up does not wire the shadow into route construction, enable Production traffic, grant execution authority, call a provider, or write to a database.
+EC1 remains a default-off, framework-independent shadow contract. This delivery does not wire the shadow into route construction, enable Production traffic, grant execution authority, call a provider, or write to a database.
 
 ## Selected composition
 
@@ -26,10 +26,10 @@ The selected composition is the existing Resource API read shadow. The factory:
 
 `http-generic-api/test-execution-capsule-shadow-composition.mjs` executes three deterministic, in-process read contexts.
 
-The sample requires:
+The certified sample proved:
 
 - three of three legacy resolution objects returned by identity;
-- three of three capsule targets matching the authorized selected context;
+- three of three capsule targets matched the authorized selected context;
 - zero provider dispatches;
 - zero automatic writes;
 - `executionAllowed=false` for every event;
@@ -54,26 +54,28 @@ The regression emits a response `finish` event after rollback and proves that no
 
 ## Repository registration
 
-Both EC1 contract tests must be registered exactly once beside the canonical EC0 test:
+Both EC1 contract tests are registered exactly once beside the canonical EC0 test:
 
 ```text
 node test-execution-capsule-shadow-adapter.mjs
 node test-execution-capsule-shadow-composition.mjs
 ```
 
-Registration is applied by a bounded self-deleting workflow and then verified by repository generator authority. Generated files are never edited manually.
+Registration run `30548720504` passed, removed its temporary workflow, and preserved the bounded write set. Generator-owned evidence refresh run `30549614086` passed.
 
-## Completion gates
+## Exact-head certification
 
-EC1 is complete only after:
+PR `#3783` certified head `57e649d56698794737d506204eeaeed0b2bd61a3`.
 
-1. exact-once repository test registration;
-2. generator-owned operation-governance and surface-dispatch evidence refresh;
-3. required CI success on the final head;
-4. relevant side-workflow success;
-5. Human Architecture/Security Review on the final head;
-6. latest-main non-overlap or governed reconciliation;
-7. post-merge readback and documentation reconciliation.
+- Required CI run `30549932317`: Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests passed.
+- Frontend Surface Dispatch run `30549932350` passed.
+- Automation Overlap Guard, Context Kernel Hardcoding Report, Docs Agent, Remaining Scope Scorecard, Completion Cleanup Readback, HTTP Generic API Fanout, Custom GPT Contract Guard, and generated refresh passed.
+- Human Architecture/Security Review passed with no unresolved review threads.
+- Latest-main non-overlap and post-merge readback passed.
+
+## Completion result
+
+EC1 is complete. EC2–EC5 remain separately bounded delivery slices. Completion of EC1 does not grant runtime authority and does not authorize Production activation, provider dispatch, database mutation, migration application, or deployment.
 
 ## Safety boundaries
 
