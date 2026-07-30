@@ -1,9 +1,7 @@
 name: Staging Post-Deploy Verification
 
 on:
-  push:
-    branches:
-      - main
+  # dev.mad4b.com is intentionally retired; run manually only after an approved staging rebuild.
   workflow_dispatch:
     inputs:
       expected_sha:
