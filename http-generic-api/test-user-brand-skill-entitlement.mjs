@@ -52,7 +52,11 @@ function buildPool({ policy = null, grants = [], policyError = null, grantError 
   };
 }
 
-const selfServicePolicy = { policy_id: "policy-1", activation_mode: "self_service" };
+const selfServicePolicy = {
+  policy_id: "policy-1",
+  activation_mode: "self_service",
+  allowed_operations_json: ["publish"],
+};
 const exactGrant = {
   grant_id: "user-brand-grant-1",
   tenant_id: "tenant-1",
@@ -62,7 +66,7 @@ const exactGrant = {
   skill_key: "api.wordpress_write",
   resource_type: "site",
   resource_ref: "site-1",
-  allowed_operations: ["publish"],
+  allowed_operations: ["publish", "delete"],
 };
 
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, {}), "publish");
@@ -169,7 +173,6 @@ for (const contextOverride of [
   { user_id: "user-2" },
   { brand_key: "brand-2" },
   { resource_ref: "site-2" },
-  { operation_intent: "delete" },
 ]) {
   const denied = await authorizeAgentToolCall({
     tool_name: "wordpress_publish",
@@ -189,6 +192,24 @@ for (const contextOverride of [
   assert(denied.blockers.includes("user_brand_skill_grant_missing"));
 }
 
+const policyNarrowed = await authorizeAgentToolCall({
+  tool_name: "wordpress_publish",
+  args: { status: "publish" },
+  context: {
+    agent_id: "content-agent",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    brand_key: "brand-1",
+    resource_type: "site",
+    resource_ref: "site-1",
+    operation_intent: "delete",
+  },
+  pool: buildPool({ policy: selfServicePolicy, grants: [exactGrant] }),
+});
+assert.equal(policyNarrowed.allowed, false);
+assert(policyNarrowed.blockers.includes("brand_skill_policy_operation_denied"));
+assert.equal(policyNarrowed.user_brand_skill_grant.grant_id, null);
+
 const disabledPolicy = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",
   context: {
@@ -200,7 +221,7 @@ const disabledPolicy = await authorizeAgentToolCall({
     resource_ref: "site-1",
   },
   pool: buildPool({
-    policy: { policy_id: "policy-disabled", activation_mode: "disabled" },
+    policy: { policy_id: "policy-disabled", activation_mode: "disabled", allowed_operations_json: ["publish"] },
     grants: [exactGrant],
   }),
 });
