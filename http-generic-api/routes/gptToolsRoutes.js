@@ -31,6 +31,11 @@ import {
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
+import {
+  canAccessGovernedResponseChunk,
+  governedResponseChunkOwnerFields,
+  resolveGovernedResponseChunkPrincipal,
+} from "../governedToolResponseChunkOwnership.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
