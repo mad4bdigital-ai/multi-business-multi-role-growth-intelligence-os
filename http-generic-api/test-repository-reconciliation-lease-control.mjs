@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 import {
   REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS,
@@ -217,6 +218,49 @@ for (const token of [
 }
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE)\b/i);
 assert.match(migration, /ON DUPLICATE KEY UPDATE/);
+
+const contractSource = readFileSync(
+  new URL("./openapi/repository-reconciliation-lease-control.yaml", import.meta.url),
+  "utf8",
+);
+const contract = YAML.parse(contractSource);
+const operation = contract.paths?.["/admin/repository-automation/reconciliation-lease"]?.post;
+assert.equal(contract.openapi, "3.1.0");
+assert.equal(operation?.operationId, "controlRepositoryReconciliationLease");
+assert.equal(operation?.["x-openai-isConsequential"], true);
+assert.equal(operation?.["x-custom-gpt-exclude"], true);
+assert.ok(Array.isArray(operation?.requestBody?.content?.["application/json"]?.schema?.oneOf));
+assert.equal(operation.requestBody.content["application/json"].schema.oneOf.length, 3);
+assert.ok(operation.security.some((item) => Object.hasOwn(item, "adminBearerAuth")));
+assert.ok(operation.security.some((item) => Object.hasOwn(item, "backendApiKeyAuth")));
+for (const [schemaName, action, confirmation, requiredFields] of [
+  [
+    "RepositoryReconciliationLeaseAcquireRequest",
+    "acquire",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.acquire,
+    ["owner", "repo", "branch", "expected_base_sha", "expected_branch_sha", "holder_run_id"],
+  ],
+  [
+    "RepositoryReconciliationLeaseRenewRequest",
+    "renew",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.renew,
+    ["lease_id", "holder_run_id", "resource_fingerprint"],
+  ],
+  [
+    "RepositoryReconciliationLeaseReleaseRequest",
+    "release",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.release,
+    ["lease_id", "holder_run_id", "resource_fingerprint"],
+  ],
+]) {
+  const schema = contract.components?.schemas?.[schemaName];
+  assert.deepEqual(schema?.properties?.action?.enum, [action]);
+  assert.deepEqual(schema?.properties?.confirm?.enum, [confirmation]);
+  assert.ok(["action", "capability_envelope_id", "confirm", ...requiredFields].every((field) => schema.required.includes(field)));
+  assert.equal(schema.additionalProperties, false);
+}
+assert.equal(contract.components.schemas.RepositoryReconciliationLeaseControlResponse.properties.secrets_included.enum[0], false);
+assert.equal(contract.components.schemas.RepositoryReconciliationLeaseControlError.properties.secrets_included.enum[0], false);
 
 const routes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
 assert.match(routes, /runRepositoryReconciliationLeaseControl/);
