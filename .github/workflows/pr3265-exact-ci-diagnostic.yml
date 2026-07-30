@@ -1,0 +1,69 @@
+name: PR 3265 Exact CI Diagnostic
+
+on:
+  push:
+    branches:
+      - gpt/hostinger-production-resync-policy-20260729
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-3265-exact-ci-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/hostinger-production-resync-policy-20260729
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Inspect exact CI, publish report, and remove diagnostic
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: 72b3f356820cd22012a6adc774cd3e1c83b4cfd4
+          TARGET_BRANCH: gpt/hostinger-production-resync-policy-20260729
+          PR_NUMBER: '3265'
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS=''
+          for attempt in $(seq 1 20); do
+            set +e
+            RUNS="$(gh run list --workflow ci.yml --branch "$TARGET_BRANCH" --event workflow_dispatch --limit 50 --json databaseId,headSha,createdAt,status,conclusion 2>gh.err)"
+            RC=$?
+            set -e
+            if [[ $RC -eq 0 ]]; then break; fi
+            if grep -Eqi 'rate limit|HTTP 403' gh.err; then sleep 60; continue; fi
+            cat gh.err; exit "$RC"
+          done
+          RUN_ID="$(jq -r --arg sha "$TARGET_SHA" 'map(select(.headSha == $sha))[0].databaseId // empty' <<<"$RUNS")"
+          [[ -n "$RUN_ID" ]] || { echo '::error::exact CI run not found'; exit 1; }
+          {
+            echo '## PR #3265 exact-CI diagnostic'
+            echo
+            echo "- exact head: \`$TARGET_SHA\`"
+            echo "- CI run: \`$RUN_ID\`"
+            echo
+            echo '### Jobs'
+            echo '```json'
+            gh run view "$RUN_ID" --json databaseId,event,headSha,status,conclusion,jobs | jq '{databaseId,event,headSha,status,conclusion,jobs:[.jobs[]|{name,status,conclusion,databaseId}]}'
+            echo '```'
+            echo
+            echo '### Failed log tail'
+            echo '```text'
+            gh run view "$RUN_ID" --log-failed 2>&1 | tail -n 500 || true
+            echo '```'
+          } > /tmp/pr3265-ci-diagnostic.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/pr3265-ci-diagnostic.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/pr3265-exact-ci-diagnostic.yml
+          git commit -m 'chore(ci): remove temporary PR 3265 exact-CI diagnostic'
+          git push origin "HEAD:${TARGET_BRANCH}"
