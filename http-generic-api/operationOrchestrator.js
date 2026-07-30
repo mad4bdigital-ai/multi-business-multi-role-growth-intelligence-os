@@ -5,6 +5,12 @@ import {
 } from "./repositoryAutomationControlPlane.js";
 import { buildOperationContext } from "./operationContextService.js";
 import { getOperationContract, validateOperationInput } from "./operationContractRegistry.js";
+import {
+  commitManagedGitRemoteChanges,
+  prepareManagedGitRemoteTransport,
+  pushManagedGitRemoteChanges,
+  readManagedGitRemoteTransport,
+} from "./managedGitRemoteTransport.js";
 
 const REQUIRED_CHECKS = Object.freeze([
   "Syntax Check",
@@ -52,6 +58,120 @@ function summarizeChecks(gate = {}) {
   };
 }
 
+function notRequiredTransportSnapshot() {
+  return {
+    required: false,
+    status: "not_required",
+    remote_fetch_performed: false,
+    remote_checkout_performed: false,
+    remote_commit_performed: false,
+    remote_push_performed: false,
+    credential_secret_exposed: false,
+    persistent_credential_file_created: false,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
+}
+
+function safeManagedGitTransportSnapshot(session) {
+  if (!session) return notRequiredTransportSnapshot();
+  try {
+    return {
+      required: true,
+      status: "ready",
+      ...readManagedGitRemoteTransport(session),
+    };
+  } catch (error) {
+    return {
+      required: true,
+      status: "read_failed",
+      remote_fetch_performed: false,
+      remote_checkout_performed: false,
+      remote_commit_performed: false,
+      remote_push_performed: false,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      workspace_path_exposed: false,
+      error: {
+        code: error?.code || "MANAGED_GIT_REMOTE_READ_FAILED",
+        message: error?.message || "Managed Git remote transport readback failed.",
+        details: error?.details || null,
+      },
+      secrets_included: false,
+    };
+  }
+}
+
+function depsWithManagedGitTransport(deps, session, {
+  readTransport = readManagedGitRemoteTransport,
+  commitTransport = commitManagedGitRemoteChanges,
+  pushTransport = pushManagedGitRemoteChanges,
+} = {}) {
+  if (!session) return deps;
+  const next = Object.create(
+    Object.getPrototypeOf(deps),
+    Object.getOwnPropertyDescriptors(deps),
+  );
+  Object.defineProperty(next, "managed_git_transport", {
+    value: Object.freeze({
+      session,
+      read: () => readTransport(session),
+      commit: (input = {}) => commitTransport(session, input),
+      push: (input = {}) => pushTransport(session, input),
+    }),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return next;
+}
+
+async function prepareManagedGitTransportDependency(input = {}, deps = {}, {
+  prepareTransport = prepareManagedGitRemoteTransport,
+  now = new Date(),
+} = {}) {
+  const workspace = deps?.managed_git_workspace;
+  const credentialBinding = deps?.managed_git_credential_binding;
+  if (!workspace || !credentialBinding) {
+    return {
+      deps,
+      session: null,
+      snapshot: notRequiredTransportSnapshot(),
+    };
+  }
+  if (typeof prepareTransport !== "function") {
+    throw operationError(
+      500,
+      "MANAGED_GIT_REMOTE_TRANSPORT_FACTORY_REQUIRED",
+      "A managed Git remote transport factory is required.",
+    );
+  }
+  const session = await prepareTransport({
+    worker_id: workspace.worker_id,
+    owner: input.owner,
+    repo: input.repo,
+    branch: input.branch || input.head_ref,
+    expected_head_sha: input.expected_head_sha,
+    workspace_path: workspace.workspace_path,
+    credential_binding: credentialBinding,
+    now,
+  });
+  return {
+    deps: depsWithManagedGitTransport(deps, session),
+    session,
+    snapshot: safeManagedGitTransportSnapshot(session),
+  };
+}
+
+async function runRepositoryAutomationWithManagedGit(input, deps) {
+  const transport = await prepareManagedGitTransportDependency(input, deps);
+  const result = await runRepositoryAutomation(input, transport.deps);
+  return {
+    result,
+    managed_git_transport: safeManagedGitTransportSnapshot(transport.session),
+  };
+}
+
 export async function previewOperation(input = {}, deps = {}) {
   const contract = getOperationContract(input.operation_key || input.operation || input.intent);
   validateOperationInput(contract, input);
@@ -86,11 +206,15 @@ export async function executeOperation(input = {}, deps = {}) {
   });
 
   if (contract.operation_key === "repo.change.execute" || contract.operation_key === "repo.branch.reconcile") {
-    const result = await runRepositoryAutomation(automationInput(input, "apply"), deps);
+    const execution = await runRepositoryAutomationWithManagedGit(
+      automationInput(input, "apply"),
+      deps,
+    );
     return {
-      ...result,
+      ...execution.result,
       operation_key: contract.operation_key,
       context,
+      managed_git_transport: execution.managed_git_transport,
       same_cycle_readback_required: true,
       secrets_included: false,
     };
@@ -98,16 +222,29 @@ export async function executeOperation(input = {}, deps = {}) {
   if (contract.operation_key === "operation.resume") {
     const current = await readRepositoryAutomationRun({ run_id: input.run_id }, { pool: deps.pool });
     if (["completed", "failed", "blocked", "cancelled"].includes(String(current.status || "").toLowerCase())) {
-      return { ...current, operation_key: contract.operation_key, resumed: false, terminal: true, secrets_included: false };
+      return {
+        ...current,
+        operation_key: contract.operation_key,
+        resumed: false,
+        terminal: true,
+        managed_git_transport: notRequiredTransportSnapshot(),
+        secrets_included: false,
+      };
     }
     const plan = current.plan || current.run?.plan || {};
-    const resumed = await runRepositoryAutomation({
+    const execution = await runRepositoryAutomationWithManagedGit({
       ...plan,
       ...input,
       mode: "apply",
       run_id: input.run_id,
     }, deps);
-    return { ...resumed, operation_key: contract.operation_key, resumed: true, secrets_included: false };
+    return {
+      ...execution.result,
+      operation_key: contract.operation_key,
+      resumed: true,
+      managed_git_transport: execution.managed_git_transport,
+      secrets_included: false,
+    };
   }
   throw operationError(409, "OPERATION_EXECUTION_NOT_SUPPORTED", "This operation is not executable through the current orchestrator.", {
     operation_key: contract.operation_key,
@@ -158,4 +295,12 @@ export async function diagnoseCi(input = {}, deps = {}) {
   };
 }
 
-export const _testingOperationOrchestrator = { automationInput, summarizeChecks };
+export const _testingOperationOrchestrator = {
+  automationInput,
+  summarizeChecks,
+  notRequiredTransportSnapshot,
+  safeManagedGitTransportSnapshot,
+  depsWithManagedGitTransport,
+  prepareManagedGitTransportDependency,
+  runRepositoryAutomationWithManagedGit,
+};
