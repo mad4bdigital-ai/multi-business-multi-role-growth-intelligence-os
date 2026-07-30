@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "extension_key": "spec-012-execution-capsule-runtime-integration",
+  "parent_spec_key": "unified_admin_tenant_context_kernel",
+  "status": "draft",
+  "specification_authority": true,
+  "runtime_authority": false,
+  "primary_artifact": "execution-capsule-runtime-addendum.md",
+  "requirement_range": {
+    "prefix": "FR-EC",
+    "first": "FR-EC-001",
+    "last": "FR-EC-026"
+  },
+  "owned_concerns": [
+    "execution_capsule_identity",
+    "exact_execution_context",
+    "revision_bound_reuse",
+    "dynamic_mutation_frontier_validation",
+    "transitive_invalidation",
+    "context_pin_and_switch_ports",
+    "tenant_and_admin_safe_projections"
+  ],
+  "dependencies": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-performance-addendum.md",
+    "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md",
+    "../integration-governed-execution-runtime-composition/manifest.json"
+  ],
+  "delivery_slices": [
+    "EC0_contract_and_tests",
+    "EC1_shadow_adapter",
+    "EC2_selected_read_pilot",
+    "EC3_unified_dispatch_integration",
+    "EC4_mutation_validation_pilot",
+    "EC5_rollout_and_duplicate_resolver_retirement"
+  ],
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "no_secret_payload_in_capsule",
+    "no_ttl_only_authority_cache",
+    "no_silent_context_substitution",
+    "no_provider_call_from_specification",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}
