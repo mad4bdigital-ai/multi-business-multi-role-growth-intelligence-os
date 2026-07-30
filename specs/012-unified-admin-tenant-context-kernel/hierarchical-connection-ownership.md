@@ -67,7 +67,8 @@ Every connection has one exact owner scope and MUST include:
 
 - `connectionRef`;
 - `providerKey`;
-- `providerAccountRef` when safe to retain;
+- `providerAccountRef` when policy permits retaining a safe stable account reference;
+- `providerAccountBindingHash` when the raw provider account reference is unavailable or policy forbids retaining it;
 - `tenantRef`;
 - `workspaceRef`;
 - optional `brandRef`;
@@ -80,6 +81,8 @@ Every connection has one exact owner scope and MUST include:
 - authorization and connection revisions;
 - lifecycle status;
 - readiness summary.
+
+Every authorized connection MUST retain at least one durable non-secret provider-account binding: the safe stable raw reference or a versioned, domain-separated, one-way binding hash. Credential expiry or revocation MUST NOT erase this binding because reconnect account verification depends on it.
 
 A resolved connection decision MUST carry the selected connection reference, exact owner scope type, exact owner scope reference, and connection revision together. Downstream consumers MUST use this immutable owner-scope evidence rather than re-fetch mutable ownership metadata.
 
@@ -113,7 +116,7 @@ This is eligibility precedence, not blind fallback.
 8. Candidate discovery and pre-credential readiness MUST remain secret-free.
 9. After one exact connection, owner scope, capability, authority path, exact execution plan, approval state, and non-secret readiness decision agree, the guarded credential boundary MAY materialize that connection's credential for credential-dependent provider readiness and dispatch only.
 10. Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
-11. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider account, provider scopes, or connection revision changes.
+11. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider account, provider-account binding, provider scopes, or connection revision changes.
 
 ## Two-stage readiness and credential boundary
 
@@ -244,11 +247,11 @@ Reconnect state additionally includes:
 
 - target `connectionRef`;
 - expected connection revision;
-- expected provider account reference when safe, or a privacy-preserving provider-account binding hash.
+- expected provider account reference when a safe stable raw reference is retained, otherwise the durable privacy-preserving provider-account binding hash.
 
 Callbacks MUST reject replay, expiry, signature failure, redirect mismatch, provider-account mismatch, connection-revision mismatch, and any mismatch between signed state and live tenant, workspace, brand, membership, ownership, or target-connection context.
 
-A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection. Credential replacement itself MUST use a compare-and-set conditioned on the signed expected connection revision, the live target connection revision, the current claimed-state revision, and the valid claim token. The encrypted credential replacement, target connection revision increment, and transition of the same authorization state from `claimed` to `consumed` MUST commit through one governed atomic completion boundary. If any revision moved, no credential replacement becomes visible and a new authorization attempt is required.
+A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection. Credential replacement itself MUST use a compare-and-set conditioned on the signed expected connection revision, the live target connection revision, the current claimed-state revision, and the valid claim token. The encrypted credential replacement, durable provider-account binding update, target connection revision increment, and transition of the same authorization state from `claimed` to `consumed` MUST commit through one governed atomic completion boundary. If any revision moved, no credential replacement becomes visible and a new authorization attempt is required.
 
 Callbacks MUST NOT accept free `user_id`, `tenant_id`, `workspace_id`, or `brand_id` values as authority.
 
@@ -327,6 +330,7 @@ The persistence phase will introduce or normalize:
 - additive `workspace_ownership_type` and personal owner metadata;
 - exact connection owner scope;
 - brand connection bindings;
+- durable safe provider-account references or versioned privacy-preserving provider-account binding hashes;
 - provider scopes;
 - authorization and connection revisions;
 - reconnect target/account binding state;
@@ -371,6 +375,8 @@ The platform MUST NOT restore a prior selector that can choose a connection usin
 22. Reconnect credential replacement is rejected without visible mutation when the target connection revision moves after callback validation.
 23. Reconnect credential replacement and authorization-state consumption complete atomically or both remain unapplied.
 24. Operations requiring no human approval still compile and bind an exact execution plan before credential materialization.
+25. Owner-scope substitution or owner-scope revision movement changes the context hash and invalidates dependent plans and approvals.
+26. A durable privacy-preserving provider-account binding remains available for reconnect after credential expiry or revocation when the raw account reference is not retained.
 
 ## Multi-PR implementation sequence
 
