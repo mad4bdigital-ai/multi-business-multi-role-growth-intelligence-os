@@ -1,0 +1,157 @@
+name: PR 3033 Detached Reconciliation Builder
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr3033-detached-reconciliation-builder
+  cancel-in-progress: false
+
+jobs:
+  build-candidate:
+    if: github.event.pull_request.head.ref == 'ops/pr3033-reconciliation-builder-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out Catalog V2 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/013-system-tool-catalog-v2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Fetch current main and candidate ref
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/ops/pr3033-reconciliation-candidate-20260730:refs/remotes/origin/ops/pr3033-reconciliation-candidate-20260730'
+
+      - name: Build detached reconciliation candidate
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR_HEAD="$(git rev-parse HEAD)"
+          MAIN_SHA="$(git rev-parse origin/main)"
+          MERGE_BASE="$(git merge-base "$PR_HEAD" "$MAIN_SHA")"
+          CANDIDATE_REF="$(git rev-parse origin/ops/pr3033-reconciliation-candidate-20260730)"
+
+          printf '%s\n' \
+            'docs/decisions/ADR-system-tool-catalog-v2.md' \
+            'docs/system-tool-catalog-v2-rollout.md' \
+            'http-generic-api/openapi.yaml' \
+            'http-generic-api/routes/systemLayerRoutes.js' \
+            'http-generic-api/scripts/test-manifest.mjs' \
+            'http-generic-api/systemLayerResponseFallback.js' \
+            'http-generic-api/systemToolCatalogV2.js' \
+            'http-generic-api/test-platform-routes.mjs' \
+            'http-generic-api/test-system-layer-response-fallback.mjs' \
+            'http-generic-api/test-system-tool-catalog-v2.mjs' \
+            'specs/013-system-tool-catalog-v2/README.md' \
+            'specs/013-system-tool-catalog-v2/checklists/requirements.md' \
+            'specs/013-system-tool-catalog-v2/completion.json' \
+            'specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml' \
+            'specs/013-system-tool-catalog-v2/plan.md' \
+            'specs/013-system-tool-catalog-v2/rollout.md' \
+            'specs/013-system-tool-catalog-v2/spec.md' \
+            'specs/013-system-tool-catalog-v2/tasks.md' \
+            'specs/013-system-tool-catalog-v2/testing-strategy.md' \
+            > /tmp/pr3033-paths.txt
+
+          mapfile -t PATHS < /tmp/pr3033-paths.txt
+          git diff --binary --full-index "$MERGE_BASE" "$PR_HEAD" -- "${PATHS[@]}" > /tmp/pr3033.patch
+          test -s /tmp/pr3033.patch
+
+          git checkout --detach "$MAIN_SHA"
+          if ! git apply --3way --index /tmp/pr3033.patch; then
+            echo '::error::Catalog V2 patch did not apply cleanly over current main.'
+            git status --short
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          ACTUAL_CHANGED="$(git diff --cached --name-only)"
+          test "$(printf '%s\n' "$ACTUAL_CHANGED" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 19 || {
+            echo '::error::Reconciliation candidate changed an unexpected number of files.'
+            printf '%s\n' "$ACTUAL_CHANGED"
+            exit 1
+          }
+          while IFS= read -r path; do
+            grep -Fxq "$path" /tmp/pr3033-paths.txt || {
+              echo "::error::Unexpected path in candidate: $path"
+              exit 1
+            }
+          done <<< "$ACTUAL_CHANGED"
+
+          git diff --cached --check
+          TREE_SHA="$(git write-tree)"
+          CANDIDATE_SHA="$(printf '%s\n' \
+            'feat: reconcile System Tool Catalog V2 over current main' \
+            '' \
+            "Source PR head: $PR_HEAD" \
+            "Reconciliation main: $MAIN_SHA" \
+            'No force update; generated artifacts excluded.' \
+            | git commit-tree "$TREE_SHA" -p "$PR_HEAD" -p "$MAIN_SHA")"
+
+          PARENTS="$(git show -s --format=%P "$CANDIDATE_SHA")"
+          test "$PARENTS" = "$PR_HEAD $MAIN_SHA" || {
+            echo "::error::Unexpected candidate parents: $PARENTS"
+            exit 1
+          }
+          git merge-base --is-ancestor "$CANDIDATE_REF" "$MAIN_SHA" || {
+            echo '::error::Candidate ref is not an ancestor of current main; refusing non-fast-forward update.'
+            exit 1
+          }
+
+          git reset --hard "$CANDIDATE_SHA"
+          echo "pr_head=$PR_HEAD" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "merge_base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          echo "tree_sha=$TREE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate Catalog V2 candidate
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check systemToolCatalogV2.js
+          node --check systemLayerResponseFallback.js
+          node --check routes/systemLayerRoutes.js
+          node test-system-tool-catalog-v2.mjs
+          node test-system-layer-response-fallback.mjs
+          node test-platform-routes.mjs
+          node scripts/test-manifest.mjs --check
+
+      - name: Push detached candidate without force
+        env:
+          CANDIDATE_SHA: ${{ steps.build.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          git push origin "$CANDIDATE_SHA:refs/heads/ops/pr3033-reconciliation-candidate-20260730"
+
+      - name: Emit bounded evidence
+        env:
+          PR_HEAD: ${{ steps.build.outputs.pr_head }}
+          MAIN_SHA: ${{ steps.build.outputs.main_sha }}
+          MERGE_BASE: ${{ steps.build.outputs.merge_base }}
+          CANDIDATE_SHA: ${{ steps.build.outputs.candidate_sha }}
+          TREE_SHA: ${{ steps.build.outputs.tree_sha }}
+        run: |
+          node -e 'console.log(JSON.stringify({ok:true,stage:"pr3033_detached_candidate_built",pr_head:process.env.PR_HEAD,main_sha:process.env.MAIN_SHA,merge_base:process.env.MERGE_BASE,candidate_sha:process.env.CANDIDATE_SHA,tree_sha:process.env.TREE_SHA,changed_files:19,target_branch_updated:false,lease_acquired:false,provider_call_executed:false,external_write_executed:false,secrets_included:false},null,2))'
