@@ -32,13 +32,13 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 580/592 (97.97%)
-- Documentation gap migrations: 12
-- Gap severity: high=22, medium=10, low=1
+- Documentation complete migrations: 589/592 (99.49%)
+- Documentation gap migrations: 3
+- Gap severity: high=22, medium=2, low=0
 - SQL route coverage in OpenAPI: 30/32 (93.75%)
 - SQL route-like literals exempted from OpenAPI scoring: 667/699
 - SQL routes missing OpenAPI path coverage: 2
-- Migrations without explicit `secrets_included=false` marker: 5
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 11 |
-| `deployment_parity_checklist.md` | 11 |
-| `docs/ai-docs-agent-governance.md` | 12 |
-| `docs/auto-docs-agent/README.md` | 12 |
-| `docs/change-documentation-governance.md` | 11 |
+| `Updating Registry Patch Index.md` | 3 |
+| `deployment_parity_checklist.md` | 3 |
+| `docs/ai-docs-agent-governance.md` | 3 |
+| `docs/auto-docs-agent/README.md` | 3 |
+| `docs/change-documentation-governance.md` | 3 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 582 |
-| no_credential_payload_read | 581 |
-| no_raw_secrets | 581 |
-| no_external_send | 581 |
-| no_external_write | 582 |
-| secrets_included_false | 587 |
+| no_provider_call | 589 |
+| no_credential_payload_read | 589 |
+| no_raw_secrets | 589 |
+| no_external_send | 589 |
+| no_external_write | 589 |
+| secrets_included_false | 591 |
 
 ### Route Classification Coverage
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 33
+- Total queue items: 24
 - Critical review: 22
-- High review: 10
-- Medium review: 1
+- High review: 2
+- Medium review: 0
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
@@ -129,7 +129,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `964_sprint68_hostinger_stored_credential_apply_policy.sql` | complete | none | 0 | 0 | 1 | 2 | 0 | 0 |
 | `963_sprint68_hostinger_deploy_restart_tool_exports.sql` | complete | none | 0 | 5 | 2 | 0 | 0 | 0 |
 | `962_sprint68_smoke_branch_cleanup_gate.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
-| `962_sprint68_repository_advisory_comments_v5.sql` | needs docs | medium | 0 | 1 | 0 | 0 | 0 | 0 |
+| `962_sprint68_repository_advisory_comments_v5.sql` | complete | none | 0 | 1 | 0 | 0 | 0 | 0 |
 | `961_sprint68_f5_f6_positive_smoke_certification.sql` | complete | none | 0 | 2 | 1 | 0 | 0 | 0 |
 | `960_sprint68_remaining_resource_capability_completion_gates.sql` | complete | none | 0 | 29 | 1 | 0 | 0 | 0 |
 | `959_sprint68_github_file_patch_plan_diff_only_runtime.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -341,9 +341,9 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ### `962_sprint68_repository_advisory_comments_v5.sql`
 
-- Documentation complete: no
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 1
 - Plugins: none
 - Tools: `preview_created`
@@ -352,7 +352,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Routes: none
 - Route classifications: none
 - OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
+- Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
 ### `961_sprint68_f5_f6_positive_smoke_certification.sql`
 

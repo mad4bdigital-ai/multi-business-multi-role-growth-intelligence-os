@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.97,
-  "docs_complete_count": 580,
-  "docs_gap_count": 12,
-  "queue_items": 33,
-  "blocking_new_item_count": 15,
+  "docs_completion_percent": 99.49,
+  "docs_complete_count": 589,
+  "docs_gap_count": 3,
+  "queue_items": 24,
+  "blocking_new_item_count": 6,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -33,12 +33,6 @@
       "next_step": "confirm registry binding/readback evidence before promotion"
     },
     {
-      "migration_file": "962_sprint68_repository_advisory_comments_v5.sql",
-      "queue_class": "high_review",
-      "score": 589,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
       "migration_file": "20260720_github_update_pull_request_branch_503_response_contract.sql",
       "queue_class": "high_review",
       "score": 555,
@@ -49,36 +43,18 @@
       "queue_class": "high_review",
       "score": 549,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260717_tenant_gpt_oauth_authorization_codes.sql",
-      "queue_class": "high_review",
-      "score": 546,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260703_registry_data_management.sql",
-      "queue_class": "high_review",
-      "score": 539,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1042_sprint69_activation_session_context_indexes.sql",
-      "queue_class": "high_review",
-      "score": 535,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 667,
   "total_sql_route_like_count": 699,
-  "safety_marker_gap_migrations": 5,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 15,
-    "warning_new_item_count": 15
+    "blocking_new_item_count": 6,
+    "warning_new_item_count": 6
   },
   "safety": {
     "executes_provider_calls": false,
