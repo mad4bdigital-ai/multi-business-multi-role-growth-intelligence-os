@@ -155,10 +155,10 @@ async function certifyLifecycleContracts(pool) {
   const fixture = {
     skillId: randomUUID(),
     policyId: randomUUID(),
-    tenantId: `tenant-cert-${randomUUID()}`,
-    userId: `user-cert-${randomUUID()}`,
+    tenantId: randomUUID(),
+    userId: randomUUID(),
     brandKey: `brand-cert-${randomUUID()}`,
-    agentId: `agent-cert-${randomUUID()}`,
+    agentId: randomUUID(),
   };
 
   try {
