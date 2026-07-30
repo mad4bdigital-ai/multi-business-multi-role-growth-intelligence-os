@@ -81,6 +81,13 @@
         "head_sha": "57e649d56698794737d506204eeaeed0b2bd61a3",
         "merge_sha": "cef4f138645940362c43fe1486a1c7ce7c146ce2",
         "role": "execution_capsule_ec1_certification_and_closeout"
+      },
+      {
+        "number": 3801,
+        "status": "merged",
+        "head_sha": "b00670711645d3ff05c8b736111dc76de48b6e85",
+        "merge_sha": "c915a56c40449c78f39acc63215e855fe4e17d75",
+        "role": "execution_capsule_ec1_source_of_truth_reconciliation"
       }
     ]
   },
@@ -102,7 +109,8 @@
         3628,
         3718,
         3678,
-        3783
+        3783,
+        3801
       ],
       "full_spec_status": "pending"
     },
