@@ -1,5 +1,6 @@
 name: EC0 Core Split Helper
 
+# Synchronize trigger after PR creation.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
