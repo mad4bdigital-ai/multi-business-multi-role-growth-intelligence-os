@@ -27,7 +27,14 @@ assert.match(normalized, /growth_intelligence_platform/i);
 assert.match(normalized, /relationship_type_key\s*=\s*'contains'/i);
 assert.match(statements[1], /FROM containers brand_container/i);
 assert.match(statements[1], /brand_container\.container_id/i);
+assert.match(statements[1], /workspace_container\.canonical_subject_type\s*=\s*'workspace'/i);
+assert.match(statements[1], /workspace_container\.canonical_subject_ref\s*=\s*'b50db01b-617e-4b7a-8bda-6bf4876f754f'/i);
 assert.doesNotMatch(statements[1], /ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f/i);
+
+const workspaceSubjectTypeCount = (normalized.match(/canonical_subject_type\s*=\s*'workspace'/gi) ?? []).length;
+assert.equal(workspaceSubjectTypeCount, 2, 'both container creation and relationship creation must guard canonical workspace identity');
+const workspaceSubjectRefCount = (normalized.match(/canonical_subject_ref\s*=\s*'b50db01b-617e-4b7a-8bda-6bf4876f754f'/gi) ?? []).length;
+assert.equal(workspaceSubjectRefCount, 2, 'both statements must pin the canonical workspace subject reference');
 
 const notExistsCount = (normalized.match(/NOT EXISTS\s*\(/gi) ?? []).length;
 assert.equal(notExistsCount, 2, 'container and relationship inserts must both be idempotent');
