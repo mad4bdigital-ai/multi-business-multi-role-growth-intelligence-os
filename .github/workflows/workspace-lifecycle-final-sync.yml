@@ -2,7 +2,7 @@ name: Workspace Lifecycle Final Sync
 
 on:
   pull_request:
-    types: [reopened]
+    types: [reopened, ready_for_review]
 
 permissions:
   contents: write
