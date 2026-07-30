@@ -38,6 +38,7 @@ function deterministicClock(values) {
   trace.increment("plan_steps", 6);
   trace.increment("ready_set_width", 3);
   trace.increment("critical_path_steps", 4);
+  trace.observeCounter("internal_http_hops");
 
   const snapshot = trace.finalize({
     outcome: "success",
@@ -54,18 +55,26 @@ function deterministicClock(values) {
   assert.equal(snapshot.stage_durations_ms.provider_dispatch, 10);
   assert.equal(snapshot.total_stage_ms, 15);
   assert.equal(snapshot.total_ms, 25);
-  assert.equal(snapshot.instrumentation_overhead_ms, 10);
+  assert.equal(snapshot.unattributed_ms, 10);
+  assert.equal(snapshot.overlap_ms, 0);
   assert.equal(snapshot.counters.sql_queries, 4);
   assert.equal(snapshot.counters.provider_calls, 1);
+  assert.equal(snapshot.counters.internal_http_hops, 0);
   assert.equal(snapshot.counters.plan_steps, 6);
   assert.equal(snapshot.counters.ready_set_width, 3);
   assert.equal(snapshot.counters.critical_path_steps, 4);
   assert.equal(snapshot.counters.response_bytes, 2048);
   assert.equal(snapshot.provider_call_made, true);
+  assert.deepEqual(snapshot.coverage.stages.observed, ["context_resolution", "provider_dispatch"]);
+  assert(snapshot.coverage.stages.unobserved.includes("readback"));
+  assert(snapshot.coverage.counters.observed.includes("internal_http_hops"));
+  assert(snapshot.coverage.counters.observed.includes("response_bytes"));
+  assert(snapshot.coverage.counters.unobserved.includes("model_round_trips"));
   assert.equal(snapshot.secrets_included, false);
   assert(Object.isFrozen(snapshot));
   assert(Object.isFrozen(snapshot.stage_durations_ms));
   assert(Object.isFrozen(snapshot.counters));
+  assert(Object.isFrozen(snapshot.coverage));
   assert.deepEqual(Object.keys(snapshot.stage_durations_ms).sort(), [...GOVERNED_EXECUTION_BASELINE_STAGES].sort());
   assert.deepEqual(Object.keys(snapshot.counters).sort(), [...GOVERNED_EXECUTION_BASELINE_COUNTERS].sort());
   assert.deepEqual(validateGovernedExecutionBaselineSnapshot(snapshot), {
@@ -74,6 +83,27 @@ function deterministicClock(values) {
     secrets_included: false,
   });
   assert.equal(trace.finalize({ outcome: "failure" }), snapshot, "finalization must be idempotent");
+}
+
+{
+  const trace = createGovernedExecutionBaselineTrace({
+    trace_id: "trace-overlap",
+    entry_point: "sequential_plan",
+  }, {
+    clock: deterministicClock([0, 1, 2, 8, 10, 10]),
+  });
+  const finishContext = trace.startStage("context_resolution");
+  const finishPolicy = trace.startStage("policy_resolution");
+  finishContext();
+  finishPolicy();
+  const snapshot = trace.finalize({ outcome: "success" });
+  assert.equal(snapshot.stage_durations_ms.context_resolution, 7);
+  assert.equal(snapshot.stage_durations_ms.policy_resolution, 8);
+  assert.equal(snapshot.total_stage_ms, 15);
+  assert.equal(snapshot.total_ms, 10);
+  assert.equal(snapshot.unattributed_ms, 0);
+  assert.equal(snapshot.overlap_ms, 5);
+  assert.equal(validateGovernedExecutionBaselineSnapshot(snapshot).ok, true);
 }
 
 {
@@ -92,6 +122,7 @@ function deterministicClock(values) {
   assert.equal(snapshot.correlation_id, "valid-correlation");
   assert.equal(snapshot.entry_point, "unknown");
   assert.equal(snapshot.outcome, "unknown");
+  assert.equal(snapshot.provider_call_made, null, "unobserved counters must not be interpreted as zero");
   assert.equal(snapshot.secrets_included, false);
   assert.equal(JSON.stringify(snapshot).includes("secret-token"), false);
   assert.equal(JSON.stringify(snapshot).includes("eyJabc"), false);
@@ -111,6 +142,8 @@ function deterministicClock(values) {
   assert(snapshot.counters.instrumentation_errors >= 3);
   assert.equal(snapshot.counters.clock_regressions, 1);
   assert.equal(snapshot.stage_durations_ms.policy_resolution, 0);
+  assert(snapshot.coverage.counters.observed.includes("instrumentation_errors"));
+  assert(snapshot.coverage.counters.observed.includes("clock_regressions"));
   assert.equal(validateGovernedExecutionBaselineSnapshot(snapshot).ok, true);
 }
 
@@ -179,8 +212,11 @@ function deterministicClock(values) {
     outcome: "success",
     stage_durations_ms: {},
     counters: {},
+    coverage: {},
     total_ms: -1,
     total_stage_ms: 2,
+    unattributed_ms: 0,
+    overlap_ms: 0,
     secrets_included: true,
   };
   const validation = validateGovernedExecutionBaselineSnapshot(invalid);
@@ -188,6 +224,8 @@ function deterministicClock(values) {
   assert(validation.errors.includes("secrets_included_must_be_false"));
   assert(validation.errors.includes("stage_keys_invalid"));
   assert(validation.errors.includes("counter_keys_invalid"));
+  assert(validation.errors.includes("stage_coverage_invalid"));
+  assert(validation.errors.includes("counter_coverage_invalid"));
   assert(validation.errors.includes("total_ms_invalid"));
 }
 
