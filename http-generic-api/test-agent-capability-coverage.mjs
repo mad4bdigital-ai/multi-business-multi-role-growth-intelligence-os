@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   getEngineRuntimeCoverage,
   getLogicRuntimeCoverage,
@@ -87,6 +88,19 @@ await assert.rejects(
 await assert.rejects(
   () => getEngineRuntimeCoverage({ engine_key: "bad key with spaces" }, { pool: enginePool }),
   (error) => error.code === "agent_capability_coverage_engine_key_invalid" && error.status === 400
+);
+
+const migrationSql = readFileSync(
+  new URL(
+    "./migrations/1006_sprint69_agent_capability_evidence_coverage.sql",
+    import.meta.url
+  ),
+  "utf8"
+);
+
+assert.match(
+  migrationSql,
+  /ci\.capability_key\s+COLLATE\s+utf8mb4_unicode_ci\s*=\s*ld\.logic_key\s+COLLATE\s+utf8mb4_unicode_ci/
 );
 
 console.log("agent capability coverage tests passed");

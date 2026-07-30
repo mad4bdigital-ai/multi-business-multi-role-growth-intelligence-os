@@ -7,14 +7,14 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 592,
-    "docs_complete_count": 580,
-    "docs_gap_count": 12,
-    "docs_completion_percent": 97.97,
+    "docs_complete_count": 581,
+    "docs_gap_count": 11,
+    "docs_completion_percent": 98.14,
     "gap_severity_counts": {
       "high": 22,
       "medium": 10,
-      "low": 1,
-      "none": 559
+      "low": 0,
+      "none": 560
     },
     "surface_totals": {
       "plugins": 14,
@@ -31,21 +31,21 @@
       "routes": 287
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 11,
-      "deployment_parity_checklist.md": 11,
-      "docs/ai-docs-agent-governance.md": 12,
-      "docs/auto-docs-agent/README.md": 12,
-      "docs/change-documentation-governance.md": 11
+      "Updating Registry Patch Index.md": 10,
+      "deployment_parity_checklist.md": 10,
+      "docs/ai-docs-agent-governance.md": 11,
+      "docs/auto-docs-agent/README.md": 11,
+      "docs/change-documentation-governance.md": 10
     },
     "safety_marker_counts": {
-      "no_provider_call": 582,
-      "no_credential_payload_read": 581,
-      "no_raw_secrets": 581,
-      "no_external_send": 581,
-      "no_external_write": 582,
-      "secrets_included_false": 587
+      "no_provider_call": 581,
+      "no_credential_payload_read": 580,
+      "no_raw_secrets": 580,
+      "no_external_send": 580,
+      "no_external_write": 581,
+      "secrets_included_false": 586
     },
-    "safety_marker_gap_migrations": 5,
+    "safety_marker_gap_migrations": 6,
     "route_coverage": {
       "sql_route_count": 32,
       "total_sql_route_like_count": 699,
@@ -66,28 +66,28 @@
     }
   },
   "queue": {
-    "total_items": 33,
+    "total_items": 34,
     "class_counts": {
       "critical_review": 22,
       "high_review": 10,
-      "medium_review": 1,
-      "low_review": 0
+      "medium_review": 0,
+      "low_review": 2
     }
   },
   "triage": {
-    "total_items": 33,
+    "total_items": 34,
     "class_counts": {
       "new_surface_immediate_review": 14,
       "legacy_baseline_backlog": 18,
-      "safety_marker_review": 1
+      "safety_marker_review": 2
     },
     "gate_candidate_count": 14
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 15,
-    "blocking_new_item_count": 15
+    "new_item_count": 16,
+    "blocking_new_item_count": 16
   },
   "top_immediate_items": [
     {
