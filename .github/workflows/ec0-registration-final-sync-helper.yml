@@ -33,9 +33,8 @@ jobs:
           git config user.name 'mad4b-governed-bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout origin/main -- http-generic-api/frontend-surface-dispatch.generated.json
-          if ! git diff --quiet -- http-generic-api/frontend-surface-dispatch.generated.json; then
-            git add http-generic-api/frontend-surface-dispatch.generated.json
-            git commit -m 'chore(spec-012): align generated artifact before final sync'
+          if ! git diff --cached --quiet -- http-generic-api/frontend-surface-dispatch.generated.json; then
+            git commit -m 'chore(spec-012): align generated artifact before final sync' -- http-generic-api/frontend-surface-dispatch.generated.json
           fi
           git merge --no-edit origin/main
 
