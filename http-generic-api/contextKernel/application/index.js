@@ -14,6 +14,7 @@ export {
 } from "./executionCapsuleService.js";
 export { createExecutionPlanService } from "./executionPlanService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
+export { createResourceGraphResolverService } from "./resourceGraphResolverService.js";
 export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
 
@@ -22,6 +23,7 @@ export {
   assertSubjectScopeRepository,
   assertDelegationContextRepository,
   assertAuthorizedScopeRepository,
+  assertBoundedResourceGraphRepository,
   assertCapabilityReadinessRepository,
   assertContextPinRepository,
   assertExactConnectionRepository,
