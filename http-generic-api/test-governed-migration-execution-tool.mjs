@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   governedMigrationApplyConfirmation,
   inspectGovernedMigrationExecution,
@@ -8,6 +9,11 @@ import {
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
 import { assessMigrationSqlPreflight, splitSqlStatements } from "./releaseReadiness.js";
+import {
+  READINESS_REPAIR_CHECKSUM as PINNED_READINESS_REPAIR_CHECKSUM,
+  assessReadinessRepairState,
+  assertReadinessRepairStatements,
+} from "./scripts/repository-authority-capability-readiness-repair-runner.mjs";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
@@ -18,6 +24,55 @@ const PARITY_MIGRATION = "1025_sprint69_growth_audit_evidence_admin_tenant_suppo
 const PARITY_SQL = readFileSync(`migrations/${PARITY_MIGRATION}`, "utf8");
 const TRIGGER_MIGRATION = "20260720_tenant_export_manifest_eligibility_hardening.sql";
 const TRIGGER_SQL = readFileSync(`migrations/${TRIGGER_MIGRATION}`, "utf8");
+const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
+const READINESS_REPAIR_SQL = readFileSync(`migrations/${READINESS_REPAIR_MIGRATION}`, "utf8");
+const READINESS_REPAIR_CHECKSUM = createHash("sha256").update(READINESS_REPAIR_SQL, "utf8").digest("hex");
+const READINESS_REPAIR_STATEMENT_COUNT = splitGovernedMigrationStatements(READINESS_REPAIR_SQL).length;
+
+assert.equal(READINESS_REPAIR_CHECKSUM, PINNED_READINESS_REPAIR_CHECKSUM);
+assert.equal(READINESS_REPAIR_STATEMENT_COUNT, 3);
+assert.equal(
+  assertReadinessRepairStatements(splitGovernedMigrationStatements(READINESS_REPAIR_SQL)),
+  true,
+);
+assert.throws(
+  () => assertReadinessRepairStatements(["INSERT INTO a VALUES (1)", "ALTER TABLE a ADD b INT", "UPDATE a SET b=1"]),
+  (error) => error.code === "readiness_repair_non_transactional_statement_blocked",
+);
+
+function readinessState(overrides = {}) {
+  return {
+    system: { system_id: "system-1", status: "active", service_mode: "managed", managed_capable: 1 },
+    authority: {
+      system_id: "old-system", installation_id: "installation-1",
+      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+    },
+    capability: { policy_key: "old-policy", lifecycle_status: "active" },
+    policy: { policy_key: "target-policy", status: "active", runtime_surface: "system_layer" },
+    authorization: { authorization_status: "authorized", allow_apply: 1 },
+    collations: [{ collation_name: "utf8mb4_unicode_ci" }, { collation_name: "utf8mb4_uca1400_ai_ci" }],
+    ledger: null,
+    ...overrides,
+  };
+}
+
+assert.equal(assessReadinessRepairState(readinessState()).recommended_action, "apply");
+assert.equal(
+  assessReadinessRepairState(readinessState({
+    authority: {
+      system_id: "system-1", installation_id: null,
+      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+    },
+    capability: { policy_key: "target-policy", lifecycle_status: "active" },
+  })).recommended_action,
+  "record_only",
+);
+assert.equal(
+  assessReadinessRepairState(readinessState({
+    authorization: { authorization_status: "authorized", allow_apply: 0 },
+  })).status,
+  "blocked",
+);
 
 {
   const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
@@ -68,6 +123,26 @@ function baseInput(mode = "dry_run") {
   };
 }
 
+function readinessRepairInput(mode = "dry_run") {
+  return {
+    migration: READINESS_REPAIR_MIGRATION,
+    mode,
+    expected_checksum_sha256: READINESS_REPAIR_CHECKSUM,
+    expected_statement_count: READINESS_REPAIR_STATEMENT_COUNT,
+    capability_envelope_id: mode === "apply" ? ENVELOPE_ID : undefined,
+    confirm: mode === "apply" ? governedMigrationApplyConfirmation(READINESS_REPAIR_MIGRATION) : undefined,
+  };
+}
+
+function authorizedEnvelope(overrides = {}) {
+  return {
+    envelope_id: ENVELOPE_ID,
+    apply_allowed: true,
+    readback_required: true,
+    ...overrides,
+  };
+}
+
 function fakeResult(mode) {
   const base = {
     ok: true,
@@ -88,10 +163,42 @@ function fakeResult(mode) {
   };
 }
 
+function fakeReadinessRepairResult(mode) {
+  const base = {
+    ok: true,
+    mode,
+    migration: READINESS_REPAIR_MIGRATION,
+    migration_checksum_sha256: READINESS_REPAIR_CHECKSUM,
+    statement_count: READINESS_REPAIR_STATEMENT_COUNT,
+    requirements: { schema_objects: ["connected_systems", "repository_authority_bindings"] },
+    after_schema_objects: ["connected_systems", "repository_authority_bindings"],
+    secrets_included: false,
+  };
+  if (mode === "dry_run") return { ...base, applies_sql: false };
+  return {
+    ...base,
+    applies_sql: true,
+    statements_executed: READINESS_REPAIR_STATEMENT_COUNT,
+    atomic_transaction: true,
+    same_cycle_row_readback_verified: true,
+    capability_envelope: { envelope_id: ENVELOPE_ID, consumed: true },
+    ledger: { recorded: true, run_id: "run-readiness-repair", capability_envelope_id: ENVELOPE_ID },
+  };
+}
+
 {
   const inspected = await inspectGovernedMigrationExecution(baseInput());
   assert.equal(inspected.migration_checksum_sha256, CHECKSUM);
   assert.equal(inspected.statement_count, STATEMENT_COUNT);
+  assert.equal(inspected.atomic_runner_required, false);
+}
+
+{
+  const inspected = await inspectGovernedMigrationExecution(readinessRepairInput());
+  assert.equal(inspected.migration_checksum_sha256, READINESS_REPAIR_CHECKSUM);
+  assert.equal(inspected.statement_count, 3);
+  assert.equal(inspected.atomic_runner_required, true);
+  assert.equal(path.basename(inspected.runner_path), "repository-authority-capability-readiness-repair-runner.mjs");
 }
 
 {
@@ -114,10 +221,7 @@ function fakeResult(mode) {
     message: JSON.stringify(fakeResult("dry_run"), null, 2),
   };
   const result = await runGovernedMigrationExecution(baseInput(), {
-    execFile: async () => ({
-      stdout: JSON.stringify(structuredEnvelope),
-      stderr: "",
-    }),
+    execFile: async () => ({ stdout: JSON.stringify(structuredEnvelope), stderr: "" }),
   });
   assert.equal(result.ok, true);
   assert.equal(result.mode, "dry_run");
@@ -133,9 +237,39 @@ function fakeResult(mode) {
         executed = true;
         return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
       },
-      authorizeApply: async () => ({ envelope_id: ENVELOPE_ID }),
+      authorizeApply: async () => authorizedEnvelope(),
     }),
     (error) => error.code === "migration_apply_confirmation_required"
+  );
+  assert.equal(executed, false);
+}
+
+{
+  let executed = false;
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope({ apply_allowed: false }),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
+      },
+    }),
+    (error) => error.code === "governed_migration_apply_not_allowed" && error.status === 403,
+  );
+  assert.equal(executed, false);
+}
+
+{
+  let executed = false;
+  await assert.rejects(
+    () => runGovernedMigrationExecution(baseInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope({ readback_required: false }),
+      execFile: async () => {
+        executed = true;
+        return { stdout: JSON.stringify(fakeResult("apply")), stderr: "" };
+      },
+    }),
+    (error) => error.code === "governed_migration_readback_not_required" && error.status === 403,
   );
   assert.equal(executed, false);
 }
@@ -146,7 +280,7 @@ function fakeResult(mode) {
     authorizeApply: async (inspection) => {
       authorized = true;
       assert.equal(inspection.capabilityEnvelopeId, ENVELOPE_ID);
-      return { envelope_id: ENVELOPE_ID };
+      return authorizedEnvelope();
     },
     execFile: async (_command, args) => {
       assert.ok(args.includes("--apply"));
@@ -159,6 +293,52 @@ function fakeResult(mode) {
   assert.equal(result.ledger.recorded, true);
   assert.equal(result.ledger.capability_envelope_id, ENVELOPE_ID);
   assert.equal(result.capability_envelope_id, ENVELOPE_ID);
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(readinessRepairInput(), {
+      execFile: async () => ({
+        stdout: JSON.stringify({
+          ...fakeReadinessRepairResult("dry_run"),
+          preflight: { status: "already_satisfied", recommended_action: "record_only" },
+        }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_record_only_manual_readback_required" && error.status === 409,
+  );
+}
+
+{
+  let runnerPath = "";
+  const result = await runGovernedMigrationExecution(readinessRepairInput("apply"), {
+    authorizeApply: async () => authorizedEnvelope(),
+    execFile: async (_command, args) => {
+      runnerPath = args[0];
+      return { stdout: JSON.stringify(fakeReadinessRepairResult("apply")), stderr: "" };
+    },
+  });
+  assert.equal(path.basename(runnerPath), "repository-authority-capability-readiness-repair-runner.mjs");
+  assert.equal(result.atomic_transaction, true);
+  assert.equal(result.capability_envelope.consumed, true);
+  assert.equal(result.same_cycle_readback_verified, true);
+}
+
+{
+  await assert.rejects(
+    () => runGovernedMigrationExecution(readinessRepairInput("apply"), {
+      authorizeApply: async () => authorizedEnvelope(),
+      execFile: async () => ({
+        stdout: JSON.stringify({
+          ...fakeReadinessRepairResult("apply"),
+          atomic_transaction: false,
+        }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_atomic_readback_failed",
+  );
 }
 
 {
@@ -197,6 +377,7 @@ function fakeResult(mode) {
       assert.match(error.details.stderr_summary, /SECRET_DATABASE_PASSWORD=\[redacted\]/);
       assert.match(error.details.stdout_summary, /Bearer \[redacted\]/);
       assert.doesNotMatch(JSON.stringify(error.details), /do-not-return|abc\.def\.ghi/);
+      assert.equal(error.details.retry_without_readback_allowed, false);
       assert.equal(error.details.secrets_included, false);
       return true;
     }
