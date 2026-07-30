@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - gpt/011-ueacp-t016-endpoint-certification-final-20260730
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
