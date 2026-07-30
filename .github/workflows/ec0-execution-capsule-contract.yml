@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   contract:
@@ -14,6 +14,9 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-execution-capsule-contract-20260730
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -24,12 +27,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Check EC0 modules
+      - name: Apply exact test manifest registration
+        working-directory: http-generic-api
+        run: node scripts/apply-ec0-test-manifest-registration.mjs
+
+      - name: Check EC0 modules and index exports
         working-directory: http-generic-api
         run: |
           node --check contextKernel/domain/executionCapsule.js
           node --check contextKernel/application/executionCapsuleService.js
           node --check test-execution-capsule-contract.mjs
+          node --input-type=module -e "const d=await import('./contextKernel/domain/index.js'); const a=await import('./contextKernel/application/index.js'); if(typeof d.createExecutionCapsule!=='function'||typeof d.compareExecutionCapsuleDependencies!=='function'||typeof a.createExecutionCapsuleService!=='function'||!a.ExecutionCapsuleValidationStatus) process.exit(1);"
 
       - name: Run EC0 contract and Context Kernel regressions
         working-directory: http-generic-api
@@ -38,3 +46,24 @@ jobs:
           node test-context-kernel-domain.mjs
           node test-context-kernel-application-use-cases.mjs
           node test-context-kernel-cross-tenant-isolation.mjs
+
+      - name: Enforce bounded write set
+        run: |
+          mapfile -t changed < <(git diff --name-only | sort)
+          if [ "${#changed[@]}" -eq 0 ]; then
+            exit 0
+          fi
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = 'http-generic-api/scripts/test-manifest.mjs'
+
+      - name: Commit complete manifest registration
+        run: |
+          if git diff --quiet; then
+            echo 'EC0 test manifest already current.'
+            exit 0
+          fi
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add http-generic-api/scripts/test-manifest.mjs
+          git commit -m 'test(spec-012): register execution capsule contract'
+          git push origin HEAD:gpt/spec-012-execution-capsule-contract-20260730
