@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-30T10:40:00Z",
+  "last_updated_at": "2026-07-30T11:31:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -13,9 +13,19 @@
     "openapi_3_1": true
   },
   "delivery": {
-    "specification_recovery_branch": "gpt/011-ueacp-spec-recovery-20260730",
-    "specification_recovery_pr": 3498,
-    "recovery_source_pr": 2888,
+    "recovery_source": {
+      "number": 2888,
+      "status": "closed_unmerged",
+      "role": "stale_mixed_scope_source"
+    },
+    "specification_recovery": {
+      "number": 3498,
+      "status": "merged",
+      "branch": "gpt/011-ueacp-spec-recovery-20260730",
+      "head_sha": "d375a56bfc5df11517e53ea6ead595f3b14033f4",
+      "merge_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
+      "merged_at": "2026-07-30T11:08:09Z"
+    },
     "implementation_prs": [
       {
         "number": 3351,
@@ -31,12 +41,18 @@
         "merged_at": "2026-07-30T10:17:40Z"
       }
     ],
-    "closeout_pr": null
+    "recovery_closeout_pr": {
+      "number": 3595,
+      "branch": "gpt/011-ueacp-recovery-closeout-20260730",
+      "purpose": "record_recovery_chain_closure",
+      "github_state_is_authoritative": true
+    }
   },
   "evidence": {
     "specification": {
-      "status": "complete_recovered",
+      "status": "complete_recovered_merged",
       "scope": "spec_directory_only",
+      "file_count": 29,
       "runtime_effect": "none"
     },
     "implementation": {
@@ -68,13 +84,25 @@
         "Platform Remaining Scope Scorecard"
       ]
     },
+    "specification_ci": {
+      "status": "pass",
+      "pr": 3498,
+      "head_sha": "d375a56bfc5df11517e53ea6ead595f3b14033f4",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ],
+      "additional_checks": [
+        "Docs Agent",
+        "Platform Completion Cleanup Readback",
+        "Platform Remaining Scope Scorecard"
+      ]
+    },
     "historical_snapshots": {
       "status": "preserved_non_authoritative",
-      "note": "Old branch SHAs, PR state, CI results, and implementation claims in evidence documents are historical and must be revalidated on their clean replacement PRs. PR #3471 is separately recorded as current merged evidence."
-    },
-    "ci": {
-      "status": "pending_after_merged_slice_reconciliation",
-      "scope": "specification_recovery_pr_3498"
+      "note": "Old branch SHAs, PR state, CI results, and implementation claims in historical evidence documents remain snapshots. Current recovery evidence is limited to the merged PRs explicitly recorded here."
     },
     "security_review": {
       "status": "bounded_t010_t011_review_passed_remaining_feature_review_open",
@@ -82,18 +110,23 @@
       "historical_evidence_preserved": true
     },
     "migrations": {
-      "status": "not_executed_by_spec_recovery",
+      "status": "not_executed_by_recovery_chain",
       "execution_authorized": false,
       "schema_readback_completed": false
     },
     "production_verification": {
-      "status": "not_started"
+      "status": "not_started_for_remaining_feature_delivery",
+      "not_required_for_specification_recovery": true
     },
     "post_merge_audit": {
-      "status": "not_started"
+      "status": "complete_for_recovery_chain",
+      "main_readback_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
+      "spec_directory_present": true,
+      "governance_files_present": true,
+      "runtime_effect_detected": false
     },
     "release_readiness": {
-      "status": "pending_spec_recovery_pr_final_ci_and_merge"
+      "status": "recovery_chain_closed_remaining_feature_delivery_in_progress"
     },
     "safety_readback": {
       "spec_recovery_runtime_behavior_changed": false,

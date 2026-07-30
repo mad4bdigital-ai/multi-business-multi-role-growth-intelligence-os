@@ -1,0 +1,144 @@
+name: Surface Contract Finalize
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/surface-contract-finalize.yml
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-contract-finalize-3478
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: >-
+      github.event_name == 'push' ||
+      (
+        github.event.issue.number == 3478 &&
+        github.event.issue.pull_request != null &&
+        github.event.comment.body == '/surface-contract-finalize-3478' &&
+        github.event.comment.user.login == 'mad4bdigital-ai'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout governed Surface branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/surface-contract-classification-hardening-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply reviewed bootstrap payload without workflow mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/surface-contract-classification-bootstrap.yml').read_text(encoding='utf-8')
+          start_marker = "          python3 <<'PY'\n"
+          end_marker = "\n          PY"
+          start = workflow.find(start_marker)
+          if start < 0:
+              raise SystemExit('bootstrap_python_start_missing')
+          start += len(start_marker)
+          end = workflow.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('bootstrap_python_end_missing')
+          payload = textwrap.dedent(workflow[start:end])
+          old = "elif '(?:[-*]\\\\s*)?${token}' not in script:"
+          new = "elif '(?:[-*]\\\\\\\\s*)?${token}' not in script:"
+          if old in payload:
+              payload = payload.replace(old, new, 1)
+          if new not in payload:
+              raise SystemExit('bootstrap_escape_patch_missing')
+          exec(compile(payload, '<surface-contract-bootstrap-payload>', 'exec'), {})
+          PY
+
+      - name: Verify and regenerate bounded Surface evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(node -e "const q=require('../docs/surface-contract-gap-queue.json');process.stdout.write(String(q.total_items))")"
+          node --check scripts/surface-contract-sql-registry-extractor.mjs
+          node --check scripts/surface-contract-discovery.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-surface-contract-discovery.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-contract-discovery.mjs --check
+          after="$(node -e "const q=require('../docs/surface-contract-gap-queue.json');process.stdout.write(String(q.total_items))")"
+          test "$after" -lt "$before" || { echo "::error::Surface queue did not decrease: before=$before after=$after"; exit 1; }
+          node - <<'NODE'
+          const queue = require('../docs/surface-contract-gap-queue.json');
+          const names = new Set(queue.top_items.map((item) => item.migration_file));
+          if (names.has('20260714_validate_hostinger_connection_and_complete_continuation_task.sql')) throw new Error('Hostinger evidence remains queued');
+          console.log({ surface_queue_after: queue.total_items, critical_after: queue.class_counts.critical_review });
+          NODE
+
+      - name: Commit bounded content-only repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f docs/surface-contract-classification-trigger-20260730.md
+          git add \
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/scripts/surface-contract-discovery.mjs \
+            http-generic-api/surface-contract-classification-evidence.json \
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/test-surface-contract-discovery.mjs \
+            docs/surface-contract-discovery-status.md \
+            docs/surface-contract-discovery-status.json \
+            docs/surface-contract-gap-queue.md \
+            docs/surface-contract-gap-queue.json \
+            docs/surface-contract-classification-trigger-20260730.md
+          python3 <<'PY'
+          import subprocess
+          allowed = {
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/scripts/surface-contract-discovery.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/test-surface-contract-discovery.mjs',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-gap-queue.json',
+              'docs/surface-contract-classification-trigger-20260730.md',
+          }
+          required = {
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/scripts/surface-contract-discovery.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/test-surface-contract-discovery.mjs',
+              'docs/surface-contract-classification-trigger-20260730.md',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if not required.issubset(changed) or not changed.issubset(allowed):
+              raise SystemExit(f'bounded_write_set_mismatch:required_missing={sorted(required-changed)}:extra={sorted(changed-allowed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: finalize Surface Contract classification evidence'
+          git push origin HEAD:gpt/surface-contract-classification-hardening-20260730

@@ -38,8 +38,10 @@
 - [x] Verify same-cycle push readback and secret/path containment.
 - [x] Attach the transport as a non-enumerable operation-orchestrator dependency.
 - [x] Register focused real-Git and orchestrator regression tests.
-- [ ] Pass all required repository CI gates for T502.
-- [ ] Merge PR #3499 and verify default-branch readback.
+- [x] Pass all required repository CI gates for T502 in run `30535282634`.
+- [x] Merge PR #3499 at `7553051d1d7f0912aace41090aec552c32d7de22` and verify default-branch readback.
+- [x] Harden branch/workspace input validation through PR #3553 at `bdf3c72143d8942b04da6ef3d83919d0502e5985`.
+- [x] Pass hardening CI in run `30536413250` and verify the final source/test blobs on `main`.
 
 ## Remaining feature scope
 
