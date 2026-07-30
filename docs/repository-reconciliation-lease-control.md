@@ -59,9 +59,11 @@ The bounded refresh is accepted only when all of the following remain true:
 
 ## Final reconciliation checkpoint
 
-The source set was reconciled without force over the then-current `main`. Workflow-owned generated artifacts must be rebuilt after semantic integration with the expanded Canary governance rules. The temporary one-shot workflow is limited to that semantic merge, runs the focused Governance and Lease regressions, and removes itself after committing the integrated source set.
+The current Canary, tenant-resource, and bootstrap governance from `main` is preserved unchanged in `scripts/frontend-operation-governance-base.mjs`. The canonical generator extends that source-pinned base with the repository reconciliation Lease rule, while the base regression suite and Lease extension regressions remain independently executable.
 
-This source-neutral checkpoint exists to trigger and record that bounded semantic reconciliation before review finalization and merge. Migration apply, deployment, and reuse of prior capability envelopes or lease identifiers remain separately governed.
+The bounded artifact refresh completed on `4ab7b1d2a90d143164789156750f7d7154e8c565` with `candidate_count: 9`, `generated_rule_count: 9`, and `rejected_candidate_count: 0`. All source-authority entries are present, the Lease rule is fail-closed, and both temporary reconciliation workflows were removed before this checkpoint.
+
+This source-neutral checkpoint exists to run the complete pull-request checks on the final generated artifact head before merge. Migration apply, deployment, and reuse of prior capability envelopes or lease identifiers remain separately governed.
 
 ## Actions
 
