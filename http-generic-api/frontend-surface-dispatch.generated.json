@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "2debf7cdcb4d87c84873b26b85d538f6c1ea183ac3894c531b74a65edbcb3a13",
+    "source_digest": "8e4d09b8eaf755ddc492d9a10c2b1a1cb4611f7075ba3e343a465a08e303ff85",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -966,7 +966,7 @@
       },
       {
         "file": "test-local-connector-uninstall-rotates-secrets.mjs",
-        "sha256": "f64d5d5144be26ece84ac4cb5cea4bf897b5636b09aba60dc4034584fe4b6735",
+        "sha256": "a7f7f5c68b2af5f293beeb5be07370c1cdf3dc807948bbbd38718b9a4aee7af0",
         "present": true
       },
       {
