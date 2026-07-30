@@ -11,34 +11,64 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-migration-1006-readback-discovery-20260730
+  group: production-migration-1006-apply-final-20260730
   cancel-in-progress: false
 
 jobs:
-  discover-readback:
-    name: Discover Migration 1006 readback surfaces
+  apply-and-verify:
+    name: Apply and verify governed Migration 1006
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       EXPECTED_PRODUCTION_SHA: abdeed2c5a588c19a2d1f2e35046e7b120d97016
+      MIGRATION_NAME: 1006_sprint69_agent_capability_evidence_coverage.sql
+      MIGRATION_PATH: http-generic-api/migrations/1006_sprint69_agent_capability_evidence_coverage.sql
+      MIGRATION_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
+      MIGRATION_STATEMENTS: "5"
+      APPLY_ENVELOPE_ID: e5232ebb-c725-4f74-91fe-ed9c61b6b6cf
+      APPLY_CONFIRMATION: APPLY_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE
     steps:
-      - name: Checkout Production-pinned discovery branch
+      - name: Checkout Production-pinned apply branch
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Verify Production pin and discover source surfaces
+      - name: Verify Production, runtime, checksum, confirmation, and readback routes
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin Production
           test "$(git rev-parse origin/Production)" = "$EXPECTED_PRODUCTION_SHA"
-          echo SOURCE_DISCOVERY_BEGIN
-          git grep -n -C 12 -E 'getLogicRuntimeCoverage|getEngineRuntimeCoverage|capabilityCoverageRuntime|v_logic_runtime_coverage|v_engine_runtime_coverage' -- http-generic-api || true
-          echo SOURCE_DISCOVERY_END
+          test "$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')" = "$MIGRATION_SHA256"
+          test "$(grep -Ec '^[[:space:]]*CREATE[[:space:]]+(TABLE|OR[[:space:]]+REPLACE[[:space:]]+VIEW)' "$MIGRATION_PATH")" -eq "$MIGRATION_STATEMENTS"
+          test "$APPLY_CONFIRMATION" = "APPLY_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE"
+          grep -F 'router.get("/platform/agent-governance/logic-coverage"' http-generic-api/routes/agentGovernanceRoutes.js
+          grep -F 'router.get("/platform/agent-governance/engine-coverage"' http-generic-api/routes/agentGovernanceRoutes.js
+          node <<'NODE'
+          const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
+          const expected = process.env.EXPECTED_PRODUCTION_SHA.toLowerCase();
+          const strings = [];
+          for (const path of ["/health", "/version", "/deployment-info"]) {
+            const response = await fetch(`${base}${path}`, {
+              headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1006-apply/1.1" },
+              signal: AbortSignal.timeout(15000),
+            });
+            const body = await response.json();
+            console.log(`RUNTIME_PROBE ${path} status=${response.status} ok=${response.ok}`);
+            if (!response.ok || body?.ok !== true) process.exit(1);
+            const visit = (value) => {
+              if (typeof value === "string") strings.push(value.toLowerCase());
+              else if (Array.isArray(value)) value.forEach(visit);
+              else if (value && typeof value === "object") Object.values(value).forEach(visit);
+            };
+            visit(body);
+          }
+          if (!strings.some((value) => value.includes(expected))) process.exit(1);
+          console.log(`PRODUCTION_RUNTIME_PARITY=PASS expected_sha=${expected}`);
+          NODE
 
-      - name: Sweep governed admin catalog read-only
+      - name: Governed apply and same-cycle verification
         shell: bash
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -48,37 +78,98 @@ jobs:
           const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
           const apiKey = process.env.BACKEND_API_KEY || "";
           if (!apiKey) throw new Error("BACKEND_API_KEY is unavailable");
-          async function call(name, toolArgs) {
-            const response = await fetch(`${base}/gpt/tools/call`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json", "User-Agent": "mad4b-migration-1006-discovery/1.0" },
-              body: JSON.stringify({ name, tool_args: toolArgs }),
-              signal: AbortSignal.timeout(180000),
+
+          const sensitive = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          const sanitize = (value) => {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== "object") return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sensitive.test(key) ? "[redacted]" : sanitize(child)]));
+          };
+          const print = (label, value) => console.log(`${label}=${JSON.stringify(sanitize(value), null, 2)}`);
+          const unwrapTool = (response) => response?.body?.result || response?.body?.data || response?.body;
+
+          async function request(path, options = {}, timeout = 360000) {
+            const response = await fetch(`${base}${path}`, {
+              ...options,
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                Accept: "application/json",
+                "User-Agent": "mad4b-migration-1006-apply/1.1",
+                ...(options.headers || {}),
+              },
+              signal: AbortSignal.timeout(timeout),
             });
-            const body = await response.json();
-            return { response, body, result: body?.result || body?.data || body };
+            const text = await response.text();
+            let payload;
+            try { payload = JSON.parse(text); } catch { payload = { raw_preview: text.slice(0, 1000) }; }
+            return { status: response.status, ok: response.ok, body: payload };
           }
-          const matches = new Map();
-          let cursor = 0;
-          for (let pageIndex = 0; pageIndex < 20; pageIndex += 1) {
-            const { response, result } = await call("admin_tool_catalog_search", { cursor, limit: 200, response_options: { max_chars: 120000 } });
-            if (!response.ok || result?.ok === false) process.exit(1);
-            for (const item of result?.items || []) {
-              const text = JSON.stringify(item);
-              if (/coverage|capability_invocations|logic runtime|engine runtime/i.test(text)) {
-                const name = String(item?.name || item?.tool_key || item?.key || `item-${matches.size}`);
-                matches.set(name, item);
-              }
-            }
-            const page = result?.page || {};
-            if (!page?.has_more) break;
-            const next = Number(page?.next_cursor);
-            if (!Number.isFinite(next) || next <= cursor) break;
-            cursor = next;
+          const toolCall = (name, toolArgs) => request("/gpt/tools/call", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, tool_args: toolArgs }),
+          });
+
+          const migrationArgs = {
+            migration: process.env.MIGRATION_NAME,
+            expected_checksum_sha256: process.env.MIGRATION_SHA256,
+            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
+            capability_envelope_id: process.env.APPLY_ENVELOPE_ID,
+          };
+
+          const dryRunResponse = await toolCall("governed_migration_execute", { ...migrationArgs, mode: "dry_run" });
+          const dryRun = unwrapTool(dryRunResponse);
+          print("PRE_APPLY_DRY_RUN", dryRunResponse);
+          if (!dryRunResponse.ok || dryRun?.ok !== true || dryRun?.mode !== "dry_run" || dryRun?.applies_sql !== false) process.exit(1);
+          if (dryRun?.migration_checksum_sha256 !== process.env.MIGRATION_SHA256 || Number(dryRun?.statement_count) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
+
+          const applyResponse = await toolCall("governed_migration_execute", {
+            ...migrationArgs,
+            mode: "apply",
+            confirm: process.env.APPLY_CONFIRMATION,
+          });
+          const apply = unwrapTool(applyResponse);
+          print("MIGRATION_APPLY_RESULT", applyResponse);
+          if (!applyResponse.ok || apply?.ok !== true || apply?.mode !== "apply" || apply?.applies_sql !== true) process.exit(1);
+          if (Number(apply?.statements_executed) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
+          if (apply?.ledger?.recorded !== true || !apply?.ledger?.run_id) process.exit(1);
+
+          const requiredObjects = [
+            "capability_retrieval_events",
+            "capability_retrieval_candidates",
+            "capability_invocations",
+            "v_logic_runtime_coverage",
+            "v_engine_runtime_coverage",
+          ];
+          const afterObjects = new Set(apply?.after_schema_objects || []);
+          const missingObjects = requiredObjects.filter((name) => !afterObjects.has(name));
+          if (missingObjects.length) {
+            console.error(`Missing post-apply schema objects: ${missingObjects.join(", ")}`);
+            process.exit(1);
           }
-          console.log(`CATALOG_MATCH_COUNT=${matches.size}`);
-          for (const [name, item] of matches) {
-            console.log(`CATALOG_MATCH ${name} ${JSON.stringify(item)}`);
-          }
-          console.log("DISCOVERY_SQL_EXECUTED=false");
+
+          const schemaReadbackResponse = await toolCall("governed_migration_schema_readback", {
+            migration: process.env.MIGRATION_NAME,
+            expected_checksum_sha256: process.env.MIGRATION_SHA256,
+            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
+          });
+          const schemaReadback = unwrapTool(schemaReadbackResponse);
+          print("MIGRATION_SCHEMA_LEDGER_READBACK", schemaReadbackResponse);
+          if (!schemaReadbackResponse.ok || schemaReadback?.ok !== true || schemaReadback?.ledger?.found !== true) process.exit(1);
+
+          const logicReadResponse = await request("/platform/agent-governance/logic-coverage?limit=1", { method: "GET" }, 180000);
+          print("LOGIC_RUNTIME_COVERAGE_VIEW_QUERY", logicReadResponse);
+          if (!logicReadResponse.ok || logicReadResponse.body?.ok !== true || !Array.isArray(logicReadResponse.body?.coverage?.rows)) process.exit(1);
+
+          const engineReadResponse = await request("/platform/agent-governance/engine-coverage?limit=1", { method: "GET" }, 180000);
+          print("ENGINE_RUNTIME_COVERAGE_VIEW_QUERY", engineReadResponse);
+          if (!engineReadResponse.ok || engineReadResponse.body?.ok !== true || !Array.isArray(engineReadResponse.body?.coverage?.rows)) process.exit(1);
+
+          console.log(`MIGRATION_1006_APPLY=PASS run_id=${apply.ledger.run_id}`);
+          console.log(`MIGRATION_1006_CHECKSUM=${process.env.MIGRATION_SHA256}`);
+          console.log("MIGRATION_1006_SCHEMA_OBJECTS=5/5");
+          console.log("MIGRATION_1006_LEDGER_READBACK=PASS");
+          console.log("MIGRATION_1006_LOGIC_VIEW_QUERY=PASS");
+          console.log("MIGRATION_1006_ENGINE_VIEW_QUERY=PASS");
+          console.log("MIGRATION_1007_UNBLOCKED=true");
           NODE
