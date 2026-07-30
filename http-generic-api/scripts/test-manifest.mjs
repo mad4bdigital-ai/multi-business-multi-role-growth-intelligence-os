@@ -540,6 +540,8 @@ export const testCommands = [
   "node test-agent-governance-admin-tool-registry.mjs",
   "node test-agent-prompt-enrichment.mjs",
   "node test-agent-tool-authorization-gate.mjs",
+  "node test-brand-skill-activation.mjs",
+  "node test-user-brand-skill-entitlement.mjs",
   "node test-governed-agent-execution-context.mjs",
   "node test-resolver-context.mjs",
   "node test-brand-reference-resolver.mjs",
