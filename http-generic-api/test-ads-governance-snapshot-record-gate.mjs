@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 const service = readFileSync("adsProviderGovernanceSnapshotRecord.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/264_sprint68_ads_governance_snapshot_record_gate.sql", "utf8");
-const openapi = readFileSync("openapi.yaml", "utf8");
+const openapiSource = readFileSync("openapi.yaml", "utf8");
+const openapi = YAML.parse(openapiSource);
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
@@ -42,9 +44,14 @@ assert(service.includes("ON DUPLICATE KEY UPDATE"), "recording must be idempoten
 assert(service.includes("will_execute_provider_call: false"), "service must not execute provider calls");
 assert(service.includes("will_read_credential_payload: false"), "service must not read credential payloads");
 assert(service.includes("will_change_spend: false"), "service must not change spend");
-assert(openapi.includes("operationId: adsProviderGovernanceSnapshotRecord"), "OpenAPI must document record route");
-assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark gated persistence as consequential");
-assert(openapi.includes("default: false"), "OpenAPI must document apply default false");
+
+const recordOperation = openapi?.paths?.["/platform/orchestration/ads-provider/snapshot-record"]?.post;
+assert.equal(recordOperation?.operationId, "adsProviderGovernanceSnapshotRecord", "OpenAPI must document record route");
+assert.equal(recordOperation?.["x-openai-isConsequential"], true, "OpenAPI must mark gated persistence as consequential");
+const applySchema = recordOperation?.requestBody?.content?.["application/json"]?.schema?.properties?.apply;
+assert.equal(applySchema?.type, "boolean", "OpenAPI apply control must remain boolean");
+assert.equal(applySchema?.default, false, "OpenAPI must document apply default false");
+
 assert(releaseReadiness.includes("264_sprint68_ads_governance_snapshot_record_gate.sql"), "release readiness must track migration 264");
 assert(releaseReadiness.includes('policy_key: "ads_provider_governance_snapshot_record_gate_policy_v1"'), "release readiness must require record gate policy");
 assert(runner.includes("264_sprint68_ads_governance_snapshot_record_gate.sql"), "governed migration runner must allowlist migration 264");

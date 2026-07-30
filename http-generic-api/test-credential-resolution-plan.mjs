@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import YAML from 'yaml';
 
 const routeFile = readFileSync('routes/credentialRoutes.js', 'utf8');
 const migration = readFileSync('migrations/160_sprint65_credential_resolution_plan_tool.sql', 'utf8');
-const openapi = readFileSync('openapi.yaml', 'utf8');
+const openapi = YAML.parse(readFileSync('openapi.yaml', 'utf8'));
 
 assert(routeFile.includes('/credentials/effective/plan'), 'credential resolution plan route must exist');
 assert(routeFile.includes('buildCredentialResolutionPlan'), 'credential resolution plan helper must exist');
@@ -29,11 +30,41 @@ assert(migration.includes('read_only'), 'credential plan tool must be read_only'
 assert(migration.includes('no_secrets'), 'credential plan tool must be tagged no_secrets');
 assert(migration.includes('no_token_returned'), 'credential plan tool must be tagged no_token_returned');
 
-assert(openapi.includes('/credentials/effective/plan:'), 'credential plan path must be documented');
-assert(openapi.includes('CredentialEffectivePlanRequest'), 'credential plan request schema must be documented');
-assert(openapi.includes('CredentialEffectivePlanResponse'), 'credential plan response schema must be documented');
-assert(openapi.includes('CredentialResolutionCandidate'), 'credential resolution candidate schema must be documented');
-assert(openapi.includes('operationId: credentialEffectivePlan'), 'credential plan operationId must be documented');
-assert(openapi.includes('secret_values_returned: { type: boolean, enum: [false] }'), 'OpenAPI must document no secret values returned');
+const operation = openapi?.paths?.['/credentials/effective/plan']?.post;
+const schemas = openapi?.components?.schemas || {};
+const requestSchema = schemas.CredentialEffectivePlanRequest;
+const responseSchema = schemas.CredentialEffectivePlanResponse;
+const candidateSchema = schemas.CredentialResolutionCandidate;
+
+assert(operation, 'credential plan path must be documented');
+assert.equal(operation.operationId, 'credentialEffectivePlan', 'credential plan operationId must be documented');
+assert.equal(
+  operation.requestBody?.content?.['application/json']?.schema?.$ref,
+  '#/components/schemas/CredentialEffectivePlanRequest',
+  'credential plan request schema must be documented',
+);
+assert.equal(
+  operation.responses?.['200']?.content?.['application/json']?.schema?.$ref,
+  '#/components/schemas/CredentialEffectivePlanResponse',
+  'credential plan response schema must be documented',
+);
+assert(requestSchema, 'CredentialEffectivePlanRequest schema must exist');
+assert(responseSchema, 'CredentialEffectivePlanResponse schema must exist');
+assert(candidateSchema, 'CredentialResolutionCandidate schema must exist');
+assert.deepEqual(
+  responseSchema.properties?.policy?.properties?.secret_values_returned?.enum,
+  [false],
+  'OpenAPI must document no secret values returned',
+);
+assert.deepEqual(
+  responseSchema.properties?.policy?.properties?.credential_values_returned?.enum,
+  [false],
+  'OpenAPI must document no credential values returned',
+);
+assert.deepEqual(
+  responseSchema.properties?.secrets_included?.enum,
+  [false],
+  'OpenAPI must document secrets_included=false',
+);
 
 console.log('credential resolution plan tests passed');
