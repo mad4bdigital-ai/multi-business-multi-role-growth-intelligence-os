@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import YAML from "yaml";
 
 const routes = fs.readFileSync(new URL("./routes/systemLayerRoutes.js", import.meta.url), "utf8");
-const openapi = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
+const openapiSource = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
+const openapi = YAML.parse(openapiSource);
 
 const platformBindingBlock = routes.match(
   /async function callPlatformEndpointToolIfAvailable[\s\S]*?async function callTenantEndpointRegistryToolIfAvailable/u,
@@ -20,14 +22,27 @@ assert.match(connectorGetBlock, /WHERE cs\.system_id = \?[\s\S]*?LIMIT 2`/u);
 assert.match(connectorGetBlock, /connector_system_ambiguous/u);
 assert.doesNotMatch(connectorGetBlock, /const row = rows\[0\]/u);
 
-assert.doesNotMatch(
-  openapi,
-  /system_id:\s*\{\s*type:\s*string,\s*default:\s*"98d6a18b-5578-11f1-9baf-8e76a7e1749f"\s*\}/u,
+const systemIdSchemas = [];
+function collectSystemIdSchemas(value) {
+  if (!value || typeof value !== "object") return;
+  if (!Array.isArray(value) && Object.hasOwn(value, "system_id")) {
+    systemIdSchemas.push(value.system_id);
+  }
+  for (const nested of Object.values(value)) collectSystemIdSchemas(nested);
+}
+collectSystemIdSchemas(openapi);
+
+assert(systemIdSchemas.length > 0, "runtime OpenAPI must expose at least one system_id schema");
+assert(
+  systemIdSchemas.every((schema) => schema?.default !== "98d6a18b-5578-11f1-9baf-8e76a7e1749f"),
   "runtime OpenAPI must not embed a fixed platform system identifier",
 );
-assert.match(
-  openapi,
-  /system_id:\s*\{\s*type:\s*string,\s*description:\s*Governed connected-system registry identifier/u,
+assert(
+  systemIdSchemas.some((schema) =>
+    schema?.type === "string"
+    && schema?.description === "Governed connected-system registry identifier"
+  ),
+  "runtime OpenAPI must preserve the governed connected-system identifier contract",
 );
 
 console.log("Spec 013 runtime ratchet contract tests passed");

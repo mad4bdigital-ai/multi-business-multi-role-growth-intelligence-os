@@ -6,14 +6,20 @@ const ROOT = process.cwd();
 const ROUTES_DIR = path.join(ROOT, "routes");
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
 const ALLOWLIST_PATH = path.join(ROOT, "openapi-route-coverage.allowlist.json");
+const CONTRACT_REGISTRY_PATH = path.join(ROOT, "openapi-route-contracts.yaml");
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
-const ROUTE_FILE_RE = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*([`'\"])(.*?)\2/gs;
-const APP_USE_RE = /app\.use\s*\(\s*([`'\"])(.*?)\1\s*,/gs;
-const ROUTER_USE_RE = /router\.use\s*\(\s*([`'\"])(.*?)\1\s*,\s*([A-Za-z0-9_$]+)/gs;
+const ROUTE_FILE_RE = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*([`'"])(.*?)\2/gs;
+const APP_USE_RE = /app\.use\s*\(\s*([`'"])(.*?)\1\s*,/gs;
+const ROUTER_USE_RE = /router\.use\s*\(\s*([`'"])(.*?)\1\s*,\s*([A-Za-z0-9_$]+)/gs;
 
 function loadJson(filePath, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function loadYaml(filePath, fallback) {
+  if (!fs.existsSync(filePath)) return fallback;
+  return YAML.parse(fs.readFileSync(filePath, "utf8")) || fallback;
 }
 
 function normalizeExpressPath(routePath) {
@@ -93,14 +99,42 @@ function allowlistMatchers(allowlist) {
   };
 }
 
-function collectOpenApiOperations(doc) {
-  const ops = new Set();
+function normalizeContractRegistry(input) {
+  const entries = input?.contracts && typeof input.contracts === "object" ? input.contracts : {};
+  const registry = new Map();
+  for (const [rawSignature, rawContract] of Object.entries(entries)) {
+    const signature = String(rawSignature || "").trim();
+    const match = signature.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(.+)$/);
+    if (!match) throw new Error(`Invalid OpenAPI route contract signature: ${signature}`);
+    const method = match[1];
+    const routePath = normalizeExpressPath(match[2]);
+    const pathItemRef = String(rawContract?.path_item_ref || "").trim();
+    if (!pathItemRef.startsWith("./openapi/") || !pathItemRef.includes("#/")) {
+      throw new Error(`OpenAPI route contract ${method} ${routePath} requires a local ./openapi/...#/ path_item_ref.`);
+    }
+    const routeFile = String(rawContract?.route_file || "").trim().replace(/\\/g, "/");
+    if (!routeFile.startsWith("routes/") || !routeFile.endsWith(".js")) {
+      throw new Error(`OpenAPI route contract ${method} ${routePath} requires a source-bound routes/*.js route_file.`);
+    }
+    registry.set(`${method} ${routePath}`, {
+      ...rawContract,
+      path_item_ref:pathItemRef,
+      route_file:routeFile,
+    });
+  }
+  return registry;
+}
+
+function collectOpenApiCoverage(doc) {
+  const operations = new Set();
+  const referencedPaths = new Set();
   for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
+    if (typeof pathItem?.$ref === "string") referencedPaths.add(pathKey);
     for (const method of Object.keys(pathItem || {})) {
-      if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
+      if (HTTP_METHODS.has(method)) operations.add(`${method.toUpperCase()} ${pathKey}`);
     }
   }
-  return ops;
+  return { operations,referencedPaths };
 }
 
 function lowerMethod(method) { return String(method || "").toLowerCase(); }
@@ -200,9 +234,11 @@ function buildStub(route) {
   return { method, stub };
 }
 
-function findMissing(doc, allowlist) {
-  const openapiOps = collectOpenApiOperations(doc);
-  const routes = collectRoutes(allowlist.required_files);
+function findMissing(doc, allowlist, contracts) {
+  const { operations,referencedPaths } = collectOpenApiCoverage(doc);
+  const requiredFiles = new Set(allowlist.required_files || []);
+  for (const contract of contracts.values()) requiredFiles.add(contract.route_file);
+  const routes = collectRoutes([...requiredFiles]);
   const isAllowed = allowlistMatchers(allowlist);
   const missing = [];
   const seen = new Set();
@@ -210,10 +246,20 @@ function findMissing(doc, allowlist) {
     const sig = `${route.method} ${route.path}`;
     if (seen.has(`${sig} ${route.file}`)) continue;
     seen.add(`${sig} ${route.file}`);
-    if (openapiOps.has(sig) || isAllowed(route)) continue;
+    if (operations.has(sig) || referencedPaths.has(route.path) || isAllowed(route)) continue;
     missing.push({ ...route, signature: sig });
   }
   return missing;
+}
+
+function applyPreciseContract(doc, route, contract) {
+  const current = doc.paths?.[route.path];
+  if (current && Object.keys(current).length > 0) {
+    if (current.$ref === contract.path_item_ref) return false;
+    throw new Error(`Cannot replace non-empty OpenAPI path ${route.path} with precise route contract ${contract.path_item_ref}.`);
+  }
+  doc.paths[route.path] = { $ref:contract.path_item_ref };
+  return true;
 }
 
 function main() {
@@ -221,23 +267,40 @@ function main() {
   const failOnMissing = process.argv.includes("--check");
   const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
-  const missing = findMissing(doc, allowlist);
+  const contracts = normalizeContractRegistry(loadYaml(CONTRACT_REGISTRY_PATH, { contracts:{} }));
+  const missing = findMissing(doc, allowlist, contracts);
 
   if (!write) {
-    const result = { ok: missing.length === 0, missing_count: missing.length, missing };
+    const result = {
+      ok: missing.length === 0,
+      missing_count: missing.length,
+      precise_contract_count:contracts.size,
+      missing,
+    };
     console.log(JSON.stringify(result, null, 2));
     if (failOnMissing && missing.length > 0) process.exit(1);
     return;
   }
 
   doc.paths ||= {};
+  const appliedPreciseContracts = [];
+  const generatedStubs = [];
   for (const route of missing) {
+    const contract = contracts.get(route.signature);
+    if (contract) {
+      if (applyPreciseContract(doc,route,contract)) appliedPreciseContracts.push(route.signature);
+      continue;
+    }
     doc.paths[route.path] ||= {};
     const { method, stub } = buildStub(route);
-    if (!doc.paths[route.path][method]) doc.paths[route.path][method] = stub;
+    if (!doc.paths[route.path][method]) {
+      doc.paths[route.path][method] = stub;
+      generatedStubs.push(route.signature);
+    }
   }
 
-  if (missing.length > 0) {
+  const changed = appliedPreciseContracts.length > 0 || generatedStubs.length > 0;
+  if (changed) {
     const serialized = YAML.stringify(doc, {
       lineWidth: 120,
       aliasDuplicateObjects: false,
@@ -247,7 +310,15 @@ function main() {
     fs.writeFileSync(OPENAPI_PATH, `${serialized.trimEnd()}\n`);
   }
 
-  console.log(JSON.stringify({ ok: true, changed: missing.length > 0, missing_count: missing.length, missing }, null, 2));
+  console.log(JSON.stringify({
+    ok:true,
+    changed,
+    missing_count:missing.length,
+    precise_contract_count:contracts.size,
+    applied_precise_contracts:appliedPreciseContracts,
+    generated_stubs:generatedStubs,
+    missing,
+  }, null, 2));
 }
 
 main();

@@ -11,6 +11,8 @@ const workflow = readFileSync('../.github/workflows/openapi-auto-sync.yml', 'utf
 assert(workflow.includes('openapi-autofill-missing-routes.mjs') || workflow.includes('repo-maintenance-sync.mjs --write'), 'workflow should call the autofill generator directly or through repo maintenance orchestration');
 assert(script.includes('ROUTE_FILE_RE'), 'autofill must parse express route declarations');
 assert(script.includes('ALLOWLIST_PATH'), 'autofill must honor openapi route coverage allowlist');
+assert(script.includes('CONTRACT_REGISTRY_PATH'), 'autofill must support precise route contracts');
+assert(script.includes('route_file'), 'precise route contracts must bind to a runtime route source');
 assert(script.includes('operationIdFor'), 'autofill must create stable operationIds');
 assert(script.includes('x-openai-isConsequential'), 'autofill must mark consequential operations');
 assert(script.includes('TODO document'), 'autofill stubs must be clearly review-required');
@@ -33,26 +35,63 @@ const tempRoot = join(tmpdir(), `openapi-autofill-${process.pid}-${Date.now()}`)
 const autofillScriptPath = resolve('scripts/openapi-autofill-missing-routes.mjs');
 try {
   mkdirSync(join(tempRoot, 'routes'), { recursive: true });
+  mkdirSync(join(tempRoot, 'openapi'), { recursive: true });
   writeFileSync(join(tempRoot, 'routes/index.js'), '');
-  writeFileSync(join(tempRoot, 'routes/exampleRoutes.js'), 'import express from "express";\nconst router = express.Router();\nrouter.post("/auto-sync-fixture/:id", (req, res) => res.json({ ok: true }));\nexport default router;\n');
-  writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({ exact: [], prefixes: [], files: [], required_files: [] }, null, 2));
+  writeFileSync(join(tempRoot, 'routes/exampleRoutes.js'), [
+    'import express from "express";',
+    'const router = express.Router();',
+    'router.post("/auto-sync-fixture/:id", (req, res) => res.json({ ok: true }));',
+    'export default router;',
+    '',
+  ].join('\n'));
+  writeFileSync(join(tempRoot, 'routes/preciseRoutes.js'), [
+    'import express from "express";',
+    'const router = express.Router();',
+    'router.post("/precise-fixture", (req, res) => res.json({ ok: true }));',
+    'export default router;',
+    '',
+  ].join('\n'));
+  writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({
+    exact: [],
+    prefixes: [],
+    files: [],
+    required_files: ['routes/exampleRoutes.js'],
+  }, null, 2));
+  writeFileSync(join(tempRoot, 'openapi-route-contracts.yaml'), [
+    'contracts:',
+    '  POST /precise-fixture:',
+    "    route_file: 'routes/preciseRoutes.js'",
+    "    path_item_ref: './openapi/precise-fixture.yaml#/preciseFixture'",
+    '',
+  ].join('\n'));
+  writeFileSync(join(tempRoot, 'openapi/precise-fixture.yaml'), 'preciseFixture:\n  post:\n    operationId: createPreciseFixture\n    responses:\n      "200": { description: ok }\n');
   writeFileSync(join(tempRoot, 'openapi.yaml'), 'openapi: 3.1.0\ninfo:\n  title: Fixture\n  version: 1.0.0\npaths: {}\ncomponents:\n  schemas:\n    ErrorResponse:\n      type: object\n      additionalProperties: true\n');
 
   const checkOutput = execFileSync(process.execPath, [autofillScriptPath], { cwd: tempRoot, encoding: 'utf8' });
   const checkJson = JSON.parse(checkOutput);
-  assert.equal(checkJson.ok, false, 'fixture should report missing route before write');
-  assert.equal(checkJson.missing_count, 1, 'fixture should detect one missing route');
-  assert.equal(checkJson.missing[0].signature, 'POST /auto-sync-fixture/{id}');
+  assert.equal(checkJson.ok, false, 'fixture should report missing routes before write');
+  assert.equal(checkJson.missing_count, 2, 'fixture should detect allowlisted and source-bound precise-contract routes');
+  assert(checkJson.missing.some((entry) => entry.signature === 'POST /auto-sync-fixture/{id}'));
+  assert(checkJson.missing.some((entry) => entry.signature === 'POST /precise-fixture'));
 
   const writeOutput = execFileSync(process.execPath, [autofillScriptPath, '--write'], { cwd: tempRoot, encoding: 'utf8' });
   const writeJson = JSON.parse(writeOutput);
   assert.equal(writeJson.changed, true, 'write mode should change fixture openapi');
+  assert.deepEqual(writeJson.applied_precise_contracts, ['POST /precise-fixture']);
+  assert.deepEqual(writeJson.generated_stubs, ['POST /auto-sync-fixture/{id}']);
 
   const updated = readFileSync(join(tempRoot, 'openapi.yaml'), 'utf8');
   assert(updated.includes('/auto-sync-fixture/{id}:'), 'generated OpenAPI must include normalized path parameter');
   assert(updated.includes('operationId: postAutoSyncFixtureId'), 'generated OpenAPI must include stable operationId');
   assert(updated.includes('TODO document POST /auto-sync-fixture/{id}'), 'generated stub must be review-required');
   assert(updated.includes('x-openai-isConsequential: true'), 'POST route must be consequential');
+  assert(updated.includes('/precise-fixture:'), 'precise route must be inserted');
+  assert(updated.includes('$ref: ./openapi/precise-fixture.yaml#/preciseFixture'), 'precise route must use the registered path-item ref');
+
+  const finalCheckOutput = execFileSync(process.execPath, [autofillScriptPath, '--check'], { cwd: tempRoot, encoding: 'utf8' });
+  const finalCheckJson = JSON.parse(finalCheckOutput);
+  assert.equal(finalCheckJson.ok, true, 'referenced path items must satisfy subsequent coverage checks');
+  assert.equal(finalCheckJson.missing_count, 0);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }
