@@ -15,8 +15,8 @@ paths:
       summary: Assess activity binding readiness
       tags: [Growth Control Plane Activity Bindings]
       security:
-        - BackendApiKey: []
-        - BackendBearer: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/ActivityBindingId'
         - $ref: '#/components/parameters/RequestId'
@@ -52,8 +52,8 @@ paths:
       summary: Apply a legal activity binding lifecycle transition
       tags: [Growth Control Plane Activity Bindings]
       security:
-        - BackendApiKey: []
-        - BackendBearer: []
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/ActivityBindingId'
         - $ref: '#/components/parameters/RequestId'
@@ -87,14 +87,14 @@ paths:
         '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
-    BackendApiKey:
-      type: apiKey
-      in: header
-      name: x-api-key
-    BackendBearer:
+    adminBearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
   parameters:
     ActivityBindingId:
       name: activityBindingId
