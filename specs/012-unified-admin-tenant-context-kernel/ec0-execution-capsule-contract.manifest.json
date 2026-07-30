@@ -15,7 +15,9 @@
     "../../http-generic-api/contextKernel/domain/index.js",
     "../../http-generic-api/contextKernel/application/executionCapsuleService.js",
     "../../http-generic-api/contextKernel/application/index.js",
-    "../../http-generic-api/test-execution-capsule-contract.mjs"
+    "../../http-generic-api/test-execution-capsule-contract.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
   ],
   "implemented_contracts": [
     "immutable_execution_capsule",
@@ -40,13 +42,13 @@
     "execution_allowed_always_false",
     "no_secret_capsule_projection",
     "domain_application_index_exports",
-    "standalone_contract_test"
-  ],
-  "pending_contracts": [
+    "standalone_contract_test",
     "complete_test_manifest_registration",
     "generated_test_manifest_evidence_refresh",
+    "human_architecture_security_review"
+  ],
+  "pending_contracts": [
     "exact_head_ci_evidence",
-    "human_architecture_security_review",
     "EC1_shadow_adapter",
     "EC2_selected_read_pilot",
     "EC3_unified_dispatch_integration",
