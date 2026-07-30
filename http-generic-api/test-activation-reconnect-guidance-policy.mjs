@@ -171,6 +171,14 @@ assert.throws(
   (error) =>
     error?.code === "activation_guidance_error_code_invalid" && error?.status === 400,
 );
+for (const inheritedKey of ["constructor", "toString"]) {
+  assert.throws(
+    () => resolveActivationReconnectGuidance({ error_code: inheritedKey }),
+    (error) =>
+      error?.code === "activation_guidance_error_code_invalid" &&
+      error?.status === 400,
+  );
+}
 assert.equal(
   resolveActivationReconnectGuidance({
     error_code: "USER_JWT_REQUIRED",
