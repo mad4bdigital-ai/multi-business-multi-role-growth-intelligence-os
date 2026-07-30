@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 35
-- Gate candidates: 16
+- Triaged items: 36
+- Gate candidates: 17
 - New-gap gate: fail
-- Blocking new items: 18
+- Blocking new items: 19
 
 ## Class counts
 
-- new_surface_immediate_review: 16
+- new_surface_immediate_review: 17
 - legacy_baseline_backlog: 17
 - safety_marker_review: 2
 
@@ -23,6 +23,7 @@
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 866; next: confirm registry binding/readback evidence before promotion
 - `20260730_repository_reconciliation_lease_control_tool.sql` — critical_review, score 844; next: add targeted patch-index, parity, and governance documentation
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 812; next: confirm registry binding/readback evidence before promotion
+- `20260730_hostinger_production_resync_policy.sql` — high_review, score 642; next: add targeted patch-index, parity, and governance documentation
 - `962_sprint68_repository_advisory_comments_v5.sql` — high_review, score 589; next: add targeted patch-index, parity, and governance documentation
 - `20260720_github_update_pull_request_branch_503_response_contract.sql` — high_review, score 555; next: add targeted patch-index, parity, and governance documentation
 - `20260720_tenant_tool_input_schema_strictness.sql` — high_review, score 549; next: add targeted patch-index, parity, and governance documentation
@@ -31,5 +32,5 @@
 - `1042_sprint69_activation_session_context_indexes.sql` — high_review, score 535; next: add targeted patch-index, parity, and governance documentation
 - `20260628_github_create_blob_201_contract_reconciliation.sql` — high_review, score 526; next: add targeted patch-index, parity, and governance documentation
 - `1028_sprint69_runtime_verification_and_session_smoke_mutation_policy.sql` — high_review, score 507; next: add targeted patch-index, parity, and governance documentation
-- `20260628_authority_scope_shadow_evidence.sql` — high_review, score 484; next: add targeted patch-index, parity, and governance documentation
+- `20260628_authority_scope_shadow_evidence.sql` — high_review, score 483; next: add targeted patch-index, parity, and governance documentation
 - `1024_sprint69_github_create_reference_201_contract_reconciliation.sql` — high_review, score 434; next: add targeted patch-index, parity, and governance documentation
