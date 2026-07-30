@@ -1,3 +1,4 @@
+import "./test-activation-reconnect-guidance-policy.mjs";
 import { buildRateLimitedClassification } from "./activationClassification.js";
 import { buildProgressState } from "./activationProgress.js";
 import { getRecoveryPolicy } from "./activationRecoveryPolicy.js";
