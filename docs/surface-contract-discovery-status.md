@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 595
+- Migrations with detected surfaces: 596
 - Migrations reported here: 80
 - OpenAPI operations detected: 1066
 - OpenAPI paths detected: 985
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 581/595 (97.65%)
-- Documentation gap migrations: 14
-- Gap severity: high=23, medium=10, low=1
+- Documentation complete migrations: 581/596 (97.48%)
+- Documentation gap migrations: 15
+- Gap severity: high=23, medium=11, low=1
 - SQL route coverage in OpenAPI: 31/33 (93.94%)
 - SQL route-like literals exempted from OpenAPI scoring: 668/701
 - SQL routes missing OpenAPI path coverage: 2
@@ -45,20 +45,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 15 | 12 |
-| tools | 2818 | 511 |
+| tools | 2823 | 512 |
 | views | 500 | 198 |
-| policies | 194 | 133 |
+| policies | 195 | 134 |
 | routes | 701 | 289 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 13 |
-| `deployment_parity_checklist.md` | 13 |
-| `docs/ai-docs-agent-governance.md` | 14 |
-| `docs/auto-docs-agent/README.md` | 14 |
-| `docs/change-documentation-governance.md` | 13 |
+| `Updating Registry Patch Index.md` | 14 |
+| `deployment_parity_checklist.md` | 14 |
+| `docs/ai-docs-agent-governance.md` | 15 |
+| `docs/auto-docs-agent/README.md` | 15 |
+| `docs/change-documentation-governance.md` | 14 |
 
 ### Safety Marker Coverage
 
@@ -68,8 +68,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_credential_payload_read | 582 |
 | no_raw_secrets | 582 |
 | no_external_send | 582 |
-| no_external_write | 582 |
-| secrets_included_false | 588 |
+| no_external_write | 583 |
+| secrets_included_false | 589 |
 
 ### Route Classification Coverage
 
@@ -88,9 +88,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 35
+- Total queue items: 36
 - Critical review: 23
-- High review: 10
+- High review: 11
 - Medium review: 1
 - Low review: 1
 
@@ -99,13 +99,13 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `1020_sprint69_multi_surface_tenant_agent_runtime.sql` | critical_review | 1425 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `193_sprint67_workspace_resource_authority_foundation.sql` | critical_review | 1123 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` | critical_review | 1073 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
-| `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `200_sprint68_workspace_invitation_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
+| `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1025 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `20260723_dynamic_container_override_governance_smoke.sql` | critical_review | 1000 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql` | critical_review | 902 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `201_sprint68_workspace_access_request_control_tools.sql` | critical_review | 902 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `194_sprint66_tenant_infrastructure_readiness_tools.sql` | critical_review | 899 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
-| `194_sprint67_workspace_resource_grant_assignment_tools.sql` | critical_review | 882 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
+| `194_sprint67_workspace_resource_grant_assignment_tools.sql` | critical_review | 881 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `1030_sprint69_generic_platform_resource_context.sql` | critical_review | 866 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `189_sprint66_tenant_gpt_operating_guide_tools.sql` | critical_review | 862 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `20260730_repository_reconciliation_lease_control_tool.sql` | critical_review | 844 | high | 5 | 0 | 5 | document_surface_contract, add_explicit_safety_markers |
