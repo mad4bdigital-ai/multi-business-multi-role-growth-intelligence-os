@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.mad4b.com/commerce/commerce-provider-adapter-v1.schema.json",
-  "title": "Commerce Authority Adapter Manifest v1",
+  "title": "Brand-Scoped Commerce Authority Adapter Manifest v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,6 +12,7 @@
     "status",
     "authority_domains",
     "supported_operations",
+    "brand_context_contract",
     "transaction_contract",
     "idempotency_contract",
     "readback_contract",
@@ -32,7 +33,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "enum": ["catalog", "inventory", "orders", "pos", "payments", "procurement", "suppliers", "returns", "hr", "accounting"]
+        "enum": ["catalog", "inventory", "orders", "pos", "payments", "procurement", "suppliers", "returns", "media", "publications", "hr", "accounting"]
       }
     },
     "supported_operations": {
@@ -64,15 +65,46 @@
         ]
       }
     },
+    "brand_context_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brand_required",
+        "brand_profile_revision_required",
+        "domain_authority_revision_required",
+        "connection_binding_revision_required",
+        "context_hash_required",
+        "workspace_only_execution_forbidden",
+        "silent_fallback_forbidden",
+        "supported_connection_binding_modes"
+      ],
+      "properties": {
+        "brand_required": { "const": true },
+        "brand_profile_revision_required": { "const": true },
+        "domain_authority_revision_required": { "const": true },
+        "connection_binding_revision_required": { "const": true },
+        "context_hash_required": { "const": true },
+        "workspace_only_execution_forbidden": { "const": true },
+        "silent_fallback_forbidden": { "const": true },
+        "hostname_or_surface_brand_resolution_supported": { "type": "boolean" },
+        "supported_connection_binding_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["brand_owned", "workspace_delegated", "platform_managed"] }
+        }
+      }
+    },
     "transaction_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["atomic_reservation", "expected_version_supported", "unique_item_conflict_code", "commit_boundary_documented"],
+      "required": ["atomic_reservation", "expected_version_supported", "unique_item_conflict_code", "commit_boundary_documented", "brand_in_aggregate_identity"],
       "properties": {
         "atomic_reservation": { "type": "boolean" },
         "expected_version_supported": { "type": "boolean" },
         "unique_item_conflict_code": { "type": "string", "minLength": 1, "maxLength": 128 },
         "commit_boundary_documented": { "type": "boolean" },
+        "brand_in_aggregate_identity": { "const": true },
         "supports_caller_owned_transaction": { "type": "boolean", "default": false },
         "external_transaction_semantics": { "type": ["string", "null"], "maxLength": 2000 }
       }
@@ -80,10 +112,11 @@
     "idempotency_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["supported", "scope", "payload_mismatch_rejected", "retention_seconds"],
+      "required": ["supported", "scope", "brand_in_scope", "payload_mismatch_rejected", "retention_seconds"],
       "properties": {
         "supported": { "const": true },
-        "scope": { "type": "string", "enum": ["tenant_workspace_operation", "provider_operation", "resource_operation"] },
+        "scope": { "type": "string", "enum": ["tenant_workspace_brand_operation", "provider_brand_operation", "brand_resource_operation"] },
+        "brand_in_scope": { "const": true },
         "payload_mismatch_rejected": { "const": true },
         "retention_seconds": { "type": "integer", "minimum": 3600, "maximum": 31536000 }
       }
@@ -91,9 +124,10 @@
     "readback_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["same_operation_identity", "unknown_outcome_supported", "methods"],
+      "required": ["same_operation_identity", "same_brand_context", "unknown_outcome_supported", "methods"],
       "properties": {
         "same_operation_identity": { "const": true },
+        "same_brand_context": { "const": true },
         "unknown_outcome_supported": { "type": "boolean" },
         "methods": {
           "type": "array",
@@ -110,13 +144,14 @@
       "properties": {
         "supported": { "type": "boolean", "default": false },
         "unique_item_allocation_lease_required": { "type": "boolean", "default": true },
+        "brand_bound_lease_required": { "const": true },
         "lease_signature_mode": { "type": ["string", "null"], "maxLength": 128 },
         "maximum_lease_seconds": { "type": ["integer", "null"], "minimum": 30, "maximum": 86400 }
       }
     },
     "error_mapping": {
       "type": "array",
-      "maxItems": 200,
+      "maxItems": 250,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -132,11 +167,29 @@
     "security_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["credential_source", "caller_identity_override_forbidden", "tenant_scope_required", "no_secret_responses", "webhook_signature_required"],
+      "required": [
+        "credential_source",
+        "caller_identity_override_forbidden",
+        "tenant_scope_required",
+        "workspace_scope_required",
+        "brand_scope_required",
+        "exact_brand_connection_binding_required",
+        "workspace_fallback_forbidden",
+        "personal_fallback_forbidden",
+        "cross_brand_execution_forbidden",
+        "no_secret_responses",
+        "webhook_signature_required"
+      ],
       "properties": {
         "credential_source": { "type": "string", "enum": ["governed_connection_binding", "platform_managed_identity"] },
         "caller_identity_override_forbidden": { "const": true },
-        "tenant_scope_required": { "type": "boolean" },
+        "tenant_scope_required": { "const": true },
+        "workspace_scope_required": { "const": true },
+        "brand_scope_required": { "const": true },
+        "exact_brand_connection_binding_required": { "const": true },
+        "workspace_fallback_forbidden": { "const": true },
+        "personal_fallback_forbidden": { "const": true },
+        "cross_brand_execution_forbidden": { "const": true },
         "no_secret_responses": { "const": true },
         "webhook_signature_required": { "type": "boolean" },
         "allowed_audiences": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 300 } },
@@ -156,7 +209,16 @@
     "certification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["environment", "contract_suite_version", "certified_at", "expires_at", "evidence_refs", "behaviorally_certified"],
+      "required": [
+        "environment",
+        "contract_suite_version",
+        "certified_at",
+        "expires_at",
+        "evidence_refs",
+        "behaviorally_certified",
+        "cross_brand_isolation_tested",
+        "brand_connection_binding_tested"
+      ],
       "properties": {
         "environment": { "type": "string", "enum": ["none", "fixture", "sandbox", "staging", "production"] },
         "contract_suite_version": { "type": "string", "minLength": 1, "maxLength": 64 },
@@ -164,6 +226,8 @@
         "expires_at": { "type": ["string", "null"], "format": "date-time" },
         "evidence_refs": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 500 } },
         "behaviorally_certified": { "type": "boolean" },
+        "cross_brand_isolation_tested": { "type": "boolean" },
+        "brand_connection_binding_tested": { "type": "boolean" },
         "provider_execution_certified": { "type": "boolean", "default": false }
       }
     },
@@ -177,7 +241,9 @@
           "certification": {
             "properties": {
               "environment": { "enum": ["sandbox", "staging", "production"] },
-              "behaviorally_certified": { "const": true }
+              "behaviorally_certified": { "const": true },
+              "cross_brand_isolation_tested": { "const": true },
+              "brand_connection_binding_tested": { "const": true }
             }
           }
         }
