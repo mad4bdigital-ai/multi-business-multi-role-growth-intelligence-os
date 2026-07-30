@@ -6,6 +6,8 @@ const upstreamCommands = [
   "node test-operation-orchestrator-managed-workspace-dependency.mjs",
   "node test-managed-git-repository-credential-binding.mjs",
   "node test-operation-orchestrator-repository-credential.mjs",
+  "node test-delegation-grant-mariadb-readiness-collector.mjs",
+  "node test-delegation-grant-mariadb-runtime-binding.mjs",
 ];
 
 // Some repository guards intentionally verify canonical manifest membership from
