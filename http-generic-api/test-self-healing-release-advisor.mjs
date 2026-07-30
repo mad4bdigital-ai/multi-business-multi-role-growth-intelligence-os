@@ -85,6 +85,52 @@ const mismatchPlanRetry = buildReleaseAdvisorPlan({
 });
 assert.equal(mismatchPlan.plan_fingerprint_sha256, mismatchPlanRetry.plan_fingerprint_sha256);
 
+const mainMovedPlan = buildReleaseAdvisorPlan({
+  environment_key: "production",
+  target_id: targetId,
+  context: {
+    source: "repository_main_moved_trigger_coordinator",
+    production_sync_required: true,
+    source_branch: "main",
+    deployment_branch: "Production",
+  },
+  verification: {
+    run_id: runId,
+    environment_key: "production",
+    production_parity: "degraded",
+    expected_commit_sha: expectedSha,
+    deployed_commit_sha: deployedSha,
+  },
+  gaps: [{
+    gap_key: "deployed_commit_mismatch",
+    classification: "deployment_parity_mismatch",
+    severity: "critical",
+    remediation_type: "repo_patch_or_deploy",
+    approval_required: 1,
+  }],
+});
+const syncRecommendation = mainMovedPlan.recommendations[0];
+assert.equal(syncRecommendation.action_key, "release.sync_production_from_latest_main");
+assert.equal(syncRecommendation.template_key, null);
+assert.equal(syncRecommendation.plan.source_branch, "main");
+assert.equal(syncRecommendation.plan.deployment_branch, "Production");
+assert.equal(syncRecommendation.plan.expected_main_commit_sha, expectedSha);
+assert.equal(syncRecommendation.plan.fresh_hostinger_build_required, true);
+assert.equal(syncRecommendation.plan.same_cycle_readback_required, true);
+assert.deepEqual(syncRecommendation.plan.steps.map((step) => step.step_key), [
+  "read_latest_main_sha",
+  "compare_production_with_latest_main",
+  "create_or_update_main_to_production_pr",
+  "run_ci_gate",
+  "obtain_typed_approval",
+  "merge_latest_main_into_production",
+  "verify_fresh_hostinger_build",
+  "verify_deployment_manifest_sha",
+  "verify_production_health",
+]);
+assert.ok(syncRecommendation.plan.steps.every((step) => step.execution_allowed === false));
+assert.notEqual(mainMovedPlan.plan_fingerprint_sha256, mismatchPlan.plan_fingerprint_sha256);
+
 const healthyPlan = buildReleaseAdvisorPlan({
   environment_key: "production",
   verification: {
@@ -105,6 +151,20 @@ assert.equal(sanitized.token, undefined);
 assert.equal(sanitized.nested.password, undefined);
 assert.equal(sanitized.nested.value, "kept");
 assert.equal(sanitized.secrets_included, false);
+
+const advisorService = fs.readFileSync(path.join(__dirname, "selfHealingReleaseAdvisorService.js"), "utf8");
+assert.doesNotMatch(advisorService, /\b(?:rows|rowset|verificationRows|gateRows|deploymentRows|existingRows)\s*\[\s*0\s*\]/);
+assert.match(advisorService, /release_advisor_resolution_ambiguous/);
+for (const sqlContract of [
+  "run_id = ? LIMIT 2",
+  "operation_id = ? LIMIT 2",
+  "advisor_run_id = ? LIMIT 2",
+  "plan_fingerprint_sha256 = ? LIMIT 2",
+  "completed_at DESC, started_at DESC, run_id DESC LIMIT 1",
+  "created_at DESC, operation_id DESC LIMIT 1",
+  "created_at DESC, gate_id DESC LIMIT 1",
+  "created_at DESC, async_deployment_id DESC LIMIT 1",
+]) assert.equal(advisorService.includes(sqlContract), true, `missing deterministic row contract: ${sqlContract}`);
 
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_self_healing_release_advisor.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_advisor_runs/);

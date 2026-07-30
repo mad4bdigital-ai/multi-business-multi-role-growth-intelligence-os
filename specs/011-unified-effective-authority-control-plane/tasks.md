@@ -15,7 +15,7 @@
 - [x] T011 Implement Subject Scope and delegation resolver.
 - [x] T012 Implement bounded Resource Graph resolver.
 - [x] T013 Integrate semantic capability before provider selection.
-- [ ] T014 Implement policy/grant evaluator.
+- [x] T014 Implement policy/grant evaluator.
 - [x] T015 Implement deterministic connection selection and ambiguity blocking.
 - [ ] T016 Implement endpoint and certification resolution.
 - [x] T017 Emit no-secret Effective Authority Manifest.
