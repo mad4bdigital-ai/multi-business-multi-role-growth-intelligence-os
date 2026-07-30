@@ -1,5 +1,6 @@
 name: EC1 Closeout Test Registration
 
+# registration-bootstrap: 2
 on:
   push:
     branches:
