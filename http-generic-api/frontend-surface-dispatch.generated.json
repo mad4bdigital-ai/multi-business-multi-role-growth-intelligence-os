@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "49e74080129e0471b1a4f480d1c79de09e214e8eddd668956095e34a2581ecdb",
+    "source_digest": "9e5821d72487f93f490b156c5548d7154374899edf576eba763f49864be267e4",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -411,7 +411,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
+        "sha256": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
         "present": true
       },
       {
@@ -951,7 +951,7 @@
       },
       {
         "file": "test-ads-governance-snapshot-proposal.mjs",
-        "sha256": "c341f0159e9cea3153bcac871b04866589dcfb9e219fee717be6cd9e0a9f3a38",
+        "sha256": "1f47de03b198f1e63e65782f8b380d6670c2167faf81b1e8538c6d6febefabe0",
         "present": true
       },
       {
@@ -1106,7 +1106,7 @@
       },
       {
         "file": "test-support-ticket-lifecycle-snapshot-proposal.mjs",
-        "sha256": "d78c3bcabd333392449016b652861e593a67c76f0e69cd73f27dfd0391c55235",
+        "sha256": "7d7c58e5937763eda7e9a79faeb7eea471f48d000d8f4b336d35d63ddc021d3b",
         "present": true
       },
       {
@@ -2722,7 +2722,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
+      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
       "mount_prefix": "/",
       "mount_order": 12186,
       "split_from_mixed_scope_file": true,
@@ -2835,7 +2835,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
+      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
       "mount_prefix": "/",
       "mount_order": 12186,
       "split_from_mixed_scope_file": true,
@@ -3036,7 +3036,7 @@
       "family_key": "connector-agent.unresolved",
       "label": "connector agent (unresolved)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
+      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
       "mount_prefix": "/",
       "mount_order": 12186,
       "split_from_mixed_scope_file": true,
