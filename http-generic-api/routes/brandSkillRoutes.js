@@ -46,7 +46,7 @@ export function buildBrandSkillRoutes(deps = {}) {
         input: req.body || {},
         actor: req.auth,
       });
-      return res.status(result.changed ? 201 : 200).json(result);
+      return res.status(result.created === true ? 201 : 200).json(result);
     } catch (error) {
       return sendError(req, res, error);
     }
