@@ -40,9 +40,7 @@ jobs:
         env:
           RUNTIME_BASE_URL: https://auth.mad4b.com
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-          RUNTIME_PROFILE: api_only
-          EXPECT_QUEUE_AVAILABLE: 'false'
-          EXPECT_WORKER_ENABLED: 'false'
+          RUNTIME_PROFILE: queue_worker
           VERIFY_EXECUTION_LOG_ROW: 'false'
           ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
         run: node verify-runtime.mjs
