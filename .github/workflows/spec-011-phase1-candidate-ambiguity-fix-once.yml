@@ -1,0 +1,125 @@
+name: Spec 011 Phase1 Candidate Ambiguity Fix Once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.ref == 'gpt/spec-011-phase1-durable-control-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out governed PR head
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase1-durable-control-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply fail-closed unique candidate resolution
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          service = Path('http-generic-api/durableExecutionControlService.js')
+          text = service.read_text()
+          replacements = {
+              '  const awaiting = steps.find((step) => step.status === "awaiting_approval");': '''  const awaiting = resolveUnique(
+            steps.filter((step) => step.status === "awaiting_approval"),
+            "durable_execution_approval_candidate_ambiguous",
+            "Multiple execution steps are awaiting approval; no arbitrary candidate may be selected.",
+          );''',
+              '  const failed = steps.find((step) => ["blocked", "failed"].includes(step.status));': '''  const failed = resolveUnique(
+            steps.filter((step) => ["blocked", "failed"].includes(step.status)),
+            "durable_execution_repair_candidate_ambiguous",
+            "Multiple execution steps require repair; no arbitrary candidate may be selected.",
+          );''',
+              '  const ready = steps.find((step) => step.status === "ready");': '''  const ready = resolveUnique(
+            steps.filter((step) => step.status === "ready"),
+            "durable_execution_ready_candidate_ambiguous",
+            "Multiple execution steps are ready; no arbitrary candidate may be selected.",
+          );''',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  if new not in text:
+                      raise SystemExit(f'missing expected service fragment: {old}')
+              else:
+                  text = text.replace(old, new, 1)
+          service.write_text(text)
+
+          test = Path('http-generic-api/test-durable-execution-control-service.mjs')
+          test_text = test.read_text()
+          anchor = 'assert.equal(projectDurableNextAction({ plan: { runtime_status: "completed" } }), null);\n'
+          addition = '''assert.throws(
+            () => projectDurableNextAction({
+              plan: { runtime_status: "executing" },
+              steps: [
+                { plan_step_id: "ready-1", step_key: "one", status: "ready" },
+                { plan_step_id: "ready-2", step_key: "two", status: "ready" },
+              ],
+            }),
+            (error) => error.code === "durable_execution_ready_candidate_ambiguous" && error.status === 409,
+          );
+          assert.throws(
+            () => projectDurableNextAction({
+              plan: { runtime_status: "awaiting_approval" },
+              steps: [
+                { plan_step_id: "approval-1", step_key: "one", status: "awaiting_approval" },
+                { plan_step_id: "approval-2", step_key: "two", status: "awaiting_approval" },
+              ],
+            }),
+            (error) => error.code === "durable_execution_approval_candidate_ambiguous" && error.status === 409,
+          );
+          '''
+          marker = 'durable_execution_ready_candidate_ambiguous'
+          if marker not in test_text:
+              if anchor not in test_text:
+                  raise SystemExit('missing test insertion anchor')
+              test_text = test_text.replace(anchor, anchor + addition, 1)
+          test.write_text(test_text)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify focused contracts and hardcoding ratchet
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          node --check durableExecutionControlService.js
+          node --check test-durable-execution-control-service.mjs
+          node test-durable-execution-control-service.mjs
+          printf '%s\n' \
+            'http-generic-api/durableExecutionControlService.js' \
+            'http-generic-api/test-durable-execution-control-service.mjs' \
+            > "$RUNNER_TEMP/spec011-phase1-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --fail-on=runtime \
+            --changed-files-from="$RUNNER_TEMP/spec011-phase1-changed-files.txt"
+
+      - name: Commit clean fix with race-safe rebase
+        shell: bash
+        run: |
+          rm -f .github/workflows/spec-011-phase1-candidate-ambiguity-fix-once.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(spec-011): reject ambiguous durable next-action candidates'
+          git fetch origin gpt/spec-011-phase1-durable-control-20260730
+          git rebase origin/gpt/spec-011-phase1-durable-control-20260730
+          git push origin HEAD:gpt/spec-011-phase1-durable-control-20260730
