@@ -319,7 +319,7 @@ function evaluateBootstrapRecipe(context) {
   const serviceBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_SERVICE_FILE), "orchestrateTenantConnectBootstrap");
   const transactionBlock = extractFunctionBlock(context.sourceByFile.get(BOOTSTRAP_TRANSACTION_FILE), "executeTenantConnectBootstrapTransaction");
   const claimedTests = context.testEvidence.byOperation.get(recipe.operation) || [];
-  const connectionMutation = "INSERT INTO \`tenant_backend_connections\`";
+  const connectionMutation = "INSERT INTO \\`tenant_backend_connections\\`";
   const membershipReadback = "const [readbackMembershipRows]";
   const verifiedReadback = "verifyReadback({ membership, connection, tenantId })";
   const gates = [
@@ -331,7 +331,7 @@ function evaluateBootstrapRecipe(context) {
     evidenceGate("transaction_scope_present", transactionBlock.includes("getConnection") && transactionBlock.includes("beginTransaction"), "getConnection/beginTransaction"),
     evidenceGate("principal_concurrency_lock", transactionBlock.includes("FROM `users`") && transactionBlock.includes("FOR UPDATE"), "signed user FOR UPDATE"),
     evidenceGate("membership_preflight_in_transaction", transactionBlock.includes("activeWorkspaceOptions") && transactionBlock.includes("tenant_selection_required") && transactionBlock.includes("tenant_membership_required"), "membership selection gates"),
-    evidenceGate("workspace_mutation_present", transactionBlock.includes("INSERT INTO \`tenants\`") && transactionBlock.includes("INSERT INTO \`memberships\`"), "tenant/membership inserts"),
+    evidenceGate("workspace_mutation_present", transactionBlock.includes("INSERT INTO \\`tenants\\`") && transactionBlock.includes("INSERT INTO \\`memberships\\`"), "tenant/membership inserts"),
     evidenceGate("managed_connection_mutation_present", transactionBlock.includes(connectionMutation), connectionMutation),
     evidenceGate("integration_policy_uses_transaction", transactionBlock.includes("upsertIntegrationPolicies") && transactionBlock.includes("db: transaction"), "upsertIntegrationPolicies/db: transaction"),
     evidenceGate("transactional_readback_follows_mutation", ordered(transactionBlock, connectionMutation, membershipReadback) && ordered(transactionBlock, membershipReadback, verifiedReadback), "membership/connection readback after mutation"),
