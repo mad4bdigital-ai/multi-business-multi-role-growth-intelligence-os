@@ -9,32 +9,50 @@
     "post_merge_audit": false
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [3394],
     "closeout_pr": {
-      "number": "current",
-      "branch": "gpt/reconcile/011-managed-git-worker-main-v3-20260730",
-      "role": "completion",
-      "status": "current_pr"
-    }
+      "number": 3394,
+      "branch": "gpt/reconcile/011-managed-git-worker-main-v4-20260730",
+      "role": "t500_t501_reconciliation",
+      "status": "merged",
+      "merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6"
+    },
+    "superseded_prs": [3240, 3259, 3326]
   },
   "evidence": {
     "t500_ephemeral_checkout": {
-      "status": "implemented_pending_ci"
+      "status": "implemented_merged",
+      "pr": 3394,
+      "main_blob_sha": "4c525cbabb8a14f33315a9ef29ca4f14444df5e1"
     },
     "t501_credential_binding": {
-      "status": "implemented_pending_ci"
+      "status": "implemented_merged",
+      "pr": 3394,
+      "main_blob_sha": "89c919b84ac920a1af1510e08e4d5440e0f22597"
     },
     "t502_remote_git_transport": {
       "status": "not_implemented"
     },
     "ci": {
-      "status": "pending"
+      "status": "passed",
+      "run_id": 30528817727,
+      "validated_head_sha": "585dcb705a88422d08bad9526ec65f28f2c8b69c",
+      "required_jobs": {
+        "syntax_check": "success",
+        "architecture_drift_detection": "success",
+        "execution_resolver_gate": "success",
+        "unit_and_integration_tests": "success"
+      }
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "passed",
+      "merge_sha": "cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6",
+      "default_branch_readback": "passed",
+      "superseded_prs_closed": true
     },
     "migration": {
-      "status": "not_applied"
+      "status": "not_applied",
+      "file": "http-generic-api/migrations/20260728_operation_managed_git_ephemeral_checkout.sql"
     },
     "production_verification": {
       "status": "not_required"

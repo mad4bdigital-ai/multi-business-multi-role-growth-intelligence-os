@@ -5,7 +5,7 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "requirements": {
-    "migration": "to_be_determined_after_inventory",
+    "migration": true,
     "production_verification": true,
     "post_merge_audit": true,
     "protected_user_path_smoke": true,
@@ -16,9 +16,35 @@
       "number": 2984,
       "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
       "role": "specification",
-      "status": "ready_for_review"
+      "status": "merged",
+      "merge_sha": "615f45c19b5877f9d584ce284505dea0e133d833"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 3036,
+        "role": "inventory_contract_and_persistence_mapping_baseline",
+        "status": "merged",
+        "merge_sha": "ed9e0cca5cecae8c3b96167879e67b33dbba2e98"
+      },
+      {
+        "number": 3085,
+        "role": "lifecycle_state_error_and_compatibility_contracts",
+        "status": "merged",
+        "merge_sha": "88f6dc18f30982caee59edf08cf15d1b7e249cb1"
+      },
+      {
+        "number": 3122,
+        "role": "activation_lifecycle_contract_finalization",
+        "status": "merged",
+        "merge_sha": "7a63044a79f91c2de440c413e772c6fa858bf2fb"
+      },
+      {
+        "number": 3296,
+        "role": "t028_stage_classification_and_reconnect_guidance_policy",
+        "status": "merged",
+        "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -50,20 +76,77 @@
       "open_questions": []
     },
     "implementation": {
-      "status": "not_started"
+      "status": "in_progress",
+      "completed_tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T028",
+        "T076"
+      ],
+      "latest_completed_task": "T028",
+      "runtime_authority": false,
+      "remaining_scope": "All unchecked tasks in tasks.md remain open; this evidence does not complete Spec 012."
     },
     "ci": {
-      "status": "tracked_by_live_pr_gate",
-      "pull_request": 2984
+      "status": "pass_for_latest_slice",
+      "pull_request": 3296,
+      "head_sha": "70950b35ecb2e040133078093e358ddb2de04a27",
+      "ci_run_id": "30523835441",
+      "frontend_surface_dispatch_run_id": "30523835499"
+    },
+    "t028_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3296,
+      "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0",
+      "main_readback_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0",
+      "policy_module": "http-generic-api/activationReconnectGuidancePolicy.js",
+      "regression_test": "http-generic-api/test-activation-reconnect-guidance-policy.mjs",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "review_threads_resolved": true,
+      "inherited_key_guard": "Object.hasOwn",
+      "runtime_wiring": false,
+      "database_migration": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "migration": {
-      "status": "pending_inventory"
+      "status": "required_pending_design_and_apply",
+      "source_tasks": [
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T024A",
+        "T024B",
+        "T026"
+      ],
+      "inventory_evidence": "implementation/pr-1-inventory.json#physical_mappings",
+      "data_model_evidence": "data-model.md#pr-1-physical-mapping-result"
     },
     "production_verification": {
       "status": "pending"
     },
     "post_merge_audit": {
-      "status": "pending"
+      "status": "pending_for_full_spec",
+      "completed_slices": [
+        "T028"
+      ]
     },
     "rollback_verification": {
       "status": "pending"
