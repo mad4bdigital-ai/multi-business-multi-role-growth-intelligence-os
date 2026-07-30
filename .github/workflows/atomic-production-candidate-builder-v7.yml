@@ -1,0 +1,143 @@
+name: Atomic Production Candidate Builder V7
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - gpt/atomic-candidate-builder-base-v7
+    paths:
+      - docs/atomic-production-candidate-trigger-v7.md
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atomic-production-candidate-builder-v7
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.pull_request.head.ref == 'gpt/atomic-candidate-builder-trigger-v7'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full repository history
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/atomic-candidate-builder-base-v7
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Build atomic exact-main candidate
+        id: build
+        shell: bash
+        env:
+          PREVIOUS_CANDIDATE_SHA: e6a1e51a8c6947f4979234eb0b93ae7303ed90a4
+          TARGET_BRANCH: release/production-candidate-live-v7
+        run: |
+          set -euo pipefail
+
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          PINNED_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          PINNED_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+
+          git cat-file -e "$PINNED_MAIN_SHA^{commit}"
+          git cat-file -e "$PINNED_PRODUCTION_SHA^{commit}"
+          git cat-file -e "$PREVIOUS_CANDIDATE_SHA^{commit}"
+
+          MAIN_TREE="$(git rev-parse "$PINNED_MAIN_SHA^{tree}")"
+          CANDIDATE_DATE="$(git show -s --format=%cI "$PINNED_MAIN_SHA")"
+          CANDIDATE_SHA="$(
+            printf '%s\n\n%s\n%s\n%s\n' \
+              'release: build atomic exact Production candidate v7' \
+              "main=$PINNED_MAIN_SHA" \
+              "production=$PINNED_PRODUCTION_SHA" \
+              "previous_candidate=$PREVIOUS_CANDIDATE_SHA" |
+            GIT_AUTHOR_NAME='mad4b-release-bot' \
+            GIT_AUTHOR_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_AUTHOR_DATE="$CANDIDATE_DATE" \
+            GIT_COMMITTER_NAME='mad4b-release-bot' \
+            GIT_COMMITTER_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_COMMITTER_DATE="$CANDIDATE_DATE" \
+            git commit-tree "$MAIN_TREE" \
+              -p "$PINNED_MAIN_SHA" \
+              -p "$PINNED_PRODUCTION_SHA" \
+              -p "$PREVIOUS_CANDIDATE_SHA"
+          )"
+
+          git diff --quiet "$PINNED_MAIN_SHA" "$CANDIDATE_SHA" || {
+            echo '::error::candidate tree differs from captured main'
+            exit 1
+          }
+          git merge-base --is-ancestor "$PINNED_MAIN_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$PINNED_PRODUCTION_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$PREVIOUS_CANDIDATE_SHA" "$CANDIDATE_SHA"
+
+          REMOTE_HEAD="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          if [[ -z "$REMOTE_HEAD" ]]; then
+            echo '::error::target release branch missing'
+            exit 1
+          fi
+          git merge-base --is-ancestor "$REMOTE_HEAD" "$CANDIDATE_SHA" || {
+            echo "::error::target branch cannot fast-forward: $REMOTE_HEAD -> $CANDIDATE_SHA"
+            exit 1
+          }
+
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          MAIN_READBACK="$(git rev-parse refs/remotes/origin/main)"
+          PRODUCTION_READBACK="$(git rev-parse refs/remotes/origin/Production)"
+          if [[ "$MAIN_READBACK" != "$PINNED_MAIN_SHA" \
+             || "$PRODUCTION_READBACK" != "$PINNED_PRODUCTION_SHA" ]]; then
+            echo "::error::protected refs moved during candidate construction: main=$PINNED_MAIN_SHA->$MAIN_READBACK Production=$PINNED_PRODUCTION_SHA->$PRODUCTION_READBACK"
+            exit 1
+          fi
+
+          git push origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
+          TARGET_READBACK="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ "$TARGET_READBACK" == "$CANDIDATE_SHA" ]] || {
+            echo '::error::target branch readback mismatch'
+            exit 1
+          }
+
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$PINNED_MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "production_sha=$PINNED_PRODUCTION_SHA" >> "$GITHUB_OUTPUT"
+          echo "main_tree=$MAIN_TREE" >> "$GITHUB_OUTPUT"
+
+          jq -n \
+            --arg main_sha "$PINNED_MAIN_SHA" \
+            --arg production_sha "$PINNED_PRODUCTION_SHA" \
+            --arg previous_candidate_sha "$PREVIOUS_CANDIDATE_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg main_tree "$MAIN_TREE" \
+            --arg target_branch "$TARGET_BRANCH" \
+            '{
+              schema_version: "production_candidate_atomic_snapshot.v2",
+              ok: true,
+              main_sha: $main_sha,
+              production_sha: $production_sha,
+              previous_candidate_sha: $previous_candidate_sha,
+              candidate_sha: $candidate_sha,
+              candidate_tree: $main_tree,
+              target_branch: $target_branch,
+              tree_matches_main: true,
+              protected_ref_freshness_preserved: true,
+              fast_forward_only: true,
+              protected_branch_mutation: false,
+              deployment_executed: false,
+              migration_executed: false,
+              database_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/atomic-production-candidate-v7.json"
+
+      - name: Upload bounded build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: atomic-production-candidate-v7-${{ steps.build.outputs.candidate_sha }}
+          path: ${{ runner.temp }}/atomic-production-candidate-v7.json
+          if-no-files-found: error
+          retention-days: 30
