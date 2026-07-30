@@ -1,14 +1,10 @@
 name: Surface Contract Phase A Current Main Rebuild V3
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
     paths:
-      - .github/workflows/surface-contract-phase-a-current-main-rebuild-v3.yml
-  pull_request_target:
-    types: [opened, reopened]
-  issue_comment:
-    types: [created]
+      - docs/surface-contract-phase-a-v3-trigger-20260730.md
 
 permissions:
   contents: write
@@ -20,19 +16,8 @@ concurrency:
 jobs:
   rebuild:
     if: >-
-      github.event_name == 'push' ||
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.number == 3754 &&
-        github.event.issue.pull_request != null &&
-        github.event.comment.body == '/surface-phase-a-v3-rebuild' &&
-        github.event.comment.user.login == 'mad4bdigital-ai'
-      ) ||
-      (
-        github.event_name == 'pull_request_target' &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.head.ref == 'gpt/surface-contract-phase-a-current-main-20260730-v3'
-      )
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/surface-contract-phase-a-current-main-20260730-v3'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
