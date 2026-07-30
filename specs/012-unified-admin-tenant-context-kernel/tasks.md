@@ -25,12 +25,14 @@
 - [ ] Add an additive `workspace_ownership_type` persistence field without redefining `workspace_registry.workspace_type`.
 - [ ] Add exact connection-ownership repository.
 - [ ] Add brand connection binding repository.
-- [ ] Add provider authorization-state repository with single-use semantics and reconnect target/account/revision binding.
+- [ ] Add provider authorization-state repository with reconnect target/account/revision binding and explicit `issued → claimed → consumed` lifecycle.
+- [ ] Implement revision-bound atomic compare-and-set claim so exactly one concurrent OAuth callback can continue.
+- [ ] Keep claim tokens internal, short-lived, state-specific, and non-exportable.
 - [ ] Add capability, two-stage readiness, context pin, and execution ledger repositories.
 - [ ] Prepare additive migration, dry-run, compatibility, and same-cycle readback contracts.
 - [ ] Classify legacy rows before additive backfill.
 - [ ] Add compatibility tests for existing `brand|project|campaign|sandbox` workspace types.
-- [ ] Avoid exposing SQL table names or credential values outside infrastructure.
+- [ ] Avoid exposing SQL table names, credentials, authorization codes, raw state, or claim tokens outside infrastructure.
 
 ## Phase 4: Governed migration and persistence readiness
 
@@ -48,7 +50,9 @@
 - [ ] Implement brand connection list, authorize, reconnect, and revoke use cases.
 - [ ] Derive user and tenant identity from authenticated context.
 - [ ] Validate live workspace membership and brand-management authority.
-- [ ] Implement signed, expiring, nonce-bound, single-use, redirect-allowlisted OAuth state.
+- [ ] Implement signed, expiring, nonce-bound, redirect-allowlisted OAuth state.
+- [ ] Atomically claim OAuth state before code exchange, provider calls, credential lookup, or credential mutation.
+- [ ] Reject concurrent claim losers with `OAUTH_STATE_CLAIM_CONFLICT` and sequential replays with `OAUTH_STATE_REPLAYED`.
 - [ ] Bind reconnect state to target connection, expected connection revision, and expected provider account reference or binding hash.
 - [ ] Reject reconnect account or revision mismatch before credential replacement.
 - [ ] Keep Google identity login separate from Google provider consent.
@@ -60,7 +64,8 @@
 - [ ] Implement exact connection and owner-scope resolution.
 - [ ] Implement context pin create, read, and invalidate.
 - [ ] Implement context switching.
-- [ ] Implement plan compilation and validation.
+- [ ] Implement plan compilation and validation before any required approval or credential-dependent readiness.
+- [ ] Implement approval acquisition and revalidation against the exact plan and context revision.
 - [ ] Implement unknown-outcome reconciliation.
 - [ ] Represent identity readiness, pre-credential readiness, credential materialization eligibility, and provider readiness independently.
 - [ ] Add OpenAPI 3.1 personal, workspace, brand, and connection-resolution routes and schemas.
@@ -70,11 +75,11 @@
 
 - [ ] Integrate Effective Capability Envelope as a consumer of the exact connection and owner-scope decision.
 - [ ] Integrate Effective Authority as a consumer of the exact connection and owner-scope decision.
-- [ ] Run context, ownership, capability, authority, approval, and non-secret readiness before credential loading.
-- [ ] Materialize credentials only for the exact selected connection.
-- [ ] Run credential validity, provider-scope, reachability, quota, schema, and readback checks after guarded materialization.
+- [ ] Run context, ownership, capability, authority, plan, approval, and non-secret readiness before credential loading.
+- [ ] Materialize credentials only for the exact selected connection after required approval is obtained and revalidated.
+- [ ] Run credential validity, provider-account binding, provider-scope, reachability, quota, schema, and readback checks after guarded materialization.
 - [ ] Integrate Tenant Activation readiness and typed remediation.
-- [ ] Invalidate decisions, plans, and approvals on membership, owner, provider-account, scope, or revision movement.
+- [ ] Invalidate decisions, plans, approvals, and unconsumed authorization states on membership, owner, provider-account, scope, or revision movement.
 
 ## Phase 8: Shadow and read-only rollout
 
@@ -83,8 +88,8 @@
 - [ ] Integrate resource-first and brand-scoped flows.
 - [ ] Compare exact owner-scope decisions and investigate every isolation, ambiguity, fallback, or readiness discrepancy.
 - [ ] Keep cross-tenant, cross-user, and cross-brand isolation tests release blocking.
-- [ ] Add release-blocking OAuth replay, expiry, redirect, reconnect-account, and context-mismatch tests.
-- [ ] Add release-blocking ambiguity, no-silent-fallback, two-stage-readiness, and no-secret tests.
+- [ ] Add release-blocking OAuth sequential replay, concurrent claim, expiry, redirect, reconnect-account, and context-mismatch tests.
+- [ ] Add release-blocking ambiguity, no-silent-fallback, approval-order, two-stage-readiness, and no-secret tests.
 - [ ] Enable bounded low-risk reads only after parity and all gates pass.
 
 ## Phase 9: Governed writes, rollback, and closeout
@@ -96,7 +101,7 @@
 - [ ] Keep exact-owner isolation active during rollback; disable or fail closed affected provider operations when the guard is unavailable.
 - [ ] Add rollback tests that reject restoration of owner-unsafe selectors.
 - [ ] Verify production deployment against expected commit SHA.
-- [ ] Run post-merge isolation, no-secret, OAuth, reconnect-account, readiness, migration, and rollback audit.
+- [ ] Run post-merge isolation, no-secret, OAuth concurrent-claim, reconnect-account, readiness, migration, and rollback audit.
 - [ ] Record all implementation PRs and closeout evidence in `completion.json`.
 
 ## Definition of done
@@ -106,8 +111,9 @@
 - [ ] No production hardcoding or unsafe selection findings remain.
 - [ ] Existing operational workspace-type semantics remain unchanged.
 - [ ] Cross-tenant, cross-user, and cross-brand isolation gates pass.
-- [ ] OAuth state, reconnect binding, and no-silent-fallback gates pass.
+- [ ] OAuth atomic claim, replay, reconnect binding, and no-silent-fallback gates pass.
 - [ ] Migration readback precedes every dependent runtime rollout.
+- [ ] Plan and approval precede guarded credential materialization and provider readiness.
 - [ ] Two-stage readiness works without premature credential exposure.
 - [ ] Rollback retains exact-owner isolation or fails closed.
 - [ ] CI and security review pass.
