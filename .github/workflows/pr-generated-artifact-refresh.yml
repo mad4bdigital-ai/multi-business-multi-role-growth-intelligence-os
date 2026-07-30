@@ -1,3 +1,4 @@
+# Trigger bounded generated-artifact reconciliation for Brand Skills.
 name: PR Generated Artifact Refresh
 
 on:
