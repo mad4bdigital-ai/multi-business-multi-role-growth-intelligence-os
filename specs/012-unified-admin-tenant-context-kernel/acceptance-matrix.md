@@ -30,3 +30,38 @@
 | A-26 | Customer error projection contains raw provider error | Contract/security test fails |
 | A-27 | Admin visibility includes other tenants | Those resources stay outside execution set |
 | A-28 | Context pin revision is stale | Pin rejected and fresh resolution required |
+| A-29 | Existing workspace has operational `workspaceType=project` and ownership `company` | Operational type remains `project`; ownership resolves independently as `company` |
+| A-30 | Legacy workspace has no ownership classification | `WORKSPACE_OWNERSHIP_TYPE_MISSING`; no consequential connection resolution |
+| A-31 | Personal connection owner equals effective user | Personal connection may enter the eligible set when policy permits |
+| A-32 | Company member references another member's personal connection | `CROSS_USER_CONNECTION_REJECTED` before credential materialization |
+| A-33 | Brand connection matches exact tenant, workspace, brand, resource, and capability | Brand connection is eligible and outranks broader candidates |
+| A-34 | Brand connection belongs to another workspace or brand | `BRAND_WORKSPACE_MISMATCH` or `CROSS_BRAND_CONNECTION_REJECTED` |
+| A-35 | Explicit authorized connection pin and inherited candidates coexist | Explicit authorized pin wins deterministically |
+| A-36 | Two equal-ranked eligible brand or workspace connections remain | `CONNECTION_AMBIGUOUS`; no first-row selection |
+| A-37 | More-specific brand connection is revoked during a consequential write | Write is blocked with no workspace or personal fallback |
+| A-38 | Company-workspace operation lacks policy allowing personal inheritance | `CONNECTION_INHERITANCE_FORBIDDEN` |
+| A-39 | Connection reference crosses tenant boundary | Request fails before credential lookup or decryption |
+| A-40 | Connection decision, API projection, plan, log, readiness record, or evidence is inspected | No credential, refresh token, authorization code, raw OAuth state, or claim token appears |
+| A-41 | Google identity login succeeds without provider consent | Identity is ready; provider connection is not ready; `PROVIDER_CONSENT_REQUIRED` |
+| A-42 | OAuth authorization state is reused after consumption | `OAUTH_STATE_REPLAYED` |
+| A-43 | OAuth authorization state is expired or has invalid signature | `OAUTH_STATE_EXPIRED` or `OAUTH_STATE_INVALID` |
+| A-44 | OAuth redirect, provider account, tenant, workspace, brand, or owner scope mismatches signed state | Request fails closed with the corresponding structured mismatch error |
+| A-45 | Service principal with explicit service authority selects a company-workspace connection | Resolution can succeed without inventing `effectiveUserRef` |
+| A-46 | Connection resolution is `interpretation_required` or `connection_required` | No singular `connectionRevision`; candidate revision vector is complete or empty as defined |
+| A-47 | Company membership, brand binding, provider scopes, or connection revision changes after decision | Pins, plans, approvals, and cached decisions are invalidated |
+| A-48 | Consumer inspects manifest before connection OpenAPI implementation lands | Planned connection surfaces are marked contract-pending and are not advertised as exposed |
+| A-49 | Candidate discovery or authority validation runs before one exact connection is approved | No credential is loaded; pre-credential readiness remains non-secret |
+| A-50 | One exact connection, owner scope, capability, authority, plan, approval, and pre-credential readiness pass | Credential may be materialized through the guarded boundary solely for provider readiness and dispatch |
+| A-51 | Reconnect state targets connection A but OAuth returns another provider account or connection A revision moved | `PROVIDER_ACCOUNT_MISMATCH` or `OAUTH_STATE_CONTEXT_MISMATCH`; existing credential is not replaced |
+| A-52 | A resolved connection decision omits selected owner scope type or reference | Decision validation fails; downstream authority/capability execution is blocked |
+| A-53 | Shadow or read rollout starts before ownership migration ledger and same-cycle readback are verified | Rollout gate blocks startup |
+| A-54 | Rollback is requested after hierarchical routing is enabled | Exact-owner isolation remains active; if unavailable, affected provider operations fail closed instead of using the prior unsafe selector |
+| A-55 | Two callbacks concurrently submit distinct authorization codes with the same valid issued state | Atomic compare-and-set grants exactly one claim; the loser receives `OAUTH_STATE_CLAIM_CONFLICT` and performs no code exchange or credential mutation |
+| A-56 | A flow requires approval and credential-dependent provider readiness | Plan is compiled and approval obtained/revalidated before guarded credential materialization and provider readiness |
+| A-57 | Reconnect callback validates connection revision R, then another reconnect or revoke advances it before credential storage | Credential replacement compare-and-set fails; no new credential is visible and a new authorization attempt is required |
+| A-58 | Fault injection fails each atomic reconnect-completion substep in turn: encrypted credential replacement, provider-account binding update, connection revision advancement, or `claimed → consumed` transition | After every injected failure, all effects remain unapplied; no partial credential, binding, revision, or consumed state is observable |
+| A-59 | Context or connection resolution remains ambiguous | Selected connection and owner-scope fields are omitted; candidate evidence is returned without fabricated ownership |
+| A-60 | Operation requires no human approval | Exact execution plan still binds operation, target, connection, owner scope, revision, and readback contract before credential materialization |
+| A-61 | Owner-scope type, owner-scope reference, or owner-scope revision is changed while the selected connection reference remains constant | Context hash changes and every dependent plan, approval, pin, and execution envelope is invalidated |
+| A-62 | Policy forbids retaining a raw provider account reference and the credential later expires or is revoked | Durable versioned `providerAccountBindingHash` remains available to bind reconnect and reject a different provider account |
+| A-63 | A claimed callback resumes on another worker after process restart | Persisted `claimTokenHash`, `claimRevision`, and `claimedAt` are required; the valid internal token can be verified, while missing or mismatched claim evidence blocks exchange and completion |
