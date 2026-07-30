@@ -24,3 +24,9 @@ export {
   createContextRevision,
   validateContextRevision,
 } from "./contextIntegrity.js";
+
+export {
+  SUPPORT_DELEGATION_MODES,
+  createSupportDelegationEvidence,
+  evaluateSupportDelegation,
+} from "./supportDelegationPolicy.js";
