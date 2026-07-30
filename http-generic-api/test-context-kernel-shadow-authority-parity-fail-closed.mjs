@@ -81,6 +81,17 @@ assertSafe(unsupported);
 const dataQuality = evaluateShadowAuthorityParity({
   legacySnapshot: snapshot("legacy", {
     dataQualityIssues: ["missing_revision"],
+  }),
+  effectiveSnapshot: snapshot("effective"),
+  now: NOW,
+});
+assert.ok(dataQuality.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(dataQuality.reasonCodes.includes("SHADOW_PARITY_DATA_QUALITY_MISMATCH"));
+assert.deepEqual(dataQuality.legacyIssues, []);
+assertSafe(dataQuality);
+
+const duplicateIdentity = evaluateShadowAuthorityParity({
+  legacySnapshot: snapshot("legacy", {
     identitySets: {
       resourceRefs: ["repository-a", "repository-a"],
       capabilityKeys: ["repository.read"],
@@ -91,9 +102,9 @@ const dataQuality = evaluateShadowAuthorityParity({
   effectiveSnapshot: snapshot("effective"),
   now: NOW,
 });
-assert.ok(dataQuality.mismatchClasses.includes("data_quality_mismatch"));
-assert.ok(dataQuality.legacyIssues.includes("legacy_resourceRefs_duplicate_ref"));
-assertSafe(dataQuality);
+assert.ok(duplicateIdentity.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(duplicateIdentity.legacyIssues.includes("legacy_resourceRefs_duplicate_ref"));
+assertSafe(duplicateIdentity);
 
 const sideEffect = evaluateShadowAuthorityParity({
   legacySnapshot: snapshot("legacy", { providerCallMade: true }),
@@ -124,6 +135,19 @@ const wrongSource = evaluateShadowAuthorityParity({
 assert.ok(wrongSource.mismatchClasses.includes("data_quality_mismatch"));
 assert.ok(wrongSource.legacyIssues.includes("legacy_source_mismatch"));
 assertSafe(wrongSource);
+
+const invalidOptionalRefs = evaluateShadowAuthorityParity({
+  legacySnapshot: snapshot("legacy", {
+    manifestRef: "not valid!",
+    revisionRef: "also not valid!",
+  }),
+  effectiveSnapshot: snapshot("effective"),
+  now: NOW,
+});
+assert.ok(invalidOptionalRefs.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(invalidOptionalRefs.legacyIssues.includes("legacy_manifest_ref_invalid"));
+assert.ok(invalidOptionalRefs.legacyIssues.includes("legacy_revision_ref_invalid"));
+assertSafe(invalidOptionalRefs);
 
 const tooManyResources = Array.from(
   { length: SHADOW_PARITY_LIMITS.maxIdentityRefsPerDimension + 1 },
