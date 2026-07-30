@@ -27,6 +27,7 @@ const staticDiscoveryCommands = [
   "node test-dynamic-capability-projection-preview.mjs",
   "node test-dynamic-container-projection-apply-tool.mjs",
   "node test-dynamic-container-rollout-safety.mjs",
+  "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
