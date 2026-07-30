@@ -8,7 +8,7 @@ const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligenc
 function manifest(overrides = {}) {
   return {
     repository: REPOSITORY,
-    branch: "main",
+    branch: "Production",
     commit_sha: SHA_NEW,
     deployed_at: "2026-07-17T20:00:00.000Z",
     ...overrides,
