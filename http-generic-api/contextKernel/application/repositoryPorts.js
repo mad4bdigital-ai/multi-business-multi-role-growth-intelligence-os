@@ -1,5 +1,7 @@
 const PORT_METHODS = Object.freeze({
   principal: Object.freeze(["findPrincipal"]),
+  subjectScope: Object.freeze(["findSubjectScope"]),
+  delegationContext: Object.freeze(["findDelegationContext"]),
   authorizedScope: Object.freeze(["findAuthorizedScope"]),
   resourceGraph: Object.freeze(["listAuthorizedResources"]),
   exactConnection: Object.freeze(["findExactConnection"]),
@@ -21,6 +23,14 @@ function assertRepositoryMethods(repository, portName, requiredMethods) {
 
 export function assertPrincipalRepository(repository) {
   return assertRepositoryMethods(repository, "Principal", PORT_METHODS.principal);
+}
+
+export function assertSubjectScopeRepository(repository) {
+  return assertRepositoryMethods(repository, "Subject scope", PORT_METHODS.subjectScope);
+}
+
+export function assertDelegationContextRepository(repository) {
+  return assertRepositoryMethods(repository, "Delegation context", PORT_METHODS.delegationContext);
 }
 
 export function assertAuthorizedScopeRepository(repository) {
