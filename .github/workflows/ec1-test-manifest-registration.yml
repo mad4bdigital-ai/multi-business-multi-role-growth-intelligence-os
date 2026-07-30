@@ -1,7 +1,9 @@
 name: EC1 Test Manifest Registration
-# Synchronize trigger for governed EC1 registration review.
 
 on:
+  push:
+    branches:
+      - gpt/spec-012-ec1-execution-capsule-shadow-adapter-20260730
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -10,7 +12,9 @@ permissions:
 
 jobs:
   register:
-    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec1-execution-capsule-shadow-adapter-20260730'
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.ref == 'gpt/spec-012-ec1-execution-capsule-shadow-adapter-20260730'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
