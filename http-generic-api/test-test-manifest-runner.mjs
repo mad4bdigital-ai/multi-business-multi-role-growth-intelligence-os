@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import "./scripts/test-operation-orchestrator.mjs";
+import "./test-durable-execution-control-service.mjs";
 import { testCommands } from "./scripts/test-manifest.mjs";
 
 const packageJson = JSON.parse(fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"));

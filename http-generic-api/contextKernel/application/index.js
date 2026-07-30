@@ -8,6 +8,7 @@ export {
 export { createContextPinService } from "./contextPinService.js";
 export { createContextResolutionService } from "./contextResolutionService.js";
 export { createContextSwitchService } from "./contextSwitchService.js";
+export { createEndpointCertificationResolverService } from "./endpointCertificationResolverService.js";
 export {
   ExecutionCapsuleValidationStatus,
   createExecutionCapsuleService,
@@ -18,6 +19,7 @@ export { createPrincipalResolverService } from "./principalResolverService.js";
 export { createProviderConsentService } from "./providerConsentService.js";
 export { createProviderConsentStateCodec } from "./providerConsentStateCodec.js";
 export { createResourceGraphResolverService } from "./resourceGraphResolverService.js";
+export { createShadowAuthorityParityService } from "./shadowAuthorityParityService.js";
 export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
 
@@ -30,6 +32,7 @@ export {
   assertCapabilityReadinessRepository,
   assertConnectionOwnershipRepository,
   assertContextPinRepository,
+  assertEndpointCertificationEvidenceRepository,
   assertExactConnectionRepository,
   assertExecutionLedgerRepository,
   assertPolicyGrantEvidenceRepository,

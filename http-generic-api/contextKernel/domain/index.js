@@ -26,6 +26,11 @@ export {
 } from "./contextIntegrity.js";
 
 export {
+  ENDPOINT_CERTIFICATION_LIMITS,
+  evaluateEndpointCertificationDecision,
+} from "./endpointCertificationDecision.js";
+
+export {
   EXECUTION_CAPSULE_SCHEMA_VERSION,
   ExecutionCapsuleDependencyDomains,
   ExecutionCapsuleProjectionModes,
@@ -45,6 +50,12 @@ export {
   RESOURCE_GRAPH_LIMITS,
   evaluateBoundedResourceGraph,
 } from "./resourceGraphPolicy.js";
+
+export {
+  SHADOW_PARITY_IDENTITY_DIMENSIONS,
+  SHADOW_PARITY_LIMITS,
+  evaluateShadowAuthorityParity,
+} from "./shadowAuthorityParityDecision.js";
 
 export {
   SUPPORT_DELEGATION_MODES,
