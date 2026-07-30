@@ -11,6 +11,7 @@ export const RESOURCE_GRAPH_LIMITS = deepFreeze({
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{2,190}$/;
+const RESTRICTION_STATUSES = new Set(["active", "inactive", "revoked", "expired"]);
 
 function requireString(value, field, maximumLength = 191) {
   const normalized = String(value ?? "").trim();
@@ -84,7 +85,7 @@ function blocked(reasonCodes, details = {}) {
   });
 }
 
-function normalizeNode(record, tenantRef) {
+function normalizeNode(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
     throw new TypeError("resource graph nodes must be objects.");
   }
@@ -103,7 +104,6 @@ function normalizeNode(record, tenantRef) {
     metadata: record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
       ? { ...record.metadata }
       : {},
-    tenantMismatch: record.tenantRef !== tenantRef,
   };
 }
 
@@ -144,13 +144,17 @@ function normalizeRestriction(record) {
   if (!REASON_CODE_PATTERN.test(reasonCode)) {
     throw new TypeError("restriction.reasonCode must be a stable uppercase reason code.");
   }
+  const status = requireIdentifier(record.status, "restriction.status").toLowerCase();
+  if (!RESTRICTION_STATUSES.has(status)) {
+    throw new TypeError(`Unsupported resource graph restriction status: ${status}`);
+  }
   return {
     restrictionRef: requireIdentifier(record.restrictionRef, "restriction.restrictionRef"),
     nodeRef: requireIdentifier(record.nodeRef, "restriction.nodeRef"),
     effect,
     operations,
     reasonCode,
-    status: requireIdentifier(record.status, "restriction.status").toLowerCase(),
+    status,
     revokedAt: record.revokedAt || null,
     validFrom: record.validFrom || null,
     validUntil: record.validUntil || record.expiresAt || null,
@@ -223,6 +227,7 @@ export function evaluateBoundedResourceGraph({
       bounds: { maxDepth: normalizedMaxDepth, maxNodes: normalizedMaxNodes },
     });
   }
+
   if (rawEdges.length > normalizedMaxNodes * 8) {
     return blocked(["RESOURCE_GRAPH_EDGE_LIMIT_EXCEEDED"]);
   }
@@ -232,9 +237,9 @@ export function evaluateBoundedResourceGraph({
 
   const nodeMap = new Map();
   for (const rawNode of rawNodes) {
-    const node = normalizeNode(rawNode, normalizedTenantRef);
+    const node = normalizeNode(rawNode);
     if (nodeMap.has(node.nodeRef)) return blocked(["RESOURCE_GRAPH_NODE_REFERENCE_AMBIGUOUS"]);
-    if (node.tenantMismatch) return blocked(["RESOURCE_GRAPH_CROSS_TENANT_NODE"]);
+    if (node.tenantRef !== normalizedTenantRef) return blocked(["RESOURCE_GRAPH_CROSS_TENANT_NODE"]);
     if (
       normalizedWorkspaceRef &&
       node.workspaceRef &&
@@ -374,6 +379,8 @@ export function evaluateBoundedResourceGraph({
     bounds: {
       maxDepth: normalizedMaxDepth,
       maxNodes: normalizedMaxNodes,
+      maxEdges: normalizedMaxNodes * 8,
+      maxRestrictions: normalizedMaxNodes * 4,
       relationTypes: normalizedRelationTypes,
       inheritancePolicyKeys: normalizedPolicyKeys,
     },
