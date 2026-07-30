@@ -1,0 +1,109 @@
+name: PR 3247 observable owner-cache executor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - gpt/response-chunk-ownership-a23e0076
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  execute:
+    if: startsWith(github.event.pull_request.head.ref, 'gpt/pr3247-observable-owner-cache-trigger-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/response-chunk-ownership-a23e0076
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Apply exact patch and run targeted regression
+        id: patch
+        shell: bash
+        run: |
+          set +e
+          {
+            set -euo pipefail
+            python - <<'PY'
+            from pathlib import Path
+
+            source = Path(".tmp/pr3247/patch-source.yml").read_text(encoding="utf-8").splitlines()
+            marker = "        run: |"
+            if source.count(marker) != 1:
+                raise SystemExit(f"expected one patch run block, found {source.count(marker)}")
+            start = source.index(marker) + 1
+            body = []
+            for line in source[start:]:
+                if line and len(line) - len(line.lstrip(" ")) <= 8:
+                    break
+                body.append(line[10:] if line.startswith("          ") else line)
+            script = "\n".join(body).rstrip() + "\n"
+            tail_marker = "\ngit config user.name"
+            if tail_marker not in script:
+                raise SystemExit("patch commit tail marker was not found")
+            script = script.split(tail_marker, 1)[0].rstrip() + "\n"
+            required = [
+                "canAccessGovernedResponseChunk(principal, entry)",
+                "cross-tenant memory denial must not extend durable TTL",
+            ]
+            missing = [item for item in required if item not in script]
+            if missing:
+                raise SystemExit(f"patch integrity markers missing: {missing}")
+            Path("/tmp/pr3247_patch.sh").write_text(script, encoding="utf-8")
+            PY
+            bash /tmp/pr3247_patch.sh
+            node --check http-generic-api/routes/gptToolsRoutes.js
+            node --check http-generic-api/test-gpt-tools-response-chunking.mjs
+            git diff --check
+            cd http-generic-api
+            npm ci --ignore-scripts
+            node test-gpt-tools-response-chunking.mjs
+          } > /tmp/pr3247-run.log 2>&1
+          status=$?
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          tail -n 200 /tmp/pr3247-run.log > /tmp/pr3247-run-tail.log
+          cat /tmp/pr3247-run-tail.log
+          exit 0
+      - name: Record fail-closed diagnostic
+        if: steps.patch.outputs.status != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git reset --hard HEAD
+          mkdir -p .tmp/pr3247
+          {
+            echo "status=failed"
+            echo "executor_pr=${{ github.event.pull_request.number }}"
+            echo "base_head_before=${{ github.event.pull_request.base.sha }}"
+            echo "secrets_included=false"
+            echo "--- log tail ---"
+            cat /tmp/pr3247-run-tail.log
+          } > .tmp/pr3247/runner-failure.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .tmp/pr3247/runner-failure.txt
+          git commit -m "chore: record PR 3247 owner-cache runner failure"
+          git push origin HEAD:gpt/response-chunk-ownership-a23e0076
+          exit 1
+      - name: Commit clean patch
+        if: steps.patch.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr3247-one-shot-owner-cache.yml
+          rm -f .github/workflows/pr3247-observable-owner-cache-executor.yml
+          rm -rf .tmp/pr3247
+          rmdir .tmp 2>/dev/null || true
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "security: enforce response chunk cache ownership"
+          git push origin HEAD:gpt/response-chunk-ownership-a23e0076
