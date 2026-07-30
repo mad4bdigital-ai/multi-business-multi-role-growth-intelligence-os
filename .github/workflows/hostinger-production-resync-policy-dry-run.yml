@@ -1,0 +1,298 @@
+name: Hostinger Production Resync Policy Dry Run
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/hostinger-production-resync-policy-dry-run.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-resync-policy-dry-run
+  cancel-in-progress: false
+
+jobs:
+  governed-production-dry-run:
+    if: github.event.pull_request.head.ref == 'ops/hostinger-production-resync-policy-dry-run-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out pinned Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify Production pin ancestry and migration blob
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: fae54a372350d23d915bbe564e972b714ca363f4
+          REQUIRED_SOURCE_MERGE_SHA: 1b1cb8ef7ab5f91e57828469a7c0275351765bb5
+          EXPECTED_MIGRATION_BLOB: 553e0ab987e04009ddced67c3ef986a2669a0f8b
+          MIGRATION_PATH: http-generic-api/migrations/20260730_hostinger_production_resync_policy.sql
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          [[ "$actual_head" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA actual $actual_head"
+            exit 1
+          }
+          git merge-base --is-ancestor "$REQUIRED_SOURCE_MERGE_SHA" HEAD || {
+            echo "::error::Production does not contain PR #3265 merge"
+            exit 1
+          }
+          actual_blob="$(git rev-parse "HEAD:${MIGRATION_PATH}")"
+          [[ "$actual_blob" == "$EXPECTED_MIGRATION_BLOB" ]] || {
+            echo "::error::migration blob mismatch: $actual_blob"
+            exit 1
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify deployed runtime parity
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: queue_worker
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
+
+      - name: Authorize and dry-run exact migration
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { promises as fs } from 'node:fs';
+          import { splitMigrationSqlStatements } from './http-generic-api/migrationSqlStatements.js';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260730_hostinger_production_resync_policy.sql';
+          const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
+          const SOURCE_PR = 3265;
+          const SOURCE_MERGE_SHA = '1b1cb8ef7ab5f91e57828469a7c0275351765bb5';
+          const PRODUCTION_SHA = 'fae54a372350d23d915bbe564e972b714ca363f4';
+          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+          const EVIDENCE_DIR = `${process.env.RUNNER_TEMP}/hostinger-resync-policy-dry-run`;
+
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+          await fs.mkdir(EVIDENCE_DIR, { recursive: true });
+
+          const sql = await fs.readFile(MIGRATION_PATH, 'utf8');
+          const CHECKSUM = createHash('sha256').update(sql, 'utf8').digest('hex');
+          const STATEMENT_COUNT = splitMigrationSqlStatements(sql).length;
+          assert.match(CHECKSUM, /^[0-9a-f]{64}$/);
+          assert.ok(Number.isInteger(STATEMENT_COUNT) && STATEMENT_COUNT > 0);
+
+          const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          function sanitize(value) {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+              key,
+              sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+            ]));
+          }
+
+          function parsedValue(value) {
+            if (typeof value !== 'string') return value;
+            const text = value.trim();
+            if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
+            try { return JSON.parse(text); } catch { return value; }
+          }
+
+          function findObjectWithKey(value, key, seen = new Set()) {
+            value = parsedValue(value);
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (Object.prototype.hasOwnProperty.call(value, key)) return value;
+            for (const child of Object.values(value)) {
+              const found = findObjectWithKey(child, key, seen);
+              if (found) return found;
+            }
+            return null;
+          }
+
+          async function requestRaw(pathname, body) {
+            const response = await fetch(`${BASE}${pathname}`, {
+              method: 'POST',
+              redirect: 'error',
+              headers: {
+                Authorization: `Bearer ${KEY}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(body),
+              signal: AbortSignal.timeout(180000),
+            });
+            const text = await response.text();
+            let payload;
+            try { payload = text ? JSON.parse(text) : null; }
+            catch { payload = { raw_preview: text.slice(0, 500) }; }
+            const result = { status: response.status, http_ok: response.ok, payload };
+            console.log(JSON.stringify(sanitize(result), null, 2));
+            return result;
+          }
+
+          function requireSuccess(result, label) {
+            if (!result.http_ok || result.payload?.ok === false) {
+              const error = new Error(`${label} failed with HTTP ${result.status}`);
+              error.code = result.payload?.error?.code || result.payload?.error_code || `${label}_failed`;
+              throw error;
+            }
+            return result.payload;
+          }
+
+          function shellInvocation(alias, extraArgs) {
+            return {
+              tool: 'shell',
+              action: 'run',
+              alias,
+              authority_context: {
+                resource_type: 'shell_alias',
+                resource_uri: `shell://${alias}`,
+                operation_mode: alias,
+                required: true,
+              },
+              extra_args: extraArgs,
+            };
+          }
+
+          const preReadback = await requestRaw('/gpt/tools/call', {
+            name: 'governed_migration_schema_readback',
+            tool_args: {
+              migration: MIGRATION,
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          });
+          assert.ok([200, 409].includes(preReadback.status), `Unexpected pre-readback HTTP ${preReadback.status}`);
+          const existingLedger = preReadback.status === 200 && preReadback.payload?.ledger?.found === true
+            ? preReadback.payload.ledger
+            : null;
+
+          let authorizationEvidence = null;
+          if (!existingLedger) {
+            const envelopeCreate = requireSuccess(await requestRaw('/admin/control', shellInvocation(
+              'capability_resolution_envelope_create',
+              [
+                `--tenant-id=${PLATFORM_TENANT_ID}`,
+                `--user-id=${PLATFORM_ADMIN_USER_ID}`,
+                '--user-role=Admin',
+                '--app-key=platform_orchestration',
+                '--capability-key=governed_migration_execute',
+                '--operation-intent=governed_migration_authorization_bootstrap',
+                '--runtime-surface=auth_host',
+                '--requested-by=github_actions_hostinger_resync_policy_dry_run',
+                '--ttl-minutes=30',
+                '--explain',
+              ],
+            )), 'authorization_envelope_create');
+
+            let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
+            assert.ok(envelope?.envelope_id, 'Authorization envelope creation returned no envelope_id');
+            assert.notEqual(envelope.envelope_status, 'blocked', `Authorization envelope blocked: ${envelope.decision || 'unknown'}`);
+            assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Authorization envelope has blocking gaps');
+
+            if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
+              const approval = requireSuccess(await requestRaw('/admin/control', shellInvocation(
+                'capability_resolution_envelope_approve',
+                [
+                  `--envelope-id=${envelope.envelope_id}`,
+                  '--approved-by=github_actions',
+                  '--decision-note=Approve checksum-bound authorization bootstrap for the Hostinger Production resync policy migration.',
+                  '--ttl-minutes=30',
+                ],
+              )), 'authorization_envelope_approval');
+              envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
+            }
+            assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Authorization envelope is not ready_for_dispatch');
+
+            const authorization = requireSuccess(await requestRaw('/gpt/tools/call', {
+              name: 'governed_migration_authorization_bootstrap',
+              tool_args: {
+                migration: MIGRATION,
+                expected_checksum_sha256: CHECKSUM,
+                expected_statement_count: STATEMENT_COUNT,
+                pull_request: SOURCE_PR,
+                merge_sha: SOURCE_MERGE_SHA,
+                confirm: 'AUTHORIZE_GOVERNED_MIGRATION_20260730_HOSTINGER_PRODUCTION_RESYNC_POLICY',
+                capability_envelope_id: envelope.envelope_id,
+                decision_note: 'Authorize the reviewed additive and idempotent Hostinger Production resynchronization policy migration after pinned Production runtime verification.',
+              },
+            }), 'migration_authorization_bootstrap');
+            authorizationEvidence = findObjectWithKey(authorization, 'migration_sql_executed');
+            assert.equal(authorizationEvidence?.migration_sql_executed, false, 'Authorization bootstrap must not execute SQL');
+            assert.equal(authorizationEvidence?.applies_migration, false, 'Authorization bootstrap must not apply migration');
+          }
+
+          const dryRunPayload = requireSuccess(await requestRaw('/gpt/tools/call', {
+            name: 'governed_migration_execute',
+            tool_args: {
+              migration: MIGRATION,
+              mode: 'dry_run',
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          }), 'governed_migration_dry_run');
+          const dryRun = findObjectWithKey(dryRunPayload, 'applies_sql');
+          assert.equal(dryRun?.applies_sql, false, 'Dry-run must report applies_sql=false');
+          assert.equal(dryRun?.mode, 'dry_run', 'Dry-run mode mismatch');
+          assert.equal(dryRun?.migration_checksum_sha256, CHECKSUM, 'Dry-run checksum mismatch');
+          assert.equal(Number(dryRun?.statement_count), STATEMENT_COUNT, 'Dry-run statement count mismatch');
+          assert.equal(dryRun?.preflight?.status, 'pass', 'Migration preflight did not pass');
+          assert.equal(Number(dryRun?.preflight?.risk_count || 0), 0, 'Migration preflight has risk findings');
+          assert.equal(dryRun?.same_cycle_readback_verified, true, 'Dry-run same-cycle readback missing');
+
+          const summary = {
+            schema_version: 'hostinger_production_resync_policy_dry_run.v1',
+            ok: true,
+            stage: existingLedger ? 'already_applied_verified_dry_run' : 'authorization_and_dry_run_complete',
+            migration: MIGRATION,
+            migration_blob_sha: '553e0ab987e04009ddced67c3ef986a2669a0f8b',
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: STATEMENT_COUNT,
+            production_sha: PRODUCTION_SHA,
+            source_pr: SOURCE_PR,
+            source_merge_sha: SOURCE_MERGE_SHA,
+            preflight_status: dryRun.preflight.status,
+            preflight_risk_count: Number(dryRun.preflight.risk_count || 0),
+            applies_sql: false,
+            existing_apply_ledger: existingLedger ? sanitize(existingLedger) : null,
+            authorization_created_or_verified: Boolean(authorizationEvidence) || Boolean(existingLedger),
+            provider_call_executed: false,
+            external_write_executed: false,
+            migration_sql_applied_by_this_workflow: false,
+            secrets_included: false,
+          };
+          await fs.writeFile(`${EVIDENCE_DIR}/summary.json`, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
+      - name: Upload bounded dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-resync-policy-dry-run
+          path: ${{ runner.temp }}/hostinger-resync-policy-dry-run
+          if-no-files-found: error
+          retention-days: 30
