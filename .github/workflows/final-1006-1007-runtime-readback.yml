@@ -1,0 +1,169 @@
+name: Final 1006 1007 Runtime Readback
+
+on:
+  pull_request:
+    branches:
+      - Production
+    paths:
+      - .github/workflows/final-1006-1007-runtime-readback.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: final-1006-1007-runtime-readback-20260730
+  cancel-in-progress: false
+
+jobs:
+  verify-and-clean:
+    name: Verify current Production runtime and remove readback branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      READBACK_BRANCH: gpt/final-1006-1007-runtime-readback-20260730
+      MIGRATION_1006_NAME: 1006_sprint69_agent_capability_evidence_coverage.sql
+      MIGRATION_1006_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
+      MIGRATION_1006_STATEMENTS: "5"
+      MIGRATION_1007_NAME: 1007_sprint69_agent_capability_coverage_admin_tools.sql
+      MIGRATION_1007_SHA256: 11b93401bbd0ed64e3e564d183c5a5d9775bcabbe3ccd7002d97e38b0d107a40
+      MIGRATION_1007_STATEMENTS: "1"
+    steps:
+      - name: Checkout readback branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify moving Production, runtime, ledgers, catalog, and Admin tools
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { setTimeout as sleep } from "node:timers/promises";
+
+          const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
+          const apiKey = process.env.BACKEND_API_KEY || "";
+          if (!apiKey) throw new Error("BACKEND_API_KEY is unavailable");
+
+          const sensitive = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          const sanitize = (value) => {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== "object") return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sensitive.test(key) ? "[redacted]" : sanitize(child)]));
+          };
+          const print = (label, value) => console.log(`${label}=${JSON.stringify(sanitize(value), null, 2)}`);
+          const unwrap = (response) => response?.body?.result || response?.body?.data || response?.body;
+
+          async function request(path, options = {}, timeout = 360000) {
+            const response = await fetch(`${base}${path}`, {
+              ...options,
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                Accept: "application/json",
+                "User-Agent": "mad4b-final-1006-1007-readback/1.0",
+                ...(options.headers || {}),
+              },
+              signal: AbortSignal.timeout(timeout),
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { raw_preview: text.slice(0, 1000) }; }
+            return { status: response.status, ok: response.ok, body };
+          }
+
+          const toolCall = (name, toolArgs) => request("/gpt/tools/call", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, tool_args: toolArgs }),
+          });
+
+          let productionSha = "";
+          let runtimeEvidence = null;
+          for (let attempt = 1; attempt <= 30; attempt += 1) {
+            execFileSync("git", ["fetch", "origin", "Production", "--quiet"], { stdio: "inherit" });
+            productionSha = execFileSync("git", ["rev-parse", "origin/Production"], { encoding: "utf8" }).trim().toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(productionSha)) throw new Error("Production SHA could not be resolved");
+
+            const responses = {};
+            const strings = [];
+            let healthy = true;
+            for (const path of ["/health", "/version", "/deployment-info"]) {
+              const response = await request(path, { method: "GET" }, 30000);
+              responses[path] = response;
+              if (!response.ok || response.body?.ok !== true) healthy = false;
+              const visit = (value) => {
+                if (typeof value === "string") strings.push(value.toLowerCase());
+                else if (Array.isArray(value)) value.forEach(visit);
+                else if (value && typeof value === "object") Object.values(value).forEach(visit);
+              };
+              visit(response.body);
+            }
+
+            const parity = healthy && strings.some((value) => value.includes(productionSha));
+            console.log(`RUNTIME_PARITY_ATTEMPT=${attempt} production_sha=${productionSha} parity=${parity}`);
+            if (parity) {
+              runtimeEvidence = responses;
+              break;
+            }
+            if (attempt < 30) await sleep(30000);
+          }
+          if (!runtimeEvidence) throw new Error(`Runtime did not converge to current Production within bounded retries; last_production_sha=${productionSha}`);
+          for (const [path, response] of Object.entries(runtimeEvidence)) print(`FINAL_RUNTIME_${path.replaceAll("/", "_").toUpperCase()}`, response);
+
+          const migrations = [
+            { key: "1006", name: process.env.MIGRATION_1006_NAME, checksum: process.env.MIGRATION_1006_SHA256, statements: Number(process.env.MIGRATION_1006_STATEMENTS) },
+            { key: "1007", name: process.env.MIGRATION_1007_NAME, checksum: process.env.MIGRATION_1007_SHA256, statements: Number(process.env.MIGRATION_1007_STATEMENTS) },
+          ];
+          const ledgerRunIds = {};
+          for (const migration of migrations) {
+            const response = await toolCall("governed_migration_schema_readback", {
+              migration: migration.name,
+              expected_checksum_sha256: migration.checksum,
+              expected_statement_count: migration.statements,
+            });
+            const result = unwrap(response);
+            print(`FINAL_LEDGER_${migration.key}`, response);
+            const ledger = result?.ledger;
+            if (!response.ok || result?.ok !== true || result?.readback_status !== "pass" || ledger?.found !== true) process.exit(1);
+            if (ledger.mode !== "apply" || ledger.migration_checksum_sha256 !== migration.checksum || Number(ledger.statement_count) !== migration.statements) process.exit(1);
+            if (ledger.preflight_status !== "pass" || Number(ledger.preflight_risk_count || 0) !== 0 || !ledger.run_id) process.exit(1);
+            ledgerRunIds[migration.key] = ledger.run_id;
+          }
+
+          for (const tool of ["agent_governance_logic_coverage", "agent_governance_engine_coverage"]) {
+            const catalogResponse = await toolCall("admin_tool_catalog_search", { q: tool, limit: 10 });
+            const catalog = unwrap(catalogResponse);
+            print(`FINAL_CATALOG_${tool.toUpperCase()}`, catalogResponse);
+            const items = Array.isArray(catalog?.items) ? catalog.items : [];
+            if (!catalogResponse.ok || !items.some((item) => [item?.name, item?.tool_key, item?.key].includes(tool))) process.exit(1);
+
+            const callResponse = await toolCall(tool, { limit: 1 });
+            const result = unwrap(callResponse);
+            print(`FINAL_CALL_${tool.toUpperCase()}`, callResponse);
+            if (!callResponse.ok || result?.ok !== true || !Array.isArray(result?.coverage?.rows)) process.exit(1);
+          }
+
+          console.log(`FINAL_PRODUCTION_SHA=${productionSha}`);
+          console.log(`FINAL_MIGRATION_1006_RUN_ID=${ledgerRunIds["1006"]}`);
+          console.log(`FINAL_MIGRATION_1007_RUN_ID=${ledgerRunIds["1007"]}`);
+          console.log("FINAL_RUNTIME_PARITY=PASS");
+          console.log("FINAL_MIGRATION_LEDGERS=2/2");
+          console.log("FINAL_ADMIN_TOOLS=2/2");
+          console.log("FINAL_SQL_EXECUTED=false");
+          NODE
+
+      - name: Delete readback branch through Git transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin --delete "$READBACK_BRANCH"
+          if git ls-remote --exit-code --heads origin "refs/heads/${READBACK_BRANCH}" >/dev/null 2>&1; then
+            echo "Readback branch still exists after deletion" >&2
+            exit 1
+          fi
+          echo "READBACK_BRANCH_DELETED=true"
+          echo "READBACK_BRANCH_ABSENCE_READBACK=PASS"
