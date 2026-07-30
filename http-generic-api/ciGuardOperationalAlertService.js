@@ -113,6 +113,26 @@ function objectiveStatus(sampleCount, value, target, { noSamples = "not_applicab
   return Number(value) <= Number(target) ? "pass" : "fail";
 }
 
+export function deriveRecoverySamples(events = []) {
+  const chronological = [...events]
+    .map((event) => ({ event, observedAt: parseDate(event?.observed_at) }))
+    .filter((entry) => entry.observedAt)
+    .sort((a, b) => a.observedAt - b.observedAt);
+  const samples = [];
+  let incidentStartedAt = null;
+  for (const { event, observedAt } of chronological) {
+    if (FAILURE_STATUSES.has(String(event?.status || "").toLowerCase())) {
+      incidentStartedAt ||= observedAt;
+      continue;
+    }
+    if (String(event?.status || "").toLowerCase() === "success" && incidentStartedAt) {
+      samples.push(Math.max(0, Math.round((observedAt.getTime() - incidentStartedAt.getTime()) / 1000)));
+      incidentStartedAt = null;
+    }
+  }
+  return samples;
+}
+
 export function calculateCiGuardSlo(events = [], currentAlert = null, {
   generatedAt = new Date(),
   targets = DEFAULT_TARGETS,
@@ -121,7 +141,7 @@ export function calculateCiGuardSlo(events = [], currentAlert = null, {
   const successes = normalizedEvents.filter((event) => event.status === "success");
   const failures = normalizedEvents.filter((event) => FAILURE_STATUSES.has(event.status));
   const detectionSamples = failures.map((event) => Number(event.detection_seconds)).filter(Number.isFinite);
-  const recoverySamples = successes.map((event) => Number(event.recovery_seconds)).filter(Number.isFinite);
+  const recoverySamples = deriveRecoverySamples(normalizedEvents);
   const maxDetection = detectionSamples.length ? Math.max(...detectionSamples) : null;
   const averageDetection = detectionSamples.length
     ? Math.round(detectionSamples.reduce((sum, value) => sum + value, 0) / detectionSamples.length)
@@ -371,8 +391,30 @@ export async function ingestCiGuardSignal({
         );
       } else if (current && OPEN_LIFECYCLE_STATES.has(current.lifecycle_status)) {
         alertId = current.alert_id;
+        const observedAtDb = dbDate(signal.observed_at);
+        const [previousSuccessRows] = await connection.query(
+          `SELECT MAX(observed_at) AS last_success_at
+             FROM operational_alert_ci_signal_events
+            WHERE signal_key = ? AND status = 'success' AND observed_at < ?`,
+          [signal.signal_key, observedAtDb]
+        );
+        const previousSuccessAt = dbDate(previousSuccessRows?.[0]?.last_success_at)
+          || "1970-01-01 00:00:00";
+        const [incidentRows] = await connection.query(
+          `SELECT MIN(observed_at) AS incident_started_at
+             FROM operational_alert_ci_signal_events
+            WHERE signal_key = ?
+              AND status IN ('failure','cancelled','timed_out','action_required')
+              AND observed_at > ?
+              AND observed_at < ?`,
+          [signal.signal_key, previousSuccessAt, observedAtDb]
+        );
+        const incidentStartedAt = parseDate(incidentRows?.[0]?.incident_started_at)
+          || parseDate(current.last_seen_at)
+          || parseDate(current.first_seen_at)
+          || signal.observed_at;
         recoverySeconds = Math.max(0, Math.round(
-          (signal.observed_at.getTime() - new Date(current.first_seen_at).getTime()) / 1000
+          (signal.observed_at.getTime() - incidentStartedAt.getTime()) / 1000
         ));
         await connection.query(
           `UPDATE operational_alerts
@@ -473,4 +515,5 @@ export const _testingCiGuardOperationalAlerts = {
   sanitizeEvidence,
   sha256,
   objectiveStatus,
+  deriveRecoverySamples,
 };
