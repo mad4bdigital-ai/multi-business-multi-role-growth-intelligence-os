@@ -249,6 +249,7 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_members_list
   router.get("/me/workspaces/:tenant_id/members", requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
@@ -414,6 +415,7 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list
   router.get("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -549,6 +551,7 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list
   router.get("/me/workspaces/:tenant_id/access-requests", requireUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
