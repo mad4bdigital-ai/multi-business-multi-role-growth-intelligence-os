@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/production-promotion-candidate.yml
+      - .github/workflows/production-promotion-exact-candidate-validation.yml
       - .github/workflows/production-promotion-candidate-contract.yml
       - http-generic-api/test-production-promotion-candidate-workflow.mjs
       - docs/production-promotion-candidate-automation.md
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/production-promotion-candidate.yml
+      - .github/workflows/production-promotion-exact-candidate-validation.yml
       - .github/workflows/production-promotion-candidate-contract.yml
       - http-generic-api/test-production-promotion-candidate-workflow.mjs
       - docs/production-promotion-candidate-automation.md
@@ -45,10 +47,13 @@ jobs:
           node - <<'NODE'
           const fs = require("node:fs");
           const evidence = {
-            schema_version: "production_promotion_candidate_contract.v1",
+            schema_version: "production_promotion_candidate_contract.v2",
             ok: true,
             workflow: ".github/workflows/production-promotion-candidate.yml",
+            exact_validation_workflow: ".github/workflows/production-promotion-exact-candidate-validation.yml",
             test: "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+            pinned_validation_base_required: true,
+            exact_candidate_ci_required: true,
             merge_executed: false,
             deployment_executed: false,
             migration_executed: false,
@@ -59,7 +64,7 @@ jobs:
           fs.writeFileSync(process.env.RUNNER_TEMP + "/production-promotion-candidate-contract.json", JSON.stringify(evidence, null, 2) + "\n");
           NODE
           test -s "$RUNNER_TEMP/production-promotion-candidate-contract.json"
-          node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
+          node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.pinned_validation_base_required!==true || value.exact_candidate_ci_required!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
 
       - name: Upload contract evidence
         uses: actions/upload-artifact@v4

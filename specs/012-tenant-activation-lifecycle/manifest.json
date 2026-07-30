@@ -99,6 +99,12 @@
         "role": "t028_stage_classification_and_reconnect_guidance_policy",
         "status": "merged",
         "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0"
+      },
+      {
+        "number": 3468,
+        "role": "t027_t029_lifecycle_operation_retry_and_reconciliation_service",
+        "status": "merged",
+        "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052"
       }
     ],
     "closeout_pr": {
