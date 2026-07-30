@@ -1,3 +1,4 @@
+# Temporary Surface Phase A refresh trigger; restore before merge.
 name: Frontend surface dispatch
 
 on:
