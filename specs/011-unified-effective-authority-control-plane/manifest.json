@@ -53,6 +53,12 @@
         "role": "t016_shadow_endpoint_certification_resolver",
         "head_sha": "71a84a874740d9b90ee5f0e92017b0b758245783",
         "merge_sha": "53731f12575866e59e4645abff52f8c9446b1d8a"
+      },
+      {
+        "number": 3863,
+        "role": "t019_shadow_authority_parity_comparator",
+        "head_sha": "73b7bd5f143010b02c4555b324f8baec7df17268",
+        "merge_sha": "16c5065efeaa6db0b881f535339cff0c5744d5f0"
       }
     ],
     "superseded_prs": [
@@ -64,7 +70,8 @@
       "T012",
       "T013",
       "T014",
-      "T016"
+      "T016",
+      "T019"
     ],
     "runtime_enforcement_enabled": false,
     "remaining_delivery": "bounded_current_main_prs"
@@ -94,6 +101,9 @@
     "canonical_endpoint_identity_must_be_unique",
     "explicit_endpoint_or_certification_denial_precedes_allow",
     "resolved_endpoint_certification_evidence_does_not_grant_execution_authority",
+    "shadow_parity_compares_exact_resource_capability_connection_and_action_identity",
+    "shadow_parity_mismatch_never_approves_rollout",
+    "shadow_parity_never_executes_calls_providers_reads_credentials_or_writes_state",
     "ambiguous_top_ranked_connections_block",
     "state_changing_manifests_are_bound_and_single_use",
     "high_risk_execution_revalidates_mutable_authority",
