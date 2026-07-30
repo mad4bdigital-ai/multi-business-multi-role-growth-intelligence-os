@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1f4c925e7e83252d76770eb62d7177356cdece27699cd707298f5c02ea5197d9",
+    "source_digest": "09b66d5ce6d390bee479000001a191b81c503cc7b00c225af3848a23d40a0026",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "fcaa964af13e23e9b7f0f8df3e2a51b3e6a7f127d22fee29fd437aa9add7e0fa",
+        "sha256": "6ac92d1c1aea51c982d7a87ae6f05804d4d612cdf4cff0d962b1e98ecbcc6d2e",
         "present": true
       },
       {
@@ -976,22 +976,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "7eeafdf49069671e6bb99d2d0547cb562b12e382245dbd0cfccff90f3288d724",
-        "present": true
-      },
-      {
-        "file": "test-action-endpoint-tool-manifest-resolver.mjs",
-        "sha256": "ecf338e9f724535bdfa9a8ef8f50f57ff4efb99fcbad42dbe1c644ae073b1aef",
-        "present": true
-      },
-      {
-        "file": "test-ads-governance-snapshot-proposal.mjs",
-        "sha256": "1f47de03b198f1e63e65782f8b380d6670c2167faf81b1e8538c6d6febefabe0",
-        "present": true
-      },
-      {
-        "file": "test-connect-routes.mjs",
-        "sha256": "e73b4efa3e72b280578cba6b4e58800a89dafe133fb8e951a24eff701dbd7b3a",
+        "sha256": "7cc22fa965877823812b14c773c1c26f2debbf02673b9c72083469925776a488",
         "present": true
       },
       {
@@ -1002,146 +987,6 @@
       {
         "file": "test-frontend-operation-governance-generator.mjs",
         "sha256": "166a9dffbba8b1bf5999359674624c915c83d7a90654307c089a776895541677",
-        "present": true
-      },
-      {
-        "file": "test-gpt-session-turn-batch-capture.mjs",
-        "sha256": "b9f86fcb979a7cc3a51474a0398f4a5fe930912c75b70009420bd964d06314b8",
-        "present": true
-      },
-      {
-        "file": "test-local-connector-uninstall-rotates-secrets.mjs",
-        "sha256": "a7f7f5c68b2af5f293beeb5be07370c1cdf3dc807948bbbd38718b9a4aee7af0",
-        "present": true
-      },
-      {
-        "file": "test-orchestration-readback-surface.mjs",
-        "sha256": "a2d402998c5dc5a03b252f80a007fcf22346ecafe290408257d3387da6f60c3a",
-        "present": true
-      },
-      {
-        "file": "test-platform-frontend-routes.mjs",
-        "sha256": "121ff13210177fe96b04315395c1be3d30c8623da736ae8c69d9df68c05ef0d0",
-        "present": true
-      },
-      {
-        "file": "test-platform-plugin-private-runtime.mjs",
-        "sha256": "41de935403a87a7ae8c57dc327fd1a4e69baa7805867ec810560d20f24ab074f",
-        "present": true
-      },
-      {
-        "file": "test-platform-plugin-public-rest-dispatch.mjs",
-        "sha256": "a0eadd9e833d23df6a05d8b49f8fcbafaaba80252a17539321ca096654f59c4d",
-        "present": true
-      },
-      {
-        "file": "test-remote-runtime-catalog-probe.mjs",
-        "sha256": "1869379cac484fa665670de3662d5b22e6d62c3ec27fb4ecb864ad9b9ca69b39",
-        "present": true
-      },
-      {
-        "file": "test-repository-automation-control-plane.mjs",
-        "sha256": "91cd708eafc3b659f47547948c2b3461bd9e904b2e4ea413bb241d72ae0ce582",
-        "present": true
-      },
-      {
-        "file": "test-repository-reconciliation-lease-control.mjs",
-        "sha256": "83196be1f3b7d569bb94dcce4a93c02771527e2b05aa5f826bdf49cc03b5ffec",
-        "present": true
-      },
-      {
-        "file": "test-resource-api-service.mjs",
-        "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-adapter-apply-readiness-gate-service.mjs",
-        "sha256": "37ed176b084e93f51319295f9e11da3435f06f41aca7c611af851c9a1d7171a9",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-adapter-contract-service.mjs",
-        "sha256": "3d4472357ab778889ef178fd8bdd66e946948fd260a9d1d74e78e5855ceea2b3",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-backlog-target-write-service.mjs",
-        "sha256": "33b687a506e8f30df1b76798118962e40e371b350810bd84068f752c6e82b7a9",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-actual-request-preflight-service.mjs",
-        "sha256": "29e13c55deb7529e65e86091c441b021fef88dca003fae9b07764d79101f20b2",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-actual-request-service.mjs",
-        "sha256": "40fe55266035e3d67b30b884369c283a867d6c798e33151f520cb1c472274f11",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs",
-        "sha256": "02ecf532b9295ecc1a0475e683ea020a0a7454925217d379cd7c82a9c6c7d743",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-approval-service.mjs",
-        "sha256": "4a36f093dda20493f356a1dba74082e0ba3692269f9e2abbf78eb220379584a2",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs",
-        "sha256": "8612923701b94e1887ef9356f82b1d865af9e03985c720cf5f0d3a8dc2ed02fa",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-dispatch-readback-service.mjs",
-        "sha256": "d33a41bf087d246e43410adefc36ac6ac5baced106ce7b6659b68a373cf3459a",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-plan-service.mjs",
-        "sha256": "8e6ae5609593c2eb863d97b42b41a4cbae088083a9a58eaf3fee0b2c96848647",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-capability-envelope-request-gate-service.mjs",
-        "sha256": "b6b1b8492b6be8c24ce7080c5a8e6350479263d8636eb5bab8c2254b7029e167",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-payload-preview-review-service.mjs",
-        "sha256": "f61200ab695047aa546e751cbab12b4e5be1c73a0dca57ced779d5641069f7ba",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-promotion-review-service.mjs",
-        "sha256": "e41400188dbaf3ac190d73cece23c9c8b2b0c30ec04bf31ff506969c8657a08f",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-remaining-scope-completion-service.mjs",
-        "sha256": "b3e6f6b2c0f20921d6ebc00053ffa2b0f09f0d2ae1ae3e473d41ae44f19808ad",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-target-adapter-registry-service.mjs",
-        "sha256": "36eb05de37818b49823a1217ba10cdd0883db0706978f3350b1ddfd6ce0f142f",
-        "present": true
-      },
-      {
-        "file": "test-session-insight-target-write-readback-service.mjs",
-        "sha256": "0028f8f91f08b07ae9383fba74945d8cc201d959fbe794e2d827603420e04b5a",
-        "present": true
-      },
-      {
-        "file": "test-support-ticket-lifecycle-snapshot-proposal.mjs",
-        "sha256": "7d7c58e5937763eda7e9a79faeb7eea471f48d000d8f4b336d35d63ddc021d3b",
-        "present": true
-      },
-      {
-        "file": "test-tenant-activation-session-alias.mjs",
-        "sha256": "057edb5d3079cc5458e1aa022f63a53b38c3c1b5348941da99e476e12c7ae456",
         "present": true
       },
       {
@@ -1198,12 +1043,12 @@
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 155,
-    "test_owned_family_count": 6,
-    "untested_family_count": 164,
-    "test_owned_operation_count": 51,
-    "untested_operation_count": 967,
-    "ready_task_count": 3,
-    "blocked_task_count": 167,
+    "test_owned_family_count": 0,
+    "untested_family_count": 170,
+    "test_owned_operation_count": 3,
+    "untested_operation_count": 1015,
+    "ready_task_count": 0,
+    "blocked_task_count": 170,
     "coverage_complete": false
   },
   "waves": [
@@ -5270,9 +5115,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-local-connector-uninstall-rotates-secrets.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "unresolved",
             "classification_source": "fail_closed",
@@ -5298,13 +5141,12 @@
       "evidence_routes": [
         "GET /local-connector/install/status"
       ],
-      "tests": [
-        "test-local-connector-uninstall-rotates-secrets.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "POST /local-connector/install/download-link",
         "POST /local-connector/install",
-        "GET /local-connector/install/status"
+        "GET /local-connector/install/status",
+        "DELETE /local-connector/uninstall"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -5323,8 +5165,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorInstallRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-local-connector-uninstall-rotates-secrets.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -7754,9 +7595,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-connect-routes.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -8423,12 +8262,11 @@
       "evidence_routes": [
         "GET /connect/status"
       ],
-      "tests": [
-        "test-connect-routes.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "GET /connect/status",
         "GET /connect/onboarding-state",
+        "POST /connect/bootstrap",
         "POST /connect/workspace",
         "POST /connect/escalate",
         "GET /me",
@@ -8455,8 +8293,7 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-connect-routes.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -8563,9 +8400,7 @@
             "response_content_type:text/html"
           ],
           "delivery_kind": "embedded_html",
-          "tests": [
-            "test-platform-frontend-routes.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -8613,9 +8448,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-frontend-routes.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -8663,9 +8496,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-frontend-routes.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -8684,10 +8515,12 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-platform-frontend-routes.mjs"
+      "tests": [],
+      "untested_operations": [
+        "GET /platform",
+        "GET /platform/assets/{file}",
+        "GET /platform/ui-surfaces"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": true,
       "embedded_ui_operations": [
@@ -8720,8 +8553,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformFrontendRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-platform-frontend-routes.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "unified_ui",
@@ -8736,7 +8568,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 0,
+        "score": 2,
         "class": "low"
       },
       "wave": "F1-tenant-shell"
@@ -12993,9 +12825,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-tenant-activation-session-alias.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -13058,9 +12888,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-tenant-activation-session-alias.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -13079,10 +12907,11 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-tenant-activation-session-alias.mjs"
+      "tests": [],
+      "untested_operations": [
+        "GET /tenant/activation/session-context",
+        "GET /tenant/activation/sessions"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -13098,8 +12927,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantActivationOverlayRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-tenant-activation-session-alias.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "api_only",
@@ -13114,7 +12942,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 0,
+        "score": 2,
         "class": "low"
       },
       "wave": "F1-tenant-shell"
@@ -25870,9 +25698,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-repository-automation-control-plane.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -26174,9 +26000,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-repository-reconciliation-lease-control.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -26235,14 +26059,13 @@
       "evidence_routes": [
         "POST /admin/repository-automation/status"
       ],
-      "tests": [
-        "test-repository-automation-control-plane.mjs",
-        "test-repository-reconciliation-lease-control.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
+        "POST /admin/repository-automation/plan",
         "POST /admin/repository-automation/run",
         "POST /admin/repository-automation/status",
-        "POST /admin/repository-automation/hygiene-scan"
+        "POST /admin/repository-automation/hygiene-scan",
+        "POST /admin/repository-automation/reconciliation-lease"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -26260,9 +26083,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-repository-automation-control-plane.mjs",
-        "test-repository-reconciliation-lease-control.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -30499,9 +30320,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-resource-api-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -30593,9 +30412,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-resource-api-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -30687,9 +30504,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-resource-api-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -30781,9 +30596,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-resource-api-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -31138,13 +30951,15 @@
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
         "GET /me/workspaces/{tenant_id}/resource-changes"
       ],
-      "tests": [
-        "test-resource-api-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "GET /me/workspaces/{tenant_id}/resources",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+        "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
+        "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+        "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+        "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
@@ -31172,8 +30987,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/resourceApiRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-resource-api-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -40602,9 +40416,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-gpt-session-turn-batch-capture.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "external_effect",
             "classification_source": "operation_rule",
@@ -40724,14 +40536,13 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-gpt-session-turn-batch-capture.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "POST /gpt/sessions/{id}/conversation-ref",
         "POST /gpt/sessions/{id}/conversation-ref/capture-current",
         "POST /gpt/sessions/{id}/conversation-ref/mark-primary",
         "POST /gpt/sessions/{id}/turn",
+        "POST /gpt/sessions/{id}/turns",
         "POST /gpt/sessions/{id}/end"
       ],
       "resources": [],
@@ -40750,8 +40561,7 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-gpt-session-turn-batch-capture.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "api_only",
@@ -40865,9 +40675,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-tenant-activation-session-alias.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "external_effect",
             "classification_source": "operation_rule",
@@ -40914,10 +40722,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-tenant-activation-session-alias.mjs"
+      "tests": [],
+      "untested_operations": [
+        "POST /tenant/activation/sessions/{id}/turns"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -40933,8 +40741,7 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-tenant-activation-session-alias.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "api_only",
@@ -40949,8 +40756,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 4,
-        "class": "medium"
+        "score": 6,
+        "class": "high"
       },
       "wave": "F1-tenant-shell"
     },
@@ -46954,9 +46761,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-promotion-review-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -47055,10 +46860,9 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-promotion-review-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
+        "POST /platform/session-insight-promotions/review/list",
         "POST /platform/session-insight-promotions/review/decision"
       ],
       "resources": [],
@@ -47078,8 +46882,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionReviewRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-promotion-review-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -47432,9 +47235,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-target-adapter-registry-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -47461,10 +47262,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-target-adapter-registry-service.mjs"
+      "tests": [],
+      "untested_operations": [
+        "POST /platform/session-insight-promotions/target-adapters/list"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -47481,8 +47282,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-target-adapter-registry-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -47491,7 +47291,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -47564,9 +47364,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-adapter-contract-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -47593,10 +47391,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-adapter-contract-service.mjs"
+      "tests": [],
+      "untested_operations": [
+        "POST /platform/session-insight-promotions/adapter-contracts/list"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -47613,8 +47411,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionAdapterContractRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-adapter-contract-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -47623,7 +47420,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -47830,9 +47627,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-payload-preview-review-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -47934,10 +47729,9 @@
         "POST /platform/session-insight-promotions/payload-preview/review/list",
         "POST /platform/session-insight-promotions/payload-preview/review/decision"
       ],
-      "tests": [
-        "test-session-insight-payload-preview-review-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
+        "POST /platform/session-insight-promotions/payload-preview/review/list",
         "POST /platform/session-insight-promotions/payload-preview/review/decision"
       ],
       "resources": [],
@@ -47957,8 +47751,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPayloadPreviewReviewRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-payload-preview-review-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48047,9 +47840,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-adapter-apply-readiness-gate-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -48076,10 +47867,10 @@
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
+      "tests": [],
+      "untested_operations": [
+        "POST /platform/session-insight-promotions/adapter-apply-readiness/list"
       ],
-      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -48096,8 +47887,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48106,7 +47896,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 9,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -48249,9 +48039,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-plan-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -48280,11 +48068,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-plan-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-plans/create"
+        "POST /platform/session-insight-promotions/capability-envelope-plans/create",
+        "POST /platform/session-insight-promotions/capability-envelope-plans/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -48303,8 +48090,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-plan-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48463,9 +48249,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-request-gate-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -48494,11 +48278,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-request-gate-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create"
+        "POST /platform/session-insight-promotions/capability-envelope-request-gates/create",
+        "POST /platform/session-insight-promotions/capability-envelope-request-gates/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -48517,8 +48300,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-request-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -48809,9 +48591,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -48840,11 +48620,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create",
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -48863,8 +48642,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -49155,9 +48933,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -49186,11 +48962,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create",
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -49209,8 +48984,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -49369,9 +49143,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-actual-request-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -49400,11 +49172,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-actual-request-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create"
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/create",
+        "POST /platform/session-insight-promotions/capability-envelope-actual-requests/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -49423,8 +49194,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-actual-request-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -49583,9 +49353,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-approval-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -49614,11 +49382,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-approval-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision"
+        "POST /platform/session-insight-promotions/capability-envelope-approvals/decision",
+        "POST /platform/session-insight-promotions/capability-envelope-approvals/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -49637,8 +49404,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-approval-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -49797,9 +49563,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -49831,11 +49595,10 @@
         "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
         "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
       ],
-      "tests": [
-        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create"
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
+        "POST /platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -49854,8 +49617,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -50014,9 +49776,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -50045,11 +49805,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create"
+        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
+        "POST /platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -50068,8 +49827,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -50228,9 +49986,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-remaining-scope-completion-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -50259,11 +50015,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-remaining-scope-completion-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/remaining-scope-completions/create"
+        "POST /platform/session-insight-promotions/remaining-scope-completions/create",
+        "POST /platform/session-insight-promotions/remaining-scope-completions/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -50282,8 +50037,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-remaining-scope-completion-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -50442,9 +50196,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-backlog-target-write-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -50544,11 +50296,10 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [
-        "test-session-insight-backlog-target-write-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "POST /platform/session-insight-promotions/backlog-target-writes/execute",
+        "POST /platform/session-insight-promotions/backlog-target-writes/list",
         "POST /platform/session-insight-promotions/backlog-target-writes/rollback"
       ],
       "resources": [],
@@ -50568,8 +50319,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightBacklogTargetWriteRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-backlog-target-write-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -50734,9 +50484,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-session-insight-target-write-readback-service.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -50766,11 +50514,10 @@
         "POST /platform/session-insight-promotions/target-write-readbacks/create",
         "POST /platform/session-insight-promotions/target-write-readbacks/list"
       ],
-      "tests": [
-        "test-session-insight-target-write-readback-service.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
-        "POST /platform/session-insight-promotions/target-write-readbacks/create"
+        "POST /platform/session-insight-promotions/target-write-readbacks/create",
+        "POST /platform/session-insight-promotions/target-write-readbacks/list"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -50787,8 +50534,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightTargetWriteReadbackRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-target-write-readback-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -51021,9 +50767,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-action-endpoint-tool-manifest-resolver.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51101,9 +50845,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-action-endpoint-tool-manifest-resolver.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51181,9 +50923,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-orchestration-readback-surface.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51261,9 +51001,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51413,9 +51151,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51493,9 +51229,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51573,9 +51307,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51653,9 +51385,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-ads-governance-snapshot-proposal.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -51805,9 +51535,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-support-ticket-lifecycle-snapshot-proposal.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52029,9 +51757,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52109,9 +51835,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52189,9 +51913,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52341,9 +52063,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52421,9 +52141,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -52573,9 +52291,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-public-rest-dispatch.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -53227,9 +52943,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-remote-runtime-catalog-probe.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -54027,9 +53741,7 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [
-            "test-platform-plugin-private-runtime.mjs"
-          ],
+          "tests": [],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -54280,24 +53992,31 @@
         "POST /platform/plugins/smoke-certifications/policies/history",
         "POST /platform/plugins/smoke-certifications/policies/rollback-preview"
       ],
-      "tests": [
-        "test-action-endpoint-tool-manifest-resolver.mjs",
-        "test-ads-governance-snapshot-proposal.mjs",
-        "test-orchestration-readback-surface.mjs",
-        "test-platform-plugin-private-runtime.mjs",
-        "test-platform-plugin-public-rest-dispatch.mjs",
-        "test-remote-runtime-catalog-probe.mjs",
-        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
-      ],
+      "tests": [],
       "untested_operations": [
         "GET /platform/plugins/catalog",
         "POST /platform/plugins/resolve",
+        "POST /platform/action-manifest/resolve",
+        "POST /platform/execution-readiness/dry-run",
+        "POST /platform/orchestration/readback",
+        "POST /platform/health/scorecard",
         "POST /platform/health/scorecard/snapshot-record",
+        "POST /platform/health/scorecard/remediation-plan",
+        "POST /platform/health/scorecard/tenant-rollout",
+        "POST /platform/health/scorecard/ledger-hygiene",
+        "POST /platform/orchestration/ads-provider/snapshot-propose",
         "POST /platform/orchestration/ads-provider/snapshot-record",
+        "POST /platform/orchestration/support-ticket/snapshot-propose",
         "POST /platform/orchestration/support-ticket/snapshot-record",
         "POST /platform/plugins/smoke-certifications/certify",
+        "POST /platform/plugins/smoke-certifications/status",
+        "POST /platform/plugins/smoke-certifications/policies/resolve",
+        "POST /platform/plugins/smoke-certifications/policies/list",
         "POST /platform/plugins/smoke-certifications/policies/upsert",
+        "POST /platform/plugins/smoke-certifications/policies/history",
+        "POST /platform/plugins/smoke-certifications/policies/rollback-preview",
         "POST /platform/plugins/smoke-certifications/policies/rollback-apply",
+        "POST /platform/plugins/smoke-certifications/recertification-queue",
         "POST /platform/plugins/smoke-certifications/recertification-batch",
         "POST /platform/remote-runtime/targets/upsert",
         "POST /platform/remote-runtime/targets/validate",
@@ -54306,6 +54025,7 @@
         "POST /platform/remote-runtime/hosting/deploy-release",
         "GET /platform/remote-runtime/hosting/deploy-runs/{deploymentRunId}",
         "POST /platform/remote-runtime/local-path/execute-readonly",
+        "POST /platform/remote-runtime/targets/catalog",
         "POST /platform/remote-runtime/probe",
         "POST /platform/plugins/install-policy",
         "POST /platform/plugins/action-templates",
@@ -54316,6 +54036,7 @@
         "POST /platform/plugins/contributions/certify",
         "POST /platform/plugins/contributions/promote",
         "POST /platform/plugins/contributions/activate-private",
+        "POST /platform/plugins/contributions/resolve-private",
         "POST /platform/plugins/contributions/dispatch-rest",
         "GET /platform/plugins/contributions",
         "GET /platform/plugins/contributions/{contribution_id}"
@@ -54336,14 +54057,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-action-endpoint-tool-manifest-resolver.mjs",
-        "test-ads-governance-snapshot-proposal.mjs",
-        "test-orchestration-readback-surface.mjs",
-        "test-platform-plugin-private-runtime.mjs",
-        "test-platform-plugin-public-rest-dispatch.mjs",
-        "test-remote-runtime-catalog-probe.mjs",
-        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -84443,139 +84157,6 @@
       ]
     },
     {
-      "task_key": "frontend.gpt-session.tenant",
-      "title": "Resolve and deliver gpt session (tenant)",
-      "wave": "F1-tenant-shell",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/gptSessionRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-tenant-activation-session-alias.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-tenant-activation-session-alias.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.platform-frontend",
-      "title": "Resolve and deliver platform frontend",
-      "wave": "F1-tenant-shell",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "public/connect/app.jsx",
-        "public/connect/core.jsx",
-        "public/connect/evidence.jsx",
-        "public/connect/mad4b-logo-1080.png",
-        "public/connect/steps-1.jsx",
-        "public/connect/steps-2-hub.jsx",
-        "public/connect/steps-2.jsx",
-        "public/connect/steps-3.jsx",
-        "public/connect/steps-4.jsx",
-        "public/connect/tokens.css",
-        "public/connect/tweaks-panel.jsx",
-        "public/platform/index.html",
-        "public/platform/shell.css",
-        "public/platform/shell.js",
-        "public/platform/tokens.css",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/platformFrontendRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-platform-frontend-routes.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-platform-frontend-routes.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.tenant-activation-overlay.tenant",
-      "title": "Resolve and deliver tenant activation overlay (tenant)",
-      "wave": "F1-tenant-shell",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/tenantActivationOverlayRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-tenant-activation-session-alias.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-tenant-activation-session-alias.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.activation-awareness.tenant",
       "title": "Resolve and deliver activation awareness (tenant)",
       "wave": "F1-tenant-shell",
@@ -85042,8 +84623,7 @@
         "resource-api-coverage.manifest.json",
         "routes/connectRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-connect-routes.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -85056,8 +84636,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-connect-routes.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -85229,6 +84808,49 @@
         "surface_policy_resolved",
         "tests_registered",
         "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.gpt-session.tenant",
+      "title": "Resolve and deliver gpt session (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/gptSessionRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -85497,6 +85119,58 @@
       ]
     },
     {
+      "task_key": "frontend.platform-frontend",
+      "title": "Resolve and deliver platform frontend",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "public/connect/app.jsx",
+        "public/connect/core.jsx",
+        "public/connect/evidence.jsx",
+        "public/connect/mad4b-logo-1080.png",
+        "public/connect/steps-1.jsx",
+        "public/connect/steps-2-hub.jsx",
+        "public/connect/steps-2.jsx",
+        "public/connect/steps-3.jsx",
+        "public/connect/steps-4.jsx",
+        "public/connect/tokens.css",
+        "public/connect/tweaks-panel.jsx",
+        "public/platform/index.html",
+        "public/platform/shell.css",
+        "public/platform/shell.js",
+        "public/platform/tokens.css",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/platformFrontendRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.platform-smoke",
       "title": "Resolve and deliver platform smoke",
       "wave": "F1-tenant-shell",
@@ -85605,8 +85279,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/resourceApiRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-resource-api-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -85619,8 +85292,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-resource-api-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -85794,6 +85466,44 @@
         "surface_policy_resolved",
         "tests_registered",
         "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.tenant-activation-overlay.tenant",
+      "title": "Resolve and deliver tenant activation overlay (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/tenantActivationOverlayRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -87930,8 +87640,7 @@
         "resource-api-coverage.manifest.json",
         "routes/gptSessionRoutes.js",
         "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-gpt-session-turn-batch-capture.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -87944,8 +87653,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-gpt-session-turn-batch-capture.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -88191,8 +87899,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorInstallRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-local-connector-uninstall-rotates-secrets.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -88204,8 +87911,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-local-connector-uninstall-rotates-secrets.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -88925,14 +88631,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/platformPluginRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-action-endpoint-tool-manifest-resolver.mjs",
-        "test-ads-governance-snapshot-proposal.mjs",
-        "test-orchestration-readback-surface.mjs",
-        "test-platform-plugin-private-runtime.mjs",
-        "test-platform-plugin-public-rest-dispatch.mjs",
-        "test-remote-runtime-catalog-probe.mjs",
-        "test-support-ticket-lifecycle-snapshot-proposal.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -88944,14 +88643,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-action-endpoint-tool-manifest-resolver.mjs",
-        "node test-ads-governance-snapshot-proposal.mjs",
-        "node test-orchestration-readback-surface.mjs",
-        "node test-platform-plugin-private-runtime.mjs",
-        "node test-platform-plugin-public-rest-dispatch.mjs",
-        "node test-remote-runtime-catalog-probe.mjs",
-        "node test-support-ticket-lifecycle-snapshot-proposal.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89199,9 +88891,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-repository-automation-control-plane.mjs",
-        "test-repository-reconciliation-lease-control.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89214,9 +88904,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-repository-automation-control-plane.mjs",
-        "node test-repository-reconciliation-lease-control.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89571,6 +89259,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "test_ownership_gap",
         "surface_policy_decision_required"
       ],
       "dependencies": [
@@ -89591,8 +89280,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-adapter-apply-readiness-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89604,8 +89292,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-adapter-apply-readiness-gate-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89638,8 +89325,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightBacklogTargetWriteRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-backlog-target-write-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89651,8 +89337,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-backlog-target-write-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89685,8 +89370,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-actual-request-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89698,8 +89382,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-actual-request-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89732,8 +89415,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89745,8 +89427,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-actual-request-preflight-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89779,8 +89460,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89792,8 +89472,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-adapter-execution-gate-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89826,8 +89505,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-approval-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89839,8 +89517,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-approval-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89873,8 +89550,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89886,8 +89562,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-dispatch-dry-run-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -89964,8 +89639,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89977,8 +89651,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-dispatch-readback-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90011,8 +89684,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-plan-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90024,8 +89696,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-plan-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90058,8 +89729,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-capability-envelope-request-gate-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90071,8 +89741,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-capability-envelope-request-gate-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90149,8 +89818,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPayloadPreviewReviewRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-payload-preview-review-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90162,8 +89830,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-payload-preview-review-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90172,6 +89839,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "test_ownership_gap",
         "surface_policy_decision_required"
       ],
       "dependencies": [
@@ -90192,8 +89860,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionAdapterContractRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-adapter-contract-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90205,8 +89872,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-adapter-contract-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90371,8 +90037,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionReviewRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-promotion-review-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90384,8 +90049,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-promotion-review-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90394,6 +90058,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "test_ownership_gap",
         "surface_policy_decision_required"
       ],
       "dependencies": [
@@ -90414,8 +90079,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-target-adapter-registry-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90427,8 +90091,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-target-adapter-registry-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90461,8 +90124,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightRemainingScopeCompletionRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-remaining-scope-completion-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90474,8 +90136,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-remaining-scope-completion-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
@@ -90505,8 +90166,7 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/sessionInsightTargetWriteReadbackRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-session-insight-target-write-readback-service.mjs"
+        "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90518,8 +90178,7 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-session-insight-target-write-readback-service.mjs"
+        "node scripts/resource-api-coverage-audit.mjs --changed"
       ]
     },
     {
