@@ -108,6 +108,7 @@ SELECT
   l.workspace_id,
   l.workspace_key,
   l.status AS link_status,
+  w.tenant_id AS workspace_tenant_id,
   w.workspace_type,
   w.workspace_ownership_type,
   w.owner_user_id AS workspace_owner_user_id,
@@ -116,6 +117,7 @@ SELECT
   o.owner_scope_type,
   o.owner_scope_ref,
   o.owner_user_id AS connection_owner_user_id,
+  o.connected_by_user_id AS ownership_connected_by_user_id,
   o.brand_id,
   o.provider_account_ref,
   o.provider_account_binding_hash,
@@ -125,16 +127,34 @@ SELECT
   o.status AS ownership_status,
   CASE
     WHEN w.workspace_id IS NULL THEN 'workspace_missing'
+    WHEN NOT (BINARY w.tenant_id <=> BINARY l.tenant_id)
+      THEN 'workspace_tenant_conflict'
     WHEN w.workspace_ownership_type IS NULL THEN 'workspace_unclassified'
     WHEN o.ownership_id IS NULL THEN 'connection_unclassified'
     WHEN o.status = 'unclassified' THEN 'connection_unclassified'
-    WHEN o.tenant_id <> c.tenant_id OR o.workspace_id <> l.workspace_id
+    WHEN NOT (BINARY o.tenant_id <=> BINARY c.tenant_id)
+      OR NOT (BINARY o.workspace_id <=> BINARY l.workspace_id)
       THEN 'ownership_context_conflict'
+    WHEN NOT (BINARY o.provider_key <=> BINARY c.app_key)
+      THEN 'provider_key_conflict'
     WHEN o.owner_scope_type = 'personal_workspace'
-      AND (o.owner_user_id IS NULL OR o.owner_user_id <> w.owner_user_id)
+      AND w.workspace_ownership_type <> 'personal'
+      THEN 'personal_workspace_type_conflict'
+    WHEN o.owner_scope_type = 'company_workspace'
+      AND w.workspace_ownership_type <> 'company'
+      THEN 'company_workspace_type_conflict'
+    WHEN o.owner_scope_type = 'personal_workspace'
+      AND (o.owner_user_id IS NULL
+        OR NOT (BINARY o.owner_user_id <=> BINARY w.owner_user_id))
       THEN 'personal_owner_conflict'
+    WHEN o.owner_scope_type IN ('personal_workspace','company_workspace')
+      AND NOT (BINARY o.owner_scope_ref <=> BINARY l.workspace_id)
+      THEN 'workspace_owner_scope_ref_conflict'
     WHEN o.owner_scope_type = 'brand' AND o.brand_id IS NULL
       THEN 'brand_owner_missing'
+    WHEN o.owner_scope_type = 'brand'
+      AND NOT (BINARY o.owner_scope_ref <=> BINARY o.brand_id)
+      THEN 'brand_owner_scope_ref_conflict'
     WHEN o.provider_account_ref IS NULL
       AND o.provider_account_binding_hash IS NULL
       THEN 'provider_account_binding_missing'
@@ -142,13 +162,10 @@ SELECT
   END AS ownership_resolution_status
 FROM `user_app_connections` c
 INNER JOIN `workspace_app_links` l
-  ON l.connection_id = c.connection_id
-  AND l.tenant_id = c.tenant_id
-  AND l.app_key = c.app_key
+  ON BINARY l.connection_id <=> BINARY c.connection_id
+  AND BINARY l.tenant_id <=> BINARY c.tenant_id
+  AND BINARY l.app_key <=> BINARY c.app_key
 LEFT JOIN `workspace_registry` w
-  ON w.workspace_id = l.workspace_id
-  AND w.tenant_id = l.tenant_id
+  ON BINARY w.workspace_id <=> BINARY l.workspace_id
 LEFT JOIN `connection_ownership_scopes` o
-  ON o.connection_id = c.connection_id
-  AND o.tenant_id = c.tenant_id
-  AND o.workspace_id = l.workspace_id;
+  ON BINARY o.connection_id <=> BINARY c.connection_id;
