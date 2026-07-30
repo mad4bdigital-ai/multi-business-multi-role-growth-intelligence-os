@@ -133,7 +133,7 @@ assert.equal(directCanonical.aliasEvidence, null);
 assert.equal(directCanonical.authorityGranted, false);
 assert.equal(directCanonical.executionAuthorized, false);
 
-assertSafeBlocked(evaluate({ snapshot: { resourceRef: "unexpected" } }), [
+assertSafeBlocked(evaluate({ snapshot: { evaluatedAt: "not-a-timestamp" } }), [
   "ENDPOINT_CERTIFICATION_SNAPSHOT_MALFORMED",
 ]);
 assertSafeBlocked(evaluate({ snapshot: { tenantRef: "tenant-b" } }), [
