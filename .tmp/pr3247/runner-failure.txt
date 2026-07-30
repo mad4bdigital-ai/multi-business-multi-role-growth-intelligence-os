@@ -1,0 +1,37 @@
+status=failed
+executor_pr=3360
+base_head_before=de56ff07e79e0588c9affe3092655343250ac86e
+secrets_included=false
+--- log tail ---
+dispatch chunk auth: expected one exact match, found 0
+No patch changes were produced.
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 157 packages, and audited 158 packages in 4s
+
+27 packages are looking for funding
+  run `npm fund` for details
+
+8 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+QUEUE_DISABLED: REDIS_URL not set and QUEUE_WORKER_ENABLED is not TRUE — queue features disabled.
+Error: A governed response chunk owner is required.
+    at responseChunkError (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/governedToolResponseChunkStore.js:27:15)
+    at persistGovernedToolResponseChunk (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/governedToolResponseChunkStore.js:85:11)
+    at storeToolResponseForChunks (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/routes/gptToolsRoutes.js:2207:25)
+    at maybeChunkToolResponseBody (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/routes/gptToolsRoutes.js:2259:29)
+    at main (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/test-gpt-tools-response-chunking.mjs:65:28)
+    at file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/test-gpt-tools-response-chunking.mjs:232:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
+  code: 'response_chunk_owner_required',
+  status: 403
+}
