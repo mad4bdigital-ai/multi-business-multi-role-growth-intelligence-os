@@ -10,14 +10,16 @@ It does not execute a reconciliation recipe, create commits, update refs, merge 
 
 The route requires both the backend API key and an Admin principal. The control module additionally requires:
 
-- a ready GitHub capability resolution envelope;
+- a ready, apply-authorized GitHub capability resolution envelope;
+- an envelope resource URI bound to the exact repository work branch for `acquire`;
+- an envelope binding SHA-256 matching the canonical operation fingerprint for `acquire`, or the lease resource fingerprint for `renew` and `release`;
 - an exact typed confirmation for the selected action;
 - a non-default work branch for `acquire`;
 - exact expected base and branch SHAs for `acquire`;
 - a SHA-256 resource fingerprint for `renew` and `release`;
 - no force, protected-branch, or stale-branch bypass flags.
 
-Responses and structured errors set `secrets_included: false`.
+A generic `repo_mutation` intent is not accepted as lease authority. The envelope must carry a lease-control-specific operation intent. Responses and structured errors set `secrets_included: false`.
 
 ## Actions
 
