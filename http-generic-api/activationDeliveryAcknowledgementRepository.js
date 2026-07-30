@@ -171,8 +171,13 @@ export async function appendActivationDeliveryRecord(connection, input = {}) {
       { delivery_status: deliveryStatus },
     );
   }
+  const operationId = normalizeUuid(input.operation_id, "operation_id");
+  const tenantId = normalizeText(input.tenant_id, "tenant_id", 36);
+  await lockActivationOperationScope(connection, operationId, tenantId);
   return appendActivationDelivery(connection, {
     ...input,
+    operation_id: operationId,
+    tenant_id: tenantId,
     delivery_status: INITIAL_DELIVERY_STATE,
   });
 }
@@ -215,6 +220,7 @@ export async function appendActivationAcknowledgementRecord(connection, input = 
   const deliveryId = input.delivery_id
     ? normalizeUuid(input.delivery_id, "delivery_id")
     : null;
+  await lockActivationOperationScope(connection, operationId, tenantId);
   if (deliveryId) {
     await lockActivationDeliveryScope(connection, deliveryId, operationId, tenantId);
   }
