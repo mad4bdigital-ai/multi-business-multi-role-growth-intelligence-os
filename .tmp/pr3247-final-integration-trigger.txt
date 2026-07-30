@@ -1,5 +1,0 @@
-trigger=pr3247-final-integration-20260730-a
-base=ec743580838f90c7c524453ab828841fb910fede
-merge_target=gpt/response-chunk-ownership-a23e0076
-merge_allowed_after_executor_success=true
-secrets_included=false
