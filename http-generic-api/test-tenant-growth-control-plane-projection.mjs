@@ -94,10 +94,12 @@ assert.equal(projectedVersion.secretsIncluded, false);
 assert.equal(Object.hasOwn(projectedVersion, "valuesJson"), false);
 assert.equal(Object.hasOwn(projectedVersion, "schemaJson"), false);
 assert.equal(Object.hasOwn(projectedVersion, "approvedBy"), false);
-assert.throws(
-  () => projectTenantConfigurationVersion({ ...versionRow, secret: "must-not-leak" }),
-  (error) => error.code === "TENANT_GROWTH_CONTROL_PROJECTION_UNSAFE" && error.status === 500
-);
+const projectedVersionWithSensitiveSource = projectTenantConfigurationVersion({
+  ...versionRow,
+  secret: "must-not-leak"
+});
+assert.equal(Object.hasOwn(projectedVersionWithSensitiveSource, "secret"), false);
+assert.equal(projectedVersionWithSensitiveSource.secretsIncluded, false);
 
 const bindingRow = {
   activityBindingId: "55555555-5555-4555-8555-555555555555",
