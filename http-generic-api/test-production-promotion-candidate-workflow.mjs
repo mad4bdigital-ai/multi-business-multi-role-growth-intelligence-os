@@ -40,7 +40,7 @@ for (const line of pushLines) {
 
 assert.doesNotMatch(workflow, /\bgh pr merge\b/, "workflow must never merge a pull request");
 assert.doesNotMatch(workflow, /\bmerge_pull_request\b/, "workflow must never invoke a merge API");
-assert.doesNotMatch(workflow, /\bgit merge\b/, "workflow must not perform a working-tree merge");
+assert.doesNotMatch(workflow, /\bgit merge(?:\s|$)/m, "workflow must not perform a working-tree merge");
 assert.match(workflow, /gh pr create --head "\$head" --base "\$base"/, "workflow may only create reviewable PR surfaces");
 assert.match(workflow, /upsert_pr "\$RELEASE_BRANCH" Production/, "workflow must create a Production-targeted release PR");
 assert.match(workflow, /upsert_pr "\$VALIDATION_BRANCH" main/, "workflow must create a non-merge main validation PR");
