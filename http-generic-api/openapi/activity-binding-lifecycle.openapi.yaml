@@ -95,6 +95,16 @@ components:
       type: apiKey
       in: header
       name: x-api-key
+    BackendBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Compatibility alias for the canonical adminBearerAuth scheme.
+    BackendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Compatibility alias for the canonical backendApiKeyAuth scheme.
   parameters:
     ActivityBindingId:
       name: activityBindingId
