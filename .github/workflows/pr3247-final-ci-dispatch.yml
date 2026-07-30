@@ -19,7 +19,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          TARGET_REF: gpt/pr3247-current-main-final-ci-20260730
+          TARGET_REF: gpt/pr3247-direct-current-main-ci-20260730
         shell: bash
         run: |
           set -euo pipefail
