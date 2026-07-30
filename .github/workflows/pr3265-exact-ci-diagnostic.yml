@@ -1,18 +1,20 @@
 name: PR 3265 Exact CI Diagnostic
 
 on:
-  pull_request:
-    types: [synchronize]
+  push:
+    branches:
+      - gpt/hostinger-production-resync-policy-20260729
 
 permissions:
   actions: read
   contents: write
 
+concurrency:
+  group: pr-3265-exact-ci-diagnostic
+  cancel-in-progress: false
+
 jobs:
   diagnose:
-    if: >-
-      github.event.pull_request.number == 3265 &&
-      github.event.pull_request.head.ref == 'gpt/hostinger-production-resync-policy-20260729'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -29,6 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          RUNS=''
           for attempt in $(seq 1 20); do
             set +e
             RUNS="$(gh run list --workflow ci.yml --branch "$TARGET_BRANCH" --event workflow_dispatch --limit 50 --json databaseId,headSha,createdAt,status,conclusion 2>gh.err)"
