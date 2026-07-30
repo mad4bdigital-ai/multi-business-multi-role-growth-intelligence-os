@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-retail-commerce-operations-growth-os",
+  "status": "pending",
+  "current_phase": "specify",
+  "specification": {
+    "artifacts_complete": true,
+    "brownfield_review_complete": true,
+    "contract_drafts_present": true,
+    "required_reviews_complete": false,
+    "blocking_questions": [
+      "initial_commerce_backend_pilot_mode",
+      "erpnext_frappe_version_and_topology",
+      "media_storage_and_processing_provider",
+      "payment_and_shipping_sandbox_providers",
+      "country_tax_and_einvoice_scope",
+      "production_slo_and_retention_values"
+    ]
+  },
+  "implementation": {
+    "started": false,
+    "runtime_code_changed": false,
+    "database_migrations_created": false,
+    "database_migrations_applied": false,
+    "providers_connected": false,
+    "frontend_deployed": false,
+    "implementation_prs": []
+  },
+  "verification": {
+    "contract_validation": "pending_ci",
+    "unit_tests": "not_started",
+    "integration_tests": "not_started",
+    "cross_tenant_tests": "not_started",
+    "concurrency_tests": "not_started",
+    "fault_injection": "not_started",
+    "adapter_certification": "not_started",
+    "responsive_accessibility": "not_started",
+    "production_smoke": "not_started"
+  },
+  "delivery": {
+    "specification_pr": null,
+    "merged_to_main": false,
+    "merge_sha": null,
+    "deployed_commit_sha": null,
+    "production_main_parity": false
+  },
+  "evidence": {
+    "repository_baseline_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
+    "demo_evidence_class": "design_and_contract_prototype_only",
+    "production_evidence_present": false,
+    "secrets_included": false
+  },
+  "closeout": {
+    "eligible": false,
+    "reason": "Specification-only delivery; implementation, migration, deployment, runtime parity, and production evidence are not complete.",
+    "unresolved_work_classified": true
+  }
+}
