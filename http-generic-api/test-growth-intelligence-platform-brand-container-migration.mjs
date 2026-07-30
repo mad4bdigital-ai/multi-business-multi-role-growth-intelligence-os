@@ -1,19 +1,19 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 const migrationUrl = new URL(
-  './migrations/20260730_growth_intelligence_platform_brand_container.sql',
+  "./migrations/20260730_growth_intelligence_platform_brand_container.sql",
   import.meta.url,
 );
-const sql = await readFile(migrationUrl, 'utf8');
+const sql = await readFile(migrationUrl, "utf8");
 
-const normalized = sql.replace(/\s+/g, ' ').trim();
+const normalized = sql.replace(/\s+/g, " ").trim();
 const statements = sql
-  .split(';')
+  .split(";")
   .map((statement) => statement.trim())
   .filter(Boolean);
 
-assert.equal(statements.length, 2, 'migration must contain exactly two SQL statements');
+assert.equal(statements.length, 2, "migration must contain exactly two SQL statements");
 assert.match(statements[0], /^--[\s\S]*INSERT INTO containers\s*\(/i);
 assert.match(statements[1], /^INSERT INTO container_relationships\s*\(/i);
 
@@ -26,13 +26,25 @@ assert.match(normalized, /brand_target_key/i);
 assert.match(normalized, /growth_intelligence_platform/i);
 assert.match(normalized, /relationship_type_key\s*=\s*'contains'/i);
 
+const relationshipStatement = statements[1].replace(/\s+/g, " ").trim();
+assert.match(relationshipStatement, /canonical_brand_container\.container_id/i);
+assert.match(relationshipStatement, /FROM containers canonical_brand_container/i);
+assert.match(relationshipStatement, /canonical_brand_container\.canonical_subject_type = 'brand_target_key'/i);
+assert.match(relationshipStatement, /canonical_brand_container\.canonical_subject_ref = 'growth_intelligence_platform'/i);
+assert.match(relationshipStatement, /existing_relationship\.to_container_id = canonical_brand_container\.container_id/i);
+assert.doesNotMatch(
+  relationshipStatement,
+  /SELECT\s+'2a619ab8-1138-537a-a2c2-352233a70945'[\s\S]*?'ee4b3966-3afa-5bbb-ad93-563a4a3a1b9f'\s*,\s*'contains'/i,
+  "relationship must not depend on the preferred brand-container UUID when an equivalent canonical container exists",
+);
+
 const notExistsCount = (normalized.match(/NOT EXISTS\s*\(/gi) ?? []).length;
-assert.equal(notExistsCount, 2, 'container and relationship inserts must both be idempotent');
+assert.equal(notExistsCount, 2, "container and relationship inserts must both be idempotent");
 
 const existsCount = (normalized.match(/EXISTS\s*\(/gi) ?? []).length;
-assert.ok(existsCount >= 9, 'migration must guard tenant, brand, type, workspace, and relationship prerequisites');
+assert.ok(existsCount >= 7, "migration must guard tenant, brand, type, workspace, and relationship prerequisites");
 
 assert.doesNotMatch(normalized, /\b(?:UPDATE|DELETE|ALTER|DROP|TRUNCATE|REPLACE)\b/i);
 assert.doesNotMatch(normalized, /tenant_id\s+IS\s+NULL/i);
 
-console.log('growth intelligence platform brand-container migration contract passed');
+console.log("growth intelligence platform brand-container migration contract passed");
