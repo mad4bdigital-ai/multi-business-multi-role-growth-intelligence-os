@@ -6,11 +6,12 @@
 - [ ] Inventory hardcoded identifiers, default-customer fallbacks, caller-supplied identity authority, provider-key-only selection, and first-row selection.
 - [ ] Add static scanner coverage in report-only mode where missing.
 - [ ] Document current Admin, Tenant, personal, workspace, brand, and OAuth entry points.
-- [ ] Create a compatibility ledger for `user_app_connections`, `workspace_app_links`, legacy ownership, and overlapping PRs.
+- [ ] Create a compatibility ledger for `workspace_registry.workspace_type`, `user_app_connections`, `workspace_app_links`, legacy ownership, and overlapping PRs.
 
 ## Phase 2: Domain kernel
 
 - [ ] Add principal, effective subject, workspace context, candidate, decision, pin, connection ownership, authority path, execution context, and outcome types.
+- [ ] Add `workspaceOwnershipType` independently from the existing operational `workspaceType`.
 - [ ] Implement deterministic connection precedence and ambiguity policy.
 - [ ] Implement personal-owner, workspace, brand, and tenant eligibility predicates.
 - [ ] Implement context hash and tenant/workspace/brand/resource/connection invalidation graph.
@@ -20,12 +21,13 @@
 ## Phase 3: Persistence and registry adapters
 
 - [ ] Add authorized-scope and membership repositories.
-- [ ] Add workspace-type repository.
+- [ ] Add an additive `workspace_ownership_type` persistence field without redefining `workspace_registry.workspace_type`.
 - [ ] Add exact connection-ownership repository.
 - [ ] Add brand connection binding repository.
 - [ ] Add provider authorization-state repository with single-use semantics.
 - [ ] Add capability, readiness, context pin, and execution ledger repositories.
 - [ ] Classify legacy rows before additive backfill.
+- [ ] Add compatibility tests for existing `brand|project|campaign|sandbox` workspace types.
 - [ ] Avoid exposing SQL table names or credential values outside infrastructure.
 
 ## Phase 4: Tenant provider consent
@@ -97,6 +99,7 @@
 - [ ] All acceptance scenarios pass.
 - [ ] OpenAPI validates.
 - [ ] No production hardcoding or unsafe selection findings remain.
+- [ ] Existing operational workspace-type semantics remain unchanged.
 - [ ] Cross-tenant, cross-user, and cross-brand isolation gates pass.
 - [ ] OAuth state and no-silent-fallback gates pass.
 - [ ] CI and security review pass.
