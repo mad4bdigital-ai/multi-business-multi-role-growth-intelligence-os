@@ -1,0 +1,34 @@
+name: Dispatch Production Candidate 92c2c5f3
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/dispatch-production-candidate-92c2c5f3-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch governed Production candidate builder
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run production-promotion-candidate.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f expected_main_sha=92c2c5f3a75d2669fea3290017726c56550bfea8 \
+            -f expected_production_sha=9d75a5e13cbe674448e4f52a341c5b9615f1e2d0 \
+            -f release_branch=release/production-candidate-92c2c5f3-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-92c2c5f3 \
+            -f validation_base_branch=gpt/validate-production-base-92c2c5f3 \
+            -f create_pull_requests=true
+          echo 'Governed candidate builder dispatched. This workflow performs no branch merge, deployment, migration, provider call, credential read, or external send.'
