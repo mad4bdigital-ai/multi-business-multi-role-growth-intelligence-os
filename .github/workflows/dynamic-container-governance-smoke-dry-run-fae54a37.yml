@@ -1,0 +1,138 @@
+name: Dynamic Container Governance Smoke Dry Run fae54a37
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/dynamic-container-governance-smoke-dry-run-fae54a37.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dynamic-container-governance-smoke-dry-run-fae54a37-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  governed-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact deployed Production and run bounded dry-run
+        id: smoke
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BASE_URL: https://auth.mad4b.com
+          EXPECTED_PRODUCTION_SHA: fae54a372350d23d915bbe564e972b714ca363f4
+          REQUIRED_CANDIDATE_SHA: c590a6ac096351a5625b4ce945308d11432c89e0
+        run: |
+          set -euo pipefail
+          test -n "${BACKEND_API_KEY:-}" || { echo '::error::BACKEND_API_KEY is unavailable'; exit 1; }
+
+          dir="$RUNNER_TEMP/dynamic-container-governance-smoke-dry-run"
+          mkdir -p "$dir"
+          checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          request_id="governance-smoke-dry-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          deployment_code="$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 \
+            --header 'Accept: application/json' \
+            --output "$dir/deployment-info.body" --write-out '%{http_code}' \
+            "$BASE_URL/deployment-info")"
+          test "$deployment_code" = '200'
+          grep -qi "$EXPECTED_PRODUCTION_SHA" "$dir/deployment-info.body"
+          if grep -Eqi 'hostname_fallback|"branch_source"[[:space:]]*:[[:space:]]*"hostname"|"commit_source"[[:space:]]*:[[:space:]]*"hostname"' "$dir/deployment-info.body"; then
+            echo '::error::deployment branch authority uses hostname fallback'
+            exit 1
+          fi
+
+          smoke_code="$(curl --silent --show-error --location --connect-timeout 10 --max-time 60 \
+            --request POST \
+            --header 'Accept: application/json' \
+            --header 'Content-Type: application/json' \
+            --header "Authorization: Bearer ${BACKEND_API_KEY}" \
+            --header "x-request-id: ${request_id}" \
+            --data '{"mode":"dry_run"}' \
+            --output "$dir/smoke.body" --write-out '%{http_code}' \
+            "$BASE_URL/admin/container-authority/override-governance-smokes")"
+          printf '%s\n' "$smoke_code" > "$dir/smoke.status"
+          test "$smoke_code" = '200'
+
+          jq -e '
+            .ok == true and
+            .mode == "dry_run" and
+            .results == null and
+            .cleanup == null and
+            .capabilityEnvelope == null and
+            .sameCycleReadbackVerified == false and
+            .targetExecuted == false and
+            .providerCalls == false and
+            .credentialPayloadReads == false and
+            .externalWrites == false and
+            .rolloutChanged == false and
+            .enforcementApplied == false and
+            .secretsIncluded == false and
+            .plan.confirmation == "RUN_DYNAMIC_CONTAINER_OVERRIDE_GOVERNANCE_SMOKE" and
+            (.plan.tests | length) == 5 and
+            .plan.fixtureStrategy == "transactional_disposable_rows" and
+            .plan.targetExecuted == false and
+            .plan.providerCalls == false and
+            .plan.credentialPayloadReads == false and
+            .plan.externalWrites == false and
+            .plan.rolloutChanged == false and
+            .plan.enforcementApplied == false and
+            .plan.secretsIncluded == false
+          ' "$dir/smoke.body" >/dev/null
+
+          jq -n \
+            --arg checked_at "$checked_at" \
+            --arg expected_production_sha "$EXPECTED_PRODUCTION_SHA" \
+            --arg required_candidate_sha "$REQUIRED_CANDIDATE_SHA" \
+            --arg request_id "$request_id" \
+            --arg deployment_status "$deployment_code" \
+            --arg smoke_status "$smoke_code" \
+            --slurpfile smoke "$dir/smoke.body" \
+            '{
+              schema_version: "dynamic_container_governance_smoke_dry_run.v1",
+              checked_at: $checked_at,
+              expected_production_sha: $expected_production_sha,
+              required_candidate_sha: $required_candidate_sha,
+              request_id: $request_id,
+              deployment_info_http_status: $deployment_status,
+              smoke_http_status: $smoke_status,
+              ok: ($smoke[0].ok == true),
+              mode: $smoke[0].mode,
+              confirmation: $smoke[0].plan.confirmation,
+              tests: $smoke[0].plan.tests,
+              fixture_strategy: $smoke[0].plan.fixtureStrategy,
+              same_cycle_readback_verified: $smoke[0].sameCycleReadbackVerified,
+              target_executed: $smoke[0].targetExecuted,
+              provider_calls: $smoke[0].providerCalls,
+              credential_payload_reads: $smoke[0].credentialPayloadReads,
+              external_writes: $smoke[0].externalWrites,
+              rollout_changed: $smoke[0].rolloutChanged,
+              enforcement_applied: $smoke[0].enforcementApplied,
+              secrets_included: $smoke[0].secretsIncluded,
+              capability_envelope_used: ($smoke[0].capabilityEnvelope != null),
+              apply_executed: false,
+              migration_executed: false
+            }' > "$dir/evidence.json"
+
+          jq . "$dir/evidence.json"
+          echo 'ok=true' >> "$GITHUB_OUTPUT"
+
+      - name: Upload bounded dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-container-governance-smoke-dry-run-fae54a37
+          path: ${{ runner.temp }}/dynamic-container-governance-smoke-dry-run/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce successful dry-run
+        if: always()
+        shell: bash
+        run: test "${{ steps.smoke.outputs.ok }}" = 'true'
