@@ -15,13 +15,18 @@ const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "context-kernel-scan
 try {
   fs.mkdirSync(path.join(temporaryRoot, "src"), { recursive: true });
   fs.mkdirSync(path.join(temporaryRoot, "tests"), { recursive: true });
+  fs.mkdirSync(path.join(temporaryRoot, "openapi"), { recursive: true });
 
   fs.writeFileSync(path.join(temporaryRoot, "src", "resolver.js"), `
 const tenantId = "11111111-2222-4333-8444-555555555555";
 const selectedConnection = connections[0];
-const connectionRows = await db.query("SELECT * FROM connections WHERE tenant_id = ? LIMIT 1");
+const connectionRows = await db.query("SELECT * FROM connections WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1");
 const grantMode = requestedMode || "permissive";
 const resolvedRows = await resolveConnection().catch(() => [[]]);
+`, "utf8");
+
+  fs.writeFileSync(path.join(temporaryRoot, "src", "exact-key-query.js"), `
+const connectionRows = await db.query("SELECT * FROM connections WHERE connection_id = ? LIMIT 1");
 `, "utf8");
 
   fs.writeFileSync(path.join(temporaryRoot, "src", "zero-scope.js"), `
@@ -42,6 +47,22 @@ export function resolveTenantRef(principal) {
 const customerRef = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 `, "utf8");
 
+  fs.writeFileSync(path.join(temporaryRoot, "src", "approved.js"), `
+const tenantId = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+`, "utf8");
+
+  fs.writeFileSync(path.join(temporaryRoot, "openapi", "example.yaml"), `
+openapi: 3.1.0
+paths:
+  /tenant/example:
+    post:
+      requestBody:
+        content:
+          application/json:
+            example:
+              tenantId: 12345678-1234-4123-8123-123456789abc
+`, "utf8");
+
   fs.writeFileSync(path.join(temporaryRoot, "tests", "fixture.js"), `
 export const tenantFixture = "99999999-8888-4777-8666-555555555555";
 `, "utf8");
@@ -49,9 +70,17 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   const config = {
     schema_version: 1,
     mode: "runtime_ratchet",
-    scan_roots: ["src", "tests"],
+    scan_roots: ["src", "tests", "openapi"],
     exclude_path_segments: ["node_modules", ".git"],
-    extensions: [".js"],
+    extensions: [".js", ".yaml"],
+    approved_findings: [
+      {
+        path: "src/approved.js",
+        rule_id: "fixed_customer_identifier",
+        line: 2,
+        reason: "Synthetic centrally reviewed compatibility fixture for scanner regression coverage.",
+      },
+    ],
   };
 
   const report = scanRepository({ repositoryRoot: temporaryRoot, config });
@@ -72,6 +101,23 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   assert.equal(report.changed_file_count, null);
   assert(active.some((item) => item.zone === "test" && item.rule_id === "fixed_customer_identifier"));
   assert(report.findings.some((item) => item.path.endsWith("suppressed.js") && item.rule_id === "fixed_customer_identifier" && item.suppressed));
+  assert(report.findings.some((item) => item.path === "src/approved.js" && item.rule_id === "fixed_customer_identifier" && item.suppressed));
+
+  const exampleReport = scanRepository({
+    repositoryRoot: temporaryRoot,
+    config,
+    changedFiles: ["openapi/example.yaml"],
+  });
+  assert.equal(exampleReport.summary.runtime_finding_count, 0);
+  assert.deepEqual(exampleReport.findings, []);
+
+  const exactKeyReport = scanRepository({
+    repositoryRoot: temporaryRoot,
+    config,
+    changedFiles: ["src/exact-key-query.js"],
+  });
+  assert.equal(exactKeyReport.summary.runtime_finding_count, 0);
+  assert.deepEqual(exactKeyReport.findings, []);
 
   const cleanChangedReport = scanRepository({
     repositoryRoot: temporaryRoot,
@@ -133,6 +179,7 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   const serialized = JSON.stringify(report);
   assert(!serialized.includes("11111111-2222-4333-8444-555555555555"));
   assert(!serialized.includes("00000000-0000-0000-0000-000000000000"));
+  assert(!serialized.includes("12345678-1234-4123-8123-123456789abc"));
   assert.match(formatReport(report, "text"), /Mode: runtime_ratchet/);
   assert.match(formatReport(report, "text"), /Scope: repository/);
   assert.match(formatReport(failingChangedReport, "github"), /::warning/);
