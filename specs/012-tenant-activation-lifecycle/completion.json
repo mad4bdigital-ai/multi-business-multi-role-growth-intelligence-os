@@ -5,7 +5,7 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "requirements": {
-    "migration": "to_be_determined_after_inventory",
+    "migration": true,
     "production_verification": true,
     "post_merge_audit": true,
     "protected_user_path_smoke": true,
@@ -125,7 +125,19 @@
       "secrets_included": false
     },
     "migration": {
-      "status": "pending_inventory"
+      "status": "required_pending_design_and_apply",
+      "source_tasks": [
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T024A",
+        "T024B",
+        "T026"
+      ],
+      "inventory_evidence": "implementation/pr-1-inventory.json#physical_mappings",
+      "data_model_evidence": "data-model.md#pr-1-physical-mapping-result"
     },
     "production_verification": {
       "status": "pending"
