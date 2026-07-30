@@ -100,6 +100,23 @@ await assert.rejects(
 
 await expectBlocked(snapshot({ stale: true }), "RESOURCE_GRAPH_SNAPSHOT_STALE");
 await expectBlocked(
+  snapshot({ nodes: [{ ...rootNode, resourceRef: "workspace-other" }] }),
+  "RESOURCE_GRAPH_ROOT_IDENTITY_MISMATCH",
+);
+await assert.rejects(
+  () => resolverFor(snapshot({
+    restrictions: [{
+      restrictionRef: "restriction-unknown-status",
+      nodeRef: "workspace:workspace-a",
+      effect: "deny",
+      operations: ["read"],
+      reasonCode: "UNKNOWN_STATUS_MUST_BLOCK",
+      status: "pending",
+    }],
+  })).resolve(input()),
+  /Unsupported resource graph restriction status: pending/,
+);
+await expectBlocked(
   snapshot({ nodes: [rootNode, { ...rootNode }] }),
   "RESOURCE_GRAPH_NODE_REFERENCE_AMBIGUOUS",
 );
