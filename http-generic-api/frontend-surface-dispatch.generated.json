@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "849660ac19bb59e4771541f6e0752c237ba87e3cfb8f1aef5c5b6b917b2e1dee",
+    "source_digest": "edf74730ce395ae27e89360fee723465dda3f08daa61ea20f1d2ed2dd06930df",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -906,7 +906,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "4a60898519a60b17298503bc3dc11803c285e70fbb8e088babea5fd71b67375b",
+        "sha256": "bcbfc1f83042d8639e748769a6901b2d4588d825c969a9b87bc750d2d81def74",
         "present": true
       },
       {
@@ -1117,11 +1117,11 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 385,
     "auth_parity_counts": {
-      "equivalent": 974,
+      "equivalent": 975,
       "exempt": 16,
-      "unknown": 4
+      "unknown": 3
     },
-    "auth_contract_gap_count": 4,
+    "auth_contract_gap_count": 3,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -5382,8 +5382,8 @@
       "wave": "F5-developer-evidence"
     },
     {
-      "family_key": "local-connector-install.unresolved",
-      "label": "local connector install (unresolved)",
+      "family_key": "local-connector-install.local_device",
+      "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
       "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
       "mount_prefix": "/",
@@ -5392,19 +5392,23 @@
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "authentication",
-      "scope": "unresolved",
+      "scope": "local_device",
       "operations": [
         {
           "method": "POST",
           "path": "/local-connector/install/device-download-link",
           "signature": "POST /local-connector/install/device-download-link",
           "source_file": "routes/localConnectorInstallRoutes.js",
-          "scope": "unresolved",
+          "scope": "local_device",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
+            "state": "resolved",
+            "profile": "local_manager",
+            "alternatives": [
+              [
+                "localManagerBearerAuth"
+              ]
+            ],
+            "principal": "local_manager",
             "guard_chain": [
               "requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
@@ -5427,10 +5431,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -5459,15 +5461,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "POST /local-connector/install/device-download-link",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -5503,10 +5497,10 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 10,
         "class": "critical"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F4-local-manager"
     },
     {
       "family_key": "credential-intake.admin",
@@ -81861,48 +81855,6 @@
       ]
     },
     {
-      "task_key": "frontend.local-connector-install.unresolved",
-      "title": "Resolve and deliver local connector install (unresolved)",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "auth_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/localConnectorInstallRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.member-google-oauth.unresolved",
       "title": "Resolve and deliver member google oauth (unresolved)",
       "wave": "F0-authority-resolution",
@@ -88232,6 +88184,48 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/localConnectorDeviceRouteRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.local-connector-install.local_device",
+      "title": "Resolve and deliver local connector install (local_device)",
+      "wave": "F4-local-manager",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "F4-device-trust",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localConnectorInstallRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
