@@ -6,6 +6,11 @@ on:
       - gpt/probe-production-runtime-parity-20260730
     paths:
       - .github/workflows/production-runtime-parity-probe.yml
+  pull_request:
+    branches:
+      - Production
+    paths:
+      - .github/workflows/production-runtime-parity-probe.yml
 
 permissions:
   contents: read
