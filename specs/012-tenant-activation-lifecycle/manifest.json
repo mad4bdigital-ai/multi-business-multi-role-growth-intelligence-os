@@ -2,8 +2,8 @@
   "schema_version": 1,
   "feature_key": "012-tenant-activation-lifecycle",
   "title": "Tenant GPT Activation Lifecycle",
-  "status": "in_progress",
-  "current_phase": "implement",
+  "status": "in_specification_review",
+  "current_phase": "review",
   "delivery_mode": "multi_pr",
   "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
   "created_at": "2026-07-22T00:00:00Z",
@@ -72,35 +72,9 @@
   "delivery": {
     "specification_pr": {
       "number": 2984,
-      "status": "merged",
-      "merge_sha": "615f45c19b5877f9d584ce284505dea0e133d833"
+      "status": "ready_for_review"
     },
-    "implementation_prs": [
-      {
-        "number": 3036,
-        "role": "inventory_contract_and_persistence_mapping_baseline",
-        "status": "merged",
-        "merge_sha": "ed9e0cca5cecae8c3b96167879e67b33dbba2e98"
-      },
-      {
-        "number": 3085,
-        "role": "lifecycle_state_error_and_compatibility_contracts",
-        "status": "merged",
-        "merge_sha": "88f6dc18f30982caee59edf08cf15d1b7e249cb1"
-      },
-      {
-        "number": 3122,
-        "role": "activation_lifecycle_contract_finalization",
-        "status": "merged",
-        "merge_sha": "7a63044a79f91c2de440c413e772c6fa858bf2fb"
-      },
-      {
-        "number": 3296,
-        "role": "t028_stage_classification_and_reconnect_guidance_policy",
-        "status": "merged",
-        "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0"
-      }
-    ],
+    "implementation_prs": [],
     "closeout_pr": {
       "number": null,
       "status": "pending"
