@@ -1,5 +1,6 @@
 name: EC0 Test Manifest Registration Latest Main
 
+# Synchronize trigger after PR creation.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
