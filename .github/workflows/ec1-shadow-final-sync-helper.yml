@@ -1,0 +1,124 @@
+name: EC1 Shadow Final Sync Helper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-verify:
+    if: github.event.pull_request.head.ref == 'gpt/ec1-shadow-final-sync-helper-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout helper branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/ec1-shadow-final-sync-helper-20260730
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Align conflicting authority files and merge current main
+        run: |
+          git fetch origin main
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout origin/main -- \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(spec-012): align shared authority files before EC1 sync'
+          fi
+          git merge --no-edit origin/main
+
+      - name: Reapply EC1 owner extension state
+        working-directory: specs/012-unified-admin-tenant-context-kernel
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = 'execution-capsule-runtime-extension.manifest.json';
+          const manifest = JSON.parse(fs.readFileSync(path, 'utf8'));
+          manifest.implementation_artifacts = [...new Set([
+            ...(manifest.implementation_artifacts || []),
+            'ec1-execution-capsule-shadow-adapter.md',
+            'ec1-execution-capsule-shadow-adapter.manifest.json',
+          ])];
+          manifest.slice_status = {
+            ...(manifest.slice_status || {}),
+            EC0_contract_and_tests: 'complete',
+            EC1_shadow_adapter: 'in_progress',
+          };
+          fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n');
+          NODE
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify EC1 and Context Kernel contracts
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-shadow-adapter.mjs
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-shadow-integration.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+
+      - name: Generate bounded artifacts using repository authority
+        working-directory: http-generic-api
+        run: |
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+
+      - name: Verify generated contracts
+        working-directory: http-generic-api
+        run: |
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
+
+      - name: Remove helper and enforce bounded write set
+        run: |
+          git rm .github/workflows/ec1-shadow-final-sync-helper.yml
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sort)
+          unexpected=''
+          for file in "${changed[@]}"; do
+            case "$file" in
+              .github/workflows/ec1-shadow-final-sync-helper.yml|\
+              specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json|\
+              http-generic-api/openapi.yaml|\
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+              http-generic-api/openapi.gpt-action.local-connector.yaml)
+                ;;
+              *) unexpected+="$file"$'\n' ;;
+            esac
+          done
+          if [[ -n "$unexpected" ]]; then
+            echo '::error::EC1 final sync changed files outside the bounded set'
+            printf '%s' "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit clean synchronized helper
+        run: |
+          git add -A
+          git commit -m 'chore(spec-012): finalize EC1 shadow adapter sync'
+          git push origin HEAD:gpt/ec1-shadow-final-sync-helper-20260730
