@@ -83,6 +83,7 @@ function poolWithParity(row) {
   assert.equal(calls[0][0].after_sha, SHA_NEW);
   assert.equal(calls[0][1].mode, "runtime_parity_startup_reconciler");
   assert.equal(calls[0][2].env.NODE_ENV, "production");
+  assert.equal(calls[0][2].allowDeploymentBranch, true);
 }
 
 {
