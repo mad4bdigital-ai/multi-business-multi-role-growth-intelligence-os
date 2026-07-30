@@ -53,17 +53,21 @@ jobs:
 
           target = Path("http-generic-api/scripts/frontend-operation-governance-generator.mjs")
           source = target.read_text(encoding="utf-8")
+          escape = chr(92) * 2
           replacements = {
               'const connectionMutation = "INSERT INTO `tenant_backend_connections`";':
-                  r'const connectionMutation = "INSERT INTO \`tenant_backend_connections\`";',
+                  f'const connectionMutation = "INSERT INTO {escape}`tenant_backend_connections{escape}`";',
               'transactionBlock.includes("INSERT INTO `tenants`") && transactionBlock.includes("INSERT INTO `memberships`")':
-                  r'transactionBlock.includes("INSERT INTO \`tenants\`") && transactionBlock.includes("INSERT INTO \`memberships\`")',
+                  f'transactionBlock.includes("INSERT INTO {escape}`tenants{escape}`") && transactionBlock.includes("INSERT INTO {escape}`memberships{escape}`")',
           }
           for old, new in replacements.items():
               count = source.count(old)
               if count != 1:
                   raise SystemExit(f"Expected one occurrence for bounded replacement, found {count}: {old}")
               source = source.replace(old, new)
+          expected = f'const connectionMutation = "INSERT INTO {escape}`tenant_backend_connections{escape}`";'
+          if expected not in source:
+              raise SystemExit("Bounded bootstrap evidence repair did not preserve two literal backslashes")
           target.write_text(source, encoding="utf-8")
           PY
 
