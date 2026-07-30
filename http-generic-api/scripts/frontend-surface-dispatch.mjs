@@ -504,13 +504,18 @@ function maskJavaScriptComments(source = "") {
   return output.join("");
 }
 
+function isMiddlewareAliasName(name = "") {
+  return /^(?:require|verify|authenticate|authorize|auth)/i.test(name)
+    || /(?:auth|guard|guards|middleware)$/i.test(name);
+}
 function middlewareAliases(source = "") {
   const aliases = new Map();
   const text = maskJavaScriptComments(source);
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\[([\s\S]*?)\]\s*(?:\.\s*filter\s*\(\s*Boolean\s*\))?\s*;/g)) {
     const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
       .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
+    const isGuardHelperAlias = /(?:Only|Handlers?)$/.test(match[1]);
+    if ((isMiddlewareAliasName(match[1]) || isGuardHelperAlias) && containsGuard) aliases.set(match[1], match[2]);
   }
   const helperRe = /\bfunction\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{/g;
   let helper;
@@ -522,18 +527,17 @@ function middlewareAliases(source = "") {
     if (returnedArray) {
       const containsGuard = [...returnedArray[1].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
         .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-      if (/^(?:require|verify|authenticate|authorize|auth)/i.test(helper[1]) || containsGuard) aliases.set(helper[1], returnedArray[1]);
+      if (isMiddlewareAliasName(helper[1]) && containsGuard) aliases.set(helper[1], returnedArray[1]);
     }
     helperRe.lastIndex = closing + 1;
   }
-  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\([^)]*\)\s*=>\s*([\s\S]*?);/g)) {
-    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
-      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-    if (containsGuard) aliases.set(match[1], match[2]);
-  }
-  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
+  for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([\s\S]*?);/g)) {
     if (aliases.has(match[1])) continue;
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
+    const containsGuard = middlewareGuards(match[2], aliases).length > 0;
+    const isGuardHelperAlias = /(?:Only|Handlers?)$/.test(match[1]);
+    if ((isMiddlewareAliasName(match[1]) || isGuardHelperAlias) && containsGuard) {
+      aliases.set(match[1], match[2]);
+    }
   }
   return aliases;
 }
@@ -578,6 +582,22 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   if (override?.profile && guardChain.length) {
     const discovered = runtimeAuthProfile({ routePath, routeGuards, inheritedGuards, override: null });
     if (discovered.state !== "resolved") {
+      const signedQueryGuardVerified = override.profile === "signed_query_token"
+        && guardChain.includes("verifyInstallerDownloadToken");
+      if (signedQueryGuardVerified) {
+        const selected = AUTH_PROFILES[override.profile];
+        return {
+          state: "resolved",
+          profile: override.profile,
+          ...selected,
+          guard_chain: guardChain,
+          evidence: unique([
+            ...evidence,
+            ...(override.evidence_refs || []),
+            "runtime_guard:verifyInstallerDownloadToken",
+          ]),
+        };
+      }
       return { ...discovered, evidence: unique([...(discovered.evidence || []), ...(override.evidence_refs || [])]) };
     }
     if (discovered.profile !== override.profile) {
@@ -602,11 +622,14 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
   const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
-  const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser", "requireFreshLocalManagerDeviceForPrivilegedInstaller"].includes(guard));
+  const hasDirectLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser"].includes(guard));
+  const hasFreshLocal = guardChain.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller");
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
   const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
+  const hasOtherPrimaryAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasMcp || hasSignedQuery || hasGitHubWebhook;
+  const hasLocal = hasDirectLocal || (hasFreshLocal && !hasOtherPrimaryAuthenticator);
   const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
@@ -683,14 +706,100 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
-export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
+function nestedRouterRouteExpansions(source, file, mountPrefix, aliases) {
+  const text = maskJavaScriptComments(source);
+  const helperDefinitions = [];
+  const helperRe = /\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*\{/g;
+  let helperMatch;
+  while ((helperMatch = helperRe.exec(text)) !== null) {
+    const opening = text.indexOf("{", helperMatch.index);
+    const closing = findMatchingBrace(text, opening);
+    if (closing < 0) continue;
+    helperDefinitions.push({
+      name: helperMatch[1],
+      parameters: splitTopLevelArguments(helperMatch[2]).map((parameter) =>
+        parameter.split("=")[0].trim().replace(/^\.\.\./, ""),
+      ),
+      start: helperMatch.index,
+      opening,
+      closing,
+    });
+    helperRe.lastIndex = closing + 1;
+  }
+
+  const childRouters = new Set(
+    [...text.matchAll(/\bconst\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*Router\s*\(\s*\)\s*;/g)]
+      .map((match) => match[1]),
+  );
+  const mounts = new Map();
+  for (const match of text.matchAll(/(?:router|app)\.use\s*\(\s*(["'`])([^"'`]+)\1\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)\s*;/g)) {
+    if (!childRouters.has(match[3])) continue;
+    mounts.set(match[3], normalizeRoutePath(match[2]));
+  }
+  if (!mounts.size) return { operations: [], excludedRanges: [] };
+
+  const operations = [];
+  const excludedRanges = [];
+  for (const helper of helperDefinitions) {
+    let expandedHelper = false;
+    const callToken = `${helper.name}(`;
+    let callIndex = text.indexOf(callToken, helper.closing + 1);
+    while (callIndex >= 0) {
+      const opening = callIndex + helper.name.length;
+      const closing = findMatchingDelimiter(text, opening, "(", ")");
+      if (closing < 0) break;
+      const args = splitTopLevelArguments(text.slice(opening + 1, closing));
+      const childRouter = args[0]?.trim();
+      const mountedPrefix = mounts.get(childRouter);
+      if (mountedPrefix) {
+        let helperBody = text.slice(helper.opening + 1, helper.closing);
+        const middlewareParameter = helper.parameters[1];
+        if (middlewareParameter) {
+          const middlewareExpression = String(args[1] || "").trim();
+          const middlewareItems = middlewareExpression.startsWith("[") && middlewareExpression.endsWith("]")
+            ? middlewareExpression.slice(1, -1).trim()
+            : middlewareExpression;
+          helperBody = helperBody
+            .split(`...${middlewareParameter}`)
+            .join(middlewareItems);
+        }
+        operations.push(
+          ...parseRoutesFromFile(
+            helperBody,
+            file,
+            joinRoutePath(mountPrefix, mountedPrefix),
+            { expandNestedRouters: false, inheritedAliases: aliases },
+          ).map((operation) => ({
+            ...operation,
+            source_index: helper.opening + 1 + operation.source_index,
+          })),
+        );
+        expandedHelper = true;
+      }
+      callIndex = text.indexOf(callToken, closing + 1);
+    }
+    if (expandedHelper) excludedRanges.push([helper.start, helper.closing]);
+  }
+  return { operations, excludedRanges };
+}
+
+export function parseRoutesFromFile(
+  source,
+  file,
+  mountPrefix = "/",
+  { receiver = "router_or_app", expandNestedRouters = true, inheritedAliases = null } = {},
+) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
-  const aliases = middlewareAliases(scanSource);
+  const aliases = inheritedAliases || middlewareAliases(scanSource);
+  const nestedRouters = expandNestedRouters
+    ? nestedRouterRouteExpansions(scanSource, file, mountPrefix, aliases)
+    : { operations: [], excludedRanges: [] };
   const receiverPattern = receiver === "app" ? "app" : "(?:router|app)";
   const routeRe = new RegExp(`${receiverPattern}\\.(get|post|put|patch|delete|all)\\s*\\(\\s*([\"'\\x60])([^\"'\\x60]+)\\2`, "gs");
   let match;
   while ((match = routeRe.exec(scanSource)) !== null) {
+    if (nestedRouters.excludedRanges.some(([start, end]) => match.index >= start && match.index <= end)) continue;
     const registrationMethod = match[1].toUpperCase();
     const methods = registrationMethod === "ALL" ? [...HTTP_METHODS] : [registrationMethod];
     if (methods.some((method) => !HTTP_METHODS.has(method))) continue;
@@ -703,9 +812,9 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
     const routeGuards = unique([
-      ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
-      ...middlewareGuards(declaration, aliases),
-    ]);
+    ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
+    ...middlewareGuards(declaration, aliases),
+  ]);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
@@ -727,7 +836,7 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
       }
     }
   }
-  return operations;
+  return [...operations, ...nestedRouters.operations];
 }
 
 function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, runtimeAuth = null }) {
