@@ -639,6 +639,8 @@ export const testCommands = [
   "node test-delegation-grant-lifecycle-shadow.mjs",
   "node test-delegation-grant-repository-mutation.mjs",
   "node test-delegation-grant-mariadb-adapter-contract.mjs",
+  "node test-delegation-grant-mariadb-readiness-collector.mjs",
+  "node test-delegation-grant-mariadb-runtime-binding.mjs",
   "node test-runtime-verification-contract.mjs",
   "node test-release-operation-ledger.mjs",
   "node test-release-operation-ledger-mutation-policy.mjs",
