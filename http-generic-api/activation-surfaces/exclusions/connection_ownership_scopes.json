@@ -1,0 +1,7 @@
+{
+  "surface_key": "connection_ownership_scopes",
+  "source_table": "connection_ownership_scopes",
+  "reason": "Excluded because PR 3483 creates the additive Context Kernel connection-ownership persistence foundation only. Tenant-visible connection ownership APIs, activation cards, OAuth callbacks, and governed runtime resolution are intentionally deferred to separately gated follow-up PRs.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
