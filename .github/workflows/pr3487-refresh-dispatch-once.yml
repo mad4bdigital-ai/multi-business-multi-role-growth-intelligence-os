@@ -1,0 +1,47 @@
+name: PR3487 Governed Candidate Dispatch Once
+
+on:
+  push:
+    branches:
+      - gpt/dispatch-production-candidate-pr3487-20260730-1538-v1
+    paths:
+      - .github/workflows/pr3487-refresh-dispatch-once.yml
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: pr3487-governed-candidate-dispatch-once
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch governed candidate workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run production-promotion-candidate.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            --field expected_main_sha=c3d0f3730d9937754d9d194a47cb20e96864391b \
+            --field expected_production_sha=28c3a74982050340b2b49f86bc77d1997164c642 \
+            --field release_branch=release/production-candidate-20260730-2eba7f44 \
+            --field validation_branch=gpt/validate-production-candidate-pr3487-c3d0f373-v5 \
+            --field validation_base_branch=gpt/validate-production-base-20260730-c3d0f373-pr3487-v5 \
+            --field create_pull_requests=true
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Governed candidate refresh dispatched
+
+          - release PR: #3487
+          - pinned main: `c3d0f3730d9937754d9d194a47cb20e96864391b`
+          - pinned Production: `28c3a74982050340b2b49f86bc77d1997164c642`
+          - no Production merge authorized
+          - no database apply authorized
+          EOF
