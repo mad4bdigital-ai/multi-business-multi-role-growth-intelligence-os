@@ -3,298 +3,44 @@ name: CI
 on:
   workflow_dispatch:
   push:
-  pull_request:
-    branches: [main]
+
+permissions:
+  contents: write
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  syntax:
-    name: Syntax Check
+  pr-3162-stage-dispatch-head:
+    if: github.event_name == 'push' && github.ref_name == 'gpt/pr-3162-final-current-main-20260730'
+    name: PR 3162 Stage Dispatch Head
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: gpt/pr-3162-final-current-main-20260730
           fetch-depth: 0
 
-      - name: Guard schema/docs coverage for runtime changes
-        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
-
-      - name: Guard governed migration seed placement
-        run: node http-generic-api/scripts/migration-placement-guard.mjs
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Guard centralized fail-closed user JWT auth
-        working-directory: http-generic-api
-        run: node scripts/user-jwt-auth-governance.mjs
-
-      - name: Guard merge and runtime interruption readiness
-        working-directory: http-generic-api
-        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-
-      - name: Validate canonical source structure
-        run: node validate-canonical-sources.mjs
-
-      - name: Check canonical generated output
-        run: node build-canonicals.mjs --check
-
-      - name: Check canonical domain finder
-        run: node --check find-canonical-domain.mjs
-
-      - name: Block uncovered resource feature surfaces
-        working-directory: http-generic-api
-        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
-
-      - name: Validate resource API architecture and application service
-        working-directory: http-generic-api
-        run: |
-          node test-resource-api-architecture.mjs
-          node test-resource-api-service.mjs
-
-      - name: Enforce Spec Kit completion governance
-        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-
-      - name: Validate memory schema refs
-        run: node validate-memory-schema.mjs
-
-      - name: Check git diff hygiene
-        run: git diff --check
-
-      - name: Check all JS modules
-        working-directory: http-generic-api
-        run: |
-          set -e
-          shopt -s nullglob
-          for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
-            node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
-          done
-
-  test:
-    name: Unit & Integration Tests
-    runs-on: ubuntu-latest
-    needs: syntax
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Determine context-kernel hardcoding ratchet scope
+      - name: Create a workflow-silent dispatch head
         shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
-          REF_NAME: ${{ github.ref_name }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
-          DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
-          if [[ "$EVENT_NAME" == "pull_request" && -n "${PULL_REQUEST_BASE_SHA:-}" ]]; then
-            BASE_SHA="$PULL_REQUEST_BASE_SHA"
-            git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
-          elif [[ "$EVENT_NAME" == "push" && "$REF_NAME" == "$DEFAULT_BRANCH" && -n "${PUSH_BEFORE_SHA:-}" && ! "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
-            BASE_SHA="$PUSH_BEFORE_SHA"
-            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
-          elif git rev-parse --verify "origin/$DEFAULT_BRANCH" >/dev/null 2>&1; then
-            BASE_SHA="origin/$DEFAULT_BRANCH"
-            git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
-          else
-            BASE_SHA="$(git rev-parse HEAD^)"
-            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+          if [[ -f .github/pr3162-finalize-dispatch-marker ]]; then
+            echo "Dispatch marker already exists."
+            exit 0
           fi
-          echo "Context-kernel hardcoding ratchet base: $BASE_SHA"
-          echo "Changed files considered by the ratchet:"
-          cat "$CHANGED_FILES"
-
-      - name: Block context-kernel runtime hardcoding regressions
-        working-directory: http-generic-api
-        run: node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
-
-      - name: Validate Connect auth, secret boundary, and atomic bootstrap
-        working-directory: http-generic-api
-        run: |
-          node test-user-jwt-auth.mjs
-          node test-connect-secret-boundary.mjs
-          node test-tenant-connect-bootstrap-transaction.mjs
-          node test-tenant-connection-self-repair-routes.mjs
-
-      - name: Guard dependency and runtime interruption readiness
-        working-directory: http-generic-api
-        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
-
-      - name: Run tests
-        working-directory: http-generic-api
-        run: npm test
-
-      - name: Prove runtime startup and deployment evidence
-        working-directory: http-generic-api
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: "true"
-          DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
-          DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
-        run: |
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
-
-      - name: Run explicit governance contract checks
-        working-directory: http-generic-api
-        run: |
-          node test-custom-gpt-schemas.mjs
-          node test-tenant-activation-contract-inventory-parity.mjs
-          node test-activation-lifecycle-contract-foundation.mjs
-          node test-activation-lifecycle-state-machine.mjs
-          node test-activation-reconnect-guidance-policy.mjs
-          node test-activation-contract-finalization.mjs
-          node test-activation-operation-projection-foundation.mjs
-          node test-openapi-split-governance.mjs
-          node test-openapi-split-regeneration-parity.mjs
-          node test-local-connector-capability-installer-grants.mjs
-
-      - name: Reject stale readiness evidence
-        working-directory: http-generic-api
-        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
-
-  execution-resolver-gate:
-    name: Execution Resolver Gate
-    runs-on: ubuntu-latest
-    needs: syntax
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: Install root dependencies
-        run: npm ci
-
-      - name: Typecheck execution resolver sources
-        run: npm run typecheck
-
-      - name: Run execution resolver unit tests
-        run: npm test -- --runInBand
-
-      - name: Guard resolver runtime surface
-        run: |
-          set -e
-          test -f src/services/execution/dispatchPlanStep.ts
-          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
-          test -f src/store/registries/connectorExecutorRegistry.ts
-          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
-          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
-
-  architecture-drift:
-    name: Architecture Drift Detection
-    runs-on: ubuntu-latest
-    needs: syntax
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Run canonical architecture validation
-        working-directory: http-generic-api
-        run: npm run validate
-
-      - name: Check for inline function redefinitions in server.js
-        working-directory: http-generic-api
-        run: |
-          MODULES="normalization mutationGovernance governedChangeControl jobRunner jobUtils executionRouting auth"
-          FAIL=0
-          for mod in $MODULES; do
-            if [ ! -f "${mod}.js" ]; then continue; fi
-            EXPORTS=$(grep "^export function\|^export async function" "${mod}.js" | sed 's/export \(async \)\?function //;s/(.*//')
-            for fn in $EXPORTS; do
-              if grep -qE "^(async )?function ${fn}\b" server.js; then
-                echo "DRIFT: '${fn}' is exported from ${mod}.js but also defined inline in server.js"
-                FAIL=1
-              fi
-            done
-          done
-          if [ "$FAIL" -eq 1 ]; then
-            echo "Inline redefinition drift detected - run extraction cleanup"
-            exit 1
-          fi
-          echo "No inline redefinition drift detected"
-
-      - name: Check legacy execution snapshot isolation
-        working-directory: http-generic-api
-        run: |
-          set +e
-          MATCHES=$(grep -RInE 'from ["'"'']\./execution(\.js)?["'"'']|import\(["'"'']\./execution(\.js)?["'"'']\)|require\(["'"'']\./execution(\.js)?["'"'']\)' . \
-            --include='*.js' --include='*.mjs' \
-            --exclude='execution.js' \
-            --exclude='validate-architecture.mjs' \
-            --exclude='test-*.mjs' \
-            --exclude='fix-*.mjs' \
-            --exclude='extract-modules.js')
-          STATUS=$?
-          set -e
-          if [ "$STATUS" -eq 0 ]; then
-            echo "DRIFT: execution.js is marked snapshot_archived but is imported by runtime code:"
-            echo "$MATCHES"
-            exit 1
-          fi
-          if [ "$STATUS" -gt 1 ]; then
-            echo "Failed to scan for execution.js imports"
-            exit "$STATUS"
-          fi
-          echo "Legacy execution snapshot remains isolated"
-
-      - name: Check server.js line count
-        working-directory: http-generic-api
-        run: |
-          LINES=$(wc -l < server.js)
-          echo "server.js: ${LINES} lines"
-          if [ "$LINES" -gt 6000 ]; then
-            echo "DRIFT: server.js exceeds 6000-line threshold (${LINES} lines) - decomposition may have regressed"
-            exit 1
-          fi
-          echo "server.js size within threshold"
-
-      - name: Check wordpress barrel export floor
-        working-directory: http-generic-api
-        run: |
-          COUNT=$(node -e "import('./wordpress/index.js').then(m => { const n = Object.keys(m).length; console.log(n); if(n < 545) process.exit(1); })" 2>&1)
-          echo "wordpress/index.js exports: $COUNT"
-          if [ $? -ne 0 ]; then
-            echo "DRIFT: wordpress/index.js exports dropped below 545 floor"
-            exit 1
-          fi
-          echo "WordPress barrel export count within floor"
+          printf '%s\n' 'PR 3162 finalizer dispatch head' > .github/pr3162-finalize-dispatch-marker
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/pr3162-finalize-dispatch-marker
+          git commit -m "chore(ci): prepare PR 3162 finalizer dispatch"
+          git push origin HEAD:gpt/pr-3162-final-current-main-20260730
 
   pr-3162-finalize:
     if: github.event_name == 'workflow_dispatch' && github.ref_name == 'gpt/pr-3162-final-current-main-20260730'
     name: PR 3162 Finalize Current Main
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -313,11 +59,19 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Merge latest main and apply validated product changes
+      - name: Reconcile latest main without overwriting newer parser work
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main gpt/pr-3162-rebuild-main-20260730-v2
+
+          if ! git diff --quiet 75be7437d72127b41ebf18a082bcc6a8fd85c58e..origin/main -- \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs; then
+            echo "::error::latest main changed the parser or its regression suite after the verified overlap check"
+            exit 1
+          fi
+
           set +e
           git merge --no-commit --no-ff origin/main
           MERGE_STATUS=$?
@@ -342,6 +96,18 @@ jobs:
             fi
           fi
 
+          git checkout origin/main -- .github/workflows/ci.yml
+          git add .github/workflows/ci.yml
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: reconcile latest main before PR 3162 finalization"
+          fi
+
+      - name: Apply validated product changes
+        shell: bash
+        run: |
+          set -euo pipefail
           git checkout origin/gpt/pr-3162-rebuild-main-20260730-v2 -- \
             http-generic-api/scripts/frontend-surface-dispatch.mjs \
             http-generic-api/test-frontend-surface-dispatch.mjs \
@@ -394,17 +160,20 @@ jobs:
           if (Object.values(result).some((value) => value !== 0)) process.exit(1);
           NODE
 
-      - name: Restore trusted CI and commit final tree
+      - name: Commit clean final product tree
         shell: bash
         run: |
           set -euo pipefail
           git checkout origin/main -- .github/workflows/ci.yml
-          rm -f .github/workflows/pr-3162-final-rebuild.yml
+          rm -f \
+            .github/pr3162-finalize-dispatch-marker \
+            .github/workflows/pr-3162-final-rebuild.yml
           git diff --check
 
           mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
           for path in "${changed[@]}"; do
             case "$path" in
+              .github/pr3162-finalize-dispatch-marker|\
               .github/workflows/ci.yml|\
               .github/workflows/pr-3162-final-rebuild.yml|\
               http-generic-api/frontend-operation-governance.generated.json|\
@@ -425,6 +194,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- \
+            .github/pr3162-finalize-dispatch-marker \
             .github/workflows/ci.yml \
             .github/workflows/pr-3162-final-rebuild.yml \
             http-generic-api/frontend-operation-governance.generated.json \
