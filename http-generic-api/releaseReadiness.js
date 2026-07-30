@@ -734,6 +734,11 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         && /^ALTER\s+TABLE\s+`?workspace_resource_grants`?\s+MODIFY\s+COLUMN\s+`?resource_type`?\s+ENUM\('workspace','brand','site','app','asset','workflow','agent','vault','repository'\)\s+NOT\s+NULL$/i.test(normalized)
       ) {
         counts.alter_table_idempotent += 1;
+      } else if (
+        filename === "20260728_operation_managed_git_ephemeral_checkout.sql"
+        && /^ALTER\s+TABLE\s+`?operation_managed_git_worker_leases`?\s+MODIFY\s+COLUMN\s+`?checkout_strategy`?\s+ENUM\('virtual_git_tree',\s*'ephemeral_checkout'\)\s+NOT\s+NULL$/i.test(normalized)
+      ) {
+        counts.alter_table_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
       }
