@@ -1,0 +1,40 @@
+name: EC0 Execution Capsule Contract
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-execution-capsule-contract-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check EC0 modules
+        working-directory: http-generic-api
+        run: |
+          node --check contextKernel/domain/executionCapsule.js
+          node --check contextKernel/application/executionCapsuleService.js
+          node --check test-execution-capsule-contract.mjs
+
+      - name: Run EC0 contract and Context Kernel regressions
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+          node test-context-kernel-cross-tenant-isolation.mjs
