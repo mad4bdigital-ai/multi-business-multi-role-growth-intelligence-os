@@ -1,0 +1,9 @@
+{
+  "migrations": [
+    "1006_sprint69_agent_capability_evidence_coverage.sql",
+    "1007_sprint69_agent_capability_coverage_admin_tools.sql"
+  ],
+  "runtime": "https://auth.mad4b.com",
+  "sql_execution": false,
+  "branch_cleanup": "self_delete_after_success"
+}
