@@ -1,5 +1,6 @@
 name: EC0 Clean Latest Main Build
 
+# Synchronize trigger after workflow registration.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
