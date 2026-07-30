@@ -66,6 +66,10 @@ assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
+if (plan.rejected_candidates.length) {
+  console.error("frontend operation governance rejected candidates:");
+  console.error(JSON.stringify(plan.rejected_candidates, null, 2));
+}
 assert.deepEqual(plan.coverage, {
   candidate_count: 7,
   generated_rule_count: 7,
