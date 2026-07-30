@@ -165,6 +165,7 @@ jobs:
           node test-activation-contract-finalization.mjs
           node test-activation-operation-projection-foundation.mjs
           node test-activation-operation-persistence-repository.mjs
+          node test-activation-delivery-acknowledgement-repository.mjs
           node test-openapi-split-governance.mjs
           node test-openapi-split-regeneration-parity.mjs
           node test-local-connector-capability-installer-grants.mjs
