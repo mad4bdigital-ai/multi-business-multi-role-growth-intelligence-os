@@ -1,0 +1,67 @@
+name: PR 3247 test harness fix
+
+on:
+  pull_request:
+    branches:
+      - gpt/pr3247-test-harness-fix-base-20260730
+    paths:
+      - .github/workflows/pr3247-test-harness-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-bounded-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/response-chunk-ownership-a23e0076
+          fetch-depth: 0
+
+      - name: Patch stale workspace-aware fake pool
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/test-gpt-tools-response-chunking.mjs')
+          text = path.read_text(encoding='utf-8')
+
+          old_params = 'const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerPrincipalType, ownerPrincipalId] = params;'
+          new_params = 'const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerWorkspaceId, ownerPrincipalType, ownerPrincipalId] = params;'
+          old_match = '''          row.owner_tenant_id === ownerTenantId
+          && row.owner_user_id === ownerUserId
+          && row.owner_principal_type === ownerPrincipalType'''
+          new_match = '''          row.owner_tenant_id === ownerTenantId
+          && row.owner_user_id === ownerUserId
+          && row.owner_workspace_id === ownerWorkspaceId
+          && row.owner_principal_type === ownerPrincipalType'''
+
+          if text.count(old_params) != 1:
+              raise SystemExit(f'expected one stale parameter destructure, found {text.count(old_params)}')
+          if text.count(old_match) != 1:
+              raise SystemExit(f'expected one stale owner comparison, found {text.count(old_match)}')
+
+          path.write_text(text.replace(old_params, new_params, 1).replace(old_match, new_match, 1), encoding='utf-8')
+          PY
+
+      - name: Validate syntax and bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-gpt-tools-response-chunking.mjs
+          git diff --check
+          git diff -- http-generic-api/test-gpt-tools-response-chunking.mjs
+          test "$(git diff --name-only | wc -l)" -eq 1
+
+      - name: Commit to original PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git add http-generic-api/test-gpt-tools-response-chunking.mjs
+          git commit -m "test: align chunk TTL fake pool with workspace ownership"
+          git push origin HEAD:gpt/response-chunk-ownership-a23e0076
