@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 
+// frontend-surface-operation: POST /admin/repository-automation/reconciliation-lease
+
 import {
   REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS,
   buildRepositoryReconciliationLeaseAcquireInput,
