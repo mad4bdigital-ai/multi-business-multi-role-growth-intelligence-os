@@ -177,7 +177,7 @@ assertIncludes("http-generic-api/supportTicketLifecycleSnapshotRecord.js", [
 assertIncludes("http-generic-api/routes/systemLayerRoutes.js", [
   "runtime_endpoint_call",
   "isTenantRegistryToolAllowedInSystemFacade",
-  "pathValue === \"/system/tools/call\"",
+  'pathValue === "/system/tools/call"',
 ]);
 
 scanForForbiddenStrings("http-generic-api", [
