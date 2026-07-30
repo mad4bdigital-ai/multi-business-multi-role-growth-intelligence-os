@@ -16,7 +16,7 @@ paths:
       tags: [repository-main-moved-events]
       operationId: createRepositoryMainMovedEvent
       summary: Ingest one internal allowlisted main-branch movement event
-      description: Runs runtime verification and Self-Healing Release Advisor planning, then stops at a no-action, review, blocked, or typed-approval handoff. It never executes a release.
+      description: Runs runtime verification and Self-Healing Release Advisor planning. Every accepted main movement produces a mandatory plan to synchronize the protected Production branch from the latest main before Hostinger may rebuild and deploy. The coordinator stops at a no-action, review, blocked, production-sync, or typed-approval handoff and never executes a release.
       requestBody:
         required: true
         content:
