@@ -1,0 +1,90 @@
+name: PR 3247 one-shot owner cache runner
+
+on:
+  push:
+    branches:
+      - gpt/response-chunk-ownership-a23e0076
+    paths:
+      - .github/workflows/pr3247-one-shot-owner-cache.yml
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  apply-certify-and-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/response-chunk-ownership-a23e0076
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Extract and apply exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path(".tmp/pr3247/patch-source.yml")
+          source = source_path.read_text(encoding="utf-8").splitlines()
+          marker = "        run: |"
+          if source.count(marker) != 1:
+              raise SystemExit(f"expected one patch run block, found {source.count(marker)}")
+          start = source.index(marker) + 1
+          body = []
+          for line in source[start:]:
+              if line and len(line) - len(line.lstrip(" ")) <= 8:
+                  break
+              body.append(line[10:] if line.startswith("          ") else line)
+          script = "\n".join(body).rstrip() + "\n"
+          tail_marker = "\ngit config user.name"
+          if tail_marker not in script:
+              raise SystemExit("patch commit tail marker was not found")
+          script = script.split(tail_marker, 1)[0].rstrip() + "\n"
+          required = [
+              "security: enforce response chunk cache ownership",
+              "canAccessGovernedResponseChunk(principal, entry)",
+              "cross-tenant memory denial must not extend durable TTL",
+          ]
+          missing = [marker for marker in required if marker not in script]
+          if missing:
+              raise SystemExit(f"patch integrity markers missing: {missing}")
+          Path("/tmp/pr3247_patch.sh").write_text(script, encoding="utf-8")
+          PY
+          bash /tmp/pr3247_patch.sh
+      - name: Validate syntax and targeted regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/routes/gptToolsRoutes.js
+          node --check http-generic-api/test-gpt-tools-response-chunking.mjs
+          git diff --check
+          cd http-generic-api
+          npm ci --ignore-scripts
+          node test-gpt-tools-response-chunking.mjs
+      - name: Commit clean patch and dispatch CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr3247-one-shot-owner-cache.yml
+          rm -f .tmp/pr3247/patch-source.yml
+          rm -f .tmp/pr3247/gptToolsRoutes-source.txt
+          rm -f .tmp/pr3247/test-gpt-tools-response-chunking-source.txt
+          rmdir .tmp/pr3247 2>/dev/null || true
+          rmdir .tmp 2>/dev/null || true
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "security: enforce response chunk cache ownership"
+          git push origin HEAD:gpt/response-chunk-ownership-a23e0076
+          printf '{"ref":"gpt/response-chunk-ownership-a23e0076"}' | \
+            gh api -X POST "/repos/${{ github.repository }}/actions/workflows/ci.yml/dispatches" --input -
