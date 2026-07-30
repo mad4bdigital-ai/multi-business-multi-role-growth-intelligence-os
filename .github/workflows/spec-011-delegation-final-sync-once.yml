@@ -1,0 +1,52 @@
+name: Spec 011 Delegation Final Sync Once
+
+on:
+  pull_request:
+    types: [synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  sync:
+    if: github.head_ref == 'gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730
+          fetch-depth: 0
+
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+
+      - name: Validate delegation and generated evidence
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          node test-delegation-grant-lifecycle-shadow.mjs
+          node test-delegation-grant-repository-mutation.mjs
+          node test-delegation-grant-mariadb-adapter-contract.mjs
+          node test-delegation-grant-mariadb-readiness-collector.mjs
+          node test-delegation-grant-mariadb-runtime-binding.mjs
+
+      - name: Commit synchronized head and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/spec-011-delegation-final-sync-once.yml
+          git add .
+          git diff --cached --check
+          git commit -m "chore(spec-011): synchronize delegation certification with main"
+          git push origin HEAD:gpt/spec-011-phase3-delegation-mariadb-certification-recovery-20260730
