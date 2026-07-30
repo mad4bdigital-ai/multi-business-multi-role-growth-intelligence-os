@@ -38,6 +38,12 @@ const TERMINAL_STAGE_ATTEMPT_STATES = new Set([
   "unknown_outcome",
   "cancelled",
 ]);
+const ERROR_BEARING_STAGE_ATTEMPT_STATES = new Set([
+  "degraded",
+  "failed",
+  "unknown_outcome",
+]);
+const RETRYABLE_STAGE_ATTEMPT_STATES = new Set(["degraded", "failed"]);
 
 function fail(code, message, status = 400, details = undefined) {
   const error = new Error(message);
@@ -200,14 +206,20 @@ export async function transitionActivationStageAttempt(pool, input = {}) {
   const operationId = normalizeUuid(input.operation_id, "operation_id");
   const tenantId = normalizeText(input.tenant_id, "tenant_id", 36);
   const transition = normalizeStageTransition(input.from_status, input.to_status);
-  const errorCode = normalizeText(input.error_code, "error_code", 160, { required: false });
-  const errorMessage = normalizeText(input.error_message, "error_message", 1000, {
-    required: false,
-  });
+  const errorBearing = ERROR_BEARING_STAGE_ATTEMPT_STATES.has(transition.to_status);
+  const errorCode = errorBearing
+    ? normalizeText(input.error_code, "error_code", 160, { required: false })
+    : null;
+  const errorMessage = errorBearing
+    ? normalizeText(input.error_message, "error_message", 1000, { required: false })
+    : null;
   const evidenceRef = normalizeText(input.evidence_ref, "evidence_ref", 500, {
     required: false,
   });
   const terminal = TERMINAL_STAGE_ATTEMPT_STATES.has(transition.to_status);
+  const retryable =
+    RETRYABLE_STAGE_ATTEMPT_STATES.has(transition.to_status) && input.retryable === true;
+  const unknownOutcome = transition.to_status === "unknown_outcome";
   const [result] = await pool.query(
     `UPDATE activation_stage_attempts
         SET attempt_status = ?,
@@ -226,8 +238,8 @@ export async function transitionActivationStageAttempt(pool, input = {}) {
         AND attempt_status = ?`,
     [
       transition.to_status,
-      input.retryable === true ? 1 : 0,
-      transition.to_status === "unknown_outcome" || input.unknown_outcome === true ? 1 : 0,
+      retryable ? 1 : 0,
+      unknownOutcome ? 1 : 0,
       errorCode,
       errorMessage,
       evidenceRef,
