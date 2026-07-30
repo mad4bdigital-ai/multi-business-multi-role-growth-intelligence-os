@@ -1,3 +1,10 @@
+// frontend-surface-operation: POST /admin/container-authority/canary-promotions
+// frontend-state-change-proof: POST /admin/container-authority/canary-promotions
+// frontend-surface-operation: POST /admin/container-authority/canary-rollbacks
+// frontend-state-change-proof: POST /admin/container-authority/canary-rollbacks
+// frontend-surface-operation: POST /admin/container-authority/canary-closeouts
+// frontend-state-change-proof: POST /admin/container-authority/canary-closeouts
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,6 +14,8 @@ import {
   extractFunctionBlock,
   syncOperationGovernance,
 } from "./scripts/frontend-operation-governance-generator.mjs";
+
+await import("./test-dynamic-container-rollout-safety.mjs");
 
 const CANARY_OPERATIONS = [
   "POST /admin/container-authority/canary-closeouts",
@@ -25,6 +34,7 @@ const EXPECTED_OPERATIONS = [
 
 const EVIDENCE_FILES = [
   "scripts/frontend-operation-governance-generator.mjs",
+  "scripts/test-manifest.mjs",
   "frontend-operation-governance-tests.json",
   "routes/resourceApiRoutes.js",
   "src/application/resourceApi/resourceApiService.js",
@@ -32,7 +42,7 @@ const EVIDENCE_FILES = [
   "test-resource-api-service.mjs",
   "routes/dynamicContainerAuthorityRoutes.js",
   "dynamicContainerRolloutSafety.js",
-  "test-dynamic-container-canary-state-change-evidence.mjs",
+  "test-frontend-operation-governance-generator.mjs",
   "test-dynamic-container-rollout-safety.mjs",
   "routes/connectRoutes.js",
   "tenantConnectBootstrapService.js",
@@ -65,6 +75,9 @@ const serviceSource = fs.readFileSync("src/application/resourceApi/resourceApiSe
 assert.match(extractFunctionBlock(serviceSource, "tenantCreateResource"), /withMutationTransaction/);
 assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 
+const canarySource = fs.readFileSync("dynamicContainerRolloutSafety.js", "utf8");
+assert.match(extractFunctionBlock(canarySource, "buildContainerCanaryPromotionPlan"), /ready_for_review/);
+
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
@@ -81,8 +94,9 @@ assert(plan.operation_rules.every((rule) => /^[a-f0-9]{64}$/.test(rule.generated
 for (const operation of CANARY_OPERATIONS) {
   const rule = plan.operation_rules.find((entry) => entry.operation === operation);
   assert(rule, `generated rule must exist for ${operation}`);
-  assert(rule.evidence_refs.includes("test-dynamic-container-canary-state-change-evidence.mjs"));
+  assert(rule.evidence_refs.includes("test-frontend-operation-governance-generator.mjs"));
   assert(rule.evidence_refs.includes("test-dynamic-container-rollout-safety.mjs"));
+  assert(rule.evidence_refs.includes("scripts/test-manifest.mjs"));
 }
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
@@ -143,7 +157,7 @@ for (const operation of CANARY_OPERATIONS) {
 const noCanaryTestFixture = createFixture();
 replaceEvidence(
   noCanaryTestFixture,
-  "test-dynamic-container-canary-state-change-evidence.mjs",
+  "test-frontend-operation-governance-generator.mjs",
   "// frontend-surface-operation: POST /admin/container-authority/canary-closeouts",
   "// closeout operation claim removed for fail-closed regression"
 );
@@ -156,7 +170,7 @@ assert(
 const noPromotionTestFixture = createFixture();
 replaceEvidence(
   noPromotionTestFixture,
-  "test-dynamic-container-canary-state-change-evidence.mjs",
+  "test-frontend-operation-governance-generator.mjs",
   "// frontend-surface-operation: POST /admin/container-authority/canary-promotions",
   "// promotion operation claim removed for fail-closed regression"
 );
@@ -169,7 +183,7 @@ assert(
 const noCanaryBehaviorBindingFixture = createFixture();
 replaceEvidence(
   noCanaryBehaviorBindingFixture,
-  "test-dynamic-container-canary-state-change-evidence.mjs",
+  "test-frontend-operation-governance-generator.mjs",
   'await import("./test-dynamic-container-rollout-safety.mjs");',
   "// behavioral test import removed"
 );
@@ -177,6 +191,44 @@ const noCanaryBehaviorBindingPlan = buildOperationGovernance({ apiRoot: noCanary
 for (const operation of CANARY_OPERATIONS) {
   assert(rejection(noCanaryBehaviorBindingPlan, operation).missing_evidence.includes("behavioral_test_bound"));
 }
+
+const noCanaryExecutableRegistrationFixture = createFixture();
+replaceEvidence(
+  noCanaryExecutableRegistrationFixture,
+  "scripts/test-manifest.mjs",
+  '"node test-frontend-operation-governance-generator.mjs"',
+  '"node test-unregistered-frontend-operation-governance-generator.mjs"'
+);
+const noCanaryExecutableRegistrationPlan = buildOperationGovernance({ apiRoot: noCanaryExecutableRegistrationFixture });
+for (const operation of CANARY_OPERATIONS) {
+  assert(rejection(noCanaryExecutableRegistrationPlan, operation).missing_evidence.includes("executable_test_registered"));
+}
+
+const noPromotionReadinessQueryFixture = createFixture();
+replaceEvidence(
+  noPromotionReadinessQueryFixture,
+  "dynamicContainerRolloutSafety.js",
+  "FROM v_container_rollout_readiness WHERE policy_key=? LIMIT 1",
+  "FROM v_container_rollout_readiness_removed WHERE policy_key=? LIMIT 1"
+);
+const noPromotionReadinessQueryPlan = buildOperationGovernance({ apiRoot: noPromotionReadinessQueryFixture });
+assert(
+  rejection(noPromotionReadinessQueryPlan, "POST /admin/container-authority/canary-promotions")
+    .missing_evidence.includes("rollout_readiness_query")
+);
+
+const noPromotionReadinessValidationFixture = createFixture();
+replaceEvidence(
+  noPromotionReadinessValidationFixture,
+  "dynamicContainerRolloutSafety.js",
+  'String(readiness.readinessCode ?? readiness.readiness_code) !== "ready_for_review"',
+  "false"
+);
+const noPromotionReadinessValidationPlan = buildOperationGovernance({ apiRoot: noPromotionReadinessValidationFixture });
+assert(
+  rejection(noPromotionReadinessValidationPlan, "POST /admin/container-authority/canary-promotions")
+    .missing_evidence.includes("rollout_readiness_validation")
+);
 
 const noBootstrapRollbackFixture = createFixture();
 replaceEvidence(
