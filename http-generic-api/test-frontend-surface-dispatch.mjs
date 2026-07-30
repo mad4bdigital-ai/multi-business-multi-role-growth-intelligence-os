@@ -688,17 +688,8 @@ assert.equal(implicitBaselineCheck.plan.baseline.ref, "fixture-sha");
 
 fs.appendFileSync(path.join(apiRoot, "routes/tenantRoutes.js"), "\nrouter.get('/me/new-surface', handler);\n");
 const driftResult = syncDispatchPlan({ apiRoot, mode: "check", baselineRef: "fixture-sha" });
-console.error(`::warning title=frontend-drift-check::${JSON.stringify({ ok: driftResult.ok, drift: driftResult.drift })}`);
 assert.equal(driftResult.ok, false);
-console.error("::warning title=frontend-checkpoint::drift-ok-false");
 assert.equal(driftResult.drift, true);
-console.error("::warning title=frontend-checkpoint::drift-detected");
-console.error(`::warning title=frontend-digest-check::${JSON.stringify({
-  baseline_before: checkResult.plan.baseline.source_digest,
-  baseline_after: driftResult.plan.baseline.source_digest,
-  tenant_family_before: checkResult.plan.families.find((family) => family.source_file === "routes/tenantRoutes.js")?.source_digest,
-  tenant_family_after: driftResult.plan.families.find((family) => family.source_file === "routes/tenantRoutes.js")?.source_digest,
-})}`);
 assert.notEqual(driftResult.plan.baseline.source_digest, checkResult.plan.baseline.source_digest, "mounted route drift must invalidate the shared baseline digest");
 
 console.log("frontend surface discovery and dynamic dispatch tests passed");
