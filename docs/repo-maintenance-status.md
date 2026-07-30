@@ -55,6 +55,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 ## Automation Workflows
 
 - `.github/workflows/automation-overlap-guard.yml`
+- `.github/workflows/brand-skill-mariadb-certification.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
@@ -75,10 +76,12 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
+- `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-contract-bootstrap-escape-hotfix.yml`
 - `.github/workflows/surface-contract-classification-bootstrap.yml`
 - `.github/workflows/surface-contract-classification-marker-hotfix.yml`
+- `.github/workflows/surface-contract-phase-a-current-main-rebuild-v3.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
 - `.github/workflows/verify-runtime.yml`
 
