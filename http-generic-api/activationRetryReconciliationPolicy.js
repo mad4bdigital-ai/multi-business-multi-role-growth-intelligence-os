@@ -15,6 +15,12 @@ const RECONCILIATION_OUTCOMES = new Set([
   "still_unknown",
   "failed",
 ]);
+const SUCCESS_EVIDENCE_TYPES = new Set([
+  "activation_success_readback",
+  "execution_readback",
+  "provider_readback",
+  "reconciliation_readback",
+]);
 
 function fail(code, message, status = 409, details = undefined) {
   const error = new Error(message);
@@ -32,6 +38,19 @@ function normalizeText(value, field, max = 500, { required = true } = {}) {
   }
   if (normalized.length > max) {
     fail(`activation_${field}_too_long`, `${field} exceeds ${max} characters.`, 400);
+  }
+  return normalized;
+}
+
+export function assertActivationSuccessEvidenceType(evidenceType) {
+  const normalized = normalizeText(evidenceType, "success_evidence_type", 80);
+  if (!SUCCESS_EVIDENCE_TYPES.has(normalized)) {
+    fail(
+      "activation_success_evidence_type_invalid",
+      `${normalized} cannot authorize an active Activation classification.`,
+      409,
+      { evidence_type: normalized, allowed_types: [...SUCCESS_EVIDENCE_TYPES] },
+    );
   }
   return normalized;
 }
@@ -138,6 +157,7 @@ export function resolveActivationReconciliationOutcome({
   operation_id,
   evidence_operation_id = null,
   evidence_verified = false,
+  evidence_type = null,
 } = {}) {
   const normalizedOutcome = normalizeText(outcome, "reconciliation_outcome", 64);
   if (!RECONCILIATION_OUTCOMES.has(normalizedOutcome)) {
@@ -155,6 +175,7 @@ export function resolveActivationReconciliationOutcome({
       evidence_operation_id,
       evidence_verified,
     });
+    assertActivationSuccessEvidenceType(evidence_type);
     return {
       outcome: normalizedOutcome,
       operation_status: "active",
@@ -201,4 +222,7 @@ export function resolveActivationReconciliationOutcome({
 
 export const ACTIVATION_RECONCILIATION_OUTCOMES = Object.freeze([
   ...RECONCILIATION_OUTCOMES,
+]);
+export const ACTIVATION_SUCCESS_EVIDENCE_TYPES = Object.freeze([
+  ...SUCCESS_EVIDENCE_TYPES,
 ]);
