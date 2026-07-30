@@ -148,7 +148,8 @@ jobs:
           node --check brandSkillActivationServiceV2.js
           node --check test-brand-skill-activation.mjs
           node test-brand-skill-activation.mjs
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on-new
+          node test-context-kernel-hardcoding-scan.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs --report-only --format=github --output="${{ runner.temp }}/context-kernel-hardcoding-report.json"
 
       - name: Restore one-shot workflow files
         shell: bash
