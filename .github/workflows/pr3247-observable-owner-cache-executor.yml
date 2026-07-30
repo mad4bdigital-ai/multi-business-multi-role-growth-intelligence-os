@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   execute:
-    if: github.event.pull_request.head.ref == 'gpt/pr3247-observable-owner-cache-executor-20260730'
+    if: startsWith(github.event.pull_request.head.ref, 'gpt/pr3247-observable-owner-cache-trigger-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -98,6 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -f .github/workflows/pr3247-one-shot-owner-cache.yml
+          rm -f .github/workflows/pr3247-observable-owner-cache-executor.yml
           rm -rf .tmp/pr3247
           rmdir .tmp 2>/dev/null || true
           git diff --check
