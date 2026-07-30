@@ -1,5 +1,6 @@
 name: EC0 Reset Generated Artifact To Main
 
+# Synchronize trigger after workflow registration.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
