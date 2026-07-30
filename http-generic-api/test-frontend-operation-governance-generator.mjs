@@ -8,10 +8,12 @@ import {
   syncOperationGovernance,
 } from "./scripts/frontend-operation-governance-generator.mjs";
 
+const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
 const EXPECTED_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "POST /admin/container-authority/canary-closeouts",
+  LEASE_OPERATION,
   "POST /connect/bootstrap",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
@@ -31,6 +33,10 @@ const EVIDENCE_FILES = [
   "tenantConnectBootstrapService.js",
   "tenantConnectBootstrapTransaction.js",
   "test-tenant-connect-bootstrap-transaction.mjs",
+  "routes/repositoryAutomationRoutes.js",
+  "repositoryReconciliationLeaseControl.js",
+  "repositoryOperationLeaseService.js",
+  "test-repository-reconciliation-lease-control.mjs",
 ];
 
 function createFixture() {
@@ -61,8 +67,8 @@ assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 6,
-  generated_rule_count: 6,
+  candidate_count: 7,
+  generated_rule_count: 7,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
@@ -71,6 +77,17 @@ assert(plan.operation_rules.every((rule) => rule.classification === "state_chang
 assert(plan.operation_rules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
 assert(plan.operation_rules.every((rule) => rule.rollback.mode === "transaction"));
 assert(plan.operation_rules.every((rule) => /^[a-f0-9]{64}$/.test(rule.generated_evidence.source_digest)));
+const leaseRule = plan.operation_rules.find((rule) => rule.operation === LEASE_OPERATION);
+assert.equal(leaseRule.rule_id, "generated-repository-reconciliation-lease-control-governance");
+assert.equal(leaseRule.preflight.mode, "capability_envelope_resource_and_fingerprint_binding");
+assert.equal(leaseRule.approval.mode, "runtime_authorization_and_typed_confirmation");
+assert.equal(leaseRule.parameter_bindings.lease_id, "response.lease.lease_id");
+assert.deepEqual(leaseRule.evidence_refs, [
+  "routes/repositoryAutomationRoutes.js",
+  "repositoryReconciliationLeaseControl.js",
+  "repositoryOperationLeaseService.js",
+  "test-repository-reconciliation-lease-control.mjs",
+]);
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
   writes_database: false,
@@ -82,7 +99,7 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 6);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 7);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
@@ -190,6 +207,71 @@ replaceEvidence(
 const noBootstrapRegistrationPlan = buildOperationGovernance({ apiRoot: noBootstrapRegistrationFixture });
 assert(
   rejection(noBootstrapRegistrationPlan, "POST /connect/bootstrap")
+    .missing_evidence.includes("registered_operation_test")
+);
+
+const noLeaseApplyFixture = createFixture();
+replaceEvidence(
+  noLeaseApplyFixture,
+  "repositoryReconciliationLeaseControl.js",
+  "resolved.apply_allowed !== true",
+  "resolved.applyEvidenceRemoved !== true"
+);
+const noLeaseApplyPlan = buildOperationGovernance({ apiRoot: noLeaseApplyFixture });
+assert(
+  rejection(noLeaseApplyPlan, LEASE_OPERATION)
+    .missing_evidence.includes("capability_envelope_apply_authorization")
+);
+
+const noLeaseConfirmationFixture = createFixture();
+replaceEvidence(
+  noLeaseConfirmationFixture,
+  "repositoryReconciliationLeaseControl.js",
+  "assertTypedConfirmation(action, args.confirm)",
+  "typedConfirmationEvidenceRemoved(action, args.confirm)"
+);
+const noLeaseConfirmationPlan = buildOperationGovernance({ apiRoot: noLeaseConfirmationFixture });
+assert(
+  rejection(noLeaseConfirmationPlan, LEASE_OPERATION)
+    .missing_evidence.includes("typed_confirmation")
+);
+
+const noLeaseReadbackFixture = createFixture();
+replaceEvidence(
+  noLeaseReadbackFixture,
+  "repositoryOperationLeaseService.js",
+  "const released = await readLeaseById(connection, leaseId)",
+  "const released = await releaseReadbackEvidenceRemoved(connection, leaseId)"
+);
+const noLeaseReadbackPlan = buildOperationGovernance({ apiRoot: noLeaseReadbackFixture });
+assert(
+  rejection(noLeaseReadbackPlan, LEASE_OPERATION)
+    .missing_evidence.includes("release_transactional_readback")
+);
+
+const noLeaseTestFixture = createFixture();
+replaceEvidence(
+  noLeaseTestFixture,
+  "test-repository-reconciliation-lease-control.mjs",
+  `// frontend-surface-operation: ${LEASE_OPERATION}`,
+  "// operation claim removed for fail-closed regression"
+);
+const noLeaseTestPlan = buildOperationGovernance({ apiRoot: noLeaseTestFixture });
+assert(
+  rejection(noLeaseTestPlan, LEASE_OPERATION)
+    .missing_evidence.includes("registered_operation_test")
+);
+
+const noLeaseRegistrationFixture = createFixture();
+replaceEvidence(
+  noLeaseRegistrationFixture,
+  "frontend-operation-governance-tests.json",
+  '"file": "test-repository-reconciliation-lease-control.mjs"',
+  '"file": "test-unregistered-repository-reconciliation-lease-control.mjs"'
+);
+const noLeaseRegistrationPlan = buildOperationGovernance({ apiRoot: noLeaseRegistrationFixture });
+assert(
+  rejection(noLeaseRegistrationPlan, LEASE_OPERATION)
     .missing_evidence.includes("registered_operation_test")
 );
 
