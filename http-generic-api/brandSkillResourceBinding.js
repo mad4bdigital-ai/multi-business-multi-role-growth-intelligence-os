@@ -103,7 +103,7 @@ export async function assertRequestedResourceBelongsToBrand(connection, {
   const resourceType = safeText(requestedResourceType, 64).toLowerCase() || null;
   const resourceRef = safeText(requestedResourceRef, 255) || null;
   if (!resourceType && !resourceRef) {
-    return { required: false, verified: true, resource_type: null, resource_ref: null, binding_source: "implicit_scope" };
+    return { required: false, verified: true, resource_type: null, resource_ref: null, requested_resource_ref: null, binding_source: "implicit_scope" };
   }
   if (!resourceType || !resourceRef) {
     throw httpError(400, "BRAND_SKILL_RESOURCE_BINDING_INCOMPLETE", "resource_type and resource_ref must be provided together.");
@@ -116,10 +116,18 @@ export async function assertRequestedResourceBelongsToBrand(connection, {
         resource_ref: resourceRef,
       });
     }
-    return { required: true, verified: true, resource_type: resourceType, resource_ref: resourceRef, binding_source: "brand_key" };
+    return {
+      required: true,
+      verified: true,
+      resource_type: resourceType,
+      resource_ref: brandKey,
+      requested_resource_ref: resourceRef,
+      binding_source: "brand_key",
+    };
   }
 
   if (resourceType === "workspace") {
+    const canonicalWorkspaceRef = safeText(workspace?.workspace_id, 255);
     const workspaceRefs = new Set([workspace?.workspace_id, workspace?.workspace_key].filter(Boolean).map(String));
     if (!workspaceRefs.has(resourceRef)) {
       throw httpError(403, "BRAND_SKILL_RESOURCE_BRAND_MISMATCH", "The requested workspace is not the workspace linked to the selected brand.", {
@@ -127,7 +135,21 @@ export async function assertRequestedResourceBelongsToBrand(connection, {
         resource_ref: resourceRef,
       });
     }
-    return { required: true, verified: true, resource_type: resourceType, resource_ref: resourceRef, binding_source: "workspace_registry" };
+    if (!canonicalWorkspaceRef) {
+      throw httpError(503, "BRAND_SKILL_RESOURCE_BINDING_UNAVAILABLE", "The canonical workspace identifier could not be resolved.", {
+        brand_key: brandKey,
+        resource_type: resourceType,
+        resource_ref: resourceRef,
+      });
+    }
+    return {
+      required: true,
+      verified: true,
+      resource_type: resourceType,
+      resource_ref: canonicalWorkspaceRef,
+      requested_resource_ref: resourceRef,
+      binding_source: "workspace_registry",
+    };
   }
 
   try {
@@ -139,7 +161,15 @@ export async function assertRequestedResourceBelongsToBrand(connection, {
           resource_ref: resourceRef,
         });
       }
-      return { required: true, verified: true, resource_type: resourceType, resource_ref: resourceRef, binding_source: "brand_site_bindings", binding_id: binding.binding_id };
+      return {
+        required: true,
+        verified: true,
+        resource_type: resourceType,
+        resource_ref: binding.site_id,
+        requested_resource_ref: resourceRef,
+        binding_source: "brand_site_bindings",
+        binding_id: binding.binding_id,
+      };
     }
 
     if (resourceType === "asset") {
@@ -150,7 +180,15 @@ export async function assertRequestedResourceBelongsToBrand(connection, {
           resource_ref: resourceRef,
         });
       }
-      return { required: true, verified: true, resource_type: resourceType, resource_ref: resourceRef, binding_source: "workspace_assets", binding_id: binding.asset_id };
+      return {
+        required: true,
+        verified: true,
+        resource_type: resourceType,
+        resource_ref: binding.asset_id,
+        requested_resource_ref: resourceRef,
+        binding_source: "workspace_assets",
+        binding_id: binding.asset_id,
+      };
     }
   } catch (error) {
     if (error?.code?.startsWith?.("BRAND_SKILL_")) throw error;
