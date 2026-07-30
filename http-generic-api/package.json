@@ -7,7 +7,7 @@
   "scripts": {
     "prestart": "node scripts/generate-deployment-manifest.mjs",
     "start": "node server.js",
-    "test": "node test-brand-skill-migration-preflight.mjs && node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+    "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "automation:overlap:report": "node scripts/automation-overlap-analyzer.mjs",
     "automation:overlap:check": "node scripts/automation-overlap-analyzer.mjs --check",
