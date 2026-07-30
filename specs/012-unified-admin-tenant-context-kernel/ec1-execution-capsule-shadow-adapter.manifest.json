@@ -52,12 +52,12 @@
     "standalone_contract_test",
     "standalone_composition_test",
     "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh",
     "bounded_contract_review",
     "human_architecture_security_review",
     "clean_core_build_readback"
   ],
   "pending_contracts": [
-    "generated_test_manifest_evidence_refresh",
     "follow_up_exact_head_ci_evidence",
     "follow_up_human_architecture_security_review"
   ],
@@ -82,6 +82,15 @@
     "temporary_workflow_removed": true,
     "bounded_regressions_passed": true,
     "bounded_write_set_passed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30548845394,
+    "generated_head_sha": "32be91f590bf587cfb04eea0dbd0d30309867e69",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true,
+    "repository_main_moved_trigger_sha_current": true
   },
   "controlled_parity_sample": {
     "status": "implemented_pending_exact_head_ci",
