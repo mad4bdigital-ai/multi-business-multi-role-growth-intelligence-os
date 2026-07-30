@@ -25,9 +25,9 @@
 - [x] Preserve current operation security, capability, ownership, artifact, and finalization behavior.
 - [x] Register focused tests without replacing existing manifest commands.
 - [x] Refresh deterministic generated surface artifacts.
-- [ ] Pass all required repository CI gates.
-- [ ] Merge reconciliation PR and verify default-branch readback.
-- [ ] Close superseded T500/T501 stacked PRs with replacement references.
+- [x] Pass all required repository CI gates.
+- [x] Merge reconciliation PR #3394 and verify default-branch readback at `cbbc5c4ee1a49449f81e56f4c85960fd9fbee7e6`.
+- [x] Close superseded PRs #3240, #3259, and #3326 with replacement references.
 
 ## Remaining feature scope
 
