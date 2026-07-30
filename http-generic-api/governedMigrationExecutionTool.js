@@ -240,6 +240,20 @@ function validateRunnerReadback(result, inspection) {
     if (result.applies_sql !== false || result.mode !== "dry_run") {
       throw toolError("governed_migration_dry_run_contract_violation", "Dry-run result must confirm applies_sql=false.", 502);
     }
+    if (inspection.atomic_runner_required && result.preflight?.recommended_action === "record_only") {
+      throw toolError(
+        "governed_migration_record_only_manual_readback_required",
+        "Readiness repair record-only handling requires explicit live row and metadata review; it is not auto-certified by the generic tool.",
+        409,
+        {
+          migration: inspection.migration,
+          migration_checksum_sha256: inspection.migration_checksum_sha256,
+          recommended_action: "record_only",
+          retry_without_readback_allowed: false,
+          secrets_included: false,
+        },
+      );
+    }
     return;
   }
 
