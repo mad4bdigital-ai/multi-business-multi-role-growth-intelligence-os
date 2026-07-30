@@ -225,6 +225,7 @@ const resumed = await runSequentialPlan({
   executeStep: async (step) => ({ ok: true, step_key: step.step_key }),
   baselineEmitter: (snapshot) => { resumedBaselineSnapshot = snapshot; },
   baselineTraceInput: { trace_id: "sequential-trace-2" },
+  baselineProviderDispatch: true,
 });
 assert.equal(resumed.last_tick.plan_status, "completed");
 assert.equal(state.steps[2].status, "completed");
@@ -262,6 +263,10 @@ assert.match(approvalRoutes, /decideSequentialPlanApproval/);
 assert.equal(approvalRoutes.includes("const { decision, decision_by"), false, "approval actor must not come from request body");
 assert.match(sequentialRuntime, /claim_token_sha256: sha256\(claimToken\)/);
 assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
+assert.match(sequentialRuntime, /SELECT \* FROM execution_plans WHERE plan_id = \? LIMIT 2 FOR UPDATE/);
+assert.doesNotMatch(sequentialRuntime, /const plan = planRows\[0\]/);
+assert.match(sequentialRuntime, /observeProviderDispatch: !executeStep \|\| baselineProviderDispatch === true/);
+assert.match(sequentialRuntime, /executeStep\(claim\.step, \{ pool, plan: claim\.plan, actorId, baselineTrace \}\)/);
 assert.match(jobRunner, /runSequentialPlan/);
 const sequentialOpenApiSection = openapi.slice(
   openapi.indexOf("  /planner/plans/{plan_id}/compile:"),

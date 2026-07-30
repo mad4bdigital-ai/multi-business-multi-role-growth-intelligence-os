@@ -271,8 +271,11 @@ async function createApprovalHold(connection, plan, step, actorId) {
 
 async function claimNextStep(pool, planId, actorId, baselineTrace = null) {
   return withTransaction(pool, async (connection) => {
-    const [planRows] = await connection.query("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
-    const plan = planRows[0];
+    const [planRows] = await connection.query("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 2 FOR UPDATE", [planId]);
+    const plan = resolveUniqueSequentialRow(planRows, {
+      ambiguityCode: "sequential_plan_claim_identity_ambiguous",
+      ambiguityMessage: "Execution plan claim identity resolved to multiple rows.",
+    });
     if (!plan) throw validationError("Execution plan not found.", "sequential_plan_not_found");
     if (TERMINAL_PLAN_STATUSES.has(effectivePlanStatus(plan))) return { stop: true, reason: "plan_terminal", plan_status: effectivePlanStatus(plan) };
     const [steps] = await connection.query("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order FOR UPDATE", [planId]);
@@ -380,6 +383,7 @@ export async function tickSequentialPlan({
   actorId = null,
   executeStep = defaultStepExecutor,
   baselineTrace = null,
+  observeProviderDispatch = false,
 }) {
   const finishClaimLedger = baselineTrace?.startStage?.("ledger");
   let claim;
@@ -389,13 +393,13 @@ export async function tickSequentialPlan({
     finishClaimLedger?.();
   }
   if (claim.stop) return { ok: true, plan_id: planId, ...claim, secrets_included: false };
-  const finishDispatch = claim.step.step_type === "workflow"
+  const finishDispatch = observeProviderDispatch && claim.step.step_type === "workflow"
     ? baselineTrace?.startStage?.("provider_dispatch")
     : null;
   let result;
   let executionError = null;
   try {
-    result = await executeStep(claim.step, { pool, plan: claim.plan, actorId });
+    result = await executeStep(claim.step, { pool, plan: claim.plan, actorId, baselineTrace });
     const verification = verifySequentialStepResult(claim.step, result);
     if (!verification.passed) {
       executionError = validationError(
@@ -436,6 +440,7 @@ export async function runSequentialPlan({
   executeStep = null,
   baselineEmitter = null,
   baselineTraceInput = {},
+  baselineProviderDispatch = false,
 }) {
   const executor = executeStep || defaultStepExecutor;
   const baselineTrace = typeof baselineEmitter === "function"
@@ -458,6 +463,7 @@ export async function runSequentialPlan({
         actorId,
         executeStep: executor,
         baselineTrace,
+        observeProviderDispatch: !executeStep || baselineProviderDispatch === true,
       });
       ticks.push(tick);
       if (tick.stop || ["blocked", "failed", "completed", "awaiting_approval", "paused"].includes(tick.plan_status)) break;
