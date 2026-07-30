@@ -44,9 +44,17 @@ CREATE TABLE IF NOT EXISTS user_brand_skill_grants (
   revoked_at DATETIME NULL,
   provenance_type VARCHAR(64) NOT NULL DEFAULT 'brand_self_service',
   provenance_ref VARCHAR(255) NULL,
-  status ENUM('active','pending','revoked','expired') NOT NULL DEFAULT 'active',
+  status ENUM('active','pending','suspended','revoked','expired') NOT NULL DEFAULT 'active',
   active_scope_hash CHAR(64) GENERATED ALWAYS AS (
-    CASE WHEN status = 'active' THEN SHA2(CONCAT_WS('|', tenant_id, user_id, brand_key, agent_id, skill_id, COALESCE(resource_type, ''), COALESCE(resource_ref, '')), 256) ELSE NULL END
+    CASE WHEN status = 'active' THEN SHA2(CONCAT_WS('|',
+      HEX(tenant_id),
+      HEX(user_id),
+      HEX(brand_key),
+      HEX(agent_id),
+      HEX(skill_id),
+      HEX(COALESCE(resource_type, '')),
+      HEX(COALESCE(resource_ref, ''))
+    ), 256) ELSE NULL END
   ) STORED,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -103,4 +111,6 @@ WHERE g.status = 'active'
 -- configured_brand_policy_enforcement_fail_closed=true
 -- automatic_skill_activation=false
 -- same_cycle_readback_required=true
+-- read_only_preflight=brand_skill_migration_preflight_v1
+-- rollback_runbook=docs/runbooks/brand-skill-migration.md
 -- secrets_included=false
