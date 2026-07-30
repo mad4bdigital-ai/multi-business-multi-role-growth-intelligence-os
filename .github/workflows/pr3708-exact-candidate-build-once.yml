@@ -6,6 +6,12 @@ on:
       - gpt/build-production-candidate-07f6a70c-pr3708-v4
     paths:
       - .github/workflows/pr3708-exact-candidate-build-once.yml
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - gpt/build-production-candidate-trigger-base-07f6a70c-v4
+    paths:
+      - docs/pr3708-exact-candidate-build-trigger-07f6a70c.md
 
 permissions:
   contents: write
@@ -16,6 +22,9 @@ concurrency:
 
 jobs:
   build:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.ref == 'gpt/build-production-candidate-trigger-head-07f6a70c-v4'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
