@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { assessBrandSkillMigrationPreflight } from "./brandSkillMigrationPreflight.js";
 
 const REQUIRED_COLLATION = "utf8mb4_uca1400_ai_ci";
+const GENERIC_REQUIRED_COLLATION = "uca1400_ai_ci";
 const DEFAULT_BASELINE_OBJECTS = [
   { TABLE_NAME: "agent_skill_grants", TABLE_TYPE: "BASE TABLE" },
   { TABLE_NAME: "v_effective_agent_skill_grants", TABLE_TYPE: "VIEW" },
@@ -29,6 +30,7 @@ function buildPool({
   baselineObjects = DEFAULT_BASELINE_OBJECTS,
   baselineColumns = DEFAULT_BASELINE_COLUMNS,
   agentSkillColumns = DEFAULT_AGENT_SKILL_COLUMNS,
+  availableCollation = REQUIRED_COLLATION,
 } = {}) {
   const queries = [];
   return {
@@ -41,7 +43,8 @@ function buildPool({
         return [[{ version: "10.11.8-MariaDB", version_comment: "MariaDB Server" }]];
       }
       if (text.includes("information_schema.COLLATIONS")) {
-        return [[{ COLLATION_NAME: REQUIRED_COLLATION }]];
+        assert.deepEqual(params, [REQUIRED_COLLATION, GENERIC_REQUIRED_COLLATION]);
+        return availableCollation ? [[{ COLLATION_NAME: availableCollation }]] : [[]];
       }
       if (text.includes("SELECT SHA2")) {
         return [[{ sha2_probe: "a".repeat(64) }]];
@@ -79,6 +82,23 @@ assert.equal(compatible.provider_calls, false);
 assert.equal(compatible.external_writes, false);
 assert.equal(compatible.secrets_included, false);
 assert(compatiblePool.queries.every(({ sql }) => /^SELECT\b/i.test(sql)));
+
+const genericAlias = await assessBrandSkillMigrationPreflight({
+  pool: buildPool({ availableCollation: GENERIC_REQUIRED_COLLATION }),
+  requireRuntimeBaseline: true,
+});
+assert.equal(genericAlias.ready, true);
+assert.equal(
+  genericAlias.checks.find((item) => item.key === "required_collation")?.evidence?.observed_collation,
+  GENERIC_REQUIRED_COLLATION,
+);
+
+const unavailableCollation = await assessBrandSkillMigrationPreflight({
+  pool: buildPool({ availableCollation: "" }),
+  requireRuntimeBaseline: true,
+});
+assert.equal(unavailableCollation.ready, false);
+assert(unavailableCollation.failed_check_keys.includes("required_collation"));
 
 const missingView = await assessBrandSkillMigrationPreflight({
   pool: buildPool({

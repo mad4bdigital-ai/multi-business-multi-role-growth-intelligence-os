@@ -9,6 +9,7 @@
     "start": "node server.js",
     "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
+    "test:context-kernel:provider-consent": "node test-context-kernel-provider-consent-core.mjs",
     "automation:overlap:report": "node scripts/automation-overlap-analyzer.mjs",
     "automation:overlap:check": "node scripts/automation-overlap-analyzer.mjs --check",
     "test:automation:overlap": "node test-automation-overlap-analyzer.mjs && node test-governed-migration-reconciliation-runtime-lock.mjs",

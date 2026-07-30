@@ -10,6 +10,7 @@
     "ec0-execution-capsule-contract.md",
     "ec0-execution-capsule-contract.manifest.json",
     "ec1-execution-capsule-shadow-adapter.md",
+    "ec1-execution-capsule-shadow-closeout.md",
     "ec1-execution-capsule-shadow-adapter.manifest.json"
   ],
   "requirement_range": {
@@ -41,7 +42,7 @@
   ],
   "slice_status": {
     "EC0_contract_and_tests": "complete",
-    "EC1_shadow_adapter": "in_progress",
+    "EC1_shadow_adapter": "complete",
     "EC2_selected_read_pilot": "not_started",
     "EC3_unified_dispatch_integration": "not_started",
     "EC4_mutation_validation_pilot": "not_started",
