@@ -13,6 +13,8 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-context-kernel-policy-grant-fail-closed.mjs",
   "node test-context-kernel-endpoint-certification-resolver.mjs",
   "node test-context-kernel-endpoint-certification-fail-closed.mjs",
+  "node test-context-kernel-shadow-authority-parity.mjs",
+  "node test-context-kernel-shadow-authority-parity-fail-closed.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,

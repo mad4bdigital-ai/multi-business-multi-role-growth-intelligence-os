@@ -88,6 +88,25 @@ Execution logs and pending-task updates should preserve:
 
 This policy applies to admin GPTs, tenant GPTs, platform tools, and future connector/plugin modes unless a stricter surface-specific policy overrides it.
 
+## Runtime service contract
+
+`http-generic-api/modeChoiceGovernanceService.js` provides the reusable runtime boundary:
+
+- `buildModeChoicePlan(...)` normalizes the executable surface, target scope, and every valid mode;
+- each mode must declare `risk_class`, `side_effect_class`, and `expected_evidence`;
+- when multiple modes remain and there is no explicit or mandated selection, the result returns `mode_choice_required=true`, `execution_allowed=false`, all `mode_choices_presented`, and a compact user-visible prompt;
+- explicit user selection, a policy-mandated mode, or exactly one valid mode may produce `execution_allowed=true` with the corresponding `selection_source`;
+- a failed prior mode sets `mode_fallback_requires_user_choice=true` and blocks an unselected fallback;
+- `persistModeChoiceSelection(...)` writes the confirmed selection through the existing `writeExecutionEvidence` ledger instead of introducing a second evidence table;
+- the recorder fails closed unless the execution-log readback returns a concrete row id;
+- policy and runtime evidence always include `secrets_included=false`.
+
+Execution surfaces should call the planner before any mode-bearing mutation and call the recorder before dispatching the selected mode. The persisted trace is evidence of the selection decision; it is not by itself authority to execute the target operation.
+
+## Readiness interpretation
+
+The code contract and regression suite can be complete while `general-mode-choice-governance-v1` remains operationally pending. That readiness check should become ready only after at least one real governed surface records and reads back a `mode_choice_selection` execution-log entry for the deployed runtime. A unit-test stub or policy migration alone is not live execution evidence.
+
 ## Registry evidence
 
 Migration `233_sprint68_general_mode_choice_governance.sql` registers the blocking execution policy and matching platform-engine policy/rule evidence. The migration is policy/readiness only: it does not enable deploy, restart, provider dispatch, credential value writes, SSH execution, or secret exposure.

@@ -61,6 +61,12 @@
         "role": "t022_delivery_and_acknowledgement_repository_services",
         "status": "merged",
         "merge_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b"
+      },
+      {
+        "number": 3859,
+        "role": "t024_deployment_observation_and_request_time_correlation_foundation",
+        "status": "merged",
+        "merge_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9"
       }
     ],
     "closeout_pr": {
@@ -116,26 +122,60 @@
         "T021",
         "T022",
         "T023",
+        "T024",
         "T027",
         "T028",
         "T029",
         "T076"
       ],
-      "latest_completed_task": "T022",
+      "latest_completed_task": "T024",
       "runtime_authority": false,
-      "remaining_scope": "All unchecked tasks in tasks.md remain open. T020/T021/T022/T023 are merged persistence repository foundations only; T026 governed migration apply/readback, public runtime wiring, production deployment, protected-user-path verification, rollback verification, and full-spec closeout remain pending."
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T024 is an observation and historical-correlation foundation only; T024A classification/exposure, T024B governed exposure policy, T026 governed migration apply/readback, repository persistence, public runtime wiring, production deployment, protected-user-path verification, rollback verification, and full-spec closeout remain pending."
     },
     "ci": {
       "status": "pass_for_latest_slice",
-      "pull_request": 3700,
-      "head_sha": "bc6835890b3f001d4cee2c7ddbf4c94e516037a7",
-      "ci_run_id": "30578229348",
-      "frontend_surface_dispatch_run_id": "30578229346",
-      "remaining_scope_scorecard_run_id": "30578229317",
-      "completion_cleanup_readback_run_id": "30578229303",
-      "docs_agent_run_id": "30578229342",
-      "context_kernel_report_run_id": "30578229355",
-      "automation_overlap_guard_run_id": "30578229376"
+      "pull_request": 3859,
+      "head_sha": "374f8415f21ddd28f633d0ff0ad629b9d7d27118",
+      "ci_run_id": "30581378193",
+      "frontend_surface_dispatch_run_id": "30581377616",
+      "remaining_scope_scorecard_run_id": "30581377012",
+      "completion_cleanup_readback_run_id": "30581377730",
+      "docs_agent_run_id": "30581377649",
+      "context_kernel_report_run_id": "30581377641"
+    },
+    "t024_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3859,
+      "validated_head_sha": "374f8415f21ddd28f633d0ff0ad629b9d7d27118",
+      "merge_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9",
+      "main_readback_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9",
+      "observation_service": "http-generic-api/activationDeploymentObservationService.js",
+      "regression_test": "http-generic-api/test-activation-deployment-observation-service.mjs",
+      "runtime_contract_regression_host": "http-generic-api/test-runtime-verification-contract.mjs",
+      "implementation_note": "implementation/pr-2e-deployment-observation-foundation.md",
+      "service_blob_sha": "36d8f8ba86fa1d87313ffc8ccd95c7614c68c52f",
+      "test_blob_sha": "f03b1c2b721928c091bbbc6a854f8beb809a05a9",
+      "runtime_contract_blob_sha": "a98bdd8c5e103dc21a6c6f7be8e7e76752f073b8",
+      "implementation_note_blob_sha": "9fade9a1b8e46f585ce459da7d05c684bd9eacd0",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "post_merge_frontend_surface_dispatch_run_id": "30582097656",
+      "post_merge_custom_gpt_contract_guard_run_id": "30582097727",
+      "review_threads_resolved": true,
+      "explicit_source_authority_metadata": true,
+      "historical_request_time_correlation": true,
+      "future_observations_ignored": true,
+      "future_component_evidence_rejected": true,
+      "observation_limit": 256,
+      "evidence_bound_bytes": 32768,
+      "classification_status": "not_computed",
+      "t024a_classification_implemented": false,
+      "t024b_exposure_policy_implemented": false,
+      "repository_persistence": false,
+      "runtime_wiring": false,
+      "database_migration_applied": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "t022_post_merge": {
       "status": "complete_on_main",
@@ -275,6 +315,7 @@
         "T021",
         "T022",
         "T023",
+        "T024",
         "T027",
         "T028",
         "T029"
