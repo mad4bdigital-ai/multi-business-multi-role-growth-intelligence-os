@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "6039ab29af1fc52a85ece5174e973f6072eb3642db1b6c2c367e336bc282f4ca",
+    "source_digest": "74b1b9b6cec1e6f87be8106140465bceb5b4e114d564b7cfb8792a40218c39fb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
+        "sha256": "7e767a7749223af6a9a09db15b573a5c131ea193db077901cdc2cd08f92463a0",
         "present": true
       },
       {
@@ -911,7 +911,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+        "sha256": "3df6a9f341f59544163bf6dc7edbf68e5a5a1cbbda571c6888953978e4cb6872",
         "present": true
       },
       {
@@ -1133,9 +1133,9 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 608,
-    "unresolved_operation_class_count": 551,
-    "classified_mutation_count": 8,
-    "governed_mutation_operation_count": 8,
+    "unresolved_operation_class_count": 549,
+    "classified_mutation_count": 10,
+    "governed_mutation_operation_count": 10,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 151,
     "test_owned_family_count": 6,
@@ -22830,18 +22830,49 @@
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_and_rollout_readiness_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "target_canary_key": "request.body.targetCanaryKey",
+              "capability_envelope_id": "request.body.capabilityEnvelopeId",
+              "confirmation": "request.body.confirm",
+              "rollout_mode": "response.readback.rollout_mode"
+            },
+            "blockers": [],
+            "rule_id": "generated-dynamic-container-canary-promotion-governance",
+            "owner": "platform-governance",
+            "rationale": "Promotes one exact read-only canary only after capability-envelope authorization, rollout-readiness validation, and typed confirmation, then verifies the exact promoted state and consumes the envelope before committing one SQL transaction.",
+            "evidence_refs": [
+              "dynamicContainerRolloutSafety.js",
+              "routes/dynamicContainerAuthorityRoutes.js",
+              "test-dynamic-container-canary-state-change-evidence.mjs",
+              "test-dynamic-container-rollout-safety.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -22941,6 +22972,7 @@
             "evidence_refs": [
               "dynamicContainerRolloutSafety.js",
               "routes/dynamicContainerAuthorityRoutes.js",
+              "test-dynamic-container-canary-state-change-evidence.mjs",
               "test-dynamic-container-rollout-safety.mjs"
             ]
           },
@@ -23006,18 +23038,50 @@
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_and_active_canary_lock"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "target_canary_key": "request.body.targetCanaryKey",
+              "capability_envelope_id": "request.body.capabilityEnvelopeId",
+              "confirmation": "request.body.confirm",
+              "reason": "request.body.reason|runtime_canary_not_observed",
+              "rollout_mode": "response.readback.rollout_mode"
+            },
+            "blockers": [],
+            "rule_id": "generated-dynamic-container-canary-rollback-governance",
+            "owner": "platform-governance",
+            "rationale": "Returns one exact active canary to shadow mode only after capability-envelope authorization and typed confirmation, then verifies the exact shadow state and consumes the envelope before committing one SQL transaction.",
+            "evidence_refs": [
+              "dynamicContainerRolloutSafety.js",
+              "routes/dynamicContainerAuthorityRoutes.js",
+              "test-dynamic-container-canary-state-change-evidence.mjs",
+              "test-dynamic-container-rollout-safety.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -23620,18 +23684,6 @@
         },
         {
           "signature": "POST /container-authority/projections",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/container-authority/canary-promotions",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/container-authority/canary-rollbacks",
           "blockers": [
             "operation_classification_gap"
           ]
