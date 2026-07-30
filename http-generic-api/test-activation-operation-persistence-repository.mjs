@@ -83,10 +83,9 @@ for (const call of [stageNumberCall, reconciliationNumberCall]) {
 assert.match(stageNumberCall.sql, /stage_key = \?/);
 assert(stageNumberCall.params.includes("provider_bootstrap"));
 
-const missingOperationPool = { async query() { return [[]]; } };
 await assert.rejects(
   () =>
-    nextActivationStageAttemptNumber(missingOperationPool, {
+    nextActivationStageAttemptNumber({ async query() { return [[]]; } }, {
       operation_id: operationId,
       tenant_id: tenantId,
       stage_key: "provider_bootstrap",
@@ -105,7 +104,6 @@ const stageRow = {
   retryable: 0,
   unknown_outcome: 0,
   error_code: null,
-  evidence_ref: null,
 };
 const stageReadCalls = [];
 const stageReadPool = {
@@ -123,7 +121,7 @@ assert.deepEqual(
   stageRow,
 );
 assert.match(stageReadCalls[0].sql, /FROM activation_stage_attempts/);
-assert.doesNotMatch(stageReadCalls[0].sql, /error_message/);
+assert.doesNotMatch(stageReadCalls[0].sql, /error_message|evidence_ref/);
 assert.deepEqual(stageReadCalls[0].params, [attemptId, operationId, tenantId]);
 
 const reconciliationRow = {
@@ -151,6 +149,7 @@ assert.deepEqual(
   reconciliationRow,
 );
 assert.match(reconciliationReadCalls[0].sql, /FROM activation_reconciliation_attempts/);
+assert.doesNotMatch(reconciliationReadCalls[0].sql, /evidence_ref/);
 assert.deepEqual(reconciliationReadCalls[0].params, [
   reconciliationId,
   operationId,
@@ -164,7 +163,6 @@ const evidenceRow = {
   tenant_id: tenantId,
   evidence_type: "activation_success_readback",
   source_type: "runtime_readback",
-  source_ref: null,
   evidence_sha256: "a".repeat(64),
   summary_json: { status: "active" },
   summary_bytes: 19,
@@ -188,7 +186,10 @@ assert.deepEqual(
 assert.match(evidenceReadCalls[0].sql, /secrets_included = 0/);
 assert.match(evidenceReadCalls[0].sql, /redaction_state IN \('sanitized', 'reference_only'\)/);
 assert.match(evidenceReadCalls[0].sql, /summary_bytes <= \?/);
-assert.doesNotMatch(evidenceReadCalls[0].sql, /authorization|credential|password|token/i);
+assert.doesNotMatch(
+  evidenceReadCalls[0].sql,
+  /source_ref|authorization|credential|password|token/i,
+);
 assert.deepEqual(evidenceReadCalls[0].params, [evidenceId, operationId, tenantId, 32768]);
 
 const evidenceExistenceCalls = [];
