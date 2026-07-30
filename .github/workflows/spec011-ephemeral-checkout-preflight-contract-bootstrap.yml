@@ -29,6 +29,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
       - name: Apply and validate exact preflight contract
         shell: bash
         run: |
