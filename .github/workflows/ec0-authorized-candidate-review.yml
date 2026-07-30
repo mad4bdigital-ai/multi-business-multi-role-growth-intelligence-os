@@ -1,0 +1,54 @@
+name: EC0 Authorized Candidate Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-execution-capsule-contract-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-execution-capsule-contract-20260730
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply exact authorized candidate regressions
+        working-directory: http-generic-api
+        run: node scripts/apply-ec0-authorized-candidate-review.mjs
+
+      - name: Verify EC0 and Context Kernel contracts
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+          node test-context-kernel-cross-tenant-isolation.mjs
+
+      - name: Enforce exact write set
+        run: |
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = 'http-generic-api/test-execution-capsule-contract.mjs'
+
+      - name: Commit reviewed regressions
+        run: |
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add http-generic-api/test-execution-capsule-contract.mjs
+          git commit -m 'test(spec-012): enforce authorized capsule candidate identity'
+          git push origin HEAD:gpt/spec-012-execution-capsule-contract-20260730
