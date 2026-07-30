@@ -155,6 +155,16 @@ assert.equal(sanitized.secrets_included, false);
 const advisorService = fs.readFileSync(path.join(__dirname, "selfHealingReleaseAdvisorService.js"), "utf8");
 assert.doesNotMatch(advisorService, /\b(?:rows|rowset|verificationRows|gateRows|deploymentRows|existingRows)\s*\[\s*0\s*\]/);
 assert.match(advisorService, /release_advisor_resolution_ambiguous/);
+for (const sqlContract of [
+  "run_id = ? LIMIT 2",
+  "operation_id = ? LIMIT 2",
+  "advisor_run_id = ? LIMIT 2",
+  "plan_fingerprint_sha256 = ? LIMIT 2",
+  "completed_at DESC, started_at DESC, run_id DESC LIMIT 1",
+  "created_at DESC, operation_id DESC LIMIT 1",
+  "created_at DESC, gate_id DESC LIMIT 1",
+  "created_at DESC, async_deployment_id DESC LIMIT 1",
+]) assert.equal(advisorService.includes(sqlContract), true, `missing deterministic row contract: ${sqlContract}`);
 
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_self_healing_release_advisor.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS release_advisor_runs/);

@@ -168,6 +168,8 @@ assert.match(service, /execution_allowed: false/);
 assert.match(service, /job_enqueued: false/);
 assert.doesNotMatch(service, /\brows\s*\[\s*0\s*\]/);
 assert.match(service, /repository_main_moved_resolution_ambiguous/);
+assert.equal(service.includes("event_fingerprint_sha256 = ? LIMIT 2"), true);
+assert.equal(service.includes("trigger_event_id = ? LIMIT 2"), true);
 
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_repository_main_moved_trigger_coordinator.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS repository_main_moved_trigger_events/);

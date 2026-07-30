@@ -237,7 +237,7 @@ function uniqueTriggerRow(rowset, context) {
 
 async function loadByFingerprint(pool, fingerprint) {
   const [rows] = await pool.query(
-    `SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 1`,
+    `SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 2`,
     [fingerprint],
   );
   return shapeTrigger(uniqueTriggerRow(rows, "event_fingerprint_sha256"));
@@ -248,7 +248,7 @@ export async function getRepositoryMainMovedTriggerEvent(triggerEventId, deps = 
   const id = optionalUuid(triggerEventId, "trigger_event_id");
   if (!id) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
   const [rows] = await pool.query(
-    `SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 1`,
+    `SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 2`,
     [id],
   );
   const row = uniqueTriggerRow(rows, "trigger_event_id");
