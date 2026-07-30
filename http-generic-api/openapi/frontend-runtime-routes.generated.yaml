@@ -4976,30 +4976,6 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
-  /admin/container-authority/override-governance-smokes:
-    post:
-      operationId: postAdminContainerAuthorityOverrideGovernanceSmokesbe3638de
-      summary: POST /admin/container-authority/override-governance-smokes (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/dynamicContainerOverrideGovernanceSmokeRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdmin
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /admin/container-authority/shadow-samples:
     post:
       operationId: postAdminContainerAuthorityShadowSamples6c82225c
