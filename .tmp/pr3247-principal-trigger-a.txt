@@ -1,0 +1,5 @@
+trigger=pr3247-principal-propagation-a
+base=358798dd73f1c810cfbcc1f0fddf6a78b299e5cc
+purpose=observable-executor-only
+merge_allowed=false
+secrets_included=false
