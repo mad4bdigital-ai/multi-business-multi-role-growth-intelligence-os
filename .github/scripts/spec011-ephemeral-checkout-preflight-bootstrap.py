@@ -6,6 +6,7 @@ READINESS = ROOT / "http-generic-api" / "releaseReadiness.js"
 TEST = ROOT / "http-generic-api" / "test-release-readiness-migration-drift.mjs"
 WORKFLOW = ROOT / ".github" / "workflows" / "spec011-ephemeral-checkout-preflight-contract-bootstrap.yml"
 TRIGGER = ROOT / ".github" / "spec011-ephemeral-checkout-preflight-contract-trigger.json"
+FAILURE_EVIDENCE = ROOT / "ops-evidence" / "spec011" / "preflight-bootstrap-latest.log"
 SELF = Path(__file__).resolve()
 
 readiness_source = READINESS.read_text(encoding="utf-8")
@@ -74,7 +75,7 @@ for args in (
 ):
     subprocess.run(args, cwd=ROOT / "http-generic-api", check=True)
 
-for path in (WORKFLOW, TRIGGER, SELF):
-    path.unlink()
+for path in (WORKFLOW, TRIGGER, SELF, FAILURE_EVIDENCE):
+    path.unlink(missing_ok=True)
 
 print("Spec 011 exact migration preflight contract patched and validated")
