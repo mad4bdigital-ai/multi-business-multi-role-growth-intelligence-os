@@ -1,10 +1,8 @@
 # Deployment Parity Checklist
 
-## Production auto-deploy content retrigger — 2026-07-29
+## Brand-scoped user skill activation parity
 
-A documentation-only content change is intentionally promoted through the protected `Production` branch to retrigger the configured Hostinger GitHub auto-deploy after ancestry-only promotions did not advance the deployed runtime. Before this trigger, GitHub `Production` was observed at `bf0df9260d1b7fb9ec11e223986014387ce8ff86`, while the deployment manifest still reported `8a3eeeaa1ee3b73b0227bb9c940440881bf5782e`. This record changes no runtime logic, API contract, database schema, feature flag, scheduler, or delivery behavior; it performs no SSH operation, provider call, credential payload read, migration apply, external send, or external write, and includes no secrets.
-
-Completion requires same-cycle readback proving the deployment manifest reports the exact resulting `Production` merge SHA and the production health endpoint is healthy. Until both checks pass, runtime parity remains blocked and this retrigger must not be described as a successful deployment.
+Migration `20260728_brand_scoped_user_skill_activation.sql` is parity-complete only when a separately authorized governed migration run records the reviewed checksum and statement count, schema readback confirms `brand_skill_policies`, `user_brand_skill_grants`, generated `active_scope_hash`, and `v_effective_user_brand_skill_grants`, and runtime readback confirms baseline `agent_skill_grants` remain required with no automatic policy seeding or skill activation. The migration performs no provider call, credential payload read, raw-secret access, external send/write, deployment, or restart; `secrets_included=false`. Repository merge and documentation do not authorize apply.
 
 ## Hostinger Production deploy-branch allowlist parity
 
