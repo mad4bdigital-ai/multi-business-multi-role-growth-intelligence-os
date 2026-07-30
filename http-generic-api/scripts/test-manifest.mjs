@@ -9,6 +9,7 @@ const upstreamCommands = [
   "node test-delegation-grant-mariadb-readiness-collector.mjs",
   "node test-delegation-grant-mariadb-runtime-binding.mjs",
   "node test-execution-capsule-contract.mjs",
+  "node test-managed-git-remote-transport-input-hardening.mjs",
 ];
 
 // Some repository guards intentionally verify canonical manifest membership from
