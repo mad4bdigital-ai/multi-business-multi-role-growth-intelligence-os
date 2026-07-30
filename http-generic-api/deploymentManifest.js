@@ -14,11 +14,16 @@ function parseJson(value = "") {
   }
 }
 
+function normalizeDeploymentBranch(value) {
+  const branch = String(value || "").trim();
+  return branch.toLowerCase() === "main" ? "main" : branch;
+}
+
 function normalizeManifest(raw = {}, source = "unknown") {
   return {
     source,
     repository: String(raw.repository || "").trim(),
-    branch: String(raw.branch || "").trim(),
+    branch: normalizeDeploymentBranch(raw.branch),
     branch_source: String(raw.branch_source || "").trim(),
     commit_sha: String(raw.commit_sha || raw.commit || raw.sha || "").trim(),
     commit_source: String(raw.commit_source || "").trim(),

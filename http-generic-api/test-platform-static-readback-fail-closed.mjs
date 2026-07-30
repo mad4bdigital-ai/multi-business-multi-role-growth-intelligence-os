@@ -24,8 +24,7 @@ for (const [name, workflow] of [
 assert.match(cleanupAudit, /excludedFiles:/, "cleanup audit must exclude its guard sources from forbidden scans");
 assert.match(cleanupAudit, /Release readiness remains the authority/, "cleanup audit must preserve release-readiness authority");
 assert.ok(
-  cleanupAudit.includes('pathValue === "/system/tools/call"')
-    || cleanupAudit.includes('pathValue === \\"/system/tools/call\\"'),
+  cleanupAudit.includes(String.raw`pathValue === \"/system/tools/call\"`),
   "cleanup audit must validate the concrete recursion guard",
 );
 assert.doesNotMatch(cleanupAudit, /live_provider_dispatch_disabled_by_policy/, "cleanup audit must not require an invented migration marker");

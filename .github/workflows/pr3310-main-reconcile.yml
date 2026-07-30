@@ -1,0 +1,107 @@
+name: PR3310 Current Main Reconcile
+
+on:
+  push:
+    branches:
+      - gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
+    paths:
+      - .github/workflows/pr3310-main-reconcile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr3310-current-main-reconcile
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Merge current main with bounded generated conflict policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch already contains current main."
+          else
+            set +e
+            git merge --no-ff --no-commit origin/main
+            merge_status=$?
+            set -e
+            if [[ $merge_status -ne 0 ]]; then
+              mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+              unexpected=""
+              for file in "${conflicts[@]}"; do
+                case "$file" in
+                  http-generic-api/frontend-surface-dispatch.generated.json|\
+                  http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                    git checkout --theirs -- "$file"
+                    git add "$file"
+                    ;;
+                  *)
+                    unexpected+="$file"$'\n'
+                    ;;
+                esac
+              done
+              if [[ -n "$unexpected" ]]; then
+                echo "::error::Source conflicts require explicit review"
+                printf '%s' "$unexpected"
+                git merge --abort
+                exit 1
+              fi
+              if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+                echo "::error::Unresolved conflicts remain"
+                git diff --name-only --diff-filter=U
+                git merge --abort
+                exit 1
+              fi
+            fi
+          fi
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate reconciled source
+        working-directory: http-generic-api
+        run: |
+          node --check dynamicContainerAuthorityRepository.js
+          node --check dynamicContainerOverrideGovernanceSmoke.js
+          node test-dynamic-container-override-governance-smoke.mjs
+          node test-openapi-autofill-missing-routes.mjs
+          printf '%s\n' \
+            dynamicContainerAuthorityRepository.js \
+            dynamicContainerOverrideGovernanceSmoke.js \
+            migrations/20260723_dynamic_container_override_governance_smoke.sql \
+            test-dynamic-container-override-governance-smoke.mjs \
+            > "$RUNNER_TEMP/pr3310-reconcile-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/pr3310-reconcile-files.txt"
+
+      - name: Commit merge and remove branch copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git commit -m "merge: reconcile Dynamic Container governance smoke with current main"
+          fi
+          rm .github/workflows/pr3310-main-reconcile.yml
+          git add .github/workflows/pr3310-main-reconcile.yml
+          git commit -m "chore(ci): remove branch copy of PR #3310 reconciliation workflow"
+          git push origin HEAD:gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
