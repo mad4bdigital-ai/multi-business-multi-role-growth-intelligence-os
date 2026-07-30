@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
       - name: Apply exact fixture parity
         working-directory: http-generic-api
         run: node scripts/apply-x0-agent-governance-fixture-parity.mjs
