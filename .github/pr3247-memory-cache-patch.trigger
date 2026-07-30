@@ -1,4 +1,0 @@
-trigger_commit_parent=83b4b69af68044941d86e15f7730b418b7a9e803
-purpose=run_pr3247_owner_cache_patch
-transport=git_objects_update_ref
-secrets_included=false
