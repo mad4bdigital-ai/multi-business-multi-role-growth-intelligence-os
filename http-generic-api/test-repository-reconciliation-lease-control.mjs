@@ -1,0 +1,271 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import YAML from "yaml";
+
+import {
+  REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS,
+  buildRepositoryReconciliationLeaseAcquireInput,
+  runRepositoryReconciliationLeaseControl,
+} from "./repositoryReconciliationLeaseControl.js";
+
+const baseArgs = {
+  action: "acquire",
+  owner: "mad4bdigital-ai",
+  repo: "multi-business-multi-role-growth-intelligence-os",
+  branch: "gpt/013-system-tool-catalog-v2",
+  default_branch: "main",
+  expected_base_sha: "a".repeat(40),
+  expected_branch_sha: "b".repeat(40),
+  operation_key: "repo.pr.reconcile_and_finalize",
+  holder_run_id: "reconcile-run-lease-control-1",
+  holder_actor_type: "platform_orchestrator",
+  holder_actor_id: "admin-gpt",
+  ttl_seconds: 300,
+  capability_envelope_id: "11111111-1111-4111-8111-111111111111",
+  confirm: REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.acquire,
+};
+
+const built = buildRepositoryReconciliationLeaseAcquireInput(baseArgs);
+assert.equal(built.repository_owner, baseArgs.owner);
+assert.equal(built.repository_name, baseArgs.repo);
+assert.equal(built.branch_name, baseArgs.branch);
+assert.match(built.operation_fingerprint, /^[0-9a-f]{64}$/);
+assert.equal(
+  buildRepositoryReconciliationLeaseAcquireInput({ ...baseArgs }).operation_fingerprint,
+  built.operation_fingerprint,
+);
+assert.notEqual(
+  buildRepositoryReconciliationLeaseAcquireInput({
+    ...baseArgs,
+    expected_base_sha: "c".repeat(40),
+  }).operation_fingerprint,
+  built.operation_fingerprint,
+);
+
+assert.throws(
+  () => buildRepositoryReconciliationLeaseAcquireInput({ ...baseArgs, branch: "main" }),
+  (error) => error?.code === "repository_reconciliation_lease_control_protected_branch" && error?.status === 403,
+);
+assert.throws(
+  () => buildRepositoryReconciliationLeaseAcquireInput({ ...baseArgs, force: true }),
+  (error) => error?.code === "repository_reconciliation_lease_control_force_forbidden" && error?.status === 403,
+);
+assert.throws(
+  () => buildRepositoryReconciliationLeaseAcquireInput({ ...baseArgs, operation_fingerprint: "f".repeat(64) }),
+  (error) => error?.code === "repository_reconciliation_lease_control_operation_fingerprint_mismatch",
+);
+
+function fakeDeps(overrides = {}) {
+  const order = [];
+  const calls = {};
+  return {
+    order,
+    calls,
+    pool: { name: "fake-pool" },
+    auth: {
+      tenant_id: "00000000-0000-0000-0000-000000000000",
+      user_id: "admin-user",
+      caller_type: "admin",
+    },
+    async resolveCapabilityExecutionEnvelope(input) {
+      order.push("resolve-envelope");
+      calls.envelope = input;
+      return { ok: true, envelope_id: baseArgs.capability_envelope_id, apply_allowed: true };
+    },
+    capabilityEnvelopeError(result, message) {
+      const error = new Error(message);
+      error.code = result?.status || result?.reason_code || "capability_envelope_required";
+      error.status = 403;
+      return error;
+    },
+    async markCapabilityEnvelopeReferenced(input) {
+      order.push("mark-envelope");
+      calls.mark = input;
+    },
+    async acquireRepositoryOperationLease(input, deps) {
+      order.push("acquire-lease");
+      calls.acquire = { input, deps };
+      return {
+        ok: true,
+        classification: "repository_operation_lease_acquired",
+        reused: false,
+        lease: {
+          lease_id: "22222222-2222-4222-8222-222222222222",
+          resource_fingerprint: "d".repeat(64),
+          status: "active",
+          secrets_included: false,
+        },
+        secrets_included: false,
+      };
+    },
+    async renewRepositoryOperationLease(input, deps) {
+      order.push("renew-lease");
+      calls.renew = { input, deps };
+      return { ok: true, classification: "repository_operation_lease_renewed", lease: { ...input, status: "active" }, secrets_included: false };
+    },
+    async releaseRepositoryOperationLease(input, deps) {
+      order.push("release-lease");
+      calls.release = { input, deps };
+      return { ok: true, classification: "repository_operation_lease_released", lease: { ...input, status: "released" }, secrets_included: false };
+    },
+    ...overrides,
+  };
+}
+
+const acquireDeps = fakeDeps();
+const acquired = await runRepositoryReconciliationLeaseControl(baseArgs, acquireDeps);
+assert.equal(acquired.ok, true);
+assert.equal(acquired.action, "acquire");
+assert.equal(acquired.capability_envelope_id, baseArgs.capability_envelope_id);
+assert.equal(acquired.operation_binding.expected_base_sha, baseArgs.expected_base_sha);
+assert.equal(acquired.secrets_included, false);
+assert.deepEqual(acquireDeps.order, ["resolve-envelope", "mark-envelope", "acquire-lease"]);
+assert.equal(acquireDeps.calls.acquire.input.operation_fingerprint, built.operation_fingerprint);
+assert.equal(acquireDeps.calls.acquire.deps.pool, acquireDeps.pool);
+assert.deepEqual(acquireDeps.calls.envelope.acceptedAppKeys, ["github"]);
+assert.equal(
+  acquireDeps.calls.envelope.expectedResourceUri,
+  `github://${baseArgs.owner}/${baseArgs.repo}/branch/${baseArgs.branch}`,
+);
+assert.equal(acquireDeps.calls.envelope.expectedBindingSha256, built.operation_fingerprint);
+assert.ok(acquireDeps.calls.envelope.acceptedIntents.includes("repository_reconciliation_lease_acquire"));
+assert.ok(!acquireDeps.calls.envelope.acceptedIntents.includes("repo_mutation"));
+assert.match(acquireDeps.calls.mark.executionRef, /^repository_reconciliation_lease_control:acquire:/);
+
+const lifecycleBase = {
+  lease_id: "22222222-2222-4222-8222-222222222222",
+  holder_run_id: baseArgs.holder_run_id,
+  resource_fingerprint: "d".repeat(64),
+  capability_envelope_id: baseArgs.capability_envelope_id,
+};
+const renewDeps = fakeDeps();
+const renewed = await runRepositoryReconciliationLeaseControl({
+  action: "renew",
+  ...lifecycleBase,
+  ttl_seconds: 600,
+  confirm: REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.renew,
+}, renewDeps);
+assert.equal(renewed.action, "renew");
+assert.equal(renewDeps.calls.renew.input.ttl_seconds, 600);
+assert.deepEqual(renewDeps.order, ["resolve-envelope", "mark-envelope", "renew-lease"]);
+
+const releaseDeps = fakeDeps();
+const released = await runRepositoryReconciliationLeaseControl({
+  action: "release",
+  ...lifecycleBase,
+  release_reason: "catalog_v2_reconciliation_complete",
+  confirm: REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.release,
+}, releaseDeps);
+assert.equal(released.action, "release");
+assert.equal(releaseDeps.calls.release.input.release_reason, "catalog_v2_reconciliation_complete");
+assert.equal(released.lease.status, "released");
+
+const wrongConfirmationDeps = fakeDeps();
+await assert.rejects(
+  runRepositoryReconciliationLeaseControl({ ...baseArgs, confirm: "YES" }, wrongConfirmationDeps),
+  (error) => error?.code === "repository_reconciliation_lease_control_confirmation_required" && error?.status === 409,
+);
+assert.deepEqual(wrongConfirmationDeps.order, []);
+
+const nonAdminDeps = fakeDeps({ auth: { caller_type: "tenant", tenant_id: "tenant-1", user_id: "user-1" } });
+await assert.rejects(
+  runRepositoryReconciliationLeaseControl(baseArgs, nonAdminDeps),
+  (error) => error?.code === "repository_reconciliation_lease_control_admin_required" && error?.status === 403,
+);
+assert.deepEqual(nonAdminDeps.order, []);
+
+const dispatchOnlyEnvelopeDeps = fakeDeps({
+  async resolveCapabilityExecutionEnvelope(input) {
+    dispatchOnlyEnvelopeDeps.order.push("resolve-envelope");
+    dispatchOnlyEnvelopeDeps.calls.envelope = input;
+    return { ok: true, envelope_id: baseArgs.capability_envelope_id, apply_allowed: false };
+  },
+});
+await assert.rejects(
+  runRepositoryReconciliationLeaseControl(baseArgs, dispatchOnlyEnvelopeDeps),
+  (error) => error?.code === "capability_resolution_envelope_apply_not_allowed" && error?.status === 403,
+);
+assert.deepEqual(dispatchOnlyEnvelopeDeps.order, ["resolve-envelope"]);
+
+const rejectedEnvelopeDeps = fakeDeps({
+  async resolveCapabilityExecutionEnvelope() {
+    rejectedEnvelopeDeps.order.push("resolve-envelope");
+    return { ok: false, reason_code: "capability_envelope_not_ready" };
+  },
+});
+await assert.rejects(
+  runRepositoryReconciliationLeaseControl(baseArgs, rejectedEnvelopeDeps),
+  (error) => error?.code === "capability_envelope_not_ready" && error?.status === 403,
+);
+assert.deepEqual(rejectedEnvelopeDeps.order, ["resolve-envelope"]);
+
+const migration = readFileSync(
+  new URL("./migrations/20260730_repository_reconciliation_lease_control_tool.sql", import.meta.url),
+  "utf8",
+);
+for (const token of [
+  "INSERT INTO admin_platform_endpoint_tools",
+  "repository_reconciliation_lease_control",
+  "/admin/repository-automation/reconciliation-lease",
+  "apply_authorized",
+  "resource_binding",
+  "typed_confirmation",
+  "no_force",
+  "same_cycle_readback",
+  "no_secrets",
+]) {
+  assert.ok(migration.includes(token), `lease control migration missing ${token}`);
+}
+assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE)\b/i);
+assert.match(migration, /ON DUPLICATE KEY UPDATE/);
+
+const contractSource = readFileSync(
+  new URL("./openapi/repository-reconciliation-lease-control.yaml", import.meta.url),
+  "utf8",
+);
+const contract = YAML.parse(contractSource);
+const operation = contract.paths?.["/admin/repository-automation/reconciliation-lease"]?.post;
+assert.equal(contract.openapi, "3.1.0");
+assert.equal(operation?.operationId, "controlRepositoryReconciliationLease");
+assert.equal(operation?.["x-openai-isConsequential"], true);
+assert.equal(operation?.["x-custom-gpt-exclude"], true);
+assert.ok(Array.isArray(operation?.requestBody?.content?.["application/json"]?.schema?.oneOf));
+assert.equal(operation.requestBody.content["application/json"].schema.oneOf.length, 3);
+assert.ok(operation.security.some((item) => Object.hasOwn(item, "adminBearerAuth")));
+assert.ok(operation.security.some((item) => Object.hasOwn(item, "backendApiKeyAuth")));
+for (const [schemaName, action, confirmation, requiredFields] of [
+  [
+    "RepositoryReconciliationLeaseAcquireRequest",
+    "acquire",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.acquire,
+    ["owner", "repo", "branch", "expected_base_sha", "expected_branch_sha", "holder_run_id"],
+  ],
+  [
+    "RepositoryReconciliationLeaseRenewRequest",
+    "renew",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.renew,
+    ["lease_id", "holder_run_id", "resource_fingerprint"],
+  ],
+  [
+    "RepositoryReconciliationLeaseReleaseRequest",
+    "release",
+    REPOSITORY_RECONCILIATION_LEASE_CONFIRMATIONS.release,
+    ["lease_id", "holder_run_id", "resource_fingerprint"],
+  ],
+]) {
+  const schema = contract.components?.schemas?.[schemaName];
+  assert.deepEqual(schema?.properties?.action?.enum, [action]);
+  assert.deepEqual(schema?.properties?.confirm?.enum, [confirmation]);
+  assert.ok(["action", "capability_envelope_id", "confirm", ...requiredFields].every((field) => schema.required.includes(field)));
+  assert.equal(schema.additionalProperties, false);
+}
+assert.equal(contract.components.schemas.RepositoryReconciliationLeaseControlResponse.properties.secrets_included.enum[0], false);
+assert.equal(contract.components.schemas.RepositoryReconciliationLeaseControlError.properties.secrets_included.enum[0], false);
+
+const routes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
+assert.match(routes, /runRepositoryReconciliationLeaseControl/);
+assert.match(routes, /\/admin\/repository-automation\/reconciliation-lease/);
+assert.match(routes, /\.\.\.requireAdmin/);
+assert.match(routes, /repository_reconciliation_lease_control_failed/);
+
+console.log("repository reconciliation lease control tests passed");
