@@ -131,6 +131,7 @@
       "checklists/security.md",
       "checklists/operations.md",
       "checklists/parity.md",
+      "checklists/external-integration-and-drive.md",
       "completion.json"
     ],
     "present": true,
