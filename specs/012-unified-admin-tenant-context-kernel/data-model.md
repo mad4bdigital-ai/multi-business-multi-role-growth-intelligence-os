@@ -30,6 +30,18 @@ All identifiers shown in examples are synthetic placeholders. Production identif
 - `expiresAt`
 - `revision`
 
+## WorkspaceContext
+
+- `workspaceRef`
+- `tenantRef`
+- `workspaceType`: `personal` or `company`
+- `ownerUserRef` when personal
+- `membershipRef` when company membership is required
+- `status`
+- `revision`
+
+A personal workspace has one owner user. A company workspace uses independent membership and role evidence. Workspace type is resolved before connection ownership.
+
 ## ContextCandidate
 
 - `candidateType`
@@ -49,9 +61,12 @@ All identifiers shown in examples are synthetic placeholders. Production identif
 - `effectiveSubject`
 - `tenantRef`
 - `workspaceRef`
+- `workspaceType`
 - `brandRef` optional
 - `resourceRef`
 - `connectionRef`
+- `connectionOwnerScopeType`
+- `connectionOwnerScopeRef`
 - `authorityPathRef`
 - `status`
 - `reasonCodes`
@@ -88,19 +103,107 @@ Statuses:
 - `brandRef` optional
 - `resourceRevision`
 
+## ConnectionOwnershipScope
+
+- `ownerScopeType`: `personal_workspace`, `company_workspace`, or `brand`
+- `ownerScopeRef`
+- `tenantRef`
+- `workspaceRef`
+- `brandRef` optional
+- `ownerUserRef` when personal
+- `connectedByUserRef`
+- `revision`
+
+Invariants:
+
+- `personal_workspace` requires `ownerUserRef` and forbids cross-user use;
+- `company_workspace` requires a company workspace and live membership or delegated authority;
+- `brand` requires an exact brand that belongs to the exact workspace;
+- one connection cannot claim multiple owner scopes;
+- changing owner scope creates a new revision and invalidates dependent decisions.
+
 ## ExactConnectionBinding
 
 - `connectionRef`
 - `providerKey`
+- `providerAccountRef` when safe
 - `resourceRef`
 - `tenantRef`
 - `workspaceRef`
+- `brandRef` optional
+- `ownerScopeType`
+- `ownerScopeRef`
+- `ownerUserRef` when personal
+- `connectedByUserRef`
 - `credentialScopeRef`
+- `grantedProviderScopes`
 - `capabilityKeys`
+- `authorizationRevision`
 - `connectionRevision`
+- `status`
 - `readinessVector`
+- `secretsIncluded`: always `false`
 
 Credential values are never stored in the execution context.
+
+Eligible statuses and readiness are evaluated separately. A connection can be active while still not ready for a requested capability because provider consent, provider scope, reachability, quota, or readback evidence is insufficient.
+
+## ProviderAuthorizationState
+
+- `stateRef`
+- `providerKey`
+- `principalRef`
+- `userRef`
+- `tenantRef`
+- `workspaceRef`
+- `brandRef` optional
+- `ownerScopeType`
+- `ownerScopeRef`
+- `requestedProviderScopes`
+- `redirectTargetRef`
+- `nonceHash`
+- `issuedAt`
+- `expiresAt`
+- `consumedAt` optional
+- `status`
+- `signatureVersion`
+
+Authorization state is signed, expiring, nonce-bound, single-use, and context-bound. It contains no credential value.
+
+## ConnectionResolutionDecision
+
+- `resolutionRef`
+- `principalRef`
+- `effectiveUserRef`
+- `tenantRef`
+- `workspaceRef`
+- `workspaceType`
+- `brandRef` optional
+- `resourceRef`
+- `capabilityKey`
+- `operationRiskClass`
+- `explicitConnectionRef` optional
+- `selectedConnectionRef` optional
+- `selectedOwnerScopeType` optional
+- `selectedOwnerScopeRef` optional
+- `candidateRefs`
+- `rejectedCandidateReasonCodes`
+- `fallbackPolicyRef`
+- `status`
+- `reasonCodes`
+- `registryRevision`
+- `connectionRevision`
+- `decisionHash`
+- `expiresAt`
+- `secretsIncluded`: always `false`
+
+Statuses include:
+
+- `resolved`
+- `interpretation_required`
+- `connection_required`
+- `blocked`
+- `stale`
 
 ## AuthorityPath
 
@@ -121,6 +224,7 @@ Credential values are never stored in the execution context.
 - `runtimeSurface`
 - `recipeKey`
 - `sourceTier`
+- `connectionResolutionRef`
 - `readinessVector`
 - `blockingGaps`
 - `registryRevision`
@@ -133,6 +237,10 @@ Credential values are never stored in the execution context.
 - `operationIntent`
 - `targetResourceRef`
 - `connectionRef`
+- `connectionResolutionRef`
+- `connectionOwnerScopeType`
+- `connectionRevision`
+- `authorizationRevision`
 - `steps`
 - `approvalRequirements`
 - `idempotencyPolicy`
@@ -155,4 +263,6 @@ Credential values are never stored in the execution context.
 
 ## Revision rules
 
-Context revisions MUST change when any authority, membership, resource binding, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
+Context revisions MUST change when any authority, membership, workspace type, brand ownership, resource binding, connection ownership, connection authorization, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
+
+Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, and approval binding. Changing workspace invalidates dependent brand, resource, connection, plan, and approval bindings. Changing brand or connection ownership invalidates all plans and approvals that reference the previous revision.
