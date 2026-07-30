@@ -1,7 +1,7 @@
 {
   "spec_key": "unified_admin_tenant_context_kernel",
   "spec_version": "0.2.0",
-  "status": "draft",
+  "status": "in_progress",
   "scope": "platform",
   "principal_coverage": [
     "tenant_user",
@@ -58,6 +58,8 @@
     "checklists/specification-readiness.md",
     "execution-capsule-runtime-addendum.md",
     "execution-capsule-runtime-extension.manifest.json",
+    "ec0-execution-capsule-contract.md",
+    "ec0-execution-capsule-contract.manifest.json",
     "manifest.json"
   ],
   "extensions": [
@@ -65,7 +67,7 @@
       "extension_key": "spec-012-execution-capsule-runtime-integration",
       "manifest": "execution-capsule-runtime-extension.manifest.json",
       "primary_artifact": "execution-capsule-runtime-addendum.md",
-      "status": "draft",
+      "status": "in_progress",
       "runtime_authority": false
     },
     {

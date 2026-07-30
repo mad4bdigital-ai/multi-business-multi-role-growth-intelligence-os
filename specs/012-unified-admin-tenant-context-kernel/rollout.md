@@ -1,5 +1,30 @@
 # Rollout Plan
 
+## Current implementation boundary — 30 July 2026
+
+Merged bounded evidence:
+
+- PR #3178 delivered API and safe projection contracts, while keeping the context-kernel router unmounted.
+- PR #3204 delivered a default-off Resource API shadow observer for selected tenant GET routes without replacing legacy responses or enabling production rollout.
+- PR #3228 made cross-tenant isolation evidence and the changed-file hardcoding ratchet release blocking.
+- PR #3329 retired automatic verification against intentionally removed `dev.mad4b.com`; the workflow remains available through manual dispatch only.
+- PR #3348 delivered the EC0 Execution Capsule core contract and standalone tests. The capsule grants no execution authority, performs no write, and is not integrated into runtime dispatch.
+
+Still pending:
+
+- hierarchical connection ownership persistence and additive migration;
+- migration authorization, ledger evidence, and same-cycle readback;
+- Tenant OAuth authorization, reconnect, revoke, resumable claim verification, and atomic completion;
+- exact-owner runtime resolution and two-stage provider readiness;
+- production shadow/read activation;
+- Tenant and Admin writes;
+- legacy selector removal;
+- planned connection OpenAPI exposure;
+- EC1–EC5 Execution Capsule integration;
+- production verification, rollback certification, post-merge audit, and final closeout.
+
+The merged slices above do not authorize production reads, provider calls, credential mutation, migration, deployment, or runtime authority expansion.
+
 ## Non-negotiable rollout prerequisites
 
 No production shadow, read, OAuth, or write path may depend on hierarchical connection ownership until all applicable additive persistence changes have been separately authorized, applied, recorded in the migration ledger, and verified through same-cycle schema and data readback.
