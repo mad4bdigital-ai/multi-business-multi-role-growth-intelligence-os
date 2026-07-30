@@ -255,6 +255,7 @@ const acknowledgementRow = {
   actor_ref_sha256: "b".repeat(64),
   acknowledgement_key_sha256: "c".repeat(64),
   acknowledgement_state: "pending",
+  acknowledged_at: null,
 };
 const acknowledgementReadCalls = [];
 const acknowledgementReadConnection = {
@@ -274,6 +275,10 @@ assert.deepEqual(
 assert.match(acknowledgementReadCalls[0].sql, /FROM activation_acknowledgements/);
 assert.doesNotMatch(acknowledgementReadCalls[0].sql, /acknowledgement_reason/);
 assert.doesNotMatch(acknowledgementReadCalls[0].sql, /actor_ref,/);
+assert.match(
+  acknowledgementReadCalls[0].sql,
+  /CASE[\s\S]*acknowledgement_state IN \('acknowledged', 'rejected', 'expired'\)[\s\S]*ELSE NULL[\s\S]*END AS acknowledged_at/,
+);
 assert.deepEqual(acknowledgementReadCalls[0].params, [
   acknowledgementId,
   operationId,
