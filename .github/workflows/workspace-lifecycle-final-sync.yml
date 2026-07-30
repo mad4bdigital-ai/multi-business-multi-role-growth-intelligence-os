@@ -1,0 +1,158 @@
+name: Workspace Lifecycle Final Sync
+
+on:
+  pull_request_target:
+    types: [reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: workspace-lifecycle-final-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/workspace-lifecycle-mutation-clean-main-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout governed Workspace branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/workspace-lifecycle-mutation-clean-main-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Merge current main with generated-only conflict policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'mad4b-workspace-final-sync'
+          git config user.email 'actions@users.noreply.github.com'
+          git fetch origin main
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          MERGE_STATUS=$?
+          set -e
+
+          mapfile -t CONFLICTS < <(git diff --name-only --diff-filter=U)
+          ALLOWED_A='http-generic-api/frontend-surface-dispatch.generated.json'
+          ALLOWED_B='http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
+          for file in "${CONFLICTS[@]}"; do
+            if [[ "$file" != "$ALLOWED_A" && "$file" != "$ALLOWED_B" ]]; then
+              echo "::error::Unexpected merge conflict: $file"
+              git merge --abort || true
+              exit 1
+            fi
+            git checkout --theirs -- "$file"
+            git add -- "$file"
+          done
+
+          if [[ $MERGE_STATUS -ne 0 && ${#CONFLICTS[@]} -eq 0 ]]; then
+            echo '::error::Merge failed without an inspectable allowed conflict.'
+            git merge --abort || true
+            exit 1
+          fi
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo '::error::Unresolved merge conflicts remain.'
+            exit 1
+          fi
+
+          rm -f \
+            .github/workflows/workspace-lifecycle-final-sync.yml \
+            .github/workflows/workspace-lifecycle-clean-rebuild-bootstrap.yml \
+            .github/workflows/workspace-lifecycle-mutation-bootstrap.yml \
+            docs/workspace-lifecycle-clean-rebuild-trigger-20260730.md
+          git add -A
+
+          for forbidden in \
+            .github/workflows/workspace-lifecycle-final-sync.yml \
+            .github/workflows/workspace-lifecycle-clean-rebuild-bootstrap.yml \
+            .github/workflows/workspace-lifecycle-mutation-bootstrap.yml \
+            docs/workspace-lifecycle-clean-rebuild-trigger-20260730.md; do
+            if [[ -e "$forbidden" ]]; then
+              echo "::error::Temporary file still present: $forbidden"
+              exit 1
+            fi
+          done
+
+          git commit -m 'chore: sync current main into Workspace lifecycle repair'
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate bounded contract evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+
+      - name: Verify Workspace and generated contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/tenantLifecycleRoutes.js
+          node --check scripts/resource-api-callability-contracts.mjs
+          node test-workspace-lifecycle-foundation.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-contract-discovery.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
+
+      - name: Enforce generated write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          UNEXPECTED=''
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              http-generic-api/openapi.yaml|\
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+              http-generic-api/openapi.gpt-action.local-connector.yaml)
+                ;;
+              *) UNEXPECTED+="$file"$'\n' ;;
+            esac
+          done
+          if [[ -n "$UNEXPECTED" ]]; then
+            echo '::error::Generator changed files outside the bounded artifact set'
+            printf '%s' "$UNEXPECTED"
+            exit 1
+          fi
+
+      - name: Commit and push synchronized repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          if [[ ${#CHANGED[@]} -gt 0 ]]; then
+            git add -- "${CHANGED[@]}"
+            git commit -m 'chore(ci): refresh Workspace generated contract artifacts'
+          fi
+          git push origin HEAD:gpt/workspace-lifecycle-mutation-clean-main-20260730
