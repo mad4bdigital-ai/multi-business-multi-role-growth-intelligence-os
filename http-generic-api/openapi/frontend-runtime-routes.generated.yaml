@@ -3297,6 +3297,95 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /planner/plans/{id}/explain:
+    get:
+      operationId: getPlannerPlansByIdExplain34652de2
+      summary: GET /planner/plans/{id}/explain (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/plannerRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /planner/plans/{id}/status:
+    get:
+      operationId: getPlannerPlansByIdStatusab7645ed
+      summary: GET /planner/plans/{id}/status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/plannerRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+    patch:
+      operationId: patchPlannerPlansByIdStatus856139eb
+      summary: PATCH /planner/plans/{id}/status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/plannerRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
   /planner/plans/{id}/timeline:
     get:
       operationId: getPlannerPlansByIdTimeline59a93f30
@@ -4763,36 +4852,6 @@ paths:
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
-          - JWT_SECRET
-  /planner/plans/{id}/status:
-    patch:
-      operationId: patchPlannerPlansByIdStatus856139eb
-      summary: PATCH /planner/plans/{id}/status (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/plannerRoutes.js
-      x-mad4b-runtime-auth:
-        profile: backend_or_user
-        principal: authenticated
-        guard_chain:
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
           - JWT_SECRET
   /tickets/{id}/status:
     patch:
@@ -8771,6 +8830,36 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/outputSinkRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /planner/plans/{id}/cancel:
+    post:
+      operationId: postPlannerPlansByIdCancelb4da479c
+      summary: POST /planner/plans/{id}/cancel (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/plannerRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
