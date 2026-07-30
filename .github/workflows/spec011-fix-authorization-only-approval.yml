@@ -1,0 +1,55 @@
+name: Spec 011 Fix Authorization-Only Approval
+
+on:
+  push:
+    branches:
+      - ops/spec011-ephemeral-checkout-production-dry-run-20260730
+    paths:
+      - .github/spec011-fix-authorization-only-approval-trigger.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-fix-authorization-only-approval
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ops/spec011-ephemeral-checkout-production-dry-run-20260730
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Apply bounded approval-flow repair
+        run: python3 .github/scripts/spec011-fix-authorization-only-approval.py
+
+      - name: Validate bounded write set and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          allowed = {
+              '.github/workflows/spec011-ephemeral-checkout-production-dry-run.yml',
+              '.github/workflows/spec011-fix-authorization-only-approval.yml',
+              '.github/spec011-fix-authorization-only-approval-trigger.json',
+              '.github/scripts/spec011-fix-authorization-only-approval.py',
+          }
+          changed = {line[3:] for line in subprocess.check_output(['git', 'status', '--porcelain'], text=True).splitlines() if line}
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit(f'bounded_write_set_invalid:unexpected={sorted(unexpected)}')
+          if '.github/workflows/spec011-ephemeral-checkout-production-dry-run.yml' not in changed:
+              raise SystemExit('target_workflow_not_modified')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(spec-011): use authorization-only capability envelope approval"
+          git push origin HEAD:ops/spec011-ephemeral-checkout-production-dry-run-20260730
