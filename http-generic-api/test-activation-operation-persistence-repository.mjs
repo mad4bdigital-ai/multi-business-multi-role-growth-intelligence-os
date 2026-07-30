@@ -22,7 +22,7 @@ const attemptId = "33333333-3333-4333-8333-333333333333";
 const reconciliationId = "44444444-4444-4444-8444-444444444444";
 const evidenceId = "55555555-5555-4555-8555-555555555555";
 
-assert.deepEqual(ACTIVATION_SAFE_EVIDENCE_REDACTION_STATES.sort(), [
+assert.deepEqual([...ACTIVATION_SAFE_EVIDENCE_REDACTION_STATES].sort(), [
   "reference_only",
   "sanitized",
 ]);
@@ -34,8 +34,15 @@ const numberCalls = [];
 const numberPool = {
   async query(sql, params) {
     numberCalls.push({ sql, params });
-    if (/activation_stage_attempts/.test(sql)) return [[{ next_attempt_number: 3 }]];
-    if (/activation_reconciliation_attempts/.test(sql)) return [[{ next_attempt_number: 2 }]];
+    if (/FROM activation_operation_projections/.test(sql)) {
+      return [[{ operation_id: operationId }]];
+    }
+    if (/FROM activation_stage_attempts/.test(sql)) {
+      return [[{ next_attempt_number: 3 }]];
+    }
+    if (/FROM activation_reconciliation_attempts/.test(sql)) {
+      return [[{ next_attempt_number: 2 }]];
+    }
     throw new Error(`unexpected number query: ${sql}`);
   },
 };
@@ -54,17 +61,38 @@ assert.equal(
   }),
   2,
 );
-assert.equal(numberCalls.length, 2);
-for (const call of numberCalls) {
-  assert.match(call.sql, /COALESCE\(MAX\(attempt_number\), 0\) \+ 1/);
+assert.equal(numberCalls.length, 4);
+const lockCalls = numberCalls.filter(({ sql }) => /FROM activation_operation_projections/.test(sql));
+assert.equal(lockCalls.length, 2);
+for (const call of lockCalls) {
   assert.match(call.sql, /FOR UPDATE/);
+  assert.deepEqual(call.params, [operationId, tenantId]);
+}
+const stageNumberCall = numberCalls.find(({ sql }) => /FROM activation_stage_attempts/.test(sql));
+const reconciliationNumberCall = numberCalls.find(({ sql }) =>
+  /FROM activation_reconciliation_attempts/.test(sql),
+);
+for (const call of [stageNumberCall, reconciliationNumberCall]) {
+  assert.match(call.sql, /COALESCE\(MAX\(attempt_number\), 0\) \+ 1/);
+  assert.doesNotMatch(call.sql, /FOR UPDATE/);
   assert.match(call.sql, /operation_id = \?/);
   assert.match(call.sql, /tenant_id = \?/);
   assert(call.params.includes(operationId));
   assert(call.params.includes(tenantId));
 }
-assert.match(numberCalls[0].sql, /stage_key = \?/);
-assert(numberCalls[0].params.includes("provider_bootstrap"));
+assert.match(stageNumberCall.sql, /stage_key = \?/);
+assert(stageNumberCall.params.includes("provider_bootstrap"));
+
+const missingOperationPool = { async query() { return [[]]; } };
+await assert.rejects(
+  () =>
+    nextActivationStageAttemptNumber(missingOperationPool, {
+      operation_id: operationId,
+      tenant_id: tenantId,
+      stage_key: "provider_bootstrap",
+    }),
+  (error) => error?.code === "activation_operation_not_found" && error?.status === 404,
+);
 
 const stageRow = {
   attempt_id: attemptId,
@@ -161,12 +189,7 @@ assert.match(evidenceReadCalls[0].sql, /secrets_included = 0/);
 assert.match(evidenceReadCalls[0].sql, /redaction_state IN \('sanitized', 'reference_only'\)/);
 assert.match(evidenceReadCalls[0].sql, /summary_bytes <= \?/);
 assert.doesNotMatch(evidenceReadCalls[0].sql, /authorization|credential|password|token/i);
-assert.deepEqual(evidenceReadCalls[0].params.slice(0, 3), [
-  evidenceId,
-  operationId,
-  tenantId,
-]);
-assert.equal(evidenceReadCalls[0].params.at(-1), 32768);
+assert.deepEqual(evidenceReadCalls[0].params, [evidenceId, operationId, tenantId, 32768]);
 
 const evidenceExistenceCalls = [];
 const evidenceExistencePool = {
@@ -194,9 +217,8 @@ assert.deepEqual(evidenceExistenceCalls[0].params, [
   "activation_success_readback",
   "reconciliation_readback",
 ]);
-const missingEvidencePool = { async query() { return [[]]; } };
 assert.equal(
-  await hasScopedActivationEvidenceItem(missingEvidencePool, {
+  await hasScopedActivationEvidenceItem({ async query() { return [[]]; } }, {
     evidence_id: evidenceId,
     operation_id: operationId,
     tenant_id: tenantId,
@@ -218,9 +240,7 @@ const transitionCalls = [];
 const transitionPool = {
   async query(sql, params) {
     transitionCalls.push({ sql, params });
-    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) {
-      return [{ affectedRows: 1 }];
-    }
+    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) return [{ affectedRows: 1 }];
     throw new Error(`unexpected transition query: ${sql}`);
   },
 };
@@ -245,7 +265,7 @@ assert.match(transitionCalls[0].sql, /tenant_id = \?/);
 assert.equal(transitionCalls[0].params[0], "unknown_outcome");
 assert.equal(transitionCalls[0].params[2], 1);
 assert.equal(transitionCalls[0].params[6], 1);
-assert.throws(
+await assert.rejects(
   () =>
     transitionActivationStageAttempt(transitionPool, {
       attempt_id: attemptId,
@@ -261,9 +281,7 @@ let idempotentQueryCount = 0;
 const idempotentPool = {
   async query(sql) {
     idempotentQueryCount += 1;
-    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) {
-      return [{ affectedRows: 0 }];
-    }
+    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) return [{ affectedRows: 0 }];
     return [[{ ...stageRow, attempt_status: "succeeded" }]];
   },
 };
@@ -281,9 +299,7 @@ assert.equal(idempotentQueryCount, 2);
 
 const conflictPool = {
   async query(sql) {
-    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) {
-      return [{ affectedRows: 0 }];
-    }
+    if (/^UPDATE activation_stage_attempts/.test(sql.trim())) return [{ affectedRows: 0 }];
     return [[{ ...stageRow, attempt_status: "failed" }]];
   },
 };
@@ -328,8 +344,11 @@ const serviceSource = fs.readFileSync(
   "utf8",
 );
 assert.match(serviceSource, /createActivationLifecycleOperationService/);
-const runtimeFiles = ["server.js", "activationSessionLifecycleService.js", "activationHardResponseService.js"];
-for (const runtimeFile of runtimeFiles) {
+for (const runtimeFile of [
+  "server.js",
+  "activationSessionLifecycleService.js",
+  "activationHardResponseService.js",
+]) {
   const source = fs.readFileSync(path.join(__dirname, runtimeFile), "utf8");
   assert.doesNotMatch(
     source,
