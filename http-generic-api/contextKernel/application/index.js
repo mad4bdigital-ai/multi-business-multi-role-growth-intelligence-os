@@ -13,6 +13,7 @@ export {
   createExecutionCapsuleService,
 } from "./executionCapsuleService.js";
 export { createExecutionPlanService } from "./executionPlanService.js";
+export { createPolicyGrantEvaluatorService } from "./policyGrantEvaluatorService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
 export { createResourceGraphResolverService } from "./resourceGraphResolverService.js";
 export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
@@ -25,6 +26,7 @@ export {
   assertAuthorizedScopeRepository,
   assertBoundedResourceGraphRepository,
   assertCapabilityReadinessRepository,
+  assertPolicyGrantEvidenceRepository,
   assertContextPinRepository,
   assertExactConnectionRepository,
   assertExecutionLedgerRepository,
