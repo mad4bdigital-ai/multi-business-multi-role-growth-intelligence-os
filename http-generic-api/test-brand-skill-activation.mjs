@@ -5,6 +5,7 @@ import {
   normalizeRequestedOperations,
   normalizeTtlHours,
   operationsAllowed,
+  resolveCanonicalAuthorityScope,
 } from "./brandSkillActivationService.js";
 import {
   assertRequestedResourceBelongsToBrand,
@@ -83,6 +84,7 @@ const directBrandBinding = await assertRequestedResourceBelongsToBrand({ query: 
   requestedResourceRef: "brand-1",
 });
 assert.equal(directBrandBinding.binding_source, "brand_key");
+assert.equal(directBrandBinding.resource_ref, "brand-1");
 
 await assert.rejects(
   () => assertRequestedResourceBelongsToBrand({ query: async () => [] }, {
@@ -99,9 +101,11 @@ const workspaceBinding = await assertRequestedResourceBelongsToBrand({ query: as
   brandKey: "brand-1",
   workspace: { workspace_id: "workspace-1", workspace_key: "brand-workspace-1" },
   requestedResourceType: "workspace",
-  requestedResourceRef: "workspace-1",
+  requestedResourceRef: "brand-workspace-1",
 });
 assert.equal(workspaceBinding.binding_source, "workspace_registry");
+assert.equal(workspaceBinding.resource_ref, "workspace-1");
+assert.equal(workspaceBinding.requested_resource_ref, "brand-workspace-1");
 
 const siteQueries = [];
 const siteBinding = await assertRequestedResourceBelongsToBrand({
@@ -113,12 +117,35 @@ const siteBinding = await assertRequestedResourceBelongsToBrand({
   tenantId: "tenant-1",
   brandKey: "brand-1",
   requestedResourceType: "site",
-  requestedResourceRef: "site-1",
+  requestedResourceRef: "example.com",
 });
 assert.equal(siteBinding.binding_source, "brand_site_bindings");
+assert.equal(siteBinding.resource_ref, "site-1");
+assert.equal(siteBinding.requested_resource_ref, "example.com");
 assert.match(siteQueries[0].sql, /JOIN cms_sites/i);
 assert.match(siteQueries[0].sql, /LIMIT 2/i);
-assert.deepEqual(siteQueries[0].params, ["brand-1", "site-1", "site-1", "site-1", "site-1"]);
+assert.deepEqual(siteQueries[0].params, ["brand-1", "example.com", "example.com", "example.com", "example.com"]);
+assert.deepEqual(
+  resolveCanonicalAuthorityScope(siteBinding, "site", "example.com"),
+  { resource_type: "site", resource_ref: "site-1" },
+);
+
+const assetQueries = [];
+const assetBinding = await assertRequestedResourceBelongsToBrand({
+  async query(sql, params) {
+    assetQueries.push({ sql: String(sql), params });
+    return [[{ asset_id: "asset-1" }]];
+  },
+}, {
+  tenantId: "tenant-1",
+  brandKey: "brand-1",
+  requestedResourceType: "asset",
+  requestedResourceRef: "asset-alias",
+});
+assert.equal(assetBinding.binding_source, "workspace_assets");
+assert.equal(assetBinding.resource_ref, "asset-1");
+assert.equal(assetBinding.requested_resource_ref, "asset-alias");
+assert.deepEqual(assetQueries[0].params, ["tenant-1", "brand-1", "asset-alias", "asset-alias", "asset-alias"]);
 
 await assert.rejects(
   () => assertRequestedResourceBelongsToBrand({ query: async () => [[]] }, {
@@ -181,6 +208,9 @@ for (const marker of [
   "v_effective_user_brand_skill_grants",
   "m.role AS role",
   "assertRequestedResourceBelongsToBrand",
+  "resolveCanonicalAuthorityScope",
+  "requestedResourceType: canonicalAuthorityScope.resource_type",
+  "requestedResourceRef: canonicalAuthorityScope.resource_ref",
   "allowed_operations_json = ?",
   "operation_set_extended: true",
   "policy.allowed_operations_json",
@@ -200,6 +230,10 @@ const bindingGuard = readFileSync(new URL("./brandSkillResourceBinding.js", impo
 for (const marker of [
   "brand_site_bindings",
   "workspace_assets",
+  "requested_resource_ref",
+  "resource_ref: canonicalWorkspaceRef",
+  "resource_ref: binding.site_id",
+  "resource_ref: binding.asset_id",
   "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
   "BRAND_SKILL_RESOURCE_BINDING_AMBIGUOUS",
   "BRAND_SKILL_RESOURCE_BRAND_BINDING_UNSUPPORTED",
