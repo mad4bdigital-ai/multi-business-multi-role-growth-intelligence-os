@@ -101,6 +101,7 @@ export function governedResponseChunkRowHasOwner(row = {}) {
   return Boolean(
     text(row.owner_tenant_id)
     || text(row.owner_user_id)
+    || text(row.owner_workspace_id)
     || text(row.owner_principal_type)
     || text(row.owner_principal_id),
   );
@@ -114,6 +115,7 @@ export function canAccessGovernedResponseChunk(principal, row = {}) {
     && text(row.owner_principal_type) === "tenant_user"
     && text(row.owner_tenant_id) === text(principal.owner_tenant_id)
     && text(row.owner_user_id) === text(principal.owner_user_id)
+    && text(row.owner_workspace_id) === text(principal.owner_workspace_id)
     && text(row.owner_principal_id) === text(principal.owner_principal_id);
 }
 
