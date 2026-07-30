@@ -33,7 +33,7 @@ const service=readFileSync(new URL("./dynamicContainerOverrideGovernanceSmoke.js
 const routes=readFileSync(new URL("./routes/dynamicContainerOverrideGovernanceSmokeRoutes.js",import.meta.url),"utf8");
 const routeIndex=readFileSync(new URL("./routes/index.js",import.meta.url),"utf8");
 const openapiFragment=readFileSync(new URL("./openapi/container-authority-override-governance-smoke.yaml",import.meta.url),"utf8");
-const rootOpenapi=readFileSync(new URL("./openapi.yaml",import.meta.url),"utf8");
+const openapiRouteContracts=readFileSync(new URL("./openapi-route-contracts.yaml",import.meta.url),"utf8");
 const migration=readFileSync(new URL("./migrations/20260723_dynamic_container_override_governance_smoke.sql",import.meta.url),"utf8");
 
 assert.match(service,/resolveCapabilityExecutionEnvelope/);
@@ -52,7 +52,8 @@ assert.match(openapiFragment,/OverrideGovernanceSmokeRequest:/);
 assert.match(openapiFragment,/OverrideGovernanceSmokeResponse:/);
 assert.match(openapiFragment,/operationId: createAdminContainerAuthorityOverrideGovernanceSmoke/);
 assert.match(openapiFragment,/x-registry-tool-key: dynamic_container_override_governance_smoke/);
-assert.match(rootOpenapi,/\/admin\/container-authority\/override-governance-smokes:/);
+assert.match(openapiRouteContracts,/POST \/admin\/container-authority\/override-governance-smokes:/);
+assert.match(openapiRouteContracts,/container-authority-override-governance-smoke\.yaml#\/adminContainerAuthorityOverrideGovernanceSmokes/);
 assert.match(migration,/dynamic_container_override_governance_smoke_policy_v1/);
 assert.match(migration,/transactional_disposable_rows/);
 assert.match(migration,/no_provider_call/);
