@@ -184,7 +184,7 @@ export async function readActivationStageAttempt(
     pool,
     `SELECT attempt_id, operation_id, tenant_id, stage_key, attempt_number,
             source_type, attempt_status, retryable, unknown_outcome,
-            error_code, evidence_ref, started_at, completed_at, created_at
+            error_code, started_at, completed_at, created_at
        FROM activation_stage_attempts
       WHERE attempt_id = ?
         AND operation_id = ?
@@ -290,7 +290,7 @@ export async function readActivationReconciliationAttempt(
     pool,
     `SELECT reconciliation_id, operation_id, tenant_id, attempt_number,
             reason_code, source_type, reconciliation_status, outcome_code,
-            evidence_ref, started_at, completed_at, created_at
+            started_at, completed_at, created_at
        FROM activation_reconciliation_attempts
       WHERE reconciliation_id = ?
         AND operation_id = ?
@@ -310,7 +310,7 @@ export async function readActivationEvidenceItem(
   return readSingle(
     pool,
     `SELECT evidence_id, operation_id, attempt_id, tenant_id, evidence_type,
-            source_type, source_ref, evidence_sha256, summary_json, summary_bytes,
+            source_type, evidence_sha256, summary_json, summary_bytes,
             redaction_state, captured_at, created_at
        FROM activation_evidence_items
       WHERE evidence_id = ?
