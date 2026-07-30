@@ -6,6 +6,17 @@ const TARGET_OBJECTS = Object.freeze([
   "user_brand_skill_grants",
   "v_effective_user_brand_skill_grants",
 ]);
+const BASELINE_OBJECTS = Object.freeze([
+  "agent_skill_grants",
+  "v_effective_agent_skill_grants",
+]);
+const BASELINE_VIEW_COLUMNS = Object.freeze([
+  "grant_id",
+  "agent_id",
+  "skill_id",
+  "tenant_id",
+  "brand_key",
+]);
 
 function check(key, status, detail, evidence = null) {
   return { key, status, detail, evidence, secrets_included: false };
@@ -22,7 +33,10 @@ function allRows(queryResult) {
   return Array.isArray(rows) ? rows : [];
 }
 
-export async function assessBrandSkillMigrationPreflight({ pool = getPool() } = {}) {
+export async function assessBrandSkillMigrationPreflight({
+  pool = getPool(),
+  requireRuntimeBaseline = false,
+} = {}) {
   const checks = [];
   const queries = [];
 
@@ -137,6 +151,74 @@ export async function assessBrandSkillMigrationPreflight({ pool = getPool() } = 
     checks.push(check("agent_skills_contract", "fail", "agent_skills prerequisites could not be inspected.", { code: error?.code || null }));
   }
 
+  if (requireRuntimeBaseline) {
+    try {
+      const objects = allRows(await run(
+        "baseline_agent_skill_objects",
+        `SELECT TABLE_NAME, TABLE_TYPE
+           FROM information_schema.TABLES
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME IN (?, ?)
+          ORDER BY TABLE_NAME`,
+        BASELINE_OBJECTS,
+      ));
+      const typeByName = new Map(objects.map((row) => [row.TABLE_NAME, String(row.TABLE_TYPE || "").toUpperCase()]));
+      const objectContractReady = typeByName.get("agent_skill_grants") === "BASE TABLE"
+        && typeByName.get("v_effective_agent_skill_grants") === "VIEW";
+      checks.push(check(
+        "baseline_agent_skill_objects",
+        objectContractReady ? "pass" : "fail",
+        objectContractReady
+          ? "Baseline agent skill grant table and effective view are present."
+          : "Baseline agent skill grant table or effective view is missing or has the wrong object type.",
+        { objects: objects.map((row) => ({ name: row.TABLE_NAME, type: row.TABLE_TYPE })) },
+      ));
+    } catch (error) {
+      checks.push(check("baseline_agent_skill_objects", "fail", "Baseline agent skill objects could not be inspected.", { code: error?.code || null }));
+    }
+
+    try {
+      const rows = allRows(await run(
+        "baseline_agent_skill_view_contract",
+        `SELECT COLUMN_NAME, DATA_TYPE, COLLATION_NAME
+           FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'v_effective_agent_skill_grants'
+            AND COLUMN_NAME IN ('grant_id', 'agent_id', 'skill_id', 'tenant_id', 'brand_key')
+          ORDER BY COLUMN_NAME`,
+      ));
+      const byName = new Map(rows.map((row) => [row.COLUMN_NAME, row]));
+      const missingColumns = BASELINE_VIEW_COLUMNS.filter((name) => !byName.has(name));
+      const incompatibleCollations = BASELINE_VIEW_COLUMNS.filter((name) => {
+        const value = String(byName.get(name)?.COLLATION_NAME || "");
+        return byName.has(name) && value !== REQUIRED_COLLATION;
+      });
+      const compatible = missingColumns.length === 0 && incompatibleCollations.length === 0;
+      checks.push(check(
+        "baseline_agent_skill_view_contract",
+        compatible ? "pass" : "fail",
+        compatible
+          ? "v_effective_agent_skill_grants exposes the runtime-required columns with compatible collations."
+          : "v_effective_agent_skill_grants is missing runtime-required columns or has incompatible collations.",
+        {
+          required_columns: BASELINE_VIEW_COLUMNS,
+          missing_columns: missingColumns,
+          incompatible_collation_columns: incompatibleCollations,
+          required_collation: REQUIRED_COLLATION,
+        },
+      ));
+    } catch (error) {
+      checks.push(check("baseline_agent_skill_view_contract", "fail", "Baseline effective grant view columns could not be inspected.", { code: error?.code || null }));
+    }
+  } else {
+    checks.push(check(
+      "baseline_agent_skill_contract",
+      "skip",
+      "Runtime baseline verification was not requested by this caller.",
+      { require_runtime_baseline: false },
+    ));
+  }
+
   const failed = checks.filter((item) => item.status === "fail");
   return {
     ok: failed.length === 0,
@@ -146,6 +228,8 @@ export async function assessBrandSkillMigrationPreflight({ pool = getPool() } = 
     applies_sql: false,
     target_migration: "20260728_brand_scoped_user_skill_activation.sql",
     required_collation: REQUIRED_COLLATION,
+    runtime_baseline_required: requireRuntimeBaseline,
+    runtime_baseline_checked: requireRuntimeBaseline,
     checks,
     failed_check_keys: failed.map((item) => item.key),
     queries_executed: queries,
@@ -158,6 +242,8 @@ export async function assessBrandSkillMigrationPreflight({ pool = getPool() } = 
 export const _testingBrandSkillMigrationPreflight = {
   REQUIRED_COLLATION,
   TARGET_OBJECTS,
+  BASELINE_OBJECTS,
+  BASELINE_VIEW_COLUMNS,
   firstRow,
   allRows,
 };
