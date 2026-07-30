@@ -245,7 +245,7 @@ export const testCommands = [
   "node test-tenant-task-source-repair-apply.mjs",
   "node test-tenant-task-source-repair-verification.mjs",
   "node test-tenant-skill-approval-center.mjs",
-  "node test-agent-skill-approval-provenance.mjs",
+  "node test-agent-skill-grant-approval-provenance.mjs",
   "node test-tenant-gpt-operating-guide.mjs",
   "node test-tenant-gpt-operating-guide-tools.mjs",
   "node test-hostinger-runtime-sync-runbook.mjs",
