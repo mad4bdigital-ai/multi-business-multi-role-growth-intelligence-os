@@ -61,7 +61,7 @@ The bounded refresh is accepted only when all of the following remain true:
 
 The current Canary, tenant-resource, and bootstrap governance from `main` is preserved unchanged in `scripts/frontend-operation-governance-base.mjs`. The canonical generator extends that source-pinned base with the repository reconciliation Lease rule, while the base regression suite and Lease extension regressions remain independently executable.
 
-The bounded artifact refresh completed on `4ab7b1d2a90d143164789156750f7d7154e8c565` with `candidate_count: 9`, `generated_rule_count: 9`, and `rejected_candidate_count: 0`. All source-authority entries are present, the Lease rule is fail-closed, and both temporary reconciliation workflows were removed before this checkpoint.
+The branch was reconciled without force over `main` at `d3e64bd5e34c9e4e1786b4d1e5b5e6f0c61e46a9`. The bounded artifact refresh completed on `d71103d9f34b2ba52e9d46471d6ecf1e3d3374d5` with `candidate_count: 9`, `generated_rule_count: 9`, and `rejected_candidate_count: 0`. All source-authority entries are present, the Lease rule is fail-closed, and both temporary reconciliation workflows were removed before this checkpoint.
 
 This source-neutral checkpoint exists to run the complete pull-request checks on the final generated artifact head before merge. Migration apply, deployment, and reuse of prior capability envelopes or lease identifiers remain separately governed.
 
