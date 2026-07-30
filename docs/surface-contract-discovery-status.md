@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 592
+- Migrations with detected surfaces: 593
 - Migrations reported here: 80
-- OpenAPI operations detected: 1065
-- OpenAPI paths detected: 983
+- OpenAPI operations detected: 1066
+- OpenAPI paths detected: 984
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,23 +32,23 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 580/592 (97.97%)
+- Documentation complete migrations: 581/593 (97.98%)
 - Documentation gap migrations: 12
-- Gap severity: high=22, medium=10, low=1
-- SQL route coverage in OpenAPI: 30/32 (93.75%)
-- SQL route-like literals exempted from OpenAPI scoring: 667/699
+- Gap severity: high=23, medium=10, low=0
+- SQL route coverage in OpenAPI: 31/33 (93.94%)
+- SQL route-like literals exempted from OpenAPI scoring: 667/700
 - SQL routes missing OpenAPI path coverage: 2
-- Migrations without explicit `secrets_included=false` marker: 5
+- Migrations without explicit `secrets_included=false` marker: 6
 
 ### Surface Totals
 
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 14 | 11 |
-| tools | 2807 | 510 |
+| tools | 2818 | 511 |
 | views | 499 | 197 |
-| policies | 193 | 132 |
-| routes | 699 | 287 |
+| policies | 194 | 133 |
+| routes | 700 | 288 |
 
 ### Documentation Target Gaps
 
@@ -75,7 +75,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 32 |
+| http_route | 33 |
 | admin_tool_registry_route | 211 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 14 |
@@ -88,11 +88,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 33
-- Critical review: 22
+- Total queue items: 35
+- Critical review: 23
 - High review: 10
-- Medium review: 1
-- Low review: 0
+- Medium review: 0
+- Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -102,6 +102,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` | critical_review | 1073 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, add_explicit_safety_markers |
 | `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `200_sprint68_workspace_invitation_control_tools.sql` | critical_review | 1026 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
+| `20260723_dynamic_container_override_governance_smoke.sql` | critical_review | 1000 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness |
 | `201_sprint68_workspace_access_request_control_tools.sql` | critical_review | 903 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql` | critical_review | 902 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `194_sprint66_tenant_infrastructure_readiness_tools.sql` | critical_review | 900 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
@@ -115,7 +116,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `200_sprint66_tenant_ssh_cli_approval_request_tool.sql` | critical_review | 734 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `197_sprint66_tenant_database_query_readonly_tool.sql` | critical_review | 705 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 | `198_sprint66_tenant_ssh_probe_tool.sql` | critical_review | 705 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
-| `199_sprint66_tenant_ssh_cli_dry_run_tool.sql` | critical_review | 705 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview |
 
 
 ## Latest Surface Coverage
@@ -224,6 +224,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql`
 - `201_sprint68_workspace_access_request_control_tools.sql`
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql`
+- `20260723_dynamic_container_override_governance_smoke.sql`
 - `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
 - `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
 - `205_sprint66_tenant_ssh_password_and_intake_wait.sql`

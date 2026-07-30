@@ -4,18 +4,19 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 33
-- Triaged items: 33
-- Gate candidates: 14
+- Queue items: 35
+- Triaged items: 35
+- Gate candidates: 15
 - New-gap gate: fail
-- Blocking new items: 15
-- Docs completion: 97.97%
-- SQL route OpenAPI coverage: 93.75%
+- Blocking new items: 17
+- Docs completion: 97.98%
+- SQL route OpenAPI coverage: 93.94%
 
 ## Top immediate items
 
 - `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, confirm registry binding/readback evidence before promotion
 - `20260714_validate_hostinger_connection_and_complete_continuation_task.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260723_dynamic_container_override_governance_smoke.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, confirm registry binding/readback evidence before promotion
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, confirm registry binding/readback evidence before promotion
 - `962_sprint68_repository_advisory_comments_v5.sql` — high_review, add targeted patch-index, parity, and governance documentation

@@ -1,0 +1,7 @@
+# Canonical precise route contracts consumed by the governed OpenAPI maintenance sync.
+contracts:
+  POST /admin/container-authority/override-governance-smokes:
+    path_item_ref: './openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes'
+    owner: dynamic_container_authority
+    exposure: admin_tool
+    notes: Precise contract for the capability-envelope-gated transactional governance smoke. No target execution, provider call, credential payload read, rollout change, enforcement change, external write, or secret output.

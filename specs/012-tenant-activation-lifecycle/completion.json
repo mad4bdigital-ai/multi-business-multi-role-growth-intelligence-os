@@ -5,7 +5,7 @@
   "status": "in_progress",
   "delivery_mode": "multi_pr",
   "requirements": {
-    "migration": "to_be_determined_after_inventory",
+    "migration": true,
     "production_verification": true,
     "post_merge_audit": true,
     "protected_user_path_smoke": true,
@@ -16,9 +16,41 @@
       "number": 2984,
       "branch": "gpt/spec-012-tenant-activation-lifecycle-speckit-20260722",
       "role": "specification",
-      "status": "ready_for_review"
+      "status": "merged",
+      "merge_sha": "615f45c19b5877f9d584ce284505dea0e133d833"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 3036,
+        "role": "inventory_contract_and_persistence_mapping_baseline",
+        "status": "merged",
+        "merge_sha": "ed9e0cca5cecae8c3b96167879e67b33dbba2e98"
+      },
+      {
+        "number": 3085,
+        "role": "lifecycle_state_error_and_compatibility_contracts",
+        "status": "merged",
+        "merge_sha": "88f6dc18f30982caee59edf08cf15d1b7e249cb1"
+      },
+      {
+        "number": 3122,
+        "role": "activation_lifecycle_contract_finalization",
+        "status": "merged",
+        "merge_sha": "7a63044a79f91c2de440c413e772c6fa858bf2fb"
+      },
+      {
+        "number": 3296,
+        "role": "t028_stage_classification_and_reconnect_guidance_policy",
+        "status": "merged",
+        "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0"
+      },
+      {
+        "number": 3468,
+        "role": "t027_t029_lifecycle_operation_retry_and_reconciliation_service",
+        "status": "merged",
+        "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -50,20 +82,117 @@
       "open_questions": []
     },
     "implementation": {
-      "status": "not_started"
+      "status": "in_progress",
+      "completed_tasks": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T027",
+        "T028",
+        "T029",
+        "T076"
+      ],
+      "latest_completed_task": "T029",
+      "runtime_authority": false,
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T027/T029 are merged domain-service foundations only; public runtime wiring, migration application/readback, production deployment, and protected-user-path verification remain pending."
     },
     "ci": {
-      "status": "tracked_by_live_pr_gate",
-      "pull_request": 2984
+      "status": "pass_for_latest_slice",
+      "pull_request": 3468,
+      "head_sha": "919643b3f7dadc7652813706bc991763082ac5fb",
+      "ci_run_id": "30535150293",
+      "frontend_surface_dispatch_run_id": "30535150203",
+      "remaining_scope_scorecard_run_id": "30535150201",
+      "completion_cleanup_readback_run_id": "30535150227",
+      "docs_agent_run_id": "30535150269",
+      "context_kernel_report_run_id": "30535150249",
+      "automation_overlap_guard_run_id": "30535150244"
+    },
+    "t027_t029_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3468,
+      "validated_head_sha": "919643b3f7dadc7652813706bc991763082ac5fb",
+      "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052",
+      "main_readback_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052",
+      "state_machine": "http-generic-api/activationLifecycleStateMachine.js",
+      "operation_service": "http-generic-api/activationLifecycleOperationService.js",
+      "retry_reconciliation_policy": "http-generic-api/activationRetryReconciliationPolicy.js",
+      "regression_test": "http-generic-api/test-activation-lifecycle-operation-service.mjs",
+      "implementation_note": "implementation/pr-2b-lifecycle-operation-service.md",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "review_threads_resolved": true,
+      "transaction_bound_mutations": true,
+      "optimistic_version_enforced": true,
+      "retry_attempt_reserved_and_consumed_by_identity": true,
+      "blind_replay_allowed": false,
+      "reconcile_before_retry": true,
+      "same_operation_success_evidence_required": true,
+      "success_evidence_types": [
+        "activation_success_readback",
+        "execution_readback",
+        "provider_readback",
+        "reconciliation_readback"
+      ],
+      "runtime_wiring": false,
+      "database_migration": false,
+      "production_deployment": false,
+      "secrets_included": false
+    },
+    "t028_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3296,
+      "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0",
+      "main_readback_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0",
+      "policy_module": "http-generic-api/activationReconnectGuidancePolicy.js",
+      "regression_test": "http-generic-api/test-activation-reconnect-guidance-policy.mjs",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "review_threads_resolved": true,
+      "inherited_key_guard": "Object.hasOwn",
+      "runtime_wiring": false,
+      "database_migration": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "migration": {
-      "status": "pending_inventory"
+      "status": "required_pending_design_and_apply",
+      "source_tasks": [
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T024A",
+        "T024B",
+        "T026"
+      ],
+      "inventory_evidence": "implementation/pr-1-inventory.json#physical_mappings",
+      "data_model_evidence": "data-model.md#pr-1-physical-mapping-result"
     },
     "production_verification": {
       "status": "pending"
     },
     "post_merge_audit": {
-      "status": "pending"
+      "status": "pending_for_full_spec",
+      "completed_slices": [
+        "T027",
+        "T028",
+        "T029"
+      ]
     },
     "rollback_verification": {
       "status": "pending"

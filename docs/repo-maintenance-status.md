@@ -69,10 +69,16 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
 - `.github/workflows/pr-generated-artifact-refresh.yml`
 - `.github/workflows/pr-risk-labeler.yml`
+- `.github/workflows/production-promotion-candidate-contract.yml`
+- `.github/workflows/production-promotion-candidate.yml`
+- `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
+- `.github/workflows/surface-contract-classification-bootstrap.yml`
 - `.github/workflows/verify-runtime.yml`
+- `.github/workflows/workspace-lifecycle-final-sync.yml`
+- `.github/workflows/workspace-lifecycle-mutation-bootstrap.yml`
 
 ## Maintenance Scripts
 

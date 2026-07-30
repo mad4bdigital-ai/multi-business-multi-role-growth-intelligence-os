@@ -48,9 +48,9 @@
 - [ ] **T024B** `[ADR-005][ADR-006]` Implement versioned `deployment_evidence_exposure_policy` questionnaire adapter, immutable principal exposure ceilings, exact-version registry readback, and critical cache invalidation.
 - [ ] **T025** `[FR-037][concerns]` Implement operational attention projection rules.
 - [ ] **T026** `[migration]` Add governed additive migration and readback if inventory requires schema change.
-- [ ] **T027** `[domain]` Implement activation lifecycle state machine.
-- [ ] **T028** `[domain]` Implement stage classification and reconnect-guidance policy.
-- [ ] **T029** `[domain]` Implement retry, idempotency, and reconcile-before-retry policy.
+- [x] **T027** `[domain]` Implement activation lifecycle state machine. Evidence: merged `http-generic-api/activationLifecycleStateMachine.js` transition contract composed by `http-generic-api/activationLifecycleOperationService.js`; optimistic-version and transaction guards, monotonic stage-attempt transitions, exact same-operation success-readback enforcement, deterministic regression `http-generic-api/test-activation-lifecycle-operation-service.mjs`, green CI and companion workflows on PR #3468, squash merge `f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052`, and same-cycle `main` readback.
+- [x] **T028** `[domain]` Implement stage classification and reconnect-guidance policy. Evidence: `http-generic-api/activationReconnectGuidancePolicy.js`, deterministic contract and inherited-key regressions in `http-generic-api/test-activation-reconnect-guidance-policy.mjs`, explicit CI registration, green CI and Frontend surface dispatch on PR #3296, squash merge `3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0`, and same-cycle `main` readback.
+- [x] **T029** `[domain]` Implement retry, idempotency, and reconcile-before-retry policy. Evidence: `http-generic-api/activationRetryReconciliationPolicy.js` and `http-generic-api/activationLifecycleOperationService.js` reserve and consume the exact governed retry attempt, block blind replay from `unknown_outcome`, require reconciliation before retry, require persisted same-operation success-readback evidence for recovered success, and enforce optimistic-version conflict handling; deterministic regression and explicit CI registration passed on PR #3468, squash merge `f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052`, with same-cycle `main` readback.
 - [ ] **T029A** `[ADR-005]` Implement versioned questionnaire definitions, context-aware question selection, pinned answer sessions, and schema validation.
 - [ ] **T029B** `[ADR-005]` Implement deterministic policy compilation, immutable safety-bound validation, impact preview, risk classification, and approval resolution.
 - [ ] **T029C** `[ADR-005]` Implement governed policy proposal activation, exact-version SQL registry readback, cache invalidation, supersession, and rollback.
@@ -71,7 +71,7 @@
 - [ ] **T041** `[FR-016..018][OP-006..007]` Implement Managed default and Dedicated/mixed readiness classification.
 - [ ] **T042** `[FR-019][OP-006]` Enforce backend runtime bootstrap authority and remove deprecated Sheets path usage.
 - [ ] **T043** `[FR-020..021][OP-008]` Integrate provider-bootstrap stage and evidence classifications.
-- [ ] **T044** `[FR-022..024][OP-009]` Integrate tenant tool discovery and separate visibility/dependency/credential/execution readiness.
+- [ ] **T044** `[FR-022..024][OP-009..010]` Integrate tenant tool discovery and separate visibility/dependency/credential/execution readiness.
 - [ ] **T045** `[FR-023..025][OP-010]` Integrate registry-resolved dispatch preparation and sensitive-action block policy.
 - [ ] **T046** `[FR-038][OP-004..008]` Replace generic connection fallback with stage-specific remediation.
 
