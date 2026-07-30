@@ -20,6 +20,45 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Restore invalid status prevalidation contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/durableExecutionControlService.js')
+          source = path.read_text()
+          old = '''export async function transitionDurableExecution({
+            pool,
+            planId,
+            tenantId = null,
+            toStatus,
+            actorId = null,
+            reason = null,
+          }) {
+            return withTransaction(pool, async (connection) => {'''
+          new = '''export async function transitionDurableExecution({
+            pool,
+            planId,
+            tenantId = null,
+            toStatus,
+            actorId = null,
+            reason = null,
+          }) {
+            const requestedStatus = String(toStatus || "").trim();
+            if (!PLAN_TRANSITIONS.has(requestedStatus)) {
+              throw durableError(
+                `Unknown requested plan status '${requestedStatus || "(empty)"}'.`,
+                "invalid_status",
+                400,
+              );
+            }
+            toStatus = requestedStatus;
+            return withTransaction(pool, async (connection) => {'''
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one transition function insertion point, found {source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          PY
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -53,6 +92,9 @@ jobs:
       - name: Verify generated contracts
         working-directory: http-generic-api
         run: |
+          node --check durableExecutionControlService.js
+          node test-durable-execution-control-service.mjs
+          node test-routes.mjs
           node test-openapi-autofill-missing-routes.mjs
           node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
@@ -64,7 +106,7 @@ jobs:
       - name: Enforce bounded write set
         shell: bash
         run: |
-          allowed='^(http-generic-api/openapi.yaml|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml|http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|http-generic-api/openapi.gpt-action.local-connector.yaml)$'
+          allowed='^(http-generic-api/durableExecutionControlService.js|http-generic-api/openapi.yaml|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml|http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|http-generic-api/openapi.gpt-action.local-connector.yaml)$'
           bad="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | grep -Ev "$allowed" || true)"
           test -z "$bad" || { echo "Unexpected generated paths:"; echo "$bad"; exit 1; }
 
@@ -74,7 +116,8 @@ jobs:
           rm -f .github/workflows/spec-011-phase1-generated-refresh-once.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add http-generic-api/openapi.yaml \
+          git add http-generic-api/durableExecutionControlService.js \
+                  http-generic-api/openapi.yaml \
                   http-generic-api/frontend-operation-governance.generated.json \
                   http-generic-api/frontend-surface-dispatch.generated.json \
                   http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
@@ -85,5 +128,5 @@ jobs:
                   http-generic-api/openapi.gpt-action.local-connector.yaml \
                   .github/workflows/spec-011-phase1-generated-refresh-once.yml
           git diff --cached --quiet && exit 0
-          git commit -m "chore(ci): refresh phase1 generated artifacts"
+          git commit -m "fix(spec-011): preserve status validation and generated parity"
           git push origin HEAD:gpt/spec-011-phase1-durable-control-20260730
