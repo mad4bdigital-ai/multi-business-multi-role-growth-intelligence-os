@@ -63,12 +63,13 @@ function createFakeChunkPool() {
         return [[...(row ? [row] : [])]];
       }
       if (sql.includes("UPDATE governed_tool_response_chunks")) {
-        const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerPrincipalType, ownerPrincipalId] = params;
+        const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerWorkspaceId, ownerPrincipalType, ownerPrincipalId] = params;
         const row = rows.get(chunkId);
         if (!row) return [{ affectedRows: 0 }];
         const ownerMatches = Number(privileged || 0) === 1 || (
           row.owner_tenant_id === ownerTenantId
           && row.owner_user_id === ownerUserId
+          && row.owner_workspace_id === ownerWorkspaceId
           && row.owner_principal_type === ownerPrincipalType
           && row.owner_principal_id === ownerPrincipalId
         );
