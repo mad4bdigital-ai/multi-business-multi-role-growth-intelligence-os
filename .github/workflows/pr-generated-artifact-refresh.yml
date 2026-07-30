@@ -56,6 +56,107 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Apply exact-match policy reconciliation patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label} anchor count={count}, expected=1')
+              return text.replace(old, new, 1)
+
+          service_path = Path('http-generic-api/brandSkillActivationServiceV2.js')
+          test_path = Path('http-generic-api/test-brand-skill-activation.mjs')
+          service = service_path.read_text(encoding='utf-8')
+          test = test_path.read_text(encoding='utf-8')
+
+          helper_anchor = '''export function mergeOperationsUnderPolicy(existingOperations, requestedOperations, policyOperations) {
+            const existing = normalizedOperationList(existingOperations);
+            const requested = normalizeRequestedOperations(requestedOperations);
+            const policy = normalizedOperationList(policyOperations);
+            const policySet = new Set(policy);
+            const retained = policySet.has("*") ? existing : existing.filter((operation) => policySet.has(operation));
+            return normalizeRequestedOperations([...retained, ...requested]);
+          }
+          '''
+          helper_replacement = helper_anchor + '''
+          export function existingOperationsComplyWithPolicy(existingOperations, policyOperations) {
+            return operationsAllowed(normalizedOperationList(existingOperations), policyOperations);
+          }
+          '''
+          service = replace_once(service, helper_anchor, helper_replacement, 'helper')
+
+          fast_anchor = '''      const existingOperations = normalizedOperationList(existing.allowed_operations_json);
+                const operationsCovered = operationsAllowed(operations, existingOperations);
+                const ttlCompliant = expiryCompliesWithTtl(existing.expires_at, ttlHours);
+                const policyCurrent = existing.policy_id === policy.policy_id;
+
+                if (operationsCovered && ttlCompliant && policyCurrent) {
+          '''
+          fast_replacement = '''      const existingOperations = normalizedOperationList(existing.allowed_operations_json);
+                const operationsCovered = operationsAllowed(operations, existingOperations);
+                const existingOperationsPolicyCompliant = existingOperationsComplyWithPolicy(
+                  existingOperations,
+                  policy.allowed_operations_json,
+                );
+                const ttlCompliant = expiryCompliesWithTtl(existing.expires_at, ttlHours);
+                const policyCurrent = existing.policy_id === policy.policy_id;
+
+                if (operationsCovered && existingOperationsPolicyCompliant && ttlCompliant && policyCurrent) {
+          '''
+          service = replace_once(service, fast_anchor, fast_replacement, 'fast-path')
+
+          testing_anchor = '''  validatePolicy,
+            mergeOperationsUnderPolicy,
+            expiryCompliesWithTtl,
+          '''
+          testing_replacement = '''  validatePolicy,
+            mergeOperationsUnderPolicy,
+            existingOperationsComplyWithPolicy,
+            expiryCompliesWithTtl,
+          '''
+          service = replace_once(service, testing_anchor, testing_replacement, 'testing-export')
+
+          import_anchor = '''  _testingBrandSkillActivationService,
+            mergeOperationsUnderPolicy,
+            normalizeRequestedOperations,
+          '''
+          import_replacement = '''  _testingBrandSkillActivationService,
+            existingOperationsComplyWithPolicy,
+            mergeOperationsUnderPolicy,
+            normalizeRequestedOperations,
+          '''
+          test = replace_once(test, import_anchor, import_replacement, 'test-import')
+
+          assertion_anchor = '''assert.equal(operationsAllowed(["delete"], ["*"]), true);
+          '''
+          assertion_replacement = assertion_anchor + '''assert.equal(existingOperationsComplyWithPolicy(["publish"], ["publish"]), true);
+          assert.equal(existingOperationsComplyWithPolicy(["publish", "delete"], ["publish"]), false);
+          '''
+          test = replace_once(test, assertion_anchor, assertion_replacement, 'test-assertion')
+
+          service_path.write_text(service, encoding='utf-8')
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Verify policy reconciliation patch
+        working-directory: http-generic-api
+        run: |
+          node --check brandSkillActivationServiceV2.js
+          node --check test-brand-skill-activation.mjs
+          node test-brand-skill-activation.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on-new
+
+      - name: Restore one-shot workflow files
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          git checkout origin/main -- .github/workflows/pr-generated-artifact-refresh.yml
+          rm -f .github/workflows/pr3319-policy-reconciliation-patch.yml
+
       - name: Generate bounded artifacts
         working-directory: http-generic-api
         run: |
@@ -78,13 +179,17 @@ jobs:
         run: |
           mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
           if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "Generated artifacts are already current."
+            echo "Generated artifacts and policy reconciliation are already current."
             exit 0
           fi
 
           UNEXPECTED=""
           for file in "${CHANGED[@]}"; do
             case "$file" in
+              .github/workflows/pr-generated-artifact-refresh.yml|\
+              .github/workflows/pr3319-policy-reconciliation-patch.yml|\
+              http-generic-api/brandSkillActivationServiceV2.js|\
+              http-generic-api/test-brand-skill-activation.mjs|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
@@ -101,24 +206,25 @@ jobs:
           done
 
           if [[ -n "$UNEXPECTED" ]]; then
-            echo "::error::Generator changed files outside the bounded artifact set"
+            echo "::error::One-shot patch changed files outside the bounded set"
             printf '%s' "$UNEXPECTED"
             exit 1
           fi
 
-      - name: Commit generated artifacts
+      - name: Commit reconciled source and generated artifacts
         shell: bash
         env:
           TARGET_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
           if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "No generated artifact commit is required."
+            echo "No reconciliation commit is required."
             exit 0
           fi
 
+          git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${CHANGED[@]}"
-          git commit -m "chore(ci): refresh generated contract artifacts"
+          git add -A
+          git commit -m "fix: reconcile narrowed operations before idempotent return"
           git push origin "HEAD:${TARGET_REF}"
