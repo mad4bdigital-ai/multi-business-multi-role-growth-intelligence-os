@@ -45,32 +45,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Apply bounded bootstrap evidence repair
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          target = Path("http-generic-api/scripts/frontend-operation-governance-generator.mjs")
-          source = target.read_text(encoding="utf-8")
-          escape = chr(92) * 2
-          replacements = {
-              'const connectionMutation = "INSERT INTO `tenant_backend_connections`";':
-                  f'const connectionMutation = "INSERT INTO {escape}`tenant_backend_connections{escape}`";',
-              'transactionBlock.includes("INSERT INTO `tenants`") && transactionBlock.includes("INSERT INTO `memberships`")':
-                  f'transactionBlock.includes("INSERT INTO {escape}`tenants{escape}`") && transactionBlock.includes("INSERT INTO {escape}`memberships{escape}`")',
-          }
-          for old, new in replacements.items():
-              count = source.count(old)
-              if count != 1:
-                  raise SystemExit(f"Expected one occurrence for bounded replacement, found {count}: {old}")
-              source = source.replace(old, new)
-          expected = f'const connectionMutation = "INSERT INTO {escape}`tenant_backend_connections{escape}`";'
-          if expected not in source:
-              raise SystemExit("Bounded bootstrap evidence repair did not preserve two literal backslashes")
-          target.write_text(source, encoding="utf-8")
-          PY
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -111,7 +85,6 @@ jobs:
           UNEXPECTED=""
           for file in "${CHANGED[@]}"; do
             case "$file" in
-              http-generic-api/scripts/frontend-operation-governance-generator.mjs|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
@@ -133,19 +106,19 @@ jobs:
             exit 1
           fi
 
-      - name: Commit bounded repair and generated artifacts
+      - name: Commit generated artifacts
         shell: bash
         env:
           TARGET_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
           if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "No bounded repair or generated artifact commit is required."
+            echo "No generated artifact commit is required."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${CHANGED[@]}"
-          git commit -m "fix(governance): align bootstrap evidence and refresh artifacts"
+          git commit -m "chore(ci): refresh generated contract artifacts"
           git push origin "HEAD:${TARGET_REF}"
