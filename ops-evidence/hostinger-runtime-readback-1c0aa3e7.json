@@ -1,0 +1,202 @@
+{
+  "schema_version": "hostinger_runtime_readback.v1",
+  "checked_at": "2026-07-30T13:15:59Z",
+  "expected_production_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+  "health_ok": true,
+  "version_ok": true,
+  "deployment_info_ok": true,
+  "deployed_sha_matches_expected": true,
+  "branch_authority_ok": true,
+  "ok": true,
+  "endpoints": {
+    "health": {
+      "status": "200",
+      "body": {
+        "ok": true,
+        "service": "http_generic_api_connector",
+        "status": "healthy",
+        "version": "2.6.0-governed-context-resolution",
+        "jobs": {
+          "total": 0,
+          "queued_buffer_size": 0,
+          "statuses": {
+            "queued": 0,
+            "running": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "retrying": 0,
+            "cancelled": 0
+          }
+        },
+        "dependencies": {
+          "redis": {
+            "url_configured": true,
+            "url_redacted": "<redacted>",
+            "status": "ready",
+            "connected": true
+          },
+          "queue": {
+            "connected": true
+          },
+          "worker": {
+            "enabled": true
+          },
+          "sql_cache": {
+            "enabled": true,
+            "available": true,
+            "redis_enabled": true,
+            "redis_url_configured": true,
+            "queue_worker_enabled": true,
+            "registry_ttl_seconds": 60,
+            "tool_ttl_seconds": 30,
+            "connector_ttl_seconds": 30,
+            "single_flight_enabled": true,
+            "circuit_open": false,
+            "circuit_retry_after_ms": 0,
+            "last_error_code": "",
+            "in_flight_count": 0,
+            "oversize_cooldown_count": 0,
+            "counters": {
+              "hits": 6,
+              "misses": 6,
+              "stores": 6,
+              "oversize_skips": 0,
+              "unavailable_skips": 0,
+              "circuit_open_skips": 0,
+              "errors": 0,
+              "bypasses": 8,
+              "single_flight_joins": 0
+            },
+            "policy": {
+              "key_version": "v2",
+              "max_value_bytes": 1048576,
+              "oversize_cooldown_seconds": 300,
+              "configured_allowlist_count": 0,
+              "configured_blocklist_count": 1,
+              "table_policy_count": 0,
+              "table_policy_source_valid": true,
+              "table_policy_error_code": "",
+              "security_denylist_count": 6,
+              "runtime": {
+                "policy_key": "sql_cache_policy_v2",
+                "revision": 1,
+                "enabled": true,
+                "key_version": "v2",
+                "max_value_bytes": 1048576,
+                "oversize_cooldown_seconds": 300,
+                "circuit_breaker_seconds": 15,
+                "single_flight_enabled": true,
+                "table_allowlist": "",
+                "table_blocklist": "endpoints",
+                "table_policies": {},
+                "source": "mysql_primary",
+                "stale": false,
+                "loaded_at": "2026-07-30T13:12:43.908Z",
+                "updated_at": "2026-06-29T07:34:02.000Z",
+                "updated_by": "1023_sprint69_sql_cache_runtime_policy",
+                "secrets_included": false,
+                "refresh_seconds": 15,
+                "refresh_in_flight": true,
+                "last_attempt_at": "2026-07-30T13:16:00.100Z",
+                "last_success_at": "2026-07-30T13:12:43.908Z",
+                "last_error_code": ""
+              }
+            }
+          },
+          "db": {
+            "connected": true
+          }
+        },
+        "timestamp": "2026-07-30T13:16:00.106Z"
+      },
+      "error": ""
+    },
+    "version": {
+      "status": "200",
+      "body": {
+        "ok": true,
+        "service": "http_generic_api_connector",
+        "version": "2.6.0-governed-context-resolution",
+        "deployment": {
+          "deployment_status": "deployment_commit_uncompared",
+          "expected_commit_sha": null,
+          "deployed_commit_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+          "manifest": {
+            "source": "/home/u338416126/domains/auth.mad4b.com/.builds/versions/019fb319-e3f0-72d9-89bc-2e492d95799a/nodejs/http-generic-api/deployment-manifest.json",
+            "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+            "branch": "Production",
+            "branch_source": "env:ACTIVATION_GITHUB_BRANCH",
+            "commit_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+            "commit_source": "git",
+            "deployed_at": "2026-07-30T12:58:42.548Z",
+            "service_version": "2.7.0-wordpress-dry-run-preflight",
+            "build_source": "git"
+          },
+          "error": null
+        },
+        "timestamp": "2026-07-30T13:16:01.154Z"
+      },
+      "error": ""
+    },
+    "deployment_info": {
+      "status": "200",
+      "body": {
+        "ok": true,
+        "service": "growth-intelligence-platform",
+        "hostname": "auth.mad4b.com",
+        "branch": "Production",
+        "branch_source": "/home/u338416126/domains/auth.mad4b.com/.builds/versions/019fb319-e3f0-72d9-89bc-2e492d95799a/nodejs/http-generic-api/deployment-manifest.json",
+        "commit": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+        "commit_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+        "commit_source": "/home/u338416126/domains/auth.mad4b.com/.builds/versions/019fb319-e3f0-72d9-89bc-2e492d95799a/nodejs/http-generic-api/deployment-manifest.json",
+        "deployed_at": "2026-07-30T12:58:42.548Z",
+        "deployed_at_source": "/home/u338416126/domains/auth.mad4b.com/.builds/versions/019fb319-e3f0-72d9-89bc-2e492d95799a/nodejs/http-generic-api/deployment-manifest.json.deployed_at",
+        "deployment": {
+          "source": "/home/u338416126/domains/auth.mad4b.com/.builds/versions/019fb319-e3f0-72d9-89bc-2e492d95799a/nodejs/http-generic-api/deployment-manifest.json",
+          "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+          "branch": "Production",
+          "branch_source": "env:ACTIVATION_GITHUB_BRANCH",
+          "commit_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+          "commit_source": "git",
+          "deployed_at": "2026-07-30T12:58:42.548Z",
+          "service_version": "2.7.0-wordpress-dry-run-preflight",
+          "build_source": "git",
+          "present": true,
+          "source_file_detected": true,
+          "source_mtime": null
+        },
+        "git": {
+          "branch": null,
+          "ref": null,
+          "source": "git_head_detached",
+          "detected": true,
+          "head_mtime": "2026-07-30T12:57:47.413Z",
+          "ref_mtime": null
+        },
+        "evidence": {
+          "commit_sha_available": true,
+          "branch_available": true,
+          "deployed_at_available": true,
+          "git_detected": true,
+          "manifest_detected": true,
+          "canonical_manifest_detected": true,
+          "legacy_deployment_commit_detected": false,
+          "manifest_error": null,
+          "secrets_included": false
+        },
+        "app_env": "production",
+        "expected_dev_branch": "main",
+        "is_dev_hostname": false,
+        "generated_at": "2026-07-30T13:16:02.120Z"
+      },
+      "error": ""
+    }
+  },
+  "production_merge_sha": "1c0aa3e7d0be230b30aece39bcae4cb0d1bc0041",
+  "validated_candidate_sha": "6278a87701f62b152cf4c6ed7bd22d271bbe032c",
+  "deployment_executed_by_this_workflow": false,
+  "migration_executed": false,
+  "provider_write_executed": false,
+  "credential_payload_read": false,
+  "secrets_included": false
+}
