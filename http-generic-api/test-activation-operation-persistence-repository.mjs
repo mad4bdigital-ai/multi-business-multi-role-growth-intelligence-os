@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   ACTIVATION_SAFE_EVIDENCE_REDACTION_STATES,
   ACTIVATION_STAGE_ATTEMPT_TRANSITIONS,
+  appendActivationStageAttemptRecord,
   createActivationOperationPersistenceRepository,
   hasScopedActivationEvidenceItem,
   nextActivationReconciliationAttemptNumber,
@@ -29,6 +30,25 @@ assert.deepEqual([...ACTIVATION_SAFE_EVIDENCE_REDACTION_STATES].sort(), [
 assert.deepEqual(ACTIVATION_STAGE_ATTEMPT_TRANSITIONS.pending, ["running", "cancelled"]);
 assert(ACTIVATION_STAGE_ATTEMPT_TRANSITIONS.running.includes("unknown_outcome"));
 assert.equal(Object.isFrozen(ACTIVATION_STAGE_ATTEMPT_TRANSITIONS), true);
+
+const appendCalls = [];
+const appendPool = {
+  async query(sql, params) {
+    appendCalls.push({ sql, params });
+    return [{ affectedRows: 1 }];
+  },
+};
+const appended = await appendActivationStageAttemptRecord(appendPool, {
+  attempt_id: attemptId,
+  operation_id: operationId,
+  tenant_id: tenantId,
+  stage_key: "provider_bootstrap",
+  attempt_number: 1,
+  source_type: "platform_native",
+});
+assert.equal(appended.attempt_id, attemptId);
+assert.match(appendCalls[0].sql, /INSERT INTO activation_stage_attempts/);
+assert.equal(appendCalls[0].params[6], "pending");
 
 const numberCalls = [];
 const numberPool = {
@@ -252,7 +272,7 @@ assert.deepEqual(
     tenant_id: tenantId,
     from_status: "running",
     to_status: "unknown_outcome",
-    retryable: false,
+    retryable: true,
     error_code: "provider_timeout",
     error_message: "provider outcome is unknown",
     evidence_ref: `evidence:${evidenceId}`,
@@ -264,8 +284,27 @@ assert.match(transitionCalls[0].sql, /attempt_id = \?/);
 assert.match(transitionCalls[0].sql, /operation_id = \?/);
 assert.match(transitionCalls[0].sql, /tenant_id = \?/);
 assert.equal(transitionCalls[0].params[0], "unknown_outcome");
+assert.equal(transitionCalls[0].params[1], 0);
 assert.equal(transitionCalls[0].params[2], 1);
 assert.equal(transitionCalls[0].params[6], 1);
+
+await transitionActivationStageAttempt(transitionPool, {
+  attempt_id: attemptId,
+  operation_id: operationId,
+  tenant_id: tenantId,
+  from_status: "running",
+  to_status: "succeeded",
+  retryable: true,
+  unknown_outcome: true,
+  error_code: "must_be_cleared",
+  error_message: "must be cleared",
+});
+assert.equal(transitionCalls[1].params[0], "succeeded");
+assert.equal(transitionCalls[1].params[1], 0);
+assert.equal(transitionCalls[1].params[2], 0);
+assert.equal(transitionCalls[1].params[3], null);
+assert.equal(transitionCalls[1].params[4], null);
+
 await assert.rejects(
   () =>
     transitionActivationStageAttempt(transitionPool, {
