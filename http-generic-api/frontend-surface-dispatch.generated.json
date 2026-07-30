@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ef62c5d051107a8242c59ccfd2de55ba2d934dab5588198c4d7f03e10e9bde8d",
+    "source_digest": "3474274ab03fbb68175da7b2efb4b87f9a8b1b0cfa6df40928a79ef0073f9cad",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -66,7 +66,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "b851e1d5d8f855cfb2055c3525fbfe8359c483bed916916f87f9f517d2f7eae5",
+        "sha256": "9502464445198b5d63ab5baf7460694d3b6437fdfbf3c9ae18e348ba7650f6e4",
         "present": true
       },
       {
@@ -631,7 +631,7 @@
       },
       {
         "file": "routes/plannerRoutes.js",
-        "sha256": "43a0265eec0bc0b2fe5391706283f13fa06fece9f1e997f4e3d0e21f6395161e",
+        "sha256": "89d75d8ea2184f224932d7edcdb74021a98ad8eeb706ec9d22d5a1fa261afe5c",
         "present": true
       },
       {
@@ -1159,21 +1159,21 @@
     "mounted_family_count": 167,
     "mounted_route_file_count": 134,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1002,
-    "openapi_documented_count": 986,
+    "operation_count": 1005,
+    "openapi_documented_count": 989,
     "openapi_canonical_documented_count": 612,
-    "openapi_generated_index_count": 374,
+    "openapi_generated_index_count": 377,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 374,
+    "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
-      "equivalent": 986,
+      "equivalent": 989,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 609,
-    "unresolved_operation_class_count": 549,
+    "non_get_candidate_count": 610,
+    "unresolved_operation_class_count": 550,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
@@ -1181,7 +1181,7 @@
     "test_owned_family_count": 6,
     "untested_family_count": 161,
     "test_owned_operation_count": 57,
-    "untested_operation_count": 945,
+    "untested_operation_count": 948,
     "ready_task_count": 3,
     "blocked_task_count": 164,
     "coverage_complete": false
@@ -60878,7 +60878,7 @@
       "family_key": "planner",
       "label": "planner",
       "source_file": "routes/plannerRoutes.js",
-      "source_digest": "43a0265eec0bc0b2fe5391706283f13fa06fece9f1e997f4e3d0e21f6395161e",
+      "source_digest": "89d75d8ea2184f224932d7edcdb74021a98ad8eeb706ec9d22d5a1fa261afe5c",
       "mount_prefix": "/",
       "mount_order": 19855,
       "split_from_mixed_scope_file": false,
@@ -61507,6 +61507,209 @@
           "mutation": false
         },
         {
+          "method": "GET",
+          "path": "/planner/plans/{id}/status",
+          "signature": "GET /planner/plans/{id}/status",
+          "source_file": "routes/plannerRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/planner/plans/{id}/explain",
+          "signature": "GET /planner/plans/{id}/explain",
+          "source_file": "routes/plannerRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/planner/plans/{id}/cancel",
+          "signature": "POST /planner/plans/{id}/cancel",
+          "source_file": "routes/plannerRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
           "method": "POST",
           "path": "/planner/plans/{id}/resume",
           "signature": "POST /planner/plans/{id}/resume",
@@ -61653,12 +61856,16 @@
         "POST /planner/plans/{id}/tick",
         "POST /planner/plans/{id}/run",
         "POST /planner/plans/{id}/enqueue",
+        "GET /planner/plans/{id}/status",
+        "GET /planner/plans/{id}/explain",
+        "POST /planner/plans/{id}/cancel",
         "POST /planner/plans/{id}/resume",
         "GET /planner/plans/{id}/timeline"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [
-        "PATCH /planner/plans/{id}/status"
+        "PATCH /planner/plans/{id}/status",
+        "GET /planner/plans/{id}/status"
       ],
       "tests": [],
       "untested_operations": [
@@ -61671,6 +61878,9 @@
         "POST /planner/plans/{id}/tick",
         "POST /planner/plans/{id}/run",
         "POST /planner/plans/{id}/enqueue",
+        "GET /planner/plans/{id}/status",
+        "GET /planner/plans/{id}/explain",
+        "POST /planner/plans/{id}/cancel",
         "POST /planner/plans/{id}/resume",
         "GET /planner/plans/{id}/timeline"
       ],
@@ -61742,6 +61952,12 @@
         },
         {
           "signature": "POST /planner/plans/{id}/enqueue",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /planner/plans/{id}/cancel",
           "blockers": [
             "operation_classification_gap"
           ]
