@@ -1,0 +1,94 @@
+name: Spec011 Current Main Reconcile
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-current-main-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.number == 2878 && github.event.pull_request.head.ref == 'gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Spec 011 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge pinned main and resolve bounded conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA='0b77554d8ae12d9c502ccf0ea7f09f260ca8e5b6'
+          ROUTES='http-generic-api/routes/index.js'
+          ARTIFACT='http-generic-api/frontend-surface-dispatch.generated.json'
+          WORKFLOW='.github/workflows/spec011-current-main-reconcile.yml'
+
+          git fetch origin "$MAIN_SHA"
+          set +e
+          git merge --no-ff --no-commit "$MAIN_SHA"
+          merge_status=$?
+          set -e
+
+          conflicts="$(git diff --name-only --diff-filter=U | sort)"
+          expected="$(printf '%s\n%s\n' "$ARTIFACT" "$ROUTES" | sort)"
+          if [[ "$conflicts" != "$expected" ]]; then
+            echo "::error::unexpected conflict set"
+            printf 'expected:\n%s\nactual:\n%s\n' "$expected" "$conflicts"
+            git merge --abort || true
+            exit 1
+          fi
+
+          git checkout --ours "$ROUTES"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/routes/index.js')
+          source = path.read_text(encoding='utf-8')
+          import_line = 'import { buildDynamicContainerOverrideGovernanceSmokeRoutes } from "./dynamicContainerOverrideGovernanceSmokeRoutes.js";'
+          anchor_import = 'import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";'
+          mount_line = '  app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));'
+          anchor_mount = '  app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));'
+
+          if import_line not in source:
+              if anchor_import not in source:
+                  raise SystemExit('dynamic container authority import anchor missing')
+              source = source.replace(anchor_import, anchor_import + '\n' + import_line, 1)
+          if mount_line not in source:
+              if anchor_mount not in source:
+                  raise SystemExit('dynamic container authority mount anchor missing')
+              source = source.replace(anchor_mount, anchor_mount + '\n' + mount_line, 1)
+          path.write_text(source, encoding='utf-8')
+          PY
+
+          git checkout --theirs "$ARTIFACT"
+          git add "$ROUTES" "$ARTIFACT"
+          rm -f "$WORKFLOW"
+          git add -A
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "::error::unresolved merge conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          node --check "$ROUTES"
+          grep -F 'buildDynamicGrowthControlPlaneRoutes' "$ROUTES" >/dev/null
+          grep -F 'buildActivityBindingLifecycleRoutes' "$ROUTES" >/dev/null
+          grep -F 'buildTenantGrowthControlPlaneRoutes' "$ROUTES" >/dev/null
+          grep -F 'buildDynamicContainerOverrideGovernanceSmokeRoutes' "$ROUTES" >/dev/null
+          git diff --cached --check
+
+          git config user.name 'mad4b-spec011-reconcile'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'chore: reconcile Spec 011 branch with current main'
+          git push origin HEAD:gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720
