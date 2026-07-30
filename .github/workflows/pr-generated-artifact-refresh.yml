@@ -1,4 +1,5 @@
 # Trigger bounded generated-artifact reconciliation for Brand Skills.
+# Reconcile merged main source digests for PR #3694.
 name: PR Generated Artifact Refresh
 
 on:
