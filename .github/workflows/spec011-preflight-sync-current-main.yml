@@ -1,0 +1,45 @@
+name: Spec 011 Preflight Sync Current Main
+
+on:
+  push:
+    branches:
+      - gpt/spec011-ephemeral-checkout-preflight-current-main-20260730
+    paths:
+      - .github/spec011-preflight-sync-current-main-trigger.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-preflight-sync-current-main
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/spec011-ephemeral-checkout-preflight-current-main-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge latest main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-ff origin/main -m "chore(spec-011): merge current main into preflight branch"
+
+      - name: Remove one-shot sync channel and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/spec011-preflight-sync-current-main.yml
+          rm .github/spec011-preflight-sync-current-main-trigger.json
+          git add -A
+          git commit -m "chore(spec-011): remove one-shot current-main sync channel"
+          git push origin HEAD:gpt/spec011-ephemeral-checkout-preflight-current-main-20260730
