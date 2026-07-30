@@ -1,0 +1,182 @@
+name: Exact Production Candidate Validation
+
+on:
+  pull_request:
+    branches:
+      - "gpt/validate-production-base"
+      - "gpt/validate-production-base-*"
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: exact-production-candidate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-candidate-ci:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/validate-production-candidate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify pinned base and exact candidate tree
+        id: verify
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          for value in "$HEAD_SHA" "$BASE_SHA"; do
+            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::validation refs must resolve to exact lowercase 40-character SHAs"
+              exit 1
+            fi
+          done
+          case "$BASE_REF" in
+            gpt/validate-production-base|gpt/validate-production-base-*) ;;
+            *)
+              echo "::error::unexpected validation base branch: $BASE_REF"
+              exit 1
+              ;;
+          esac
+
+          git fetch --no-tags origin \
+            "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
+            "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          HEAD_READBACK="$(git rev-parse "refs/remotes/origin/$HEAD_REF")"
+          BASE_READBACK="$(git rev-parse "refs/remotes/origin/$BASE_REF")"
+          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
+            echo "::error::validation branches moved before exact-CI dispatch"
+            exit 1
+          fi
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA"; then
+            echo "::error::candidate tree differs from pinned validation base"
+            git diff --stat "$BASE_SHA" "$HEAD_SHA"
+            exit 1
+          fi
+
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Full CI on exact candidate branch
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
+          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run ci.yml --ref "$HEAD_REF"
+
+          RUN_ID=""
+          for attempt in $(seq 1 30); do
+            RUN_ID="$(gh run list \
+              --workflow ci.yml \
+              --branch "$HEAD_REF" \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,headSha,createdAt \
+              --jq "map(select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
+            if [[ -n "$RUN_ID" ]]; then break; fi
+            sleep 2
+          done
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::error::unable to resolve exact-candidate CI run"
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          gh run watch "$RUN_ID" --exit-status --interval 10
+
+      - name: Verify exact CI result and branch freshness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
+          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
+          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
+          BASE_REF: ${{ steps.verify.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+          gh run view "$RUN_ID" --json databaseId,event,headSha,status,conclusion,jobs > "$RUNNER_TEMP/exact-ci-run.json"
+          node - "$RUNNER_TEMP/exact-ci-run.json" "$HEAD_SHA" <<'NODE'
+          const fs = require("node:fs");
+          const [file, expectedSha] = process.argv.slice(2);
+          const run = JSON.parse(fs.readFileSync(file, "utf8"));
+          if (run.event !== "workflow_dispatch") throw new Error(`unexpected event: ${run.event}`);
+          if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
+          if (run.status !== "completed" || run.conclusion !== "success") {
+            throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
+          }
+          const required = new Set([
+            "Syntax Check",
+            "Unit & Integration Tests",
+            "Execution Resolver Gate",
+            "Architecture Drift Detection",
+          ]);
+          for (const job of run.jobs || []) {
+            if (job.conclusion === "success") required.delete(job.name);
+          }
+          if (required.size) throw new Error(`missing successful jobs: ${[...required].join(", ")}`);
+          NODE
+
+          HEAD_READBACK="$(git ls-remote --heads origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
+          BASE_READBACK="$(git ls-remote --heads origin "refs/heads/$BASE_REF" | awk '{print $1}')"
+          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
+            echo "::error::validation branches moved during exact-CI execution"
+            exit 1
+          fi
+
+          jq -n \
+            --arg head_sha "$HEAD_SHA" \
+            --arg base_sha "$BASE_SHA" \
+            --arg head_ref "$HEAD_REF" \
+            --arg base_ref "$BASE_REF" \
+            --arg run_id "$RUN_ID" \
+            '{
+              schema_version: "production_promotion_exact_candidate_ci.v1",
+              ok: true,
+              candidate_sha: $head_sha,
+              validation_base_sha: $base_sha,
+              candidate_branch: $head_ref,
+              validation_base_branch: $base_ref,
+              ci_run_id: $run_id,
+              candidate_tree_matches_base: true,
+              branch_freshness_preserved: true,
+              merge_executed: false,
+              deployment_executed: false,
+              migration_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/production-promotion-exact-candidate-ci.json"
+          test -s "$RUNNER_TEMP/production-promotion-exact-candidate-ci.json"
+
+      - name: Upload exact-candidate CI evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-promotion-exact-candidate-ci-${{ steps.verify.outputs.head_sha }}
+          path: |
+            ${{ runner.temp }}/production-promotion-exact-candidate-ci.json
+            ${{ runner.temp }}/exact-ci-run.json
+          if-no-files-found: error
+          retention-days: 30
