@@ -80,7 +80,7 @@ jobs:
           const SOURCE_MERGE_SHA = 'ae93d1557bf259a1272333951f27852c271aa4ab';
           const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
           const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
-          const APPROVAL_TOOL = 'capability_resolution_envelope_approve';
+          const APPROVAL_ALIAS = 'capability_resolution_envelope_approve';
 
           assert.equal(BASE, 'https://auth.mad4b.com');
           assert.ok(KEY, 'BACKEND_API_KEY is required');
@@ -140,87 +140,6 @@ jobs:
             return payload;
           }
 
-          async function requestGet(pathname) {
-            const response = await fetch(`${BASE}${pathname}`, {
-              method: 'GET',
-              redirect: 'error',
-              headers: {
-                Authorization: `Bearer ${KEY}`,
-                Accept: 'application/json',
-              },
-              signal: AbortSignal.timeout(180000),
-            });
-            const text = await response.text();
-            let payload;
-            try { payload = text ? JSON.parse(text) : null; }
-            catch { payload = { raw_preview: text.slice(0, 500) }; }
-            if (!response.ok || payload?.ok === false) {
-              console.log(JSON.stringify(sanitize({ status: response.status, http_ok: response.ok, payload }), null, 2));
-              const error = new Error(`Governed runtime GET failed for ${pathname} with HTTP ${response.status}`);
-              error.code = payload?.error?.code || 'governed_runtime_get_failed';
-              throw error;
-            }
-            console.log(JSON.stringify({
-              status: response.status,
-              http_ok: true,
-              catalog_count: Number(payload?.count || 0),
-              returned_count: Number(payload?.returned_count || 0),
-              page: payload?.page || null,
-              secrets_included: false,
-            }, null, 2));
-            return payload;
-          }
-
-          async function resolveAdminTool(toolName) {
-            let cursor = null;
-            for (let pageIndex = 0; pageIndex < 10; pageIndex += 1) {
-              const params = new URLSearchParams({ limit: '200' });
-              if (cursor) params.set('cursor', cursor);
-              const catalog = await requestGet(`/gpt/tools?${params.toString()}`);
-              const tools = Array.isArray(catalog?.tools) ? catalog.tools : [];
-              const match = tools.find((tool) => String(tool?.name || tool?.tool_key || '') === toolName);
-              if (match) return match;
-              cursor = catalog?.page?.next_cursor || catalog?.next_cursor || null;
-              if (!cursor) break;
-            }
-            throw new Error(`Admin tool catalog does not expose ${toolName}`);
-          }
-
-          function buildApprovalToolArgs(tool, envelopeId) {
-            const schema = parsedValue(tool?.inputSchema ?? tool?.input_schema ?? tool?.schema) || {};
-            const properties = schema?.properties && typeof schema.properties === 'object' ? schema.properties : {};
-            const required = new Set(Array.isArray(schema?.required) ? schema.required : []);
-            const note = 'Approve the no-SQL authorization-bootstrap envelope for the reviewed Spec 011 ephemeral checkout migration.';
-            const known = {
-              envelope_id: envelopeId,
-              approved_by: 'github_actions',
-              authorized_by: 'github_actions',
-              approver: 'github_actions',
-              decision: 'approve',
-              approval_decision: 'approve',
-              decision_note: note,
-              approval_note: note,
-              reason: note,
-              ttl_minutes: 30,
-            };
-            const args = {};
-            for (const [key, descriptor] of Object.entries(properties)) {
-              if (descriptor && Object.prototype.hasOwnProperty.call(descriptor, 'const')) {
-                args[key] = descriptor.const;
-              } else if (Object.prototype.hasOwnProperty.call(known, key)) {
-                args[key] = known[key];
-              } else if (required.has(key) && Array.isArray(descriptor?.enum)) {
-                const preferred = descriptor.enum.find((value) => ['approve', 'approved'].includes(String(value).toLowerCase()));
-                if (preferred !== undefined) args[key] = preferred;
-              }
-            }
-            for (const key of required) {
-              assert.ok(Object.prototype.hasOwnProperty.call(args, key), `Unsupported required approval-tool field: ${key}`);
-            }
-            assert.equal(args.envelope_id, envelopeId, 'Approval tool schema must bind envelope_id');
-            return args;
-          }
-
           const envelopeCreate = await request('/admin/control', {
             tool: 'shell',
             action: 'run',
@@ -251,22 +170,29 @@ jobs:
           assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
 
           if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
-            const approvalTool = await resolveAdminTool(APPROVAL_TOOL);
-            const approvalArgs = buildApprovalToolArgs(approvalTool, envelope.envelope_id);
-            const approval = await request('/gpt/tools/call', {
-              name: APPROVAL_TOOL,
-              tool_args: approvalArgs,
+            const approvalNote = 'Approve the no-SQL authorization-bootstrap envelope for the reviewed Spec 011 ephemeral checkout migration.';
+            const approval = await request('/admin/control', {
+              tool: 'shell',
+              action: 'run',
+              alias: APPROVAL_ALIAS,
+              authority_context: {
+                resource_type: 'shell_alias',
+                resource_uri: `shell://${APPROVAL_ALIAS}`,
+                operation_mode: APPROVAL_ALIAS,
+                required: true,
+              },
+              extra_args: [
+                `--envelope-id=${envelope.envelope_id}`,
+                '--approved-by=github_actions',
+                `--decision-note=${approvalNote}`,
+                '--ttl-minutes=30',
+              ],
             });
             const approvedEnvelope = findObjectWithKey(approval, 'envelope_id');
             assert.equal(approvedEnvelope?.envelope_id, envelope.envelope_id, 'Approval readback envelope mismatch');
+            assert.equal(approvedEnvelope?.envelope_status, 'ready_for_dispatch', 'Authorization envelope must become ready_for_dispatch');
             assert.notEqual(approvedEnvelope?.apply_allowed, true, 'Authorization-only approval must not grant migration apply');
-            if (approvedEnvelope?.envelope_status) {
-              assert.ok(
-                ['ready_for_dispatch', 'approved', 'ready'].includes(approvedEnvelope.envelope_status),
-                `Approval did not produce an approved dispatch envelope: ${approvedEnvelope.envelope_status}`,
-              );
-            }
-            envelope = { ...envelope, ...approvedEnvelope };
+            envelope = { ...envelope, ...approvedEnvelope, apply_allowed: false };
           }
 
           const authorization = await request('/gpt/tools/call', {
@@ -313,7 +239,7 @@ jobs:
           });
 
           const summary = {
-            schema_version: 'spec011.ephemeral_checkout_production_dry_run.v2',
+            schema_version: 'spec011.ephemeral_checkout_production_dry_run.v3',
             ok: true,
             stage: 'production_authorization_and_dry_run_complete',
             migration: MIGRATION,
@@ -322,7 +248,7 @@ jobs:
             source_pr: SOURCE_PR,
             source_merge_sha: SOURCE_MERGE_SHA,
             capability_envelope_id: envelope.envelope_id,
-            approval_tool: APPROVAL_TOOL,
+            approval_alias: APPROVAL_ALIAS,
             authorization_only_approval_verified: true,
             apply_authority_granted: false,
             authorization_bootstrap_verified: true,
