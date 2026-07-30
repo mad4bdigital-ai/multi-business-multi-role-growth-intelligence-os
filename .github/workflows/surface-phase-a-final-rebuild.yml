@@ -1,0 +1,110 @@
+name: Surface Phase A Final Rebuild
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-phase-a-final-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    if: github.event.pull_request.head.ref == 'gpt/surface-contract-classification-final-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout final Surface branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/surface-contract-classification-final-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Import reviewed Phase A source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin gpt/surface-contract-classification-hardening-20260730
+          git checkout origin/gpt/surface-contract-classification-hardening-20260730 -- \
+            http-generic-api/scripts/surface-contract-discovery.mjs \
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/surface-contract-classification-evidence.json \
+            http-generic-api/test-surface-contract-discovery.mjs \
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Validate and regenerate against current main
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/surface-contract-sql-registry-extractor.mjs
+          node --check scripts/surface-contract-discovery.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-surface-contract-discovery.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-contract-discovery.mjs --check
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          assert(Number(queue.total_items) <= 23, `Surface queue regressed: ${queue.total_items}`);
+          assert.equal(queue.top_items.some((item) => item.migration_file === '20260714_validate_hostinger_connection_and_complete_continuation_task.sql'), false, 'Hostinger evidence returned to queue');
+          for (const migrationFile of [
+            '199_sprint68_workspace_ownership_member_control_tools.sql',
+            '200_sprint68_workspace_invitation_control_tools.sql',
+            '201_sprint68_workspace_access_request_control_tools.sql',
+          ]) assert(queue.top_items.some((item) => item.migration_file === migrationFile), `${migrationFile} unexpectedly missing before Workspace controls repair`);
+          console.log({ surface_queue: queue.total_items, secrets_included: false });
+          NODE
+
+      - name: Commit bounded source and regenerated evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            http-generic-api/scripts/surface-contract-discovery.mjs \
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/surface-contract-classification-evidence.json \
+            http-generic-api/test-surface-contract-discovery.mjs \
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs \
+            docs/surface-contract-discovery-status.md \
+            docs/surface-contract-discovery-status.json \
+            docs/surface-contract-gap-queue.md \
+            docs/surface-contract-gap-queue.json
+          python3 <<'PY'
+          import subprocess
+          allowed = {
+              'http-generic-api/scripts/surface-contract-discovery.mjs',
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-surface-contract-discovery.mjs',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-gap-queue.json',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if not changed or not changed.issubset(allowed):
+              raise SystemExit(f'bounded_write_set_invalid:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: rebuild Surface Phase A on current main'
+          git push origin HEAD:gpt/surface-contract-classification-final-20260730
