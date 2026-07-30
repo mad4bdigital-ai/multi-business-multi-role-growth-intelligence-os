@@ -18,9 +18,9 @@ if (source.indexOf(before, first + before.length) >= 0) throw new Error("agent g
 source = `${source.slice(0, first)}${after}${source.slice(first + before.length)}`;
 
 const assertionAnchor = `assert.equal(completedEndToEnd.last_tick.plan_status, "completed");`;
-const assertion = `${assertionAnchor}\nassert.match(\n  fs.readFileSync("sequentialPlanOrchestrator.js", "utf8"),\n  /SELECT \\* FROM execution_plans WHERE plan_id = \\? LIMIT 2 FOR UPDATE/,\n);`;
+const assertion = `${assertionAnchor}\nassert.match(\n  readFileSync("sequentialPlanOrchestrator.js", "utf8"),\n  /SELECT \\* FROM execution_plans WHERE plan_id = \\? LIMIT 2 FOR UPDATE/,\n);`;
 if (!source.includes(assertionAnchor)) throw new Error("agent governance completion assertion anchor not found");
-if (source.includes("LIMIT 2 FOR UPDATE/,\n);")) throw new Error("agent governance source contract assertion already present");
+if (source.includes(`readFileSync("sequentialPlanOrchestrator.js", "utf8")`)) throw new Error("agent governance source contract assertion already present");
 source = source.replace(assertionAnchor, assertion);
 
 fs.writeFileSync(testPath, source);
