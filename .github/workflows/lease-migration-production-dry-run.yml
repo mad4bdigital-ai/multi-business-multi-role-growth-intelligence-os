@@ -1,0 +1,220 @@
+name: Lease Migration Production Dry Run
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lease-migration-production-dry-run
+  cancel-in-progress: false
+
+jobs:
+  governed-production-dry-run:
+    if: github.event.pull_request.head.ref == 'ops/lease-migration-production-dry-run-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out deployed Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify deployed runtime parity
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: api_only
+          EXPECT_QUEUE_AVAILABLE: 'false'
+          EXPECT_WORKER_ENABLED: 'false'
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
+
+      - name: Authorize and dry-run Lease registry migration
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260730_repository_reconciliation_lease_control_tool.sql';
+          const CHECKSUM = 'fe79a8b77cbaf0aa73c46c1852354b85429482f1fa88ed9284919861bb858fdf';
+          const STATEMENT_COUNT = 1;
+          const SOURCE_PR = 3354;
+          const SOURCE_MERGE_SHA = '07f6a70cc824befc2017dc48d25becf98f54b8f6';
+          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+
+          const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          function sanitize(value) {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+              key,
+              sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+            ]));
+          }
+
+          function parsedValue(value) {
+            if (typeof value !== 'string') return value;
+            const text = value.trim();
+            if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
+            try { return JSON.parse(text); } catch { return value; }
+          }
+
+          function findObjectWithKey(value, key, seen = new Set()) {
+            value = parsedValue(value);
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (Object.prototype.hasOwnProperty.call(value, key)) return value;
+            for (const child of Object.values(value)) {
+              const found = findObjectWithKey(child, key, seen);
+              if (found) return found;
+            }
+            return null;
+          }
+
+          async function request(path, body) {
+            const response = await fetch(`${BASE}${path}`, {
+              method: 'POST',
+              redirect: 'error',
+              headers: {
+                Authorization: `Bearer ${KEY}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(body),
+              signal: AbortSignal.timeout(180000),
+            });
+            const text = await response.text();
+            let payload;
+            try { payload = text ? JSON.parse(text) : null; }
+            catch { payload = { raw_preview: text.slice(0, 500) }; }
+            const result = { status: response.status, http_ok: response.ok, payload };
+            console.log(JSON.stringify(sanitize(result), null, 2));
+            if (!response.ok || payload?.ok === false) {
+              const error = new Error(`Governed runtime call failed for ${path} with HTTP ${response.status}`);
+              error.code = payload?.error?.code || 'governed_runtime_call_failed';
+              throw error;
+            }
+            return payload;
+          }
+
+          const envelopeCreate = await request('/admin/control', {
+            tool: 'shell',
+            action: 'run',
+            alias: 'capability_resolution_envelope_create',
+            authority_context: {
+              resource_type: 'shell_alias',
+              resource_uri: 'shell://capability_resolution_envelope_create',
+              operation_mode: 'capability_resolution_envelope_create',
+              required: true,
+            },
+            extra_args: [
+              `--tenant-id=${PLATFORM_TENANT_ID}`,
+              '--user-role=Admin',
+              '--app-key=platform_orchestration',
+              '--capability-key=governed_migration_authorization_bootstrap',
+              '--operation-intent=governed_migration_authorization_bootstrap',
+              '--runtime-surface=auth_host',
+              '--requested-by=github_actions_production_migration',
+              '--ttl-minutes=30',
+              '--explain',
+            ],
+          });
+
+          let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
+          assert.ok(envelope?.envelope_id, 'Capability envelope creation did not return envelope_id');
+
+          if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
+            const approval = await request('/gpt/tools/call', {
+              name: 'capability_resolution_envelope_apply_authorize',
+              tool_args: {
+                envelope_id: envelope.envelope_id,
+                authorized_by: 'github_actions',
+                decision_note: 'Approve the no-SQL authorization-bootstrap envelope for the reviewed Lease registry migration.',
+                ttl_minutes: 30,
+              },
+            });
+            envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
+          }
+
+          const authorization = await request('/gpt/tools/call', {
+            name: 'governed_migration_authorization_bootstrap',
+            tool_args: {
+              migration: MIGRATION,
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+              pull_request: SOURCE_PR,
+              merge_sha: SOURCE_MERGE_SHA,
+              confirm: 'AUTHORIZE_GOVERNED_MIGRATION_20260730_REPOSITORY_RECONCILIATION_LEASE_CONTROL_TOOL',
+              capability_envelope_id: envelope.envelope_id,
+              decision_note: 'Authorize the reviewed additive Lease-control registry migration after Production deployment parity verification.',
+            },
+          });
+          const authorizationEvidence = findObjectWithKey(authorization, 'migration_sql_executed');
+          assert.equal(authorizationEvidence?.migration_sql_executed, false, 'Authorization bootstrap must not execute migration SQL');
+          assert.equal(authorizationEvidence?.applies_migration, false, 'Authorization bootstrap must not apply the migration');
+
+          const dryRun = await request('/gpt/tools/call', {
+            name: 'governed_migration_execute',
+            tool_args: {
+              migration: MIGRATION,
+              mode: 'dry_run',
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          });
+          const dryRunEvidence = findObjectWithKey(dryRun, 'applies_sql');
+          assert.equal(dryRunEvidence?.applies_sql, false, 'Migration dry-run must report applies_sql=false');
+          assert.equal(dryRunEvidence?.mode, 'dry_run', 'Migration execution mode must remain dry_run');
+          assert.equal(Number(dryRunEvidence?.statement_count), STATEMENT_COUNT, 'Dry-run statement count mismatch');
+
+          const readback = await request('/gpt/tools/call', {
+            name: 'governed_migration_schema_readback',
+            tool_args: {
+              migration: MIGRATION,
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          });
+
+          console.log(JSON.stringify({
+            ok: true,
+            stage: 'production_authorization_and_dry_run_complete',
+            migration: MIGRATION,
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: STATEMENT_COUNT,
+            source_pr: SOURCE_PR,
+            source_merge_sha: SOURCE_MERGE_SHA,
+            authorization_bootstrap_verified: true,
+            dry_run_verified: true,
+            schema_readback_received: Boolean(readback),
+            migration_sql_applied: false,
+            provider_call_executed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          }, null, 2));
+          NODE
