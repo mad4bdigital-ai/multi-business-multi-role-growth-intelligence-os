@@ -1,0 +1,190 @@
+name: T019 Shadow Parity Review Fixes
+
+on:
+  push:
+    branches:
+      - gpt/011-ueacp-t019-shadow-parity-20260730
+  pull_request:
+    types: [synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: t019-shadow-parity-review-fixes
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout T019 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/011-ueacp-t019-shadow-parity-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply exact fail-closed review fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          policy_path = Path('http-generic-api/contextKernel/domain/shadowAuthorityParityDecision.js')
+          policy = policy_path.read_text(encoding='utf-8')
+
+          metadata_anchor = '''  return {
+    snapshot: {
+      source: source || expectedSource,'''
+          metadata_replacement = '''  let manifestRef = null;
+  let revisionRef = null;
+  try {
+    manifestRef = snapshot.manifestRef
+      ? requireToken(snapshot.manifestRef, `${expectedSource}.manifestRef`)
+      : null;
+  } catch {
+    issues.push(`${expectedSource}_manifest_ref_invalid`);
+  }
+  try {
+    revisionRef = snapshot.revisionRef
+      ? requireToken(snapshot.revisionRef, `${expectedSource}.revisionRef`)
+      : null;
+  } catch {
+    issues.push(`${expectedSource}_revision_ref_invalid`);
+  }
+
+  return {
+    snapshot: {
+      source: source || expectedSource,'''
+          if policy.count(metadata_anchor) != 1:
+              raise SystemExit(f't019_metadata_anchor_count:{policy.count(metadata_anchor)}')
+          policy = policy.replace(metadata_anchor, metadata_replacement, 1)
+
+          refs_anchor = '''      manifestRef: snapshot.manifestRef ? requireToken(snapshot.manifestRef, `${expectedSource}.manifestRef`) : null,
+      revisionRef: snapshot.revisionRef ? requireToken(snapshot.revisionRef, `${expectedSource}.revisionRef`) : null,'''
+          refs_replacement = '''      manifestRef,
+      revisionRef,'''
+          if policy.count(refs_anchor) != 1:
+              raise SystemExit(f't019_refs_anchor_count:{policy.count(refs_anchor)}')
+          policy = policy.replace(refs_anchor, refs_replacement, 1)
+
+          quality_anchor = '''  if (legacy.issues.length > 0 || effective.issues.length > 0) {
+    mismatchClasses.add("data_quality_mismatch");
+    reasonCodes.add("SHADOW_PARITY_DATA_QUALITY_MISMATCH");
+  }
+  if (legacy.stale || effective.stale) {'''
+          quality_replacement = '''  if (legacy.issues.length > 0 || effective.issues.length > 0) {
+    mismatchClasses.add("data_quality_mismatch");
+    reasonCodes.add("SHADOW_PARITY_DATA_QUALITY_MISMATCH");
+  }
+  if (
+    (legacy.snapshot?.dataQualityIssues.length || 0) > 0
+    || (effective.snapshot?.dataQualityIssues.length || 0) > 0
+  ) {
+    mismatchClasses.add("data_quality_mismatch");
+    reasonCodes.add("SHADOW_PARITY_DATA_QUALITY_MISMATCH");
+  }
+  if (legacy.stale || effective.stale) {'''
+          if policy.count(quality_anchor) != 1:
+              raise SystemExit(f't019_quality_anchor_count:{policy.count(quality_anchor)}')
+          policy = policy.replace(quality_anchor, quality_replacement, 1)
+          policy_path.write_text(policy, encoding='utf-8')
+
+          test_path = Path('http-generic-api/test-context-kernel-shadow-authority-parity-fail-closed.mjs')
+          test = test_path.read_text(encoding='utf-8')
+          data_quality_anchor = '''const dataQuality = evaluateShadowAuthorityParity({
+  legacySnapshot: snapshot("legacy", {
+    dataQualityIssues: ["missing_revision"],
+    identitySets: {
+      resourceRefs: ["repository-a", "repository-a"],
+      capabilityKeys: ["repository.read"],
+      connectionRefs: [],
+      actionKeys: ["repository.read"],
+    },
+  }),
+  effectiveSnapshot: snapshot("effective"),
+  now: NOW,
+});
+assert.ok(dataQuality.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(dataQuality.legacyIssues.includes("legacy_resourceRefs_duplicate_ref"));
+assertSafe(dataQuality);'''
+          data_quality_replacement = '''const dataQuality = evaluateShadowAuthorityParity({
+  legacySnapshot: snapshot("legacy", {
+    dataQualityIssues: ["missing_revision"],
+  }),
+  effectiveSnapshot: snapshot("effective"),
+  now: NOW,
+});
+assert.ok(dataQuality.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(dataQuality.reasonCodes.includes("SHADOW_PARITY_DATA_QUALITY_MISMATCH"));
+assert.deepEqual(dataQuality.legacyIssues, []);
+assertSafe(dataQuality);'''
+          if test.count(data_quality_anchor) != 1:
+              raise SystemExit(f't019_data_quality_test_anchor_count:{test.count(data_quality_anchor)}')
+          test = test.replace(data_quality_anchor, data_quality_replacement, 1)
+
+          ref_test_anchor = '''assert.ok(wrongSource.legacyIssues.includes("legacy_source_mismatch"));
+assertSafe(wrongSource);
+
+const tooManyResources = Array.from('''
+          ref_test_replacement = '''assert.ok(wrongSource.legacyIssues.includes("legacy_source_mismatch"));
+assertSafe(wrongSource);
+
+const invalidOptionalRefs = evaluateShadowAuthorityParity({
+  legacySnapshot: snapshot("legacy", {
+    manifestRef: "not valid!",
+    revisionRef: "also not valid!",
+  }),
+  effectiveSnapshot: snapshot("effective"),
+  now: NOW,
+});
+assert.ok(invalidOptionalRefs.mismatchClasses.includes("data_quality_mismatch"));
+assert.ok(invalidOptionalRefs.legacyIssues.includes("legacy_manifest_ref_invalid"));
+assert.ok(invalidOptionalRefs.legacyIssues.includes("legacy_revision_ref_invalid"));
+assertSafe(invalidOptionalRefs);
+
+const tooManyResources = Array.from('''
+          if test.count(ref_test_anchor) != 1:
+              raise SystemExit(f't019_ref_test_anchor_count:{test.count(ref_test_anchor)}')
+          test = test.replace(ref_test_anchor, ref_test_replacement, 1)
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Run focused T019 regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-context-kernel-shadow-authority-parity.mjs
+          node test-context-kernel-shadow-authority-parity-fail-closed.mjs
+
+      - name: Commit bounded fixes and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/t019-shadow-parity-review-fixes.yml
+          git add \
+            http-generic-api/contextKernel/domain/shadowAuthorityParityDecision.js \
+            http-generic-api/test-context-kernel-shadow-authority-parity-fail-closed.mjs
+          python3 <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/t019-shadow-parity-review-fixes.yml',
+              'http-generic-api/contextKernel/domain/shadowAuthorityParityDecision.js',
+              'http-generic-api/test-context-kernel-shadow-authority-parity-fail-closed.mjs',
+          }
+          changed = set(filter(None, subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-only'], text=True
+          ).splitlines()))
+          if changed != expected:
+              raise SystemExit(f'bounded_write_set_mismatch:expected={sorted(expected)}:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(spec-011): fail closed on T019 data-quality evidence'
+          git push origin HEAD:gpt/011-ueacp-t019-shadow-parity-20260730
