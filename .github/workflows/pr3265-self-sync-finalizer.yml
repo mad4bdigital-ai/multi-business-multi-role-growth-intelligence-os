@@ -1,0 +1,240 @@
+name: PR 3265 Self Sync Finalizer
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-3265-self-sync-finalizer
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: >-
+      github.event.pull_request.number == 3265 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/hostinger-production-resync-policy-20260729' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout governed PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/hostinger-production-resync-policy-20260729
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Synchronize, validate, and merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: '3265'
+          TARGET_BRANCH: gpt/hostinger-production-resync-policy-20260729
+        run: |
+          set -euo pipefail
+          WORKFLOW_PATH='.github/workflows/pr3265-self-sync-finalizer.yml'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if [[ -f "$WORKFLOW_PATH" ]]; then
+            git rm "$WORKFLOW_PATH"
+            git commit -m 'chore(ci): remove temporary self-sync finalizer'
+            git push origin "HEAD:${TARGET_BRANCH}"
+          fi
+
+          sync_main_server_side() {
+            git fetch --no-tags origin \
+              '+refs/heads/main:refs/remotes/origin/main' \
+              "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            local main_sha target_sha
+            main_sha="$(git rev-parse refs/remotes/origin/main)"
+            target_sha="$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})"
+            if git merge-base --is-ancestor "$main_sha" "$target_sha"; then
+              git reset --hard "$target_sha"
+              return 0
+            fi
+
+            local sync_pr
+            sync_pr="$(gh pr list --repo "$REPOSITORY" --state open --head main --base "$TARGET_BRANCH" --limit 1 --json number --jq '.[0].number // empty')"
+            if [[ -z "$sync_pr" ]]; then
+              sync_pr="$(gh api --method POST "repos/${REPOSITORY}/pulls" \
+                -f title='chore: atomic finalizer sync latest main into PR 3265 branch' \
+                -f head=main \
+                -f base="$TARGET_BRANCH" \
+                -f body='Server-side governed freshness synchronization created by the bounded PR #3265 finalizer. No force push, migration apply, deployment, provider call, credential payload read, or external write.' \
+                --jq '.number')"
+            fi
+
+            local mergeable=''
+            for poll in $(seq 1 30); do
+              mergeable="$(gh api "repos/${REPOSITORY}/pulls/${sync_pr}" --jq '.mergeable // empty')"
+              if [[ -n "$mergeable" ]]; then break; fi
+              sleep 2
+            done
+            if [[ "$mergeable" != 'true' ]]; then
+              echo "::error::server-side main sync PR #${sync_pr} is not mergeable"
+              exit 1
+            fi
+
+            gh api --method PUT "repos/${REPOSITORY}/pulls/${sync_pr}/merge" \
+              -f merge_method=merge \
+              -f sha="$main_sha" \
+              -f commit_title='Merge latest main into PR #3265 branch' \
+              -f commit_message='Governed server-side freshness sync by bounded finalizer.' \
+              --jq 'select(.merged == true) | .sha'
+
+            git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            git reset --hard "refs/remotes/origin/${TARGET_BRANCH}"
+          }
+
+          generate_and_verify() {
+            (
+              cd http-generic-api
+              node scripts/openapi-precise-contract-registry-sync.mjs --write
+              node scripts/openapi-autofill-missing-routes.mjs --write
+              npm run frontend:dispatch:generate -- --baseline-ref=main
+              node scripts/generate-custom-gpt-schemas.mjs --write
+              node test-openapi-autofill-missing-routes.mjs
+              node test-frontend-operation-governance-generator.mjs
+              node test-frontend-surface-dispatch.mjs
+              node test-frontend-auth-openapi-parity.mjs
+              node test-openapi-route-coverage.mjs
+              npm run openapi:auth:check
+              npm run schemas:guard
+            )
+
+            mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+            if [[ ${#CHANGED[@]} -eq 0 ]]; then return 0; fi
+            local unexpected=''
+            for file in "${CHANGED[@]}"; do
+              case "$file" in
+                http-generic-api/openapi.yaml|\
+                http-generic-api/frontend-operation-governance.generated.json|\
+                http-generic-api/frontend-surface-dispatch.generated.json|\
+                http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+                http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+                http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+                http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+                http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+                http-generic-api/openapi.gpt-action.local-connector.yaml)
+                  ;;
+                *) unexpected+="$file"$'\n' ;;
+              esac
+            done
+            if [[ -n "$unexpected" ]]; then
+              echo '::error::generator changed files outside bounded artifact set'
+              printf '%s' "$unexpected"
+              exit 1
+            fi
+            git add -- "${CHANGED[@]}"
+            git diff --cached --check
+            git commit -m 'chore(ci): refresh final exact-head artifacts'
+            git push origin "HEAD:${TARGET_BRANCH}"
+          }
+
+          run_exact_ci() {
+            local head_sha="$1"
+            local dispatched_at run_id deadline run_json status conclusion
+            dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            gh workflow run ci.yml --ref "$TARGET_BRANCH"
+            run_id=''
+            for lookup in $(seq 1 40); do
+              run_id="$(gh run list --workflow ci.yml --branch "$TARGET_BRANCH" --event workflow_dispatch --limit 30 --json databaseId,headSha,createdAt --jq "map(select(.headSha == \"$head_sha\" and .createdAt >= \"$dispatched_at\"))[0].databaseId // empty")"
+              if [[ -n "$run_id" ]]; then break; fi
+              sleep 5
+            done
+            if [[ -z "$run_id" ]]; then
+              echo '::error::unable to resolve exact-head CI run'
+              exit 1
+            fi
+
+            deadline="$(( $(date +%s) + 5400 ))"
+            run_json=''
+            while (( $(date +%s) < deadline )); do
+              run_json="$(gh run view "$run_id" --json databaseId,event,headSha,status,conclusion,jobs)"
+              status="$(jq -r '.status // ""' <<<"$run_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
+              if [[ "$status" == 'completed' ]]; then
+                if [[ "$conclusion" != 'success' ]]; then
+                  echo "::error::exact-head CI failed: ${conclusion}"
+                  exit 1
+                fi
+                break
+              fi
+              sleep 20
+            done
+            test "$(jq -r '.event' <<<"$run_json")" = 'workflow_dispatch'
+            test "$(jq -r '.headSha' <<<"$run_json")" = "$head_sha"
+            for required in 'Syntax Check' 'Unit & Integration Tests' 'Execution Resolver Gate' 'Architecture Drift Detection'; do
+              jq -e --arg required "$required" '.jobs | any(.name == $required and .conclusion == "success")' <<<"$run_json" >/dev/null
+            done
+          }
+
+          for attempt in $(seq 1 10); do
+            echo "self_sync_finalizer_attempt=${attempt}"
+            sync_main_server_side
+            generate_and_verify
+
+            git fetch --no-tags origin \
+              '+refs/heads/main:refs/remotes/origin/main' \
+              "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            BASE_SHA="$(git rev-parse refs/remotes/origin/main)"
+            HEAD_SHA="$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})"
+            if ! git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"; then
+              echo 'main moved before CI dispatch; retrying inside finalizer'
+              continue
+            fi
+
+            run_exact_ci "$HEAD_SHA"
+
+            git fetch --no-tags origin \
+              '+refs/heads/main:refs/remotes/origin/main' \
+              "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            LATEST_MAIN="$(git rev-parse refs/remotes/origin/main)"
+            LATEST_HEAD="$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})"
+            if [[ "$LATEST_MAIN" != "$BASE_SHA" || "$LATEST_HEAD" != "$HEAD_SHA" ]]; then
+              echo 'main or PR head moved during exact CI; retrying inside finalizer'
+              continue
+            fi
+
+            PR_JSON="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+            if [[ "$(jq -r '.state' <<<"$PR_JSON")" != 'open' ]]; then
+              echo 'PR is no longer open; treating as finalized'
+              exit 0
+            fi
+            test "$(jq -r '.head.sha' <<<"$PR_JSON")" = "$HEAD_SHA"
+            test "$(jq -r '.base.sha' <<<"$PR_JSON")" = "$BASE_SHA"
+
+            MERGE_JSON="$(gh api --method PUT "repos/${REPOSITORY}/pulls/${PR_NUMBER}/merge" \
+              -f merge_method=merge \
+              -f sha="$HEAD_SHA" \
+              -f commit_title='Merge PR #3265: require Production resync after every main movement' \
+              -f commit_message='Exact-head CI and base freshness verified by bounded self-sync finalizer. Migration remains separately governed.')"
+            if jq -e '.merged == true' <<<"$MERGE_JSON" >/dev/null; then
+              echo "$MERGE_JSON"
+              exit 0
+            fi
+            echo "$MERGE_JSON"
+            echo 'merge not accepted; retrying inside finalizer'
+          done
+
+          echo '::error::self-sync finalizer exhausted bounded attempts'
+          exit 1
