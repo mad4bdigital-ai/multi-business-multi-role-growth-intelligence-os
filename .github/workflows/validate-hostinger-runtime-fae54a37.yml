@@ -1,0 +1,133 @@
+name: Validate Hostinger Runtime Parity fae54a37
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/validate-hostinger-runtime-fae54a37.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-hostinger-runtime-fae54a37-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Probe health version and deployment authority
+        id: probe
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: fae54a372350d23d915bbe564e972b714ca363f4
+          REQUIRED_CANDIDATE_SHA: c590a6ac096351a5625b4ce945308d11432c89e0
+          PINNED_SOURCE_SHA: f9c8260aec57cf0955d65eb149d732714b837ef8
+          BASE_URL: https://auth.mad4b.com
+        run: |
+          set -uo pipefail
+          dir="$RUNNER_TEMP/hostinger-readback"
+          mkdir -p "$dir"
+          success=false
+
+          for attempt in $(seq 1 20); do
+            checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            for endpoint in health version deployment-info; do
+              code="$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 \
+                --header 'Accept: application/json' \
+                --output "$dir/${endpoint}.body" --write-out '%{http_code}' \
+                "$BASE_URL/$endpoint" 2>"$dir/${endpoint}.stderr" || true)"
+              printf '%s\n' "${code:-000}" > "$dir/${endpoint}.status"
+            done
+
+            health_status="$(cat "$dir/health.status")"
+            version_status="$(cat "$dir/version.status")"
+            deployment_status="$(cat "$dir/deployment-info.status")"
+            combined="$(cat "$dir/health.body" "$dir/version.body" "$dir/deployment-info.body" 2>/dev/null || true)"
+            health_compact="$(cat "$dir/health.body" 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]' || true)"
+
+            health_ok=false
+            if [[ "$health_status" == "200" ]] && grep -Eq 'healthy|"status":"ok"|"ok":true|"status":"pass"|"status":"ready"' <<<"$health_compact"; then health_ok=true; fi
+            version_ok=$([[ "$version_status" == "200" ]] && echo true || echo false)
+            deployment_info_ok=$([[ "$deployment_status" == "200" ]] && echo true || echo false)
+            sha_match=false
+            if grep -qi "$EXPECTED_PRODUCTION_SHA" <<<"$combined"; then sha_match=true; fi
+            branch_authority_ok=true
+            if grep -Eqi 'hostname_fallback|"branch_source"[[:space:]]*:[[:space:]]*"hostname"|"commit_source"[[:space:]]*:[[:space:]]*"hostname"' <<<"$combined"; then branch_authority_ok=false; fi
+
+            ok=false
+            if [[ "$health_ok" == true && "$version_ok" == true && "$deployment_info_ok" == true && "$sha_match" == true && "$branch_authority_ok" == true ]]; then
+              ok=true
+              success=true
+            fi
+
+            jq -n \
+              --arg checked_at "$checked_at" \
+              --arg expected_sha "$EXPECTED_PRODUCTION_SHA" \
+              --arg required_candidate_sha "$REQUIRED_CANDIDATE_SHA" \
+              --arg pinned_source_sha "$PINNED_SOURCE_SHA" \
+              --arg health_status "$health_status" \
+              --arg version_status "$version_status" \
+              --arg deployment_status "$deployment_status" \
+              --argjson health_ok "$health_ok" \
+              --argjson version_ok "$version_ok" \
+              --argjson deployment_info_ok "$deployment_info_ok" \
+              --argjson sha_match "$sha_match" \
+              --argjson branch_authority_ok "$branch_authority_ok" \
+              --argjson ok "$ok" \
+              --rawfile health_body "$dir/health.body" \
+              --rawfile version_body "$dir/version.body" \
+              --rawfile deployment_body "$dir/deployment-info.body" \
+              --rawfile health_error "$dir/health.stderr" \
+              --rawfile version_error "$dir/version.stderr" \
+              --rawfile deployment_error "$dir/deployment-info.stderr" \
+              'def parsed($s): try ($s | fromjson) catch $s;
+               {
+                 schema_version: "hostinger_runtime_readback.v1",
+                 checked_at: $checked_at,
+                 expected_production_sha: $expected_sha,
+                 production_merge_sha: $expected_sha,
+                 required_candidate_sha: $required_candidate_sha,
+                 pinned_source_sha: $pinned_source_sha,
+                 health_ok: $health_ok,
+                 version_ok: $version_ok,
+                 deployment_info_ok: $deployment_info_ok,
+                 deployed_sha_matches_expected: $sha_match,
+                 branch_authority_ok: $branch_authority_ok,
+                 ok: $ok,
+                 endpoints: {
+                   health: {status: $health_status, body: parsed($health_body), error: $health_error},
+                   version: {status: $version_status, body: parsed($version_body), error: $version_error},
+                   deployment_info: {status: $deployment_status, body: parsed($deployment_body), error: $deployment_error}
+                 },
+                 deployment_executed_by_this_workflow: false,
+                 migration_executed: false,
+                 provider_write_executed: false,
+                 credential_payload_read: false,
+                 secrets_included: false
+               }' > "$dir/evidence.json"
+
+            if [[ "$success" == true ]]; then break; fi
+            sleep 20
+          done
+
+          echo "ok=$success" >> "$GITHUB_OUTPUT"
+          jq '{checked_at, expected_production_sha, required_candidate_sha, pinned_source_sha, health_ok, version_ok, deployment_info_ok, deployed_sha_matches_expected, branch_authority_ok, ok, endpoints: {health: .endpoints.health.status, version: .endpoints.version.status, deployment_info: .endpoints.deployment_info.status}, secrets_included}' "$dir/evidence.json"
+
+      - name: Upload bounded runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-runtime-readback-fae54a37
+          path: ${{ runner.temp }}/hostinger-readback
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce successful runtime parity
+        if: always()
+        shell: bash
+        run: test "${{ steps.probe.outputs.ok }}" = 'true'
