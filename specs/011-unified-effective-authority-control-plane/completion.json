@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-30T11:11:00Z",
+  "last_updated_at": "2026-07-30T11:31:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -43,8 +43,9 @@
     ],
     "recovery_closeout_pr": {
       "number": 3595,
-      "status": "open",
-      "branch": "gpt/011-ueacp-recovery-closeout-20260730"
+      "branch": "gpt/011-ueacp-recovery-closeout-20260730",
+      "purpose": "record_recovery_chain_closure",
+      "github_state_is_authoritative": true
     }
   },
   "evidence": {
