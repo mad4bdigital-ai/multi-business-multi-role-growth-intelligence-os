@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "package_key": "integration-governed-execution-runtime-composition",
+  "package_type": "cross_spec_integration_kit",
+  "status": "draft",
+  "runtime_authority": false,
+  "functional_authority": false,
+  "owner_specs": {
+    "durable_execution_and_orchestration": "011-durable-governed-execution-and-agent-delegation",
+    "execution_context": "012-unified-admin-tenant-context-kernel",
+    "catalog_and_execution_surface": "013-system-tool-catalog-v2"
+  },
+  "artifacts": [
+    "README.md",
+    "tasks-and-gates.md",
+    "traceability-and-functional-results.md",
+    "manifest.json"
+  ],
+  "extension_artifacts": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-performance-addendum.md",
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
+    "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md"
+  ],
+  "functional_results": [
+    "single_orchestration_authority",
+    "single_exact_execution_context",
+    "server_side_plan_continuation",
+    "bounded_dependency_graph_concurrency",
+    "plan_bound_approval_frontier",
+    "plan_derived_fast_and_durable_lanes",
+    "authoritative_execution_ledger_with_verified_projections",
+    "compact_result_with_full_result_integrity",
+    "legacy_contract_compatibility",
+    "safety_equivalent_performance_measurement"
+  ],
+  "delivery_mode": "multi_pr_by_gate",
+  "rollout_mode": "instrumentation_then_shadow_then_read_then_low_risk_mutation_then_percent_cutover",
+  "constraints": [
+    "no_provider_call",
+    "no_external_send",
+    "no_database_write",
+    "no_migration_apply",
+    "no_deployment",
+    "no_merge",
+    "no_protected_branch_write",
+    "no_runtime_cutover",
+    "no_feature_removal",
+    "no_authority_weakening",
+    "no_secret_exposure",
+    "reuse_existing_outbox_and_execution_surfaces",
+    "legacy_compatibility_until_measured_retirement"
+  ],
+  "secrets_included": false
+}
