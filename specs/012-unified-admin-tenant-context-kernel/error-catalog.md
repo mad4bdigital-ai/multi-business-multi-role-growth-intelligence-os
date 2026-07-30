@@ -15,6 +15,8 @@ All public errors use the platform structured error envelope and include a reque
 - `INTERPRETATION_REQUIRED`: user selection is required before planning.
 - `TENANT_CONTEXT_STALE`: tenant authority revision changed.
 - `WORKSPACE_CONTEXT_STALE`: workspace membership or binding changed.
+- `WORKSPACE_OWNERSHIP_TYPE_MISSING`: workspace personal/company ownership classification is absent or unclassified.
+- `WORKSPACE_OWNERSHIP_TYPE_CONFLICT`: workspace ownership classification conflicts with owner or membership evidence.
 - `BRAND_CONTEXT_STALE`: brand ownership or binding changed.
 - `CONTEXT_REVISION_CONFLICT`: supplied revision does not match current registry state.
 - `CONTEXT_PIN_EXPIRED`: pinned context is no longer reusable.
