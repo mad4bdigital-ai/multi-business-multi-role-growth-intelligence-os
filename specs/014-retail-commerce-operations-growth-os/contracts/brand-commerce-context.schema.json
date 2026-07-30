@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/brand-commerce-context.schema.json",
+  "title": "Brand Commerce Context and Connection Bindings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tenant_ref",
+    "workspace_ref",
+    "brand_ref",
+    "brand_profile_status",
+    "brand_profile_revision",
+    "domain_authorities",
+    "connection_bindings",
+    "context_hash",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": "brand-commerce-context-v1" },
+    "tenant_ref": { "$ref": "#/$defs/reference" },
+    "workspace_ref": { "$ref": "#/$defs/reference" },
+    "brand_ref": { "$ref": "#/$defs/reference" },
+    "brand_profile_status": {
+      "type": "string",
+      "enum": ["draft", "configuration_incomplete", "ready", "active", "degraded", "suspended", "retired"]
+    },
+    "brand_profile_revision": { "type": "integer", "minimum": 1 },
+    "channel_ref": { "$ref": "#/$defs/nullableReference" },
+    "location_ref": { "$ref": "#/$defs/nullableReference" },
+    "site_ref": { "$ref": "#/$defs/nullableReference" },
+    "terminal_ref": { "$ref": "#/$defs/nullableReference" },
+    "brand_file_profile_ref": { "$ref": "#/$defs/nullableReference" },
+    "brand_file_profile_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "domain_authorities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/domainAuthorityEvidence" }
+    },
+    "connection_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/connectionBindingEvidence" }
+    },
+    "policy_revision": { "type": "integer", "minimum": 1 },
+    "resolved_at": { "type": "string", "format": "date-time" },
+    "context_hash": { "$ref": "#/$defs/sha256" },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "nullableReference": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "commerceDomainKey": {
+      "type": "string",
+      "enum": [
+        "commerce.catalog",
+        "commerce.inventory",
+        "commerce.orders",
+        "commerce.payments",
+        "commerce.fulfillment",
+        "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
+        "measurement.events",
+        "ads.performance",
+        "customer.communication",
+        "workspace.files.brand"
+      ]
+    },
+    "domainAuthorityEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain_key",
+        "binding_ref",
+        "authority_mode",
+        "authority_revision",
+        "status"
+      ],
+      "properties": {
+        "domain_key": { "$ref": "#/$defs/commerceDomainKey" },
+        "binding_ref": { "$ref": "#/$defs/reference" },
+        "authority_mode": {
+          "type": "string",
+          "enum": ["platform_native", "external_authoritative", "external_mirror", "read_projection"]
+        },
+        "adapter_key": { "$ref": "#/$defs/nullableReference" },
+        "connection_ref": { "$ref": "#/$defs/nullableReference" },
+        "authority_revision": { "type": "integer", "minimum": 1 },
+        "status": { "type": "string", "enum": ["active", "degraded", "blocked"] },
+        "capability_key": { "$ref": "#/$defs/nullableReference" }
+      }
+    },
+    "connectionBindingEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_ref",
+        "domain_key",
+        "capability_key",
+        "connection_ref",
+        "connection_owner_scope_type",
+        "connection_owner_scope_ref",
+        "binding_mode",
+        "binding_revision",
+        "status"
+      ],
+      "properties": {
+        "binding_ref": { "$ref": "#/$defs/reference" },
+        "domain_key": { "$ref": "#/$defs/commerceDomainKey" },
+        "capability_key": { "$ref": "#/$defs/reference" },
+        "connection_ref": { "$ref": "#/$defs/reference" },
+        "connection_owner_scope_type": {
+          "type": "string",
+          "enum": ["brand", "company_workspace", "platform"]
+        },
+        "connection_owner_scope_ref": { "$ref": "#/$defs/reference" },
+        "binding_mode": {
+          "type": "string",
+          "enum": ["brand_owned", "workspace_delegated", "platform_managed"]
+        },
+        "explicit_delegation_ref": { "$ref": "#/$defs/nullableReference" },
+        "binding_revision": { "type": "integer", "minimum": 1 },
+        "status": { "type": "string", "enum": ["active", "degraded", "blocked", "expired", "revoked"] },
+        "effective_until": { "type": ["string", "null"], "format": "date-time" },
+        "adapter_certification_ref": { "$ref": "#/$defs/nullableReference" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "binding_mode": { "const": "workspace_delegated" } },
+            "required": ["binding_mode"]
+          },
+          "then": { "required": ["explicit_delegation_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "connection_owner_scope_type": { "const": "brand" } },
+            "required": ["connection_owner_scope_type"]
+          },
+          "then": {
+            "properties": { "binding_mode": { "const": "brand_owned" } }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "brand_profile_status": { "enum": ["draft", "configuration_incomplete", "ready", "suspended", "retired"] }
+        },
+        "required": ["brand_profile_status"]
+      },
+      "then": {
+        "description": "Non-active Brand profiles are read/setup contexts only and cannot authorize normal commerce mutation."
+      }
+    }
+  ]
+}
