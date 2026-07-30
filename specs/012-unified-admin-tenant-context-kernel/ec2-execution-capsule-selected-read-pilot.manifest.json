@@ -16,7 +16,10 @@
     "ec2-execution-capsule-selected-read-pilot.md",
     "../../http-generic-api/contextKernel/api/executionCapsuleSelectedReadPilot.js",
     "../../http-generic-api/contextKernel/api/index.js",
-    "../../http-generic-api/test-execution-capsule-selected-read-pilot.mjs"
+    "../../http-generic-api/test-execution-capsule-selected-read-pilot.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-operation-governance.generated.json",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
   ],
   "selected_read_contract": {
     "operation": "getContextResolution",
@@ -39,15 +42,27 @@
     "automatic_write_performed_always_false",
     "no_secret_projection_or_telemetry",
     "exact_operations_object_rollback",
-    "standalone_selected_read_pilot_test"
+    "standalone_selected_read_pilot_test",
+    "complete_test_manifest_registration"
   ],
   "pending_contracts": [
-    "complete_test_manifest_registration",
     "generated_test_manifest_evidence_refresh",
     "exact_head_ci_evidence",
     "human_architecture_security_review",
     "post_merge_main_readback"
   ],
+  "registration_evidence": {
+    "status": "passed",
+    "run_id": 30578636119,
+    "registered_head_sha": "526c79513a11ef1821da8da1bd7159d1c6917b0c",
+    "registered_commands": [
+      "node test-execution-capsule-selected-read-pilot.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_removed": true,
+    "bounded_regressions_passed": true,
+    "bounded_write_set_passed": true
+  },
   "controlled_parity_sample": {
     "status": "implemented_pending_exact_head_ci",
     "view_count": 2,
