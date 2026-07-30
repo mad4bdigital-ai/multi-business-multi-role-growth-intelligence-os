@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/commerce/commerce-provider-adapter-v1.schema.json",
+  "title": "Commerce Authority Adapter Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "adapter_key",
+    "adapter_version",
+    "backend_mode",
+    "status",
+    "authority_domains",
+    "supported_operations",
+    "transaction_contract",
+    "idempotency_contract",
+    "readback_contract",
+    "security_contract",
+    "certification",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": "commerce-authority-adapter-v1" },
+    "adapter_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{2,127}$" },
+    "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "backend_mode": { "type": "string", "enum": ["platform_native", "erpnext"] },
+    "provider_family": { "type": ["string", "null"], "maxLength": 128 },
+    "status": { "type": "string", "enum": ["planned", "sandbox", "certified", "degraded", "disabled", "retired"] },
+    "authority_domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["catalog", "inventory", "orders", "pos", "payments", "procurement", "suppliers", "returns", "hr", "accounting"]
+      }
+    },
+    "supported_operations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "resolve_readiness",
+          "catalog_list",
+          "product_get",
+          "inventory_get",
+          "reserve_stock",
+          "release_reservation",
+          "commit_reservation",
+          "create_order",
+          "order_get",
+          "submit_pos_sale",
+          "payment_create",
+          "payment_reconcile",
+          "refund_create",
+          "supplier_receipt_create",
+          "return_route",
+          "employee_projection_read",
+          "supplier_projection_read",
+          "operation_inspect",
+          "resource_readback"
+        ]
+      }
+    },
+    "transaction_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atomic_reservation", "expected_version_supported", "unique_item_conflict_code", "commit_boundary_documented"],
+      "properties": {
+        "atomic_reservation": { "type": "boolean" },
+        "expected_version_supported": { "type": "boolean" },
+        "unique_item_conflict_code": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "commit_boundary_documented": { "type": "boolean" },
+        "supports_caller_owned_transaction": { "type": "boolean", "default": false },
+        "external_transaction_semantics": { "type": ["string", "null"], "maxLength": 2000 }
+      }
+    },
+    "idempotency_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "scope", "payload_mismatch_rejected", "retention_seconds"],
+      "properties": {
+        "supported": { "const": true },
+        "scope": { "type": "string", "enum": ["tenant_workspace_operation", "provider_operation", "resource_operation"] },
+        "payload_mismatch_rejected": { "const": true },
+        "retention_seconds": { "type": "integer", "minimum": 3600, "maximum": 31536000 }
+      }
+    },
+    "readback_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["same_operation_identity", "unknown_outcome_supported", "methods"],
+      "properties": {
+        "same_operation_identity": { "const": true },
+        "unknown_outcome_supported": { "type": "boolean" },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["direct_resource_read", "operation_status", "provider_receipt", "webhook_plus_inspection"] }
+        },
+        "max_staleness_seconds": { "type": "integer", "minimum": 0, "maximum": 86400 }
+      }
+    },
+    "offline_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supported": { "type": "boolean", "default": false },
+        "unique_item_allocation_lease_required": { "type": "boolean", "default": true },
+        "lease_signature_mode": { "type": ["string", "null"], "maxLength": 128 },
+        "maximum_lease_seconds": { "type": ["integer", "null"], "minimum": 30, "maximum": 86400 }
+      }
+    },
+    "error_mapping": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider_code", "platform_code", "retryable", "unknown_outcome"],
+        "properties": {
+          "provider_code": { "type": "string", "maxLength": 200 },
+          "platform_code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "retryable": { "type": "boolean" },
+          "unknown_outcome": { "type": "boolean" }
+        }
+      }
+    },
+    "security_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_source", "caller_identity_override_forbidden", "tenant_scope_required", "no_secret_responses", "webhook_signature_required"],
+      "properties": {
+        "credential_source": { "type": "string", "enum": ["governed_connection_binding", "platform_managed_identity"] },
+        "caller_identity_override_forbidden": { "const": true },
+        "tenant_scope_required": { "type": "boolean" },
+        "no_secret_responses": { "const": true },
+        "webhook_signature_required": { "type": "boolean" },
+        "allowed_audiences": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 300 } },
+        "required_capabilities": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 200 } }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_p95_ms": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "mutation_p95_ms": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "availability_target": { "type": "number", "minimum": 0, "maximum": 1 },
+        "degraded_policy": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "contract_suite_version", "certified_at", "expires_at", "evidence_refs", "behaviorally_certified"],
+      "properties": {
+        "environment": { "type": "string", "enum": ["none", "fixture", "sandbox", "staging", "production"] },
+        "contract_suite_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "certified_at": { "type": ["string", "null"], "format": "date-time" },
+        "expires_at": { "type": ["string", "null"], "format": "date-time" },
+        "evidence_refs": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 500 } },
+        "behaviorally_certified": { "type": "boolean" },
+        "provider_execution_certified": { "type": "boolean", "default": false }
+      }
+    },
+    "secrets_included": { "const": false }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "certified" } } },
+      "then": {
+        "properties": {
+          "certification": {
+            "properties": {
+              "environment": { "enum": ["sandbox", "staging", "production"] },
+              "behaviorally_certified": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "backend_mode": { "const": "erpnext" } } },
+      "then": { "properties": { "provider_family": { "type": "string", "minLength": 1 } } }
+    }
+  ]
+}
