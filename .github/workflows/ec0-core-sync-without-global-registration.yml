@@ -1,7 +1,9 @@
 name: EC0 Core Sync Without Global Registration
 
-# Synchronize trigger after workflow registration.
 on:
+  push:
+    branches:
+      - gpt/spec-012-ec0-clean-9c9b-20260730
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -10,7 +12,9 @@ permissions:
 
 jobs:
   sync-core:
-    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec0-clean-9c9b-20260730'
+    if: >-
+      (github.event_name == 'push' && github.ref_name == 'gpt/spec-012-ec0-clean-9c9b-20260730') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'gpt/spec-012-ec0-clean-9c9b-20260730')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout EC0 branch
