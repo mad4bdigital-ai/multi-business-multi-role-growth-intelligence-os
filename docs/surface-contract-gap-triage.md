@@ -4,22 +4,19 @@
 
 ## Summary
 
-- Triaged items: 25
-- Gate candidates: 6
+- Triaged items: 21
+- Gate candidates: 4
 - New-gap gate: fail
-- Blocking new items: 8
+- Blocking new items: 4
 
 ## Class counts
 
-- new_surface_immediate_review: 6
+- new_surface_immediate_review: 4
 - legacy_baseline_backlog: 17
-- safety_marker_review: 2
 
 ## Immediate review candidates
 
 - `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, score 1421; next: confirm registry binding/readback evidence before promotion
-- `20260730_repository_reconciliation_lease_control_tool.sql` — critical_review, score 857; next: add targeted patch-index, parity, and governance documentation
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 826; next: confirm registry binding/readback evidence before promotion
-- `20260723_dynamic_container_override_governance_smoke.sql` — critical_review, score 815; next: add targeted patch-index, parity, and governance documentation
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 771; next: confirm registry binding/readback evidence before promotion
 - `20260730_hostinger_production_resync_policy.sql` — high_review, score 546; next: add targeted patch-index, parity, and governance documentation
