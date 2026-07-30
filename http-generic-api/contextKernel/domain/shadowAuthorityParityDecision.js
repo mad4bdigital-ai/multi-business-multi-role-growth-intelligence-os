@@ -39,6 +39,16 @@ function normalizeTimestamp(value, fieldName) {
   return parsed;
 }
 
+function normalizeOptionalToken(value, fieldName, issues, issueCode) {
+  if (value === null || value === undefined || value === "") return null;
+  try {
+    return requireToken(value, fieldName);
+  } catch {
+    issues.push(issueCode);
+    return null;
+  }
+}
+
 function normalizeTokenList(value, fieldName, limit, issues) {
   if (!Array.isArray(value)) {
     issues.push(`${fieldName}_not_array`);
@@ -86,19 +96,26 @@ function normalizeReadinessDimensions(value, issues) {
       issues.push("readiness_dimension_invalid");
     }
   }
-  return Object.fromEntries(Object.entries(result).sort(([left], [right]) => left.localeCompare(right)));
+  return Object.fromEntries(
+    Object.entries(result).sort(([left], [right]) => left.localeCompare(right)),
+  );
+}
+
+function emptyNormalization(expectedSource) {
+  return {
+    snapshot: null,
+    issues: [`${expectedSource}_snapshot_not_object`],
+    stale: false,
+    unsupported: false,
+    dataQualityDetected: true,
+    sideEffectDetected: false,
+  };
 }
 
 function normalizeSnapshot(snapshot, expectedSource, now) {
   const issues = [];
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-    return {
-      snapshot: null,
-      issues: [`${expectedSource}_snapshot_not_object`],
-      stale: false,
-      unsupported: false,
-      sideEffectDetected: false,
-    };
+    return emptyNormalization(expectedSource);
   }
 
   let source = null;
@@ -150,6 +167,18 @@ function normalizeSnapshot(snapshot, expectedSource, now) {
     issues,
   );
   const readinessDimensions = normalizeReadinessDimensions(snapshot.readinessDimensions, issues);
+  const manifestRef = normalizeOptionalToken(
+    snapshot.manifestRef,
+    `${expectedSource}.manifestRef`,
+    issues,
+    `${expectedSource}_manifest_ref_invalid`,
+  );
+  const revisionRef = normalizeOptionalToken(
+    snapshot.revisionRef,
+    `${expectedSource}.revisionRef`,
+    issues,
+    `${expectedSource}_revision_ref_invalid`,
+  );
 
   const sideEffectDetected = SIDE_EFFECT_FLAGS.some((flag) => snapshot[flag] === true);
   const stale = Boolean(
@@ -170,12 +199,13 @@ function normalizeSnapshot(snapshot, expectedSource, now) {
       unsupportedSemantics,
       evaluatedAt: evaluatedAt?.toISOString() || null,
       expiresAt: expiresAt?.toISOString() || null,
-      manifestRef: snapshot.manifestRef ? requireToken(snapshot.manifestRef, `${expectedSource}.manifestRef`) : null,
-      revisionRef: snapshot.revisionRef ? requireToken(snapshot.revisionRef, `${expectedSource}.revisionRef`) : null,
+      manifestRef,
+      revisionRef,
     },
     issues,
     stale,
     unsupported: unsupportedSemantics.length > 0,
+    dataQualityDetected: dataQualityIssues.length > 0 || issues.length > 0,
     sideEffectDetected,
   };
 }
@@ -240,7 +270,7 @@ export function evaluateShadowAuthorityParity({ legacySnapshot, effectiveSnapsho
   if (legacy.sideEffectDetected || effective.sideEffectDetected) {
     reasonCodes.add("SHADOW_SIDE_EFFECT_INVARIANT_VIOLATED");
   }
-  if (legacy.issues.length > 0 || effective.issues.length > 0) {
+  if (legacy.dataQualityDetected || effective.dataQualityDetected) {
     mismatchClasses.add("data_quality_mismatch");
     reasonCodes.add("SHADOW_PARITY_DATA_QUALITY_MISMATCH");
   }
@@ -322,7 +352,6 @@ export function evaluateShadowAuthorityParity({ legacySnapshot, effectiveSnapsho
     || legacy.sideEffectDetected
     || effective.sideEffectDetected,
   );
-  const rolloutBlocked = !matched;
 
   return deepFreeze({
     status: matched ? "matched" : "mismatched",
@@ -331,7 +360,7 @@ export function evaluateShadowAuthorityParity({ legacySnapshot, effectiveSnapsho
     mismatchClasses: [...mismatchClasses].sort(),
     reasonCodes: [...reasonCodes].sort(),
     securityRelevant,
-    rolloutBlocked,
+    rolloutBlocked: !matched,
     evaluatedAt: evaluatedNow.toISOString(),
     legacy: legacy.snapshot,
     effective: effective.snapshot,
@@ -358,6 +387,7 @@ export const _testingShadowAuthorityParityDecision = deepFreeze({
   addGrantDirectionClasses,
   compareReadiness,
   compareTokenSets,
+  normalizeOptionalToken,
   normalizeReadinessDimensions,
   normalizeSnapshot,
   normalizeTokenList,
