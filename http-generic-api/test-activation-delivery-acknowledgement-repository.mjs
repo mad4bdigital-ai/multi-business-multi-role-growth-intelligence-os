@@ -76,6 +76,9 @@ const appendCalls = [];
 const appendConnection = {
   async query(sql, params) {
     appendCalls.push({ sql, params });
+    if (/FROM activation_operation_projections/.test(sql)) {
+      return [[{ operation_id: operationId }]];
+    }
     if (/^\s*SELECT delivery_id/.test(sql) && /FOR UPDATE/.test(sql)) {
       return [[{ delivery_id: deliveryId }]];
     }
@@ -91,6 +94,11 @@ const delivery = await appendActivationDeliveryRecord(appendConnection, {
   payload_sha256: "a".repeat(64),
 });
 assert.deepEqual(delivery, { delivery_id: deliveryId, affected_rows: 1 });
+const deliveryOperationLock = appendCalls.find(
+  ({ sql }) => /FROM activation_operation_projections/.test(sql) && /FOR UPDATE/.test(sql),
+);
+assert(deliveryOperationLock);
+assert.deepEqual(deliveryOperationLock.params, [operationId, tenantId]);
 const deliveryInsert = appendCalls.find(({ sql }) =>
   /INSERT INTO activation_deliveries/.test(sql),
 );
@@ -98,6 +106,25 @@ assert(deliveryInsert);
 assert.equal(deliveryInsert.params[5], "prepared");
 assert.equal(deliveryInsert.params[4], 4);
 assert.equal(deliveryInsert.params.includes("sent"), false);
+await assert.rejects(
+  () =>
+    appendActivationDeliveryRecord(
+      {
+        async query(sql) {
+          if (/activation_operation_projections/.test(sql)) return [[]];
+          throw new Error("delivery insert must not run outside operation scope");
+        },
+      },
+      {
+        delivery_id: deliveryId,
+        operation_id: operationId,
+        tenant_id: tenantId,
+        channel_key: "tenant_gpt",
+        delivery_attempt_number: 4,
+      },
+    ),
+  (error) => error?.code === "activation_operation_not_found" && error?.status === 404,
+);
 await assert.rejects(
   () =>
     appendActivationDeliveryRecord(appendConnection, {
@@ -140,6 +167,9 @@ await assert.rejects(
     appendActivationAcknowledgementRecord(
       {
         async query(sql) {
+          if (/activation_operation_projections/.test(sql)) {
+            return [[{ operation_id: operationId }]];
+          }
           if (/^\s*SELECT delivery_id/.test(sql)) return [[]];
           throw new Error("acknowledgement insert must not run for a cross-scope delivery");
         },
@@ -154,6 +184,25 @@ await assert.rejects(
       },
     ),
   (error) => error?.code === "activation_delivery_not_found" && error?.status === 404,
+);
+await assert.rejects(
+  () =>
+    appendActivationAcknowledgementRecord(
+      {
+        async query(sql) {
+          if (/activation_operation_projections/.test(sql)) return [[]];
+          throw new Error("acknowledgement insert must not run outside operation scope");
+        },
+      },
+      {
+        acknowledgement_id: acknowledgementId,
+        operation_id: operationId,
+        tenant_id: tenantId,
+        actor_type: "tenant_user",
+        actor_ref: actorRef,
+      },
+    ),
+  (error) => error?.code === "activation_operation_not_found" && error?.status === 404,
 );
 await assert.rejects(
   () =>
