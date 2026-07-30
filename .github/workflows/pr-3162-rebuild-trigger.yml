@@ -39,21 +39,94 @@ jobs:
             echo "PR 3162 rebuild already applied."
             exit 0
           fi
+
           node <<'NODE'
           const fs = require('node:fs');
           const { spawnSync } = require('node:child_process');
           const YAML = require('./http-generic-api/node_modules/yaml');
           const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
-          const steps = workflow.jobs.rebuild.steps;
+          const step = workflow.jobs.rebuild.steps.find((entry) => entry.name === 'Apply bounded reconciliation patch');
+          if (!step || typeof step.run !== 'string') throw new Error('Missing bounded apply step');
+          const brittleLine = 'script = replace_once(script, routes_old, routes_new, "nested helper route mounts")';
+          const patchedRun = step.run.replace(brittleLine, 'script = script');
+          if (patchedRun === step.run) throw new Error('Nested route replacement hook was not found');
+          const result = spawnSync('bash', ['-lc', patchedRun], {
+            cwd: process.cwd(),
+            env: process.env,
+            stdio: 'inherit',
+          });
+          if (result.status !== 0) process.exit(result.status || 1);
+          NODE
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/scripts/frontend-surface-dispatch.mjs')
+          source = path.read_text()
+
+          first_old = '''    ]);
+              const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);'''
+          first_new = '''    ]);
+              const helperBindings = helperInvocationBindings(scanSource, match.index, aliases, mountPrefix);
+              const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);'''
+          if source.count(first_old) != 1:
+              raise SystemExit(f'nested binding insertion expected one match, found {source.count(first_old)}')
+          source = source.replace(first_old, first_new, 1)
+
+          second_old = '''      for (const expandedRoute of expandRoutePaths(route)) {
+                  const routePath = joinRoutePath(mountPrefix, expandedRoute);
+                  const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
+                  for (const method of methods) {
+                    operations.push({
+                      method,
+                      path: routePath,
+                      signature: `${method} ${routePath}`,
+                      source_file: file,
+                      source_index: match.index,
+                      declaration,
+                      route_guards: routeGuards,
+                      inherited_guards: inheritedGuards,
+                    });
+                  }
+                }'''
+          second_new = '''      for (const expandedRoute of expandRoutePaths(route)) {
+                  for (const binding of helperBindings) {
+                    const routePath = joinRoutePath(binding.mount_prefix, expandedRoute);
+                    const inheritedGuards = unique([
+                      ...activeRouterUseGuards(scanSource, match.index, routePath, aliases),
+                      ...binding.guards,
+                    ]);
+                    for (const method of methods) {
+                      operations.push({
+                        method,
+                        path: routePath,
+                        signature: `${method} ${routePath}`,
+                        source_file: file,
+                        source_index: match.index,
+                        declaration,
+                        route_guards: routeGuards,
+                        inherited_guards: inheritedGuards,
+                      });
+                    }
+                  }
+                }'''
+          if source.count(second_old) != 1:
+              raise SystemExit(f'nested route loop expected one match, found {source.count(second_old)}')
+          source = source.replace(second_old, second_new, 1)
+          path.write_text(source)
+          PY
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const YAML = require('./http-generic-api/node_modules/yaml');
+          const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
           for (const name of [
-            'Apply bounded reconciliation patch',
             'Generate and validate frontend surface evidence',
             'Commit bounded reconciliation result',
           ]) {
-            const step = steps.find((entry) => entry.name === name);
-            if (!step || typeof step.run !== 'string') {
-              throw new Error(`Missing bounded workflow step: ${name}`);
-            }
+            const step = workflow.jobs.rebuild.steps.find((entry) => entry.name === name);
+            if (!step || typeof step.run !== 'string') throw new Error(`Missing bounded workflow step: ${name}`);
             const result = spawnSync('bash', ['-lc', step.run], {
               cwd: process.cwd(),
               env: process.env,
@@ -68,5 +141,3 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment 3295 --repo "${{ github.repository }}" --body "Bounded rebuild completed successfully in workflow run ${GITHUB_RUN_ID}."
-
-# Server-side merge trigger for the bounded PR #3162 rebuild.
