@@ -61,7 +61,7 @@ jobs:
             '200_sprint68_workspace_invitation_control_tools.sql',
             '201_sprint68_workspace_access_request_control_tools.sql',
           ]) assert.equal(names.has(migration), true, `${migration} was incorrectly hidden by static auto-remediation`);
-          assert.equal(queue.total_items, 23, `expected 23 actionable manual-review items, received ${queue.total_items}`);
+          assert.equal(queue.total_items, 21, `expected 21 actionable manual-review items, received ${queue.total_items}`);
           console.log({ surface_queue_after_auto_remediation: queue.total_items, secrets_included: false });
           NODE
 

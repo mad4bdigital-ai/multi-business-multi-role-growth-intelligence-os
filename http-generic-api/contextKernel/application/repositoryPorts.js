@@ -13,6 +13,11 @@ const PORT_METHODS = Object.freeze({
     "claimAuthorizationState",
     "completeClaimedAuthorization",
   ]),
+  providerConsentState: Object.freeze([
+    "issueAuthorizationState",
+    "findAuthorizationState",
+    "claimAuthorizationState",
+  ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   policyGrantEvidence: Object.freeze(["findPolicyGrantEvidence"]),
   contextPin: Object.freeze(["findContextPin", "createPin", "invalidatePin"]),
@@ -75,6 +80,14 @@ export function assertProviderAuthorizationStateRepository(repository) {
     repository,
     "Provider authorization state",
     PORT_METHODS.providerAuthorizationState,
+  );
+}
+
+export function assertProviderConsentStateRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Provider consent state",
+    PORT_METHODS.providerConsentState,
   );
 }
 
