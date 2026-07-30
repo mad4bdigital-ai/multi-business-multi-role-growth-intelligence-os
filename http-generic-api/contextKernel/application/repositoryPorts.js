@@ -16,6 +16,7 @@ const PORT_METHODS = Object.freeze({
   ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   policyGrantEvidence: Object.freeze(["findPolicyGrantEvidence"]),
+  endpointCertificationEvidence: Object.freeze(["findEndpointCertificationEvidence"]),
   contextPin: Object.freeze(["findContextPin", "createPin", "invalidatePin"]),
   executionLedger: Object.freeze(["findExecutionPlan", "listExecutionEvents", "appendExecutionEvent"]),
 });
@@ -99,6 +100,14 @@ export function assertPolicyGrantEvidenceRepository(repository) {
     repository,
     "Policy grant evidence",
     PORT_METHODS.policyGrantEvidence,
+  );
+}
+
+export function assertEndpointCertificationEvidenceRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Endpoint certification evidence",
+    PORT_METHODS.endpointCertificationEvidence,
   );
 }
 
