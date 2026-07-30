@@ -171,6 +171,18 @@ export function projectDurableNextAction({ plan = {}, steps = [], blockers = [] 
   return { type: "run", operation: "run" };
 }
 
+export function assertDurableRequestedStatus(toStatus) {
+  const requestedStatus = String(toStatus || "").trim();
+  if (!PLAN_TRANSITIONS.has(requestedStatus)) {
+    throw durableError(
+      `Unknown requested plan status '${requestedStatus || "(empty)"}'.`,
+      "invalid_status",
+      400,
+    );
+  }
+  return requestedStatus;
+}
+
 export async function transitionDurableExecution({
   pool,
   planId,
@@ -179,6 +191,7 @@ export async function transitionDurableExecution({
   actorId = null,
   reason = null,
 }) {
+  toStatus = assertDurableRequestedStatus(toStatus);
   return withTransaction(pool, async (connection) => {
     const [rows] = await connection.query(
       "SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 2 FOR UPDATE",

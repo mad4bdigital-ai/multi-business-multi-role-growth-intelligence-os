@@ -9,6 +9,7 @@ import {
   SEQUENTIAL_PLAN_RUN_JOB_TYPE,
 } from "../sequentialPlanOrchestrator.js";
 import {
+  assertDurableRequestedStatus,
   cancelDurableExecution,
   explainDurableExecution,
   getBoundedDurableTimeline,
@@ -223,17 +224,22 @@ export function buildPlannerRoutes(deps) {
   router.patch("/planner/plans/:id/status", requireBackendApiKey, async (req, res) => {
     try {
       const { status, tenant_id, reason } = req.body || {};
+      const requestedStatus = assertDurableRequestedStatus(status);
       const result = await transitionDurableExecution({
         pool: getPool(),
         planId: req.params.id,
         tenantId: tenant_id || null,
-        toStatus: status,
+        toStatus: requestedStatus,
         actorId: principalActor(req),
         reason: reason || null,
       });
       return res.status(200).json(result);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "plan_update_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
