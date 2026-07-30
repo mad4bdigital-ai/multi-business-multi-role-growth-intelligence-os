@@ -9,15 +9,58 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": []
+    "implementation_prs": [
+      {
+        "number": 3178,
+        "status": "merged",
+        "merge_sha": "af9192c5962daa806bfdee2c58af4b50f22aa45f",
+        "role": "phase_5_api_projection_contracts"
+      },
+      {
+        "number": 3204,
+        "status": "merged",
+        "merge_sha": "a2b779eb5bf37d6e740d933b5a0ee048b33d4c93",
+        "role": "phase_6_default_off_resource_shadow_slice"
+      },
+      {
+        "number": 3228,
+        "status": "merged",
+        "merge_sha": "4c7f00b93b90e6ae79c9677c081afcecadc0bb5a",
+        "role": "phase_7_cross_tenant_and_hardcoding_release_gates"
+      },
+      {
+        "number": 3329,
+        "status": "merged",
+        "merge_sha": "345193fdccda961b7b7f9f3fab2136e1846efefd",
+        "role": "retired_automatic_staging_verification_trigger"
+      },
+      {
+        "number": 3348,
+        "status": "merged",
+        "merge_sha": "66d4e5c6c014e124970421f9e3c877a647d2c04e",
+        "role": "execution_capsule_ec0_core_contract"
+      }
+    ]
   },
   "evidence": {
     "ci": {
       "status": "pending",
-      "scope": "hierarchical_connection_ownership_spec_amendment"
+      "scope": "full_spec_and_hierarchical_connection_ownership_delivery"
     },
     "implementation_ci": {
-      "status": "pending"
+      "status": "passed_for_recorded_slices",
+      "recorded_prs": [3178, 3204, 3228, 3329, 3348],
+      "full_spec_status": "pending"
+    },
+    "execution_capsule_ec0": {
+      "status": "contract_merged_follow_up_pending",
+      "runtime_authority": false,
+      "repository_test_manifest_registration": "pending"
+    },
+    "staging_post_deploy_verification": {
+      "status": "manual_only",
+      "environment": "dev.mad4b.com",
+      "environment_lifecycle": "intentionally_retired"
     },
     "migration": {
       "status": "pending"
@@ -33,5 +76,11 @@
     }
   },
   "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or credential mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect credential replacement compares the signed expected connection revision, live connection revision, claimed-state revision, and verified claim token; credential replacement, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under per-substep fault injection. Additive persistence migrations require separate authorization and same-cycle readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks are release blocking. Runtime implementation remains split across governed PRs for persistence artifacts, separately authorized migration application, tenant OAuth, context resolution, authority and capability integration, readiness, activation, OpenAPI compatibility, rollout, production verification, and post-merge audit. This branch performs no migration, provider call, credential mutation, runtime enablement, deployment, or protected-branch write.",
+  "implementation_reconciliation": {
+    "status": "recorded_slices_only",
+    "recorded_prs": [3178, 3204, 3228, 3329, 3348],
+    "runtime_authority_granted": false,
+    "remaining_scope": "Additive persistence, separately authorized migration and same-cycle readback, Tenant OAuth, exact owner-scope resolution, capability and authority integration, two-stage readiness, OpenAPI v0.2 exposure, low-risk read activation, governed writes, legacy removal, production verification, post-merge audit, rollback certification, and final closeout remain pending."
+  },
   "secrets_included": false
 }
