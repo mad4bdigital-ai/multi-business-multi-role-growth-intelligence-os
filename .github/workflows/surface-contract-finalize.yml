@@ -7,6 +7,8 @@ on:
       - .github/workflows/surface-contract-finalize.yml
   issue_comment:
     types: [created]
+  pull_request_target:
+    types: [reopened, ready_for_review]
 
 permissions:
   contents: write
@@ -20,10 +22,17 @@ jobs:
     if: >-
       github.event_name == 'push' ||
       (
+        github.event_name == 'issue_comment' &&
         github.event.issue.number == 3478 &&
         github.event.issue.pull_request != null &&
         github.event.comment.body == '/surface-contract-finalize-3478' &&
         github.event.comment.user.login == 'mad4bdigital-ai'
+      ) ||
+      (
+        github.event_name == 'pull_request_target' &&
+        github.event.pull_request.number == 3478 &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'gpt/surface-contract-classification-hardening-20260730'
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -46,33 +55,34 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Apply reviewed bootstrap payload without workflow mutation
+      - name: Remove redundant textual precheck from temporary applicator
         shell: bash
         run: |
           set -euo pipefail
           python3 <<'PY'
           from pathlib import Path
-          import textwrap
-
-          workflow = Path('.github/workflows/surface-contract-classification-bootstrap.yml').read_text(encoding='utf-8')
-          start_marker = "          python3 <<'PY'\n"
-          end_marker = "\n          PY"
-          start = workflow.find(start_marker)
-          if start < 0:
-              raise SystemExit('bootstrap_python_start_missing')
-          start += len(start_marker)
-          end = workflow.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('bootstrap_python_end_missing')
-          payload = textwrap.dedent(workflow[start:end])
-          old = "elif '(?:[-*]\\\\s*)?${token}' not in script:"
-          new = "elif '(?:[-*]\\\\\\\\s*)?${token}' not in script:"
-          if old in payload:
-              payload = payload.replace(old, new, 1)
-          if new not in payload:
-              raise SystemExit('bootstrap_escape_patch_missing')
-          exec(compile(payload, '<surface-contract-bootstrap-payload>', 'exec'), {})
+          path = Path('http-generic-api/scripts/apply-surface-contract-classification-phase-a.py')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          output = []
+          removed = 0
+          for line in lines:
+              if 'safety_bullet_parser_behavior_missing' in line:
+                  if not output or not output[-1].lstrip().startswith("if '(?:[-*]"):
+                      raise SystemExit('surface_behavior_precheck_anchor_missing')
+                  output.pop()
+                  removed += 1
+                  continue
+              output.append(line)
+          if removed != 1:
+              raise SystemExit(f'surface_behavior_precheck_count:{removed}')
+          path.write_text('\n'.join(output) + '\n', encoding='utf-8')
           PY
+
+      - name: Apply reviewed Surface Phase A applicator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 http-generic-api/scripts/apply-surface-contract-classification-phase-a.py
 
       - name: Verify and regenerate bounded Surface evidence
         working-directory: http-generic-api
@@ -92,14 +102,16 @@ jobs:
           const queue = require('../docs/surface-contract-gap-queue.json');
           const names = new Set(queue.top_items.map((item) => item.migration_file));
           if (names.has('20260714_validate_hostinger_connection_and_complete_continuation_task.sql')) throw new Error('Hostinger evidence remains queued');
-          console.log({ surface_queue_after: queue.total_items, critical_after: queue.class_counts.critical_review });
+          console.log({ surface_queue_after: queue.total_items, critical_after: queue.class_counts.critical_review, secrets_included: false });
           NODE
 
       - name: Commit bounded content-only repair
         shell: bash
         run: |
           set -euo pipefail
-          rm -f docs/surface-contract-classification-trigger-20260730.md
+          rm -f \
+            docs/surface-contract-classification-trigger-20260730.md \
+            http-generic-api/scripts/apply-surface-contract-classification-phase-a.py
           git add \
             http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
             http-generic-api/scripts/surface-contract-discovery.mjs \
@@ -110,7 +122,8 @@ jobs:
             docs/surface-contract-discovery-status.json \
             docs/surface-contract-gap-queue.md \
             docs/surface-contract-gap-queue.json \
-            docs/surface-contract-classification-trigger-20260730.md
+            docs/surface-contract-classification-trigger-20260730.md \
+            http-generic-api/scripts/apply-surface-contract-classification-phase-a.py
           python3 <<'PY'
           import subprocess
           allowed = {
@@ -124,6 +137,7 @@ jobs:
               'docs/surface-contract-gap-queue.md',
               'docs/surface-contract-gap-queue.json',
               'docs/surface-contract-classification-trigger-20260730.md',
+              'http-generic-api/scripts/apply-surface-contract-classification-phase-a.py',
           }
           required = {
               'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
@@ -132,6 +146,7 @@ jobs:
               'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
               'http-generic-api/test-surface-contract-discovery.mjs',
               'docs/surface-contract-classification-trigger-20260730.md',
+              'http-generic-api/scripts/apply-surface-contract-classification-phase-a.py',
           }
           changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
           if not required.issubset(changed) or not changed.issubset(allowed):
