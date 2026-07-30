@@ -8,9 +8,9 @@ import {
 import { createTenantGrowthControlProjectionService } from "./src/application/growthControlPlane/tenantGrowthControlProjectionService.js";
 import {
   _testingTenantGrowthControlProjection,
-  buildTenantGrowthControlProjectionScope,
-  decodeTenantGrowthControlCursor,
+  assertTenantGrowthControlAuth,
   encodeTenantGrowthControlCursor,
+  normalizeTenantGrowthControlListQuery,
   projectTenantActivityBinding,
   projectTenantConfigurationVersion
 } from "./src/domain/growthControlPlane/tenantGrowthControlProjection.js";
@@ -25,146 +25,125 @@ const auth = {
   mode: "user_jwt",
   user_id: USER_ID,
   tenant_id: TENANT_ID,
+  tenant_role: "member",
   is_admin: false
 };
 
 const encoded = encodeTenantGrowthControlCursor(25);
 assert.equal(encoded, "MjU");
-assert.equal(decodeTenantGrowthControlCursor(encoded), 25);
+assert.equal(_testingTenantGrowthControlProjection.decodeCursor(encoded), 25);
 assert.throws(
-  () => decodeTenantGrowthControlCursor("%%%"),
+  () => _testingTenantGrowthControlProjection.decodeCursor("%%%"),
   (error) => error.code === "TENANT_GROWTH_CONTROL_CURSOR_INVALID" && error.status === 400
 );
 
-const scope = buildTenantGrowthControlProjectionScope({
-  auth,
-  membership: { tenantRole: "member" },
-  workspace: { linkedBrandKey: BRAND_KEY, bootstrapStatus: "ready" },
-  workspaceId: WORKSPACE_ID,
-  brandKey: BRAND_KEY
-});
-assert.deepEqual(scope, {
-  tenantId: TENANT_ID,
+assert.deepEqual(assertTenantGrowthControlAuth(auth), {
   userId: USER_ID,
-  workspaceId: WORKSPACE_ID,
-  brandKey: BRAND_KEY,
-  tenantRole: "member",
-  workspaceBootstrapStatus: "ready"
+  tenantId: TENANT_ID,
+  tenantRole: "member"
 });
 assert.throws(
-  () => buildTenantGrowthControlProjectionScope({
-    auth: { ...auth, is_admin: true },
-    membership: { tenantRole: "member" },
-    workspace: { linkedBrandKey: BRAND_KEY, bootstrapStatus: "ready" },
-    workspaceId: WORKSPACE_ID,
-    brandKey: BRAND_KEY
-  }),
-  (error) => error.code === "TENANT_GROWTH_CONTROL_USER_JWT_REQUIRED" && error.status === 401
+  () => assertTenantGrowthControlAuth({ ...auth, is_admin: true }),
+  (error) => error.code === "TENANT_USER_JWT_REQUIRED" && error.status === 401
 );
-assert.throws(
-  () => buildTenantGrowthControlProjectionScope({
-    auth,
-    membership: null,
-    workspace: { linkedBrandKey: BRAND_KEY, bootstrapStatus: "ready" },
-    workspaceId: WORKSPACE_ID,
-    brandKey: BRAND_KEY
-  }),
-  (error) => error.code === "TENANT_GROWTH_CONTROL_MEMBERSHIP_REQUIRED" && error.status === 403
-);
-assert.throws(
-  () => buildTenantGrowthControlProjectionScope({
-    auth,
-    membership: { tenantRole: "member" },
-    workspace: { linkedBrandKey: "other-brand", bootstrapStatus: "ready" },
-    workspaceId: WORKSPACE_ID,
-    brandKey: BRAND_KEY
-  }),
-  (error) => error.code === "TENANT_GROWTH_CONTROL_BRAND_FORBIDDEN" && error.status === 403
-);
-
-const projectedVersion = projectTenantConfigurationVersion({
-  config_version_id: "44444444-4444-4444-8444-444444444444",
-  config_key: "growth.execution.policy",
-  version_number: 2,
-  scope_type: "brand",
-  scope_key: `tenant:${TENANT_ID}:workspace:${WORKSPACE_ID}:brand:${BRAND_KEY}`,
-  tenant_id: TENANT_ID,
-  workspace_id: WORKSPACE_ID,
-  brand_key: BRAND_KEY,
-  activity_type_key: "travel",
-  activity_binding_id: null,
-  profile_key: null,
-  workflow_key: null,
-  workflow_version: null,
-  workflow_node_id: null,
-  plan_id: null,
-  execution_id: null,
-  lifecycle: "active",
-  version_revision: 3,
-  checksum_sha256: "a".repeat(64),
-  effective_from: "2026-07-24T18:00:00Z",
-  effective_to: null,
-  created_at: "2026-07-24T17:00:00Z",
-  values_json: { secret: "must-not-leak" },
-  schema_json: { secret: "must-not-leak" },
-  approved_by: "platform-admin"
-});
-assert.equal(projectedVersion.metadataOnly, true);
-assert.equal(projectedVersion.secretsIncluded, false);
-assert.equal(Object.hasOwn(projectedVersion, "values_json"), false);
-assert.equal(Object.hasOwn(projectedVersion, "schema_json"), false);
-assert.equal(Object.hasOwn(projectedVersion, "approved_by"), false);
-
-const projectedBinding = projectTenantActivityBinding({
-  activity_binding_id: "55555555-5555-4555-8555-555555555555",
-  tenant_id: TENANT_ID,
-  workspace_id: WORKSPACE_ID,
-  brand_key: BRAND_KEY,
-  activity_type_key: "travel",
-  activity_pack_key: "travel.organic-growth",
-  activity_pack_version: 1,
-  markets_json: ["EG"],
-  locales_json: ["ar-EG"],
-  channels_json: ["organic-search"],
-  objectives_json: ["qualified-leads"],
-  allowed_capabilities_json: ["intent_map_generate"],
-  status: "draft",
-  created_at: "2026-07-24T17:00:00Z",
-  updated_at: "2026-07-24T17:00:00Z",
-  idempotency_key: "hidden",
-  created_by: "hidden"
-});
-assert.equal(projectedBinding.metadataOnly, true);
-assert.equal(projectedBinding.secretsIncluded, false);
-assert.equal(Object.hasOwn(projectedBinding, "idempotency_key"), false);
-assert.equal(Object.hasOwn(projectedBinding, "created_by"), false);
-
 assert.deepEqual(
-  _testingTenantGrowthControlProjection.normalizedPage({ limit: "2", cursor: encodeTenantGrowthControlCursor(4) }),
-  { limit: 2, offset: 4 }
+  normalizeTenantGrowthControlListQuery({
+    workspaceId: WORKSPACE_ID,
+    brandKey: BRAND_KEY,
+    limit: "2",
+    cursor: encodeTenantGrowthControlCursor(4)
+  }),
+  { workspaceId: WORKSPACE_ID, brandKey: BRAND_KEY, limit: 2, offset: 4 }
 );
 assert.throws(
-  () => _testingTenantGrowthControlProjection.normalizedPage({ limit: "101" }),
+  () => normalizeTenantGrowthControlListQuery({
+    workspaceId: WORKSPACE_ID,
+    brandKey: BRAND_KEY,
+    limit: "101"
+  }),
   (error) => error.code === "TENANT_GROWTH_CONTROL_LIMIT_INVALID" && error.status === 400
 );
 
+const versionRow = {
+  configVersionId: "44444444-4444-4444-8444-444444444444",
+  configKey: "growth.execution.policy",
+  versionNumber: 2,
+  scopeType: "brand",
+  scopeKey: `tenant:${TENANT_ID}:workspace:${WORKSPACE_ID}:brand:${BRAND_KEY}`,
+  tenantId: TENANT_ID,
+  workspaceId: WORKSPACE_ID,
+  brandKey: BRAND_KEY,
+  activityTypeKey: "travel",
+  activityBindingId: null,
+  profileKey: null,
+  workflowKey: null,
+  workflowVersion: null,
+  workflowNodeId: null,
+  planId: null,
+  executionId: null,
+  lifecycle: "active",
+  versionRevision: 3,
+  checksumSha256: "a".repeat(64),
+  effectiveFrom: "2026-07-24T18:00:00Z",
+  effectiveTo: null,
+  createdAt: "2026-07-24T17:00:00Z"
+};
+const projectedVersion = projectTenantConfigurationVersion(versionRow);
+assert.equal(projectedVersion.metadataOnly, true);
+assert.equal(projectedVersion.secretsIncluded, false);
+assert.equal(Object.hasOwn(projectedVersion, "valuesJson"), false);
+assert.equal(Object.hasOwn(projectedVersion, "schemaJson"), false);
+assert.equal(Object.hasOwn(projectedVersion, "approvedBy"), false);
+assert.throws(
+  () => projectTenantConfigurationVersion({ ...versionRow, secret: "must-not-leak" }),
+  (error) => error.code === "TENANT_GROWTH_CONTROL_PROJECTION_UNSAFE" && error.status === 500
+);
+
+const bindingRow = {
+  activityBindingId: "55555555-5555-4555-8555-555555555555",
+  tenantId: TENANT_ID,
+  workspaceId: WORKSPACE_ID,
+  brandKey: BRAND_KEY,
+  activityTypeKey: "travel",
+  activityPackKey: "travel.organic-growth",
+  activityPackVersion: 1,
+  markets: ["EG"],
+  locales: ["ar-EG"],
+  channels: ["organic-search"],
+  objectives: ["qualified-leads"],
+  allowedCapabilities: ["intent_map_generate"],
+  status: "draft",
+  createdAt: "2026-07-24T17:00:00Z",
+  updatedAt: "2026-07-24T17:00:00Z"
+};
+const projectedBinding = projectTenantActivityBinding(bindingRow);
+assert.equal(projectedBinding.metadataOnly, true);
+assert.equal(projectedBinding.secretsIncluded, false);
+assert.deepEqual(projectedBinding.markets, ["EG"]);
+assert.equal(Object.hasOwn(projectedBinding, "idempotencyKey"), false);
+assert.equal(Object.hasOwn(projectedBinding, "createdBy"), false);
+
 const repositoryCalls = [];
 const repositoryStub = {
-  async findActiveMembership(input) {
-    repositoryCalls.push(["membership", input]);
-    return { tenantRole: "member" };
-  },
-  async findAuthorizedWorkspace(input) {
-    repositoryCalls.push(["workspace", input]);
-    return { linkedBrandKey: BRAND_KEY, bootstrapStatus: "ready" };
+  async resolveTenantWorkspaceScope(input) {
+    repositoryCalls.push(["scope", input]);
+    return {
+      tenantId: TENANT_ID,
+      tenantRole: "member",
+      workspaceId: WORKSPACE_ID,
+      workspaceKey: "example-workspace",
+      workspaceType: "company",
+      bootstrapStatus: "ready",
+      brandKey: BRAND_KEY
+    };
   },
   async listConfigurationVersions(input) {
     repositoryCalls.push(["configurationVersions", input]);
-    return [projectedVersion, { ...projectedVersion, configVersionId: "66666666-6666-4666-8666-666666666666" }];
+    return [versionRow, { ...versionRow, configVersionId: "66666666-6666-4666-8666-666666666666" }];
   },
   async listActivityBindings(input) {
     repositoryCalls.push(["activityBindings", input]);
-    return [projectedBinding];
+    return [bindingRow];
   }
 };
 
@@ -177,6 +156,7 @@ const versionsResponse = await service.listConfigurationVersions(auth, {
 assert.equal(versionsResponse.items.length, 1);
 assert.equal(versionsResponse.page.hasMore, true);
 assert.equal(versionsResponse.page.nextCursor, encodeTenantGrowthControlCursor(1));
+assert.equal(versionsResponse.scope.tenantRole, "member");
 assert.equal(versionsResponse.tenantFacing, true);
 assert.equal(versionsResponse.providerCalls, false);
 assert.equal(versionsResponse.externalWrites, false);
@@ -192,19 +172,53 @@ assert.equal(bindingsResponse.page.hasMore, false);
 assert.equal(bindingsResponse.providerCalls, false);
 assert.equal(bindingsResponse.externalWrites, false);
 assert.equal(bindingsResponse.secretsIncluded, false);
-assert(repositoryCalls.some(([name]) => name === "membership"));
-assert(repositoryCalls.some(([name]) => name === "workspace"));
+assert(repositoryCalls.some(([name]) => name === "scope"));
+assert(repositoryCalls.some(([name]) => name === "configurationVersions"));
+assert(repositoryCalls.some(([name]) => name === "activityBindings"));
+
+const forbiddenRepositoryStub = {
+  ...repositoryStub,
+  async resolveTenantWorkspaceScope() {
+    return null;
+  }
+};
+const forbiddenService = createTenantGrowthControlProjectionService({ repository: forbiddenRepositoryStub });
+await assert.rejects(
+  forbiddenService.listActivityBindings(auth, {
+    workspaceId: WORKSPACE_ID,
+    brandKey: BRAND_KEY
+  }),
+  (error) => error.code === "TENANT_GROWTH_CONTROL_SCOPE_FORBIDDEN" && error.status === 403
+);
 
 const sqlCalls = [];
 const pool = {
   async query(statement, params) {
     sqlCalls.push({ statement, params });
-    if (statement.includes("FROM tenant_memberships")) return [[{ tenant_role: "member" }]];
-    if (statement.includes("FROM workspaces")) return [[{ linked_brand_key: BRAND_KEY, workspace_bootstrap_status: "ready" }]];
+    if (statement.includes("FROM memberships")) {
+      return [[{
+        tenant_id: TENANT_ID,
+        tenant_role: "member",
+        workspace_id: WORKSPACE_ID,
+        workspace_key: "example-workspace",
+        workspace_type: "company",
+        bootstrap_status: "ready",
+        linked_brand_key: BRAND_KEY
+      }]];
+    }
     return [[]];
   }
 };
 const repository = createTenantGrowthControlProjectionRepository({ pool });
+const resolvedScope = await repository.resolveTenantWorkspaceScope({
+  tenantId: TENANT_ID,
+  userId: USER_ID,
+  workspaceId: WORKSPACE_ID,
+  brandKey: BRAND_KEY
+});
+assert.equal(resolvedScope.workspaceId, WORKSPACE_ID);
+assert.equal(resolvedScope.brandKey, BRAND_KEY);
+
 await repository.listConfigurationVersions({
   tenantId: TENANT_ID,
   workspaceId: WORKSPACE_ID,
@@ -226,7 +240,7 @@ assert(routesIndex.includes("app.use(buildTenantGrowthControlPlaneRoutes({ ...de
 const routeSource = readFileSync("routes/tenantGrowthControlPlaneRoutes.js", "utf8");
 assert(routeSource.includes("/tenant/control-plane/configuration-versions"));
 assert(routeSource.includes("/tenant/control-plane/activity-bindings"));
-assert(routeSource.includes("requireTenantProjectionPrincipal"));
+assert(routeSource.includes("requireTenantUserJwt"));
 
 const tenantOpenApiSource = readFileSync("openapi/tenant-growth-control-plane.openapi.yaml", "utf8");
 const tenantOpenApi = YAML.parse(tenantOpenApiSource);
@@ -256,5 +270,9 @@ for (const operation of [configurationVersionsOperation, activityBindingsOperati
 }
 
 assert.equal(typeof _testingTenantGrowthControlPlaneRoutes.requireTenantProjectionPrincipal, "function");
+assert.throws(
+  () => _testingTenantGrowthControlPlaneRoutes.assertAllowedQuery({ workspaceId: WORKSPACE_ID, extra: "blocked" }),
+  (error) => error.code === "TENANT_GROWTH_CONTROL_QUERY_INVALID" && error.status === 400
+);
 
 console.log("tenant Growth Control Plane projection tests passed");
