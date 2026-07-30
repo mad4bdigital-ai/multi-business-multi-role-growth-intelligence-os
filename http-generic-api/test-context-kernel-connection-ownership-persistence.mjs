@@ -14,6 +14,8 @@ import {
 
 const CLAIM_HASH = "a".repeat(64);
 const ACCOUNT_HASH = "b".repeat(64);
+const NONCE_HASH = "c".repeat(64);
+const SIGNATURE_HASH = "d".repeat(64);
 
 async function assertRejectCode(run, expectedCode) {
   let error = null;
@@ -87,13 +89,10 @@ assert.equal(workspace.ownershipRevision, 7);
 assert.match(workspaceMock.calls[0].sql, /tenant_id\s*=\s*\?/i);
 assert.deepEqual(workspaceMock.calls[0].params, ["tenant-a", "workspace-a"]);
 
-const unclassifiedWorkspaceMock = createReadPool(() => [{
-  ...workspaceRow,
-  workspace_ownership_type: null,
-}]);
 await assertRejectCode(
-  () => createWorkspaceOwnershipRepository({ pool: unclassifiedWorkspaceMock.pool })
-    .findWorkspaceOwnership({ tenantRef: "tenant-a", workspaceRef: "workspace-a" }),
+  () => createWorkspaceOwnershipRepository({
+    pool: createReadPool(() => [{ ...workspaceRow, workspace_ownership_type: null }]).pool,
+  }).findWorkspaceOwnership({ tenantRef: "tenant-a", workspaceRef: "workspace-a" }),
   "workspace_ownership_unclassified",
 );
 
@@ -205,6 +204,30 @@ function baseStateRow(overrides = {}) {
   };
 }
 
+const strictClaimInput = Object.freeze({
+  tenantRef: "tenant-a",
+  stateRef: "state-a",
+  flowType: "reconnect",
+  providerKey: "google_drive",
+  principalRef: "user-a",
+  userRef: "user-a",
+  workspaceRef: "workspace-a",
+  brandRef: null,
+  ownerScopeType: "personal_workspace",
+  ownerScopeRef: "workspace-a",
+  targetConnectionRef: "connection-a",
+  expectedConnectionRevision: 9,
+  expectedProviderAccountRef: null,
+  expectedProviderAccountBindingHash: ACCOUNT_HASH,
+  requestedProviderScopes: ["drive.readonly"],
+  redirectTargetRef: "tenant-oauth-callback",
+  nonceHash: NONCE_HASH,
+  stateSignatureHash: SIGNATURE_HASH,
+  signatureVersion: "v1",
+  expectedStateRevision: 1,
+  claimTokenHash: CLAIM_HASH,
+});
+
 let claimState = baseStateRow();
 const claimCalls = [];
 const claimPool = {
@@ -212,9 +235,22 @@ const claimPool = {
     const statement = String(sql);
     claimCalls.push({ sql: statement, params: [...params] });
     if (/SET status = 'claimed'/.test(statement)) {
-      if (claimState.status !== "issued" || claimState.state_revision !== params[3]) {
-        return [{ affectedRows: 0 }, []];
-      }
+      const exactMatch = claimState.status === "issued"
+        && claimState.state_revision === params[3]
+        && params[4] === NONCE_HASH
+        && params[5] === SIGNATURE_HASH
+        && params[6] === "v1"
+        && params[7] === claimState.provider_key
+        && params[8] === claimState.principal_ref
+        && params[9] === claimState.workspace_id
+        && (params[10] ?? null) === (claimState.brand_id ?? null)
+        && params[11] === claimState.owner_scope_type
+        && params[12] === claimState.owner_scope_ref
+        && params[13] === claimState.target_connection_id
+        && params[14] === claimState.expected_connection_revision
+        && (params[15] ?? null) === (claimState.expected_provider_account_ref ?? null)
+        && params[16] === claimState.expected_provider_account_binding_hash;
+      if (!exactMatch) return [{ affectedRows: 0 }, []];
       claimState = baseStateRow({
         status: "claimed",
         state_revision: 2,
@@ -230,25 +266,28 @@ const claimPool = {
 };
 const authorizationRepository = createProviderAuthorizationStateRepository({ pool: claimPool });
 assertProviderAuthorizationStateRepository(authorizationRepository);
-const claimed = await authorizationRepository.claimAuthorizationState({
-  tenantRef: "tenant-a",
-  stateRef: "state-a",
-  expectedStateRevision: 1,
-  claimTokenHash: CLAIM_HASH,
-});
+const claimed = await authorizationRepository.claimAuthorizationState(strictClaimInput);
 assert.equal(claimed.status, "claimed");
 assert.equal(claimed.claimVerifierPersisted, true);
 assert.equal(claimed.claimRevision, 1);
-assert.doesNotMatch(claimCalls.at(-1).sql, /state_signature_hash|nonce_hash/i);
+const strictClaimSql = claimCalls.find((call) => /SET status = 'claimed'/.test(call.sql))?.sql || "";
+assert.match(strictClaimSql, /state_signature_hash\s*=\s*\?/i);
+assert.match(strictClaimSql, /nonce_hash\s*=\s*\?/i);
+assert.match(strictClaimSql, /owner_scope_ref\s*=\s*\?/i);
+assert.match(strictClaimSql, /expected_connection_revision\s*<=>\s*\?/i);
 
 await assertRejectCode(
+  () => authorizationRepository.claimAuthorizationState(strictClaimInput),
+  "oauth_state_claim_conflict",
+);
+await assert.rejects(
   () => authorizationRepository.claimAuthorizationState({
     tenantRef: "tenant-a",
     stateRef: "state-a",
     expectedStateRevision: 1,
     claimTokenHash: CLAIM_HASH,
   }),
-  "oauth_state_claim_conflict",
+  /flowType/,
 );
 
 function createCompletionPool({ failStateConsume = false } = {}) {
@@ -350,11 +389,10 @@ const consumed = await completionRepository.completeClaimedAuthorization({
   providerAccountBindingVersion: "sha256-v1",
   async mutateConnection({ execute, state }) {
     assert.equal(state.connectionRef, "connection-a");
-    const result = await execute(
+    return execute(
       "UPDATE user_app_connections SET encrypted_credentials = ? WHERE tenant_id = ? AND connection_id = ?",
       ["ciphertext-placeholder", state.tenantRef, state.connectionRef],
     );
-    return { credentialMutationApplied: result.affectedRows === 1 };
   },
 });
 assert.equal(consumed.status, "consumed");
@@ -371,48 +409,45 @@ assert.match(transactionalSql, /connection_revision = \?/);
 assert.match(transactionalSql, /claim_token_hash = \?/);
 
 const rollbackMock = createCompletionPool({ failStateConsume: true });
-const rollbackRepository = createProviderAuthorizationStateRepository({ pool: rollbackMock.pool });
 await assertRejectCode(
-  () => rollbackRepository.completeClaimedAuthorization({
-    tenantRef: "tenant-a",
-    stateRef: "state-a",
-    expectedStateRevision: 2,
-    claimRevision: 1,
-    claimTokenHash: CLAIM_HASH,
-    expectedConnectionRevision: 9,
-    providerAccountBindingHash: ACCOUNT_HASH,
-    providerAccountBindingVersion: "sha256-v1",
-    async mutateConnection({ execute, state }) {
-      const result = await execute(
-        "UPDATE user_app_connections SET encrypted_credentials = ? WHERE tenant_id = ? AND connection_id = ?",
-        ["ciphertext-placeholder", state.tenantRef, state.connectionRef],
-      );
-      return { credentialMutationApplied: result.affectedRows === 1 };
-    },
-  }),
+  () => createProviderAuthorizationStateRepository({ pool: rollbackMock.pool })
+    .completeClaimedAuthorization({
+      tenantRef: "tenant-a",
+      stateRef: "state-a",
+      expectedStateRevision: 2,
+      claimRevision: 1,
+      claimTokenHash: CLAIM_HASH,
+      expectedConnectionRevision: 9,
+      providerAccountBindingHash: ACCOUNT_HASH,
+      providerAccountBindingVersion: "sha256-v1",
+      async mutateConnection({ execute, state }) {
+        return execute(
+          "UPDATE user_app_connections SET encrypted_credentials = ? WHERE tenant_id = ? AND connection_id = ?",
+          ["ciphertext-placeholder", state.tenantRef, state.connectionRef],
+        );
+      },
+    }),
   "oauth_state_completion_conflict",
 );
 assert.ok(rollbackMock.events.includes("rollback"));
 assert.ok(!rollbackMock.events.includes("commit"));
 
 const callbackFailureMock = createCompletionPool();
-const callbackFailureRepository = createProviderAuthorizationStateRepository({
-  pool: callbackFailureMock.pool,
-});
 await assert.rejects(
-  () => callbackFailureRepository.completeClaimedAuthorization({
-    tenantRef: "tenant-a",
-    stateRef: "state-a",
-    expectedStateRevision: 2,
-    claimRevision: 1,
-    claimTokenHash: CLAIM_HASH,
-    expectedConnectionRevision: 9,
-    providerAccountBindingHash: ACCOUNT_HASH,
-    providerAccountBindingVersion: "sha256-v1",
-    async mutateConnection() {
-      throw new Error("fault injection: credential update failed");
-    },
-  }),
+  () => createProviderAuthorizationStateRepository({ pool: callbackFailureMock.pool })
+    .completeClaimedAuthorization({
+      tenantRef: "tenant-a",
+      stateRef: "state-a",
+      expectedStateRevision: 2,
+      claimRevision: 1,
+      claimTokenHash: CLAIM_HASH,
+      expectedConnectionRevision: 9,
+      providerAccountBindingHash: ACCOUNT_HASH,
+      providerAccountBindingVersion: "sha256-v1",
+      async mutateConnection() {
+        throw new Error("fault injection: credential update failed");
+      },
+    }),
   /fault injection/,
 );
 assert.ok(callbackFailureMock.events.includes("rollback"));
