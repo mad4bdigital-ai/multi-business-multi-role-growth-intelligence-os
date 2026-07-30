@@ -48,7 +48,7 @@ export function createSupportDelegationEvidence({
   allowedOperations,
   validFrom,
   expiresAt,
-  status = "active",
+  status,
   revokedAt = null,
 } = {}) {
   const normalizedMode = requireString(mode, "mode", 64).toLowerCase();
