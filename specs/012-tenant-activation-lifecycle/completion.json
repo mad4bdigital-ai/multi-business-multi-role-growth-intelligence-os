@@ -43,6 +43,12 @@
         "role": "t028_stage_classification_and_reconnect_guidance_policy",
         "status": "merged",
         "merge_sha": "3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0"
+      },
+      {
+        "number": 3468,
+        "role": "t027_t029_lifecycle_operation_retry_and_reconciliation_service",
+        "status": "merged",
+        "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052"
       }
     ],
     "closeout_pr": {
@@ -94,19 +100,57 @@
         "T015",
         "T016",
         "T017",
+        "T027",
         "T028",
+        "T029",
         "T076"
       ],
-      "latest_completed_task": "T028",
+      "latest_completed_task": "T029",
       "runtime_authority": false,
-      "remaining_scope": "All unchecked tasks in tasks.md remain open; this evidence does not complete Spec 012."
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T027/T029 are merged domain-service foundations only; public runtime wiring, migration application/readback, production deployment, and protected-user-path verification remain pending."
     },
     "ci": {
       "status": "pass_for_latest_slice",
-      "pull_request": 3296,
-      "head_sha": "70950b35ecb2e040133078093e358ddb2de04a27",
-      "ci_run_id": "30523835441",
-      "frontend_surface_dispatch_run_id": "30523835499"
+      "pull_request": 3468,
+      "head_sha": "919643b3f7dadc7652813706bc991763082ac5fb",
+      "ci_run_id": "30535150293",
+      "frontend_surface_dispatch_run_id": "30535150203",
+      "remaining_scope_scorecard_run_id": "30535150201",
+      "completion_cleanup_readback_run_id": "30535150227",
+      "docs_agent_run_id": "30535150269",
+      "context_kernel_report_run_id": "30535150249",
+      "automation_overlap_guard_run_id": "30535150244"
+    },
+    "t027_t029_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3468,
+      "validated_head_sha": "919643b3f7dadc7652813706bc991763082ac5fb",
+      "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052",
+      "main_readback_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052",
+      "state_machine": "http-generic-api/activationLifecycleStateMachine.js",
+      "operation_service": "http-generic-api/activationLifecycleOperationService.js",
+      "retry_reconciliation_policy": "http-generic-api/activationRetryReconciliationPolicy.js",
+      "regression_test": "http-generic-api/test-activation-lifecycle-operation-service.mjs",
+      "implementation_note": "implementation/pr-2b-lifecycle-operation-service.md",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "review_threads_resolved": true,
+      "transaction_bound_mutations": true,
+      "optimistic_version_enforced": true,
+      "retry_attempt_reserved_and_consumed_by_identity": true,
+      "blind_replay_allowed": false,
+      "reconcile_before_retry": true,
+      "same_operation_success_evidence_required": true,
+      "success_evidence_types": [
+        "activation_success_readback",
+        "execution_readback",
+        "provider_readback",
+        "reconciliation_readback"
+      ],
+      "runtime_wiring": false,
+      "database_migration": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "t028_post_merge": {
       "status": "complete_on_main",
@@ -145,7 +189,9 @@
     "post_merge_audit": {
       "status": "pending_for_full_spec",
       "completed_slices": [
-        "T028"
+        "T027",
+        "T028",
+        "T029"
       ]
     },
     "rollback_verification": {

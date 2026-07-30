@@ -1,0 +1,101 @@
+{
+  "spec_key": "011-unified-effective-authority-control-plane",
+  "title": "Unified Effective Authority Control Plane",
+  "status": "in_progress",
+  "created_at": "2026-07-20",
+  "recovered_at": "2026-07-30",
+  "branch": "gpt/011-ueacp-spec-recovery-20260730",
+  "base_sha": "bd68dec624259513a4bdccbc1fa038d090a7ba89",
+  "recovery_source": {
+    "pull_request": 2888,
+    "branch": "gpt/011-unified-effective-authority-control-plane-20260720",
+    "boundary": "spec_directory_only"
+  },
+  "implementation_delivery": {
+    "merged_prs": [
+      {
+        "number": 3471,
+        "role": "t010_t011_principal_subject_delegation_resolvers",
+        "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
+        "merge_sha": "0ff39a85661a9552daa52d3a56338a24fe6bf560"
+      }
+    ],
+    "superseded_prs": [3351],
+    "remaining_delivery": "bounded_current_main_prs"
+  },
+  "architecture": {
+    "authority_model": "unified_admin_tenant_effective_authority",
+    "identity_model": "actor_subject_scope_separation",
+    "policy_model": "rbac_abac_rebac_capability",
+    "decision_plane": "pip_pdp_pap_pep",
+    "resource_model": "typed_versioned_resource_graph",
+    "decision_artifact": "no_secret_effective_authority_manifest",
+    "projection_model": "derived_tool_tab_dashboard_connector_runtime_projections",
+    "execution_model": "manifest_bound_same_cycle_revalidation",
+    "consistency": "version_vector_invalidation_and_reconciliation",
+    "migration": "additive_shadow_first_capability_by_capability"
+  },
+  "non_negotiable_invariants": [
+    "admin_and_tenant_use_one_resolver",
+    "zero_tenant_is_not_admin_authority",
+    "admin_visibility_does_not_imply_mutation",
+    "tenant_scope_cannot_expand_from_request_parameters",
+    "actor_is_preserved_during_delegation",
+    "projections_never_grant_execution_authority",
+    "semantic_capability_precedes_provider_selection",
+    "ambiguous_top_ranked_connections_block",
+    "state_changing_manifests_are_bound_and_single_use",
+    "high_risk_execution_revalidates_mutable_authority",
+    "secrets_never_enter_manifests_or_decision_ledgers",
+    "executable_is_subset_of_projected_authorized_registered"
+  ],
+  "depends_on": [
+    "006-adaptive-authorization-execution-governance",
+    "007-dynamic-capability-governance",
+    "003-activation-operational-count-integrity",
+    "009-platform-request-execution-hardening"
+  ],
+  "documents": [
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "spec.md",
+    "adr-001-unified-effective-authority-control-plane.md",
+    "architecture.md",
+    "formal-decision-model.md",
+    "data-model.md",
+    "use-cases.md",
+    "threat-model.md",
+    "api-contracts.md",
+    "contracts/openapi.yaml",
+    "migration-and-rollout.md",
+    "testing-and-reconciliation.md",
+    "concerns-and-tradeoffs.md",
+    "research.md",
+    "quickstart.md",
+    "plan.md",
+    "tasks.md",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "compatibility-semantics.md",
+    "authority-path-inventory-evidence.md",
+    "implementation-evidence.md",
+    "live-sql-census-gap-evidence.md",
+    "query-performance-retention-review.md",
+    "security-review-evidence.md",
+    "completion.json",
+    "RECOVERY_PROVENANCE.md"
+  ],
+  "historical_evidence_documents": [
+    "implementation-evidence.md",
+    "live-sql-census-gap-evidence.md",
+    "query-performance-retention-review.md",
+    "security-review-evidence.md"
+  ],
+  "delivery_mode": "multi_pr",
+  "initial_runtime_effect": "none",
+  "provider_mutation_allowed": false,
+  "external_write_allowed": false,
+  "migration_execution_authorized": false,
+  "production_promotion_authorized": false,
+  "sensitive_values_included": false
+}
