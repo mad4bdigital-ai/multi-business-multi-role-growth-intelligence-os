@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - gpt/reconciliation-lease-control-surface-v2-20260730
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,7 +28,7 @@ jobs:
           const marker = '  "node test-repository-operation-lease-service.mjs",';
           const entry = '  "node test-repository-reconciliation-lease-control.mjs",';
           let source = fs.readFileSync(path, 'utf8');
-          const count = source.split(entry).length - 1;
+          let count = source.split(entry).length - 1;
           if (count > 1) {
             throw new Error(`lease test manifest entry duplicated ${count} times`);
           }
@@ -38,10 +39,13 @@ jobs:
             source = source.replace(marker, `${marker}\n${entry}`);
             fs.writeFileSync(path, source);
           }
+          source = fs.readFileSync(path, 'utf8');
+          count = source.split(entry).length - 1;
+          if (count !== 1) {
+            throw new Error(`expected exactly one lease test manifest entry, found ${count}`);
+          }
           NODE
           node --check http-generic-api/scripts/test-manifest.mjs
-          grep -Fx '  "node test-repository-reconciliation-lease-control.mjs",' http-generic-api/scripts/test-manifest.mjs
-          test "$(grep -Fxc '  \"node test-repository-reconciliation-lease-control.mjs\",' http-generic-api/scripts/test-manifest.mjs)" = "1"
 
       - name: Commit patch and remove workflow
         shell: bash
