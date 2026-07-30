@@ -6,7 +6,10 @@ let pool = null;
 let report;
 try {
   pool = getPool();
-  report = await assessBrandSkillMigrationPreflight({ pool });
+  report = await assessBrandSkillMigrationPreflight({
+    pool,
+    requireRuntimeBaseline: true,
+  });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (!report.ready) process.exitCode = 1;
 } catch (error) {
