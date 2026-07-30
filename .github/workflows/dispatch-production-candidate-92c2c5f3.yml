@@ -26,10 +26,10 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f expected_main_sha=702893d307dbac2aa350735f75dd38940907a98e \
-            -f expected_production_sha=fbcf77ae19738fcbd31211e874bfa315da83294e \
-            -f release_branch=release/production-candidate-702893d3-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-702893d3-20260730 \
-            -f validation_base_branch=gpt/validate-production-base-702893d3-20260730 \
+            -f expected_production_sha=fae54a372350d23d915bbe564e972b714ca363f4 \
+            -f release_branch=release/production-candidate-702893d3-fae54a37-20260730 \
+            -f validation_branch=gpt/validate-production-candidate-702893d3-fae54a37 \
+            -f validation_base_branch=gpt/validate-production-base-702893d3-fae54a37 \
             -f create_pull_requests=true)"
           printf '%s\n' "$RUN_URL"
           RUN_ID="${RUN_URL##*/}"
