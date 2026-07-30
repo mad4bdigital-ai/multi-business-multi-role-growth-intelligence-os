@@ -1,8 +1,10 @@
 name: Surface Contract Phase A Current Main Rebuild V3
 
 on:
-  pull_request_target:
-    types: [opened, reopened]
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - docs/surface-contract-phase-a-v3-trigger-20260730.md
 
 permissions:
   contents: write
@@ -140,7 +142,6 @@ jobs:
             'http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml'
             'http-generic-api/openapi/openapi.tenant-gpt.auth.yaml'
             'http-generic-api/openapi/openapi.tenant-gpt.activation.yaml'
-            'http-generic-api/openapi.gpt-action.local-connector.yaml'
           )
           python3 <<'PY'
           import subprocess
@@ -166,7 +167,6 @@ jobs:
             'http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml',
             'http-generic-api/openapi/openapi.tenant-gpt.auth.yaml',
             'http-generic-api/openapi/openapi.tenant-gpt.activation.yaml',
-            'http-generic-api/openapi.gpt-action.local-connector.yaml',
           }
           required = {
             'docs/surface-contract-discovery-status.json',

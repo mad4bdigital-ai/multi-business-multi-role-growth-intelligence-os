@@ -9,6 +9,8 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-context-kernel-resource-graph-resolver.mjs",
   "node test-context-kernel-resource-graph-fail-closed.mjs",
   "node test-context-kernel-semantic-capability-before-provider.mjs",
+  "node test-context-kernel-policy-grant-evaluator.mjs",
+  "node test-context-kernel-policy-grant-fail-closed.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,

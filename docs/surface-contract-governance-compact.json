@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.65,
+  "docs_completion_percent": 97.48,
   "docs_complete_count": 581,
-  "docs_gap_count": 14,
-  "queue_items": 35,
-  "blocking_new_item_count": 18,
+  "docs_gap_count": 15,
+  "queue_items": 36,
+  "blocking_new_item_count": 19,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -45,6 +45,12 @@
       "next_step": "confirm registry binding/readback evidence before promotion"
     },
     {
+      "migration_file": "20260730_hostinger_production_resync_policy.sql",
+      "queue_class": "high_review",
+      "score": 642,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
       "migration_file": "962_sprint68_repository_advisory_comments_v5.sql",
       "queue_class": "high_review",
       "score": 589,
@@ -61,12 +67,6 @@
       "queue_class": "high_review",
       "score": 549,
       "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "20260717_tenant_gpt_oauth_authorization_codes.sql",
-      "queue_class": "high_review",
-      "score": 545,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
@@ -77,8 +77,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 18,
-    "warning_new_item_count": 18
+    "blocking_new_item_count": 19,
+    "warning_new_item_count": 19
   },
   "safety": {
     "executes_provider_calls": false,

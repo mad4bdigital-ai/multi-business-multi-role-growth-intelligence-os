@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 35,
+  "total_items": 36,
   "class_counts": {
     "critical_review": 23,
-    "high_review": 10,
+    "high_review": 11,
     "medium_review": 1,
     "low_review": 1
   },
@@ -205,44 +205,6 @@
       }
     },
     {
-      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
-      "score": 1026,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": true,
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 0,
-        "views": 0,
-        "policies": 0,
-        "routes": 3
-      },
-      "remediation": [
-        {
-          "action_key": "verify_callable_handler_or_admin_preview",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "/me/workspaces/{tenant_id}/members/{user_id}",
-            "/me/workspaces/{tenant_id}/members/{user_id}/remove",
-            "/me/workspaces/{tenant_id}/ownership/transfer"
-          ],
-          "reason": "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
       "score": 1026,
       "queue_class": "critical_review",
@@ -266,6 +228,44 @@
             "/me/workspaces/{tenant_id}/invitations/expire-stale",
             "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
             "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
+          ],
+          "reason": "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
+      "score": 1025,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": true,
+      "missing_docs": [],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 0,
+        "policies": 0,
+        "routes": 3
+      },
+      "remediation": [
+        {
+          "action_key": "verify_callable_handler_or_admin_preview",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "/me/workspaces/{tenant_id}/members/{user_id}",
+            "/me/workspaces/{tenant_id}/members/{user_id}/remove",
+            "/me/workspaces/{tenant_id}/ownership/transfer"
           ],
           "reason": "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion."
         }
@@ -492,7 +492,7 @@
     },
     {
       "migration_file": "194_sprint67_workspace_resource_grant_assignment_tools.sql",
-      "score": 882,
+      "score": 881,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": true,
@@ -1115,6 +1115,88 @@
       }
     },
     {
+      "migration_file": "20260730_hostinger_production_resync_policy.sql",
+      "score": 642,
+      "queue_class": "high_review",
+      "gap_severity": "medium",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 5,
+        "views": 0,
+        "policies": 1,
+        "routes": 0
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "ci_gate_required",
+            "exact_production_merge_sha_readback_required",
+            "health_readback_required",
+            "repository_main_moved_event_create",
+            "same_cycle_readback_required"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "verify_policy_seed_readiness",
+          "owner_hint": "runtime-policy-review",
+          "targets": [
+            "repository_main_moved_trigger_policy_v1"
+          ],
+          "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "962_sprint68_repository_advisory_comments_v5.sql",
       "score": 589,
       "queue_class": "high_review",
@@ -1705,7 +1787,7 @@
     },
     {
       "migration_file": "20260628_authority_scope_shadow_evidence.sql",
-      "score": 484,
+      "score": 483,
       "queue_class": "high_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1826,7 +1908,7 @@
     },
     {
       "migration_file": "20260730_context_kernel_connection_ownership_persistence.sql",
-      "score": 396,
+      "score": 395,
       "queue_class": "medium_review",
       "gap_severity": "low",
       "documentation_complete": false,

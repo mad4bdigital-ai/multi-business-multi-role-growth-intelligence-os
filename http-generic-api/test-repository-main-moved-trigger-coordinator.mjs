@@ -7,6 +7,7 @@ import {
   deriveRepositoryMainMovedOutcome,
   normalizeRepositoryMainMovedEvent,
   resolveConfiguredReleaseBranch,
+  resolveConfiguredSourceBranch,
 } from "./repositoryMainMovedTriggerService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -15,11 +16,17 @@ const beforeSha = "a".repeat(40);
 const afterSha = "b".repeat(40);
 const env = { RELEASE_TRIGGER_REPOSITORY: repository };
 
-assert.equal(resolveConfiguredReleaseBranch({}), "main");
+assert.equal(resolveConfiguredSourceBranch({}), "main");
+assert.equal(resolveConfiguredSourceBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "main");
+assert.equal(resolveConfiguredSourceBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
+assert.equal(resolveConfiguredSourceBranch({
+  RELEASE_TRIGGER_SOURCE_BRANCH: "source/candidate",
+  RELEASE_TRIGGER_BRANCH: "legacy/source",
+}), "source/candidate");
+assert.equal(resolveConfiguredReleaseBranch({}), "Production");
 assert.equal(resolveConfiguredReleaseBranch({ ACTIVATION_GITHUB_BRANCH: "Production" }), "Production");
-assert.equal(resolveConfiguredReleaseBranch({ GITHUB_DEFAULT_BRANCH: "stable" }), "stable");
 assert.equal(resolveConfiguredReleaseBranch({
-  RELEASE_TRIGGER_BRANCH: "release/candidate",
+  RELEASE_TRIGGER_DEPLOYMENT_BRANCH: "release/candidate",
   ACTIVATION_GITHUB_BRANCH: "Production",
 }), "release/candidate");
 
@@ -42,19 +49,28 @@ const productionEnv = {
   RELEASE_TRIGGER_REPOSITORY: repository,
   ACTIVATION_GITHUB_BRANCH: "Production",
 };
+assert.throws(
+  () => normalizeRepositoryMainMovedEvent({
+    ...normalized,
+    branch: "refs/heads/Production",
+    source_event_id: "delivery-production",
+  }, { env: productionEnv }),
+  (error) => error.code === "repository_main_moved_branch_not_supported"
+    && error.status === 400
+    && error.details?.expected_branch === "main"
+    && error.details?.source_branch === "main"
+    && error.details?.deployment_branch === "Production",
+);
+
 const productionNormalized = normalizeRepositoryMainMovedEvent({
   ...normalized,
   branch: "refs/heads/Production",
   source_event_id: "delivery-production",
-}, { env: productionEnv });
+}, { env: productionEnv, allowDeploymentBranch: true });
 assert.equal(productionNormalized.branch, "Production");
-
-assert.throws(
-  () => normalizeRepositoryMainMovedEvent({ ...productionNormalized, branch: "main" }, { env: productionEnv }),
-  (error) => error.code === "repository_main_moved_branch_not_supported"
-    && error.status === 400
-    && error.details?.expected_branch === "Production",
-);
+assert.equal(productionNormalized.source_branch, "main");
+assert.equal(productionNormalized.deployment_branch, "Production");
+assert.equal(productionNormalized.trigger_mode, "runtime_deployment_reconciliation");
 
 assert.throws(
   () => normalizeRepositoryMainMovedEvent({ ...normalized, repository: "other/repository" }, { env }),
@@ -102,7 +118,20 @@ const blocked = deriveRepositoryMainMovedOutcome({
 });
 assert.equal(blocked.coordination_status, "blocked");
 
-for (const result of [noAction, approvalRequired, blocked]) {
+const productionSyncRequired = deriveRepositoryMainMovedOutcome({
+  verification: { production_parity: "degraded" },
+  advisor: { advisor_run: { advisor_status: "review_required", requires_approval: true } },
+  event: { branch: "main", source_branch: "main", deployment_branch: "Production" },
+});
+assert.equal(productionSyncRequired.coordination_status, "production_sync_required");
+assert.equal(productionSyncRequired.next_action_key, "release.sync_production_from_latest_main");
+assert.equal(productionSyncRequired.production_sync_required, true);
+assert.equal(productionSyncRequired.fresh_hostinger_build_required, true);
+assert.equal(productionSyncRequired.same_cycle_readback_required, true);
+assert.equal(productionSyncRequired.source_branch, "main");
+assert.equal(productionSyncRequired.deployment_branch, "Production");
+
+for (const result of [noAction, approvalRequired, blocked, productionSyncRequired]) {
   assert.equal(result.execution_allowed, false);
   assert.equal(result.release_operation_created, false);
   assert.equal(result.gate_opened, false);
@@ -122,6 +151,9 @@ for (const required of [
   "createReleaseAdvisorRun",
   "REPOSITORY_MAIN_MOVED_EVENT_TYPE",
   "release.await_typed_approval",
+  "release.sync_production_from_latest_main",
+  "fresh_hostinger_build_required",
+  "same_cycle_readback_required",
 ]) assert.match(service, new RegExp(required));
 for (const forbidden of [
   "createReleaseOperation(",
@@ -134,6 +166,10 @@ const metadataSlice = service.slice(service.indexOf("metadata: {"), service.inde
 assert.doesNotMatch(metadataSlice, /secrets_included/);
 assert.match(service, /execution_allowed: false/);
 assert.match(service, /job_enqueued: false/);
+assert.doesNotMatch(service, /\brows\s*\[\s*0\s*\]/);
+assert.match(service, /repository_main_moved_resolution_ambiguous/);
+assert.equal(service.includes("event_fingerprint_sha256 = ? LIMIT 2"), true);
+assert.equal(service.includes("trigger_event_id = ? LIMIT 2"), true);
 
 const migration = fs.readFileSync(path.join(__dirname, "migrations", "20260716_repository_main_moved_trigger_coordinator.sql"), "utf8");
 assert.match(migration, /CREATE TABLE IF NOT EXISTS repository_main_moved_trigger_events/);
@@ -158,7 +194,7 @@ assert.match(openapi, /openapi: 3\.1\.0/);
 assert.match(openapi, /operationId: createRepositoryMainMovedEvent/);
 assert.match(openapi, /operationId: getRepositoryMainMovedEvent/);
 assert.match(openapi, /\/admin\/repository-main-moved-events/);
-assert.match(openapi, /execution_allowed: \{ type: boolean, const: false \}/);
+assert.match(openapi, /execution_allowed:\s*(?:\{\s*type:\s*boolean,\s*const:\s*false\s*\}|\n\s+type:\s*boolean\n\s+const:\s*false)/);
 
 const activation = JSON.parse(fs.readFileSync(
   path.join(__dirname, "activation-surfaces", "repository_main_moved_trigger_events.json"),
