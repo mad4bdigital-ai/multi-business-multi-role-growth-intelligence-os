@@ -38,6 +38,7 @@ export const testCommands = [
   "node test-semantic-capability-effective-resolution.mjs",
   "node test-platform-execution-envelope-kernel.mjs",
   "node test-context-kernel-domain.mjs",
+  "node test-context-kernel-cross-tenant-isolation.mjs",
   "node test-context-kernel-registry-adapters.mjs",
   "node test-context-kernel-application-use-cases.mjs",
   "node test-context-kernel-api-projection.mjs",

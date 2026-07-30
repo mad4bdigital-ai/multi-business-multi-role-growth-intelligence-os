@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "9d2d74439bc24321f683f1344d89e8084e0745f43a710ac286d60c5a16eb563a",
+    "source_digest": "9b34fe2b32dd567925ea5167c10c0c520d84abde8727547c9f7f51ab1bd6f603",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -236,7 +236,7 @@
       },
       {
         "file": "resource-api-coverage.manifest.json",
-        "sha256": "9427f57019e2187098676f8a6c6a4eb2847174e62f87d4f8508fdc79423521ea",
+        "sha256": "3be4a5365a3d5e20d88e2587e3a286f48341fcbf9ee146459739b7bc80eda686",
         "present": true
       },
       {
@@ -386,7 +386,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "68ea721dbb666eb04ec75da43d68db8834acbce79db6e44a1fd937e3dc73d524",
+        "sha256": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
         "present": true
       },
       {
@@ -521,7 +521,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+        "sha256": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
         "present": true
       },
       {
@@ -536,7 +536,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
+        "sha256": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
         "present": true
       },
       {
@@ -896,7 +896,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "1c79777a9c5c51f40f0a1c7850cf9554e710f9eded155dae05eedb7adc433538",
+        "sha256": "62e29888212edae7d7adea3b8d05d4c56d42a95decb86a7c4be2321a43e73b53",
         "present": true
       },
       {
@@ -911,7 +911,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "65d3f1c44e556f5ffb224f1632c40aa8b04dc5844870921b47916e00f5ce790e",
+        "sha256": "9f4dd5c7f70713f9bd4306b11eaa03a3f2b58a94550807835f870aa1a62676f3",
         "present": true
       },
       {
@@ -931,7 +931,7 @@
       },
       {
         "file": "test-connect-routes.mjs",
-        "sha256": "08bdb7165576178c4db692690ec7dae4ff117cef29a556bf2f5739d6fd5853f4",
+        "sha256": "e73b4efa3e72b280578cba6b4e58800a89dafe133fb8e951a24eff701dbd7b3a",
         "present": true
       },
       {
@@ -2676,7 +2676,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "68ea721dbb666eb04ec75da43d68db8834acbce79db6e44a1fd937e3dc73d524",
+      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
       "mount_prefix": "/",
       "mount_order": 12002,
       "split_from_mixed_scope_file": true,
@@ -2788,7 +2788,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "68ea721dbb666eb04ec75da43d68db8834acbce79db6e44a1fd937e3dc73d524",
+      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
       "mount_prefix": "/",
       "mount_order": 12002,
       "split_from_mixed_scope_file": true,
@@ -2988,7 +2988,7 @@
       "family_key": "connector-agent.unresolved",
       "label": "connector agent (unresolved)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "68ea721dbb666eb04ec75da43d68db8834acbce79db6e44a1fd937e3dc73d524",
+      "source_digest": "f07c3cf98f545f20841f4a9fe4a6d5153768ea440351b33ed7488cfec02c6cfc",
       "mount_prefix": "/",
       "mount_order": 12002,
       "split_from_mixed_scope_file": true,
@@ -3153,7 +3153,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
+      "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
       "mount_order": 12214,
       "split_from_mixed_scope_file": true,
@@ -3280,7 +3280,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
+      "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
       "mount_order": 12214,
       "split_from_mixed_scope_file": true,
@@ -3654,7 +3654,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
+      "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
       "mount_order": 12214,
       "split_from_mixed_scope_file": true,
@@ -4298,7 +4298,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "1a5f029f065db340aa49341ecc0e9496f36b970f9df3c439ce5011cc1036b347",
+      "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
       "mount_order": 12214,
       "split_from_mixed_scope_file": true,
@@ -4917,7 +4917,7 @@
       "family_key": "local-connector-install.admin",
       "label": "local connector install (admin)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
       "mount_order": 12376,
       "split_from_mixed_scope_file": true,
@@ -5271,7 +5271,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
       "mount_order": 12376,
       "split_from_mixed_scope_file": true,
@@ -5384,7 +5384,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "39ac44dfdf81ce10d240c980cf97ea19d509d0d1ce4f4b94854cdc3c90ccee5a",
+      "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
       "mount_order": 12376,
       "split_from_mixed_scope_file": true,
@@ -26492,7 +26492,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "1c79777a9c5c51f40f0a1c7850cf9554e710f9eded155dae05eedb7adc433538",
+      "source_digest": "62e29888212edae7d7adea3b8d05d4c56d42a95decb86a7c4be2321a43e73b53",
       "mount_prefix": "/",
       "mount_order": 15620,
       "split_from_mixed_scope_file": false,
@@ -26898,7 +26898,13 @@
         "GET /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
@@ -80818,7 +80824,13 @@
         "POST /admin/control",
         "POST /admin/session-continuity/link-user"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
