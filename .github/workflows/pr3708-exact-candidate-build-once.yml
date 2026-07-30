@@ -32,7 +32,7 @@ jobs:
         id: build
         shell: bash
         env:
-          PREVIOUS_CANDIDATE_SHA: 87b3f155caf613bd5504718ab8b2822de965f1a5
+          PREVIOUS_CANDIDATE_SHA: 83d2ae76f34ccc29b82e045d369fb2ba7b30cf1b
           TARGET_BRANCH: release/production-candidate-pr3708-live-v5
         run: |
           set -euo pipefail
