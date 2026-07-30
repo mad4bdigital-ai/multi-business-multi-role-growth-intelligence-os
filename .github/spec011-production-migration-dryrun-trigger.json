@@ -1,5 +1,6 @@
 {
   "schema_version": "spec011.production_migration_dryrun_trigger.v1",
+  "trigger_attempt": 2,
   "expected_production_sha": "93a4280046130c36a41ed0fd74f88df773ce55bd",
   "expected_candidate_sha": "607d08c5c18c732bead94b5f18e2eb1e5a6dc93a",
   "production_promotion_pr": 3573,
