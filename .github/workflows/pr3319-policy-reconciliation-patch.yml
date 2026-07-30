@@ -1,0 +1,143 @@
+name: PR3319 Policy Reconciliation Patch
+
+on:
+  push:
+    branches:
+      - gpt/brand-skill-promotion-blocker-hardening-20260730
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr3319-policy-reconciliation-patch
+  cancel-in-progress: false
+
+jobs:
+  apply-bounded-patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout governed PR head
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/brand-skill-promotion-blocker-hardening-20260730
+          fetch-depth: 0
+
+      - name: Apply exact-match policy reconciliation patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service_path = Path('http-generic-api/brandSkillActivationServiceV2.js')
+          test_path = Path('http-generic-api/test-brand-skill-activation.mjs')
+
+          service = service_path.read_text(encoding='utf-8')
+          test = test_path.read_text(encoding='utf-8')
+
+          service_anchor = '''export function mergeOperationsUnderPolicy(existingOperations, requestedOperations, policyOperations) {
+            const existing = normalizedOperationList(existingOperations);
+            const requested = normalizeRequestedOperations(requestedOperations);
+            const policy = normalizedOperationList(policyOperations);
+            const policySet = new Set(policy);
+            const retained = policySet.has("*") ? existing : existing.filter((operation) => policySet.has(operation));
+            return normalizeRequestedOperations([...retained, ...requested]);
+          }
+          '''
+          service_replacement = service_anchor + '''
+          export function existingOperationsComplyWithPolicy(existingOperations, policyOperations) {
+            return operationsAllowed(normalizedOperationList(existingOperations), policyOperations);
+          }
+          '''
+          if service.count(service_anchor) != 1:
+            raise SystemExit('service helper anchor mismatch')
+          service = service.replace(service_anchor, service_replacement, 1)
+
+          fast_path_anchor = '''      const existingOperations = normalizedOperationList(existing.allowed_operations_json);
+                const operationsCovered = operationsAllowed(operations, existingOperations);
+                const ttlCompliant = expiryCompliesWithTtl(existing.expires_at, ttlHours);
+                const policyCurrent = existing.policy_id === policy.policy_id;
+
+                if (operationsCovered && ttlCompliant && policyCurrent) {
+          '''
+          fast_path_replacement = '''      const existingOperations = normalizedOperationList(existing.allowed_operations_json);
+                const operationsCovered = operationsAllowed(operations, existingOperations);
+                const existingOperationsPolicyCompliant = existingOperationsComplyWithPolicy(
+                  existingOperations,
+                  policy.allowed_operations_json,
+                );
+                const ttlCompliant = expiryCompliesWithTtl(existing.expires_at, ttlHours);
+                const policyCurrent = existing.policy_id === policy.policy_id;
+
+                if (operationsCovered && existingOperationsPolicyCompliant && ttlCompliant && policyCurrent) {
+          '''
+          if service.count(fast_path_anchor) != 1:
+            raise SystemExit('service fast-path anchor mismatch')
+          service = service.replace(fast_path_anchor, fast_path_replacement, 1)
+
+          export_anchor = '''  validatePolicy,
+            mergeOperationsUnderPolicy,
+            expiryCompliesWithTtl,
+          '''
+          export_replacement = '''  validatePolicy,
+            mergeOperationsUnderPolicy,
+            existingOperationsComplyWithPolicy,
+            expiryCompliesWithTtl,
+          '''
+          if service.count(export_anchor) != 1:
+            raise SystemExit('service testing export anchor mismatch')
+          service = service.replace(export_anchor, export_replacement, 1)
+
+          import_anchor = '''  _testingBrandSkillActivationService,
+            mergeOperationsUnderPolicy,
+            normalizeRequestedOperations,
+          '''
+          import_replacement = '''  _testingBrandSkillActivationService,
+            existingOperationsComplyWithPolicy,
+            mergeOperationsUnderPolicy,
+            normalizeRequestedOperations,
+          '''
+          if test.count(import_anchor) != 1:
+            raise SystemExit('test import anchor mismatch')
+          test = test.replace(import_anchor, import_replacement, 1)
+
+          assertion_anchor = '''assert.equal(operationsAllowed(["delete"], ["*"]), true);
+          '''
+          assertion_replacement = assertion_anchor + '''assert.equal(existingOperationsComplyWithPolicy(["publish"], ["publish"]), true);
+          assert.equal(existingOperationsComplyWithPolicy(["publish", "delete"], ["publish"]), false);
+          '''
+          if test.count(assertion_anchor) != 1:
+            raise SystemExit('test assertion anchor mismatch')
+          test = test.replace(assertion_anchor, assertion_replacement, 1)
+
+          service_path.write_text(service, encoding='utf-8')
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Verify bounded patch
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          node --check brandSkillActivationServiceV2.js
+          node --check test-brand-skill-activation.mjs
+          node test-brand-skill-activation.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on-new
+
+      - name: Commit patch and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/pr3319-policy-reconciliation-patch.yml
+          git diff --check
+          changed="$(git diff --name-only)"
+          expected=$'http-generic-api/brandSkillActivationServiceV2.js\nhttp-generic-api/test-brand-skill-activation.mjs'
+          actual="$(printf '%s\n' "$changed" | grep -v '^.github/workflows/pr3319-policy-reconciliation-patch.yml$')"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Unexpected bounded write set:"
+            printf '%s\n' "$changed"
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: reconcile narrowed operations before idempotent return'
+          git push origin HEAD:gpt/brand-skill-promotion-blocker-hardening-20260730
