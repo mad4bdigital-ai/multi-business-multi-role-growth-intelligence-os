@@ -1,4 +1,5 @@
 # Trigger bounded generated-artifact reconciliation for Brand Skills.
+# Temporary governed current-main refresh trigger; remove after bounded artifacts commit.
 name: PR Generated Artifact Refresh
 
 on:
