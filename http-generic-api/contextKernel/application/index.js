@@ -10,10 +10,13 @@ export { createContextResolutionService } from "./contextResolutionService.js";
 export { createContextSwitchService } from "./contextSwitchService.js";
 export { createExecutionPlanService } from "./executionPlanService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
+export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
 
 export {
   assertPrincipalRepository,
+  assertSubjectScopeRepository,
+  assertDelegationContextRepository,
   assertAuthorizedScopeRepository,
   assertCapabilityReadinessRepository,
   assertContextPinRepository,
