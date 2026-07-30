@@ -3,8 +3,51 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
-import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, parseRoutesFromFile, parseTestEvidenceClaims, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
+import { buildDispatchPlan, expandRoutePaths, isDirectExecution, normalizeRoutePath, parseMountedRouteFiles, parseOpenApiContracts, parseOpenApiOperations, parseRoutesFromFile, parseTestEvidenceClaims, runtimeAuthProfile, syncDispatchPlan } from "./scripts/frontend-surface-dispatch.mjs";
 import { serializedSecurity } from "./scripts/openapi-runtime-auth-sync.mjs";
+
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/download-link",
+    routeGuards: ["requireBackendApiKey", "verifyInstallerDownloadToken"],
+  }).profile,
+  "backend_or_user",
+  "a signed installer token must remain a secondary validator when backend authentication is present",
+);
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/device-download-link",
+    routeGuards: ["requireFreshLocalManagerDeviceForPrivilegedInstaller", "verifyInstallerDownloadToken"],
+  }).profile,
+  "local_manager",
+  "a signed installer token must remain a secondary validator when a Local Manager principal is present",
+);
+assert.equal(
+  runtimeAuthProfile({
+    routePath: "/local-connector/install/download",
+    routeGuards: ["verifyInstallerDownloadToken"],
+  }).profile,
+  "signed_query_token",
+  "a signed installer token must remain a standalone authenticator when no principal guard is present",
+);
+
+const compositeLocalConnectorAuth = runtimeAuthProfile({
+  routePath: "/local-connector/uninstall",
+  routeGuards: ["requireBackendApiKey", "requireFreshLocalManagerDeviceForPrivilegedInstaller"],
+});
+assert.equal(
+  compositeLocalConnectorAuth.profile,
+  "backend_local_manager",
+  "the uninstall route must preserve its backend plus Local Manager composite authentication profile",
+);
+assert.deepEqual(
+  compositeLocalConnectorAuth.alternatives,
+  [
+    ["backendBearerAuth", "localManagerBearerAuth"],
+    ["backendApiKeyAuth", "localManagerBearerAuth"],
+  ],
+  "each uninstall security alternative must require backend and Local Manager authentication together",
+);
 
 function write(root, relative, content) {
   const target = path.join(root, relative);
@@ -331,11 +374,71 @@ assert.deepEqual(
   ["GET /root", "POST /root", "PUT /root", "PATCH /root", "DELETE /root"],
   "router.all registrations must expand into every governed HTTP method",
 );
-const explicitRequireUserRoute = parseRoutesFromFile(
-  'router.get("/me/workspaces/:tenant_id/resources", requireUser, controller.tenantCatalog);',
-  "routes/resourceApiRoutes.js",
-)[0];
-assert.deepEqual(explicitRequireUserRoute.route_guards, ["requireUser"]);
+const resourceApiSource = fs.readFileSync(new URL("./routes/resourceApiRoutes.js", import.meta.url), "utf8");
+const resourceApiRoutes = parseRoutesFromFile(resourceApiSource, "routes/resourceApiRoutes.js");
+for (const signature of [
+  "GET /me/workspaces/{tenant_id}/resources",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
+  "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
+]) {
+  const operation = resourceApiRoutes.find((entry) => entry.signature === signature);
+  assert(operation, `${signature} must be discovered from resourceApiRoutes.js`);
+  assert.deepEqual(
+    operation.route_guards,
+    ["requireUser"],
+    `${signature} must inherit requireUser from the multiline tenantReadHandlers arrow factory`,
+  );
+  assert.equal(
+    runtimeAuthProfile({
+      routePath: operation.path,
+      routeGuards: operation.route_guards,
+      inheritedGuards: operation.inherited_guards,
+    }).profile,
+    "user_jwt",
+    `${signature} must resolve to the user_jwt runtime authentication profile`,
+  );
+}
+const operationOrchestratorSource = fs.readFileSync(new URL("./routes/operationOrchestratorRoutes.js", import.meta.url), "utf8");
+const operationOrchestratorRoutes = parseRoutesFromFile(
+  operationOrchestratorSource,
+  "routes/operationOrchestratorRoutes.js",
+);
+const operationOrchestratorSuffixes = [
+  "GET /operations/contracts",
+  "POST /operations/context",
+  "POST /operations/preview",
+  "POST /operations/execute",
+  "POST /operations/status",
+  "GET /operations/workers/{worker_id}",
+  "GET /operations/artifacts",
+  "POST /operations/ci-diagnose",
+];
+const expectedOperationOrchestratorSignatures = ["/admin", "/tenant"]
+  .flatMap((prefix) => operationOrchestratorSuffixes.map((signature) => {
+    const [method, routePath] = signature.split(" ");
+    return `${method} ${prefix}${routePath}`;
+  }))
+  .sort();
+assert.deepEqual(
+  operationOrchestratorRoutes.map((operation) => operation.signature).sort(),
+  expectedOperationOrchestratorSignatures,
+  "operation orchestrator helper routes must preserve both admin and tenant mounts",
+);
+assert.equal(
+  operationOrchestratorRoutes.some((operation) => operation.path.startsWith("/operations/")),
+  false,
+  "operation orchestrator helper routes must not produce phantom root operations",
+);
+assert.deepEqual(
+  operationOrchestratorRoutes.find((operation) => operation.signature === "GET /admin/operations/contracts").inherited_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "admin operation routes must preserve backend authentication and admin authorization",
+);
+assert.deepEqual(
+  operationOrchestratorRoutes.find((operation) => operation.signature === "GET /tenant/operations/contracts").inherited_guards,
+  ["requireTenantOperationPrincipal"],
+  "tenant operation routes must preserve the tenant operation principal guard",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],

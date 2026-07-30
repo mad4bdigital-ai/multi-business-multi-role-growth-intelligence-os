@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Local Connector Uninstall
+  version: 1.0.0
+  description: Composite backend and Local Manager authenticated device uninstall contract.
+paths:
+  /local-connector/uninstall:
+    delete:
+      tags: [local-manager]
+      operationId: uninstallLocalConnector
+      summary: Disable a Local Connector device configuration
+      description: >
+        Disables the selected Local Connector device configuration and clears its stored
+        Cloudflare token, connector secret, and local API key.
+      security:
+        - backendBearerAuth: []
+          localManagerBearerAuth: []
+        - backendApiKeyAuth: []
+          localManagerBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id]
+              properties:
+                user_id: { type: string, format: uuid }
+                tenant_id: { type: string, format: uuid }
+                device_id: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Local Connector disabled and stored credentials cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, disabled, rotated, message, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  disabled: { type: boolean, const: true }
+                  rotated: { type: boolean, const: true }
+                  message: { type: string }
+                  secrets_included: { type: boolean, const: false }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    backendBearerAuth: { type: http, scheme: bearer, bearerFormat: Backend JWT }
+    backendApiKeyAuth: { type: apiKey, in: header, name: x-api-key }
+    localManagerBearerAuth: { type: http, scheme: bearer, bearerFormat: Local Manager JWT }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+        secrets_included: { type: boolean, const: false }
+  responses:
+    BadRequest:
+      description: Required uninstall fields are missing or invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Composite authentication is missing or invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Authenticated principals cannot uninstall this device
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Local Connector configuration was not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Local Connector uninstall failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

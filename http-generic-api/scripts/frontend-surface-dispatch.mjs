@@ -526,6 +526,11 @@ function middlewareAliases(source = "") {
     }
     helperRe.lastIndex = closing + 1;
   }
+  for (const match of text.matchAll(
+    /\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*requireSecurityMiddleware\s*\(\s*(["'`])[^"'`]+\2\s*,\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*,?\s*\)\s*;/g,
+  )) {
+    aliases.set(match[1], match[3]);
+  }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*\([^)]*\)\s*=>\s*([\s\S]*?);/g)) {
     const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
       .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
@@ -533,7 +538,9 @@ function middlewareAliases(source = "") {
   }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
+    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
   }
   return aliases;
 }
@@ -569,7 +576,7 @@ function activeRouterUseGuards(source, sourceIndex, routePath, aliases) {
   return unique(guards);
 }
 
-function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
+export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
   const guardChain = unique([...inheritedGuards, ...routeGuards]);
   const evidence = [
     ...inheritedGuards.map((guard) => `router.use:${guard}`),
@@ -607,7 +614,23 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
   const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
-  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
+  const hasPrincipalAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasLocal;
+  const hasStandaloneSignedQuery = hasSignedQuery && !hasPrincipalAuthenticator;
+  const isolatedModes = [hasLocal, hasMcp, hasStandaloneSignedQuery, hasGitHubWebhook].filter(Boolean).length;
+  if (hasBackendAuthenticator && hasLocal && !hasAdmin && !hasUser && !hasMcp && !hasGitHubWebhook) {
+    return {
+      state: "resolved",
+      profile: "backend_local_manager",
+      alternatives: [
+        ["backendBearerAuth", "localManagerBearerAuth"],
+        ["backendApiKeyAuth", "localManagerBearerAuth"],
+      ],
+      principal: "local_manager",
+      guard_chain: guardChain,
+      evidence,
+      configuration_dependencies: ["BACKEND_API_KEY"],
+    };
+  }
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
@@ -638,7 +661,7 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
 }
 
 function enclosingHelper(source, sourceIndex) {
-  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*\{/g;
+  const functionRe = /function\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
   let match;
   let enclosing = null;
   while ((match = functionRe.exec(source)) !== null && match.index < sourceIndex) {
@@ -649,6 +672,9 @@ function enclosingHelper(source, sourceIndex) {
         name: match[1],
         declaration_index: match.index,
         closing,
+        parameters: splitTopLevelArguments(match[2])
+          .map((parameter) => parameter.match(/^[A-Za-z_$][A-Za-z0-9_$]*/)?.[0])
+          .filter(Boolean),
       };
     }
   }
@@ -683,6 +709,59 @@ function staticTemplateExpansions(source, sourceIndex, routeTemplate) {
   return unique(expanded);
 }
 
+function mountedPrefixesForReceiver(source, receiverName, startIndex = 0) {
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(receiverName)) return [];
+  const useRe = new RegExp(
+    `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.use\\s*\\(\\s*([\\"'\\x60])([^\\"'\\x60]+)\\1\\s*,\\s*${receiverName}\\b`,
+    "g",
+  );
+  useRe.lastIndex = startIndex;
+  const prefixes = [];
+  let match;
+  while ((match = useRe.exec(source)) !== null) prefixes.push(normalizeRoutePath(match[2]));
+  return unique(prefixes);
+}
+
+function helperInvocationBindings(source, sourceIndex, aliases, mountPrefix) {
+  const helper = enclosingHelper(source, sourceIndex);
+  const fallback = [{ mount_prefix: normalizeRoutePath(mountPrefix), guards: [] }];
+  if (!helper || helper.parameters[0] !== "router") return fallback;
+
+  const callRe = new RegExp(`\\b${helper.name}\\s*\\(`, "g");
+  callRe.lastIndex = helper.closing + 1;
+  const bindings = [];
+  let call;
+  while ((call = callRe.exec(source)) !== null) {
+    const opening = source.indexOf("(", call.index);
+    const closing = findMatchingDelimiter(source, opening, "(", ")");
+    if (closing < 0) continue;
+    const args = splitTopLevelArguments(source.slice(opening + 1, closing));
+    const receiverName = args[0]?.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)?.[0];
+    if (!receiverName) {
+      callRe.lastIndex = closing + 1;
+      continue;
+    }
+    const guards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const internalPrefixes = mountedPrefixesForReceiver(source, receiverName, closing + 1);
+    for (const internalPrefix of internalPrefixes.length ? internalPrefixes : ["/"]) {
+      bindings.push({
+        mount_prefix: joinRoutePath(mountPrefix, internalPrefix),
+        guards,
+      });
+    }
+    callRe.lastIndex = closing + 1;
+  }
+
+  const seen = new Set();
+  const uniqueBindings = bindings.filter((binding) => {
+    const key = `${binding.mount_prefix}|${binding.guards.join(",")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return uniqueBindings.length ? uniqueBindings : fallback;
+}
+
 export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver = "router_or_app" } = {}) {
   const operations = [];
   const scanSource = maskJavaScriptComments(source);
@@ -706,23 +785,29 @@ export function parseRoutesFromFile(source, file, mountPrefix = "/", { receiver 
       ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
       ...middlewareGuards(declaration, aliases),
     ]);
+    const helperBindings = helperInvocationBindings(scanSource, match.index, aliases, mountPrefix);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
       for (const expandedRoute of expandRoutePaths(route)) {
-        const routePath = joinRoutePath(mountPrefix, expandedRoute);
-        const inheritedGuards = activeRouterUseGuards(scanSource, match.index, routePath, aliases);
-        for (const method of methods) {
-          operations.push({
-            method,
-            path: routePath,
-            signature: `${method} ${routePath}`,
-            source_file: file,
-            source_index: match.index,
-            declaration,
-            route_guards: routeGuards,
-            inherited_guards: inheritedGuards,
-          });
+        for (const binding of helperBindings) {
+          const routePath = joinRoutePath(binding.mount_prefix, expandedRoute);
+          const inheritedGuards = unique([
+            ...activeRouterUseGuards(scanSource, match.index, routePath, aliases),
+            ...binding.guards,
+          ]);
+          for (const method of methods) {
+            operations.push({
+              method,
+              path: routePath,
+              signature: `${method} ${routePath}`,
+              source_file: file,
+              source_index: match.index,
+              declaration,
+              route_guards: routeGuards,
+              inherited_guards: inheritedGuards,
+            });
+          }
         }
       }
     }
@@ -735,7 +820,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "public") return "public";
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
-    if (runtimeAuth.profile === "local_manager") return "local_device";
+    if (["local_manager", "backend_local_manager"].includes(runtimeAuth.profile)) return "local_device";
     if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
   }
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
