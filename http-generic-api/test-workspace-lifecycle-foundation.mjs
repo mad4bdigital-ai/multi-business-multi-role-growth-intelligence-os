@@ -11,6 +11,9 @@ assert(migration.includes("created_by varchar(36)"), "invitations must track cre
 assert(migration.includes("accepted_by varchar(36)"), "invitations must track accepter");
 assert(migration.includes("workspace_invitation_create"), "migration must register invitation create tool");
 assert(migration.includes("workspace_access_request_approve"), "migration must register access request approval tool");
+assert(migration.includes("workspace_members_list"), "migration must register workspace members list tool");
+assert(migration.includes("workspace_invitations_list"), "migration must register workspace invitations list tool");
+assert(migration.includes("workspace_access_requests_list"), "migration must register workspace access requests list tool");
 assert(migration.includes("no_secrets"), "lifecycle tools must be no-secret tagged");
 
 assert(indexSource.includes('import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";'), "tenant lifecycle routes must be imported");
@@ -20,6 +23,12 @@ assert(routeSource.includes('router.post("/me/workspaces/:tenant_id/invitations"
 assert(routeSource.includes('router.post("/me/invitations/accept"'), "invitation accept route must exist");
 assert(routeSource.includes('router.post("/me/workspaces/:tenant_id/access-requests"'), "access request create route must exist");
 assert(routeSource.includes('router.post("/me/workspaces/:tenant_id/access-requests/:request_id/approve"'), "access request approve route must exist");
+assert(routeSource.includes("RESOURCE_API_CALLABILITY_CONTRACT: workspace_members_list"), "members list route must declare callability evidence");
+assert(routeSource.includes('router.get("/me/workspaces/:tenant_id/members", requireUserJwt'), "members list route must exist");
+assert(routeSource.includes("RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list"), "invitations list route must declare callability evidence");
+assert(routeSource.includes('router.get("/me/workspaces/:tenant_id/invitations", requireUserJwt'), "invitations list route must exist");
+assert(routeSource.includes("RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list"), "access requests list route must declare callability evidence");
+assert(routeSource.includes('router.get("/me/workspaces/:tenant_id/access-requests", requireUserJwt'), "access requests list route must exist");
 assert(routeSource.includes("workspace_owner_required"), "owner-only operations must be gated");
 assert(routeSource.includes("invitation_email_mismatch"), "invite acceptance must require matching signed-in email");
 assert(routeSource.includes("already_member"), "access requests must block existing active members");
