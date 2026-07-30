@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "1cbd08a08f33f9aec5328bed631d9fcfc66c1195d4e074ce2fa5fad60d3385ae",
+    "source_digest": "849660ac19bb59e4771541f6e0752c237ba87e3cfb8f1aef5c5b6b917b2e1dee",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -906,7 +906,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "326dc27b5c7390c644e0046c78d0ccbd86ff3b67ce6c18d00b3cecc53654e7e0",
+        "sha256": "4a60898519a60b17298503bc3dc11803c285e70fbb8e088babea5fd71b67375b",
         "present": true
       },
       {
@@ -1117,11 +1117,11 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 385,
     "auth_parity_counts": {
-      "equivalent": 965,
+      "equivalent": 974,
       "exempt": 16,
-      "unknown": 13
+      "unknown": 4
     },
-    "auth_contract_gap_count": 13,
+    "auth_contract_gap_count": 4,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -9380,13 +9380,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9402,10 +9417,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9435,13 +9448,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9457,10 +9485,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9490,13 +9516,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9512,10 +9553,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9545,13 +9584,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9567,10 +9621,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9602,13 +9654,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9624,10 +9691,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9657,13 +9722,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9679,10 +9759,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9712,13 +9790,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9734,10 +9827,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9769,13 +9860,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9791,10 +9897,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9824,13 +9928,28 @@
           "source_file": "routes/systemLayerRoutes.js",
           "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -9846,10 +9965,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -9878,71 +9995,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /admin/system/connectors",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/system/connectors/{system_id}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/system/tools",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/system/tools/call",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/apis-services/google-auth-platform",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/apis-services/google-auth-platform/{tab}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/apis-services/google-auth-platform/{tab}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /admin/apis-services/credentials",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "POST /admin/apis-services/credentials",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -9998,7 +10051,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -87902,7 +87955,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
