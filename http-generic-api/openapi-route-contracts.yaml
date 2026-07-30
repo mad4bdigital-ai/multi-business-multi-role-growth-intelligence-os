@@ -1,5 +1,4 @@
 # Canonical precise route contracts consumed by the governed OpenAPI maintenance sync.
-# Temporary Workspace precise-pipeline refresh trigger; remove after repository-authority regeneration.
 contracts:
   POST /admin/container-authority/override-governance-smokes:
     path_item_ref: './openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes'
