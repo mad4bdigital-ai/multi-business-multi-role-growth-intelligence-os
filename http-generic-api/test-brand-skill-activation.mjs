@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   _testingBrandSkillActivationService,
+  canReuseExistingGrantUnderPolicy,
   normalizeRequestedOperations,
   normalizeTtlHours,
   operationsAllowed,
@@ -26,6 +27,19 @@ assert.throws(() => normalizeRequestedOperations(["BAD OPERATION"]), (error) => 
 assert.throws(() => normalizeTtlHours(49, "temporary_only", 48), (error) => error.code === "BRAND_SKILL_TTL_INVALID");
 assert.equal(grantCoversOperations('["publish","update"]', ["update"]), true);
 assert.equal(grantCoversOperations('["publish"]', ["update"]), false);
+assert.equal(
+  canReuseExistingGrantUnderPolicy('["publish"]', ["publish"], ["publish"]),
+  true,
+);
+assert.equal(
+  canReuseExistingGrantUnderPolicy('["publish","delete"]', ["publish"], ["publish"]),
+  false,
+  "a grant containing a policy-removed operation must be reconciled before idempotent return",
+);
+assert.equal(
+  canReuseExistingGrantUnderPolicy('["publish","delete"]', ["publish"], ["*"]),
+  true,
+);
 assert.deepEqual(mergeAllowedOperations('["publish"]', ["update", "publish"]), ["publish", "update"]);
 assert.deepEqual(
   mergeAllowedOperations('["publish","delete"]', ["update"], ["publish", "update"]),
@@ -184,6 +198,7 @@ for (const marker of [
   "allowed_operations_json = ?",
   "operation_set_extended: true",
   "policy.allowed_operations_json",
+  "canReuseExistingGrantUnderPolicy",
   "clampActiveGrantTtl",
   "ttl_clamped: ttlClamped",
   "created: false",
