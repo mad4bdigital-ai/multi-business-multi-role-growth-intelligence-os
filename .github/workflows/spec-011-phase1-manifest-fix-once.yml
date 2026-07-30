@@ -1,0 +1,64 @@
+name: Spec 011 Phase1 Manifest Fix Once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.ref == 'gpt/spec-011-phase1-durable-control-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out phase1 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase1-durable-control-20260730
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Repair manifest delimiter
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/test-manifest.mjs')
+          source = path.read_text()
+          old = '''  "node test-approval-hold-identity-release-readiness.mjs"
+            "node test-durable-execution-control-service.mjs",'''
+          new = '''  "node test-approval-hold-identity-release-readiness.mjs",
+            "node test-durable-execution-control-service.mjs",'''
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one malformed manifest boundary, found {source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify syntax and focused contract
+        working-directory: http-generic-api
+        run: |
+          node --check scripts/test-manifest.mjs
+          node test-durable-execution-control-service.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Commit clean fix
+        shell: bash
+        run: |
+          rm -f .github/workflows/spec-011-phase1-manifest-fix-once.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add http-generic-api/scripts/test-manifest.mjs .github/workflows/spec-011-phase1-manifest-fix-once.yml
+          git commit -m "fix(spec-011): repair durable test manifest delimiter"
+          git push origin HEAD:gpt/spec-011-phase1-durable-control-20260730
