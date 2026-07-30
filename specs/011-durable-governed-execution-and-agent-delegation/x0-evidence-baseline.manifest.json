@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-011-x0-governed-execution-evidence-baseline",
+  "parent_extension": "spec-011-runtime-composition-performance-closure",
+  "phase": "X0_evidence_baseline",
+  "delivery_slice": "RC0_instrumentation",
+  "status": "in_progress",
+  "runtime_authority": false,
+  "provider_write": false,
+  "database_write": false,
+  "migration_apply": false,
+  "deployment": false,
+  "artifacts": [
+    "x0-evidence-baseline.md",
+    "../../http-generic-api/governedExecutionBaselineTelemetry.js",
+    "../../http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+    "../../http-generic-api/test-governed-execution-baseline-benchmark.mjs",
+    "../../http-generic-api/scripts/governed-execution-baseline-benchmark.mjs"
+  ],
+  "implemented_contracts": [
+    "bounded_baseline_schema",
+    "monotonic_stage_timing",
+    "explicit_observed_unobserved_coverage",
+    "concurrent_stage_overlap_accounting",
+    "bounded_counters",
+    "immutable_snapshot",
+    "secret_like_identifier_rejection",
+    "bounded_process_memory_sink",
+    "non_throwing_optional_emitter",
+    "isolated_result_preserving_benchmark"
+  ],
+  "pending_contracts": [
+    "complete_test_manifest_registration",
+    "legacy_gpt_tool_entry_instrumentation",
+    "legacy_system_tool_entry_instrumentation",
+    "connector_plan_entry_instrumentation",
+    "sequential_plan_entry_instrumentation",
+    "agent_loop_entry_instrumentation",
+    "matched_runtime_fixture_artifact",
+    "exact_head_ci_evidence"
+  ],
+  "constraints": [
+    "no_runtime_decision_change",
+    "no_raw_arguments_or_prompts",
+    "no_headers_jwt_credentials_or_provider_payloads",
+    "no_arbitrary_error_messages",
+    "no_automatic_sql_persistence",
+    "collector_failure_never_fails_measured_operation",
+    "no_performance_claim_without_matched_evidence"
+  ],
+  "secrets_included": false
+}
