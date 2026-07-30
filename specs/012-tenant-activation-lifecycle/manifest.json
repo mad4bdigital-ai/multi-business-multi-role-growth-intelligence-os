@@ -105,6 +105,12 @@
         "role": "t027_t029_lifecycle_operation_retry_and_reconciliation_service",
         "status": "merged",
         "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052"
+      },
+      {
+        "number": 3606,
+        "role": "t020_t021_t023_activation_persistence_repository",
+        "status": "merged",
+        "merge_sha": "f9baec28296019ad72971364a54acb96b9d2a143"
       }
     ],
     "closeout_pr": {
