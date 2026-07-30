@@ -131,34 +131,10 @@ jobs:
               1,
               "insert uniqueAdvisorRow",
           )
-          advisor = replace_count(
-              advisor,
-              '  const verification = verificationRows[0];',
-              '  const verification = uniqueAdvisorRow(verificationRows, "runtime_verification");',
-              1,
-              "verification row",
-          )
-          advisor = replace_count(
-              advisor,
-              '    operation = rows[0] || null;',
-              '    operation = uniqueAdvisorRow(rows, "release_operation");',
-              2,
-              "operation rows",
-          )
-          advisor = replace_count(
-              advisor,
-              '    gate = gateRows[0] || null;',
-              '    gate = uniqueAdvisorRow(gateRows, "release_gate");',
-              1,
-              "gate row",
-          )
-          advisor = replace_count(
-              advisor,
-              '    asyncDeployment = deploymentRows[0] || null;',
-              '    asyncDeployment = uniqueAdvisorRow(deploymentRows, "release_async_deployment");',
-              1,
-              "deployment row",
-          )
+          advisor = replace_count(advisor, '  const verification = verificationRows[0];', '  const verification = uniqueAdvisorRow(verificationRows, "runtime_verification");', 1, "verification row")
+          advisor = replace_count(advisor, '    operation = rows[0] || null;', '    operation = uniqueAdvisorRow(rows, "release_operation");', 2, "operation rows")
+          advisor = replace_count(advisor, '    gate = gateRows[0] || null;', '    gate = uniqueAdvisorRow(gateRows, "release_gate");', 1, "gate row")
+          advisor = replace_count(advisor, '    asyncDeployment = deploymentRows[0] || null;', '    asyncDeployment = uniqueAdvisorRow(deploymentRows, "release_async_deployment");', 1, "deployment row")
           advisor = replace_count(
               advisor,
               '''  if (!rows[0]) fail("release_advisor_run_not_found", "Release advisor run was not found.", 404);
@@ -191,10 +167,8 @@ jobs:
           )
           advisor = replace_count(
               advisor,
-              '''      const [rows] = await pool.query(`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 1`, [plan.plan_fingerprint_sha256]);
-              if (rows[0]) return { ...(await getReleaseAdvisorRun(rows[0].advisor_run_id, { pool })), deduplicated: true };''',
-              '''      const [rows] = await pool.query(`SELECT advisor_run_id FROM release_advisor_runs WHERE plan_fingerprint_sha256 = ? LIMIT 1`, [plan.plan_fingerprint_sha256]);
-              const duplicateRun = uniqueAdvisorRow(rows, "duplicate_plan_fingerprint_sha256");
+              '      if (rows[0]) return { ...(await getReleaseAdvisorRun(rows[0].advisor_run_id, { pool })), deduplicated: true };',
+              '''      const duplicateRun = uniqueAdvisorRow(rows, "duplicate_plan_fingerprint_sha256");
               if (duplicateRun) return { ...(await getReleaseAdvisorRun(duplicateRun.advisor_run_id, { pool })), deduplicated: true };''',
               1,
               "duplicate advisor row",
