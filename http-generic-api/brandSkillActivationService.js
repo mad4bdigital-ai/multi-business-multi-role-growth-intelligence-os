@@ -264,6 +264,19 @@ async function expireStaleUserBrandSkillGrants(connection, {
   return Number(result.affectedRows || 0);
 }
 
+async function clampActiveGrantTtl(connection, { grantId, ttlHours }) {
+  if (ttlHours === null || ttlHours === undefined) return false;
+  const [result] = await connection.query(
+    `UPDATE user_brand_skill_grants
+        SET expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR), updated_at = NOW()
+      WHERE grant_id = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > DATE_ADD(NOW(), INTERVAL ? HOUR))`,
+    [ttlHours, grantId, ttlHours]
+  );
+  return Number(result.affectedRows || 0) > 0;
+}
+
 async function loadGrantReadback(connection, grantId) {
   const [rows] = await connection.query(
     `SELECT grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, skill_key,
@@ -372,10 +385,17 @@ export async function activateBrandSkillForUser({
         throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The existing user brand skill grant could not be verified.");
       }
       if (grantCoversOperations(existing.allowed_operations_json, operations)) {
+        const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
+        const readback = ttlClamped ? await loadGrantReadback(connection, existingId) : existing;
+        if (!readback) {
+          throw httpError(409, "BRAND_SKILL_GRANT_READBACK_FAILED", "The TTL-clamped user brand skill grant could not be verified.");
+        }
         return {
           ok: true,
-          changed: false,
-          grant: existing,
+          created: false,
+          changed: ttlClamped,
+          ttl_clamped: ttlClamped,
+          grant: readback,
           activation_mode: mode,
           resource_brand_binding: resourceBrandBinding,
           secrets_included: false,
@@ -410,6 +430,7 @@ export async function activateBrandSkillForUser({
       }
       return {
         ok: true,
+        created: false,
         changed: true,
         operation_set_extended: true,
         activation_mode: mode,
@@ -455,6 +476,7 @@ export async function activateBrandSkillForUser({
     }
     return {
       ok: true,
+      created: true,
       changed: true,
       activation_mode: mode,
       membership_role: membership.role,
@@ -558,4 +580,5 @@ export const _testingBrandSkillActivationService = {
   operationsAllowed,
   normalizeTtlHours,
   validatePolicy,
+  clampActiveGrantTtl,
 };
