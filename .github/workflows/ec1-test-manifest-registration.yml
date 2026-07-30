@@ -1,4 +1,5 @@
 name: EC1 Test Manifest Registration
+# Synchronize trigger for governed EC1 registration review.
 
 on:
   pull_request:
