@@ -1,0 +1,135 @@
+name: PR 3162 final rebuild
+
+on:
+  push:
+    branches:
+      - gpt/pr-3162-final-current-main-20260730
+    paths:
+      - .github/workflows/pr-3162-final-rebuild.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/pr-3162-final-current-main-20260730
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Rebuild validated source changes on current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin \
+            gpt/pr-3162-rebuild-main-20260730-v2 \
+            main
+
+          git checkout origin/gpt/pr-3162-rebuild-main-20260730-v2 -- \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs \
+            http-generic-api/openapi/local-connector-uninstall.yaml
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/openapi.yaml")
+          text = path.read_text()
+          start_marker = "  /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:"
+          end_marker = "  /tenants/{tenant_id}/relationships:"
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit("Growth Intelligence OpenAPI start marker not found")
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("Growth Intelligence OpenAPI end marker not found")
+          section = text[start:end]
+          old = "      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]"
+          new = "      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]"
+          count = section.count(old)
+          if count != 7:
+              raise SystemExit(f"Growth Intelligence auth contracts: expected 7 matches, found {count}")
+          path.write_text(text[:start] + section.replace(old, new) + text[end:])
+          PY
+
+      - name: Generate and prove final parity
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-frontend-surface-dispatch.mjs
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const plan = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const counts = plan.coverage?.auth_parity_counts || {};
+          const result = {
+            mismatch: counts.mismatch || 0,
+            unknown: counts.unknown || 0,
+            missing_openapi: counts.missing_openapi || 0,
+            auth_contract_gap_count: plan.coverage?.auth_contract_gap_count || 0,
+            openapi_gap_count: plan.coverage?.openapi_gap_count || 0,
+          };
+          console.log(JSON.stringify(result, null, 2));
+          if (Object.values(result).some((value) => value !== 0)) process.exit(1);
+          NODE
+
+      - name: Enforce bounded final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git status --porcelain | sed -E 's/^.. //')
+          for path in "${changed[@]}"; do
+            case "$path" in
+              .github/workflows/pr-3162-final-rebuild.yml|\
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi.yaml|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/local-connector-uninstall.yaml|\
+              http-generic-api/scripts/frontend-surface-dispatch.mjs|\
+              http-generic-api/test-frontend-surface-dispatch.mjs)
+                ;;
+              *)
+                echo "::error::unexpected final rebuild path: ${path}"
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Commit final product tree and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/pr-3162-final-rebuild.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- \
+            .github/workflows/pr-3162-final-rebuild.yml \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi.yaml \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
+            http-generic-api/openapi/local-connector-uninstall.yaml \
+            http-generic-api/scripts/frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-surface-dispatch.mjs
+          git commit -m "fix: rebuild PR 3162 auth parity on current main"
+          git push origin HEAD:gpt/pr-3162-final-current-main-20260730
