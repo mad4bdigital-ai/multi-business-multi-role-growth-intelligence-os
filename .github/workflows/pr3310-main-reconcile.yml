@@ -1,9 +1,9 @@
-name: PR3310 Current Main Reconcile
+name: PR3380 Current Main Reconcile
 
 on:
   push:
     branches:
-      - gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
+      - gpt/dynamic-container-override-governance-smoke-integration-20260730-v7
     paths:
       - .github/workflows/pr3310-main-reconcile.yml
 
@@ -11,17 +11,17 @@ permissions:
   contents: write
 
 concurrency:
-  group: pr3310-current-main-reconcile
+  group: pr3380-current-main-reconcile
   cancel-in-progress: true
 
 jobs:
   reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
+          ref: gpt/dynamic-container-override-governance-smoke-integration-20260730-v7
           fetch-depth: 0
           persist-credentials: true
 
@@ -48,8 +48,15 @@ jobs:
               unexpected=""
               for file in "${conflicts[@]}"; do
                 case "$file" in
+                  http-generic-api/openapi.yaml|\
+                  http-generic-api/frontend-operation-governance.generated.json|\
                   http-generic-api/frontend-surface-dispatch.generated.json|\
-                  http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                  http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+                  http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+                  http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+                  http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+                  http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+                  http-generic-api/openapi.gpt-action.local-connector.yaml)
                     git checkout --theirs -- "$file"
                     git add "$file"
                     ;;
@@ -77,31 +84,57 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Validate reconciled source
+      - name: Regenerate bounded artifacts
+        working-directory: http-generic-api
+        run: |
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+
+      - name: Validate reconciled source and artifacts
         working-directory: http-generic-api
         run: |
           node --check dynamicContainerAuthorityRepository.js
           node --check dynamicContainerOverrideGovernanceSmoke.js
           node test-dynamic-container-override-governance-smoke.mjs
           node test-openapi-autofill-missing-routes.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
           printf '%s\n' \
             dynamicContainerAuthorityRepository.js \
             dynamicContainerOverrideGovernanceSmoke.js \
             migrations/20260723_dynamic_container_override_governance_smoke.sql \
             test-dynamic-container-override-governance-smoke.mjs \
-            > "$RUNNER_TEMP/pr3310-reconcile-files.txt"
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/pr3310-reconcile-files.txt"
+            > "$RUNNER_TEMP/pr3380-reconcile-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/pr3380-reconcile-files.txt"
 
-      - name: Commit merge and remove branch copy
+      - name: Commit reconciled tree and restore canonical workflow
         shell: bash
         run: |
           set -euo pipefail
+          git checkout origin/main -- .github/workflows/pr3310-main-reconcile.yml
+          git add \
+            .github/workflows/pr3310-main-reconcile.yml \
+            http-generic-api/openapi.yaml \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
+            http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml \
+            http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml \
+            http-generic-api/openapi/openapi.tenant-gpt.auth.yaml \
+            http-generic-api/openapi/openapi.tenant-gpt.activation.yaml \
+            http-generic-api/openapi.gpt-action.local-connector.yaml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-            git commit -m "merge: reconcile Dynamic Container governance smoke with current main"
+            git commit -m "merge: reconcile reviewed Dynamic Container smoke with current main"
+          elif ! git diff --cached --quiet; then
+            git commit -m "chore(ci): refresh reviewed Dynamic Container smoke artifacts"
+          else
+            echo "No reconciliation or generated-artifact commit is required."
           fi
-          rm .github/workflows/pr3310-main-reconcile.yml
-          git add .github/workflows/pr3310-main-reconcile.yml
-          git commit -m "chore(ci): remove branch copy of PR #3310 reconciliation workflow"
-          git push origin HEAD:gpt/dynamic-container-override-governance-smoke-integration-20260730-v5
+          git push origin HEAD:gpt/dynamic-container-override-governance-smoke-integration-20260730-v7
