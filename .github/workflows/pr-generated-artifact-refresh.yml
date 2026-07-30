@@ -12,6 +12,7 @@ on:
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
+      - "http-generic-api/scripts/reconcile-pr-3298-openapi.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
@@ -56,10 +57,11 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Generate bounded artifacts
+      - name: Reconcile canonical OpenAPI and generate bounded artifacts
         working-directory: http-generic-api
         run: |
           git fetch origin main --depth=1
+          node scripts/reconcile-pr-3298-openapi.mjs
           npm run frontend:dispatch:generate -- --baseline-ref=main
           node scripts/generate-custom-gpt-schemas.mjs --write
 
@@ -85,6 +87,7 @@ jobs:
           UNEXPECTED=""
           for file in "${CHANGED[@]}"; do
             case "$file" in
+              http-generic-api/openapi.yaml|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
@@ -106,7 +109,7 @@ jobs:
             exit 1
           fi
 
-      - name: Commit generated artifacts
+      - name: Commit reconciled canonical and generated artifacts
         shell: bash
         env:
           TARGET_REF: ${{ github.event.pull_request.head.ref }}
@@ -120,5 +123,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${CHANGED[@]}"
-          git commit -m "chore(ci): refresh generated contract artifacts"
+          git commit -m "chore(ci): reconcile PR 3298 generated contracts"
           git push origin "HEAD:${TARGET_REF}"
