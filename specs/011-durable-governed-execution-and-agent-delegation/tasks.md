@@ -34,8 +34,8 @@
 - [x] T120 Add execution-contract registry and exact resolution rules.
 - [x] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
 - [x] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
-- [ ] T123 Convert selected operations to intent-first input.
-- [ ] T124 Add Admin and Tenant isolation and no-secret resolver tests.
+- [x] T123 Convert selected operations to intent-first input.
+- [x] T124 Add Admin and Tenant isolation and no-secret resolver tests.
 
 ## Phase 3 — Plan-Bound Sessions and Delegation
 
