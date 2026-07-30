@@ -13,7 +13,7 @@
 
 - [x] T010 Implement Principal Resolver.
 - [x] T011 Implement Subject Scope and delegation resolver.
-- [ ] T012 Implement bounded Resource Graph resolver.
+- [x] T012 Implement bounded Resource Graph resolver.
 - [ ] T013 Integrate semantic capability before provider selection.
 - [ ] T014 Implement policy/grant evaluator.
 - [x] T015 Implement deterministic connection selection and ambiguity blocking.
