@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "feature_key": "integration-governed-execution-runtime-composition",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/spec-011-012-013-runtime-composition-addenda-20260730",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "specification_package": {
+      "status": "implemented_pending_ci",
+      "owner_specs": [
+        "011-durable-governed-execution-and-agent-delegation",
+        "012-unified-admin-tenant-context-kernel",
+        "013-system-tool-catalog-v2"
+      ]
+    },
+    "catalog_v2_baseline": {
+      "status": "merged_on_main",
+      "pull_request": 3260,
+      "merge_sha": "0de0cdd6727040a2670821025c32615991cb3251"
+    },
+    "owner_extension_registration": {
+      "status": "implemented_pending_ci"
+    },
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_started",
+      "reason": "Future implementation may require additive persistence changes; no migration is included or authorized by this specification PR."
+    },
+    "production_verification": {
+      "status": "not_started",
+      "reason": "Runtime authority and deployment remain disabled until later certified phases."
+    },
+    "post_merge_audit": {
+      "status": "not_started",
+      "reason": "Required only after implementation, rollout, and closeout evidence exist."
+    }
+  },
+  "current_phase": "specification_and_owner_registration",
+  "next_phase": "X0_evidence_baseline",
+  "runtime_authority": false,
+  "provider_write": false,
+  "database_write": false,
+  "migration_apply": false,
+  "deployment": false,
+  "protected_branch_write": false,
+  "secrets_included": false
+}
