@@ -122,6 +122,7 @@ import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
+import { buildDynamicContainerOverrideGovernanceSmokeRoutes } from "./dynamicContainerOverrideGovernanceSmokeRoutes.js";
 import { buildDynamicGrowthControlPlaneRoutes } from "./dynamicGrowthControlPlaneRoutes.js";
 import { buildActivityBindingLifecycleRoutes } from "./activityBindingLifecycleRoutes.js";
 import { buildTenantGrowthControlPlaneRoutes } from "./tenantGrowthControlPlaneRoutes.js";
@@ -217,6 +218,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantLifecycleRoutes());
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDynamicGrowthControlPlaneRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildActivityBindingLifecycleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantGrowthControlPlaneRoutes({ ...deps }));
