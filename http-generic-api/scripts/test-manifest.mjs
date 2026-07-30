@@ -25,6 +25,7 @@ const staticDiscoveryCommands = [
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-interruption-readiness.mjs",
+  "node test-interruption-verification-recovery.mjs",
   "node test-phase10-status-observability-readiness-audit.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-status-database-lifecycle-component.mjs",
