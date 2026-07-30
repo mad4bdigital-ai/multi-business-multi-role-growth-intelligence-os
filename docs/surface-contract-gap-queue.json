@@ -1,9 +1,9 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 35,
+  "total_items": 34,
   "class_counts": {
-    "critical_review": 23,
+    "critical_review": 22,
     "high_review": 10,
     "medium_review": 0,
     "low_review": 2
@@ -116,56 +116,6 @@
             "v_workspace_resource_grant_effective"
           ],
           "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "190_sprint66_workspace_lifecycle_foundation.sql",
-      "score": 1112,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": true,
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 8,
-        "views": 0,
-        "policies": 0,
-        "routes": 6
-      },
-      "remediation": [
-        {
-          "action_key": "verify_callable_handler_or_admin_preview",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "/me/invitations/accept",
-            "/me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
-            "/me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
-          ],
-          "reason": "Tenant registry presence is not sufficient callability evidence. Verify an executable handler or an explicit Admin preview fallback and readback contract before promotion."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "workspace_access_request_approve",
-            "workspace_access_request_create",
-            "workspace_access_request_reject",
-            "workspace_invitation_accept",
-            "workspace_invitation_create"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
         }
       ],
       "safety": {
