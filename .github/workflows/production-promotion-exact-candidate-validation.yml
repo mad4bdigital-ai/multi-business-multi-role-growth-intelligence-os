@@ -97,14 +97,56 @@ jobs:
               --json databaseId,headSha,createdAt \
               --jq "map(select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
             if [[ -n "$RUN_ID" ]]; then break; fi
-            sleep 2
+            sleep 5
           done
           if [[ -z "$RUN_ID" ]]; then
             echo "::error::unable to resolve exact-candidate CI run"
             exit 1
           fi
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          gh run watch "$RUN_ID" --exit-status --interval 10
+
+          POLL_INTERVAL_SECONDS=30
+          RATE_LIMIT_BACKOFF_SECONDS=60
+          POLL_DEADLINE_EPOCH="$(( $(date +%s) + 2700 ))"
+          RUN_STATUS=""
+          RUN_CONCLUSION=""
+
+          while (( $(date +%s) < POLL_DEADLINE_EPOCH )); do
+            STATUS_FILE="$RUNNER_TEMP/exact-ci-status.json"
+            ERROR_FILE="$RUNNER_TEMP/exact-ci-status.err"
+            : > "$ERROR_FILE"
+
+            if gh run view "$RUN_ID" \
+              --json databaseId,event,headSha,status,conclusion \
+              > "$STATUS_FILE" 2> "$ERROR_FILE"; then
+              RUN_STATUS="$(jq -r '.status // ""' "$STATUS_FILE")"
+              RUN_CONCLUSION="$(jq -r '.conclusion // ""' "$STATUS_FILE")"
+              if [[ "$RUN_STATUS" == "completed" ]]; then
+                if [[ "$RUN_CONCLUSION" != "success" ]]; then
+                  echo "::error::exact-candidate CI completed with conclusion: $RUN_CONCLUSION"
+                  exit 1
+                fi
+                break
+              fi
+              sleep "$POLL_INTERVAL_SECONDS"
+              continue
+            fi
+
+            if grep -Eqi 'rate limit exceeded|HTTP 403' "$ERROR_FILE"; then
+              echo "::warning::GitHub API rate limit reached while polling exact CI; backing off for ${RATE_LIMIT_BACKOFF_SECONDS}s"
+              sleep "$RATE_LIMIT_BACKOFF_SECONDS"
+              continue
+            fi
+
+            cat "$ERROR_FILE" >&2
+            echo "::error::unable to poll exact-candidate CI"
+            exit 1
+          done
+
+          if [[ "$RUN_STATUS" != "completed" || "$RUN_CONCLUSION" != "success" ]]; then
+            echo "::error::exact-candidate CI did not complete successfully before the polling deadline"
+            exit 1
+          fi
 
       - name: Verify exact CI result and branch freshness
         shell: bash
@@ -117,7 +159,30 @@ jobs:
           BASE_REF: ${{ steps.verify.outputs.base_ref }}
         run: |
           set -euo pipefail
-          gh run view "$RUN_ID" --json databaseId,event,headSha,status,conclusion,jobs > "$RUNNER_TEMP/exact-ci-run.json"
+
+          VIEW_ERROR="$RUNNER_TEMP/exact-ci-view.err"
+          VIEW_OK=0
+          for attempt in $(seq 1 10); do
+            : > "$VIEW_ERROR"
+            if gh run view "$RUN_ID" \
+              --json databaseId,event,headSha,status,conclusion,jobs \
+              > "$RUNNER_TEMP/exact-ci-run.json" 2> "$VIEW_ERROR"; then
+              VIEW_OK=1
+              break
+            fi
+            if grep -Eqi 'rate limit exceeded|HTTP 403' "$VIEW_ERROR"; then
+              echo "::warning::GitHub API rate limit reached during final exact-CI readback; retrying after 60s"
+              sleep 60
+              continue
+            fi
+            cat "$VIEW_ERROR" >&2
+            exit 1
+          done
+          if [[ "$VIEW_OK" != "1" ]]; then
+            echo "::error::unable to obtain final exact-CI readback after bounded retries"
+            exit 1
+          fi
+
           node - "$RUNNER_TEMP/exact-ci-run.json" "$HEAD_SHA" <<'NODE'
           const fs = require("node:fs");
           const [file, expectedSha] = process.argv.slice(2);

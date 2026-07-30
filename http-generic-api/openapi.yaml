@@ -22306,3 +22306,5 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { description: Admin principal required }
+  /admin/container-authority/override-governance-smokes:
+    $ref: ./openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes
