@@ -41,9 +41,9 @@
 | A-37 | More-specific brand connection is revoked during a consequential write | Write is blocked with no workspace or personal fallback |
 | A-38 | Company-workspace operation lacks policy allowing personal inheritance | `CONNECTION_INHERITANCE_FORBIDDEN` |
 | A-39 | Connection reference crosses tenant boundary | Request fails before credential lookup or decryption |
-| A-40 | Connection decision, API projection, plan, log, readiness record, or evidence is inspected | No credential, refresh token, authorization code, or raw OAuth state appears |
+| A-40 | Connection decision, API projection, plan, log, readiness record, or evidence is inspected | No credential, refresh token, authorization code, raw OAuth state, or claim token appears |
 | A-41 | Google identity login succeeds without provider consent | Identity is ready; provider connection is not ready; `PROVIDER_CONSENT_REQUIRED` |
-| A-42 | OAuth authorization state is reused | `OAUTH_STATE_REPLAYED` |
+| A-42 | OAuth authorization state is reused after consumption | `OAUTH_STATE_REPLAYED` |
 | A-43 | OAuth authorization state is expired or has invalid signature | `OAUTH_STATE_EXPIRED` or `OAUTH_STATE_INVALID` |
 | A-44 | OAuth redirect, provider account, tenant, workspace, brand, or owner scope mismatches signed state | Request fails closed with the corresponding structured mismatch error |
 | A-45 | Service principal with explicit service authority selects a company-workspace connection | Resolution can succeed without inventing `effectiveUserRef` |
@@ -51,8 +51,10 @@
 | A-47 | Company membership, brand binding, provider scopes, or connection revision changes after decision | Pins, plans, approvals, and cached decisions are invalidated |
 | A-48 | Consumer inspects manifest before connection OpenAPI implementation lands | Planned connection surfaces are marked contract-pending and are not advertised as exposed |
 | A-49 | Candidate discovery or authority validation runs before one exact connection is approved | No credential is loaded; pre-credential readiness remains non-secret |
-| A-50 | One exact connection, owner scope, capability, authority, approval, and pre-credential readiness pass | Credential may be materialized through the guarded boundary solely for provider readiness and dispatch |
+| A-50 | One exact connection, owner scope, capability, authority, plan, approval, and pre-credential readiness pass | Credential may be materialized through the guarded boundary solely for provider readiness and dispatch |
 | A-51 | Reconnect state targets connection A but OAuth returns another provider account or connection A revision moved | `PROVIDER_ACCOUNT_MISMATCH` or `OAUTH_STATE_CONTEXT_MISMATCH`; existing credential is not replaced |
 | A-52 | A resolved connection decision omits selected owner scope type or reference | Decision validation fails; downstream authority/capability execution is blocked |
 | A-53 | Shadow or read rollout starts before ownership migration ledger and same-cycle readback are verified | Rollout gate blocks startup |
 | A-54 | Rollback is requested after hierarchical routing is enabled | Exact-owner isolation remains active; if unavailable, affected provider operations fail closed instead of using the prior unsafe selector |
+| A-55 | Two callbacks concurrently submit distinct authorization codes with the same valid issued state | Atomic compare-and-set grants exactly one claim; the loser receives `OAUTH_STATE_CLAIM_CONFLICT` and performs no code exchange or credential mutation |
+| A-56 | A flow requires approval and credential-dependent provider readiness | Plan is compiled and approval obtained/revalidated before guarded credential materialization and provider readiness |
