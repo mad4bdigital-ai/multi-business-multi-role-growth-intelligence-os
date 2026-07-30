@@ -54,11 +54,13 @@ Every request MUST begin with an authenticated principal. A principal MAY have m
 8. Resolve authority path.
 9. Resolve semantic capability and runtime binding.
 10. Compile execution plan.
-11. Validate context revision, readiness, quota, and approval.
-12. Dispatch.
-13. Read back and reconcile.
+11. Validate context revision, ownership, capability, authority, approval, and non-secret readiness evidence.
+12. Materialize credential through the guarded credential boundary for the selected connection only.
+13. Validate credential-dependent provider readiness, including credential validity, granted scopes, reachability, quota, and readback capability.
+14. Dispatch.
+15. Read back and reconcile.
 
-A later stage MUST NOT repair or replace a missing earlier stage silently.
+A later stage MUST NOT repair or replace a missing earlier stage silently. Credential materialization MUST NOT occur before all pre-credential context, ownership, capability, and authority checks pass.
 
 ## 6. Functional requirements
 
@@ -102,7 +104,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 ### Capability and readiness
 
 - FR-026: Context readiness and operation readiness MUST be evaluated separately.
-- FR-027: Operation readiness MUST include configuration, credentials, authorization, reachability, schema verification, quota, approval, and readback readiness.
+- FR-027: Operation readiness MUST be evaluated in two phases: pre-credential readiness covers configuration, context, ownership, capability, authority, approval, and non-secret policy evidence; credential-dependent provider readiness follows guarded credential materialization and covers credential validity, granted scopes, reachability, quota, schema verification, and readback readiness.
 - FR-028: High-risk operations MUST NOT select platform fallback, provider fallback, or the first connection silently.
 - FR-029: The runtime MUST bind one exact connection before provider dispatch.
 - FR-030: The runtime MUST reject capability and runtime-surface mismatches.
@@ -134,7 +136,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 ### Hierarchical connection ownership
 
 - FR-046: Every workspace MUST expose a governed `workspaceOwnershipType` of `personal` or `company` before connection ownership is resolved. This field is independent from, and MUST NOT redefine, the existing operational `workspaceType` classification.
-- FR-047: Every provider connection MUST have one exact `ownerScopeType` of `personal_workspace`, `company_workspace`, or `brand`, with an exact owner reference.
+- FR-047: Every provider connection MUST have one exact `ownerScopeType` of `personal_workspace`, `company_workspace`, or `brand`, with an exact owner reference. Every resolved decision that selects a connection MUST carry that exact owner scope type and reference in the immutable decision.
 - FR-048: A personal connection MUST be eligible only when its owner user equals the effective user.
 - FR-049: Company-workspace membership MUST NOT authorize use of another member's personal connection.
 - FR-050: A brand connection MUST be eligible only for the exact brand and workspace that own it.
@@ -143,14 +145,16 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - FR-053: A revoked, expired, disabled, insufficient-scope, stale, or owner-mismatched connection MUST be ineligible.
 - FR-054: Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
 - FR-055: Personal connection inheritance inside a company-workspace operation MUST require an explicit operation policy.
-- FR-056: Credential material MUST NOT be loaded until context, ownership, capability, authority, and readiness decisions agree.
+- FR-056: Credential material MUST remain unavailable during candidate discovery and all pre-credential checks. After one exact connection, owner scope, capability, authority path, approval state, and non-secret readiness decision agree, the runtime MAY materialize the credential through the guarded credential boundary solely to perform credential-dependent provider readiness and dispatch. Credential material MUST NOT enter customer projections, context decisions, plans, logs, or evidence.
 - FR-057: Connection ownership, authorization, provider-scope, membership, workspace ownership, or brand revision changes MUST invalidate dependent pins, plans, approvals, and cached decisions.
 - FR-058: Google identity login MUST NOT be treated as Google Drive, Docs, Gmail, Analytics, Ads, or other provider API consent.
-- FR-059: Provider authorization state MUST be signed, expiring, nonce-bound, single-use, redirect-allowlisted, and bound to the authenticated principal and exact owner scope.
-- FR-060: OAuth callbacks MUST derive authority from authenticated and signed state and MUST NOT accept free caller-supplied user or tenant identifiers as authority.
+- FR-059: Provider authorization state MUST be signed, expiring, nonce-bound, single-use, redirect-allowlisted, and bound to the authenticated principal and exact owner scope. Reconnect state MUST additionally bind the intended connection reference, expected connection revision, and expected provider account reference or privacy-preserving account-binding hash.
+- FR-060: OAuth callbacks MUST derive authority from authenticated and signed state and MUST NOT accept free caller-supplied user or tenant identifiers as authority. Reconnect callbacks MUST reject a returned provider account or connection revision that differs from the signed expected binding.
 - FR-061: Public connection APIs MUST use strict OpenAPI 3.1 contracts, stable structured errors, no-secret projections, bounded pagination, and same-cycle readback for mutations.
 - FR-062: Legacy connection records MUST be preserved and classified through an additive compatibility path before destructive cleanup.
-- FR-063: Effective Capability Envelope and Effective Authority MUST consume the exact Context Kernel connection decision instead of implementing competing selectors.
+- FR-063: Effective Capability Envelope and Effective Authority MUST consume the exact Context Kernel connection and owner-scope decision instead of implementing competing selectors or re-fetching mutable ownership metadata.
+- FR-064: Additive ownership and authorization-state migrations MUST be separately authorized, applied, and read back successfully before shadow resolution or any read/write rollout depends on the new persistence fields.
+- FR-065: Rollback after hierarchical connection routing is enabled MUST retain the exact-owner isolation guard. If the guarded resolver is unavailable, affected provider operations MUST be disabled or fail closed rather than return to an earlier selector that can choose another user's connection.
 
 ## 7. Non-functional requirements
 
@@ -163,8 +167,9 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - NFR-007: Failure modes MUST be structured and actionable.
 - NFR-008: Multi-tenant isolation tests are release blocking.
 - NFR-009: Cross-user and cross-brand connection-isolation tests are release blocking.
-- NFR-010: OAuth state replay and context-mismatch tests are release blocking.
+- NFR-010: OAuth state replay, context-mismatch, and reconnect-account-binding tests are release blocking.
 - NFR-011: Compatibility tests proving existing operational workspace-type values remain unchanged are release blocking for persistence work.
+- NFR-012: Migration-readback-before-rollout and rollback-owner-isolation tests are release blocking.
 
 ## 8. Success criteria
 
@@ -180,6 +185,10 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - Invalid more-specific connections do not silently widen consequential writes.
 - Google login and provider consent remain distinct observable readiness states.
 - Existing operational workspace classifications remain intact while personal/company ownership is represented separately.
+- Credential-dependent readiness can execute without exposing credentials before the exact-owner and authority gates pass.
+- Reconnect cannot attach a different provider account to an existing connection silently.
+- Shadow/read/write rollout does not begin before governed migration readback succeeds.
+- Rollback never restores an owner-unsafe selector.
 
 ## 9. Normative extension
 
