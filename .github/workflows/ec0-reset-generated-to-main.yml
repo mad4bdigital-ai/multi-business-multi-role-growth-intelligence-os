@@ -1,0 +1,37 @@
+name: EC0 Reset Generated Artifact To Main
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  reset-generated:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec0-final-latest-main-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout EC0 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-ec0-final-latest-main-20260730
+          fetch-depth: 0
+
+      - name: Fetch current main
+        run: git fetch origin main
+
+      - name: Reset generated artifact to main authority
+        run: |
+          git checkout origin/main -- http-generic-api/frontend-surface-dispatch.generated.json
+          test "$(git rev-parse :http-generic-api/frontend-surface-dispatch.generated.json)" = "$(git rev-parse origin/main:http-generic-api/frontend-surface-dispatch.generated.json)"
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/ec0-reset-generated-to-main.yml
+
+      - name: Commit reset
+        run: |
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -am 'chore: reset EC0 generated artifact to latest main'
+          git push origin HEAD:gpt/spec-012-ec0-final-latest-main-20260730
