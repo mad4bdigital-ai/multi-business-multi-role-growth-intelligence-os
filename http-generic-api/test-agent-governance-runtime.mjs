@@ -1,3 +1,6 @@
+// frontend-surface-operation: POST /platform/agent-governance/response-profile/resolve
+// frontend-surface-operation: POST /platform/agent-governance/research-policy/resolve
+// frontend-surface-operation: POST /platform/agent-governance/memory-scope/resolve
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
