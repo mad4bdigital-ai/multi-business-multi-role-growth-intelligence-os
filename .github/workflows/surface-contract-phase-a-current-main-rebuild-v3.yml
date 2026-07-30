@@ -142,7 +142,6 @@ jobs:
             'http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml'
             'http-generic-api/openapi/openapi.tenant-gpt.auth.yaml'
             'http-generic-api/openapi/openapi.tenant-gpt.activation.yaml'
-            'http-generic-api/openapi.gpt-action.local-connector.yaml'
           )
           python3 <<'PY'
           import subprocess
@@ -168,7 +167,6 @@ jobs:
             'http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml',
             'http-generic-api/openapi/openapi.tenant-gpt.auth.yaml',
             'http-generic-api/openapi/openapi.tenant-gpt.activation.yaml',
-            'http-generic-api/openapi.gpt-action.local-connector.yaml',
           }
           required = {
             'docs/surface-contract-discovery-status.json',
