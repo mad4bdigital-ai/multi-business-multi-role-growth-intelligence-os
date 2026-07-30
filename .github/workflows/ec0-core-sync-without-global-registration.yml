@@ -1,5 +1,6 @@
 name: EC0 Core Sync Without Global Registration
 
+# Synchronize trigger after workflow registration.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
