@@ -49,12 +49,12 @@
     "no_secret_shadow_projection",
     "standalone_contract_test",
     "standalone_composition_test",
+    "complete_test_manifest_registration",
     "bounded_contract_review",
     "human_architecture_security_review",
     "clean_core_build_readback"
   ],
   "pending_contracts": [
-    "complete_test_manifest_registration",
     "generated_test_manifest_evidence_refresh",
     "follow_up_exact_head_ci_evidence",
     "follow_up_human_architecture_security_review"
@@ -69,6 +69,18 @@
     "global_test_registration_included": false,
     "generated_artifact_included": false,
     "runtime_authority_granted": false
+  },
+  "registration_evidence": {
+    "status": "passed",
+    "run_id": 30544911843,
+    "registered_head_sha": "c8ce2c4a0de18ff57dc07702cf9f899e9ec44518",
+    "registered_commands": [
+      "node test-execution-capsule-shadow-adapter.mjs",
+      "node test-execution-capsule-shadow-composition.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_removed": true,
+    "bounded_regressions_passed": true
   },
   "human_review": {
     "status": "passed_for_core",
