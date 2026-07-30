@@ -20,14 +20,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore invalid status prevalidation contract
+      - name: Restore durable status validation contract
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('http-generic-api/durableExecutionControlService.js')
-          source = path.read_text()
-          old = '''export async function transitionDurableExecution({
+
+          service_path = Path('http-generic-api/durableExecutionControlService.js')
+          service = service_path.read_text()
+          old_service = '''export async function transitionDurableExecution({
             pool,
             planId,
             tenantId = null,
@@ -36,7 +37,7 @@ jobs:
             reason = null,
           }) {
             return withTransaction(pool, async (connection) => {'''
-          new = '''export async function transitionDurableExecution({
+          new_service = '''export async function transitionDurableExecution({
             pool,
             planId,
             tenantId = null,
@@ -54,9 +55,27 @@ jobs:
             }
             toStatus = requestedStatus;
             return withTransaction(pool, async (connection) => {'''
-          if source.count(old) != 1:
-              raise SystemExit(f'expected one transition function insertion point, found {source.count(old)}')
-          path.write_text(source.replace(old, new, 1))
+          if service.count(old_service) != 1:
+              raise SystemExit(f'expected one transition insertion point, found {service.count(old_service)}')
+          service_path.write_text(service.replace(old_service, new_service, 1))
+
+          route_path = Path('http-generic-api/routes/plannerRoutes.js')
+          routes = route_path.read_text()
+          old_route = '''    } catch (err) {
+                return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
+              }
+            });'''
+          new_route = '''    } catch (err) {
+                return res.status(err.status || 500).json({
+                  ok: false,
+                  error: { code: err.code || "plan_update_failed", message: err.message },
+                  secrets_included: false,
+                });
+              }
+            });'''
+          if routes.count(old_route) != 1:
+              raise SystemExit(f'expected one status error transport point, found {routes.count(old_route)}')
+          route_path.write_text(routes.replace(old_route, new_route, 1))
           PY
 
       - name: Set up Node.js
@@ -93,6 +112,7 @@ jobs:
         working-directory: http-generic-api
         run: |
           node --check durableExecutionControlService.js
+          node --check routes/plannerRoutes.js
           node test-durable-execution-control-service.mjs
           node test-routes.mjs
           node test-openapi-autofill-missing-routes.mjs
@@ -106,7 +126,7 @@ jobs:
       - name: Enforce bounded write set
         shell: bash
         run: |
-          allowed='^(http-generic-api/durableExecutionControlService.js|http-generic-api/openapi.yaml|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml|http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|http-generic-api/openapi.gpt-action.local-connector.yaml)$'
+          allowed='^(http-generic-api/durableExecutionControlService.js|http-generic-api/routes/plannerRoutes.js|http-generic-api/openapi.yaml|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml|http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|http-generic-api/openapi.gpt-action.local-connector.yaml)$'
           bad="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | grep -Ev "$allowed" || true)"
           test -z "$bad" || { echo "Unexpected generated paths:"; echo "$bad"; exit 1; }
 
@@ -117,12 +137,12 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add http-generic-api/durableExecutionControlService.js \
+                  http-generic-api/routes/plannerRoutes.js \
                   http-generic-api/openapi.yaml \
                   http-generic-api/frontend-operation-governance.generated.json \
                   http-generic-api/frontend-surface-dispatch.generated.json \
                   http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
                   http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml \
-                  http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml \
                   http-generic-api/openapi/openapi.tenant-gpt.auth.yaml \
                   http-generic-api/openapi/openapi.tenant-gpt.activation.yaml \
                   http-generic-api/openapi.gpt-action.local-connector.yaml \
