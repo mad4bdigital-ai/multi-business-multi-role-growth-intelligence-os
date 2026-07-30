@@ -30,3 +30,23 @@
 | A-26 | Customer error projection contains raw provider error | Contract/security test fails |
 | A-27 | Admin visibility includes other tenants | Those resources stay outside execution set |
 | A-28 | Context pin revision is stale | Pin rejected and fresh resolution required |
+| A-29 | Existing workspace has operational `workspaceType=project` and ownership `company` | Operational type remains `project`; ownership resolves independently as `company` |
+| A-30 | Legacy workspace has no ownership classification | `WORKSPACE_OWNERSHIP_TYPE_MISSING`; no consequential connection resolution |
+| A-31 | Personal connection owner equals effective user | Personal connection may enter the eligible set when policy permits |
+| A-32 | Company member references another member's personal connection | `CROSS_USER_CONNECTION_REJECTED` before credential materialization |
+| A-33 | Brand connection matches exact tenant, workspace, brand, resource, and capability | Brand connection is eligible and outranks broader candidates |
+| A-34 | Brand connection belongs to another workspace or brand | `BRAND_WORKSPACE_MISMATCH` or `CROSS_BRAND_CONNECTION_REJECTED` |
+| A-35 | Explicit authorized connection pin and inherited candidates coexist | Explicit authorized pin wins deterministically |
+| A-36 | Two equal-ranked eligible brand or workspace connections remain | `CONNECTION_AMBIGUOUS`; no first-row selection |
+| A-37 | More-specific brand connection is revoked during a consequential write | Write is blocked with no workspace or personal fallback |
+| A-38 | Company-workspace operation lacks policy allowing personal inheritance | `CONNECTION_INHERITANCE_FORBIDDEN` |
+| A-39 | Connection reference crosses tenant boundary | Request fails before credential lookup or decryption |
+| A-40 | Connection decision, API projection, plan, log, or evidence is inspected | No credential, refresh token, authorization code, or raw OAuth state appears |
+| A-41 | Google identity login succeeds without provider consent | Identity is ready; provider connection is not ready; `PROVIDER_CONSENT_REQUIRED` |
+| A-42 | OAuth authorization state is reused | `OAUTH_STATE_REPLAYED` |
+| A-43 | OAuth authorization state is expired or has invalid signature | `OAUTH_STATE_EXPIRED` or `OAUTH_STATE_INVALID` |
+| A-44 | OAuth redirect, provider account, tenant, workspace, brand, or owner scope mismatches signed state | Request fails closed with the corresponding structured mismatch error |
+| A-45 | Service principal with explicit service authority selects a company-workspace connection | Resolution can succeed without inventing `effectiveUserRef` |
+| A-46 | Connection resolution is `interpretation_required` or `connection_required` | No singular `connectionRevision`; candidate revision vector is complete or empty as defined |
+| A-47 | Company membership, brand binding, provider scopes, or connection revision changes after decision | Pins, plans, approvals, and cached decisions are invalidated |
+| A-48 | Consumer inspects manifest before connection OpenAPI implementation lands | Planned connection surfaces are marked contract-pending and are not advertised as exposed |
