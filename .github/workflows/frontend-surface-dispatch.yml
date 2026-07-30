@@ -54,9 +54,15 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
       - name: Generate source-pinned dispatch plan
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${{ github.event.pull_request.base.ref || github.event.repository.default_branch || 'main' }}"
+        env:
+          CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
+          TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
+        run: |
+          echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
+          npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
       - name: Verify generator contract
         run: |
+          node test-frontend-dispatch-workflow-baseline.mjs
           node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
