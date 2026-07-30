@@ -62,3 +62,5 @@
 | A-58 | Reconnect credential replacement succeeds but authorization-state consumption cannot commit, or vice versa | Atomic completion rolls back both effects; the connection and state never expose a partial result |
 | A-59 | Context or connection resolution remains ambiguous | Selected connection and owner-scope fields are omitted; candidate evidence is returned without fabricated ownership |
 | A-60 | Operation requires no human approval | Exact execution plan still binds operation, target, connection, owner scope, revision, and readback contract before credential materialization |
+| A-61 | Owner-scope type, owner-scope reference, or owner-scope revision is changed while the selected connection reference remains constant | Context hash changes and every dependent plan, approval, pin, and execution envelope is invalidated |
+| A-62 | Policy forbids retaining a raw provider account reference and the credential later expires or is revoked | Durable versioned `providerAccountBindingHash` remains available to bind reconnect and reject a different provider account |
