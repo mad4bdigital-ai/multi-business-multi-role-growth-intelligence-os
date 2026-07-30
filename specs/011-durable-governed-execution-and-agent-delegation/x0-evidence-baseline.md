@@ -4,9 +4,9 @@
 
 `in_progress`
 
-This is PR A of the governed execution runtime composition program. It implements instrumentation contracts and isolated benchmark evidence only.
+This is PR A of the governed execution runtime composition program. It implements the canonical instrumentation contract, isolated benchmark evidence, and the first optional legacy adapter for Sequential Plan execution.
 
-It does not change routing, context selection, authority, approval, plan execution, provider dispatch, retries, readback, persistence authority, deployment, or Production behavior.
+It does not change routing, context selection, authority, approval decisions, provider dispatch behavior, retries, readback, persistence authority, deployment, or Production behavior.
 
 ## Objective
 
@@ -38,12 +38,36 @@ Provides:
 - repeated non-overlapping observations of the same stage;
 - explicit coverage partitions for observed and unobserved stages/counters;
 - wall time, summed stage time, unattributed time, and overlap time;
-- bounded counters;
+- increment, set, and maximum counter operations;
 - secret-like identifier rejection;
 - immutable finalized snapshots;
 - snapshot validation;
 - bounded process-lifetime in-memory sink;
 - non-throwing optional emitter behavior.
+
+### Sequential Plan legacy adapter
+
+`http-generic-api/sequentialPlanOrchestrator.js`
+
+The adapter is inactive unless the caller provides `baselineEmitter`. When no emitter is provided, no trace is created and the existing execution path and result shape remain unchanged.
+
+When enabled, the adapter records only bounded metadata:
+
+- `plan_steps` as the observed plan-size gauge;
+- maximum observed `ready_set_width`;
+- executed `critical_path_steps`;
+- ledger time around claim and finalization boundaries;
+- `provider_dispatch` stage time only for workflow steps;
+- trace/request/correlation/plan references supplied through `baselineTraceInput`.
+
+It does not infer provider-call counts. `provider_calls` remains unobserved and `provider_call_made` remains `null` until a precise provider boundary is instrumented.
+
+The same change also removes two legacy first-candidate assumptions in the modified runtime file:
+
+- plan identity lookup reads at most two rows and fails closed on ambiguity;
+- claimed-step lookup reads at most two rows and fails closed on ambiguity.
+
+A shared tested helper returns `null` for no row, returns the only row for an exact match, and raises a stable `409` ambiguity error for multiple rows.
 
 ### Tests
 
@@ -62,6 +86,17 @@ Provides:
 - invalid snapshot rejection.
 
 `test-governed-execution-baseline-benchmark.mjs` certifies the isolated benchmark contract and proves the instrumented fixture preserves the legacy fixture result.
+
+`test-sequential-plan-orchestrator.mjs` certifies:
+
+- the existing Sequential Plan response shape and plan-state transitions remain unchanged;
+- telemetry is emitted only when explicitly configured;
+- observed and unobserved coverage is accurate;
+- no provider-call claim is made without coverage;
+- plan and claim identity ambiguity fails closed;
+- raw claim tokens remain excluded from evidence.
+
+All three tests are registered in the complete platform test manifest without removing existing commands.
 
 ### Benchmark
 
@@ -142,15 +177,14 @@ No migration or automatic SQL persistence is introduced in this slice.
 
 The repository already has `telemetry_spans`, but current generic span intake accepts broad attributes. X0 first establishes a bounded schema and a failure-isolated emitter. A later PR may add a governed projection adapter after schema, retention, sampling, tenant isolation, and query-cost evidence are approved.
 
-## Remaining PR A work
+## Remaining X0 work
 
-- register the tests in the complete test manifest without dropping existing commands;
-- instrument selected legacy entry points with explicit coverage;
-- preserve exact legacy outputs and errors;
-- emit no telemetry unless a bounded sink/emitter is configured;
-- capture no raw arguments, prompts, headers, JWTs, credentials, provider payloads, result bodies, or arbitrary error messages;
-- publish matched fixture evidence for the selected entry points;
-- update completion evidence only after exact-head CI succeeds.
+- instrument the legacy GPT Tool entry point with explicit partial coverage;
+- instrument the legacy System Tool entry point with explicit partial coverage;
+- instrument the Connector Plan entry point with precise provider-call coverage;
+- instrument the Agent Loop entry point with precise model/tool round-trip coverage;
+- publish matched runtime-fixture evidence for the selected entry points;
+- update exact-head CI evidence without claiming the broader X0 program complete.
 
 ## Safety boundaries
 
