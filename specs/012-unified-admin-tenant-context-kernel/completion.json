@@ -57,7 +57,6 @@
       {
         "number": 3628,
         "status": "current_pr",
-        "head_sha": "923240d3cca689c337ba9ef5750e750a86bae01e",
         "role": "phase_3_connection_ownership_migration_preflight_and_readback_contract"
       }
     ]
@@ -96,7 +95,6 @@
       "status": "current_pr_checksum_bound_repository_preflight_ci_initial_passed",
       "pr_number": 3628,
       "validated_initial_head_sha": "a42f1fc7e78512cccb67296ac1e496708fff1db6",
-      "current_head_sha": "923240d3cca689c337ba9ef5750e750a86bae01e",
       "initial_ci_run_id": 30539190119,
       "migration_file": "20260730_context_kernel_connection_ownership_persistence.sql",
       "migration_checksum_sha256": "8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf",
