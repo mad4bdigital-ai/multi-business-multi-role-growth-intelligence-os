@@ -6,6 +6,11 @@ import {
   normalizeTtlHours,
   operationsAllowed,
 } from "./brandSkillActivationService.js";
+import {
+  assertRequestedResourceBelongsToBrand,
+  grantCoversOperations,
+  mergeAllowedOperations,
+} from "./brandSkillResourceBinding.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 assert.deepEqual(normalizeRequestedOperations(["Publish", "update", "publish"]), ["publish", "update"]);
@@ -13,9 +18,15 @@ assert.equal(operationsAllowed(["publish"], ["create", "publish"]), true);
 assert.equal(operationsAllowed(["delete"], ["create", "publish"]), false);
 assert.equal(operationsAllowed(["delete"], ["*"]), true);
 assert.equal(normalizeTtlHours(null, "temporary_only", 48), 24);
+assert.equal(normalizeTtlHours(null, "self_service", 48), 48);
+assert.equal(normalizeTtlHours(null, "self_service", null), null);
 assert.equal(normalizeTtlHours(12, "self_service", 48), 12);
 assert.throws(() => normalizeRequestedOperations(["BAD OPERATION"]), (error) => error.code === "BRAND_SKILL_OPERATIONS_INVALID");
 assert.throws(() => normalizeTtlHours(49, "temporary_only", 48), (error) => error.code === "BRAND_SKILL_TTL_INVALID");
+assert.equal(grantCoversOperations('["publish","update"]', ["update"]), true);
+assert.equal(grantCoversOperations('["publish"]', ["update"]), false);
+assert.deepEqual(mergeAllowedOperations('["publish"]', ["update", "publish"]), ["publish", "update"]);
+
 assert.throws(
   () => _testingBrandSkillActivationService.validatePolicy({
     activation_mode: "approval_required",
@@ -33,6 +44,69 @@ assert.throws(
     allowed_operations_json: ["publish"],
   }, { membershipRole: "viewer", agentId: "agent-1", operations: ["publish"] }),
   (error) => error.code === "BRAND_SKILL_ROLE_DENIED"
+);
+
+const directBrandBinding = await assertRequestedResourceBelongsToBrand({ query: async () => { throw new Error("query not expected"); } }, {
+  tenantId: "tenant-1",
+  brandKey: "brand-1",
+  requestedResourceType: "brand",
+  requestedResourceRef: "brand-1",
+});
+assert.equal(directBrandBinding.binding_source, "brand_key");
+
+await assert.rejects(
+  () => assertRequestedResourceBelongsToBrand({ query: async () => [] }, {
+    tenantId: "tenant-1",
+    brandKey: "brand-1",
+    requestedResourceType: "brand",
+    requestedResourceRef: "brand-2",
+  }),
+  (error) => error.code === "BRAND_SKILL_RESOURCE_BRAND_MISMATCH"
+);
+
+const workspaceBinding = await assertRequestedResourceBelongsToBrand({ query: async () => { throw new Error("query not expected"); } }, {
+  tenantId: "tenant-1",
+  brandKey: "brand-1",
+  workspace: { workspace_id: "workspace-1", workspace_key: "brand-workspace-1" },
+  requestedResourceType: "workspace",
+  requestedResourceRef: "workspace-1",
+});
+assert.equal(workspaceBinding.binding_source, "workspace_registry");
+
+const siteQueries = [];
+const siteBinding = await assertRequestedResourceBelongsToBrand({
+  async query(sql, params) {
+    siteQueries.push({ sql: String(sql), params });
+    return [[{ binding_id: "binding-1", site_id: "site-1" }]];
+  },
+}, {
+  tenantId: "tenant-1",
+  brandKey: "brand-1",
+  requestedResourceType: "site",
+  requestedResourceRef: "site-1",
+});
+assert.equal(siteBinding.binding_source, "brand_site_bindings");
+assert.match(siteQueries[0].sql, /JOIN cms_sites/i);
+assert.deepEqual(siteQueries[0].params, ["brand-1", "site-1", "site-1", "site-1"]);
+
+await assert.rejects(
+  () => assertRequestedResourceBelongsToBrand({ query: async () => [[]] }, {
+    tenantId: "tenant-1",
+    brandKey: "brand-1",
+    requestedResourceType: "site",
+    requestedResourceRef: "site-2",
+  }),
+  (error) => error.code === "BRAND_SKILL_RESOURCE_BRAND_MISMATCH"
+);
+
+await assert.rejects(
+  () => assertRequestedResourceBelongsToBrand({ query: async () => [[]] }, {
+    tenantId: "tenant-1",
+    brandKey: "brand-1",
+    requestedResourceType: "app",
+    requestedResourceRef: "app-1",
+  }),
+  (error) => error.code === "BRAND_SKILL_RESOURCE_BRAND_BINDING_UNSUPPORTED"
 );
 
 const migrationName = "20260728_brand_scoped_user_skill_activation.sql";
@@ -59,12 +133,25 @@ for (const marker of [
   "BRAND_SKILL_POLICY_REQUIRED",
   "BRAND_SKILL_OPERATION_DENIED",
   "v_effective_user_brand_skill_grants",
-  "m.role_key AS role",
+  "m.role AS role",
+  "assertRequestedResourceBelongsToBrand",
+  "allowed_operations_json = ?",
+  "operation_set_extended: true",
   "SET status = 'expired'",
   "expires_at <= CURRENT_TIMESTAMP",
   "provider_call_allowed: false",
   "external_write_allowed: false",
 ]) assert(service.includes(marker), `service missing ${marker}`);
+assert.doesNotMatch(service, /m\.role_key AS role/);
+
+const bindingGuard = readFileSync(new URL("./brandSkillResourceBinding.js", import.meta.url), "utf8");
+for (const marker of [
+  "brand_site_bindings",
+  "workspace_assets",
+  "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
+  "BRAND_SKILL_RESOURCE_BRAND_BINDING_UNSUPPORTED",
+  "BRAND_SKILL_RESOURCE_BINDING_UNAVAILABLE",
+]) assert(bindingGuard.includes(marker), `binding guard missing ${marker}`);
 
 const routes = readFileSync(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
 assert(routes.includes("requireUserJwt"));
@@ -76,6 +163,8 @@ assert(routes.includes("requestId"));
 const gate = readFileSync(new URL("./agentToolAuthorizationGate.js", import.meta.url), "utf8");
 assert(gate.includes("resolveUserBrandSkillEntitlement"));
 assert(gate.includes("user_brand_skill_grant"));
+assert(gate.includes('configured: true'));
+assert(gate.includes('granted: false'));
 
 const entitlement = readFileSync(new URL("./userBrandSkillEntitlement.js", import.meta.url), "utf8");
 assert(entitlement.includes("brand_skill_policies"));
