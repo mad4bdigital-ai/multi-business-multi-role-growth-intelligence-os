@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scripts = [
   "scripts/run-test-manifest.mjs",
+  "test-dynamic-container-override-governance-smoke.mjs",
   "scripts/run-adaptive-authorization-verification-manifest.mjs",
 ];
 

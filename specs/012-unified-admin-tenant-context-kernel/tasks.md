@@ -1,5 +1,15 @@
 # Implementation Tasks
 
+## Delivered slice ledger
+
+These checked rows certify bounded merged slices only. They do not close the expanded hierarchical ownership phases or the full Definition of Done below.
+
+- [x] PR #3178 — API and projection contracts with strict validation, pagination, safe Admin/Tenant projections, structured errors, and an unmounted OpenAPI 3.1 boundary. Merge SHA: `af9192c5962daa806bfdee2c58af4b50f22aa45f`.
+- [x] PR #3204 — default-off Resource API shadow observer for selected tenant GET routes, including resource-first evidence and JWT/path tenant mismatch rejection. Merge SHA: `a2b779eb5bf37d6e740d933b5a0ee048b33d4c93`.
+- [x] PR #3228 — release-blocking cross-tenant isolation evidence and changed-file runtime hardcoding ratchet. Merge SHA: `4c7f00b93b90e6ae79c9677c081afcecadc0bb5a`.
+- [x] PR #3329 — automatic staging verification against intentionally retired `dev.mad4b.com` removed; manual dispatch preserved. Merge SHA: `345193fdccda961b7b7f9f3fab2136e1846efefd`.
+- [x] PR #3348 — EC0 Execution Capsule immutable core contract and standalone tests; runtime integration and repository-wide test-manifest registration remain pending. Merge SHA: `66d4e5c6c014e124970421f9e3c877a647d2c04e`.
+
 ## Phase 1: Inventory and guardrails
 
 - [ ] Inventory all current context, tenant, workspace, brand, resource, connection, capability, authority, OAuth, credential, fallback, and rollback resolvers.
