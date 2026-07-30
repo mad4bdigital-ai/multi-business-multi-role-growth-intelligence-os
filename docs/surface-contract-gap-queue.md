@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 33
+- Total queue items: 34
 - Critical review: 22
 - High review: 10
-- Medium review: 1
-- Low review: 0
+- Medium review: 0
+- Low review: 2
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -436,17 +436,30 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_create_branch_reference`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 33. `20260728_brand_scoped_user_skill_activation.sql`
+### 33. `1006_sprint69_agent_capability_evidence_coverage.sql`
 
-- Queue class: medium_review
-- Score: 359
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Queue class: low_review
+- Score: 194
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=5, views=2, policies=0, routes=0
+- Remediation actions:
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `idx_capability_invocation_agent_created`, `idx_capability_retrieval_agent_created`, `idx_capability_retrieval_decision`, `idx_capability_retrieval_tenant_created`, `selected_never_dispatched`
+- `verify_readback_view` → db-readback-review; targets: `v_engine_runtime_coverage`, `v_logic_runtime_coverage`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 34. `20260728_brand_scoped_user_skill_activation.sql`
+
+- Queue class: low_review
+- Score: 109
+- Gap severity: none
+- Missing docs: none
 - Missing OpenAPI routes: none
 - Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 - Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
 - Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_effective_user_brand_skill_grants`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
