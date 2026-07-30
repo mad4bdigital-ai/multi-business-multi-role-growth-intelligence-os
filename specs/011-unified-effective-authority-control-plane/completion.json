@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-30T13:06:00Z",
+  "last_updated_at": "2026-07-30T13:50:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -55,6 +55,14 @@
         "head_sha": "57de7a570fee96ccb2fe90a59f063ac0a69a9685",
         "merge_sha": "f1c1cf1ebf9c28d2799ec9537a5c13bd8bfbced2",
         "merged_at": "2026-07-30T13:02:00Z"
+      },
+      {
+        "number": 3758,
+        "status": "merged",
+        "role": "t014_shadow_policy_grant_evaluator",
+        "head_sha": "46b226b85f1a28ad978c9d912332c31091f0b3b0",
+        "merge_sha": "5ff7748ed1bb9fba6301001be0a0069057c03bdd",
+        "merged_at": "2026-07-30T13:46:45Z"
       }
     ],
     "recovery_closeout_pr": {
@@ -77,7 +85,8 @@
         "T010_principal_resolver",
         "T011_subject_scope_and_delegation_resolver",
         "T012_bounded_resource_graph_resolver",
-        "T013_semantic_capability_before_provider_selection"
+        "T013_semantic_capability_before_provider_selection",
+        "T014_shadow_policy_grant_evaluator"
       ],
       "remaining_scope_requires_separate_current_main_prs": true,
       "full_legacy_branch_not_mergeable_as_unit": true
@@ -144,6 +153,33 @@
           "Platform Completion Cleanup Readback",
           "Platform Remaining Scope Scorecard"
         ]
+      },
+      {
+        "status": "pass",
+        "pr": 3758,
+        "head_sha": "46b226b85f1a28ad978c9d912332c31091f0b3b0",
+        "required_ci_run": 30547893096,
+        "required_checks": [
+          "Syntax Check",
+          "Architecture Drift Detection",
+          "Execution Resolver Gate",
+          "Unit & Integration Tests"
+        ],
+        "additional_checks": {
+          "passed": [
+            "Automation Overlap Guard",
+            "Context Kernel Hardcoding Report",
+            "Docs Agent",
+            "HTTP Generic API Fanout Relocation",
+            "Platform Completion Cleanup Readback",
+            "Platform Remaining Scope Scorecard"
+          ],
+          "isolated_non_t014_failure": {
+            "check": "Frontend surface dispatch",
+            "source_file": "openapi/repository-main-moved-trigger.yaml",
+            "reason": "stale_generated_digest_only"
+          }
+        }
       }
     ],
     "specification_ci": {
@@ -167,40 +203,45 @@
       "note": "Old branch SHAs, PR state, CI results, and implementation claims in historical evidence documents remain snapshots. Current recovery and implementation evidence is limited to the merged PRs explicitly recorded here."
     },
     "security_review": {
-      "status": "bounded_t010_t013_review_passed_remaining_feature_review_open",
-      "reviewed_prs": [3471, 3561, 3711],
+      "status": "bounded_t010_t014_review_passed_remaining_feature_review_open",
+      "reviewed_prs": [3471, 3561, 3711, 3758],
+      "latest_review_id": 4819400767,
       "historical_evidence_preserved": true
     },
     "migrations": {
-      "status": "not_executed_by_recovery_or_t010_t013_slices",
+      "status": "not_executed_by_recovery_or_t010_t014_slices",
       "execution_authorized": false,
       "schema_readback_completed": false
     },
     "production_verification": {
       "status": "not_started_for_remaining_feature_delivery",
-      "not_required_for_shadow_only_t010_t013_slices": true
+      "not_required_for_shadow_only_t010_t014_slices": true
     },
     "post_merge_audit": {
-      "status": "complete_for_recovery_and_t010_t013_slices",
+      "status": "complete_for_recovery_and_t010_t014_slices",
       "specification_main_readback_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
       "t012_main_readback_sha": "990bfe44bbace76dd64aad8d5e7d6627e7abdd69",
       "t013_main_readback_sha": "f1c1cf1ebf9c28d2799ec9537a5c13bd8bfbced2",
+      "t014_main_readback_sha": "5ff7748ed1bb9fba6301001be0a0069057c03bdd",
       "spec_directory_present": true,
       "t012_resource_graph_service_present": true,
       "t013_capability_gate_precedes_connection_selection": true,
-      "t013_post_merge_fanout_run": 30545105635,
-      "t013_post_merge_fanout_status": "pass",
-      "downstream_pr_3725_frontend_generated_drift_isolated": true,
-      "downstream_pr_3725_frontend_drift_source_file": "routes/connectorAgentRoutes.js",
+      "t014_policy_grant_evaluator_present": true,
+      "t014_explicit_denial_precedes_allow": true,
+      "t014_requires_policy_and_grant_allow": true,
+      "t014_output_remains_shadow_only": true,
+      "t014_docs_agent_commit": "7ae469d8b7179f67722c334fb9873c4e74659de6",
+      "t014_frontend_generated_drift_isolated": true,
+      "t014_frontend_drift_source_file": "openapi/repository-main-moved-trigger.yaml",
       "governance_files_present": true,
       "runtime_enforcement_enabled": false
     },
     "release_readiness": {
-      "status": "recovery_chain_and_t010_t013_delivery_closed_remaining_feature_delivery_in_progress"
+      "status": "recovery_chain_and_t010_t014_delivery_closed_remaining_feature_delivery_in_progress"
     },
     "safety_readback": {
       "spec_recovery_runtime_behavior_changed": false,
-      "t010_t013_runtime_enforcement_enabled": false,
+      "t010_t014_runtime_enforcement_enabled": false,
       "production_runtime_behavior_changed": false,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
