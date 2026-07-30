@@ -5,6 +5,7 @@ import {
   normalizeRequestedOperations,
   normalizeTtlHours,
   operationsAllowed,
+  resourceContextIncludesBrand,
 } from "./brandSkillActivationService.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
@@ -13,6 +14,8 @@ assert.equal(operationsAllowed(["publish"], ["create", "publish"]), true);
 assert.equal(operationsAllowed(["delete"], ["create", "publish"]), false);
 assert.equal(operationsAllowed(["delete"], ["*"]), true);
 assert.equal(normalizeTtlHours(null, "temporary_only", 48), 24);
+assert.equal(normalizeTtlHours(null, "self_service", 48), 48);
+assert.equal(normalizeTtlHours(null, "self_service", null), null);
 assert.equal(normalizeTtlHours(12, "self_service", 48), 12);
 assert.throws(() => normalizeRequestedOperations(["BAD OPERATION"]), (error) => error.code === "BRAND_SKILL_OPERATIONS_INVALID");
 assert.throws(() => normalizeTtlHours(49, "temporary_only", 48), (error) => error.code === "BRAND_SKILL_TTL_INVALID");
@@ -23,7 +26,7 @@ assert.throws(
     allowed_agent_ids_json: [],
     allowed_operations_json: ["publish"],
   }, { membershipRole: "owner", agentId: "agent-1", operations: ["publish"] }),
-  (error) => error.code === "BRAND_SKILL_APPROVAL_REQUIRED"
+  (error) => error.code === "BRAND_SKILL_APPROVAL_REQUIRED",
 );
 assert.throws(
   () => _testingBrandSkillActivationService.validatePolicy({
@@ -32,8 +35,18 @@ assert.throws(
     allowed_agent_ids_json: ["agent-1"],
     allowed_operations_json: ["publish"],
   }, { membershipRole: "viewer", agentId: "agent-1", operations: ["publish"] }),
-  (error) => error.code === "BRAND_SKILL_ROLE_DENIED"
+  (error) => error.code === "BRAND_SKILL_ROLE_DENIED",
 );
+
+const matchingResourceContext = {
+  ok: true,
+  status: "resolved",
+  match: { resource_type: "site", resource_key: "site-1" },
+  context: { brands: [{ target_key: "brand-1" }] },
+};
+assert.equal(resourceContextIncludesBrand(matchingResourceContext, "site", "site-1", "brand-1"), true);
+assert.equal(resourceContextIncludesBrand(matchingResourceContext, "site", "site-1", "brand-2"), false);
+assert.equal(resourceContextIncludesBrand(matchingResourceContext, "workspace", "site-1", "brand-1"), false);
 
 const migrationName = "20260728_brand_scoped_user_skill_activation.sql";
 const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
@@ -51,20 +64,27 @@ const preflight = assessMigrationSqlPreflight(migrationName, migration);
 assert.notEqual(preflight.status, "fail", JSON.stringify(preflight, null, 2));
 assert.equal(preflight.secrets_included, false);
 
-const service = readFileSync(new URL("./brandSkillActivationService.js", import.meta.url), "utf8");
+const compatibilityService = readFileSync(new URL("./brandSkillActivationService.js", import.meta.url), "utf8");
+assert.match(compatibilityService, /export \* from "\.\/brandSkillActivationServiceV2\.js"/);
+
+const service = readFileSync(new URL("./brandSkillActivationServiceV2.js", import.meta.url), "utf8");
 for (const marker of [
   "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED",
   "BRAND_SKILL_RESOURCE_GRANT_REQUIRED",
   "BRAND_SKILL_AGENT_GRANT_REQUIRED",
   "BRAND_SKILL_POLICY_REQUIRED",
   "BRAND_SKILL_OPERATION_DENIED",
+  "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
+  "BRAND_SKILL_RESOURCE_BRAND_RESOLUTION_FAILED",
   "v_effective_user_brand_skill_grants",
-  "m.role_key AS role",
-  "SET status = 'expired'",
-  "expires_at <= CURRENT_TIMESTAMP",
+  "m.role AS role",
+  "allowed_operations_json, expires_at",
+  "SET policy_id = ?",
   "provider_call_allowed: false",
   "external_write_allowed: false",
 ]) assert(service.includes(marker), `service missing ${marker}`);
+assert.equal(service.includes("m.role_key AS role"), false);
+assert.equal((service.match(/SET status = 'expired'/g) || []).length, 1);
 
 const routes = readFileSync(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
 assert(routes.includes("requireUserJwt"));
@@ -81,6 +101,7 @@ const entitlement = readFileSync(new URL("./userBrandSkillEntitlement.js", impor
 assert(entitlement.includes("brand_skill_policies"));
 assert(entitlement.includes("v_effective_user_brand_skill_grants"));
 assert(entitlement.includes("user_brand_skill_grant_missing"));
+assert(entitlement.includes("user_brand_skill_grant_resolution_failed"));
 assert(entitlement.includes("enforce_brand_skill_entitlement"));
 
 const openapi = readFileSync(new URL("./openapi/brand-skill-activation.yaml", import.meta.url), "utf8");
