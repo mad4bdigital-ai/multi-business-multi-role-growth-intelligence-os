@@ -1,0 +1,2 @@
+PR #3755 human readback trigger only.
+No runtime mutation, migration apply, provider call, credential read, external write, deployment, or secrets.
