@@ -68,3 +68,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment 3295 --repo "${{ github.repository }}" --body "Bounded rebuild completed successfully in workflow run ${GITHUB_RUN_ID}."
+
+# Server-side merge trigger for the bounded PR #3162 rebuild.
