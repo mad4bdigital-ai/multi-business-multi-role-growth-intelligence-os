@@ -7,7 +7,7 @@
   "scripts": {
     "prestart": "node scripts/generate-deployment-manifest.mjs",
     "start": "node server.js",
-    "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+    "test": "node test-brand-skill-migration-preflight.mjs && node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "automation:overlap:report": "node scripts/automation-overlap-analyzer.mjs",
     "automation:overlap:check": "node scripts/automation-overlap-analyzer.mjs --check",
@@ -70,7 +70,7 @@
     "bullmq": "^5.0.0",
     "express": "^4.21.2",
     "google-auth-library": "^10.6.2",
-    "googleapis": "^137.1.0",
+    "googleapis": "^137.0.0",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.22.3",
