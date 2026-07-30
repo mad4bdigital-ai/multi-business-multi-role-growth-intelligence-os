@@ -74,6 +74,7 @@ import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
+import { buildBrandSkillRoutes } from "./brandSkillRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
 import { buildEffectiveAuthorityRoutes } from "./effectiveAuthorityRoutes.js";
 import { buildResourceAuthorityGrantRoutes } from "./resourceAuthorityGrantRoutes.js";
@@ -122,6 +123,7 @@ import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
+import { buildDynamicContainerOverrideGovernanceSmokeRoutes } from "./dynamicContainerOverrideGovernanceSmokeRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
@@ -214,6 +216,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantLifecycleRoutes());
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));
@@ -221,6 +224,7 @@ export function registerRoutes(app, deps) {
   app.use(buildOperationOrchestratorRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildEffectiveAuthorityRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildBrandSkillRoutes(deps));
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));

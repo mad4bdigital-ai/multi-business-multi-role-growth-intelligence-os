@@ -25,10 +25,15 @@ import {
 } from "../operationCapabilityLifecycleService.js";
 import {
   finalizeManagedGitWorkerLifecycle,
+  getManagedGitWorkerWorkspacePath,
   markManagedGitWorkerRunning,
   prepareManagedGitWorkerLifecycle,
   readManagedGitWorkerLease,
 } from "../managedGitWorkerLifecycleService.js";
+import {
+  createManagedGitRepositoryCredentialBinding,
+  releaseManagedGitRepositoryCredentialBinding,
+} from "../managedGitRepositoryCredentialBinding.js";
 import { collectChunkedToolResponse } from "../repositoryAutomationControlPlane.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 
@@ -128,6 +133,113 @@ function depsFor(req) {
     dispatch: (toolKey, args) =>
       dispatchWithChunkCollection(dispatch, toolKey, args),
   };
+}
+
+function depsWithManagedGitWorkspace(deps, lifecycle) {
+  const workspacePath = getManagedGitWorkerWorkspacePath(lifecycle);
+  if (!workspacePath) return deps;
+  const next = { ...deps };
+  Object.defineProperty(next, "managed_git_workspace", {
+    value: Object.freeze({
+      worker_id: lifecycle.worker_id,
+      checkout_strategy: lifecycle.checkout_strategy,
+      workspace_path: workspacePath,
+    }),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return next;
+}
+
+function depsWithManagedGitCredential(deps, binding) {
+  if (!binding) return deps;
+  const next = { ...deps };
+  Object.defineProperty(next, "managed_git_credential_binding", {
+    value: binding,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return next;
+}
+
+function finalizeCredentialSafely(binding) {
+  if (!binding) {
+    return {
+      required: false,
+      status: "not_required",
+      released: false,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      secrets_included: false,
+    };
+  }
+  try {
+    return {
+      required: true,
+      status: "released",
+      ...releaseManagedGitRepositoryCredentialBinding(binding),
+    };
+  } catch (error) {
+    return {
+      required: true,
+      status: "release_failed",
+      released: false,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      error: {
+        code: error?.code || "MANAGED_GIT_CREDENTIAL_RELEASE_FAILED",
+        message: error?.message || "Repository credential release failed.",
+        details: error?.details || null,
+      },
+      secrets_included: false,
+    };
+  }
+}
+
+async function prepareCredentialBindingForWorker({
+  deps,
+  lifecycle,
+  input = {},
+  now = new Date(),
+  createCredentialBinding = createManagedGitRepositoryCredentialBinding,
+} = {}) {
+  if (lifecycle?.required !== true) return null;
+  const connectionId = String(input?.connection_id || "").trim();
+  if (!connectionId) return null;
+  if (typeof createCredentialBinding !== "function") {
+    const error = new Error("A repository credential binding factory is required.");
+    error.code = "MANAGED_GIT_CREDENTIAL_BINDING_FACTORY_REQUIRED";
+    error.status = 500;
+    throw error;
+  }
+  const current = now instanceof Date ? new Date(now.getTime()) : new Date(now);
+  const leaseExpiry = new Date(lifecycle.lease_expires_at || 0);
+  const remainingSeconds = Math.floor((leaseExpiry.getTime() - current.getTime()) / 1000);
+  if (!Number.isFinite(remainingSeconds) || remainingSeconds < 30) {
+    const error = new Error("The managed Git worker lease is too close to expiry for a repository credential binding.");
+    error.code = "MANAGED_GIT_CREDENTIAL_LEASE_TOO_SHORT";
+    error.status = 409;
+    error.details = {
+      minimum_remaining_seconds: 30,
+      credential_secret_exposed: false,
+      persistent_credential_file_created: false,
+      secrets_included: false,
+    };
+    throw error;
+  }
+  return createCredentialBinding({
+    pool: deps?.pool,
+    auth: deps?.auth || {},
+    worker_id: lifecycle.worker_id,
+    owner: input.owner,
+    repo: input.repo,
+    connection_id: connectionId,
+    allow_platform_fallback: false,
+    ttl_seconds: Math.min(900, remainingSeconds),
+    now: current,
+  });
 }
 
 function isTenant(req) {
@@ -332,6 +444,8 @@ function mountOperationRoutes(router, { prefix }) {
     let capabilityFinalized = false;
     let workerLifecycle = null;
     let workerFinalized = false;
+    let credentialBinding = null;
+    let credentialFinalized = false;
     let operationDeps = null;
     try {
       const requestedInput = bodyOf(req);
@@ -363,12 +477,31 @@ function mountOperationRoutes(router, { prefix }) {
         operationKey,
         dispatch: operationDeps.dispatch,
       });
+      credentialBinding = await prepareCredentialBindingForWorker({
+        deps: operationDeps,
+        lifecycle: workerLifecycle,
+        input: workerLifecycle.input || capabilityInput,
+      });
       workerLifecycle = await markManagedGitWorkerRunning({
         pool: getPool(),
         lifecycle: workerLifecycle,
       });
       const input = workerLifecycle.input || capabilityInput;
-      const result = await executeOperation(input, operationDeps);
+      const workspaceDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+      const executionDeps = depsWithManagedGitCredential(workspaceDeps, credentialBinding);
+      const result = await executeOperation(input, executionDeps);
+      const credentialResult = finalizeCredentialSafely(credentialBinding);
+      credentialFinalized = true;
+      if (credentialResult.status === "release_failed") {
+        const releaseError = new Error("Repository credential release failed.");
+        releaseError.code = "MANAGED_GIT_CREDENTIAL_RELEASE_FAILED";
+        releaseError.status = 500;
+        releaseError.details = {
+          credential_lifecycle: credentialResult,
+          secrets_included: false,
+        };
+        throw releaseError;
+      }
       const workerResult = await finalizeWorkerSafely({
         lifecycle: workerLifecycle,
         result,
@@ -437,6 +570,14 @@ function mountOperationRoutes(router, { prefix }) {
         },
       };
       const lifecycleDetails = {};
+
+      if (!credentialFinalized && credentialBinding) {
+        const credentialResult = finalizeCredentialSafely(credentialBinding);
+        credentialFinalized = true;
+        if (credentialResult.status === "release_failed") {
+          lifecycleDetails.credential_lifecycle = credentialResult;
+        }
+      }
 
       if (
         workerLifecycle?.required === true
@@ -544,6 +685,10 @@ export const _testingOperationOrchestratorRoutes = {
   errorResponse,
   isResumeOperation,
   dispatchWithChunkCollection,
+  depsWithManagedGitWorkspace,
+  depsWithManagedGitCredential,
+  prepareCredentialBindingForWorker,
+  finalizeCredentialSafely,
   recordArtifactsSafely,
   recordOwnershipSafely,
   finalizeCapabilitySafely,

@@ -417,7 +417,7 @@ class GovernedResearchMemoryPool {
     if (text.startsWith("SELECT ep.plan_id, ep.tenant_id, ep.user_id")) {
       return [[{ ...this.plan, ...this.governedPlan }]];
     }
-    if (text.startsWith("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE")) return [[this.plan]];
+    if (text.startsWith("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 2 FOR UPDATE")) return [[this.plan]];
     if (text.startsWith("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order FOR UPDATE")) {
       return [[...this.steps].sort((a, b) => a.step_order - b.step_order)];
     }
@@ -487,6 +487,10 @@ const completedEndToEnd = await runGovernedResearchPlan(
 );
 assert.equal(completedEndToEnd.ok, true);
 assert.equal(completedEndToEnd.last_tick.plan_status, "completed");
+assert.match(
+  readFileSync("sequentialPlanOrchestrator.js", "utf8"),
+  /SELECT \* FROM execution_plans WHERE plan_id = \? LIMIT 2 FOR UPDATE/,
+);
 assert.equal(memoryPool.steps.every((step) => step.status === "completed"), true);
 assert.equal(memoryPool.executions.length, 2, "source evidence and citation checkpoint must both be recorded");
 assert.equal(memoryPool.executions.at(-1).question_class, "citation_verification");

@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolveUserBrandSkillEntitlement } from "./userBrandSkillEntitlement.js";
 
 const CONSEQUENCE_PATTERN = /(?:^|[._-])(write|create|insert|update|delete|remove|apply|execute|dispatch|send|publish|deploy|restart|stop|start|install|uninstall|trigger|mutate|mutation|shell|control|approve|revoke|rollback|migrate|sync)(?:$|[._-])/i;
 const READ_ONLY_PATTERN = /(?:^|[._-])(read|get|list|search|inspect|status|preview|diagnostic|health|lookup|resolve|validate|verify|dry[_-]?run|plan)(?:$|[._-])/i;
@@ -29,6 +30,14 @@ function compactAction(row = null) {
     review_required: isTruthy(row.review_required),
     allowed_actor_roles: splitTokens(row.allowed_actor_roles),
     allowed_governance_levels: splitTokens(row.allowed_governance_levels),
+    secrets_included: false,
+  };
+}
+
+function dependencyFailure(error, fallbackCode) {
+  return {
+    code: normalize(error?.code || fallbackCode).slice(0, 128) || fallbackCode,
+    message: String(error?.message || "Dependency resolution failed.").slice(0, 255),
     secrets_included: false,
   };
 }
@@ -74,11 +83,19 @@ async function loadAction(pool, toolName) {
       WHERE action_key = ?
          OR openai_action_binding = ?
          OR action_title = ?
-      ORDER BY action_key = ? DESC, updated_at DESC
-      LIMIT 1`,
+      ORDER BY action_key = ? DESC, updated_at DESC, action_key ASC
+      LIMIT 2`,
     [toolName, toolName, toolName, toolName]
   );
-  return rows[0] || null;
+  const exactMatch = rows.find((row) => normalize(row.action_key) === normalize(toolName));
+  if (exactMatch) return exactMatch;
+  const [candidate, duplicate] = rows;
+  if (duplicate) {
+    const error = new Error("Multiple action registry entries match the requested tool name.");
+    error.code = "AGENT_TOOL_ACTION_AMBIGUOUS";
+    throw error;
+  }
+  return candidate || null;
 }
 
 async function resolveSkillGrant(pool, alternatives, context) {
@@ -89,7 +106,7 @@ async function resolveSkillGrant(pool, alternatives, context) {
   const brandKey = String(context.brand_key || context.target_key || "").trim();
   const placeholders = alternatives.map(() => "?").join(",");
   const [rows] = await pool.query(
-    `SELECT sk.skill_key, sg.grant_id
+    `SELECT DISTINCT sk.skill_key
        FROM v_effective_agent_skill_grants sg
        JOIN agent_skills sk ON sk.skill_id = sg.skill_id AND sk.status = 'active'
       WHERE sg.agent_id = ?
@@ -102,11 +119,12 @@ async function resolveSkillGrant(pool, alternatives, context) {
       LIMIT 1`,
     [agentId, tenantId, brandKey, ...alternatives, ...alternatives]
   );
+  const [match] = rows;
   return {
     required: true,
-    granted: Boolean(rows[0]),
-    matched_skill_key: rows[0]?.skill_key || null,
-    reason: rows[0] ? null : "required_agent_skill_grant_missing",
+    granted: Boolean(match),
+    matched_skill_key: match?.skill_key || null,
+    reason: match ? null : "required_agent_skill_grant_missing",
   };
 }
 
@@ -120,7 +138,8 @@ async function resolveAppActionGrant(pool, actionKey, context) {
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
     [actionKey]
   );
-  const configuredCount = Number(configuredRows[0]?.configured_count || 0);
+  const [configuredRow = {}] = configuredRows;
+  const configuredCount = Number(configuredRow.configured_count || 0);
   if (!configuredCount) return { configured: false, granted: true };
   const [matchingRows] = await pool.query(
     `SELECT grant_id
@@ -130,13 +149,17 @@ async function resolveAppActionGrant(pool, actionKey, context) {
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
         AND (agent_id IS NULL OR agent_id = ?)
         AND (workspace_id IS NULL OR workspace_id = ?)
+      ORDER BY (agent_id IS NOT NULL) DESC,
+               (workspace_id IS NOT NULL) DESC,
+               grant_id ASC
       LIMIT 1`,
     [actionKey, context.agent_id || "", context.workspace_id || ""]
   );
+  const [matchingGrant] = matchingRows;
   return {
     configured: true,
-    granted: Boolean(matchingRows[0]),
-    grant_id: matchingRows[0]?.grant_id || null,
+    granted: Boolean(matchingGrant),
+    grant_id: matchingGrant?.grant_id || null,
   };
 }
 
@@ -159,12 +182,20 @@ export async function authorizeAgentToolCall({
     return { allowed: false, status: "denied", code: "agent_tool_name_required", phase, secrets_included: false };
   }
   const db = pool || getPool();
-  const action = await loadAction(db, toolName).catch(() => null);
+  let action = null;
+  let actionResolutionFailure = null;
+  try {
+    action = await loadAction(db, toolName);
+  } catch (error) {
+    actionResolutionFailure = dependencyFailure(error, "action_registry_resolution_failed");
+  }
   const classification = classifyAgentTool(toolName, args, action);
   const actor = actorEvidence(context);
   const blockers = [];
 
-  if (action) {
+  if (actionResolutionFailure) {
+    blockers.push("action_registry_resolution_failed");
+  } else if (action) {
     if (!isTruthy(action.status) && normalize(action.status) !== "active") blockers.push("action_not_active");
     if (!isTruthy(action.runtime_callable)) blockers.push("action_not_runtime_callable");
     if (isTruthy(action.admin_only) && !actor.is_admin) blockers.push("action_admin_principal_required");
@@ -185,18 +216,36 @@ export async function authorizeAgentToolCall({
   }
 
   const requiredSkills = inferRequiredSkillAlternatives(toolName, action);
-  const skill = await resolveSkillGrant(db, requiredSkills, context).catch(() => ({
+  const skill = await resolveSkillGrant(db, requiredSkills, context).catch((error) => ({
     required: requiredSkills.length > 0,
     granted: false,
     matched_skill_key: null,
     reason: "agent_skill_grant_resolution_failed",
+    dependency_failure: dependencyFailure(error, "agent_skill_grant_resolution_failed"),
   }));
   if (classification.consequential && skill.required && !skill.granted) blockers.push(skill.reason || "required_agent_skill_grant_missing");
 
-  const appGrant = await resolveAppActionGrant(db, action?.action_key, context).catch(() => ({
+  const userBrandSkillGrant = await resolveUserBrandSkillEntitlement(db, skill, context, {
+    toolName,
+    args,
+    action,
+  }).catch((error) => ({
+    configured: true,
+    granted: false,
+    grant_id: null,
+    operation: null,
+    reason: "user_brand_skill_grant_resolution_failed",
+    dependency_failure: dependencyFailure(error, "user_brand_skill_grant_resolution_failed"),
+  }));
+  if (classification.consequential && userBrandSkillGrant.configured && !userBrandSkillGrant.granted) {
+    blockers.push(userBrandSkillGrant.reason || "user_brand_skill_grant_missing");
+  }
+
+  const appGrant = await resolveAppActionGrant(db, action?.action_key, context).catch((error) => ({
     configured: true,
     granted: false,
     reason: "app_action_grant_resolution_failed",
+    dependency_failure: dependencyFailure(error, "app_action_grant_resolution_failed"),
   }));
   if (appGrant.configured && !appGrant.granted) blockers.push(appGrant.reason || "app_action_grant_missing");
 
@@ -209,20 +258,35 @@ export async function authorizeAgentToolCall({
     tool_key: toolName,
     classification,
     action: compactAction(action),
+    action_registry: {
+      resolved: !actionResolutionFailure,
+      failure: actionResolutionFailure,
+      secrets_included: false,
+    },
     skill: {
       required: skill.required,
       alternatives: requiredSkills,
       granted: skill.granted,
       matched_skill_key: skill.matched_skill_key || null,
+      dependency_failure: skill.dependency_failure || null,
+    },
+    user_brand_skill_grant: {
+      configured: userBrandSkillGrant.configured,
+      granted: userBrandSkillGrant.granted,
+      grant_id: userBrandSkillGrant.grant_id || null,
+      operation: userBrandSkillGrant.operation || null,
+      reason: userBrandSkillGrant.reason || null,
+      dependency_failure: userBrandSkillGrant.dependency_failure || null,
     },
     app_action_grant: {
       configured: appGrant.configured,
       granted: appGrant.granted,
       grant_id: appGrant.grant_id || null,
+      dependency_failure: appGrant.dependency_failure || null,
     },
     actor,
     blockers,
-    advisory_unregistered_read_only: !action && !classification.consequential,
+    advisory_unregistered_read_only: !action && !classification.consequential && !actionResolutionFailure,
     secrets_included: false,
   };
 }

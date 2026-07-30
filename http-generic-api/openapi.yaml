@@ -9867,7 +9867,7 @@ paths:
   /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGrowthIntelligencePilot
       summary: Run the read-only tenant and brand Growth Intelligence pilot
       description: >
@@ -9909,7 +9909,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listGrowthIntelligenceReports
       summary: List persisted Growth Intelligence reports
       parameters:
@@ -9923,7 +9923,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/metrics:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceMetrics
       summary: Read tenant-scoped Growth Intelligence product and safety metrics
       parameters:
@@ -9936,7 +9936,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceReport
       summary: Read one persisted Growth Intelligence report with insights and actions
       parameters:
@@ -9950,7 +9950,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceAction
       summary: Approve or reject a Growth Intelligence action without executing it
       description: >
@@ -9981,7 +9981,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceInsight
       summary: Accept, reject, or mark a Growth Intelligence insight stale
       description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
@@ -10008,7 +10008,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGrowthIntelligenceReadinessAssessment
       summary: Record an immutable no-execution readiness assessment
       description: >
@@ -11609,6 +11609,134 @@ paths:
                       type: object
                       additionalProperties: true
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /system/tools/catalog-observability:
+    get:
+      tags: [system-layer]
+      security: [adminBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getSystemToolCatalogObservability
+      x-openai-isConsequential: false
+      summary: Read System Tool Catalog V2 observability and descriptor parity
+      description: Returns bounded no-secret Catalog V2 counters and descriptor/runtime handler parity evidence. Admin/service authentication is required.
+      responses:
+        "200":
+          description: Catalog observability and parity evidence.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, counters, observed_at, descriptor_parity, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  counters:
+                    type: object
+                    additionalProperties: { type: integer, minimum: 0 }
+                  observed_at: { type: string, format: date-time }
+                  descriptor_parity:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500":
+          description: Catalog observability failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /system/tools/{toolName}:
+    get:
+      tags: [system-layer]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getSystemToolDescriptor
+      x-openai-isConsequential: false
+      summary: Read one visible System Layer tool descriptor
+      description: Resolves one stable tool name against the principal-scoped Catalog V2 projection. A hidden tool is indistinguishable from an absent tool.
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 191 }
+      responses:
+        "200":
+          description: Visible System Layer descriptor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, tool, catalog_version, snapshot_id, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  tool: { type: object, additionalProperties: true }
+                  catalog_version: { type: string, pattern: "^[a-f0-9]{64}$" }
+                  snapshot_id: { type: string, pattern: "^[a-f0-9]{64}$" }
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Tool is absent or not visible to this principal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Catalog lookup failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /system/capabilities/resolve:
+    post:
+      tags: [system-layer]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: resolveSystemToolCapability
+      x-openai-isConsequential: false
+      summary: Resolve intent or a stable selector against visible System Layer tools
+      description: Read-only discovery over the principal-scoped Catalog V2 projection. The response never grants execution authority and routes a unique match to capability preview.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                intent: { type: string, maxLength: 4000 }
+                tool_name: { type: string, maxLength: 191 }
+                capability_key: { type: string, maxLength: 191 }
+                max_candidates: { type: integer, minimum: 1, maximum: 200, default: 10 }
+              anyOf:
+                - required: [intent]
+                - required: [tool_name]
+                - required: [capability_key]
+      responses:
+        "200":
+          description: Read-only capability discovery result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, status, candidates, execution_allowed, next_step, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  status: { type: string, enum: [resolved, clarification_required, not_found] }
+                  candidates: { type: array, maxItems: 200, items: { type: object, additionalProperties: true } }
+                  selected_tool: { type: [object, "null"], additionalProperties: true }
+                  execution_allowed: { type: boolean, enum: [false] }
+                  next_step: { type: string, enum: [capability_preview, clarification_required, not_found] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Intent or selector is missing or invalid.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Capability discovery failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /system/tools/call:
     post:
@@ -15999,6 +16127,65 @@ paths:
       responses:
         "200": { description: Current user profile, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /me/workspaces/{tenant_id}/members:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceMembers
+      summary: List members visible to an active workspace member
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Workspace members, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Active workspace membership required }
+        "500": { description: Workspace member listing failed }
+  /me/workspaces/{tenant_id}/invitations:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceInvitations
+      summary: List workspace invitations visible to an owner or admin
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { type: string, default: pending }
+      responses:
+        "200": { description: Workspace invitations, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Workspace owner or admin role required }
+        "500": { description: Workspace invitation listing failed }
+  /me/workspaces/{tenant_id}/access-requests:
+    get:
+      tags: [connected-systems]
+      security:
+        - userJwtAuth: []
+      operationId: listCurrentWorkspaceAccessRequests
+      summary: List workspace access requests visible to an owner or admin
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { type: string, default: pending }
+      responses:
+        "200": { description: Workspace access requests, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { description: Authentication required }
+        "403": { description: Workspace owner or admin role required }
+        "500": { description: Workspace access request listing failed }
   /me/workspaces/{tenant_id}/brands:
     get:
       tags: [connected-systems]
@@ -16613,7 +16800,7 @@ paths:
               additionalProperties: false
               properties:
                 connection_id: { type: string }
-                system_id: { type: string, default: "98d6a18b-5578-11f1-9baf-8e76a7e1749f" }
+                system_id: { type: string, description: Governed connected-system registry identifier selected for the promotion target. }
                 owner_id: { type: string, default: growth_intelligence_platform }
                 target_key: { type: string, default: hostinger_ssh_prod_platform }
                 provider_family: { type: string, default: hostinger }

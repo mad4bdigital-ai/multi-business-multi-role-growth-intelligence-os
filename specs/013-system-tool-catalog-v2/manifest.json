@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "spec_key": "013-system-tool-catalog-v2",
+  "spec_version": "1.0.0",
+  "status": "in_progress",
+  "scope": "platform",
+  "baseline_delivery": {
+    "pull_request": 3260,
+    "final_head_sha": "cc0d3f385427a3ad9396e8293587aa3cdfdfdc43",
+    "merge_sha": "0de0cdd6727040a2670821025c32615991cb3251",
+    "state": "merged_on_main"
+  },
+  "invariants": [
+    "principal_scoped_before_discovery",
+    "deterministic_source_and_name_ordering",
+    "snapshot_bound_cursor_traversal",
+    "direct_lookup_non_enumerating",
+    "catalog_visibility_never_execution_authority",
+    "intent_resolution_execution_allowed_false",
+    "descriptor_name_collision_fail_closed",
+    "unicode_intent_preserved",
+    "descriptor_runtime_parity",
+    "legacy_compatibility_until_measured_retirement",
+    "no_secret_observability"
+  ],
+  "artifacts": [
+    "README.md",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "testing-strategy.md",
+    "rollout.md",
+    "contracts/system-tool-catalog-v2.openapi.yaml",
+    "checklists/requirements.md",
+    "completion.json",
+    "intent-execution-surface-addendum.md",
+    "intent-execution-surface-extension.manifest.json",
+    "manifest.json"
+  ],
+  "extensions": [
+    {
+      "extension_key": "spec-013-intent-execution-surface",
+      "manifest": "intent-execution-surface-extension.manifest.json",
+      "primary_artifact": "intent-execution-surface-addendum.md",
+      "status": "draft",
+      "runtime_authority": false
+    }
+  ],
+  "public_boundary": {
+    "baseline_exposed": [
+      "catalog_list",
+      "descriptor_lookup",
+      "capability_intent_discovery",
+      "catalog_observability"
+    ],
+    "extension_specification_only": [
+      "execute_intent",
+      "execute_operation",
+      "get_execution",
+      "get_execution_result",
+      "cancel_execution",
+      "resume_execution"
+    ]
+  },
+  "production_mutation": false,
+  "provider_write": false,
+  "migration_apply": false,
+  "deployment_required": false,
+  "protected_branch_write": false,
+  "secrets_included": false
+}

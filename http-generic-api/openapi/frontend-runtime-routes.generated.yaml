@@ -3122,62 +3122,6 @@ paths:
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
-  /me/workspaces/{tenant_id}/access-requests:
-    get:
-      operationId: getMeWorkspacesByTenantIdAccessRequestse1f5aa22
-      summary: GET /me/workspaces/{tenant_id}/access-requests (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/tenantLifecycleRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireUserJwt
-          - requireWorkspaceOwner
-        configuration_dependencies:
-          - JWT_SECRET
-    post:
-      operationId: postMeWorkspacesByTenantIdAccessRequestsc5e288a8
-      summary: POST /me/workspaces/{tenant_id}/access-requests (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/tenantLifecycleRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireUserJwt
-        configuration_dependencies:
-          - JWT_SECRET
   /me/workspaces/{tenant_id}/assets:
     get:
       operationId: getMeWorkspacesByTenantIdAssets3d4f26ac
@@ -3199,92 +3143,6 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/workspaceResourceRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireActiveMembership
-          - requireUserJwt
-        configuration_dependencies:
-          - JWT_SECRET
-  /me/workspaces/{tenant_id}/invitations:
-    get:
-      operationId: getMeWorkspacesByTenantIdInvitationsf8f8721f
-      summary: GET /me/workspaces/{tenant_id}/invitations (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/tenantLifecycleRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireUserJwt
-          - requireWorkspaceOwner
-        configuration_dependencies:
-          - JWT_SECRET
-    post:
-      operationId: postMeWorkspacesByTenantIdInvitations23e803ce
-      summary: POST /me/workspaces/{tenant_id}/invitations (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/tenantLifecycleRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireUserJwt
-          - requireWorkspaceOwner
-        configuration_dependencies:
-          - JWT_SECRET
-  /me/workspaces/{tenant_id}/members:
-    get:
-      operationId: getMeWorkspacesByTenantIdMembers00871385
-      summary: GET /me/workspaces/{tenant_id}/members (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      parameters:
-        - name: tenant_id
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/tenantLifecycleRoutes.js
       x-mad4b-runtime-auth:
         profile: user_jwt
         principal: tenant_user
@@ -5114,6 +4972,30 @@ paths:
         profile: admin_backend
         principal: admin
         guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/container-authority/override-governance-smokes:
+    post:
+      operationId: postAdminContainerAuthorityOverrideGovernanceSmokesbe3638de
+      summary: POST /admin/container-authority/override-governance-smokes (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/dynamicContainerOverrideGovernanceSmokeRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdmin
           - requireAdminPrincipal
           - requireBackendApiKey
         configuration_dependencies:
@@ -8710,6 +8592,34 @@ paths:
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
+  /me/workspaces/{tenant_id}/access-requests:
+    post:
+      operationId: postMeWorkspacesByTenantIdAccessRequestsc5e288a8
+      summary: POST /me/workspaces/{tenant_id}/access-requests (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/tenantLifecycleRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
   /me/workspaces/{tenant_id}/access-requests/{request_id}/approve:
     post:
       operationId: postMeWorkspacesByTenantIdAccessRequestsByRequestIdApprove5d00ba00
@@ -8796,6 +8706,35 @@ paths:
             type: string
             minLength: 1
         - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/tenantLifecycleRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireUserJwt
+          - requireWorkspaceOwner
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/invitations:
+    post:
+      operationId: postMeWorkspacesByTenantIdInvitations23e803ce
+      summary: POST /me/workspaces/{tenant_id}/invitations (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
           in: path
           required: true
           schema:
