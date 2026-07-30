@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "441860dce2936da8bc864913e7216e30ab65d04dde21a168bb0b5e494a575b9c",
+    "source_digest": "9d40c9304ab57bf804e2ca2e55c2f66b629708631edbef16b68ffb4d4ac11054",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -1086,7 +1086,7 @@
       },
       {
         "file": "test-support-ticket-lifecycle-snapshot-proposal.mjs",
-        "sha256": "d78c3bcabd333392449016b652861e593a67c76f0e69cd73f27dfd0391c55235",
+        "sha256": "7d7c58e5937763eda7e9a79faeb7eea471f48d000d8f4b336d35d63ddc021d3b",
         "present": true
       },
       {
