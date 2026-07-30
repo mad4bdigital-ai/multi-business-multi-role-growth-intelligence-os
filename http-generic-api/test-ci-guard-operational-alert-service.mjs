@@ -4,6 +4,10 @@ import {
   calculateCiGuardSlo,
   _testingCiGuardOperationalAlerts,
 } from "./ciGuardOperationalAlertService.js";
+import {
+  classifyCiGuardWorkflowOutcome,
+  _testingCiGuardWorkflowOutcome,
+} from "./ciGuardWorkflowOutcome.js";
 
 const now = new Date("2026-07-21T00:10:00.000Z");
 const failure = normalizeCiGuardSignal({
@@ -106,6 +110,55 @@ assert.equal(recovered.objectives.daily_success.status, "pass");
 assert.equal(recovered.objectives.detection_time.status, "pass");
 assert.equal(recovered.objectives.recovery_time.status, "pass");
 assert.equal(recovered.objectives.recovery_time.maximum_seconds, 600);
+
+const currentRun = {
+  id: 200,
+  run_number: 50,
+  workflow_id: 900,
+  event: "push",
+  head_branch: "main",
+};
+const superseded = classifyCiGuardWorkflowOutcome({
+  guardResult: "cancelled",
+  currentRun,
+  workflowRuns: [
+    currentRun,
+    {
+      id: 201,
+      run_number: 51,
+      workflow_id: 900,
+      event: "push",
+      head_branch: "main",
+      html_url: "https://github.example/actions/runs/201",
+      status: "in_progress",
+      conclusion: null,
+    },
+  ],
+});
+assert.equal(superseded.classification, "cancelled_due_to_superseding_run");
+assert.equal(superseded.neutral, true);
+assert.equal(superseded.superseding_run.id, 201);
+
+const genuineCancellation = classifyCiGuardWorkflowOutcome({
+  guardResult: "cancelled",
+  currentRun,
+  workflowRuns: [
+    currentRun,
+    { id: 202, run_number: 52, workflow_id: 900, event: "pull_request", head_branch: "feature" },
+  ],
+});
+assert.equal(genuineCancellation.classification, "cancelled");
+assert.equal(genuineCancellation.neutral, false);
+assert.equal(genuineCancellation.superseding_run, null);
+
+const failureOutcome = classifyCiGuardWorkflowOutcome({
+  guardResult: "failure",
+  currentRun,
+  workflowRuns: [],
+});
+assert.equal(failureOutcome.classification, "failure");
+assert.equal(failureOutcome.neutral, false);
+assert.equal(_testingCiGuardWorkflowOutcome.SUPERSEDED_CLASSIFICATION, "cancelled_due_to_superseding_run");
 
 assert.equal(_testingCiGuardOperationalAlerts.DEFAULT_TARGETS.maximum_detection_seconds, 300);
 assert.equal(_testingCiGuardOperationalAlerts.DEFAULT_TARGETS.maximum_recovery_seconds, 3600);
