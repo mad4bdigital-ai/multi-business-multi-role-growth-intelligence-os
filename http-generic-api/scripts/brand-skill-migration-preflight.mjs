@@ -2,9 +2,10 @@
 import { getPool } from "../db.js";
 import { assessBrandSkillMigrationPreflight } from "../brandSkillMigrationPreflight.js";
 
-const pool = getPool();
+let pool = null;
 let report;
 try {
+  pool = getPool();
   report = await assessBrandSkillMigrationPreflight({ pool });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (!report.ready) process.exitCode = 1;
@@ -17,7 +18,7 @@ try {
     applies_sql: false,
     error: {
       code: error?.code || "BRAND_SKILL_MIGRATION_PREFLIGHT_FAILED",
-      message: error?.message || "Brand skill migration preflight failed.",
+      message: "Brand skill migration preflight failed.",
     },
     provider_calls: false,
     external_writes: false,
