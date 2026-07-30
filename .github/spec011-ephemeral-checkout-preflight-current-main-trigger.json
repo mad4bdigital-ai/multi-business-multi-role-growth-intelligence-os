@@ -1,8 +1,0 @@
-{
-  "schema_version": "spec011.ephemeral_checkout_preflight_current_main_trigger.v1",
-  "pinned_main_sha": "810d0bd052729501805b46463b7523f07d180c7a",
-  "migration_checksum_sha256": "8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c",
-  "statement_count": 1,
-  "sql_execution_allowed": false,
-  "secrets_included": false
-}
