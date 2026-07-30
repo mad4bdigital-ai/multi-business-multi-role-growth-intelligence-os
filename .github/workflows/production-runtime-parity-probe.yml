@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   probe:
-    name: Read-only runtime parity and Migration 1006 checksum
+    name: Read-only runtime, checksum, and migration-surface evidence
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -42,6 +42,23 @@ jobs:
           echo "MIGRATION_1006_CREATE_STATEMENTS=$statements"
           test "$statements" -eq 5
 
+      - name: Discover governed migration execution surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GOVERNED_MIGRATION_SURFACE_FILES_BEGIN"
+          grep -RIlE 'governed_migration_(authorization_bootstrap|apply_policy_bootstrap|execute|schema_readback)|capability_resolution_envelope_(create|approve|apply_authorize)' \
+            .github/workflows http-generic-api \
+            --include='*.yml' --include='*.yaml' --include='*.js' --include='*.mjs' --include='*.json' \
+            | sort | head -80
+          echo "GOVERNED_MIGRATION_SURFACE_FILES_END"
+          echo "GOVERNED_MIGRATION_COMMANDS_BEGIN"
+          grep -RInE 'governed_migration_(authorization_bootstrap|apply_policy_bootstrap|execute|schema_readback)|capability_resolution_envelope_(create|approve|apply_authorize)' \
+            .github/workflows http-generic-api \
+            --include='*.yml' --include='*.yaml' --include='*.js' --include='*.mjs' \
+            | head -160
+          echo "GOVERNED_MIGRATION_COMMANDS_END"
+
       - name: Probe health, version, and deployment info
         shell: bash
         run: |
@@ -51,20 +68,18 @@ jobs:
           const expected = process.env.EXPECTED_PRODUCTION_SHA.toLowerCase();
           const paths = ["/health", "/version", "/deployment-info"];
           const evidence = [];
-
           function collectStrings(value, out = []) {
             if (typeof value === "string") out.push(value);
             else if (Array.isArray(value)) value.forEach((item) => collectStrings(item, out));
             else if (value && typeof value === "object") Object.values(value).forEach((item) => collectStrings(item, out));
             return out;
           }
-
           async function probe(path) {
             let lastError = null;
             for (let attempt = 1; attempt <= 4; attempt += 1) {
               try {
                 const response = await fetch(`${base}${path}`, {
-                  headers: { Accept: "application/json", "User-Agent": "mad4b-runtime-parity-probe/1.1" },
+                  headers: { Accept: "application/json", "User-Agent": "mad4b-runtime-parity-probe/1.2" },
                   redirect: "follow",
                   signal: AbortSignal.timeout(15000),
                 });
@@ -79,27 +94,15 @@ jobs:
             }
             return { path, status: 0, ok: false, error: lastError };
           }
-
           for (const path of paths) {
             const result = await probe(path);
             evidence.push(result);
             console.log(`RUNTIME_PROBE ${path} status=${result.status} ok=${result.ok}`);
-            console.log(JSON.stringify(result.body ?? { error: result.error }, null, 2));
           }
-
           const health = evidence.find((item) => item.path === "/health");
-          if (!health || health.status !== 200 || health.body?.ok !== true) {
-            console.error("::error::Production /health did not return HTTP 200 with ok=true");
-            process.exit(1);
-          }
-
+          if (!health || health.status !== 200 || health.body?.ok !== true) process.exit(1);
           const normalized = evidence.flatMap((item) => collectStrings(item.body)).map((value) => value.trim().toLowerCase());
           const matchedValue = normalized.find((value) => value === expected || value.includes(expected) || value.includes(expected.slice(0, 12)));
-          if (!matchedValue) {
-            console.error(`::error::Runtime responses do not expose expected Production SHA ${expected}`);
-            process.exit(1);
-          }
-
+          if (!matchedValue) process.exit(1);
           console.log(`PRODUCTION_RUNTIME_PARITY=PASS expected_sha=${expected}`);
-          console.log(`MATCHED_RUNTIME_VALUE=${matchedValue}`);
           NODE
