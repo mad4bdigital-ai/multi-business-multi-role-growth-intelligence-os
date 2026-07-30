@@ -42,14 +42,38 @@ assert.throws(
 
 function readinessState(overrides = {}) {
   return {
-    system: { system_id: "system-1", status: "active", service_mode: "managed", managed_capable: 1 },
+    system: {
+      system_id: "2f4ce77b-0ef8-4d83-aec4-1fca5e332108",
+      display_name: "GitHub REST - Production Platform Managed",
+      provider_family: "github_com_connector",
+      provider_domain: "https://api.github.com",
+      connector_family: "github_com_connector",
+      status: "active", service_mode: "managed",
+      self_serve_capable: 0, assisted_capable: 1, managed_capable: 1,
+      config_json: {
+        source: "migration:20260725_repository_authority_capability_readiness_repair",
+        execution_readiness: "ready",
+        authority_role: "repository_shared_platform_adapter",
+        provider_transport: "http_generic_api",
+        provider_call_executed: false, external_write_executed: false,
+        credential_payload_read: false, secrets_included: false,
+      },
+    },
     authority: {
       system_id: "old-system", installation_id: "installation-1",
-      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active", metadata_json: {},
     },
-    capability: { policy_key: "old-policy", lifecycle_status: "active" },
-    policy: { policy_key: "target-policy", status: "active", runtime_surface: "system_layer" },
-    authorization: { authorization_status: "authorized", allow_apply: 1 },
+    capability: {
+      capability_key: "repository_main_moved_webhook_provision",
+      operation_intent: "apply",
+      policy_key: "old-policy", lifecycle_status: "active", metadata_json: {},
+    },
+    policy: {
+      policy_key: "target-policy", app_key: "github",
+      capability_key: "repository_main_moved_webhook_provision",
+      operation_intent: "apply", status: "active", runtime_surface: "system_layer",
+    },
+    authorization: { authorization_status: "authorized", allow_apply: 1, requires_preflight: 1, requires_confirmation: 1 },
     collations: [{ collation_name: "utf8mb4_unicode_ci" }, { collation_name: "utf8mb4_uca1400_ai_ci" }],
     ledger: null,
     ...overrides,
@@ -60,16 +84,32 @@ assert.equal(assessReadinessRepairState(readinessState()).recommended_action, "a
 assert.equal(
   assessReadinessRepairState(readinessState({
     authority: {
-      system_id: "system-1", installation_id: null,
+      system_id: "2f4ce77b-0ef8-4d83-aec4-1fca5e332108", installation_id: null,
       system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+      metadata_json: {
+        readiness_repair_migration: "20260725_repository_authority_capability_readiness_repair",
+        system_authority_source: "platform_managed_connected_system",
+        managed_system_key: "github_rest_prod_platform_managed",
+        provider_call_executed: false, external_write_executed: false,
+        credential_payload_read: false, secrets_included: false,
+      },
     },
-    capability: { policy_key: "target-policy", lifecycle_status: "active" },
+    capability: {
+      capability_key: "repository_main_moved_webhook_provision",
+      operation_intent: "apply", policy_key: "target-policy", lifecycle_status: "active",
+      metadata_json: {
+        readiness_repair_migration: "20260725_repository_authority_capability_readiness_repair",
+        policy_authority_source: "capability_apply_authorization_policy_registry",
+        provider_call_executed: false, external_write_executed: false,
+        credential_payload_read: false, secrets_included: false,
+      },
+    },
   })).recommended_action,
   "record_only",
 );
 assert.equal(
   assessReadinessRepairState(readinessState({
-    authorization: { authorization_status: "authorized", allow_apply: 0 },
+    authorization: { authorization_status: "authorized", allow_apply: 0, requires_preflight: 1, requires_confirmation: 1 },
   })).status,
   "blocked",
 );
