@@ -45,7 +45,7 @@
   "slice_status": {
     "EC0_contract_and_tests": "complete",
     "EC1_shadow_adapter": "complete",
-    "EC2_selected_read_pilot": "in_progress",
+    "EC2_selected_read_pilot": "complete",
     "EC3_unified_dispatch_integration": "not_started",
     "EC4_mutation_validation_pilot": "not_started",
     "EC5_rollout_and_duplicate_resolver_retirement": "not_started"
