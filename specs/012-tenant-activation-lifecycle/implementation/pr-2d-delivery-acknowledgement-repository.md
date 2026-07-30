@@ -9,7 +9,8 @@ Implementation slice for Spec 012 task T022. This slice is code and deterministi
 The slice adds `http-generic-api/activationDeliveryAcknowledgementRepository.js` with:
 
 - delivery-attempt numbering scoped by `operation_id`, `tenant_id`, and `channel_key`;
-- a parent `activation_operation_projections` row lock before reading the next delivery attempt number;
+- a parent `activation_operation_projections` row lock before numbering or inserting a delivery or acknowledgement;
+- a scoped `delivery_id + operation_id + tenant_id` row lock before inserting a delivery-linked acknowledgement;
 - delivery creation constrained to the initial `prepared` state;
 - acknowledgement creation constrained to the initial `pending` state;
 - tenant/operation/exact-identity delivery reads;
@@ -47,7 +48,10 @@ The caller must supply a transaction-bound MariaDB connection. `prepareDelivery(
 
 1. lock the parent operation row;
 2. determine the next per-channel delivery attempt number;
-3. append the `prepared` delivery record.
+3. lock the same parent scope again at the repository write boundary;
+4. append the `prepared` delivery record.
+
+The repeated row lock is safe within the same transaction and prevents direct repository callers from bypassing tenant/operation validation. Acknowledgement writes lock the parent operation and, when `delivery_id` is supplied, the exact delivery row in the same tenant and operation scope before insertion.
 
 The existing schema unique key `(operation_id, channel_key, delivery_attempt_number)` remains the database backstop. Existing acknowledgement-key hashing and uniqueness remain authoritative for duplicate suppression.
 
@@ -63,8 +67,9 @@ Deterministic regression:
 
 The test proves:
 
-- parent locking precedes attempt numbering;
+- parent locking precedes attempt numbering and every delivery/acknowledgement write;
 - missing parent scope fails closed;
+- acknowledgement creation rejects a `delivery_id` outside the exact tenant and operation scope;
 - attempt numbering is channel-scoped;
 - initial states are enforced;
 - raw actor references are not persisted;
