@@ -9,6 +9,11 @@ import {
   splitGovernedMigrationStatements,
 } from "./governedMigrationExecutionTool.js";
 import { assessMigrationSqlPreflight, splitSqlStatements } from "./releaseReadiness.js";
+import {
+  READINESS_REPAIR_CHECKSUM as PINNED_READINESS_REPAIR_CHECKSUM,
+  assessReadinessRepairState,
+  assertReadinessRepairStatements,
+} from "./scripts/repository-authority-capability-readiness-repair-runner.mjs";
 
 const MIGRATION = "1025_sprint69_resource_surface_policy_governance.sql";
 const SQL = readFileSync(`migrations/${MIGRATION}`, "utf8");
@@ -23,6 +28,51 @@ const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_rea
 const READINESS_REPAIR_SQL = readFileSync(`migrations/${READINESS_REPAIR_MIGRATION}`, "utf8");
 const READINESS_REPAIR_CHECKSUM = createHash("sha256").update(READINESS_REPAIR_SQL, "utf8").digest("hex");
 const READINESS_REPAIR_STATEMENT_COUNT = splitGovernedMigrationStatements(READINESS_REPAIR_SQL).length;
+
+assert.equal(READINESS_REPAIR_CHECKSUM, PINNED_READINESS_REPAIR_CHECKSUM);
+assert.equal(READINESS_REPAIR_STATEMENT_COUNT, 3);
+assert.equal(
+  assertReadinessRepairStatements(splitGovernedMigrationStatements(READINESS_REPAIR_SQL)),
+  true,
+);
+assert.throws(
+  () => assertReadinessRepairStatements(["INSERT INTO a VALUES (1)", "ALTER TABLE a ADD b INT", "UPDATE a SET b=1"]),
+  (error) => error.code === "readiness_repair_non_transactional_statement_blocked",
+);
+
+function readinessState(overrides = {}) {
+  return {
+    system: { system_id: "system-1", status: "active", service_mode: "managed", managed_capable: 1 },
+    authority: {
+      system_id: "old-system", installation_id: "installation-1",
+      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+    },
+    capability: { policy_key: "old-policy", lifecycle_status: "active" },
+    policy: { policy_key: "target-policy", status: "active", runtime_surface: "system_layer" },
+    authorization: { authorization_status: "authorized", allow_apply: 1 },
+    collations: [{ collation_name: "utf8mb4_unicode_ci" }, { collation_name: "utf8mb4_uca1400_ai_ci" }],
+    ledger: null,
+    ...overrides,
+  };
+}
+
+assert.equal(assessReadinessRepairState(readinessState()).recommended_action, "apply");
+assert.equal(
+  assessReadinessRepairState(readinessState({
+    authority: {
+      system_id: "system-1", installation_id: null,
+      system_binding_mode: "shared_platform_adapter", lifecycle_status: "active",
+    },
+    capability: { policy_key: "target-policy", lifecycle_status: "active" },
+  })).recommended_action,
+  "record_only",
+);
+assert.equal(
+  assessReadinessRepairState(readinessState({
+    authorization: { authorization_status: "authorized", allow_apply: 0 },
+  })).status,
+  "blocked",
+);
 
 {
   const executionStatements = splitGovernedMigrationStatements(PARITY_SQL);
