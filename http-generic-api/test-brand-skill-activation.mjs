@@ -11,6 +11,7 @@ import {
   grantCoversOperations,
   mergeAllowedOperations,
 } from "./brandSkillResourceBinding.js";
+import { assessBrandSkillMigrationPreflight } from "./brandSkillMigrationPreflight.js";
 import { brandSkillActivationHttpStatus } from "./routes/brandSkillRoutes.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
@@ -155,20 +156,76 @@ await assert.rejects(
   (error) => error.code === "BRAND_SKILL_RESOURCE_BRAND_BINDING_UNSUPPORTED"
 );
 
+function buildMigrationPreflightPool({ existingObjects = [] } = {}) {
+  return {
+    async query(sql) {
+      const text = String(sql).replace(/\s+/g, " ");
+      if (text.includes("SELECT VERSION()")) {
+        return [[{ version: "10.11.8-MariaDB", version_comment: "MariaDB Server" }]];
+      }
+      if (text.includes("information_schema.COLLATIONS")) {
+        return [[{ COLLATION_NAME: "utf8mb4_uca1400_ai_ci" }]];
+      }
+      if (text.includes("SELECT SHA2")) {
+        return [[{ sha2_probe: "a".repeat(64) }]];
+      }
+      if (text.includes("information_schema.TABLES")) {
+        return [existingObjects];
+      }
+      if (text.includes("information_schema.COLUMNS")) {
+        return [[
+          { COLUMN_NAME: "skill_id", DATA_TYPE: "varchar", COLLATION_NAME: "utf8mb4_uca1400_ai_ci" },
+          { COLUMN_NAME: "skill_key", DATA_TYPE: "varchar", COLLATION_NAME: "utf8mb4_uca1400_ai_ci" },
+          { COLUMN_NAME: "status", DATA_TYPE: "enum", COLLATION_NAME: "utf8mb4_uca1400_ai_ci" },
+        ]];
+      }
+      throw new Error(`Unexpected preflight query: ${text}`);
+    },
+  };
+}
+
+const compatiblePreflight = await assessBrandSkillMigrationPreflight({ pool: buildMigrationPreflightPool() });
+assert.equal(compatiblePreflight.ready, true);
+assert.equal(compatiblePreflight.status, "pass");
+assert.equal(compatiblePreflight.applies_sql, false);
+assert.equal(compatiblePreflight.provider_calls, false);
+assert.equal(compatiblePreflight.external_writes, false);
+assert.equal(compatiblePreflight.secrets_included, false);
+
+const partialStatePreflight = await assessBrandSkillMigrationPreflight({
+  pool: buildMigrationPreflightPool({
+    existingObjects: [{ TABLE_NAME: "brand_skill_policies", TABLE_TYPE: "BASE TABLE" }],
+  }),
+});
+assert.equal(partialStatePreflight.ready, false);
+assert(partialStatePreflight.failed_check_keys.includes("target_object_absence"));
+
 const migrationName = "20260728_brand_scoped_user_skill_activation.sql";
 const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
 for (const marker of [
   "CREATE TABLE IF NOT EXISTS brand_skill_policies",
   "CREATE TABLE IF NOT EXISTS user_brand_skill_grants",
   "CREATE OR REPLACE VIEW v_effective_user_brand_skill_grants",
+  "ENUM('active','pending','suspended','revoked','expired')",
+  "HEX(tenant_id)",
+  "HEX(user_id)",
+  "HEX(brand_key)",
+  "HEX(agent_id)",
+  "HEX(skill_id)",
+  "HEX(COALESCE(resource_type, ''))",
+  "HEX(COALESCE(resource_ref, ''))",
   "configured_brand_policy_enforcement_fail_closed=true",
   "automatic_skill_activation=false",
   "same_cycle_readback_required=true",
-  "secrets_included=false",
+  "read_only_preflight=brand_skill_migration_preflight_v1",
+  "rollback_runbook=docs/runbooks/brand-skill-migration.md",
+  "secrets_included_false",
 ]) assert(migration.includes(marker), `migration missing ${marker}`);
+assert.doesNotMatch(migration, /SHA2\(CONCAT_WS\('\|',\s*tenant_id/i);
 assert.doesNotMatch(migration, /^\s*(DROP|TRUNCATE|DELETE FROM)\b/mi);
 const preflight = assessMigrationSqlPreflight(migrationName, migration);
 assert.notEqual(preflight.status, "fail", JSON.stringify(preflight, null, 2));
+assert.equal(preflight.counts.statements, 3);
 assert.equal(preflight.secrets_included, false);
 
 const service = readFileSync(new URL("./brandSkillActivationService.js", import.meta.url), "utf8");
@@ -193,6 +250,7 @@ for (const marker of [
   "provider_call_allowed: false",
   "external_write_allowed: false",
 ]) assert(service.includes(marker), `service missing ${marker}`);
+assert.equal((service.match(/SET status = 'expired'/g) || []).length, 1, "stale grant expiration update must exist exactly once");
 assert.doesNotMatch(service, /m\.role_key AS role/);
 assert.doesNotMatch(service, /\brows\s*\[\s*0\s*\]/);
 
@@ -206,6 +264,21 @@ for (const marker of [
   "BRAND_SKILL_RESOURCE_BINDING_UNAVAILABLE",
 ]) assert(bindingGuard.includes(marker), `binding guard missing ${marker}`);
 assert.doesNotMatch(bindingGuard, /\brows\s*\[\s*0\s*\]/);
+
+const preflightSource = readFileSync(new URL("./brandSkillMigrationPreflight.js", import.meta.url), "utf8");
+for (const marker of [
+  "information_schema.COLLATIONS",
+  "information_schema.TABLES",
+  "information_schema.COLUMNS",
+  "SELECT SHA2",
+  "read_only_preflight",
+  "applies_sql: false",
+  "existing_objects",
+]) assert(preflightSource.includes(marker), `preflight missing ${marker}`);
+
+const preflightCli = readFileSync(new URL("./scripts/brand-skill-migration-preflight.mjs", import.meta.url), "utf8");
+assert(preflightCli.includes("assessBrandSkillMigrationPreflight"));
+assert(preflightCli.includes("process.exitCode = 1"));
 
 const routes = readFileSync(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
 assert(routes.includes("requireUserJwt"));
