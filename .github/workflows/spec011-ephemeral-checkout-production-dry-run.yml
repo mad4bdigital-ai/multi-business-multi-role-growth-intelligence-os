@@ -1,0 +1,258 @@
+name: Spec 011 Ephemeral Checkout Production Dry Run
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-ephemeral-checkout-production-dry-run
+  cancel-in-progress: false
+
+jobs:
+  governed-production-dry-run:
+    if: github.event.pull_request.head.ref == 'ops/spec011-ephemeral-checkout-production-dry-run-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out deployed Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify required source ancestry and migration checksum
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor ae93d1557bf259a1272333951f27852c271aa4ab HEAD || {
+            echo '::error::Production does not contain the reviewed Spec 011 preflight fix merge'
+            exit 1
+          }
+          ACTUAL="$(sha256sum migrations/20260728_operation_managed_git_ephemeral_checkout.sql | awk '{print $1}')"
+          EXPECTED='8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c'
+          [[ "$ACTUAL" == "$EXPECTED" ]] || {
+            echo "::error::migration checksum mismatch: $ACTUAL"
+            exit 1
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify deployed runtime parity
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: queue_worker
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
+
+      - name: Authorize and dry-run Spec 011 migration
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260728_operation_managed_git_ephemeral_checkout.sql';
+          const CHECKSUM = '8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c';
+          const STATEMENT_COUNT = 1;
+          const SOURCE_PR = 3818;
+          const SOURCE_MERGE_SHA = 'ae93d1557bf259a1272333951f27852c271aa4ab';
+          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+
+          const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          function sanitize(value) {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+              key,
+              sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+            ]));
+          }
+
+          function parsedValue(value) {
+            if (typeof value !== 'string') return value;
+            const text = value.trim();
+            if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
+            try { return JSON.parse(text); } catch { return value; }
+          }
+
+          function findObjectWithKey(value, key, seen = new Set()) {
+            value = parsedValue(value);
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (Object.prototype.hasOwnProperty.call(value, key)) return value;
+            for (const child of Object.values(value)) {
+              const found = findObjectWithKey(child, key, seen);
+              if (found) return found;
+            }
+            return null;
+          }
+
+          async function request(pathname, body) {
+            const response = await fetch(`${BASE}${pathname}`, {
+              method: 'POST',
+              redirect: 'error',
+              headers: {
+                Authorization: `Bearer ${KEY}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(body),
+              signal: AbortSignal.timeout(180000),
+            });
+            const text = await response.text();
+            let payload;
+            try { payload = text ? JSON.parse(text) : null; }
+            catch { payload = { raw_preview: text.slice(0, 500) }; }
+            const result = { status: response.status, http_ok: response.ok, payload };
+            console.log(JSON.stringify(sanitize(result), null, 2));
+            if (!response.ok || payload?.ok === false) {
+              const error = new Error(`Governed runtime call failed for ${pathname} with HTTP ${response.status}`);
+              error.code = payload?.error?.code || 'governed_runtime_call_failed';
+              throw error;
+            }
+            return payload;
+          }
+
+          const envelopeCreate = await request('/admin/control', {
+            tool: 'shell',
+            action: 'run',
+            alias: 'capability_resolution_envelope_create',
+            authority_context: {
+              resource_type: 'shell_alias',
+              resource_uri: 'shell://capability_resolution_envelope_create',
+              operation_mode: 'capability_resolution_envelope_create',
+              required: true,
+            },
+            extra_args: [
+              `--tenant-id=${PLATFORM_TENANT_ID}`,
+              `--user-id=${PLATFORM_ADMIN_USER_ID}`,
+              '--user-role=Admin',
+              '--app-key=platform_orchestration',
+              '--capability-key=governed_migration_execute',
+              '--operation-intent=governed_migration_authorization_bootstrap',
+              '--runtime-surface=auth_host',
+              '--requested-by=github_actions_spec011_production_migration',
+              '--ttl-minutes=30',
+              '--explain',
+            ],
+          });
+
+          let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
+          assert.ok(envelope?.envelope_id, 'Capability envelope creation did not return envelope_id');
+          assert.notEqual(envelope.envelope_status, 'blocked', `Capability envelope is blocked: ${envelope.decision || 'unknown'}`);
+          assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
+
+          if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
+            const approval = await request('/gpt/tools/call', {
+              name: 'capability_resolution_envelope_apply_authorize',
+              tool_args: {
+                envelope_id: envelope.envelope_id,
+                authorized_by: 'github_actions',
+                decision_note: 'Approve the no-SQL authorization-bootstrap envelope for the reviewed Spec 011 ephemeral checkout migration.',
+                ttl_minutes: 30,
+              },
+            });
+            envelope = findObjectWithKey(approval, 'envelope_id') || envelope;
+          }
+
+          const authorization = await request('/gpt/tools/call', {
+            name: 'governed_migration_authorization_bootstrap',
+            tool_args: {
+              migration: MIGRATION,
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+              pull_request: SOURCE_PR,
+              merge_sha: SOURCE_MERGE_SHA,
+              confirm: 'AUTHORIZE_GOVERNED_MIGRATION_20260728_OPERATION_MANAGED_GIT_EPHEMERAL_CHECKOUT',
+              capability_envelope_id: envelope.envelope_id,
+              decision_note: 'Authorize the reviewed single-statement Spec 011 enum widening after exact Production deployment parity verification.',
+            },
+          });
+          const authorizationEvidence = findObjectWithKey(authorization, 'migration_sql_executed');
+          assert.equal(authorizationEvidence?.migration_sql_executed, false, 'Authorization bootstrap must not execute migration SQL');
+          assert.equal(authorizationEvidence?.applies_migration, false, 'Authorization bootstrap must not apply the migration');
+
+          const dryRun = await request('/gpt/tools/call', {
+            name: 'governed_migration_execute',
+            tool_args: {
+              migration: MIGRATION,
+              mode: 'dry_run',
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          });
+          const dryRunEvidence = findObjectWithKey(dryRun, 'applies_sql');
+          assert.equal(dryRunEvidence?.applies_sql, false, 'Migration dry-run must report applies_sql=false');
+          assert.equal(dryRunEvidence?.mode, 'dry_run', 'Migration execution mode must remain dry_run');
+          assert.equal(Number(dryRunEvidence?.statement_count), STATEMENT_COUNT, 'Dry-run statement count mismatch');
+          assert.equal(String(dryRunEvidence?.migration_checksum_sha256 || '').toLowerCase(), CHECKSUM, 'Dry-run checksum mismatch');
+          assert.equal(dryRunEvidence?.preflight?.status, 'pass', 'Migration preflight must pass');
+          assert.equal(Number(dryRunEvidence?.preflight?.risk_count || 0), 0, 'Migration preflight must have zero risks');
+
+          const readback = await request('/gpt/tools/call', {
+            name: 'governed_migration_schema_readback',
+            tool_args: {
+              migration: MIGRATION,
+              expected_checksum_sha256: CHECKSUM,
+              expected_statement_count: STATEMENT_COUNT,
+            },
+          });
+
+          const summary = {
+            schema_version: 'spec011.ephemeral_checkout_production_dry_run.v1',
+            ok: true,
+            stage: 'production_authorization_and_dry_run_complete',
+            migration: MIGRATION,
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: STATEMENT_COUNT,
+            source_pr: SOURCE_PR,
+            source_merge_sha: SOURCE_MERGE_SHA,
+            capability_envelope_id: envelope.envelope_id,
+            authorization_bootstrap_verified: true,
+            dry_run_verified: true,
+            preflight_status: dryRunEvidence.preflight.status,
+            preflight_risk_count: Number(dryRunEvidence.preflight.risk_count || 0),
+            schema_readback_received: Boolean(readback),
+            migration_sql_applied: false,
+            provider_call_executed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          };
+          const output = path.join(process.env.RUNNER_TEMP, 'spec011-ephemeral-checkout-production-dry-run.json');
+          fs.writeFileSync(output, JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
+      - name: Upload non-secret dry-run evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-ephemeral-checkout-production-dry-run
+          path: ${{ runner.temp }}/spec011-ephemeral-checkout-production-dry-run.json
+          if-no-files-found: error
+          retention-days: 30
