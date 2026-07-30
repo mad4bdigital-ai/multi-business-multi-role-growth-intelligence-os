@@ -180,11 +180,11 @@ Eligible statuses and readiness are evaluated separately. A connection can be ac
 - `nonceHash`
 - `issuedAt`
 - `expiresAt`
-- `claimedAt` optional
-- `claimRevision`
-- `claimTokenHash` optional, internal and non-exportable
-- `consumedAt` optional
-- `completionRevision` optional
+- `claimedAt` optional; required when `status=claimed`
+- `claimRevision` required when `status=claimed` or `status=consumed`
+- `claimTokenHash` required while `status=claimed`; internal and non-exportable; omitted after the claim reaches a terminal lifecycle state
+- `consumedAt` optional; required when `status=consumed`
+- `completionRevision` optional; required when `status=consumed`
 - `status`: `issued`, `claimed`, `consumed`, `expired`, `cancelled`, or governed terminal failure
 - `signatureVersion`
 
@@ -192,11 +192,13 @@ Authorization state is signed, expiring, nonce-bound, single-use, and context-bo
 
 Before any authorization-code exchange, provider call, credential lookup, or credential mutation, the callback MUST atomically claim the state through a compare-and-set from `issued` to `claimed`, conditioned on current revision, expiry, and unconsumed status. Exactly one concurrent callback may receive the claim token and continue. All losing or later callbacks fail closed and perform no provider exchange or credential mutation.
 
-The claim token is internal, short-lived, state-specific, and non-exportable. Completion from `claimed` to `consumed` is revision-bound. A failed exchange moves the state only through a governed terminal or recoverable transition; it does not make the same state freely claimable again.
+Every persisted `claimed` state MUST retain a state-bound verifier for the active internal claim token. A claimed state without `claimTokenHash`, `claimRevision`, or `claimedAt` is invalid and cannot proceed to provider exchange or completion. This invariant permits a legitimate callback to resume on another worker after a restart without reducing completion authorization to status/revision alone.
+
+The claim token itself is internal, short-lived, state-specific, and non-exportable. Completion from `claimed` to `consumed` is revision-bound and verifies the presented token against the persisted hash. A failed exchange moves the state only through a governed terminal or recoverable transition; it does not make the same state freely claimable again.
 
 Reconnect state MUST bind the existing target connection and its expected revision. It MUST also bind the durable expected provider account by safe stable reference or privacy-preserving binding hash read from the target connection. A reconnect callback that returns a different provider account fails closed before credential replacement.
 
-Reconnect credential replacement MUST itself be a compare-and-set conditioned on the signed `expectedConnectionRevision`, the live target connection revision, the authorization state's current `claimRevision`, `status=claimed`, and the valid internal claim token. The encrypted credential replacement, provider-account binding update, connection revision increment, and authorization-state transition from `claimed` to `consumed` MUST commit in one governed atomic completion boundary. If either revision moved, no credential replacement becomes visible and a new authorization attempt is required.
+Reconnect credential replacement MUST itself be a compare-and-set conditioned on the signed `expectedConnectionRevision`, the live target connection revision, the authorization state's current `claimRevision`, `status=claimed`, and successful verification of the internal claim token against `claimTokenHash`. The encrypted credential replacement, provider-account binding update, connection revision increment, and authorization-state transition from `claimed` to `consumed` MUST commit in one governed atomic completion boundary. If either revision moved or claim verification fails, no credential replacement becomes visible and a new authorization attempt is required.
 
 ## ConnectionResolutionDecision
 
