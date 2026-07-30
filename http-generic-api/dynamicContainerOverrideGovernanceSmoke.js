@@ -135,7 +135,7 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
          request_context_json,selected_paths_json,effective_classifications_json,effective_roles_json,effective_bindings_json,
          applied_denies_json,applied_delegations_json,blocking_codes_json,override_request_id,
          provider_call_made,credential_payload_read,secrets_included,expires_at)
-       VALUES (?,?,NULL,'service','override-governance-smoke',?,?,'preview','requires_override',?,'override-governance-smoke-v1',?,?,?, ?,
+       VALUES (?,?,NULL,'service','override-governance-smoke',?,?,'preview','requires_override',?,'override-governance-smoke-v1',?,?,?,?,
                JSON_OBJECT(),JSON_ARRAY(),JSON_OBJECT(),JSON_ARRAY(),JSON_ARRAY(),JSON_ARRAY(),JSON_ARRAY(),JSON_ARRAY('smoke_fixture'),NULL,0,0,0,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 15 MINUTE))`,
       [resolutionId,`override-governance-smoke:${runId}`,tenantId,targetContainerId,authorityEpoch,
        stableSha256({ runId,request:"smoke" }),containerPathHash,registrySnapshotHash,resolutionSha256]
