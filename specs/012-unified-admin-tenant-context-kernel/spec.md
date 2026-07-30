@@ -18,6 +18,7 @@ This specification defines one shared kernel for every principal type. Admin is 
 - Recover safely from transport failures and unknown provider outcomes.
 - Eliminate production hardcoding of customer identifiers.
 - Model personal, company-workspace, and brand connection ownership explicitly.
+- Preserve existing operational workspace classifications while adding a separate ownership classification.
 - Keep provider identity login separate from provider API consent and credential readiness.
 
 ## 3. Non-goals
@@ -27,6 +28,7 @@ This specification defines one shared kernel for every principal type. Admin is 
 - No protected branch is modified.
 - No new authority is inferred from labels, historical usage, or broad Admin visibility.
 - No OAuth callback, provider credential, or runtime resolver is enabled by this specification amendment.
+- Existing operational `workspaceType` values are not renamed, replaced, or reinterpreted as personal/company ownership.
 
 ## 4. Principal model
 
@@ -46,7 +48,7 @@ Every request MUST begin with an authenticated principal. A principal MAY have m
 2. Enumerate authorized visibility set.
 3. Resolve effective subject.
 4. Resolve tenant.
-5. Resolve workspace and workspace type.
+5. Resolve workspace, operational workspace type, and workspace ownership type.
 6. Resolve optional brand and required target resource.
 7. Resolve exact connection ownership scope and credential scope.
 8. Resolve authority path.
@@ -131,7 +133,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 
 ### Hierarchical connection ownership
 
-- FR-046: Every workspace MUST expose a governed `workspaceType` of `personal` or `company` before connection ownership is resolved.
+- FR-046: Every workspace MUST expose a governed `workspaceOwnershipType` of `personal` or `company` before connection ownership is resolved. This field is independent from, and MUST NOT redefine, the existing operational `workspaceType` classification.
 - FR-047: Every provider connection MUST have one exact `ownerScopeType` of `personal_workspace`, `company_workspace`, or `brand`, with an exact owner reference.
 - FR-048: A personal connection MUST be eligible only when its owner user equals the effective user.
 - FR-049: Company-workspace membership MUST NOT authorize use of another member's personal connection.
@@ -142,7 +144,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - FR-054: Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
 - FR-055: Personal connection inheritance inside a company-workspace operation MUST require an explicit operation policy.
 - FR-056: Credential material MUST NOT be loaded until context, ownership, capability, authority, and readiness decisions agree.
-- FR-057: Connection ownership, authorization, provider-scope, membership, workspace, or brand revision changes MUST invalidate dependent pins, plans, approvals, and cached decisions.
+- FR-057: Connection ownership, authorization, provider-scope, membership, workspace ownership, or brand revision changes MUST invalidate dependent pins, plans, approvals, and cached decisions.
 - FR-058: Google identity login MUST NOT be treated as Google Drive, Docs, Gmail, Analytics, Ads, or other provider API consent.
 - FR-059: Provider authorization state MUST be signed, expiring, nonce-bound, single-use, redirect-allowlisted, and bound to the authenticated principal and exact owner scope.
 - FR-060: OAuth callbacks MUST derive authority from authenticated and signed state and MUST NOT accept free caller-supplied user or tenant identifiers as authority.
@@ -162,6 +164,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - NFR-008: Multi-tenant isolation tests are release blocking.
 - NFR-009: Cross-user and cross-brand connection-isolation tests are release blocking.
 - NFR-010: OAuth state replay and context-mismatch tests are release blocking.
+- NFR-011: Compatibility tests proving existing operational workspace-type values remain unchanged are release blocking for persistence work.
 
 ## 8. Success criteria
 
@@ -176,6 +179,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently.
 - Brand connections never cross brand or workspace boundaries.
 - Invalid more-specific connections do not silently widen consequential writes.
 - Google login and provider consent remain distinct observable readiness states.
+- Existing operational workspace classifications remain intact while personal/company ownership is represented separately.
 
 ## 9. Normative extension
 
