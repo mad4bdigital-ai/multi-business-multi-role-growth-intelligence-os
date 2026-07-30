@@ -621,11 +621,14 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasAdmin = guardChain.includes("requireAdminPrincipal") || guardChain.includes("requireAdmin");
   const hasBackendOrUser = guardChain.includes("requireResolutionPrincipal");
   const hasUser = guardChain.some((guard) => ["requireUserJwt", "requireTenantUserJwt", "verifyUserJwt", "requireUser", "requireTenantPrincipal", "requireTenantOperationPrincipal", "requireActiveMembership", "requireWorkspaceOwner"].includes(guard));
-  const hasLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser"].includes(guard));
+  const hasDirectLocal = guardChain.some((guard) => ["requireLocalManagerDevice", "requireLocalManagerUser"].includes(guard));
+  const hasFreshLocal = guardChain.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller");
   const hasMcp = guardChain.includes("requireMcpToken");
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
   const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
+  const hasOtherPrimaryAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasMcp || hasSignedQuery || hasGitHubWebhook;
+  const hasLocal = hasDirectLocal || (hasFreshLocal && !hasOtherPrimaryAuthenticator);
   const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
