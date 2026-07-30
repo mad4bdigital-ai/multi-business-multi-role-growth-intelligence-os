@@ -6,7 +6,9 @@
 
 Delivery PR: `#3348` on `gpt/spec-012-ec0-clean-9c9b-20260730`.
 
-The clean latest-main build completed successfully before this evidence update: the nine permanent EC0 files were copied from the reviewed source onto the clean baseline, the EC0 and existing Context Kernel domain/application/isolation regressions passed, the latest hardcoding scanner passed, and the one-shot workflow removed itself. Exact-head platform CI and human review remain required before merge.
+The clean latest-main build completed successfully: the nine permanent EC0 files were copied from the reviewed source onto the clean baseline, the EC0 and existing Context Kernel domain/application/isolation regressions passed, the latest hardcoding scanner passed, and the one-shot workflow removed itself.
+
+Repository generator authority then refreshed and verified `frontend-surface-dispatch.generated.json` with a bounded write set on the clean branch. The PR remained fresh against `main=c02d5bb1f28fae50f460b5aa11248a8384d4742d` immediately before this evidence commit. Exact-head platform CI and human review remain required before merge.
 
 EC0 delivers the pure domain/application contract and tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
 
