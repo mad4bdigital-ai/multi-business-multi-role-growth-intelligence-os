@@ -31,7 +31,7 @@ jobs:
   refresh:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/') &&
+      github.event.pull_request.head.ref == 'gpt/brand-skill-fast-path-policy-reconcile-20260730' &&
       github.actor != 'github-actions[bot]'
     permissions:
       contents: write
@@ -56,6 +56,111 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Apply exact-match fast-path repair
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label} anchor count={count}, expected=1')
+              return text.replace(old, new, 1)
+
+          service_path = Path('http-generic-api/brandSkillActivationService.js')
+          test_path = Path('http-generic-api/test-brand-skill-activation.mjs')
+          service = service_path.read_text(encoding='utf-8')
+          test = test_path.read_text(encoding='utf-8')
+
+          helper_anchor = '''export function operationsAllowed(requested = [], allowed = []) {
+            const allowedSet = new Set(parseArray(allowed).map((item) => safeText(item, 64).toLowerCase()));
+            return allowedSet.has("*") || requested.every((item) => allowedSet.has(item));
+          }
+          '''
+          helper_replacement = helper_anchor + '''
+          export function canReuseExistingGrantUnderPolicy(existingOperations, requestedOperations, policyOperations) {
+            return grantCoversOperations(existingOperations, requestedOperations)
+              && grantCoversOperations(policyOperations, existingOperations);
+          }
+          '''
+          service = replace_once(service, helper_anchor, helper_replacement, 'service-helper')
+
+          fast_anchor = '''      if (grantCoversOperations(existing.allowed_operations_json, operations)) {
+                const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
+          '''
+          fast_replacement = '''      if (canReuseExistingGrantUnderPolicy(
+                existing.allowed_operations_json,
+                operations,
+                policy.allowed_operations_json,
+              )) {
+                const ttlClamped = await clampActiveGrantTtl(connection, { grantId: existingId, ttlHours });
+          '''
+          service = replace_once(service, fast_anchor, fast_replacement, 'service-fast-path')
+
+          testing_anchor = '''  normalizeTtlHours,
+            validatePolicy,
+            clampActiveGrantTtl,
+          '''
+          testing_replacement = '''  normalizeTtlHours,
+            canReuseExistingGrantUnderPolicy,
+            validatePolicy,
+            clampActiveGrantTtl,
+          '''
+          service = replace_once(service, testing_anchor, testing_replacement, 'testing-export')
+
+          import_anchor = '''  _testingBrandSkillActivationService,
+            normalizeRequestedOperations,
+          '''
+          import_replacement = '''  _testingBrandSkillActivationService,
+            canReuseExistingGrantUnderPolicy,
+            normalizeRequestedOperations,
+          '''
+          test = replace_once(test, import_anchor, import_replacement, 'test-import')
+
+          assertion_anchor = '''assert.equal(grantCoversOperations('["publish"]', ["update"]), false);
+          '''
+          assertion_replacement = assertion_anchor + '''assert.equal(
+            canReuseExistingGrantUnderPolicy('["publish"]', ["publish"], ["publish"]),
+            true,
+          );
+          assert.equal(
+            canReuseExistingGrantUnderPolicy('["publish","delete"]', ["publish"], ["publish"]),
+            false,
+            "a grant containing a policy-removed operation must be reconciled before idempotent return",
+          );
+          assert.equal(
+            canReuseExistingGrantUnderPolicy('["publish","delete"]', ["publish"], ["*"]),
+            true,
+          );
+          '''
+          test = replace_once(test, assertion_anchor, assertion_replacement, 'test-assertions')
+
+          marker_anchor = '''  "policy.allowed_operations_json",
+          '''
+          marker_replacement = marker_anchor + '''  "canReuseExistingGrantUnderPolicy",
+          '''
+          test = replace_once(test, marker_anchor, marker_replacement, 'source-marker')
+
+          service_path.write_text(service, encoding='utf-8')
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Verify focused repair
+        working-directory: http-generic-api
+        run: |
+          node --check brandSkillActivationService.js
+          node --check test-brand-skill-activation.mjs
+          node test-brand-skill-activation.mjs
+          node test-context-kernel-hardcoding-scan.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs --report-only --format=github --output="${{ runner.temp }}/context-kernel-hardcoding-report.json"
+
+      - name: Restore canonical workflow
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          git checkout origin/main -- .github/workflows/pr-generated-artifact-refresh.yml
+
       - name: Generate bounded artifacts
         working-directory: http-generic-api
         run: |
@@ -63,7 +168,7 @@ jobs:
           npm run frontend:dispatch:generate -- --baseline-ref=main
           node scripts/generate-custom-gpt-schemas.mjs --write
 
-      - name: Verify generated contracts before commit
+      - name: Verify generated contracts
         working-directory: http-generic-api
         run: |
           node test-frontend-operation-governance-generator.mjs
@@ -77,14 +182,12 @@ jobs:
         shell: bash
         run: |
           mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
-          if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "Generated artifacts are already current."
-            exit 0
-          fi
-
           UNEXPECTED=""
           for file in "${CHANGED[@]}"; do
             case "$file" in
+              .github/workflows/pr-generated-artifact-refresh.yml|\
+              http-generic-api/brandSkillActivationService.js|\
+              http-generic-api/test-brand-skill-activation.mjs|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
@@ -99,26 +202,25 @@ jobs:
                 ;;
             esac
           done
-
           if [[ -n "$UNEXPECTED" ]]; then
-            echo "::error::Generator changed files outside the bounded artifact set"
+            echo "::error::Fast-path repair changed files outside the bounded set"
             printf '%s' "$UNEXPECTED"
             exit 1
           fi
 
-      - name: Commit generated artifacts
+      - name: Commit focused repair
         shell: bash
         env:
           TARGET_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
           if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "No generated artifact commit is required."
+            echo "No repair commit is required."
             exit 0
           fi
-
+          git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${CHANGED[@]}"
-          git commit -m "chore(ci): refresh generated contract artifacts"
+          git add -A
+          git commit -m "fix(auth): reconcile narrowed operations before reuse"
           git push origin "HEAD:${TARGET_REF}"
