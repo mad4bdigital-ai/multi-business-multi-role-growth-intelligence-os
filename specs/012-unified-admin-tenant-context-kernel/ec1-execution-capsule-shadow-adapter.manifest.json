@@ -16,7 +16,8 @@
     "../../http-generic-api/contextKernel/integration/executionCapsuleShadow.js",
     "../../http-generic-api/contextKernel/integration/index.js",
     "../../http-generic-api/test-execution-capsule-shadow-adapter.mjs",
-    "../../http-generic-api/scripts/test-manifest.mjs"
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
   ],
   "implemented_contracts": [
     "resolution_service_decorator",
@@ -42,16 +43,24 @@
     "no_secret_shadow_projection",
     "standalone_contract_test",
     "bounded_contract_review",
-    "complete_test_manifest_registration"
+    "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh"
   ],
   "pending_contracts": [
-    "generated_test_manifest_evidence_refresh",
     "exact_head_ci_evidence",
     "human_architecture_security_review",
     "selected_runtime_shadow_composition_factory",
     "controlled_non_production_parity_sample",
     "shadow_adapter_rollback_evidence"
   ],
+  "generated_evidence": {
+    "refresh_run_id": 30541289812,
+    "status": "passed",
+    "write_set": [
+      "../../http-generic-api/frontend-surface-dispatch.generated.json"
+    ],
+    "runtime_authority_granted": false
+  },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
     "adapter_returns_exact_legacy_resolution",
