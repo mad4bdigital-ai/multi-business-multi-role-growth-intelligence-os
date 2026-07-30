@@ -1,0 +1,137 @@
+name: Temporary Governed Production Candidate Builder V8
+
+on:
+  pull_request:
+    branches:
+      - gpt/production-candidate-builder-v5-base
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-production-candidate-builder-v8
+  cancel-in-progress: false
+
+jobs:
+  build-candidate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/production-candidate-builder-v5-trigger'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout immutable source history
+        uses: actions/checkout@v5
+        with:
+          ref: release/production-source-20260730-current-v8
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Build exact-source-tree ancestry-safe candidate
+        id: build
+        shell: bash
+        env:
+          SOURCE_BRANCH: release/production-source-20260730-current-v8
+          EXPECTED_SOURCE_SHA: cb48ac885b9991c8417b1fee16e097fdb24e55c0
+          EXPECTED_PRODUCTION_SHA: fbcf77ae19738fcbd31211e874bfa315da83294e
+          RELEASE_BRANCH: release/production-candidate-20260730-current-v8
+          VALIDATION_BRANCH: gpt/validate-production-candidate-current-v8
+          VALIDATION_BASE_BRANCH: gpt/validate-production-base-cb48ac88-v8
+        run: |
+          set -euo pipefail
+
+          for value in "$EXPECTED_SOURCE_SHA" "$EXPECTED_PRODUCTION_SHA"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::expected refs must be exact lowercase 40-character SHAs"
+              exit 1
+            }
+          done
+
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          SOURCE_READBACK="$(git rev-parse "refs/remotes/origin/$SOURCE_BRANCH")"
+          PRODUCTION_READBACK="$(git rev-parse refs/remotes/origin/Production)"
+          LATEST_MAIN_AT_BUILD="$(git rev-parse refs/remotes/origin/main)"
+          [[ "$SOURCE_READBACK" == "$EXPECTED_SOURCE_SHA" ]] || {
+            echo "::error::immutable source moved"
+            exit 1
+          }
+          [[ "$PRODUCTION_READBACK" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA actual $PRODUCTION_READBACK"
+            exit 1
+          }
+
+          SOURCE_TREE="$(git rev-parse "$EXPECTED_SOURCE_SHA^{tree}")"
+          CANDIDATE_DATE="$(git show -s --format=%cI "$EXPECTED_SOURCE_SHA")"
+          CANDIDATE_SHA="$(
+            printf '%s\n\n%s\n%s\n%s\n%s\n' \
+              'release: build governed Production promotion candidate v8' \
+              "source=$EXPECTED_SOURCE_SHA" \
+              "production=$EXPECTED_PRODUCTION_SHA" \
+              "latest_main_at_build=$LATEST_MAIN_AT_BUILD" \
+              'tree_policy=exact_pinned_source_tree' |
+            GIT_AUTHOR_NAME='mad4b-release-bot' \
+            GIT_AUTHOR_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_AUTHOR_DATE="$CANDIDATE_DATE" \
+            GIT_COMMITTER_NAME='mad4b-release-bot' \
+            GIT_COMMITTER_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+            GIT_COMMITTER_DATE="$CANDIDATE_DATE" \
+            git commit-tree "$SOURCE_TREE" -p "$EXPECTED_SOURCE_SHA" -p "$EXPECTED_PRODUCTION_SHA"
+          )"
+
+          git diff --quiet "$EXPECTED_SOURCE_SHA" "$CANDIDATE_SHA" || {
+            echo "::error::candidate tree differs from pinned source"
+            exit 1
+          }
+          git merge-base --is-ancestor "$EXPECTED_SOURCE_SHA" "$CANDIDATE_SHA" || exit 1
+          git merge-base --is-ancestor "$EXPECTED_PRODUCTION_SHA" "$CANDIDATE_SHA" || exit 1
+
+          git fetch --prune --no-tags origin \
+            "+refs/heads/$SOURCE_BRANCH:refs/remotes/origin/$SOURCE_BRANCH" \
+            '+refs/heads/Production:refs/remotes/origin/Production' \
+            '+refs/heads/main:refs/remotes/origin/main'
+          [[ "$(git rev-parse "refs/remotes/origin/$SOURCE_BRANCH")" == "$EXPECTED_SOURCE_SHA" ]] || exit 1
+          [[ "$(git rev-parse refs/remotes/origin/Production)" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved during candidate construction"
+            exit 1
+          }
+          LATEST_MAIN_READBACK="$(git rev-parse refs/remotes/origin/main)"
+
+          push_ff() {
+            local branch="$1" target="$2" current=""
+            current="$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')"
+            [[ "$current" == "$target" ]] && return 0
+            if [[ -n "$current" ]] && ! git merge-base --is-ancestor "$current" "$target"; then
+              echo "::error::$branch cannot move by fast-forward"
+              exit 1
+            fi
+            git push origin "$target:refs/heads/$branch"
+          }
+
+          push_ff "$RELEASE_BRANCH" "$CANDIDATE_SHA"
+          push_ff "$VALIDATION_BRANCH" "$CANDIDATE_SHA"
+          push_ff "$VALIDATION_BASE_BRANCH" "$EXPECTED_SOURCE_SHA"
+
+          [[ "$(git ls-remote --heads origin "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')" == "$CANDIDATE_SHA" ]] || exit 1
+          [[ "$(git ls-remote --heads origin "refs/heads/$VALIDATION_BRANCH" | awk '{print $1}')" == "$CANDIDATE_SHA" ]] || exit 1
+          [[ "$(git ls-remote --heads origin "refs/heads/$VALIDATION_BASE_BRANCH" | awk '{print $1}')" == "$EXPECTED_SOURCE_SHA" ]] || exit 1
+
+          CANDIDATE_TREE="$(git rev-parse "$CANDIDATE_SHA^{tree}")"
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          jq -n \
+            --arg source_sha "$EXPECTED_SOURCE_SHA" \
+            --arg production_sha "$EXPECTED_PRODUCTION_SHA" \
+            --arg latest_main_at_build "$LATEST_MAIN_AT_BUILD" \
+            --arg latest_main_readback "$LATEST_MAIN_READBACK" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree "$CANDIDATE_TREE" \
+            '{schema_version:"production_promotion_candidate.v2",ok:true,pinned_source_sha:$source_sha,production_sha:$production_sha,latest_main_at_build:$latest_main_at_build,latest_main_readback:$latest_main_readback,candidate_sha:$candidate_sha,candidate_tree:$candidate_tree,tree_policy:"exact_pinned_source_tree",later_main_movement_policy:"record_as_backlog",merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/production-promotion-candidate-v8.json"
+
+      - name: Upload candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-promotion-candidate-${{ steps.build.outputs.candidate_sha }}
+          path: ${{ runner.temp }}/production-promotion-candidate-v8.json
+          if-no-files-found: error
+          retention-days: 30
