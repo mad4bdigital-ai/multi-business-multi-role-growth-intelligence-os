@@ -1,7 +1,17 @@
 const PORT_METHODS = Object.freeze({
+  principal: Object.freeze(["findPrincipal"]),
+  subjectScope: Object.freeze(["findSubjectScope"]),
+  delegationContext: Object.freeze(["findDelegationContext"]),
   authorizedScope: Object.freeze(["findAuthorizedScope"]),
   resourceGraph: Object.freeze(["listAuthorizedResources"]),
   exactConnection: Object.freeze(["findExactConnection"]),
+  workspaceOwnership: Object.freeze(["findWorkspaceOwnership"]),
+  connectionOwnership: Object.freeze(["findConnectionOwnership"]),
+  providerAuthorizationState: Object.freeze([
+    "findAuthorizationState",
+    "claimAuthorizationState",
+    "completeClaimedAuthorization",
+  ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   contextPin: Object.freeze(["findContextPin", "createPin", "invalidatePin"]),
   executionLedger: Object.freeze(["findExecutionPlan", "listExecutionEvents", "appendExecutionEvent"]),
@@ -18,6 +28,18 @@ function assertRepositoryMethods(repository, portName, requiredMethods) {
   return repository;
 }
 
+export function assertPrincipalRepository(repository) {
+  return assertRepositoryMethods(repository, "Principal", PORT_METHODS.principal);
+}
+
+export function assertSubjectScopeRepository(repository) {
+  return assertRepositoryMethods(repository, "Subject scope", PORT_METHODS.subjectScope);
+}
+
+export function assertDelegationContextRepository(repository) {
+  return assertRepositoryMethods(repository, "Delegation context", PORT_METHODS.delegationContext);
+}
+
 export function assertAuthorizedScopeRepository(repository) {
   return assertRepositoryMethods(repository, "Authorized scope", PORT_METHODS.authorizedScope);
 }
@@ -28,6 +50,22 @@ export function assertResourceGraphRepository(repository) {
 
 export function assertExactConnectionRepository(repository) {
   return assertRepositoryMethods(repository, "Exact connection", PORT_METHODS.exactConnection);
+}
+
+export function assertWorkspaceOwnershipRepository(repository) {
+  return assertRepositoryMethods(repository, "Workspace ownership", PORT_METHODS.workspaceOwnership);
+}
+
+export function assertConnectionOwnershipRepository(repository) {
+  return assertRepositoryMethods(repository, "Connection ownership", PORT_METHODS.connectionOwnership);
+}
+
+export function assertProviderAuthorizationStateRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Provider authorization state",
+    PORT_METHODS.providerAuthorizationState,
+  );
 }
 
 export function assertCapabilityReadinessRepository(repository) {
