@@ -202,13 +202,15 @@ export function resolveActivityBindingSelection({
 
   if (!intent) {
     if (candidates.length > 1) throw ambiguousError(candidates.length);
-    return selectionResult(candidates[0], normalizedSelectionScope, null, candidates.length);
+    const [candidate] = candidates;
+    return selectionResult(candidate, normalizedSelectionScope, null, candidates.length);
   }
 
   const matches = candidates.filter((binding) => binding[intent.field] === intent.value);
   if (matches.length === 0) throw notFoundError(intent);
   if (matches.length > 1) throw ambiguousError(matches.length, intent);
-  return selectionResult(matches[0], normalizedSelectionScope, intent, candidates.length);
+  const [match] = matches;
+  return selectionResult(match, normalizedSelectionScope, intent, candidates.length);
 }
 
 export const _testingActivityBindingSelection = Object.freeze({
