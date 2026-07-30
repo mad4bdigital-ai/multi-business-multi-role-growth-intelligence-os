@@ -11,6 +11,18 @@
     "branch": "gpt/011-unified-effective-authority-control-plane-20260720",
     "boundary": "spec_directory_only"
   },
+  "implementation_delivery": {
+    "merged_prs": [
+      {
+        "number": 3471,
+        "role": "t010_t011_principal_subject_delegation_resolvers",
+        "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
+        "merge_sha": "0ff39a85661a9552daa52d3a56338a24fe6bf560"
+      }
+    ],
+    "superseded_prs": [3351],
+    "remaining_delivery": "bounded_current_main_prs"
+  },
   "architecture": {
     "authority_model": "unified_admin_tenant_effective_authority",
     "identity_model": "actor_subject_scope_separation",
