@@ -47,7 +47,9 @@ jobs:
 
       - name: Apply exact bounded repair
         working-directory: http-generic-api
-        run: node scripts/apply-spec013-runtime-ratchet-repair.mjs
+        run: |
+          git fetch origin main --depth=1
+          node scripts/apply-spec013-runtime-ratchet-repair.mjs
 
       - name: Verify source contract and hardcoding ratchet
         working-directory: http-generic-api
@@ -65,7 +67,6 @@ jobs:
       - name: Refresh dependent generated artifacts
         working-directory: http-generic-api
         run: |
-          git fetch origin main --depth=1
           npm run frontend:dispatch:generate -- --baseline-ref=main
           node scripts/generate-custom-gpt-schemas.mjs --write
 
@@ -95,6 +96,7 @@ jobs:
             case "$file" in
               http-generic-api/routes/systemLayerRoutes.js|\
               http-generic-api/openapi.yaml|\
+              http-generic-api/scripts/test-manifest.mjs|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
