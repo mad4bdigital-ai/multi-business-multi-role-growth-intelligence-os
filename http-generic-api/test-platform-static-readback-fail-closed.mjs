@@ -23,9 +23,11 @@ for (const [name, workflow] of [
 
 assert.match(cleanupAudit, /excludedFiles:/, "cleanup audit must exclude its guard sources from forbidden scans");
 assert.match(cleanupAudit, /Release readiness remains the authority/, "cleanup audit must preserve release-readiness authority");
-assert.ok(
-  cleanupAudit.includes(String.raw`pathValue === \"/system/tools/call\"`),
-  "cleanup audit must validate the concrete recursion guard",
+const normalizedCleanupAudit = cleanupAudit.replaceAll(String.raw`\"`, '"');
+assert.match(
+  normalizedCleanupAudit,
+  /assertIncludes\("http-generic-api\/routes\/systemLayerRoutes\.js",\s*\[[\s\S]*?pathValue === "\/system\/tools\/call"[\s\S]*?\]\);/,
+  "cleanup audit must validate the concrete recursion guard inside the system-layer route assertion block",
 );
 assert.doesNotMatch(cleanupAudit, /live_provider_dispatch_disabled_by_policy/, "cleanup audit must not require an invented migration marker");
 

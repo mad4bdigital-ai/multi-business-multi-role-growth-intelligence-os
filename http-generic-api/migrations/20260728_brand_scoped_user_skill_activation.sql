@@ -93,6 +93,11 @@ WHERE g.status = 'active'
   AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP);
 
 -- Runtime policy markers:
+-- no_provider_call=true
+-- no_credential_payload_read=true
+-- no_raw_secrets=true
+-- no_external_send=true
+-- no_external_write=true
 -- authority=user_jwt_plus_membership_plus_workspace_resource_grants
 -- legacy_agent_skill_grants_preserved=true
 -- configured_brand_policy_enforcement_fail_closed=true
