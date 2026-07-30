@@ -48,7 +48,7 @@
     "EC0_contract_and_tests": "complete",
     "EC1_shadow_adapter": "complete",
     "EC2_selected_read_pilot": "complete",
-    "EC3_unified_dispatch_integration": "in_progress",
+    "EC3_unified_dispatch_integration": "complete",
     "EC4_mutation_validation_pilot": "not_started",
     "EC5_rollout_and_duplicate_resolver_retirement": "not_started"
   },
