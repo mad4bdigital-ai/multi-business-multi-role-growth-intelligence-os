@@ -1,0 +1,323 @@
+name: Spec 011 T502 Bootstrap Once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-t502-governed-remote-git-transport-20260730
+    paths:
+      - .github/workflows/spec011-t502-bootstrap-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-t502-bootstrap-once
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: gpt/spec-011-t502-governed-remote-git-transport-20260730
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Integrate T502 contracts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          route = Path("http-generic-api/routes/operationOrchestratorRoutes.js")
+          source = route.read_text()
+          import_anchor = '''import {
+            createManagedGitRepositoryCredentialBinding,
+            releaseManagedGitRepositoryCredentialBinding,
+          } from "../managedGitRepositoryCredentialBinding.js";
+          '''
+          remote_import = '''import {
+            commitManagedGitRemoteChanges,
+            prepareManagedGitRemoteTransport,
+            pushManagedGitRemoteChanges,
+            readManagedGitRemoteTransport,
+          } from "../managedGitRemoteTransport.js";
+          '''
+          assert import_anchor in source
+          assert remote_import not in source
+          source = source.replace(import_anchor, import_anchor + remote_import, 1)
+
+          helpers = '''
+          async function prepareRemoteTransportForWorker({
+            lifecycle,
+            credentialBinding,
+            now = new Date(),
+            resolveWorkspacePath = getManagedGitWorkerWorkspacePath,
+            prepareTransport = prepareManagedGitRemoteTransport,
+          } = {}) {
+            if (lifecycle?.required !== true || !credentialBinding) return null;
+            if (typeof resolveWorkspacePath !== "function") {
+              const error = new Error("A managed Git workspace resolver is required.");
+              error.code = "MANAGED_GIT_REMOTE_WORKSPACE_RESOLVER_REQUIRED";
+              error.status = 500;
+              throw error;
+            }
+            if (typeof prepareTransport !== "function") {
+              const error = new Error("A managed Git remote transport factory is required.");
+              error.code = "MANAGED_GIT_REMOTE_TRANSPORT_FACTORY_REQUIRED";
+              error.status = 500;
+              throw error;
+            }
+            const input = lifecycle.input || {};
+            return prepareTransport({
+              worker_id: lifecycle.worker_id,
+              owner: input.owner,
+              repo: input.repo,
+              branch: input.branch,
+              expected_head_sha: lifecycle.checkout_head_sha || input.expected_head_sha,
+              workspace_path: resolveWorkspacePath(lifecycle),
+              credential_binding: credentialBinding,
+              now,
+            });
+          }
+
+          function depsWithManagedGitTransport(deps, session, {
+            readTransport = readManagedGitRemoteTransport,
+            commitTransport = commitManagedGitRemoteChanges,
+            pushTransport = pushManagedGitRemoteChanges,
+          } = {}) {
+            if (!session) return deps;
+            const next = { ...deps };
+            Object.defineProperty(next, "managed_git_transport", {
+              value: Object.freeze({
+                session,
+                read: () => readTransport(session),
+                commit: (input = {}) => commitTransport(session, input),
+                push: (input = {}) => pushTransport(session, input),
+              }),
+              enumerable: false,
+              configurable: false,
+              writable: false,
+            });
+            return next;
+          }
+
+          function safeRemoteTransportSnapshot(session) {
+            if (!session) {
+              return {
+                required: false,
+                status: "not_required",
+                remote_fetch_performed: false,
+                remote_checkout_performed: false,
+                remote_commit_performed: false,
+                remote_push_performed: false,
+                credential_secret_exposed: false,
+                persistent_credential_file_created: false,
+                workspace_path_exposed: false,
+                secrets_included: false,
+              };
+            }
+            try {
+              return {
+                required: true,
+                status: "ready",
+                ...readManagedGitRemoteTransport(session),
+              };
+            } catch (error) {
+              return {
+                required: true,
+                status: "read_failed",
+                remote_fetch_performed: false,
+                remote_checkout_performed: false,
+                remote_commit_performed: false,
+                remote_push_performed: false,
+                credential_secret_exposed: false,
+                persistent_credential_file_created: false,
+                workspace_path_exposed: false,
+                error: {
+                  code: error?.code || "MANAGED_GIT_REMOTE_READ_FAILED",
+                  message: error?.message || "Managed Git remote transport readback failed.",
+                  details: error?.details || null,
+                },
+                secrets_included: false,
+              };
+            }
+          }
+          '''
+          anchor = "\nfunction isTenant(req) {\n"
+          assert anchor in source
+          assert "function prepareRemoteTransportForWorker" not in source
+          source = source.replace(anchor, helpers + anchor, 1)
+
+          variables = '''    let credentialBinding = null;
+              let credentialFinalized = false;
+              let operationDeps = null;
+          '''
+          variables_next = '''    let credentialBinding = null;
+              let credentialFinalized = false;
+              let remoteTransportSession = null;
+              let remoteTransportSnapshot = safeRemoteTransportSnapshot(null);
+              let operationDeps = null;
+          '''
+          assert variables in source
+          source = source.replace(variables, variables_next, 1)
+
+          prepare_anchor = '''      credentialBinding = await prepareCredentialBindingForWorker({
+                deps: operationDeps,
+                lifecycle: workerLifecycle,
+                input: workerLifecycle.input || capabilityInput,
+              });
+              workerLifecycle = await markManagedGitWorkerRunning({
+          '''
+          prepare_next = '''      credentialBinding = await prepareCredentialBindingForWorker({
+                deps: operationDeps,
+                lifecycle: workerLifecycle,
+                input: workerLifecycle.input || capabilityInput,
+              });
+              remoteTransportSession = await prepareRemoteTransportForWorker({
+                lifecycle: workerLifecycle,
+                credentialBinding,
+              });
+              remoteTransportSnapshot = safeRemoteTransportSnapshot(remoteTransportSession);
+              workerLifecycle = await markManagedGitWorkerRunning({
+          '''
+          assert prepare_anchor in source
+          source = source.replace(prepare_anchor, prepare_next, 1)
+
+          execute_anchor = '''      const workspaceDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+              const executionDeps = depsWithManagedGitCredential(workspaceDeps, credentialBinding);
+              const result = await executeOperation(input, executionDeps);
+              const credentialResult = finalizeCredentialSafely(credentialBinding);
+          '''
+          execute_next = '''      const workspaceDeps = depsWithManagedGitWorkspace(operationDeps, workerLifecycle);
+              const credentialDeps = depsWithManagedGitCredential(workspaceDeps, credentialBinding);
+              const executionDeps = depsWithManagedGitTransport(credentialDeps, remoteTransportSession);
+              const result = await executeOperation(input, executionDeps);
+              remoteTransportSnapshot = safeRemoteTransportSnapshot(remoteTransportSession);
+              const credentialResult = finalizeCredentialSafely(credentialBinding);
+          '''
+          assert execute_anchor in source
+          source = source.replace(execute_anchor, execute_next, 1)
+
+          response_anchor = '''          capability_lifecycle: lifecycleResult,
+                    managed_worker: workerResult,
+                    ownership,
+          '''
+          response_next = '''          capability_lifecycle: lifecycleResult,
+                    managed_worker: workerResult,
+                    managed_git_transport: remoteTransportSnapshot,
+                    ownership,
+          '''
+          assert response_anchor in source
+          source = source.replace(response_anchor, response_next, 1)
+
+          catch_anchor = '''      const lifecycleDetails = {};
+
+              if (!credentialFinalized && credentialBinding) {
+          '''
+          catch_next = '''      const lifecycleDetails = {};
+
+              if (remoteTransportSession) {
+                remoteTransportSnapshot = safeRemoteTransportSnapshot(remoteTransportSession);
+                lifecycleDetails.managed_git_transport = remoteTransportSnapshot;
+              }
+
+              if (!credentialFinalized && credentialBinding) {
+          '''
+          assert catch_anchor in source
+          source = source.replace(catch_anchor, catch_next, 1)
+
+          export_anchor = '''  depsWithManagedGitCredential,
+            prepareCredentialBindingForWorker,
+            finalizeCredentialSafely,
+          '''
+          export_next = '''  depsWithManagedGitCredential,
+            prepareCredentialBindingForWorker,
+            finalizeCredentialSafely,
+            prepareRemoteTransportForWorker,
+            depsWithManagedGitTransport,
+            safeRemoteTransportSnapshot,
+          '''
+          assert export_anchor in source
+          source = source.replace(export_anchor, export_next, 1)
+          route.write_text(source)
+
+          manifest = Path("http-generic-api/scripts/test-manifest.mjs")
+          tests = manifest.read_text()
+          test_anchor = '  "node test-operation-orchestrator-repository-credential.mjs",\n'
+          assert test_anchor in tests
+          assert "test-managed-git-remote-transport.mjs" not in tests
+          tests = tests.replace(
+            test_anchor,
+            test_anchor
+            + '  "node test-managed-git-remote-transport.mjs",\n'
+            + '  "node test-operation-orchestrator-managed-git-transport.mjs",\n',
+            1,
+          )
+          manifest.write_text(tests)
+
+          spec = Path("specs/011-database-driven-operation-fabric/spec.md")
+          text = spec.read_text()
+          text = text.replace(
+            "- **T501:** short-lived in-memory repository credential binding;\n- orchestrator integration that passes workspace and credential authority as non-enumerable internal dependencies;",
+            "- **T501:** short-lived in-memory repository credential binding;\n- **T502:** governed remote fetch, checkout, commit, fast-forward push, and same-cycle readback;\n- orchestrator integration that passes workspace, credential authority, and remote transport as non-enumerable internal dependencies;",
+          )
+          text = text.replace(
+            "8. Existing capability, security, ownership, artifact, and worker-finalization contracts remain intact.\n9. Historical `virtual_git_tree` rows remain valid while `ephemeral_checkout` is introduced additively.",
+            "8. Remote fetch and checkout must match the governed expected branch head before operation execution.\n9. Commit and push must fail closed on local or remote head drift, reject non-fast-forward history, and forbid force push.\n10. Remote push must perform same-cycle branch-head readback without exposing credentials or workspace paths.\n11. Existing capability, security, ownership, artifact, and worker-finalization contracts remain intact.\n12. Historical `virtual_git_tree` rows remain valid while `ephemeral_checkout` is introduced additively.",
+          )
+          text = text.replace(
+            "- T502 clone, fetch, remote checkout, commit, push, or other remote Git transport;\n- migration application or live SQL mutation;",
+            "- migration application or live SQL mutation;",
+          )
+          text = text.replace(
+            "T500 and T501 are complete only after focused tests and repository CI pass and the reconciliation PR is merged. The broader feature remains in progress until T502 is delivered and the additive migration is applied through governed migration authority with readback evidence.",
+            "T500 and T501 are merged. T502 is complete only after focused tests and repository CI pass and its implementation PR is merged. The broader feature remains in progress until the additive migration is applied through governed migration authority with readback evidence.",
+          )
+          spec.write_text(text)
+
+          plan = Path("specs/011-database-driven-operation-fabric/plan.md")
+          text = plan.read_text()
+          text = text.replace(
+            "## Validation\n",
+            "## Phase T502 — Governed remote Git transport\n\n- Bind the canonical GitHub remote to the isolated workspace without accepting arbitrary request URLs.\n- Fetch and checkout only the exact governed branch head.\n- Expose bounded non-enumerable read, commit, and push operations to repository execution handlers.\n- Re-read the remote head before push, require fast-forward ancestry, forbid force push, and verify same-cycle readback.\n- Keep credential material in child-process environment only and disable persistent credential helpers.\n\n## Validation\n",
+            1,
+          )
+          text = text.replace(
+            "- **T502:** governed remote Git transport using the isolated workspace and credential binding.\n- Apply `20260728_operation_managed_git_ephemeral_checkout.sql` through governed migration authority.",
+            "- Apply `20260728_operation_managed_git_ephemeral_checkout.sql` through governed migration authority.",
+          )
+          plan.write_text(text)
+
+          tasks = Path("specs/011-database-driven-operation-fabric/tasks.md")
+          text = tasks.read_text()
+          text = text.replace(
+            "## Remaining feature scope\n\n- [ ] Implement T502 governed remote Git transport.\n- [ ] Apply the additive ephemeral-checkout migration through governed migration authority.",
+            "## T502 — Governed remote Git transport\n\n- [x] Bind canonical remote transport to the isolated workspace and credential scope.\n- [x] Fetch and checkout the exact governed branch head.\n- [x] Add bounded commit and fast-forward-only push operations.\n- [x] Reject remote drift, non-fast-forward history, and force push.\n- [x] Verify same-cycle push readback and secret/path containment.\n- [x] Attach the transport as a non-enumerable orchestrator dependency.\n- [x] Register focused real-Git and orchestrator regression tests.\n- [ ] Pass all required repository CI gates for T502.\n- [ ] Merge the T502 implementation PR and verify default-branch readback.\n\n## Remaining feature scope\n\n- [ ] Apply the additive ephemeral-checkout migration through governed migration authority.",
+          )
+          tasks.write_text(text)
+          PY
+      - name: Verify focused T500-T502 contracts
+        working-directory: http-generic-api
+        run: |
+          node --check managedGitRemoteTransport.js
+          node --check routes/operationOrchestratorRoutes.js
+          node test-managed-git-ephemeral-checkout-executor.mjs
+          node scripts/test-managed-git-worker-lifecycle.mjs
+          node test-operation-orchestrator-managed-workspace-dependency.mjs
+          node test-managed-git-repository-credential-binding.mjs
+          node test-operation-orchestrator-repository-credential.mjs
+          node test-managed-git-remote-transport.mjs
+          node test-operation-orchestrator-managed-git-transport.mjs
+      - name: Remove one-time bootstrap and push
+        shell: bash
+        run: |
+          rm .github/workflows/spec011-t502-bootstrap-once.yml
+          git config user.name "mad4bdigital-ai[bot]"
+          git config user.email "271942579+mad4bdigital-ai@users.noreply.github.com"
+          git add http-generic-api specs/011-database-driven-operation-fabric .github/workflows/spec011-t502-bootstrap-once.yml
+          git commit -m "feat(spec-011): integrate governed remote Git transport"
+          git push origin HEAD:gpt/spec-011-t502-governed-remote-git-transport-20260730
