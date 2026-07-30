@@ -1,5 +1,6 @@
 {
   "schema_version": "spec011.preflight_contract_bootstrap.v1",
+  "trigger_attempt": 2,
   "migration": "20260728_operation_managed_git_ephemeral_checkout.sql",
   "expected_checksum_sha256": "8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c",
   "expected_statement_count": 1,
