@@ -1,28 +1,37 @@
 {
   "schema_version": 1,
   "feature_key": "012-unified-admin-tenant-context-kernel",
-  "delivery_mode": "single_pr",
+  "delivery_mode": "multi_pr",
   "status": "in_progress",
   "requirements": {
-    "migration": false,
-    "production_verification": false,
-    "post_merge_audit": false
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
   },
   "delivery": {
     "implementation_prs": []
   },
   "evidence": {
     "ci": {
-      "status": "passed",
-      "scope": "specification_pr"
+      "status": "pending",
+      "scope": "hierarchical_connection_ownership_spec_amendment"
     },
     "implementation_ci": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "pending"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
       "status": "pending"
     },
     "release_readiness": {
       "status": "pending"
     }
   },
-  "notes": "This pull request delivers the specification and governance artifacts only. Specification CI has passed. Runtime implementation, implementation tests, migration evidence, production verification, and closeout evidence remain future governed work.",
+  "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or credential mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect credential replacement compares the signed expected connection revision, live connection revision, claimed-state revision, and verified claim token; credential replacement, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under per-substep fault injection. Additive persistence migrations require separate authorization and same-cycle readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks are release blocking. Runtime implementation remains split across governed PRs for persistence artifacts, separately authorized migration application, tenant OAuth, context resolution, authority and capability integration, readiness, activation, OpenAPI compatibility, rollout, production verification, and post-merge audit. This branch performs no migration, provider call, credential mutation, runtime enablement, deployment, or protected-branch write.",
   "secrets_included": false
 }

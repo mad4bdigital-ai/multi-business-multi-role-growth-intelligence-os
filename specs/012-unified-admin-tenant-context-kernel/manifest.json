@@ -1,6 +1,6 @@
 {
   "spec_key": "unified_admin_tenant_context_kernel",
-  "spec_version": "0.1.0",
+  "spec_version": "0.2.0",
   "status": "draft",
   "scope": "platform",
   "principal_coverage": [
@@ -10,12 +10,30 @@
     "delegated_agent",
     "registry_defined_future_principal"
   ],
+  "workspace_ownership_types": [
+    "personal",
+    "company"
+  ],
+  "connection_owner_scopes": [
+    "personal_workspace",
+    "company_workspace",
+    "brand"
+  ],
   "invariants": [
     "single_shared_context_kernel",
     "dynamic_registry_resolution",
     "no_fixed_customer_identifiers_in_production_code",
     "effective_subject_required_for_tenant_mutations",
+    "existing_operational_workspace_type_semantics_preserved",
+    "workspace_ownership_type_is_distinct_from_operational_workspace_type",
     "one_tenant_one_workspace_one_resource_one_connection_per_execution_context",
+    "exact_connection_owner_scope_required",
+    "personal_connection_owner_must_equal_effective_user",
+    "no_cross_brand_connection_use",
+    "no_first_row_or_provider_key_only_connection_selection",
+    "no_silent_connection_fallback_for_consequential_writes",
+    "provider_identity_and_provider_consent_are_separate",
+    "credential_materialization_after_context_authority_and_readiness",
     "high_risk_fail_closed",
     "same_cycle_readback_or_reconciliation"
   ],
@@ -25,6 +43,7 @@
     "architecture.md",
     "end-to-end-flows.md",
     "data-model.md",
+    "hierarchical-connection-ownership.md",
     "hardcoding-policy.md",
     "error-catalog.md",
     "threat-model.md",
@@ -48,6 +67,12 @@
       "primary_artifact": "execution-capsule-runtime-addendum.md",
       "status": "draft",
       "runtime_authority": false
+    },
+    {
+      "extension_key": "spec-012-hierarchical-provider-connection-ownership",
+      "primary_artifact": "hierarchical-connection-ownership.md",
+      "status": "draft",
+      "runtime_authority": false
     }
   ],
   "public_api_boundary": {
@@ -59,13 +84,26 @@
       "execution_context_validation"
     ],
     "internal_governed_only": [
+      "credential_materialization",
       "provider_dispatch",
       "provider_readback",
       "unknown_outcome_reconciliation"
     ]
   },
+  "planned_public_api_boundary": {
+    "version": "0.2.0",
+    "status": "contract_pending",
+    "not_exposed_until_openapi_and_implementation_pr": true,
+    "planned": [
+      "connection_ownership_projection",
+      "connection_resolution",
+      "provider_authorization_state_projection"
+    ]
+  },
+  "delivery_mode": "multi_pr",
   "production_mutation": false,
   "provider_write": false,
+  "credential_mutation": false,
   "migration_apply": false,
   "protected_branch_write": false
 }
