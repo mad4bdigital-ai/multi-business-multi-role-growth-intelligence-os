@@ -40,12 +40,14 @@ Company Workspace
 
 A brand belongs to exactly one workspace. A brand connection may therefore exist under either a personal workspace or a company workspace, while remaining owned by one exact brand.
 
-## Workspace types
+## Workspace ownership types
 
-`workspaceType` is one of:
+`workspaceOwnershipType` is one of:
 
 - `personal`: operational workspace owned by one platform user;
 - `company`: shared operational workspace with independent membership, roles, grants, and administrative lifecycle.
+
+This ownership dimension is separate from the existing operational `workspaceType` classification. Current operational values such as `brand`, `project`, `campaign`, and `sandbox` remain valid and MUST NOT be renamed, overwritten, or reinterpreted as personal/company ownership.
 
 A personal workspace is not a shared company credential boundary. Membership in a company workspace never grants access to another member's personal connection.
 
@@ -95,7 +97,7 @@ This is eligibility precedence, not blind fallback.
 
 ### Mandatory rules
 
-1. Tenant and workspace MUST be resolved before connection candidates are ranked.
+1. Tenant, workspace, operational workspace type, and workspace ownership type MUST be resolved before connection candidates are ranked.
 2. A brand connection is eligible only for resources owned by that exact brand.
 3. A workspace connection is eligible only inside its exact workspace and tenant.
 4. A personal connection is eligible only when `ownerUserRef` equals the effective user.
@@ -104,7 +106,7 @@ This is eligibility precedence, not blind fallback.
 7. Revoked, expired, disabled, insufficient-scope, owner-mismatched, or stale-revision connections are ineligible.
 8. Credential material is not loaded until context, ownership, authority, capability, and readiness decisions agree.
 9. Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
-10. Context pins, plans, and approvals MUST be invalidated when membership, workspace, brand, ownership, authorization, provider scopes, or connection revision changes.
+10. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider scopes, or connection revision changes.
 
 ## Fallback policy
 
@@ -225,7 +227,8 @@ JIT Onboarding
 
 Context Kernel
 ├── effective subject
-├── tenant, workspace, workspace type
+├── tenant and workspace
+├── operational workspace type and workspace ownership type
 ├── brand and resource
 └── exact connection ownership and deterministic selection
 
@@ -244,17 +247,19 @@ Execution Orchestrator
 
 ## Persistence and compatibility direction
 
-Runtime implementation requires additive, rollback-aware persistence changes around existing `user_app_connections` and `workspace_app_links` records.
+Runtime implementation requires additive, rollback-aware persistence changes around existing `workspace_registry`, `user_app_connections`, and `workspace_app_links` records.
 
 The persistence phase will introduce or normalize:
 
-- workspace type;
-- exact owner scope;
+- additive `workspace_ownership_type` and personal owner metadata;
+- exact connection owner scope;
 - brand connection bindings;
 - provider scopes;
 - authorization and connection revisions;
 - active/default uniqueness constraints within one exact scope;
 - compatibility classification for legacy rows.
+
+The existing `workspace_registry.workspace_type` operational classification remains unchanged. The migration MUST NOT convert its values to `personal` or `company`.
 
 Legacy rows MUST be preserved and classified before backfill. Destructive cleanup is forbidden until parity, rollback, and support windows are complete.
 
@@ -277,6 +282,7 @@ No migration is applied by this specification amendment.
 13. API, logs, context, plans, and evidence never expose credential values.
 14. Legacy records continue through a compatibility adapter during additive rollout.
 15. OAuth state replay, expiry, context mismatch, and redirect mismatch fail closed.
+16. Existing operational workspace types remain unchanged while personal/company ownership is stored and resolved independently.
 
 ## Multi-PR implementation sequence
 
