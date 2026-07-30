@@ -57,6 +57,12 @@ The bounded refresh is accepted only when all of the following remain true:
 - runtime and OpenAPI authentication remain equivalent with no route-contract gaps;
 - `test-repository-reconciliation-lease-control.mjs` is attached to the endpoint and is absent from `untested_operations`.
 
+## Latest source reconciliation checkpoint
+
+The lease-control source set was reconciled without force over `main` at `a67403e18f6996a662cb9148891e86fab17937cd`. The current `main` test manifest was preserved and the focused lease-control test was inserted exactly once beside the durable lease-service test. The temporary registration workflow removed itself after the insertion. Generated artifacts remain workflow-owned and must pass deterministic readback on the resulting pull-request head.
+
+This checkpoint records source and test ownership only. It does not authorize merge, migration apply, deployment, or reuse of any prior capability envelope or lease identifier.
+
 ## Actions
 
 ### Acquire
