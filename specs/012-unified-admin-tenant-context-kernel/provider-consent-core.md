@@ -24,19 +24,22 @@ The old callback-compatibility PRs #2345 and #2576 are not used as implementatio
 - keeps the signing secret inside the codec closure;
 - never logs or exports the secret.
 
-### Provider consent state repository
+### Canonical provider authorization-state repository
 
-`createProviderConsentStateRepository`:
+`createProviderAuthorizationStateRepository` is the single repository authority for the `provider_authorization_states` aggregate. It now:
 
-- inserts only hashed nonce and signature evidence;
+- issues authorization states while persisting only hashed nonce and signature evidence;
 - stores no raw nonce, raw claim token, provider authorization code, or credential;
 - supports `authorize` and `reconnect` state issuance;
 - requires reconnect target, expected connection revision, and durable provider-account binding;
 - rejects reconnect-only fields on new authorization;
 - atomically changes exactly one row from `issued` to `claimed`;
 - binds the claim CAS to tenant, state revision, nonce hash, signature hash, signature version, provider, principal, workspace, brand, owner scope, reconnect target, expected connection revision, and expected provider-account binding;
-- performs same-cycle readback and requires persisted claim-verifier evidence;
+- performs same-cycle claim readback and requires persisted claim-verifier evidence;
+- owns claimed-state resume and atomic reconnect completion;
 - rejects a replay or concurrent loser with `oauth_state_claim_conflict`.
+
+The former `providerConsentStateRepository.js` SQL implementation is removed. The legacy factory name `createProviderConsentStateRepository` is only an export alias to `createProviderAuthorizationStateRepository`; it does not create a second SQL authority or a weaker claim path.
 
 ### Application service
 
@@ -65,7 +68,7 @@ This slice is deliberately default-off:
 - no database is contacted by repository tests;
 - no Production deployment or promotion is performed.
 
-The application and repository exports are available for later separately governed route integration only after the connection-ownership migration is applied and same-cycle readback is verified.
+The application and canonical repository exports are available for later separately governed route integration only after the connection-ownership migration is applied and same-cycle readback is verified.
 
 ## Migration dependency
 
@@ -88,13 +91,13 @@ The bound migration remains:
 
 ## Test contract
 
-The focused command is:
+The focused provider-consent command is:
 
 ```text
 npm run test:context-kernel:provider-consent
 ```
 
-The same test remains registered through `test-context-kernel-registry-adapters.mjs`, so the repository-wide Unit & Integration Tests execute it without relying on the focused command.
+The provider-consent and repository-consolidation tests are registered through `test-context-kernel-registry-adapters.mjs`, so the repository-wide Unit & Integration Tests execute both without relying on a separate runtime route.
 
 The registered coverage includes:
 
@@ -108,6 +111,11 @@ The registered coverage includes:
 - exact SQL claim bindings;
 - single-winner claim semantics;
 - sequential replay rejection;
+- rejection of the former weak claim input shape;
+- one canonical repository port with issue, find, strict claim, and atomic completion;
+- both public factory names resolving to the same canonical function;
+- absence of the duplicate SQL repository file;
+- exactly one reachable SQL transition from `issued` to `claimed`;
 - absence of provider calls, credential reads, credential mutation, secrets, and raw claim-token output.
 
 The repository-owned generated-artifact workflow regenerated and verified the bounded frontend dispatch evidence after the focused command was registered. The bounded write set contained only governed generated evidence; no runtime or OpenAPI surface was introduced by the generator.
@@ -122,31 +130,30 @@ f2a0214b57b9fb43e2ab908e48eff75c7b15f6f5
 
 The branch was then reconciled with current `main` while preserving the generated artifact and all provider-consent source blobs. The subsequent refresh completed generation, contract verification, and bounded-write-set enforcement successfully. This evidence does not grant runtime authority and does not represent deployment or database execution.
 
-## Canonical repository consolidation gate
+## Canonical repository consolidation
 
-The repository already contains `createProviderAuthorizationStateRepository`, which owns claimed-state readback and atomic reconnect completion. This default-off slice adds a stricter issuance and ingress-claim adapter over the same persistence aggregate so the signed nonce, signature, owner scope, reconnect revision, and provider-account binding can participate in the claim CAS.
+The repository consolidation is implemented in a separately governed default-off change:
 
-That temporary split is not runtime authority. Before any route, provider adapter, worker callback, or feature flag can use this slice, a separate governed implementation must:
+1. `ContextKernelRepositoryPorts.providerAuthorizationState` requires issue, find, strict claim, and atomic completion;
+2. the separate `providerConsentState` port is removed;
+3. `createProviderAuthorizationStateRepository` contains the only SQL claim implementation;
+4. `createProviderConsentStateRepository` is retained only as a compatibility export alias to the same factory;
+5. the duplicate `providerConsentStateRepository.js` file is deleted;
+6. the former weak claim shape is rejected before SQL execution;
+7. tests verify nonce, signature, exact owner scope, reconnect revision, and provider-account binding remain in the claim CAS.
 
-1. consolidate issuance, signed-context claim, claimed-state resume, and atomic completion behind one canonical authorization-state repository port;
-2. remove or make unreachable every weaker alternate claim path;
-3. retain the full signed-context CAS and reconnect completion transaction guarantees;
-4. update all repository tests and consumers to the single canonical authority;
-5. prove no duplicate SQL claim implementation remains reachable from runtime composition.
-
-Until those conditions and migration readback are complete, this slice must remain unmounted and default-off.
+This closes the duplicate-repository release blocker at the code-contract level. It does not grant runtime authority. Migration readback, authenticated use cases, callback composition, provider exchange, and rollout gates remain mandatory before any route, worker, provider adapter, or feature flag may use the consolidated repository.
 
 ## Remaining work
 
 This slice does not complete Phase 5. Remaining provider-consent work includes:
 
-- canonical authorization-state repository consolidation described above;
 - authenticated personal, company-workspace, and brand list/authorize/reconnect/revoke use cases;
 - live membership and brand-management authority checks;
 - an internal callback adapter that generates and transports the raw claim token without logging or exporting it;
 - provider code exchange after successful atomic claim;
 - safe worker-handoff resume using the persisted claim verifier;
 - authorize-flow atomic connection creation and state consumption;
-- reconnect-flow integration with the existing atomic credential-replacement repository;
+- reconnect-flow integration with the consolidated atomic credential-replacement repository;
 - runtime routes and OpenAPI only after migration readback;
 - fault injection and production post-merge audit.
