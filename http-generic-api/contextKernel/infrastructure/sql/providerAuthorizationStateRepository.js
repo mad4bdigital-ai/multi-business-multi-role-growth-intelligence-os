@@ -27,6 +27,7 @@ const AUTHORIZATION_STATE_SQL = `
     signature_version,
     state_revision,
     claim_revision,
+    claim_token_hash IS NOT NULL AS claim_verifier_persisted,
     claimed_at,
     consumed_at,
     completion_revision,
@@ -199,7 +200,7 @@ function mapAuthorizationState(row) {
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
     updatedAt: row.updated_at || null,
-    claimVerifierPersisted: row.status === "claimed",
+    claimVerifierPersisted: Boolean(row.claim_verifier_persisted),
     secretsIncluded: false,
   });
 }
@@ -282,10 +283,16 @@ export function createProviderAuthorizationStateRepository({ pool = null, resolv
       );
     }
     const claimed = await findAuthorizationState({ tenantRef: tenant, stateRef: state });
-    if (!claimed || claimed.status !== "claimed" || !claimed.claimedAt || claimed.claimRevision <= 0) {
+    if (
+      !claimed
+      || claimed.status !== "claimed"
+      || !claimed.claimedAt
+      || claimed.claimRevision <= 0
+      || !claimed.claimVerifierPersisted
+    ) {
       throw repositoryError(
         "oauth_state_claim_readback_failed",
-        "Claimed OAuth authorization state failed same-cycle readback.",
+        "Claimed OAuth authorization state failed same-cycle verifier readback.",
         { tenant_ref: tenant, state_ref: state },
         500,
       );
