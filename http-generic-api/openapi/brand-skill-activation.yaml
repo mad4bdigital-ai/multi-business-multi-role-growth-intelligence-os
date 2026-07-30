@@ -9,7 +9,7 @@ paths:
       tags: [brand-skill-activation]
       operationId: listBrandSkillsForSignedInUser
       summary: List skill policies and active user grants for a brand
-      security: [{ bearerAuth: [] }]
+      security: [{ userJwtAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/BrandKey'
@@ -27,7 +27,7 @@ paths:
         tenant, user, brand, agent, skill, resource, and operation scope returns 200 with
         the existing grant; 201 is returned only when a new grant is created.
         Idempotency-Key is not required.
-      security: [{ bearerAuth: [] }]
+      security: [{ userJwtAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/BrandKey'
@@ -50,7 +50,7 @@ paths:
       tags: [brand-skill-activation]
       operationId: revokeBrandSkillForSignedInUser
       summary: Revoke the signed-in user's active skill grants for a brand
-      security: [{ bearerAuth: [] }]
+      security: [{ userJwtAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/BrandKey'
@@ -65,7 +65,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
 components:
   securitySchemes:
-    bearerAuth:
+    userJwtAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
