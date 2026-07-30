@@ -176,13 +176,16 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     throw toolError("migration_apply_capability_envelope_required", "Apply requires capability_envelope_id.", 403);
   }
 
+  const atomicRunnerRequired = normalized.migration === READINESS_REPAIR_MIGRATION;
   const resourceUri = governedMigrationResourceUri(normalized.migration);
   const bindingSha256 = governedMigrationEnvelopeBindingSha({
     migration: normalized.migration,
     migrationChecksumSha256: checksum,
     statementCount,
   });
-  const deployment = normalized.mode === "apply" ? resolveApplyDeploymentBinding(deps) : null;
+  const deployment = normalized.mode === "apply" && atomicRunnerRequired
+    ? resolveApplyDeploymentBinding(deps)
+    : null;
 
   return {
     ...normalized,
@@ -191,9 +194,9 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     statement_count: statementCount,
     required_confirmation: requiredConfirmation,
     runner_path: MIGRATION_RUNNER_PATHS[normalized.migration] || DEFAULT_RUNNER_PATH,
-    atomic_runner_required: normalized.migration === READINESS_REPAIR_MIGRATION,
+    atomic_runner_required: atomicRunnerRequired,
     deployment,
-    required_envelope: {
+    required_envelope: atomicRunnerRequired ? {
       app_key: GOVERNED_MIGRATION_APP_KEY,
       capability_key: GOVERNED_MIGRATION_CAPABILITY_KEY,
       operation_intent: GOVERNED_MIGRATION_OPERATION_INTENT,
@@ -207,7 +210,7 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
       readback_required: true,
       blocking_gap_count: 0,
       secrets_included: false,
-    },
+    } : null,
     secrets_included: false,
   };
 }
@@ -396,6 +399,14 @@ function assertApplyCapability(capability, inspection) {
   if (!capability || !capability.envelope_id) {
     throw toolError("governed_migration_apply_capability_envelope_unresolved", "Apply authorizer did not return a capability envelope.", 403);
   }
+  if (capability.apply_allowed !== true) {
+    capabilityMismatch("governed_migration_apply_not_allowed", "Capability envelope does not permit migration apply.", capability, inspection, { apply_allowed: false });
+  }
+  if (capability.readback_required !== true) {
+    capabilityMismatch("governed_migration_readback_not_required", "Capability envelope must require migration readback.", capability, inspection);
+  }
+  if (!inspection.atomic_runner_required) return;
+
   if (capability.app_key !== inspection.required_envelope.app_key) {
     capabilityMismatch("governed_migration_envelope_app_mismatch", "Capability envelope app_key is not bound to governed migration execution.", capability, inspection);
   }
@@ -426,17 +437,11 @@ function assertApplyCapability(capability, inspection) {
       envelope_commit_sha: capability.expected_commit_sha || null,
     });
   }
-  if (capability.apply_allowed !== true) {
-    capabilityMismatch("governed_migration_apply_not_allowed", "Capability envelope does not permit migration apply.", capability, inspection, { apply_allowed: false });
-  }
   if (capability.dispatch_allowed !== true) {
     capabilityMismatch("governed_migration_dispatch_not_allowed", "Capability envelope does not permit dispatch.", capability, inspection);
   }
   if (capability.audit_required !== true) {
     capabilityMismatch("governed_migration_audit_not_required", "Capability envelope must require audit evidence.", capability, inspection);
-  }
-  if (capability.readback_required !== true) {
-    capabilityMismatch("governed_migration_readback_not_required", "Capability envelope must require migration readback.", capability, inspection);
   }
   if (Number(capability.blocking_gap_count || 0) !== 0) {
     capabilityMismatch("governed_migration_envelope_has_blocking_gaps", "Capability envelope contains blocking gaps.", capability, inspection, {
