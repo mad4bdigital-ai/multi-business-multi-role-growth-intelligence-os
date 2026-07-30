@@ -1,8 +1,14 @@
 {
   "schema_version": 1,
   "feature_key": "014-retail-commerce-operations-growth-os",
-  "status": "pending",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
   "current_phase": "clarify",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
   "specification": {
     "artifacts_complete": true,
     "brownfield_review_complete": true,
@@ -42,8 +48,13 @@
   "delivery": {
     "specification_pr": 3922,
     "specification_pr_state": "open_draft",
-    "specification_head_sha": "46951019efa0d2919a1e395740d6b22278e6efd2",
     "specification_base_sha_at_open": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "status": "pending",
+      "role": "completion"
+    },
     "merged_to_main": false,
     "merge_sha": null,
     "deployed_commit_sha": null,
@@ -54,6 +65,22 @@
     "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
     "demo_evidence_class": "design_and_contract_prototype_only",
     "production_evidence_present": false,
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "not_started"
+    },
+    "migration": {
+      "status": "not_started"
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    },
     "secrets_included": false
   },
   "closeout": {
