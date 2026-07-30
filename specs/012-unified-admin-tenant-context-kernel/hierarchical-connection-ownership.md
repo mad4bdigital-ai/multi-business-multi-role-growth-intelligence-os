@@ -19,9 +19,11 @@ Without a unified decision, runtime paths may:
 - share a personal credential with another workspace member;
 - expose a brand connection outside its brand boundary;
 - treat Google identity login as evidence of Drive or Docs consent;
-- silently fall back from an invalid brand connection to a broader workspace or personal connection during a consequential write.
+- silently fall back from an invalid brand connection to a broader workspace or personal connection during a consequential write;
+- reconnect an existing connection with a different provider account;
+- roll back to an earlier selector that does not enforce exact ownership.
 
-The Context Kernel is the source of truth for exact connection ownership and deterministic selection. Effective Capability Envelope and Effective Authority consume that decision; they do not implement competing selectors.
+The Context Kernel is the source of truth for exact connection ownership and deterministic selection. Effective Capability Envelope and Effective Authority consume that immutable decision; they do not implement competing selectors or reconstruct ownership from mutable rows.
 
 ## Canonical ownership hierarchy
 
@@ -79,7 +81,9 @@ Every connection has one exact owner scope and MUST include:
 - lifecycle status;
 - readiness summary.
 
-Credential values and refresh tokens are stored only through the credential boundary. They MUST NOT appear in Context Kernel models, API projections, logs, traces, plans, approvals, or evidence artifacts.
+A resolved connection decision MUST carry the selected connection reference, exact owner scope type, exact owner scope reference, and connection revision together. Downstream consumers MUST use this immutable owner-scope evidence rather than re-fetch mutable ownership metadata.
+
+Credential values and refresh tokens are stored only through the credential boundary. They MUST NOT appear in Context Kernel models, API projections, logs, traces, plans, approvals, readiness evidence, or support artifacts.
 
 ## Deterministic resolution precedence
 
@@ -104,9 +108,46 @@ This is eligibility precedence, not blind fallback.
 5. A personal connection inside a company-workspace operation requires an explicit operation policy that permits personal inheritance.
 6. Equal-ranked eligible connections produce `CONNECTION_AMBIGUOUS`; no first-row selection is allowed.
 7. Revoked, expired, disabled, insufficient-scope, owner-mismatched, or stale-revision connections are ineligible.
-8. Credential material is not loaded until context, ownership, authority, capability, and readiness decisions agree.
-9. Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
-10. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider scopes, or connection revision changes.
+8. Candidate discovery and pre-credential readiness MUST remain secret-free.
+9. After one exact connection, owner scope, capability, authority path, approval state, and non-secret readiness decision agree, the guarded credential boundary MAY materialize that connection's credential for credential-dependent provider readiness and dispatch only.
+10. Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
+11. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider account, provider scopes, or connection revision changes.
+
+## Two-stage readiness and credential boundary
+
+Readiness is evaluated in two phases.
+
+### Pre-credential readiness
+
+```text
+Exact context
++ exact owner scope
++ exact connection metadata
++ capability binding
++ authority path
++ approval state
++ non-secret configuration and policy
+= credential materialization eligible
+```
+
+No secret is loaded during candidate discovery, ambiguity resolution, ownership validation, capability resolution, or authority validation.
+
+### Credential-dependent provider readiness
+
+After pre-credential readiness passes for one exact selected connection:
+
+```text
+Guarded credential materialization
+→ credential validity
+→ granted provider scopes
+→ provider account match
+→ reachability
+→ quota and schema readiness
+→ readback capability
+→ dispatch eligibility
+```
+
+The materialized credential is passed directly to the provider-readiness or dispatch adapter and never enters context decisions, plans, logs, evidence, API projections, or customer-visible errors.
 
 ## Fallback policy
 
@@ -163,6 +204,7 @@ The public remediation code is `PROVIDER_CONSENT_REQUIRED`.
 Provider authorization state MUST be signed, expiring, nonce-bound, single-use, and context-bound. It includes:
 
 - `stateRef`;
+- `flowType`: authorize or reconnect;
 - `providerKey`;
 - `principalRef` and `userRef`;
 - `tenantRef`;
@@ -176,7 +218,15 @@ Provider authorization state MUST be signed, expiring, nonce-bound, single-use, 
 - consumed timestamp when completed;
 - state status and signature version.
 
-Callbacks MUST reject replay, expiry, signature failure, redirect mismatch, provider-account mismatch, and any mismatch between the signed state and live tenant, workspace, brand, membership, or ownership context.
+Reconnect state additionally includes:
+
+- target `connectionRef`;
+- expected connection revision;
+- expected provider account reference when safe, or a privacy-preserving provider-account binding hash.
+
+Callbacks MUST reject replay, expiry, signature failure, redirect mismatch, provider-account mismatch, connection-revision mismatch, and any mismatch between signed state and live tenant, workspace, brand, membership, ownership, or target-connection context.
+
+A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection.
 
 Callbacks MUST NOT accept free `user_id`, `tenant_id`, `workspace_id`, or `brand_id` values as authority.
 
@@ -217,7 +267,7 @@ GET  /connection-resolutions/{resolutionRef}
 
 Contracts MUST use strict validation, stable structured errors, idempotency where applicable, bounded pagination, no-secret projections, live membership checks, same-cycle readback for mutations, and derived identity rather than caller-supplied authority.
 
-Final route naming remains subject to OpenAPI compatibility review before runtime implementation.
+These are planned surfaces and remain unexposed until the OpenAPI and implementation PR passes its contract gates. Final route naming remains subject to compatibility review.
 
 ## Responsibility boundaries
 
@@ -233,13 +283,14 @@ Context Kernel
 └── exact connection ownership and deterministic selection
 
 Effective Capability Envelope
-└── bind the exact connection decision to one capability and resource
+└── bind the immutable exact connection and owner-scope decision to one capability and resource
 
 Effective Authority
-└── decide whether the actor and subject may use the selected connection
+└── decide whether the actor and subject may use the selected connection and owner scope
 
 Provider Readiness
-└── credential validity, granted scopes, reachability, quota, and readback
+├── pre-credential non-secret readiness
+└── guarded credential-dependent validity, scopes, reachability, quota, schema, and readback
 
 Execution Orchestrator
 └── dispatch only when every decision agrees
@@ -256,6 +307,7 @@ The persistence phase will introduce or normalize:
 - brand connection bindings;
 - provider scopes;
 - authorization and connection revisions;
+- reconnect target/account binding state;
 - active/default uniqueness constraints within one exact scope;
 - compatibility classification for legacy rows.
 
@@ -263,7 +315,13 @@ The existing `workspace_registry.workspace_type` operational classification rema
 
 Legacy rows MUST be preserved and classified before backfill. Destructive cleanup is forbidden until parity, rollback, and support windows are complete.
 
-No migration is applied by this specification amendment.
+No migration is applied by this specification amendment. Future additive migrations require separate governed authorization, dry-run validation, ledger evidence, and same-cycle schema/data readback. Their readback MUST succeed before any production shadow, read, OAuth, or write path depends on the new persistence fields.
+
+## Rollback safety
+
+Rollback after hierarchical routing is enabled MUST retain exact-owner isolation independently of ranking or feature flags.
+
+The platform MUST NOT restore a prior selector that can choose a connection using tenant and provider alone. If the exact-owner guard or its required persistence is unavailable, affected provider operations are disabled or fail closed. Rollback preserves audit, OAuth-state, migration, execution, and reconciliation evidence.
 
 ## Release-blocking acceptance scenarios
 
@@ -279,22 +337,27 @@ No migration is applied by this specification amendment.
 10. Membership removal invalidates company-workspace and brand connection use.
 11. Brand rebinding or connection revision invalidates pins, plans, approvals, and cached decisions.
 12. A cross-tenant or cross-brand reference fails before credential materialization.
-13. API, logs, context, plans, and evidence never expose credential values.
+13. API, logs, context, plans, readiness evidence, and support artifacts never expose credential values.
 14. Legacy records continue through a compatibility adapter during additive rollout.
-15. OAuth state replay, expiry, context mismatch, and redirect mismatch fail closed.
+15. OAuth state replay, expiry, context mismatch, redirect mismatch, reconnect account mismatch, and connection-revision mismatch fail closed.
 16. Existing operational workspace types remain unchanged while personal/company ownership is stored and resolved independently.
+17. Credential-dependent readiness runs only after one exact selected owner scope passes all pre-credential gates.
+18. Every resolved selected-connection decision carries immutable owner-scope evidence.
+19. Migration ledger and same-cycle readback are verified before dependent shadow/read rollout.
+20. Rollback retains exact-owner isolation or disables affected provider operations.
 
 ## Multi-PR implementation sequence
 
 1. Specification amendment and compatibility ledger.
-2. Persistence migration and repositories.
-3. Tenant self-service provider consent lifecycle.
-4. Context ownership resolver and invalidation.
-5. Effective Capability Envelope and Effective Authority integration.
-6. Activation readiness and typed remediation integration.
-7. OpenAPI contracts and compatibility aliases.
-8. Isolation, replay, ambiguity, revocation, shadow-parity, and no-secret tests.
-9. Governed rollout, migration readback, production verification, and post-merge audit.
+2. Persistence migration artifact, repositories, dry-run, and tests.
+3. Separately authorized migration application and same-cycle readback.
+4. Tenant self-service provider consent lifecycle with reconnect account binding.
+5. Context ownership resolver, two-stage readiness, and invalidation.
+6. Effective Capability Envelope and Effective Authority integration.
+7. Activation readiness and typed remediation integration.
+8. OpenAPI contracts and compatibility aliases.
+9. Isolation, replay, reconnect, ambiguity, revocation, shadow-parity, rollback, and no-secret tests.
+10. Governed shadow/read/write rollout, production verification, and post-merge audit.
 
 Each implementation PR requires its own CI evidence and must reconcile against open overlapping branches before modifying shared OAuth or Context Kernel runtime files.
 
