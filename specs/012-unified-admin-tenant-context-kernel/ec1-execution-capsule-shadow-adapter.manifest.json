@@ -44,11 +44,11 @@
     "standalone_contract_test",
     "bounded_contract_review",
     "complete_test_manifest_registration",
-    "generated_test_manifest_evidence_refresh"
+    "generated_test_manifest_evidence_refresh",
+    "human_architecture_security_review"
   ],
   "pending_contracts": [
     "exact_head_ci_evidence",
-    "human_architecture_security_review",
     "selected_runtime_shadow_composition_factory",
     "controlled_non_production_parity_sample",
     "shadow_adapter_rollback_evidence"
@@ -58,6 +58,16 @@
     "status": "passed",
     "write_set": [
       "../../http-generic-api/frontend-surface-dispatch.generated.json"
+    ],
+    "runtime_authority_granted": false
+  },
+  "human_review": {
+    "status": "passed",
+    "blocking_findings": 0,
+    "repaired_findings": [
+      "target_mismatch_bounded_reason_code",
+      "bounded_status_tokens",
+      "shadow_clock_failure_isolation"
     ],
     "runtime_authority_granted": false
   },
