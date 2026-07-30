@@ -14,14 +14,15 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/dispatch-production-candidate-92c2c5f3-20260730'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
-      - name: Dispatch governed Production candidate builder
+      - name: Dispatch and observe governed Production candidate builder
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run production-promotion-candidate.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
@@ -31,4 +32,29 @@ jobs:
             -f validation_branch=gpt/validate-production-candidate-120aa1e9 \
             -f validation_base_branch=gpt/validate-production-base-120aa1e9 \
             -f create_pull_requests=true
-          echo 'Governed candidate builder dispatched. This workflow performs no branch merge, deployment, migration, provider call, credential read, or external send.'
+
+          RUN_ID=""
+          for attempt in $(seq 1 40); do
+            RUN_ID="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow production-promotion-candidate.yml \
+              --branch main \
+              --event workflow_dispatch \
+              --limit 30 \
+              --json databaseId,createdAt \
+              --jq "map(select(.createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
+            if [[ -n "$RUN_ID" ]]; then break; fi
+            sleep 3
+          done
+          if [[ -z "$RUN_ID" ]]; then
+            echo 'Unable to resolve governed builder run ID.' >&2
+            exit 1
+          fi
+          echo "builder_run_id=$RUN_ID"
+
+          if ! gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
+            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+            exit 1
+          fi
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,headSha,jobs
+          echo 'Governed candidate builder completed successfully. This observer performed no merge, deployment, migration, provider call, credential read, or external send.'
