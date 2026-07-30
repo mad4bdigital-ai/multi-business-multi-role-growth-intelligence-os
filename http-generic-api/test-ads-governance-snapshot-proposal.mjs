@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 // frontend-surface-operation: POST /platform/orchestration/ads-provider/snapshot-propose
 
 const service = readFileSync("adsProviderGovernanceSnapshotProposal.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/263_sprint68_ads_governance_snapshot_proposal.sql", "utf8");
-const openapi = readFileSync("openapi.yaml", "utf8");
+const openapiSource = readFileSync("openapi.yaml", "utf8");
+const openapi = YAML.parse(openapiSource);
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
@@ -37,8 +39,13 @@ assert(service.includes("will_execute_provider_call: false"), "service must not 
 assert(service.includes("will_read_credential_payload: false"), "service must not read credential payloads");
 assert(service.includes("will_change_spend: false"), "service must not change spend");
 assert(service.includes("recommendation_only"), "service must classify recommendation-only behavior");
-assert(openapi.includes("operationId: adsProviderGovernanceSnapshotPropose"), "OpenAPI must document proposal route");
-assert(openapi.includes("writes_database: { type: boolean, enum: [false] }"), "OpenAPI must declare no DB write");
+
+const proposalOperation = openapi?.paths?.["/platform/orchestration/ads-provider/snapshot-propose"]?.post;
+assert.equal(proposalOperation?.operationId, "adsProviderGovernanceSnapshotPropose", "OpenAPI must document proposal route");
+const writesDatabaseSchema = proposalOperation?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.writes_database;
+assert.equal(writesDatabaseSchema?.type, "boolean", "OpenAPI writes_database contract must remain boolean");
+assert.deepEqual(writesDatabaseSchema?.enum, [false], "OpenAPI must declare no DB write");
+
 assert(releaseReadiness.includes("263_sprint68_ads_governance_snapshot_proposal.sql"), "release readiness must track migration 263");
 assert(releaseReadiness.includes('policy_key: "ads_provider_governance_snapshot_proposal_policy_v1"'), "release readiness must require proposal policy");
 assert(runner.includes("263_sprint68_ads_governance_snapshot_proposal.sql"), "governed migration runner must allowlist migration 263");

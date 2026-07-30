@@ -11,7 +11,7 @@ import {
 
 const AGENT_VERSION = "2026.05.28.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(MODULE_DIR, "..");
+const ROOT = path.resolve(MODULE_DIR, "../..");
 const CONNECTOR_PORT = 7070;
 
 const FILES = {
