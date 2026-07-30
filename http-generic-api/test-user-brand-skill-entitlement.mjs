@@ -17,7 +17,7 @@ const action = {
   allowed_governance_levels: "",
 };
 
-function buildPool({ policy = null, grants = [] } = {}) {
+function buildPool({ policy = null, grants = [], entitlementError = false } = {}) {
   return {
     async query(sql, params = []) {
       const text = String(sql).replace(/\s+/g, " ");
@@ -25,7 +25,14 @@ function buildPool({ policy = null, grants = [] } = {}) {
       if (text.includes(" FROM v_effective_agent_skill_grants ")) {
         return [[{ skill_key: "api.wordpress_write", grant_id: "agent-skill-grant-1" }]];
       }
-      if (text.includes(" FROM brand_skill_policies p ")) return [[policy].filter(Boolean)];
+      if (text.includes(" FROM brand_skill_policies p ")) {
+        if (entitlementError) {
+          const error = new Error("simulated entitlement query failure");
+          error.code = "ER_QUERY_INTERRUPTED";
+          throw error;
+        }
+        return [[policy].filter(Boolean)];
+      }
       if (text.includes(" FROM v_effective_user_brand_skill_grants ")) {
         const [tenantId, userId, brandKey, agentId, skillKey, operation, resourceType, resourceRef] = params;
         const match = grants.find((grant) =>
@@ -146,6 +153,24 @@ for (const contextOverride of [
   assert.equal(denied.allowed, false, JSON.stringify(contextOverride));
   assert(denied.blockers.includes("user_brand_skill_grant_missing"));
 }
+
+const resolutionFailure = await authorizeAgentToolCall({
+  tool_name: "wordpress_publish",
+  args: { status: "publish" },
+  context: {
+    agent_id: "content-agent",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    brand_key: "brand-1",
+    resource_type: "site",
+    resource_ref: "site-1",
+  },
+  pool: buildPool({ entitlementError: true }),
+});
+assert.equal(resolutionFailure.allowed, false);
+assert.equal(resolutionFailure.user_brand_skill_grant.configured, true);
+assert.equal(resolutionFailure.user_brand_skill_grant.granted, false);
+assert(resolutionFailure.blockers.includes("user_brand_skill_grant_resolution_failed"));
 
 const disabledPolicy = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",

@@ -199,8 +199,8 @@ export async function authorizeAgentToolCall({
     args,
     action,
   }).catch(() => ({
-    configured: context.enforce_brand_skill_entitlement === true,
-    granted: context.enforce_brand_skill_entitlement !== true,
+    configured: true,
+    granted: false,
     grant_id: null,
     operation: null,
     reason: "user_brand_skill_grant_resolution_failed",
