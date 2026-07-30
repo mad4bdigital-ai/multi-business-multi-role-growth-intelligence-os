@@ -291,6 +291,15 @@ export function createSubjectScopeDelegationResolverService({
       );
     }
 
+    const requestIndicatesDelegation =
+      principalType === "delegated_agent" || requested.subjectRef !== principalRef;
+    if (requestIndicatesDelegation && !delegationRef) {
+      fail(
+        "subject_delegation_context_required",
+        "Delegated subject resolution requires delegation context.",
+      );
+    }
+
     const subjectScope = await subjectScopeRepository.findSubjectScope({
       subjectType: requested.subjectType,
       subjectRef: requested.subjectRef,
@@ -315,10 +324,7 @@ export function createSubjectScopeDelegationResolverService({
       record: subjectScope,
     });
 
-    const requiresDelegation =
-      Boolean(delegationRef) ||
-      principalType === "delegated_agent" ||
-      authoritativeSubject.subjectRef !== principalRef;
+    const requiresDelegation = Boolean(delegationRef) || requestIndicatesDelegation;
 
     let delegationContext = null;
     let delegationDecision = null;
@@ -334,12 +340,6 @@ export function createSubjectScopeDelegationResolverService({
       }
       effectiveSubject = createEffectiveSubject(authoritativeSubject);
     } else {
-      if (!delegationRef) {
-        fail(
-          "subject_delegation_context_required",
-          "Delegated subject resolution requires delegation context.",
-        );
-      }
       if (subjectScope.delegationAllowed === false) {
         fail(
           "subject_delegation_not_allowed",
