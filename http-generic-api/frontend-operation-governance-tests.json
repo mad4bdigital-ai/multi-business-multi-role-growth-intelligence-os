@@ -10,6 +10,10 @@
       "evidence_scope": "canary-closeout-transaction"
     },
     {
+      "file": "test-frontend-operation-governance-generator.mjs",
+      "evidence_scope": "canary-promotion-rollback-closeout-transactions"
+    },
+    {
       "file": "test-tenant-connect-bootstrap-transaction.mjs",
       "evidence_scope": "tenant-connect-bootstrap-transaction"
     }
