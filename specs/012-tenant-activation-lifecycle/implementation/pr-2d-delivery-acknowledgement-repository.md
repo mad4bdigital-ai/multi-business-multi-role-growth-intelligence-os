@@ -38,9 +38,10 @@ Acknowledgement reads expose only:
 - actor type and actor-reference digest;
 - acknowledgement-key digest;
 - acknowledgement state;
+- terminal acknowledgement timestamp;
 - timestamps.
 
-They do not expose the raw actor reference or free-form acknowledgement reason.
+They do not expose the raw actor reference or free-form acknowledgement reason. A `pending` acknowledgement projects `acknowledged_at` as `NULL` so its creation timestamp cannot be mistaken for terminal acknowledgement evidence.
 
 ## Concurrency and idempotency
 
@@ -74,6 +75,7 @@ The test proves:
 - initial states are enforced;
 - raw actor references are not persisted;
 - free-form error and reason fields are omitted from reads;
+- pending acknowledgement reads mask `acknowledged_at` as `NULL`;
 - exact tenant/operation identity is present in every read and transition;
 - service reservation and insert share the exact same connection;
 - caller-supplied attempt numbers and terminal initial states are overridden or rejected;
