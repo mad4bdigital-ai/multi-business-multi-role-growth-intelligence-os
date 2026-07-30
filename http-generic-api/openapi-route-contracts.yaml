@@ -1,4 +1,5 @@
 # Canonical precise route contracts consumed by the governed OpenAPI maintenance sync.
+# Temporary Surface Phase A generated-evidence refresh trigger; remove after repository-authority regeneration.
 contracts:
   POST /admin/container-authority/override-governance-smokes:
     route_file: 'routes/dynamicContainerOverrideGovernanceSmokeRoutes.js'
