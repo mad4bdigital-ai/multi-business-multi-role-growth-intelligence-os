@@ -34,6 +34,32 @@ function normalizedOperationList(value) {
   return [...new Set(parseArray(value).map((item) => safeText(item, 64).toLowerCase()).filter(Boolean))];
 }
 
+function resolveUniqueCandidate(value, {
+  allowMissing = false,
+  notFoundStatus = 404,
+  notFoundCode = "BRAND_SKILL_CANDIDATE_REQUIRED",
+  notFoundMessage = "A required Brand skill candidate was not found.",
+  ambiguousCode = "BRAND_SKILL_CANDIDATE_AMBIGUOUS",
+  ambiguousMessage = "Multiple Brand skill candidates matched a scope that must be unique.",
+  details = null,
+} = {}) {
+  const candidateSet = Array.isArray(value) ? value : [];
+  if (candidateSet.length > 1) {
+    throw httpError(409, ambiguousCode, ambiguousMessage, details);
+  }
+  const [resolved] = candidateSet;
+  if (!resolved && !allowMissing) {
+    throw httpError(notFoundStatus, notFoundCode, notFoundMessage, details);
+  }
+  return resolved || null;
+}
+
+function selectRankedCandidate(value) {
+  const candidateSet = Array.isArray(value) ? value : [];
+  const [resolved] = candidateSet;
+  return resolved || null;
+}
+
 export function normalizeRequestedOperations(value) {
   const source = Array.isArray(value) ? value : value ? [value] : [];
   const normalized = [...new Set(source.map((item) => safeText(item, 64).toLowerCase()).filter(Boolean))];
@@ -102,15 +128,22 @@ async function resolveMembership(connection, tenantId, userId) {
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.user_id = ? AND m.tenant_id = ?
-      LIMIT 1
+      LIMIT 2
       FOR UPDATE`,
     [userId, tenantId],
   );
-  const row = rows[0] || null;
-  if (!row || row.status !== "active" || row.tenant_status !== "active") {
+  const membership = resolveUniqueCandidate(rows, {
+    notFoundStatus: 403,
+    notFoundCode: "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED",
+    notFoundMessage: "Active tenant membership is required.",
+    ambiguousCode: "BRAND_SKILL_MEMBERSHIP_AMBIGUOUS",
+    ambiguousMessage: "Multiple tenant memberships matched the signed-in user and tenant.",
+    details: { tenant_id: tenantId, user_id: userId },
+  });
+  if (membership.status !== "active" || membership.tenant_status !== "active") {
     throw httpError(403, "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED", "Active tenant membership is required.");
   }
-  return row;
+  return membership;
 }
 
 async function resolveWorkspace(connection, tenantId, brandKey) {
@@ -120,11 +153,10 @@ async function resolveWorkspace(connection, tenantId, brandKey) {
       WHERE tenant_id = ?
         AND workspace_type = 'brand'
         AND linked_brand_key = ?
-      ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC
-      LIMIT 1`,
+      ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC, workspace_id ASC`,
     [tenantId, brandKey],
   );
-  return rows[0] || null;
+  return selectRankedCandidate(rows);
 }
 
 async function verifyExplicitResourceBrandBinding(connection, {
@@ -172,7 +204,7 @@ async function verifyExplicitResourceBrandBinding(connection, {
               AND (workspace_id = ? OR workspace_key = ?)
               AND linked_brand_key = ?
               AND bootstrap_status NOT IN ('failed','archived')
-            LIMIT 1
+            LIMIT 2
             FOR UPDATE`;
     params = [tenantId, requestedResourceRef, requestedResourceRef, brandKey];
   } else if (requestedResourceType === "asset") {
@@ -182,7 +214,7 @@ async function verifyExplicitResourceBrandBinding(connection, {
               AND (asset_id = ? OR asset_ref = ?)
               AND brand_ref = ?
               AND lifecycle_status = 'active'
-            LIMIT 1
+            LIMIT 2
             FOR UPDATE`;
     params = [tenantId, requestedResourceRef, requestedResourceRef, brandKey];
   } else {
@@ -191,20 +223,20 @@ async function verifyExplicitResourceBrandBinding(connection, {
             WHERE (site_id = ? OR app_key = ? OR normalized_domain = ? OR site_url = ?)
               AND canonical_target_key = ?
               AND LOWER(COALESCE(platform_status, 'active')) NOT IN ('archived','disabled','inactive')
-            LIMIT 1
+            LIMIT 2
             FOR UPDATE`;
     params = [requestedResourceRef, requestedResourceRef, requestedResourceRef, requestedResourceRef, brandKey];
   }
 
   const [rows] = await connection.query(sql, params);
-  if (!rows[0]) {
-    throw httpError(
-      403,
-      "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
-      "The requested resource is not registered as part of the selected brand.",
-      { brand_key: brandKey, resource_type: requestedResourceType, resource_ref: requestedResourceRef },
-    );
-  }
+  resolveUniqueCandidate(rows, {
+    notFoundStatus: 403,
+    notFoundCode: "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
+    notFoundMessage: "The requested resource is not registered as part of the selected brand.",
+    ambiguousCode: "BRAND_SKILL_RESOURCE_BRAND_AMBIGUOUS",
+    ambiguousMessage: "The requested resource reference matches multiple resources for the selected brand.",
+    details: { brand_key: brandKey, resource_type: requestedResourceType, resource_ref: requestedResourceRef },
+  });
   return { resource_type: requestedResourceType, resource_ref: requestedResourceRef, brand_key: brandKey };
 }
 
@@ -241,13 +273,17 @@ async function resolveResourceAuthority(connection, {
         AND status = 'active'
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
         AND ${scopeClause}
-      ORDER BY FIELD(permission, 'owner','admin','manage','operate','edit','comment','view')
-      LIMIT 1
+      ORDER BY
+        FIELD(permission, 'owner','admin','manage','operate','edit','comment','view'),
+        (resource_type = 'brand') DESC,
+        resource_ref ASC,
+        grant_id ASC
       FOR UPDATE`,
     params,
   );
 
-  if (!rows[0]) {
+  const authority = selectRankedCandidate(rows);
+  if (!authority) {
     throw httpError(
       403,
       "BRAND_SKILL_RESOURCE_GRANT_REQUIRED",
@@ -259,7 +295,7 @@ async function resolveResourceAuthority(connection, {
       },
     );
   }
-  return rows[0];
+  return authority;
 }
 
 async function resolveSkillAndAgent(connection, { tenantId, brandKey, skillKey, agentId }) {
@@ -275,18 +311,22 @@ async function resolveSkillAndAgent(connection, { tenantId, brandKey, skillKey, 
         AND (g.brand_key IS NULL OR g.brand_key = ?)
       WHERE s.skill_key = ?
         AND s.status = 'active'
-      LIMIT 1
+      ORDER BY
+        (g.tenant_id = ?) DESC,
+        (g.brand_key = ?) DESC,
+        g.grant_id ASC
       FOR UPDATE`,
-    [agentId, tenantId, brandKey, skillKey],
+    [agentId, tenantId, brandKey, skillKey, tenantId, brandKey],
   );
-  if (!rows[0]) {
+  const skill = selectRankedCandidate(rows);
+  if (!skill) {
     throw httpError(
       403,
       "BRAND_SKILL_AGENT_GRANT_REQUIRED",
       "The selected agent does not have an effective grant for this skill and brand.",
     );
   }
-  return rows[0];
+  return skill;
 }
 
 async function resolvePolicy(connection, { tenantId, brandKey, skillId }) {
@@ -296,18 +336,18 @@ async function resolvePolicy(connection, { tenantId, brandKey, skillId }) {
             constraints_json, status
        FROM brand_skill_policies
       WHERE tenant_id = ? AND brand_key = ? AND skill_id = ? AND status = 'active'
-      LIMIT 1
+      LIMIT 2
       FOR UPDATE`,
     [tenantId, brandKey, skillId],
   );
-  if (!rows[0]) {
-    throw httpError(
-      403,
-      "BRAND_SKILL_POLICY_REQUIRED",
-      "This skill is not enabled for self-service activation on the selected brand.",
-    );
-  }
-  return rows[0];
+  return resolveUniqueCandidate(rows, {
+    notFoundStatus: 403,
+    notFoundCode: "BRAND_SKILL_POLICY_REQUIRED",
+    notFoundMessage: "This skill is not enabled for self-service activation on the selected brand.",
+    ambiguousCode: "BRAND_SKILL_POLICY_AMBIGUOUS",
+    ambiguousMessage: "Multiple active Brand skill policies matched the selected Brand and skill.",
+    details: { tenant_id: tenantId, brand_key: brandKey, skill_id: skillId },
+  });
 }
 
 function validatePolicy(policy, { membershipRole, agentId, operations }) {
@@ -375,10 +415,15 @@ async function loadGrantReadback(connection, grantId) {
             expires_at, provenance_type, provenance_ref, status
        FROM v_effective_user_brand_skill_grants
       WHERE grant_id = ?
-      LIMIT 1`,
+      LIMIT 2`,
     [grantId],
   );
-  return rows[0] || null;
+  return resolveUniqueCandidate(rows, {
+    allowMissing: true,
+    ambiguousCode: "BRAND_SKILL_GRANT_READBACK_AMBIGUOUS",
+    ambiguousMessage: "Multiple effective grant rows matched one grant identifier.",
+    details: { grant_id: grantId },
+  });
 }
 
 export function mergeOperationsUnderPolicy(existingOperations, requestedOperations, policyOperations) {
@@ -482,7 +527,7 @@ export async function activateBrandSkillForUser({
           AND COALESCE(resource_ref, '') = COALESCE(?, '')
           AND status = 'active'
           AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-        LIMIT 1
+        LIMIT 2
         FOR UPDATE`,
       [
         normalizedTenantId,
@@ -495,7 +540,20 @@ export async function activateBrandSkillForUser({
       ],
     );
 
-    const existing = existingRows[0] || null;
+    const existing = resolveUniqueCandidate(existingRows, {
+      allowMissing: true,
+      ambiguousCode: "BRAND_SKILL_GRANT_SCOPE_AMBIGUOUS",
+      ambiguousMessage: "Multiple active user Brand skill grants matched the same governed scope.",
+      details: {
+        tenant_id: normalizedTenantId,
+        user_id: userId,
+        brand_key: normalizedBrandKey,
+        agent_id: normalizedAgentId,
+        skill_id: skill.skill_id,
+        resource_type: authority.resource_type,
+        resource_ref: authority.resource_ref,
+      },
+    });
     if (existing) {
       const existingOperations = normalizedOperationList(existing.allowed_operations_json);
       const operationsCovered = operationsAllowed(operations, existingOperations);
@@ -699,6 +757,8 @@ export const _testingBrandSkillActivationService = {
   BRAND_RESOLVABLE_RESOURCE_TYPES,
   safeText,
   parseArray,
+  resolveUniqueCandidate,
+  selectRankedCandidate,
   normalizeRequestedOperations,
   operationsAllowed,
   normalizeTtlHours,
