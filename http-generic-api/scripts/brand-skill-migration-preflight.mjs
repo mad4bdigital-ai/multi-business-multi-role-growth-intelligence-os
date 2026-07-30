@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import { getPool } from "../db.js";
+import { assessBrandSkillMigrationPreflight } from "../brandSkillMigrationPreflight.js";
+
+const pool = getPool();
+let report;
+try {
+  report = await assessBrandSkillMigrationPreflight({ pool });
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  if (!report.ready) process.exitCode = 1;
+} catch (error) {
+  report = {
+    ok: false,
+    ready: false,
+    status: "fail",
+    mode: "read_only_preflight",
+    applies_sql: false,
+    error: {
+      code: error?.code || "BRAND_SKILL_MIGRATION_PREFLIGHT_FAILED",
+      message: error?.message || "Brand skill migration preflight failed.",
+    },
+    provider_calls: false,
+    external_writes: false,
+    secrets_included: false,
+  };
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  process.exitCode = 1;
+} finally {
+  if (typeof pool?.end === "function") await pool.end();
+}
