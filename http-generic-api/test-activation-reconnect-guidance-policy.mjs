@@ -193,13 +193,10 @@ for (const runtimeFile of [
   );
 }
 
-const classificationSuite = fs.readFileSync(
-  path.join(__dirname, "test-activation-classification.mjs"),
+const ci = fs.readFileSync(
+  path.join(__dirname, "..", ".github", "workflows", "ci.yml"),
   "utf8",
 );
-assert.match(
-  classificationSuite,
-  /import "\.\/test-activation-reconnect-guidance-policy\.mjs";/,
-);
+assert.match(ci, /node test-activation-reconnect-guidance-policy\.mjs/);
 
 console.log("activation reconnect guidance policy tests passed");
