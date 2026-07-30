@@ -1,0 +1,319 @@
+name: PR 3247 human review fixes
+
+on:
+  push:
+    branches:
+      - gpt/response-chunk-ownership-a23e0076
+    paths:
+      - .github/workflows/pr3247-human-review-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-review-fixes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/response-chunk-ownership-a23e0076
+          fetch-depth: 0
+
+      - name: Apply bounded review fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one match in {path}, found {text.count(old)}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "http-generic-api/governedToolResponseChunkOwnership.js",
+              '''export function governedResponseChunkRowHasOwner(row = {}) {
+            return Boolean(
+              text(row.owner_tenant_id)
+              || text(row.owner_user_id)
+              || text(row.owner_principal_type)
+              || text(row.owner_principal_id),
+            );
+          }
+          ''',
+              '''export function governedResponseChunkRowHasOwner(row = {}) {
+            return Boolean(
+              text(row.owner_tenant_id)
+              || text(row.owner_user_id)
+              || text(row.owner_workspace_id)
+              || text(row.owner_principal_type)
+              || text(row.owner_principal_id),
+            );
+          }
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/governedToolResponseChunkOwnership.js",
+              '''    && text(row.owner_tenant_id) === text(principal.owner_tenant_id)
+              && text(row.owner_user_id) === text(principal.owner_user_id)
+              && text(row.owner_principal_id) === text(principal.owner_principal_id);
+          ''',
+              '''    && text(row.owner_tenant_id) === text(principal.owner_tenant_id)
+              && text(row.owner_user_id) === text(principal.owner_user_id)
+              && text(row.owner_workspace_id) === text(principal.owner_workspace_id)
+              && text(row.owner_principal_id) === text(principal.owner_principal_id);
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/governedToolResponseChunkStore.js",
+              '''  const writeAllowed = `(VALUES(owner_principal_type) IN ('admin','backend_service','trusted_internal') OR (
+              owner_tenant_id <=> VALUES(owner_tenant_id)
+              AND owner_user_id <=> VALUES(owner_user_id)
+              AND owner_principal_type <=> VALUES(owner_principal_type)
+              AND owner_principal_id <=> VALUES(owner_principal_id)
+            ))`;
+          ''',
+              '''  const existingOwnerless = `(owner_tenant_id IS NULL
+              AND owner_user_id IS NULL
+              AND owner_workspace_id IS NULL
+              AND owner_principal_type IS NULL
+              AND owner_principal_id IS NULL)`;
+            const incomingPrivileged = `(VALUES(owner_principal_type) IN ('admin','backend_service','trusted_internal'))`;
+            const sameOwner = `(owner_tenant_id <=> VALUES(owner_tenant_id)
+              AND owner_user_id <=> VALUES(owner_user_id)
+              AND owner_workspace_id <=> VALUES(owner_workspace_id)
+              AND owner_principal_type <=> VALUES(owner_principal_type)
+              AND owner_principal_id <=> VALUES(owner_principal_id))`;
+            const writeAllowed = `(${sameOwner} OR (${existingOwnerless} AND ${incomingPrivileged}))`;
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/governedToolResponseChunkStore.js",
+              '''            owner_tenant_id <=> ?
+                    AND owner_user_id <=> ?
+                    AND owner_principal_type <=> ?
+                    AND owner_principal_id <=> ?
+                  ))`,
+          ''',
+              '''            owner_tenant_id <=> ?
+                    AND owner_user_id <=> ?
+                    AND owner_workspace_id <=> ?
+                    AND owner_principal_type <=> ?
+                    AND owner_principal_id <=> ?
+                  ))`,
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/governedToolResponseChunkStore.js",
+              '''        owner.owner_tenant_id,
+                  owner.owner_user_id,
+                  owner.owner_principal_type,
+                  owner.owner_principal_id,
+          ''',
+              '''        owner.owner_tenant_id,
+                  owner.owner_user_id,
+                  owner.owner_workspace_id,
+                  owner.owner_principal_type,
+                  owner.owner_principal_id,
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/migrations/20260728_governed_response_chunk_ownership.sql",
+              '''      SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'governed_tool_response_chunks'
+                  AND index_name IN (
+          ''',
+              '''      SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'governed_tool_response_chunks'
+                  AND index_name IN (
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''import assert from "node:assert/strict";
+          ''',
+              '''import assert from "node:assert/strict";
+          import { readFile } from "node:fs/promises";
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''const PRIVILEGED_TYPES = new Set(["admin", "backend_service", "trusted_internal"]);
+
+          function sameOwner(row, incoming) {
+            return row.owner_tenant_id === incoming.owner_tenant_id
+              && row.owner_user_id === incoming.owner_user_id
+              && row.owner_principal_type === incoming.owner_principal_type
+              && row.owner_principal_id === incoming.owner_principal_id;
+          }
+          ''',
+              '''const PRIVILEGED_TYPES = new Set(["admin", "backend_service", "trusted_internal"]);
+
+          function governedRowHasOwner(row = {}) {
+            return Boolean(
+              row.owner_tenant_id
+              || row.owner_user_id
+              || row.owner_workspace_id
+              || row.owner_principal_type
+              || row.owner_principal_id
+            );
+          }
+
+          function sameOwner(row, incoming) {
+            return row.owner_tenant_id === incoming.owner_tenant_id
+              && row.owner_user_id === incoming.owner_user_id
+              && row.owner_workspace_id === incoming.owner_workspace_id
+              && row.owner_principal_type === incoming.owner_principal_type
+              && row.owner_principal_id === incoming.owner_principal_id;
+          }
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''        if (PRIVILEGED_TYPES.has(ownerPrincipalType) || sameOwner(existing, incoming)) {
+          ''',
+              '''        if (sameOwner(existing, incoming) || (!governedRowHasOwner(existing) && PRIVILEGED_TYPES.has(ownerPrincipalType))) {
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''        const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerPrincipalType, ownerPrincipalId] = params;
+          ''',
+              '''        const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerWorkspaceId, ownerPrincipalType, ownerPrincipalId] = params;
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''          owner_tenant_id: ownerTenantId,
+                    owner_user_id: ownerUserId,
+                    owner_principal_type: ownerPrincipalType,
+          ''',
+              '''          owner_tenant_id: ownerTenantId,
+                    owner_user_id: ownerUserId,
+                    owner_workspace_id: ownerWorkspaceId,
+                    owner_principal_type: ownerPrincipalType,
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''const tenantA = { tenant_id: "tenant-a", user_id: "user-a", workspace_id: "workspace-a" };
+          const tenantB = { tenant_id: "tenant-b", user_id: "user-b", workspace_id: "workspace-b" };
+          ''',
+              '''const tenantA = { tenant_id: "tenant-a", user_id: "user-a", workspace_id: "workspace-a" };
+          const tenantAOtherWorkspace = { tenant_id: "tenant-a", user_id: "user-a", workspace_id: "workspace-b" };
+          const tenantB = { tenant_id: "tenant-b", user_id: "user-b", workspace_id: "workspace-b" };
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { pool, now: now + 1000 });
+          assert.equal(crossTenantLoad, null, "cross-tenant durable reads must be indistinguishable from missing chunks");
+          ''',
+              '''const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { pool, now: now + 1000 });
+          assert.equal(crossTenantLoad, null, "cross-tenant durable reads must be indistinguishable from missing chunks");
+          const crossWorkspaceLoad = await loadGovernedToolResponseChunk(
+            { chunk_id: chunkId, auth: tenantAOtherWorkspace },
+            { pool, now: now + 1000 },
+          );
+          assert.equal(crossWorkspaceLoad, null, "cross-workspace durable reads must be indistinguishable from missing chunks");
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''assert.equal(unauthorizedExtend.extended, false);
+          assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), beforeUnauthorizedExtend);
+          ''',
+              '''assert.equal(unauthorizedExtend.extended, false);
+          assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), beforeUnauthorizedExtend);
+          const unauthorizedWorkspaceExtend = await extendGovernedToolResponseChunkExpiry(
+            { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantAOtherWorkspace },
+            { pool, now: now + 2000 },
+          );
+          assert.equal(unauthorizedWorkspaceExtend.extended, false);
+          assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), beforeUnauthorizedExtend);
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''assert.equal(pool.rows.get(chunkId).response_json, serialized, "cross-tenant overwrite must not mutate the stored response");
+
+          await extendGovernedToolResponseChunkExpiry(
+          ''',
+              '''assert.equal(pool.rows.get(chunkId).response_json, serialized, "cross-tenant overwrite must not mutate the stored response");
+          await assert.rejects(
+            persistGovernedToolResponseChunk({
+              chunk_id: chunkId,
+              serialized: JSON.stringify({ admin_overwrite: true }),
+              ttl_ms: 300000,
+              auth: admin,
+            }, { pool, now: now + 3000 }),
+            (err) => err.code === "response_chunk_not_found" && err.status === 404,
+          );
+          assert.equal(pool.rows.get(chunkId).response_json, serialized, "privileged principals must not overwrite another owner's response");
+
+          await extendGovernedToolResponseChunkExpiry(
+          ''',
+          )
+
+          replace_once(
+              "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+              '''console.log("governed tool response chunk store ownership tests passed");
+          ''',
+              '''const migrationSql = await readFile(
+            new URL("./migrations/20260728_governed_response_chunk_ownership.sql", import.meta.url),
+            "utf8",
+          );
+          assert.match(
+            migrationSql,
+            /SELECT COUNT\(DISTINCT index_name\) FROM information_schema\.statistics/,
+            "migration readiness must count distinct composite index names rather than index-column rows",
+          );
+
+          console.log("governed tool response chunk store ownership tests passed");
+          ''',
+          )
+          PY
+
+      - name: Validate focused ownership contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/governedToolResponseChunkOwnership.js
+          node --check http-generic-api/governedToolResponseChunkStore.js
+          node --check http-generic-api/test-governed-tool-response-chunk-store.mjs
+          node http-generic-api/test-governed-tool-response-chunk-store.mjs
+
+      - name: Commit fixes and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git add \
+            http-generic-api/governedToolResponseChunkOwnership.js \
+            http-generic-api/governedToolResponseChunkStore.js \
+            http-generic-api/migrations/20260728_governed_response_chunk_ownership.sql \
+            http-generic-api/test-governed-tool-response-chunk-store.mjs
+          git commit -m "fix: close response chunk ownership review gaps"
+          git rm .github/workflows/pr3247-human-review-fix.yml
+          git commit -m "chore: remove PR 3247 review helper"
+          git push origin HEAD:gpt/response-chunk-ownership-a23e0076
