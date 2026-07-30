@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import "./test-growth-intelligence-platform-brand-container-migration.mjs";
 import {
   _testingBrandSkillActivationService,
   mergeOperationsUnderPolicy,
@@ -104,6 +105,7 @@ assert(entitlement.includes("brand_skill_policies"));
 assert(entitlement.includes("v_effective_user_brand_skill_grants"));
 assert(entitlement.includes("user_brand_skill_grant_missing"));
 assert(entitlement.includes("user_brand_skill_grant_resolution_failed"));
+assert(entitlement.includes("brand_skill_policy_operation_denied"));
 assert(entitlement.includes("enforce_brand_skill_entitlement"));
 
 const openapi = readFileSync(new URL("./openapi/brand-skill-activation.yaml", import.meta.url), "utf8");
