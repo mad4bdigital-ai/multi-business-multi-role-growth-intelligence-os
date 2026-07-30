@@ -19,6 +19,7 @@ export { createPrincipalResolverService } from "./principalResolverService.js";
 export { createProviderConsentService } from "./providerConsentService.js";
 export { createProviderConsentStateCodec } from "./providerConsentStateCodec.js";
 export { createResourceGraphResolverService } from "./resourceGraphResolverService.js";
+export { createShadowAuthorityParityService } from "./shadowAuthorityParityService.js";
 export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
 
