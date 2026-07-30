@@ -131,7 +131,11 @@ export function projectDurableNextAction({ plan = {}, steps = [], blockers = [] 
   const safeBlockers = Array.isArray(blockers) ? blockers : [];
   if (TERMINAL_PLAN_STATUSES.has(status)) return null;
 
-  const awaiting = steps.find((step) => step.status === "awaiting_approval");
+  const awaiting = resolveUnique(
+  steps.filter((step) => step.status === "awaiting_approval"),
+  "durable_execution_approval_candidate_ambiguous",
+  "Multiple execution steps are awaiting approval; no arbitrary candidate may be selected.",
+);
   if (status === "awaiting_approval" || awaiting) {
     return {
       type: "approval_required",
@@ -141,7 +145,11 @@ export function projectDurableNextAction({ plan = {}, steps = [], blockers = [] 
     };
   }
 
-  const failed = steps.find((step) => ["blocked", "failed"].includes(step.status));
+  const failed = resolveUnique(
+  steps.filter((step) => ["blocked", "failed"].includes(step.status)),
+  "durable_execution_repair_candidate_ambiguous",
+  "Multiple execution steps require repair; no arbitrary candidate may be selected.",
+);
   if (status === "blocked" || failed || safeBlockers.length > 0) {
     return {
       type: "repair_required",
@@ -155,7 +163,11 @@ export function projectDurableNextAction({ plan = {}, steps = [], blockers = [] 
   if (status === "paused") return { type: "resume", operation: "resume" };
   if (status === "draft") return { type: "compile", operation: "compile" };
 
-  const ready = steps.find((step) => step.status === "ready");
+  const ready = resolveUnique(
+  steps.filter((step) => step.status === "ready"),
+  "durable_execution_ready_candidate_ambiguous",
+  "Multiple execution steps are ready; no arbitrary candidate may be selected.",
+);
   if (ready) {
     return {
       type: "execute_step",

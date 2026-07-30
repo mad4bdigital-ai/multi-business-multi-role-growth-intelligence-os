@@ -97,6 +97,26 @@ assert.equal(
   "readback_required",
 );
 assert.equal(projectDurableNextAction({ plan: { runtime_status: "completed" } }), null);
+assert.throws(
+  () => projectDurableNextAction({
+    plan: { runtime_status: "executing" },
+    steps: [
+      { plan_step_id: "ready-1", step_key: "one", status: "ready" },
+      { plan_step_id: "ready-2", step_key: "two", status: "ready" },
+    ],
+  }),
+  (error) => error.code === "durable_execution_ready_candidate_ambiguous" && error.status === 409,
+);
+assert.throws(
+  () => projectDurableNextAction({
+    plan: { runtime_status: "awaiting_approval" },
+    steps: [
+      { plan_step_id: "approval-1", step_key: "one", status: "awaiting_approval" },
+      { plan_step_id: "approval-2", step_key: "two", status: "awaiting_approval" },
+    ],
+  }),
+  (error) => error.code === "durable_execution_approval_candidate_ambiguous" && error.status === 409,
+);
 
 const successEvents = [];
 const successPool = createReceiptPool(successEvents);
