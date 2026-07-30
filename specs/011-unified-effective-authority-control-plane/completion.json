@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-unified-effective-authority-control-plane",
+  "title": "Unified Effective Authority Control Plane",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-07-30T10:40:00Z",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "security_review": true,
+    "openapi_3_1": true
+  },
+  "delivery": {
+    "specification_recovery_branch": "gpt/011-ueacp-spec-recovery-20260730",
+    "specification_recovery_pr": 3498,
+    "recovery_source_pr": 2888,
+    "implementation_prs": [
+      {
+        "number": 3351,
+        "status": "closed_unmerged",
+        "role": "superseded_t010_t011_recovery"
+      },
+      {
+        "number": 3471,
+        "status": "merged",
+        "role": "t010_t011_clean_recovery",
+        "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
+        "merge_sha": "0ff39a85661a9552daa52d3a56338a24fe6bf560",
+        "merged_at": "2026-07-30T10:17:40Z"
+      }
+    ],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete_recovered",
+      "scope": "spec_directory_only",
+      "runtime_effect": "none"
+    },
+    "implementation": {
+      "status": "bounded_slices_in_progress",
+      "merged_slices": [
+        "T010_principal_resolver",
+        "T011_subject_scope_and_delegation_resolver"
+      ],
+      "remaining_scope_requires_separate_current_main_prs": true,
+      "full_legacy_branch_not_mergeable_as_unit": true
+    },
+    "implementation_ci": {
+      "status": "pass",
+      "pr": 3471,
+      "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ],
+      "additional_checks": [
+        "Automation Overlap Guard",
+        "Context Kernel Hardcoding Report",
+        "Docs Agent",
+        "Frontend surface dispatch",
+        "HTTP Generic API Fanout Relocation",
+        "Platform Completion Cleanup Readback",
+        "Platform Remaining Scope Scorecard"
+      ]
+    },
+    "historical_snapshots": {
+      "status": "preserved_non_authoritative",
+      "note": "Old branch SHAs, PR state, CI results, and implementation claims in evidence documents are historical and must be revalidated on their clean replacement PRs. PR #3471 is separately recorded as current merged evidence."
+    },
+    "ci": {
+      "status": "pending_after_merged_slice_reconciliation",
+      "scope": "specification_recovery_pr_3498"
+    },
+    "security_review": {
+      "status": "bounded_t010_t011_review_passed_remaining_feature_review_open",
+      "reviewed_pr": 3471,
+      "historical_evidence_preserved": true
+    },
+    "migrations": {
+      "status": "not_executed_by_spec_recovery",
+      "execution_authorized": false,
+      "schema_readback_completed": false
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    },
+    "release_readiness": {
+      "status": "pending_spec_recovery_pr_final_ci_and_merge"
+    },
+    "safety_readback": {
+      "spec_recovery_runtime_behavior_changed": false,
+      "t010_t011_runtime_wiring_enabled": false,
+      "production_runtime_behavior_changed": false,
+      "provider_mutation_allowed": false,
+      "external_write_allowed": false,
+      "credential_payload_read_allowed": false,
+      "migration_execution_authorized": false,
+      "deployment_authorized": false,
+      "production_promotion_authorized": false
+    }
+  },
+  "secrets_included": false,
+  "sensitive_values_included": false
+}
