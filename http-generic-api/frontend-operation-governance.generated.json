@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
-    "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "51095e292227a061e3ef763ed9ce0c5daded868d8376d99017235a8af44ce5e1",
+    "id": "frontend-operation-governance-generator-v2-lease-extension",
+    "source_digest": "c54668ff193e81b8479941f4da43ecd26259bc1150ff454d59d85ae8caf60461",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,17 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "8f557aa4f94810b65db5291f5c6072b733e26d5ac126acfb045edd0280dd2602",
+      "sha256": "447df64d7040254d8e474eabb91ee72085aae2db99f4270e038595ba48513b7c",
+      "present": true
+    },
+    {
+      "file": "repositoryOperationLeaseService.js",
+      "sha256": "4acab442efdb07081e7836f861bd907fc540e978f8566f5275cc24196b695fdb",
+      "present": true
+    },
+    {
+      "file": "repositoryReconciliationLeaseControl.js",
+      "sha256": "da634ae775142d00c7c9ed70da70c8432e91933f313a4caeb50f0793d4931d65",
       "present": true
     },
     {
@@ -27,13 +37,23 @@
       "present": true
     },
     {
+      "file": "routes/repositoryAutomationRoutes.js",
+      "sha256": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+      "present": true
+    },
+    {
       "file": "routes/resourceApiRoutes.js",
       "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "present": true
     },
     {
-      "file": "scripts/frontend-operation-governance-generator.mjs",
+      "file": "scripts/frontend-operation-governance-base.mjs",
       "sha256": "a2659ceed5fa1266a4b8885c32b7a286a2a2c8e5424c7b7b8070d650810f2880",
+      "present": true
+    },
+    {
+      "file": "scripts/frontend-operation-governance-generator.mjs",
+      "sha256": "f604d50e0a311ec22037b5cec19b4f126209c36615aac8351c33ada291410bbc",
       "present": true
     },
     {
@@ -68,7 +88,12 @@
     },
     {
       "file": "test-frontend-operation-governance-generator.mjs",
-      "sha256": "657bbcb703b7484ca8d11c98d09f24b3660614e09ed85fddaed88abff9919c8e",
+      "sha256": "166a9dffbba8b1bf5999359674624c915c83d7a90654307c089a776895541677",
+      "present": true
+    },
+    {
+      "file": "test-repository-reconciliation-lease-control.mjs",
+      "sha256": "83196be1f3b7d569bb94dcce4a93c02771527e2b05aa5f826bdf49cc03b5ffec",
       "present": true
     },
     {
@@ -83,8 +108,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 8,
-    "generated_rule_count": 8,
+    "candidate_count": 9,
+    "generated_rule_count": 9,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -212,7 +237,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "aba9df900d166d2540bab55e60b2165bd2cd325c2a20218966ecd3c7d16542ff",
+        "source_digest": "35cceb6cebf0bbfdb4954a37ce7ce5b1a1e964cf02aadb78f58bf7d68e919596",
         "fail_closed": true
       }
     },
@@ -256,7 +281,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "aba9df900d166d2540bab55e60b2165bd2cd325c2a20218966ecd3c7d16542ff",
+        "source_digest": "35cceb6cebf0bbfdb4954a37ce7ce5b1a1e964cf02aadb78f58bf7d68e919596",
         "fail_closed": true
       }
     },
@@ -301,7 +326,55 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "aba9df900d166d2540bab55e60b2165bd2cd325c2a20218966ecd3c7d16542ff",
+        "source_digest": "35cceb6cebf0bbfdb4954a37ce7ce5b1a1e964cf02aadb78f58bf7d68e919596",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-repository-reconciliation-lease-control-governance",
+      "operation": "POST /admin/repository-automation/reconciliation-lease",
+      "source_file": "routes/repositoryAutomationRoutes.js",
+      "classification": "state_change",
+      "owner": "repository-automation",
+      "rationale": "Acquires, renews, or releases one repository reconciliation lease only after Admin authentication, exact resource and fingerprint capability-envelope binding, apply authorization, and typed confirmation; each durable mutation is verified inside the same SQL transaction before commit and rolls back on mutation or readback failure.",
+      "preflight": {
+        "mode": "capability_envelope_resource_and_fingerprint_binding"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "action": "request.body.action",
+        "capability_envelope_id": "request.body.capability_envelope_id",
+        "repository_owner": "request.body.owner|request.body.repository_owner",
+        "repository_name": "request.body.repo|request.body.repository_name",
+        "branch_name": "request.body.branch|request.body.branch_name",
+        "expected_base_sha": "request.body.expected_base_sha",
+        "expected_branch_sha": "request.body.expected_branch_sha",
+        "lease_id": "response.lease.lease_id",
+        "resource_fingerprint": "response.lease.resource_fingerprint"
+      },
+      "evidence_refs": [
+        "routes/repositoryAutomationRoutes.js",
+        "repositoryReconciliationLeaseControl.js",
+        "repositoryOperationLeaseService.js",
+        "test-repository-reconciliation-lease-control.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "repository-reconciliation-lease-control-v1",
+        "source_digest": "588958578975f184f74a57c711115a88ba9cecc92433dc9d1ab1ea0f358e8fa1",
         "fail_closed": true
       }
     },
