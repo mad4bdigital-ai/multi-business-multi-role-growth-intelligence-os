@@ -192,7 +192,13 @@
     "phase3_delegation_mariadb_readiness_collector",
     "phase3_delegation_mariadb_default_off_runtime_binding",
     "phase3_delegation_mariadb_governed_production_cycle",
-    "phase3_delegation_fixture_identifier_generalization"
+    "phase3_delegation_fixture_identifier_generalization",
+    "phase1_durable_control_runtime",
+    "phase1_guarded_transition_and_terminal_invariants",
+    "phase1_pending_mutation_receipt_before_dispatch",
+    "phase1_unknown_outcome_readback_fail_closed",
+    "phase1_canonical_status_explain_cancel_next_action",
+    "phase1_unique_candidate_resolution_fail_closed"
   ],
   "constraints": [
     "no_provider_call",
@@ -227,5 +233,22 @@
   "phase3_delegation_mariadb_production_migration_applied": false,
   "phase3_delegation_mariadb_production_runtime_authority": false,
   "phase3_delegation_mariadb_deployment_required": false,
-  "phase3_delegation_mariadb_t141_status": "open_pending_governed_lifecycle_mutations"
+  "phase3_delegation_mariadb_t141_status": "open_pending_governed_lifecycle_mutations",
+  "phase1_durable_control_branch": "gpt/spec-011-phase1-durable-control-20260730",
+  "phase1_durable_control_pull_request": 3620,
+  "phase1_durable_control_merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae",
+  "phase1_durable_control_source_main_sha": "e4423dc2af737cb2ae64958ab73611a8e0986d76",
+  "phase1_durable_control_final_ci_head_sha": "c72ebc8cfbff51045a1c04561b22ec157f3238d6",
+  "phase1_durable_control_final_ci_base_sha": "f1d513e592091f818cb6e22979a8dfe8d71948be",
+  "phase1_durable_control_ancestry_reconciliation_head_sha": "34cbba930adcfd5ea3b8fe28694794a3cc05d29d",
+  "phase1_durable_control_ci_run_id": 30582364527,
+  "phase1_durable_control_generated_refresh_run_id": 30582364482,
+  "phase1_durable_control_frontend_dispatch_run_id": 30582364519,
+  "phase1_durable_control_hardcoding_report_run_id": 30582364690,
+  "phase1_durable_control_migration_contract": "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql",
+  "phase1_durable_control_production_migration_applied": false,
+  "phase1_durable_control_production_database_write": false,
+  "phase1_durable_control_production_deployment_performed": false,
+  "phase1_durable_control_production_runtime_verified": false,
+  "phase1_durable_control_tasks_status": "t100_t106_complete_on_main"
 }
