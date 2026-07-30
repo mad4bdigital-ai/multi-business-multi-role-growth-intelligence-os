@@ -111,6 +111,12 @@
         "role": "t020_t021_t023_activation_persistence_repository",
         "status": "merged",
         "merge_sha": "f9baec28296019ad72971364a54acb96b9d2a143"
+      },
+      {
+        "number": 3700,
+        "role": "t022_delivery_and_acknowledgement_repository_services",
+        "status": "merged",
+        "merge_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b"
       }
     ],
     "closeout_pr": {
