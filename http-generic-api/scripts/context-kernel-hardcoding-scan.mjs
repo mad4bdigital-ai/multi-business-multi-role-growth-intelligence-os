@@ -64,6 +64,10 @@ function normalize(value) {
   return value.split(path.sep).join("/");
 }
 
+function normalizeChangedFile(value) {
+  return normalize(String(value || "").trim()).replace(/^\.\//u, "");
+}
+
 function classifyZone(relativePath) {
   const normalized = `/${normalize(relativePath).toLowerCase()}`;
   const basename = path.posix.basename(normalized);
@@ -175,18 +179,29 @@ function scanFile(repositoryRoot, absolutePath) {
   return findings;
 }
 
-function collectFiles(repositoryRoot, config) {
+function changedFileSet(changedFiles) {
+  if (!Array.isArray(changedFiles)) return null;
+  return new Set(changedFiles.map(normalizeChangedFile).filter(Boolean));
+}
+
+function collectFiles(repositoryRoot, config, changedFiles) {
   const extensions = new Set(config.extensions);
+  const changed = changedFileSet(changedFiles);
   const files = [];
   const visit = (absolutePath) => {
     const stat = fs.lstatSync(absolutePath);
     if (stat.isSymbolicLink()) return;
     const relativePath = path.relative(repositoryRoot, absolutePath);
-    const segments = normalize(relativePath).split("/");
+    const normalizedRelativePath = normalize(relativePath);
+    const segments = normalizedRelativePath.split("/");
     if (segments.some((segment) => config.exclude_path_segments.includes(segment))) return;
     if (stat.isDirectory()) {
       for (const entry of fs.readdirSync(absolutePath)) visit(path.join(absolutePath, entry));
-    } else if (stat.isFile() && extensions.has(path.extname(absolutePath).toLowerCase())) {
+    } else if (
+      stat.isFile() &&
+      extensions.has(path.extname(absolutePath).toLowerCase()) &&
+      (!changed || changed.has(normalizedRelativePath))
+    ) {
       files.push(absolutePath);
     }
   };
@@ -204,10 +219,18 @@ function readConfig(configPath) {
   return config;
 }
 
-export function scanRepository({ repositoryRoot = DEFAULT_ROOT, configPath = DEFAULT_CONFIG, config } = {}) {
+export function readChangedFiles(changedFilesPath) {
+  if (!changedFilesPath) return null;
+  return fs.readFileSync(changedFilesPath, "utf8").split(/\r?\n/u).map(normalizeChangedFile).filter(Boolean);
+}
+
+export function scanRepository({ repositoryRoot = DEFAULT_ROOT, configPath = DEFAULT_CONFIG, config, changedFiles } = {}) {
   const root = path.resolve(repositoryRoot);
   const resolvedConfig = config ?? readConfig(configPath);
-  const files = collectFiles(root, resolvedConfig);
+  const normalizedChangedFiles = Array.isArray(changedFiles)
+    ? [...new Set(changedFiles.map(normalizeChangedFile).filter(Boolean))].sort()
+    : null;
+  const files = collectFiles(root, resolvedConfig, normalizedChangedFiles);
   const findings = files
     .flatMap((file) => scanFile(root, file))
     .sort((left, right) => left.path.localeCompare(right.path) || left.line - right.line || left.rule_id.localeCompare(right.rule_id));
@@ -222,6 +245,8 @@ export function scanRepository({ repositoryRoot = DEFAULT_ROOT, configPath = DEF
     schema_version: 1,
     generated_at: new Date().toISOString(),
     mode: resolvedConfig.mode ?? "report_only",
+    scan_scope: normalizedChangedFiles ? "changed_files" : "repository",
+    changed_file_count: normalizedChangedFiles?.length ?? null,
     repository_root: root,
     summary: {
       scanned_files: files.length,
@@ -242,16 +267,17 @@ export function formatReport(report, format = "text") {
   if (format === "github") {
     const annotations = active.map((item) => {
       const command = item.zone === "runtime" ? "warning" : "notice";
-      const title = encodeURIComponent(`Context kernel report-only: ${item.rule_id}`);
+      const title = encodeURIComponent(`Context kernel ${report.mode}: ${item.rule_id}`);
       const message = `${item.message} ${item.remediation}`.replace(/[\r\n]+/g, " ");
       return `::${command} file=${item.path},line=${item.line},col=${item.column},title=${title}::${message}`;
     });
-    annotations.push(`Context kernel scanner: ${report.summary.finding_count} findings across ${report.summary.scanned_files} files (report-only).`);
+    annotations.push(`Context kernel scanner: ${report.summary.finding_count} findings across ${report.summary.scanned_files} files (${report.mode}, ${report.scan_scope}).`);
     return annotations.join("\n");
   }
   return [
     "Context kernel hardcoding scan",
     `Mode: ${report.mode}`,
+    `Scope: ${report.scan_scope}`,
     `Files scanned: ${report.summary.scanned_files}`,
     `Unsuppressed findings: ${report.summary.finding_count}`,
     `Runtime findings: ${report.summary.runtime_finding_count}`,
@@ -262,13 +288,22 @@ export function formatReport(report, format = "text") {
 }
 
 function parseArgs(argv) {
-  const options = { repositoryRoot: DEFAULT_ROOT, configPath: DEFAULT_CONFIG, format: "text", outputPath: "", reportOnly: false, failOn: "" };
+  const options = {
+    repositoryRoot: DEFAULT_ROOT,
+    configPath: DEFAULT_CONFIG,
+    format: "text",
+    outputPath: "",
+    changedFilesPath: "",
+    reportOnly: false,
+    failOn: "",
+  };
   for (const argument of argv) {
     if (argument === "--report-only") options.reportOnly = true;
     else if (argument.startsWith("--root=")) options.repositoryRoot = path.resolve(argument.slice(7));
     else if (argument.startsWith("--config=")) options.configPath = path.resolve(argument.slice(9));
     else if (argument.startsWith("--format=")) options.format = argument.slice(9);
     else if (argument.startsWith("--output=")) options.outputPath = path.resolve(argument.slice(9));
+    else if (argument.startsWith("--changed-files-from=")) options.changedFilesPath = path.resolve(argument.slice(21));
     else if (argument.startsWith("--fail-on=")) options.failOn = argument.slice(10);
     else throw new Error(`Unknown argument: ${argument}`);
   }
@@ -278,7 +313,12 @@ function parseArgs(argv) {
 async function main() {
   try {
     const options = parseArgs(process.argv.slice(2));
-    const report = scanRepository(options);
+    const changedFiles = readChangedFiles(options.changedFilesPath);
+    const report = scanRepository({
+      repositoryRoot: options.repositoryRoot,
+      configPath: options.configPath,
+      changedFiles,
+    });
     if (options.outputPath) {
       fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
       fs.writeFileSync(options.outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
