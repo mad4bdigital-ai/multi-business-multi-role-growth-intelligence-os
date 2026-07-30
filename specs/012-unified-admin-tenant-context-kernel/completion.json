@@ -109,16 +109,23 @@
         "head_sha": "7764845c3785e979b21c73dc76e8cf3edde2abe1",
         "merge_sha": "120aa1e94da37faa5665c357cfdb0afa7b8f0c47",
         "role": "execution_capsule_ec2_source_of_truth_closeout"
+      },
+      {
+        "number": 3815,
+        "status": "merged",
+        "head_sha": "83722b7c9f5fdfc83e3a2c4d1a460ad8d837f14f",
+        "merge_sha": "702893d307dbac2aa350735f75dd38940907a98e",
+        "role": "phase_5_canonical_provider_authorization_state_consolidation"
       }
     ]
   },
   "evidence": {
     "ci": {
-      "status": "persistence_preflight_provider_consent_core_and_execution_capsule_ec2_ci_passed_full_spec_pending",
+      "status": "persistence_preflight_provider_consent_canonical_state_and_execution_capsule_ec2_ci_passed_full_spec_pending",
       "scope": "full_spec_and_hierarchical_connection_ownership_delivery"
     },
     "implementation_ci": {
-      "status": "passed_for_recorded_slices_including_provider_consent_default_off_and_execution_capsule_ec2",
+      "status": "passed_for_recorded_slices_including_canonical_provider_state_and_execution_capsule_ec2",
       "recorded_prs": [
         3178,
         3204,
@@ -134,7 +141,8 @@
         3801,
         3803,
         3808,
-        3829
+        3829,
+        3815
       ],
       "full_spec_status": "pending"
     },
@@ -220,7 +228,7 @@
       "completion_cleanup_readback": "passed",
       "remaining_scope_scorecard": "passed",
       "generated_artifact_refresh": "passed_noop_bounded_write_set",
-      "human_architecture_security_review": "passed_with_release_blocker",
+      "human_architecture_security_review": "passed",
       "review_threads_resolved": true,
       "default_off": true,
       "route_mounted": false,
@@ -234,8 +242,50 @@
       "database_mutated": false,
       "production_deployed": false,
       "secrets_included": false,
-      "canonical_repository_consolidation": "pending_release_blocker",
-      "runtime_blocker": "Consolidate issuance, signed-context claim, claimed-state resume, and atomic completion behind one canonical provider authorization-state repository port; remove or make unreachable every weaker duplicate claim path before any route, worker, provider adapter, or feature flag can use this slice."
+      "canonical_repository_consolidation": "merged_pr_3815",
+      "runtime_blocker": "Migration application and same-cycle readback, authenticated personal/company/brand consent use cases, live authority checks, callback worker handoff, provider code exchange, atomic authorize/reconnect runtime composition, and rollout gates remain pending."
+    },
+    "provider_authorization_state_consolidation": {
+      "status": "merged_default_off_exact_head_ci_passed",
+      "pr_number": 3815,
+      "validated_head_sha": "83722b7c9f5fdfc83e3a2c4d1a460ad8d837f14f",
+      "merge_sha": "702893d307dbac2aa350735f75dd38940907a98e",
+      "ci_run_id": 30581601753,
+      "syntax_check": "passed",
+      "architecture_drift_detection": "passed",
+      "execution_resolver_gate": "passed",
+      "unit_and_integration_tests": "passed",
+      "startup_evidence": "passed",
+      "governance_contract_checks": "passed",
+      "stale_readiness_rejection": "passed",
+      "hardcoding_report": "passed",
+      "frontend_surface_dispatch": "passed",
+      "docs_agent": "passed",
+      "completion_cleanup_readback": "passed",
+      "remaining_scope_scorecard": "passed",
+      "provider_consent_test_log": "context kernel provider consent core tests passed",
+      "consolidation_test_log": "context kernel canonical provider authorization state consolidation tests passed",
+      "review_threads_resolved": true,
+      "human_architecture_security_review": "passed",
+      "single_canonical_repository_port": true,
+      "duplicate_sql_repository_removed": true,
+      "legacy_factory_aliases_canonical_factory": true,
+      "weak_claim_shape_rejected": true,
+      "strict_signed_context_claim_retained": true,
+      "same_cycle_claim_readback_retained": true,
+      "atomic_reconnect_completion_retained": true,
+      "default_off": true,
+      "route_mounted": false,
+      "openapi_operation_added": false,
+      "runtime_authority": false,
+      "provider_called": false,
+      "credential_payload_read": false,
+      "credential_mutated": false,
+      "live_database_contacted": false,
+      "migration_applied": false,
+      "database_mutated": false,
+      "production_deployed": false,
+      "secrets_included": false
     },
     "execution_capsule_ec0": {
       "status": "complete",
@@ -361,9 +411,9 @@
       "status": "pending"
     }
   },
-  "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or connection mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect replacement compares the signed expected connection revision, live connection revision, claimed-state revision, verified claim token, provider identity, owner scope, brand, and provider-account binding; connection mutation, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under fault injection. PR #3483 and PR #3628 delivered the additive persistence artifact and checksum-bound migration preflight without applying the migration. PR #3718 was merged at d05f971c736aeeaa9ac8d451806707c5acc97a54 after exact head 5b8cff835198fcdb7eeae0fdb7c5152c5ad5e2d3 passed CI run 30549148314 and all helper workflows. It adds a non-mounted default-off provider-consent core with HMAC-signed expiring state, hashed nonce and signature persistence, exact owner-scope and reconnect binding validation, and a signed-context atomic claim CAS. The focused regression passed within the full suite. Human review identified a release-blocking temporary split between the new issuance/ingress-claim adapter and the existing provider authorization-state repository that owns resume and reconnect completion. PR #3678, PR #3783, PR #3801, and PR #3803 completed and reconciled the default-off EC1 execution-capsule shadow adapter, exact-once test registration, generator-owned evidence refresh, three-context deterministic parity sample, exact-service rollback, exact-head CI, Human Architecture/Security Review, post-merge source-of-truth, and aggregate completion evidence. PR #3808 and PR #3829 completed the default-off EC2 selected-read pilot for Tenant and Admin projections with exact legacy identity, two of two capsule target matches, exact operations-object rollback, exact-head CI, Human Architecture/Security Review, and post-merge source-of-truth readback. EC1 and EC2 grant no runtime authority and perform no provider call, database write, migration, route/OpenAPI change, deployment, or Production synchronization. The retired dev.mad4b.com environment remains unavailable. Additive persistence application remains separately authorized and requires approved environment identity, exact checksum binding, typed confirmation, ledger, and same-cycle schema readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks remain release blocking.",
+  "notes": "This specification amendment defines hierarchical personal-workspace, company-workspace, and exact brand provider-connection ownership while preserving existing operational workspace_type semantics through a separate workspace_ownership_type dimension. Resolved decisions carry immutable selected connection and owner-scope evidence; unresolved decisions omit selected ownership instead of fabricating it. The context hash binds workspace ownership, owner scope, connection, authorization, and candidate revisions so ownership substitution invalidates pins, plans, approvals, and envelopes. Every authorized connection retains a durable safe provider-account reference or a versioned privacy-preserving providerAccountBindingHash even after credential expiry or revocation. Credential-dependent readiness is blocked until one exact connection, exact execution plan, applicable approval, authority, and non-secret readiness agree. OAuth state uses an issued-to-claimed-to-consumed lifecycle with revision-bound atomic claim before code exchange or connection mutation; every claimed state persists claimedAt, claimRevision, and claimTokenHash so callbacks can resume across workers without weakening the single-claimant guarantee. Reconnect replacement compares the signed expected connection revision, live connection revision, claimed-state revision, verified claim token, provider identity, owner scope, brand, and provider-account binding; connection mutation, provider-account binding update, connection revision advancement, and claimed-to-consumed completion commit atomically or all remain unapplied under fault injection. PR #3483 and PR #3628 delivered the additive persistence artifact and checksum-bound migration preflight without applying the migration. PR #3718 was merged at d05f971c736aeeaa9ac8d451806707c5acc97a54 after exact head 5b8cff835198fcdb7eeae0fdb7c5152c5ad5e2d3 passed CI run 30549148314 and all helper workflows. It adds a non-mounted default-off provider-consent core with HMAC-signed expiring state, hashed nonce and signature persistence, exact owner-scope and reconnect binding validation, and a signed-context atomic claim CAS. PR #3815 was merged at 702893d307dbac2aa350735f75dd38940907a98e after exact head 83722b7c9f5fdfc83e3a2c4d1a460ad8d837f14f passed CI run 30581601753 and all helper workflows. It closes the duplicate-repository release blocker by placing issuance, strict signed-context claim, claimed-state readback, and atomic reconnect completion behind one canonical provider authorization-state repository; the duplicate SQL repository is removed and the legacy factory name is only an alias to the canonical factory. The full suite printed both provider-consent and canonical-consolidation success markers. The slice remains default-off and grants no runtime, provider, credential, database, migration, deployment, or Production authority. PR #3678, PR #3783, PR #3801, and PR #3803 completed and reconciled the default-off EC1 execution-capsule shadow adapter, exact-once test registration, generator-owned evidence refresh, three-context deterministic parity sample, exact-service rollback, exact-head CI, Human Architecture/Security Review, post-merge source-of-truth, and aggregate completion evidence. PR #3808 and PR #3829 completed the default-off EC2 selected-read pilot for Tenant and Admin projections with exact legacy identity, two of two capsule target matches, exact operations-object rollback, exact-head CI, Human Architecture/Security Review, and post-merge source-of-truth readback. EC1 and EC2 grant no runtime authority and perform no provider call, database write, migration, route/OpenAPI change, deployment, or Production synchronization. The retired dev.mad4b.com environment remains unavailable. Additive persistence application remains separately authorized and requires approved environment identity, exact checksum binding, typed confirmation, ledger, and same-cycle schema readback before any dependent OAuth, shadow, read, or write rollout. Exact-owner isolation remains active during rollback. Acceptance scenarios A-29 through A-63 and corresponding traceability/tasks remain release blocking.",
   "implementation_reconciliation": {
-    "status": "recorded_slices_plus_persistence_preflight_provider_consent_core_and_execution_capsule_ec2_source_of_truth_complete",
+    "status": "recorded_slices_plus_canonical_provider_state_and_execution_capsule_ec2_source_of_truth_complete",
     "recorded_prs": [
       3178,
       3204,
@@ -379,10 +429,11 @@
       3801,
       3803,
       3808,
-      3829
+      3829,
+      3815
     ],
     "runtime_authority_granted": false,
-    "remaining_scope": "Consolidate provider authorization-state persistence behind one canonical repository before any runtime mount. Separately authorize an approved-environment live dry-run, migration apply, and same-cycle readback. Authenticated personal/company/brand consent use cases, live authority checks, callback worker handoff, provider code exchange, atomic authorize/reconnect completion integration, context resolution, two-stage readiness, OpenAPI exposure, low-risk reads, governed writes, EC3-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
+    "remaining_scope": "Separately authorize an approved-environment live dry-run, migration apply, and same-cycle readback. Authenticated personal/company/brand consent use cases, live authority checks, callback worker handoff, provider code exchange, atomic authorize/reconnect runtime composition, context resolution, two-stage readiness, OpenAPI exposure, low-risk reads, governed writes, EC3-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
   },
   "secrets_included": false
 }
