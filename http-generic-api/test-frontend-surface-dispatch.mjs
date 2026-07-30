@@ -428,6 +428,22 @@ assert.deepEqual(
   ["verifyInstallerDownloadToken"],
   "the signed download verifier must remain visible on the route that invokes it",
 );
+const semanticHelperOperations = parseRoutesFromFile(`
+  const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
+  const tenantReadHandlers = (handler) => [requireUser, handler];
+  router.get("/admin-only", ...adminOnly, handler);
+  router.get("/tenant-read", ...tenantReadHandlers(handler));
+`, "routes/semanticHelperRoutes.js");
+assert.deepEqual(
+  semanticHelperOperations.find((operation) => operation.signature === "GET /admin-only").route_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "Only-suffixed middleware arrays must preserve backend and admin guards",
+);
+assert.deepEqual(
+  semanticHelperOperations.find((operation) => operation.signature === "GET /tenant-read").route_guards,
+  ["requireUser"],
+  "Handlers-suffixed arrow helpers must preserve tenant authentication guards",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
