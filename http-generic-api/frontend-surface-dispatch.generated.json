@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "395e07ab23504f6b7ee4df33ee3254aba4dd22ccc9283c82d3e3635cd5f643ae",
+    "source_digest": "352c3ac3aa4d82a4236a5261640c3522eca1a94dc618ad05b520cc651f2a2cc9",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
+        "sha256": "30eb1d947b1fcc6fc64cf61f5fc7de83dda4fca7c687a33e2550dfd7892d5776",
         "present": true
       },
       {
@@ -152,6 +152,11 @@
       {
         "file": "openapi/repository-main-moved-trigger.yaml",
         "sha256": "2ca826fcafec1d95075a64cd7fd80fbd7bbad1400de1dad2d9cbde08525de029",
+        "present": true
+      },
+      {
+        "file": "openapi/repository-reconciliation-lease-control.yaml",
+        "sha256": "63f63e2aa308a8bd28307f06b3eb084dfddb9b2a5b2c8c32c82a8560d95ff1c2",
         "present": true
       },
       {
@@ -686,7 +691,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "78d5a043b43e2dff77c512c4b018205e749e9cda3ad89b09a9ace38837f97147",
+        "sha256": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
         "present": true
       },
       {
@@ -931,7 +936,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+        "sha256": "63a967c12f963c58348baff91ece02413b55305d5bcf89130e48c6b7140a23db",
         "present": true
       },
       {
@@ -941,7 +946,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "13be9130ba98d7d289e445fddff1665dbefedd2bc3ea09587779d69b15a21d43",
+        "sha256": "1a1d89919b2efee3675480c1a40652ddaa7ee5b48a771a4675aa003f39f55286",
         "present": true
       },
       {
@@ -1012,6 +1017,11 @@
       {
         "file": "test-repository-automation-control-plane.mjs",
         "sha256": "91cd708eafc3b659f47547948c2b3461bd9e904b2e4ea413bb241d72ae0ce582",
+        "present": true
+      },
+      {
+        "file": "test-repository-reconciliation-lease-control.mjs",
+        "sha256": "83196be1f3b7d569bb94dcce4a93c02771527e2b05aa5f826bdf49cc03b5ffec",
         "present": true
       },
       {
@@ -1144,28 +1154,28 @@
     "mounted_family_count": 167,
     "mounted_route_file_count": 134,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1001,
-    "openapi_documented_count": 985,
-    "openapi_canonical_documented_count": 611,
+    "operation_count": 1002,
+    "openapi_documented_count": 986,
+    "openapi_canonical_documented_count": 612,
     "openapi_generated_index_count": 374,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 374,
     "auth_parity_counts": {
-      "equivalent": 985,
+      "equivalent": 986,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 608,
+    "non_get_candidate_count": 609,
     "unresolved_operation_class_count": 551,
-    "classified_mutation_count": 8,
-    "governed_mutation_operation_count": 8,
+    "classified_mutation_count": 9,
+    "governed_mutation_operation_count": 9,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 152,
     "test_owned_family_count": 6,
     "untested_family_count": 161,
-    "test_owned_operation_count": 54,
+    "test_owned_operation_count": 55,
     "untested_operation_count": 947,
     "ready_task_count": 3,
     "blocked_task_count": 164,
@@ -24348,7 +24358,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "78d5a043b43e2dff77c512c4b018205e749e9cda3ad89b09a9ace38837f97147",
+      "source_digest": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
       "mount_prefix": "/",
       "mount_order": 15658,
       "split_from_mixed_scope_file": false,
@@ -24660,6 +24670,118 @@
           },
           "mutation_candidate": true,
           "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/repository-automation/reconciliation-lease",
+          "signature": "POST /admin/repository-automation/reconciliation-lease",
+          "source_file": "routes/repositoryAutomationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/repository-reconciliation-lease-control.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-repository-reconciliation-lease-control.mjs"
+          ],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_resource_and_fingerprint_binding"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "action": "request.body.action",
+              "capability_envelope_id": "request.body.capability_envelope_id",
+              "repository_owner": "request.body.owner|request.body.repository_owner",
+              "repository_name": "request.body.repo|request.body.repository_name",
+              "branch_name": "request.body.branch|request.body.branch_name",
+              "expected_base_sha": "request.body.expected_base_sha",
+              "expected_branch_sha": "request.body.expected_branch_sha",
+              "lease_id": "response.lease.lease_id",
+              "resource_fingerprint": "response.lease.resource_fingerprint"
+            },
+            "blockers": [],
+            "rule_id": "generated-repository-reconciliation-lease-control-governance",
+            "owner": "repository-automation",
+            "rationale": "Acquires, renews, or releases one repository reconciliation lease only after Admin authentication, exact resource and fingerprint capability-envelope binding, apply authorization, and typed confirmation; each durable mutation is verified inside the same SQL transaction before commit and rolls back on mutation or readback failure.",
+            "evidence_refs": [
+              "repositoryOperationLeaseService.js",
+              "repositoryReconciliationLeaseControl.js",
+              "routes/repositoryAutomationRoutes.js",
+              "test-repository-reconciliation-lease-control.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -24670,7 +24792,8 @@
         "POST /admin/repository-automation/status"
       ],
       "tests": [
-        "test-repository-automation-control-plane.mjs"
+        "test-repository-automation-control-plane.mjs",
+        "test-repository-reconciliation-lease-control.mjs"
       ],
       "untested_operations": [
         "POST /admin/repository-automation/run",
@@ -24688,12 +24811,14 @@
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-repository-automation-control-plane.mjs"
+        "test-repository-automation-control-plane.mjs",
+        "test-repository-reconciliation-lease-control.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -24721,7 +24846,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -87494,7 +87619,9 @@
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87504,12 +87631,14 @@
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-repository-automation-control-plane.mjs"
+        "test-repository-automation-control-plane.mjs",
+        "test-repository-reconciliation-lease-control.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -87517,12 +87646,14 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-repository-automation-control-plane.mjs"
+        "node test-repository-automation-control-plane.mjs",
+        "node test-repository-reconciliation-lease-control.mjs"
       ]
     },
     {
