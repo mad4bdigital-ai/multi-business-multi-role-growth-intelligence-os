@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "extension_key": "spec-011-runtime-composition-performance-closure",
   "parent_spec_key": "011-durable-governed-execution-and-agent-delegation",
-  "status": "draft",
+  "status": "in_progress",
   "specification_authority": true,
   "runtime_authority": false,
   "primary_artifact": "runtime-composition-performance-addendum.md",
@@ -28,16 +28,24 @@
     "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md",
     "../integration-governed-execution-runtime-composition/manifest.json"
   ],
+  "current_phase": "X0_evidence_baseline",
+  "current_slice": {
+    "key": "RC0_instrumentation",
+    "status": "in_progress",
+    "manifest": "x0-evidence-baseline.manifest.json",
+    "primary_artifact": "x0-evidence-baseline.md",
+    "runtime_authority": false
+  },
   "delivery_slices": [
-    "RC0_instrumentation",
-    "RC1_execution_input_shadow",
-    "RC2_unified_in_process_dispatch",
-    "RC3_graph_scheduler",
-    "RC4_approval_frontier",
-    "RC5_ledger_outbox_split",
-    "RC6_fast_lane_mutation",
-    "RC7_durable_lane",
-    "RC8_intent_first_cutover"
+    { "key": "RC0_instrumentation", "status": "in_progress" },
+    { "key": "RC1_execution_input_shadow", "status": "not_started" },
+    { "key": "RC2_unified_in_process_dispatch", "status": "not_started" },
+    { "key": "RC3_graph_scheduler", "status": "not_started" },
+    { "key": "RC4_approval_frontier", "status": "not_started" },
+    { "key": "RC5_ledger_outbox_split", "status": "not_started" },
+    { "key": "RC6_fast_lane_mutation", "status": "not_started" },
+    { "key": "RC7_durable_lane", "status": "not_started" },
+    { "key": "RC8_intent_first_cutover", "status": "not_started" }
   ],
   "constraints": [
     "no_runtime_cutover_from_specification",
