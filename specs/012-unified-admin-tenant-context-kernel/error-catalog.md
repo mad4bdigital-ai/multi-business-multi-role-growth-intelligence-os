@@ -15,6 +15,7 @@ All public errors use the platform structured error envelope and include a reque
 - `INTERPRETATION_REQUIRED`: user selection is required before planning.
 - `TENANT_CONTEXT_STALE`: tenant authority revision changed.
 - `WORKSPACE_CONTEXT_STALE`: workspace membership or binding changed.
+- `BRAND_CONTEXT_STALE`: brand ownership or binding changed.
 - `CONTEXT_REVISION_CONFLICT`: supplied revision does not match current registry state.
 - `CONTEXT_PIN_EXPIRED`: pinned context is no longer reusable.
 - `CROSS_TENANT_CONTEXT_REJECTED`: candidate or resource falls outside the selected tenant.
@@ -23,9 +24,31 @@ All public errors use the platform structured error envelope and include a reque
 
 - `RESOURCE_BINDING_MISSING`: no exact governed resource binding exists.
 - `RESOURCE_CONTEXT_MISMATCH`: resource conflicts with tenant or workspace context.
-- `CONNECTION_AMBIGUOUS`: more than one eligible connection remains.
-- `CONNECTION_CONTEXT_MISMATCH`: connection belongs to a different scope.
+- `CONNECTION_AMBIGUOUS`: more than one equal-ranked eligible connection remains.
+- `CONNECTION_CONTEXT_MISMATCH`: connection belongs to a different context.
+- `CONNECTION_OWNER_MISMATCH`: connection owner does not match the resolved owner scope.
+- `CONNECTION_SCOPE_FORBIDDEN`: connection owner scope is not permitted for the operation.
+- `CONNECTION_INHERITANCE_FORBIDDEN`: policy does not permit inheritance from the candidate scope.
+- `PERSONAL_CONNECTION_REQUIRED`: an eligible effective-user personal connection is required.
+- `WORKSPACE_CONNECTION_REQUIRED`: an eligible exact workspace connection is required.
+- `BRAND_CONNECTION_REQUIRED`: an eligible exact brand connection is required.
+- `CONNECTION_REAUTH_REQUIRED`: provider authorization is expired, revoked, or requires renewed consent.
+- `CONNECTION_PROVIDER_SCOPE_INSUFFICIENT`: granted provider scopes do not satisfy the capability.
 - `CREDENTIAL_SCOPE_MISMATCH`: credential scope does not authorize the exact resource.
+- `CROSS_USER_CONNECTION_REJECTED`: a personal connection belongs to another user.
+- `CROSS_BRAND_CONNECTION_REJECTED`: a brand connection belongs to another brand.
+- `BRAND_WORKSPACE_MISMATCH`: brand does not belong to the resolved workspace.
+- `SILENT_CONNECTION_FALLBACK_FORBIDDEN`: a consequential write attempted to widen from an invalid explicit or more-specific connection.
+
+## Provider consent and OAuth state
+
+- `PROVIDER_CONSENT_REQUIRED`: platform identity is valid but no eligible provider API consent exists.
+- `OAUTH_STATE_INVALID`: provider authorization state is malformed or signature validation failed.
+- `OAUTH_STATE_EXPIRED`: provider authorization state is past its expiry.
+- `OAUTH_STATE_REPLAYED`: single-use authorization state has already been consumed.
+- `OAUTH_STATE_CONTEXT_MISMATCH`: signed state conflicts with live principal, tenant, workspace, brand, membership, or owner scope.
+- `OAUTH_REDIRECT_NOT_ALLOWED`: redirect target is not allowlisted or does not match signed state.
+- `PROVIDER_ACCOUNT_MISMATCH`: returned provider identity conflicts with the approved authorization context.
 
 ## Capability and authority
 
@@ -57,4 +80,4 @@ All public errors use the platform structured error envelope and include a reque
 - `RECONCILIATION_REQUIRED`
 - `DEPENDENCY_TEMPORARILY_UNAVAILABLE`
 
-Raw provider errors are logged internally after redaction and mapped to these stable codes.
+Raw provider errors are logged internally after redaction and mapped to these stable codes. Credential material, refresh tokens, authorization codes, raw state values, and provider secrets never appear in public errors.
