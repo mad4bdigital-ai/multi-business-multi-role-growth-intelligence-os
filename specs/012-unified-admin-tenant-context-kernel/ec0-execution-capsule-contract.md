@@ -2,17 +2,17 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
-Delivery PR: `#3348` on `gpt/spec-012-ec0-clean-9c9b-20260730`.
+Core delivery: PR `#3348`, merge SHA `66d4e5c6c014e124970421f9e3c877a647d2c04e`.
 
-The clean core build completed successfully: the permanent EC0 domain, application, export, standalone-test, and Spec evidence files were copied onto a current baseline; the EC0 and existing Context Kernel domain/application/isolation regressions passed; the latest hardcoding scanner passed; and every one-shot workflow was removed from the delivery diff.
+Repository-wide test registration and generated evidence: PR `#3500`, merge SHA `347af76b8a2c053f4e83b0e76799c98614b2199f`.
 
-Global registration in `scripts/test-manifest.mjs` and its generated frontend evidence are intentionally deferred to a small follow-up PR. This keeps EC0 Core independent from rapidly changing repository-wide generated artifacts without removing the standalone test or weakening coverage.
+The clean EC0 Core delivery contains the permanent domain, application, export, standalone-test, and Spec evidence files. It passed Syntax, Unit & Integration, Architecture Drift Detection, Execution Resolver, Frontend deterministic-output, Context Kernel hardcoding, Remaining Scope Scorecard, Cleanup Readback, Docs Agent, startup/deployment evidence, governance, and stale-readiness checks before expected-head-bound merge.
 
-The eight-file core tree passed Syntax, Unit & Integration, Architecture Drift Detection, Execution Resolver, Frontend deterministic-output, hardcoding, Remaining Scope Scorecard, Cleanup Readback, Docs Agent, startup/deployment evidence, governance, and stale-readiness checks before the final non-overlapping baseline synchronizations. The branch is now synchronized with `main=752c6c1ca7994bb61e9130702bbd8aebf2feb2be` at merge commit `abb980fab108ddebc7b4be2ba11d48eb3e59b0a7`; final merge-tree CI and human review remain required before merge.
+The follow-up delivery registered exactly one `node test-execution-capsule-contract.mjs` command in the canonical repository-wide test manifest, preserved all existing commands, refreshed `frontend-surface-dispatch.generated.json` through repository generator authority, passed the full exact-head CI and side-workflow suite, and completed the documented Human Architecture & Security Review.
 
-EC0 delivers the pure domain/application contract and standalone tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
+EC0 delivers the pure domain/application contract and registered tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
 
 ## Delivered contract
 
@@ -148,12 +148,10 @@ Both projection modes verify canonical capsule integrity before returning fields
 - `executionAllowed=false` for every outcome;
 - removal of raw credentials and authorization material.
 
-The standalone EC0 contract test and existing Context Kernel domain/application/isolation regressions succeeded in bounded reviews. Repository-wide test-manifest registration and generated evidence are pending a separate follow-up delivery.
+The standalone EC0 contract test and existing Context Kernel domain/application/isolation regressions succeeded in bounded reviews. The EC0 test is registered exactly once in the complete platform manifest, its generated evidence is current, and the exact-head CI and Human Architecture & Security Review are complete.
 
 ## Remaining work
 
-- final merge-tree CI and human review for PR `#3348`;
-- complete test-manifest registration and generated evidence refresh in a follow-up PR;
 - EC1 shadow adapter beside legacy resolution;
 - EC2 selected Tenant/Admin read pilot;
 - EC3 read-only unified-dispatch integration;
