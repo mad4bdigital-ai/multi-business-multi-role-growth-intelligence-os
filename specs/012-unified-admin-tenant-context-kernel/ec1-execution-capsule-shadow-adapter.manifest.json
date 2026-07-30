@@ -3,7 +3,7 @@
   "slice_key": "spec-012-ec1-execution-capsule-shadow-adapter",
   "parent_extension": "spec-012-execution-capsule-runtime-integration",
   "phase": "EC1_shadow_adapter",
-  "status": "in_progress",
+  "status": "complete",
   "runtime_authority": false,
   "production_activation": false,
   "provider_call": false,
@@ -53,14 +53,14 @@
     "standalone_composition_test",
     "complete_test_manifest_registration",
     "generated_test_manifest_evidence_refresh",
+    "follow_up_exact_head_ci_evidence",
+    "follow_up_human_architecture_security_review",
     "bounded_contract_review",
     "human_architecture_security_review",
-    "clean_core_build_readback"
+    "clean_core_build_readback",
+    "post_merge_main_readback"
   ],
-  "pending_contracts": [
-    "follow_up_exact_head_ci_evidence",
-    "follow_up_human_architecture_security_review"
-  ],
+  "pending_contracts": [],
   "core_build": {
     "status": "passed",
     "build_run_id": 30542084403,
@@ -92,17 +92,40 @@
     "generator_owned": true,
     "baseline_reconciled_with_main": true
   },
+  "exact_head_certification": {
+    "status": "passed",
+    "pr_number": 3783,
+    "validated_head_sha": "57e649d56698794737d506204eeaeed0b2bd61a3",
+    "merge_sha": "cef4f138645940362c43fe1486a1c7ce7c146ce2",
+    "ci_run_id": 30549932317,
+    "syntax_check": "passed",
+    "architecture_drift_detection": "passed",
+    "execution_resolver_gate": "passed",
+    "unit_and_integration_tests": "passed",
+    "frontend_surface_dispatch_run_id": 30549932350,
+    "frontend_surface_dispatch": "passed",
+    "automation_overlap_guard": "passed",
+    "context_kernel_hardcoding_report": "passed",
+    "docs_agent": "passed",
+    "remaining_scope_scorecard": "passed",
+    "completion_cleanup_readback": "passed",
+    "http_generic_api_fanout": "passed",
+    "custom_gpt_contract_guard": "passed",
+    "review_threads_resolved": true,
+    "human_architecture_security_review": "passed",
+    "main_readback": "passed"
+  },
   "controlled_parity_sample": {
-    "status": "implemented_pending_exact_head_ci",
+    "status": "passed",
     "environment": "deterministic_non_production_in_process",
     "sample_count": 3,
-    "expected_legacy_identity_preserved": 3,
-    "expected_target_matches": 3,
-    "expected_provider_dispatches": 0,
-    "expected_automatic_writes": 0
+    "legacy_identity_preserved": 3,
+    "target_matches": 3,
+    "provider_dispatches": 0,
+    "automatic_writes": 0
   },
   "rollback_evidence": {
-    "status": "implemented_pending_exact_head_ci",
+    "status": "passed",
     "restores_exact_legacy_resolution_service": true,
     "disables_resource_shadow_scheduling": true,
     "provider_dispatch_performed": false,
