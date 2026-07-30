@@ -123,16 +123,37 @@ function defaultWorkspacePermissionForRole(role = "member") {
   return "view";
 }
 
+function requireExactlyOneRow(rows, { code, message, status = 500 }) {
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    throw Object.assign(new Error(message), { status, code, row_count: Array.isArray(rows) ? rows.length : null });
+  }
+  const [row] = rows;
+  return row;
+}
+
 async function ensureWorkspaceMembershipDefaultGrant(connection, { tenantId, userId, role, source, grantedBy }) {
-  const grantId = randomUUID();
+  const candidateGrantId = randomUUID();
   const permission = defaultWorkspacePermissionForRole(role);
   await connection.query(
     `INSERT INTO workspace_resource_grants (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, metadata_json)
      VALUES (?, ?, ?, 'workspace', ?, ?, 'active', ?, ?, JSON_OBJECT('default_workspace_membership_grant', true, 'role', ?))
      ON DUPLICATE KEY UPDATE status='active', permission=VALUES(permission), source=VALUES(source), granted_by=VALUES(granted_by), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
-    [grantId, tenantId, userId, tenantId, permission, source, grantedBy || null, role]
+    [candidateGrantId, tenantId, userId, tenantId, permission, source, grantedBy || null, role]
   );
-  return { grant_id: grantId, permission };
+  const [grantRows] = await connection.query(
+    `SELECT grant_id, permission, status
+       FROM workspace_resource_grants
+      WHERE tenant_id=? AND grantee_user_id=? AND resource_type='workspace' AND resource_ref=? AND status='active'
+      ORDER BY updated_at DESC
+      LIMIT 2`,
+    [tenantId, userId, tenantId]
+  );
+  const grant = requireExactlyOneRow(grantRows, {
+    code: 'workspace_default_grant_readback_invalid',
+    message: 'Default workspace grant readback must resolve exactly one active grant.',
+    status: 409,
+  });
+  return { grant_id: grant.grant_id, permission: grant.permission, status: grant.status };
 }
 
 function fieldCountFromCredentialSchema(value) {
@@ -351,7 +372,9 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create
   router.post("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
       if (!owner) return;
@@ -359,16 +382,40 @@ export function buildTenantLifecycleRoutes() {
       const role = normalizeRole(req.body?.role || "member");
       if (!email || !email.includes("@")) return res.status(400).json({ ok: false, error: { code: "invalid_email", message: "Valid invite email required." }, secrets_included: false });
       const token = randomBytes(32).toString("hex");
-      const invitationId = randomUUID();
-      await getPool().query(
-        `INSERT INTO invitations (invitation_id, tenant_id, email, role, token, status, created_by, expires_at, metadata_json)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 14 DAY), ?)
-         ON DUPLICATE KEY UPDATE role = VALUES(role), status = 'pending', created_by = VALUES(created_by), expires_at = VALUES(expires_at), metadata_json = VALUES(metadata_json)`,
-        [invitationId, req.params.tenant_id, email, role, token, req.auth.user_id, jsonMeta(req.body?.metadata_json)]
+      const candidateInvitationId = randomUUID();
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_invitation_create
+      const [pendingRows] = await connection.query(
+        "SELECT invitation_id FROM invitations WHERE tenant_id=? AND email=? AND status='pending' ORDER BY created_at DESC LIMIT 2 FOR UPDATE",
+        [req.params.tenant_id, email]
       );
-      return res.status(201).json({ ok: true, tenant_id: req.params.tenant_id, invitation: { invitation_id: invitationId, email, role, status: "pending", expires_in_days: 14 }, token, secrets_included: false });
+      if (pendingRows.length > 1) throw Object.assign(new Error("Multiple pending invitations exist for this workspace and email."), { status: 409, code: "workspace_invitation_ambiguous" });
+      const [pendingInvitation] = pendingRows;
+      const invitationId = pendingInvitation?.invitation_id || candidateInvitationId;
+      const created = !pendingInvitation;
+      if (created) {
+        await connection.query(
+          `INSERT INTO invitations (invitation_id, tenant_id, email, role, token, status, created_by, expires_at, metadata_json)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 14 DAY), ?)`,
+          [invitationId, req.params.tenant_id, email, role, token, req.auth.user_id, jsonMeta(req.body?.metadata_json)]
+        );
+      } else {
+        await connection.query(
+          "UPDATE invitations SET role=?, token=?, created_by=?, expires_at=DATE_ADD(NOW(), INTERVAL 14 DAY), metadata_json=?, updated_at=NOW() WHERE invitation_id=? AND tenant_id=? AND status='pending'",
+          [role, token, req.auth.user_id, jsonMeta(req.body?.metadata_json), invitationId, req.params.tenant_id]
+        );
+      }
+      const [readbackRows] = await connection.query(
+        "SELECT invitation_id, tenant_id, email, role, status, expires_at FROM invitations WHERE invitation_id=? AND tenant_id=? LIMIT 2",
+        [invitationId, req.params.tenant_id]
+      );
+      const invitation = requireExactlyOneRow(readbackRows, { code: "workspace_invitation_create_readback_invalid", message: "Invitation creation readback must resolve exactly one invitation.", status: 409 }); // MUTATION_READBACK: workspace_invitation_create
+      await connection.commit();
+      return res.status(created ? 201 : 200).json({ ok: true, created, tenant_id: invitation.tenant_id, invitation: { invitation_id: invitation.invitation_id, email: invitation.email, role: invitation.role, status: invitation.status, expires_at: invitation.expires_at }, token_returned: false, delivery_required: true, secrets_included: false });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_invitation_create_failed", message: err.message }, secrets_included: false });
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitation_create_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 
@@ -434,40 +481,37 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_accept
   router.post("/me/invitations/accept", requireUserJwt, async (req, res) => {
     const token = String(req.body?.token || "").trim();
     if (!token) return res.status(400).json({ ok: false, error: { code: "invitation_token_required", message: "Invitation token required." }, secrets_included: false });
     const connection = await getPool().getConnection();
     try {
-      await connection.beginTransaction();
-      const [userRows] = await connection.query("SELECT user_id, email FROM users WHERE user_id = ? AND status = 'active' LIMIT 1", [req.auth.user_id]);
-      const user = userRows[0];
-      if (!user) throw Object.assign(new Error("User not found."), { status: 404, code: "user_not_found" });
-      const [invRows] = await connection.query("SELECT * FROM invitations WHERE token = ? LIMIT 1 FOR UPDATE", [token]);
-      const invitation = invRows[0];
-      if (!invitation || invitation.status !== "pending") throw Object.assign(new Error("Invitation is not pending."), { status: 404, code: "invitation_not_pending" });
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_invitation_accept
+      const [userRows] = await connection.query("SELECT user_id, email FROM users WHERE user_id = ? AND status = 'active' LIMIT 2", [req.auth.user_id]);
+      const user = requireExactlyOneRow(userRows, { code: "user_not_found", message: "Active user readback must resolve exactly one user.", status: 404 });
+      const [invitationRows] = await connection.query("SELECT * FROM invitations WHERE token = ? LIMIT 2 FOR UPDATE", [token]);
+      const invitation = requireExactlyOneRow(invitationRows, { code: "invitation_not_pending", message: "Invitation token must resolve exactly one invitation.", status: 404 });
+      if (invitation.status !== "pending") throw Object.assign(new Error("Invitation is not pending."), { status: 404, code: "invitation_not_pending" });
       if (new Date(invitation.expires_at).getTime() < Date.now()) throw Object.assign(new Error("Invitation expired."), { status: 410, code: "invitation_expired" });
       if (normalizeEmail(invitation.email) !== normalizeEmail(user.email)) throw Object.assign(new Error("Invitation email does not match signed-in user."), { status: 403, code: "invitation_email_mismatch" });
+      const acceptedRole = normalizeRole(invitation.role);
       await connection.query(
         `INSERT INTO memberships (user_id, tenant_id, role, status)
          VALUES (?, ?, ?, 'active')
          ON DUPLICATE KEY UPDATE role = VALUES(role), status = 'active', updated_at = NOW()`,
-        [req.auth.user_id, invitation.tenant_id, normalizeRole(invitation.role)]
+        [req.auth.user_id, invitation.tenant_id, acceptedRole]
       );
-      const acceptedRole = normalizeRole(invitation.role);
-      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
-        tenantId: invitation.tenant_id,
-        userId: req.auth.user_id,
-        role: acceptedRole,
-        source: "invitation_accept",
-        grantedBy: invitation.created_by || null,
-      });
-      await connection.query("UPDATE invitations SET status='accepted', accepted_by=?, accepted_at=NOW() WHERE invitation_id=?", [req.auth.user_id, invitation.invitation_id]);
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: invitation.tenant_id, userId: req.auth.user_id, role: acceptedRole, source: "invitation_accept", grantedBy: invitation.created_by || null });
+      const [updateResult] = await connection.query("UPDATE invitations SET status='accepted', accepted_by=?, accepted_at=NOW() WHERE invitation_id=? AND status='pending'", [req.auth.user_id, invitation.invitation_id]);
+      if (updateResult.affectedRows !== 1) throw Object.assign(new Error("Invitation acceptance lost its pending state."), { status: 409, code: "invitation_state_changed" });
+      const [acceptedRows] = await connection.query("SELECT invitation_id, tenant_id, role, status, accepted_by, accepted_at FROM invitations WHERE invitation_id=? LIMIT 2", [invitation.invitation_id]);
+      const accepted = requireExactlyOneRow(acceptedRows, { code: "workspace_invitation_accept_readback_invalid", message: "Invitation acceptance readback must resolve exactly one invitation.", status: 409 }); // MUTATION_READBACK: workspace_invitation_accept
       await connection.commit();
-      return res.json({ ok: true, tenant_id: invitation.tenant_id, role: acceptedRole, invitation_id: invitation.invitation_id, status: "accepted", default_workspace_grant: defaultGrant, secrets_included: false });
+      return res.json({ ok: true, tenant_id: accepted.tenant_id, role: acceptedRole, invitation_id: accepted.invitation_id, status: accepted.status, accepted_by: accepted.accepted_by, accepted_at: accepted.accepted_at, default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "invitation_accept_failed", message: err.message }, secrets_included: false });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitation_accept_failed", message: err.message }, secrets_included: false });
     } finally {
       connection.release();
     }
@@ -502,52 +546,39 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
-  router.get("/me/access-requests", requireUserJwt, async (req, res) => {
-    try {
-      const status = String(req.query.status || "all");
-      const [rows] = await getPool().query(
-        `SELECT r.request_id, r.tenant_id, t.display_name AS tenant_display_name, r.requester_user_id, r.requester_email, r.requested_role, r.status, r.reason, r.reviewed_by, r.reviewed_at, r.created_at, r.updated_at
-           FROM workspace_access_requests r
-           LEFT JOIN tenants t ON t.tenant_id = r.tenant_id
-          WHERE r.requester_user_id = ? AND (? = 'all' OR r.status = ?)
-          ORDER BY r.created_at DESC LIMIT 100`,
-        [req.auth.user_id, status, status]
-      );
-      return res.json({ ok: true, access_requests: rows, count: rows.length, secrets_included: false });
-    } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_my_access_requests_list_failed", message: err.message }, secrets_included: false });
-    }
-  });
-
-  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
-    try {
-      const [result] = await getPool().query(
-        "UPDATE workspace_access_requests SET status='cancelled', updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'",
-        [req.params.request_id, req.params.tenant_id, req.auth.user_id]
-      );
-      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), request_id: req.params.request_id, tenant_id: req.params.tenant_id, status: result.affectedRows ? "cancelled" : "not_found", secrets_included: false });
-    } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_cancel_failed", message: err.message }, secrets_included: false });
-    }
-  });
-
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_create
   router.post("/me/workspaces/:tenant_id/access-requests", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
     try {
-      const user = await fetchUser(req.auth.user_id);
-      if (!user || user.status !== "active") return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." }, secrets_included: false });
-      const existing = await fetchMembership(req.auth.user_id, req.params.tenant_id);
-      if (existing?.status === "active") return res.status(409).json({ ok: false, error: { code: "already_member", message: "User is already an active member." }, secrets_included: false });
-      const requestId = randomUUID();
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_create
+      const [userRows] = await connection.query("SELECT user_id, email, status FROM users WHERE user_id=? AND status='active' LIMIT 2", [req.auth.user_id]);
+      const user = requireExactlyOneRow(userRows, { code: "user_not_found", message: "Active user readback must resolve exactly one user.", status: 404 });
+      const [membershipRows] = await connection.query("SELECT user_id, status FROM memberships WHERE user_id=? AND tenant_id=? LIMIT 2 FOR UPDATE", [req.auth.user_id, req.params.tenant_id]);
+      if (membershipRows.some((row) => row.status === "active")) throw Object.assign(new Error("User is already an active member."), { status: 409, code: "already_member" });
       const requestedRole = normalizeRole(req.body?.requested_role || "member");
-      await getPool().query(
-        `INSERT INTO workspace_access_requests (request_id, tenant_id, requester_user_id, requester_email, requested_role, status, reason, metadata_json)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
-         ON DUPLICATE KEY UPDATE requested_role=VALUES(requested_role), reason=VALUES(reason), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
-        [requestId, req.params.tenant_id, req.auth.user_id, normalizeEmail(user.email), requestedRole, req.body?.reason || null, jsonMeta(req.body?.metadata_json)]
-      );
-      return res.status(201).json({ ok: true, request_id: requestId, tenant_id: req.params.tenant_id, requested_role: requestedRole, status: "pending", secrets_included: false });
+      const [pendingRows] = await connection.query("SELECT request_id FROM workspace_access_requests WHERE tenant_id=? AND requester_user_id=? AND status='pending' ORDER BY created_at DESC LIMIT 2 FOR UPDATE", [req.params.tenant_id, req.auth.user_id]);
+      if (pendingRows.length > 1) throw Object.assign(new Error("Multiple pending access requests exist for this workspace and user."), { status: 409, code: "workspace_access_request_ambiguous" });
+      const [pendingRequest] = pendingRows;
+      const requestId = pendingRequest?.request_id || randomUUID();
+      const created = !pendingRequest;
+      if (created) {
+        await connection.query(
+          `INSERT INTO workspace_access_requests (request_id, tenant_id, requester_user_id, requester_email, requested_role, status, reason, metadata_json)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`,
+          [requestId, req.params.tenant_id, req.auth.user_id, normalizeEmail(user.email), requestedRole, req.body?.reason || null, jsonMeta(req.body?.metadata_json)]
+        );
+      } else {
+        await connection.query("UPDATE workspace_access_requests SET requester_email=?, requested_role=?, reason=?, metadata_json=?, updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'", [normalizeEmail(user.email), requestedRole, req.body?.reason || null, jsonMeta(req.body?.metadata_json), requestId, req.params.tenant_id, req.auth.user_id]);
+      }
+      const [readbackRows] = await connection.query("SELECT request_id, tenant_id, requester_user_id, requester_email, requested_role, status, reason, created_at, updated_at FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2", [requestId, req.params.tenant_id]);
+      const request = requireExactlyOneRow(readbackRows, { code: "workspace_access_request_create_readback_invalid", message: "Access request creation readback must resolve exactly one request.", status: 409 }); // MUTATION_READBACK: workspace_access_request_create
+      await connection.commit();
+      return res.status(created ? 201 : 200).json({ ok: true, created, request_id: request.request_id, tenant_id: request.tenant_id, requested_role: request.requested_role, status: request.status, secrets_included: false });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_create_failed", message: err.message }, secrets_included: false });
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_create_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 
@@ -570,15 +601,16 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_approve
   router.post("/me/workspaces/:tenant_id/access-requests/:request_id/approve", requireUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
       if (!owner) return;
-      await connection.beginTransaction();
-      const [rows] = await connection.query("SELECT * FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 1 FOR UPDATE", [req.params.request_id, req.params.tenant_id]);
-      const request = rows[0];
-      if (!request || request.status !== "pending") throw Object.assign(new Error("Access request is not pending."), { status: 404, code: "access_request_not_pending" });
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_approve
+      const [requestRows] = await connection.query("SELECT * FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2 FOR UPDATE", [req.params.request_id, req.params.tenant_id]);
+      const request = requireExactlyOneRow(requestRows, { code: "access_request_not_pending", message: "Access request must resolve exactly one row.", status: 404 });
+      if (request.status !== "pending") throw Object.assign(new Error("Access request is not pending."), { status: 404, code: "access_request_not_pending" });
       const role = normalizeRole(req.body?.role || request.requested_role);
       await connection.query(
         `INSERT INTO memberships (user_id, tenant_id, role, status)
@@ -586,16 +618,13 @@ export function buildTenantLifecycleRoutes() {
          ON DUPLICATE KEY UPDATE role=VALUES(role), status='active', updated_at=NOW()`,
         [request.requester_user_id, req.params.tenant_id, role]
       );
-      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
-        tenantId: req.params.tenant_id,
-        userId: request.requester_user_id,
-        role,
-        source: "access_request_approval",
-        grantedBy: req.auth.user_id,
-      });
-      await connection.query("UPDATE workspace_access_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE request_id=?", [req.auth.user_id, req.params.request_id]);
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: request.requester_user_id, role, source: "access_request_approval", grantedBy: req.auth.user_id });
+      const [updateResult] = await connection.query("UPDATE workspace_access_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE request_id=? AND tenant_id=? AND status='pending'", [req.auth.user_id, req.params.request_id, req.params.tenant_id]);
+      if (updateResult.affectedRows !== 1) throw Object.assign(new Error("Access request approval lost its pending state."), { status: 409, code: "access_request_state_changed" });
+      const [readbackRows] = await connection.query("SELECT request_id, tenant_id, requester_user_id, requested_role, status, reviewed_by, reviewed_at FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2", [req.params.request_id, req.params.tenant_id]);
+      const approved = requireExactlyOneRow(readbackRows, { code: "workspace_access_request_approve_readback_invalid", message: "Access request approval readback must resolve exactly one request.", status: 409 }); // MUTATION_READBACK: workspace_access_request_approve
       await connection.commit();
-      return res.json({ ok: true, request_id: req.params.request_id, tenant_id: req.params.tenant_id, user_id: request.requester_user_id, role, status: "approved", default_workspace_grant: defaultGrant, secrets_included: false });
+      return res.json({ ok: true, request_id: approved.request_id, tenant_id: approved.tenant_id, user_id: approved.requester_user_id, role, status: approved.status, reviewed_by: approved.reviewed_by, reviewed_at: approved.reviewed_at, default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_approve_failed", message: err.message }, secrets_included: false });
@@ -604,17 +633,27 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_reject
   router.post("/me/workspaces/:tenant_id/access-requests/:request_id/reject", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
       if (!owner) return;
-      const [result] = await getPool().query(
-        "UPDATE workspace_access_requests SET status='rejected', reviewed_by=?, reviewed_at=NOW(), reason=COALESCE(?, reason) WHERE request_id=? AND tenant_id=? AND status='pending'",
-        [req.auth.user_id, req.body?.reason || null, req.params.request_id, req.params.tenant_id]
-      );
-      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), request_id: req.params.request_id, tenant_id: req.params.tenant_id, status: result.affectedRows ? "rejected" : "not_found", secrets_included: false });
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_reject
+      const [requestRows] = await connection.query("SELECT request_id, tenant_id, status FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2 FOR UPDATE", [req.params.request_id, req.params.tenant_id]);
+      const request = requireExactlyOneRow(requestRows, { code: "access_request_not_pending", message: "Access request must resolve exactly one row.", status: 404 });
+      if (request.status !== "pending") throw Object.assign(new Error("Access request is not pending."), { status: 404, code: "access_request_not_pending" });
+      const [updateResult] = await connection.query("UPDATE workspace_access_requests SET status='rejected', reviewed_by=?, reviewed_at=NOW(), reason=COALESCE(?, reason) WHERE request_id=? AND tenant_id=? AND status='pending'", [req.auth.user_id, req.body?.reason || null, req.params.request_id, req.params.tenant_id]);
+      if (updateResult.affectedRows !== 1) throw Object.assign(new Error("Access request rejection lost its pending state."), { status: 409, code: "access_request_state_changed" });
+      const [readbackRows] = await connection.query("SELECT request_id, tenant_id, status, reason, reviewed_by, reviewed_at FROM workspace_access_requests WHERE request_id=? AND tenant_id=? LIMIT 2", [req.params.request_id, req.params.tenant_id]);
+      const rejected = requireExactlyOneRow(readbackRows, { code: "workspace_access_request_reject_readback_invalid", message: "Access request rejection readback must resolve exactly one request.", status: 409 }); // MUTATION_READBACK: workspace_access_request_reject
+      await connection.commit();
+      return res.json({ ok: true, request_id: rejected.request_id, tenant_id: rejected.tenant_id, status: rejected.status, reason: rejected.reason, reviewed_by: rejected.reviewed_by, reviewed_at: rejected.reviewed_at, secrets_included: false });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_reject_failed", message: err.message }, secrets_included: false });
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_reject_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 
