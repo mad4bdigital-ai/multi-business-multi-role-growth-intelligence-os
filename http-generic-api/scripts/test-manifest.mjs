@@ -46,6 +46,7 @@ export const testCommands = [
   "node test-context-kernel-cross-tenant-isolation.mjs",
   "node test-context-kernel-registry-adapters.mjs",
   "node test-context-kernel-application-use-cases.mjs",
+  "node test-execution-capsule-contract.mjs",
   "node test-context-kernel-api-projection.mjs",
   "node test-context-kernel-shadow-integration.mjs",
   "node test-platform-scoped-approval-kernel.mjs",

@@ -1,0 +1,7 @@
+{
+  "surface_key": "provider_authorization_states",
+  "source_table": "provider_authorization_states",
+  "reason": "Excluded because PR 3483 creates provider authorization-state persistence contracts only. Tenant-visible authorization initiation, callback handling, reconnect activation, and provider execution remain disabled until later OpenAPI and runtime PRs pass their release gates.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}
