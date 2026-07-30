@@ -46,6 +46,10 @@ function main() {
   const steps = [];
 
   if (!skipOpenapiAutofill) {
+    if (fileExists("http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs")) {
+      run("node", ["scripts/openapi-precise-contract-registry-sync.mjs", write ? "--write" : "--check"].filter(Boolean));
+      steps.push("openapi-precise-contract-registry-sync");
+    }
     run("node", ["scripts/openapi-autofill-missing-routes.mjs", write ? "--write" : "--check"].filter(Boolean));
     steps.push("openapi-autofill-missing-routes");
   }

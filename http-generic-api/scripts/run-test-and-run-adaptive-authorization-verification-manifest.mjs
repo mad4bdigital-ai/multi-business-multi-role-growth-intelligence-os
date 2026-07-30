@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scripts = [
+  "test-brand-skill-migration-preflight.mjs",
   "scripts/run-test-manifest.mjs",
   "test-managed-git-remote-transport.mjs",
   "test-operation-orchestrator-managed-git-transport.mjs",

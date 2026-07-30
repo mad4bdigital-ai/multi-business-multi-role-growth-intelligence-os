@@ -38,7 +38,7 @@
     "EC5_rollout_and_duplicate_resolver_retirement"
   ],
   "slice_status": {
-    "EC0_contract_and_tests": "in_progress",
+    "EC0_contract_and_tests": "complete",
     "EC1_shadow_adapter": "not_started",
     "EC2_selected_read_pilot": "not_started",
     "EC3_unified_dispatch_integration": "not_started",
