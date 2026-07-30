@@ -26,6 +26,11 @@ export {
 } from "./contextIntegrity.js";
 
 export {
+  ENDPOINT_CERTIFICATION_LIMITS,
+  evaluateEndpointCertification,
+} from "./endpointCertificationPolicy.js";
+
+export {
   EXECUTION_CAPSULE_SCHEMA_VERSION,
   ExecutionCapsuleDependencyDomains,
   ExecutionCapsuleProjectionModes,
