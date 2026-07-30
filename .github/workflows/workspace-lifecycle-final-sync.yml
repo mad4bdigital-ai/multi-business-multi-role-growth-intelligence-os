@@ -1,6 +1,10 @@
 name: Workspace Lifecycle Final Sync
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/workspace-lifecycle-final-sync.yml
   pull_request_target:
     types: [reopened, ready_for_review, synchronize]
 
@@ -14,8 +18,9 @@ concurrency:
 jobs:
   sync:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/workspace-lifecycle-mutation-clean-main-20260730'
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'gpt/workspace-lifecycle-mutation-clean-main-20260730')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -49,7 +54,12 @@ jobs:
           mapfile -t CONFLICTS < <(git diff --name-only --diff-filter=U)
           ALLOWED_A='http-generic-api/frontend-surface-dispatch.generated.json'
           ALLOWED_B='http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
+          TEMP_SYNC='.github/workflows/workspace-lifecycle-final-sync.yml'
           for file in "${CONFLICTS[@]}"; do
+            if [[ "$file" == "$TEMP_SYNC" ]]; then
+              git rm -f -- "$file"
+              continue
+            fi
             if [[ "$file" != "$ALLOWED_A" && "$file" != "$ALLOWED_B" ]]; then
               echo "::error::Unexpected merge conflict: $file"
               git merge --abort || true
