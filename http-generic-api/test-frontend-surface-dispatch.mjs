@@ -31,22 +31,78 @@ assert.equal(
   "a signed installer token must remain a standalone authenticator when no principal guard is present",
 );
 
-const compositeLocalConnectorAuth = runtimeAuthProfile({
-  routePath: "/local-connector/uninstall",
-  routeGuards: ["requireBackendApiKey", "requireFreshLocalManagerDeviceForPrivilegedInstaller"],
-});
-assert.equal(
-  compositeLocalConnectorAuth.profile,
-  "backend_local_manager",
-  "the uninstall route must preserve its backend plus Local Manager composite authentication profile",
+const aliasSafetyRoutes = parseRoutesFromFile(`
+  const adminGuard = requireAdminPrincipal || ((_req, _res, next) => next());
+  const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
+  router.get("/admin/aliased", requireBackendApiKey, adminGuard, handler);
+  router.delete("/local-connector/uninstall", requireBackendApiKey, async (_req, res) => res.json({ message: "device disabled" }));
+`, "routes/aliasSafetyRoutes.js");
+assert.deepEqual(
+  aliasSafetyRoutes.find((entry) => entry.signature === "GET /admin/aliased").route_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "guard references used as middleware aliases must remain discoverable",
 );
 assert.deepEqual(
-  compositeLocalConnectorAuth.alternatives,
-  [
-    ["backendBearerAuth", "localManagerBearerAuth"],
-    ["backendApiKeyAuth", "localManagerBearerAuth"],
-  ],
-  "each uninstall security alternative must require backend and Local Manager authentication together",
+  aliasSafetyRoutes.find((entry) => entry.signature === "DELETE /local-connector/uninstall").route_guards,
+  ["requireBackendApiKey"],
+  "invoked guard results and ordinary words must not become file-global middleware aliases",
+);
+
+const localConnectorInstallSource = fs.readFileSync(new URL("./routes/localConnectorInstallRoutes.js", import.meta.url), "utf8");
+const uninstallOperation = parseRoutesFromFile(
+  localConnectorInstallSource,
+  "routes/localConnectorInstallRoutes.js",
+).find((entry) => entry.signature === "DELETE /local-connector/uninstall");
+assert(uninstallOperation, "the Local Connector uninstall route must be discovered");
+assert.deepEqual(
+  uninstallOperation.route_guards,
+  ["requireBackendApiKey"],
+  "uninstall must reflect its real requireBackendApiKey registration only",
+);
+const uninstallRuntimeAuth = runtimeAuthProfile({
+  routePath: uninstallOperation.path,
+  routeGuards: uninstallOperation.route_guards,
+  inheritedGuards: uninstallOperation.inherited_guards,
+});
+assert.equal(uninstallRuntimeAuth.profile, "backend_or_user");
+assert.deepEqual(uninstallRuntimeAuth.alternatives, [["backendBearerAuth"], ["backendApiKeyAuth"]]);
+
+const growthIntelligenceSource = fs.readFileSync(new URL("./routes/growthIntelligenceRoutes.js", import.meta.url), "utf8");
+const growthIntelligenceRoutes = parseRoutesFromFile(
+  growthIntelligenceSource,
+  "routes/growthIntelligenceRoutes.js",
+);
+assert(growthIntelligenceRoutes.length > 0, "Growth Intelligence routes must be discovered");
+for (const operation of growthIntelligenceRoutes) {
+  assert.deepEqual(
+    operation.route_guards,
+    ["requireAdminPrincipal", "requireBackendApiKey"],
+    `${operation.signature} must preserve the adminGuard middleware reference`,
+  );
+  assert.equal(
+    runtimeAuthProfile({ routePath: operation.path, routeGuards: operation.route_guards }).profile,
+    "admin_backend",
+  );
+}
+
+const uninstallOpenApi = YAML.parse(
+  fs.readFileSync(new URL("./openapi/local-connector-uninstall.yaml", import.meta.url), "utf8"),
+);
+const uninstallContract = uninstallOpenApi.paths["/local-connector/uninstall"].delete;
+assert.deepEqual(
+  uninstallContract.security,
+  [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }],
+  "uninstall OpenAPI security must match requireBackendApiKey OR semantics",
+);
+assert.deepEqual(
+  uninstallOpenApi.components.schemas.ErrorEnvelope.properties.error.required,
+  ["code"],
+  "the error contract must allow the runtime 404 response without a message",
+);
+assert.deepEqual(
+  uninstallContract.requestBody.content["application/json"].schema.dependentRequired,
+  { user_id: ["tenant_id"], tenant_id: ["user_id"] },
+  "admin/service principal identifiers must be supplied as a pair",
 );
 
 function write(root, relative, content) {

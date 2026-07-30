@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "af2a8a41e62357e474d45975f61dac84ceb7eff1eab2789f60e0b06d2cc0b1cb",
+    "source_digest": "50c506bbc36068654b2cd291269f6bd525382f8983096e4fa7107ae7345b7975",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "b87d2e346edf37d9d79adc7ee7d9f3357a03925eb1f108afb97f4492ef860e9c",
+        "sha256": "4478eebb01a39be2ea43887d13db62a34dd017c9d5b03495b7431ee73d6396b9",
         "present": true
       },
       {
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "2887860a280814ad2dadc47d64b5c22f5e2d3e43d208732987acdfebb6f3e767",
+        "sha256": "b55b37711617884f5255236ada6268fbe0d0fd4678e92932b17fc28eb8cdb287",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/local-connector-uninstall.yaml",
-        "sha256": "d4fb8db827d0a4ccee38ed9a6b80f2cf73df3b7f217829a1fba1c127d848de9c",
+        "sha256": "7f8f549ef005fb4ddd281218e89b3210ca386d5af84da86de4e5f63b6e77243e",
         "present": true
       },
       {
@@ -921,7 +921,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "e290f1359f16ecffb18a5c475e5cc5d1bae9bf3b7001b05551ab77ba32b24ec7",
+        "sha256": "a2367c4e8aad06397419b1d6390495d6e7f136854a97b137aafac3c41f366ac6",
         "present": true
       },
       {
@@ -1121,22 +1121,21 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 165,
+    "mounted_family_count": 166,
     "mounted_route_file_count": 133,
-    "mixed_scope_route_file_count": 24,
+    "mixed_scope_route_file_count": 25,
     "operation_count": 1002,
-    "openapi_documented_count": 984,
+    "openapi_documented_count": 986,
     "openapi_canonical_documented_count": 602,
-    "openapi_generated_index_count": 382,
-    "openapi_exemption_count": 18,
+    "openapi_generated_index_count": 384,
+    "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 382,
+    "openapi_detail_gap_count": 384,
     "auth_parity_counts": {
-      "equivalent": 977,
-      "exempt": 18,
-      "mismatch": 7
+      "equivalent": 986,
+      "exempt": 16
     },
-    "auth_contract_gap_count": 7,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 608,
     "unresolved_operation_class_count": 551,
@@ -1145,11 +1144,11 @@
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 151,
     "test_owned_family_count": 6,
-    "untested_family_count": 159,
+    "untested_family_count": 160,
     "test_owned_operation_count": 53,
     "untested_operation_count": 949,
     "ready_task_count": 3,
-    "blocked_task_count": 162,
+    "blocked_task_count": 163,
     "coverage_complete": false
   },
   "waves": [
@@ -4536,52 +4535,69 @@
       "wave": "F1-tenant-shell"
     },
     {
-      "family_key": "local-manager-desktop-command",
-      "label": "local manager desktop command",
+      "family_key": "local-manager-desktop-command.admin",
+      "label": "local manager desktop command (admin)",
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "source_digest": "f72df7b49481823cf0e3ed87058878d8b154bff5641fd69751ffe9f3c010e66f",
       "mount_prefix": "/",
       "mount_order": 12353,
-      "split_from_mixed_scope_file": false,
+      "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
       "group": "local-manager",
-      "scope": "local_device",
+      "scope": "admin",
       "operations": [
         {
           "method": "POST",
           "path": "/local-manager/device/desktop-commands",
           "signature": "POST /local-manager/device/desktop-commands",
           "source_file": "routes/localManagerDesktopCommandRoutes.js",
-          "scope": "local_device",
+          "scope": "admin",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "mixed_guard_chain",
-            "alternatives": null,
-            "principal": null,
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
             "guard_chain": [
               "requireAdminPrincipal",
-              "requireBackendApiKey",
-              "requireLocalManagerDevice"
+              "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdminPrincipal",
-              "route:requireBackendApiKey",
-              "route:requireLocalManagerDevice"
+              "route:requireBackendApiKey"
             ],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": null,
-          "auth_parity": {
-            "state": "exempt",
-            "reasons": [
-              "repository_openapi_allowlist"
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
             ]
           },
-          "openapi_documented": false,
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
           "openapi_canonical_documented": false,
-          "openapi_exempt": true,
-          "openapi_contract_level": "explicit_exemption",
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -4601,6 +4617,143 @@
           "mutation_candidate": true,
           "mutation": false
         },
+        {
+          "method": "GET",
+          "path": "/local-manager/device/desktop-commands/{commandId}",
+          "signature": "GET /local-manager/device/desktop-commands/{commandId}",
+          "source_file": "routes/localManagerDesktopCommandRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [
+        "POST /local-manager/device/desktop-commands",
+        "GET /local-manager/device/desktop-commands/{commandId}"
+      ],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /local-manager/device/desktop-commands",
+        "GET /local-manager/device/desktop-commands/{commandId}"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "legacy_compatibility",
+        "rationale": "Existing Local Manager browser pages remain supported until wave F4 reaches verified parity.",
+        "owner": "local-manager",
+        "rule_id": "local-manager-compatibility",
+        "evidence_refs": [
+          "routes/localManagerBetaRoutes.js",
+          "routes/localManagerDesktopCommandRoutes.js",
+          "specs/010-unified-platform-frontend/plan.md"
+        ]
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /local-manager/device/desktop-commands",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 10,
+        "class": "critical"
+      },
+      "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "local-manager-desktop-command.local_device",
+      "label": "local manager desktop command (local_device)",
+      "source_file": "routes/localManagerDesktopCommandRoutes.js",
+      "source_digest": "f72df7b49481823cf0e3ed87058878d8b154bff5641fd69751ffe9f3c010e66f",
+      "mount_prefix": "/",
+      "mount_order": 12353,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "/local-manager",
+      "group": "local-manager",
+      "scope": "local_device",
+      "operations": [
         {
           "method": "GET",
           "path": "/local-manager/device/desktop-commands/pending",
@@ -4718,64 +4871,10 @@
           },
           "mutation_candidate": true,
           "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/local-manager/device/desktop-commands/{commandId}",
-          "signature": "GET /local-manager/device/desktop-commands/{commandId}",
-          "source_file": "routes/localManagerDesktopCommandRoutes.js",
-          "scope": "local_device",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "mixed_guard_chain",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [
-              "requireAdminPrincipal",
-              "requireBackendApiKey",
-              "requireLocalManagerDevice"
-            ],
-            "evidence": [
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey",
-              "route:requireLocalManagerDevice"
-            ],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": null,
-          "auth_parity": {
-            "state": "exempt",
-            "reasons": [
-              "repository_openapi_allowlist"
-            ]
-          },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": true,
-          "openapi_contract_level": "explicit_exemption",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
         }
       ],
       "openapi_gaps": [],
-      "openapi_exemptions": [
-        "POST /local-manager/device/desktop-commands",
-        "GET /local-manager/device/desktop-commands/{commandId}"
-      ],
+      "openapi_exemptions": [],
       "openapi_detail_gaps": [
         "GET /local-manager/device/desktop-commands/pending",
         "POST /local-manager/device/desktop-commands/{commandId}/complete"
@@ -4784,10 +4883,8 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "POST /local-manager/device/desktop-commands",
         "GET /local-manager/device/desktop-commands/pending",
-        "POST /local-manager/device/desktop-commands/{commandId}/complete",
-        "GET /local-manager/device/desktop-commands/{commandId}"
+        "POST /local-manager/device/desktop-commands/{commandId}/complete"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -4818,12 +4915,6 @@
         ]
       },
       "operation_blockers": [
-        {
-          "signature": "POST /local-manager/device/desktop-commands",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
         {
           "signature": "POST /local-manager/device/desktop-commands/{commandId}/complete",
           "blockers": [
@@ -4869,12 +4960,10 @@
             ],
             "principal": "authenticated",
             "guard_chain": [
-              "requireBackendApiKey",
-              "verifyInstallerDownloadToken"
+              "requireBackendApiKey"
             ],
             "evidence": [
-              "route:requireBackendApiKey",
-              "route:verifyInstallerDownloadToken"
+              "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -5056,6 +5145,75 @@
           },
           "mutation_candidate": false,
           "mutation": false
+        },
+        {
+          "method": "DELETE",
+          "path": "/local-connector/uninstall",
+          "signature": "DELETE /local-connector/uninstall",
+          "source_file": "routes/localConnectorInstallRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/local-connector-uninstall.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
         }
       ],
       "openapi_gaps": [],
@@ -5072,7 +5230,8 @@
       "untested_operations": [
         "POST /local-connector/install/download-link",
         "POST /local-connector/install",
-        "GET /local-connector/install/status"
+        "GET /local-connector/install/status",
+        "DELETE /local-connector/uninstall"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -5084,6 +5243,7 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -5105,6 +5265,12 @@
         },
         {
           "signature": "POST /local-connector/install",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "DELETE /local-connector/uninstall",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -5258,12 +5424,10 @@
             ],
             "principal": "local_manager",
             "guard_chain": [
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "verifyInstallerDownloadToken"
+              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
             ],
             "evidence": [
               "route:requireFreshLocalManagerDeviceForPrivilegedInstaller",
-              "route:verifyInstallerDownloadToken",
               "routes/connectorProxyRoutes.js",
               "routes/localConnectorInstallRoutes.js",
               "services/localManagerDeviceLinkService.js"
@@ -5306,80 +5470,6 @@
           },
           "mutation_candidate": true,
           "mutation": false
-        },
-        {
-          "method": "DELETE",
-          "path": "/local-connector/uninstall",
-          "signature": "DELETE /local-connector/uninstall",
-          "source_file": "routes/localConnectorInstallRoutes.js",
-          "scope": "local_device",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_local_manager",
-            "alternatives": [
-              [
-                "backendBearerAuth",
-                "localManagerBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth",
-                "localManagerBearerAuth"
-              ]
-            ],
-            "principal": "local_manager",
-            "guard_chain": [
-              "requireBackendApiKey",
-              "requireFreshLocalManagerDeviceForPrivilegedInstaller"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey",
-              "route:requireFreshLocalManagerDeviceForPrivilegedInstaller"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/local-connector-uninstall.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth",
-                "localManagerBearerAuth"
-              ],
-              [
-                "backendBearerAuth",
-                "localManagerBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
         }
       ],
       "openapi_gaps": [],
@@ -5389,8 +5479,7 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
-        "POST /local-connector/install/device-download-link",
-        "DELETE /local-connector/uninstall"
+        "POST /local-connector/install/device-download-link"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -5401,7 +5490,6 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -5417,12 +5505,6 @@
       "operation_blockers": [
         {
           "signature": "POST /local-connector/install/device-download-link",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "DELETE /local-connector/uninstall",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -20114,13 +20196,11 @@
             "principal": "tenant_user",
             "guard_chain": [
               "requireActiveMembership",
-              "requireUserJwt",
-              "requireWorkspaceOwner"
+              "requireUserJwt"
             ],
             "evidence": [
               "route:requireActiveMembership",
-              "route:requireUserJwt",
-              "route:requireWorkspaceOwner"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37104,12 +37184,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37168,12 +37246,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37352,12 +37428,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37414,12 +37488,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37478,12 +37550,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37540,12 +37610,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37604,12 +37672,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37668,12 +37734,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37730,12 +37794,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37794,12 +37856,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37858,12 +37918,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37922,12 +37980,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -37984,12 +38040,10 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUserJwt",
-              "verifyUserJwt"
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUserJwt",
-              "route:verifyUserJwt"
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -55855,20 +55909,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55928,20 +55979,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -55999,20 +56047,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -56070,20 +56115,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -56141,20 +56183,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -56214,20 +56253,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -56287,20 +56323,17 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:backendApiKeyAuth|backendBearerAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -56329,64 +56362,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/metrics",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        },
-        {
-          "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:backendApiKeyAuth|backendBearerAuth"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -56446,7 +56422,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -86013,7 +85989,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -86198,6 +86173,7 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -86335,6 +86311,48 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.local-manager-desktop-command.admin",
+      "title": "Resolve and deliver local manager desktop command (admin)",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "openapi_detail_contract_gap",
+        "test_ownership_gap",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/localManagerDesktopCommandRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
@@ -88876,7 +88894,6 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/local-connector-uninstall.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -88993,8 +89010,8 @@
       ]
     },
     {
-      "task_key": "frontend.local-manager-desktop-command",
-      "title": "Resolve and deliver local manager desktop command",
+      "task_key": "frontend.local-manager-desktop-command.local_device",
+      "title": "Resolve and deliver local manager desktop command (local_device)",
       "wave": "F4-local-manager",
       "state": "blocked",
       "blockers": [

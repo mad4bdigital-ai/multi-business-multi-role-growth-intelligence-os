@@ -538,9 +538,13 @@ function middlewareAliases(source = "") {
   }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
-    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
-      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
+    const expression = match[2];
+    const containsGuardReference = !/\bawait\b/.test(expression) &&
+      [...expression.matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b(?!\s*\()/g)]
+        .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuardReference) {
+      aliases.set(match[1], expression);
+    }
   }
   return aliases;
 }
@@ -617,20 +621,6 @@ export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuard
   const hasPrincipalAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasLocal;
   const hasStandaloneSignedQuery = hasSignedQuery && !hasPrincipalAuthenticator;
   const isolatedModes = [hasLocal, hasMcp, hasStandaloneSignedQuery, hasGitHubWebhook].filter(Boolean).length;
-  if (hasBackendAuthenticator && hasLocal && !hasAdmin && !hasUser && !hasMcp && !hasGitHubWebhook) {
-    return {
-      state: "resolved",
-      profile: "backend_local_manager",
-      alternatives: [
-        ["backendBearerAuth", "localManagerBearerAuth"],
-        ["backendApiKeyAuth", "localManagerBearerAuth"],
-      ],
-      principal: "local_manager",
-      guard_chain: guardChain,
-      evidence,
-      configuration_dependencies: ["BACKEND_API_KEY"],
-    };
-  }
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
@@ -820,7 +810,7 @@ function scopeFor({ path: routePath, source, declaration = "", sourceIndex = 0, 
     if (runtimeAuth.profile === "public") return "public";
     if (runtimeAuth.profile === "admin_backend") return "admin";
     if (runtimeAuth.profile === "user_jwt") return "tenant";
-    if (["local_manager", "backend_local_manager"].includes(runtimeAuth.profile)) return "local_device";
+    if (runtimeAuth.profile === "local_manager") return "local_device";
     if (["mcp_query_token", "signed_query_token", "github_webhook_hmac"].includes(runtimeAuth.profile)) return "developer";
   }
   if (/^\/(?:connect$|connect\/assets(?:\/|$)|platform$|platform\/assets(?:\/|$)|platform\/ui-surfaces$|favicon\.ico$|robots\.txt$|legal(?:\/|$))/.test(routePath)) return "public";
