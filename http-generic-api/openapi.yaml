@@ -6610,6 +6610,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /local-connector/uninstall:
+    delete:
+      tags: [local-manager]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: uninstallLocalConnector
+      summary: Disable a Local Connector device configuration
+      description: >
+        Disables the selected Local Connector device configuration and clears its stored
+        Cloudflare token, connector secret, and local API key. Authentication follows the
+        runtime backend-or-user middleware: backend bearer, backend x-api-key, signed user
+        JWT, or an accepted API credential bearer. Non-admin callers are restricted to the
+        authenticated tenant and device owner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                tenant_id:
+                  type: string
+                  format: uuid
+                device_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+      responses:
+        "200":
+          description: Local Connector disabled and stored credentials cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, disabled, rotated, message, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  disabled: { type: boolean, const: true }
+                  rotated: { type: boolean, const: true }
+                  message: { type: string }
+                  secrets_included: { type: boolean, const: false }
+        "400":
+          description: Required uninstall fields are missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Authenticated principal is not allowed to uninstall this device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Local Connector configuration was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Local Connector uninstall failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /local-connector/install/download-link:
     post:
       tags: [local-manager]
@@ -9783,7 +9862,7 @@ paths:
   /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: runGrowthIntelligencePilot
       summary: Run the read-only tenant and brand Growth Intelligence pilot
       description: >
@@ -9825,7 +9904,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listGrowthIntelligenceReports
       summary: List persisted Growth Intelligence reports
       parameters:
@@ -9839,7 +9918,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/metrics:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceMetrics
       summary: Read tenant-scoped Growth Intelligence product and safety metrics
       parameters:
@@ -9852,7 +9931,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
     get:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getGrowthIntelligenceReport
       summary: Read one persisted Growth Intelligence report with insights and actions
       parameters:
@@ -9866,7 +9945,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceAction
       summary: Approve or reject a Growth Intelligence action without executing it
       description: >
@@ -9897,7 +9976,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: decideGrowthIntelligenceInsight
       summary: Accept, reject, or mark a Growth Intelligence insight stale
       description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
@@ -9924,7 +10003,7 @@ paths:
   /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
     post:
       tags: [tenants]
-      security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: createGrowthIntelligenceReadinessAssessment
       summary: Record an immutable no-execution readiness assessment
       description: >

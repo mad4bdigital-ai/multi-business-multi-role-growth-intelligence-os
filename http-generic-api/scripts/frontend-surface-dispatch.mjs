@@ -533,7 +533,9 @@ function middlewareAliases(source = "") {
   }
   for (const match of text.matchAll(/\b(?:const|let)\s+([A-Za-z0-9_$]+)\s*=\s*([^;\n]+);/g)) {
     if (aliases.has(match[1])) continue;
-    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1])) aliases.set(match[1], match[2]);
+    const containsGuard = [...match[2].matchAll(/\b(?:deps\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g)]
+      .some((entry) => AUTH_GUARDS.has(entry[1]) || aliases.has(entry[1]));
+    if (/^(?:require|verify|authenticate|authorize|auth)/i.test(match[1]) || containsGuard) aliases.set(match[1], match[2]);
   }
   return aliases;
 }
@@ -569,7 +571,7 @@ function activeRouterUseGuards(source, sourceIndex, routePath, aliases) {
   return unique(guards);
 }
 
-function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
+export function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [], override = null }) {
   const guardChain = unique([...inheritedGuards, ...routeGuards]);
   const evidence = [
     ...inheritedGuards.map((guard) => `router.use:${guard}`),
@@ -607,7 +609,9 @@ function runtimeAuthProfile({ routePath, routeGuards = [], inheritedGuards = [],
   const hasSignedQuery = guardChain.includes("verifyInstallerDownloadToken");
   const hasGitHubWebhook = guardChain.includes("requireGitHubWebhookSignature");
   const hasBackendAuthenticator = hasBackend || hasBackendOrUser;
-  const isolatedModes = [hasLocal, hasMcp, hasSignedQuery, hasGitHubWebhook].filter(Boolean).length;
+  const hasPrincipalAuthenticator = hasBackendAuthenticator || hasAdmin || hasUser || hasLocal;
+  const hasStandaloneSignedQuery = hasSignedQuery && !hasPrincipalAuthenticator;
+  const isolatedModes = [hasLocal, hasMcp, hasStandaloneSignedQuery, hasGitHubWebhook].filter(Boolean).length;
   if (isolatedModes > 1 || (isolatedModes === 1 && (hasBackendAuthenticator || hasAdmin || hasUser))) {
     return { state: "unresolved", profile: "mixed_guard_chain", alternatives: null, principal: null, guard_chain: guardChain, evidence, configuration_dependencies: [] };
   }
