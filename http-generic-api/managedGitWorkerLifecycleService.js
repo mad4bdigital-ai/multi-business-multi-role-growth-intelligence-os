@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
+import {
+  createManagedGitEphemeralCheckout,
+  getManagedGitEphemeralCheckoutPath,
+  releaseManagedGitEphemeralCheckout,
+  releaseManagedGitEphemeralCheckoutsForWorker,
+} from "./managedGitEphemeralCheckoutExecutor.js";
 
+const WORKSPACE_HANDLE = Symbol("managed_git_worker_workspace_handle");
 const ADMIN_MODES = new Set(["backend_api", "admin", "service", "service_account"]);
 const WORKER_OPERATIONS = new Set(["repo.change.execute", "repo.branch.reconcile", "operation.resume"]);
 const ACTIVE_STATUSES = new Set(["allocated", "ready", "running", "cleaning"]);
@@ -18,6 +25,30 @@ function text(value, max = 255) {
 
 function digest(value) {
   return createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
+}
+
+function attachWorkspaceHandle(lifecycle, handle) {
+  if (!lifecycle || !handle) return lifecycle;
+  Object.defineProperty(lifecycle, WORKSPACE_HANDLE, {
+    value: handle,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return lifecycle;
+}
+
+function workspaceHandleOf(lifecycle) {
+  return lifecycle?.[WORKSPACE_HANDLE] || null;
+}
+
+export function getManagedGitWorkerWorkspacePath(lifecycle = {}) {
+  if (lifecycle?.required !== true) return null;
+  const handle = workspaceHandleOf(lifecycle);
+  if (!handle) {
+    throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_HANDLE_REQUIRED", "The managed Git workspace handle is unavailable.");
+  }
+  return getManagedGitEphemeralCheckoutPath(handle);
 }
 
 function boundedInt(value, fallback, min, max) {
@@ -170,6 +201,7 @@ function publicRow(row = {}) {
     if (typeof value === "object") return value;
     try { return JSON.parse(value); } catch { return null; }
   };
+  const readback = parse(row.readback_json);
   return {
     worker_id: row.worker_id,
     run_id: row.run_id || null,
@@ -188,8 +220,11 @@ function publicRow(row = {}) {
     running_at: row.running_at ? new Date(row.running_at).toISOString() : null,
     cleanup_started_at: row.cleanup_started_at ? new Date(row.cleanup_started_at).toISOString() : null,
     released_at: row.released_at ? new Date(row.released_at).toISOString() : null,
-    workspace_released: Boolean(row.released_at),
-    readback: parse(row.readback_json),
+    workspace_created: readback?.workspace_created === true,
+    workspace_released: readback?.workspace_released === true,
+    cleanup_verified: readback?.cleanup_verified === true,
+    workspace_path_exposed: false,
+    readback,
     error: parse(row.error_json),
     secrets_included: false,
   };
@@ -202,6 +237,8 @@ export async function prepareManagedGitWorkerLifecycle({
   operationKey = "",
   dispatch,
   now = new Date(),
+  workspaceRoot = process.env.MANAGED_GIT_WORKSPACE_ROOT,
+  createWorkspace = createManagedGitEphemeralCheckout,
 } = {}) {
   if (!operationRequiresWorker(operationKey)) {
     return { required: false, status: "not_required", operation_key: operationKey || null, input, secrets_included: false };
@@ -226,7 +263,7 @@ export async function prepareManagedGitWorkerLifecycle({
   const ttlMinutes = boundedInt(input.managed_worker_ttl_minutes || input.managedWorkerTtlMinutes, 30, 5, 120);
   const leaseExpiresAt = new Date(now.getTime() + ttlMinutes * 60_000);
   const fingerprint = digest(JSON.stringify({
-    checkout_strategy: "virtual_git_tree",
+    checkout_strategy: "ephemeral_checkout",
     ...context,
     checkout_head_sha: checkoutHeadSha,
     worker_id: workerId,
@@ -240,7 +277,7 @@ export async function prepareManagedGitWorkerLifecycle({
          operation_key, owner, repo, branch_name, checkout_strategy,
          checkout_head_sha, workspace_fingerprint, worker_status,
          lease_expires_at, secrets_included
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'virtual_git_tree', ?, ?, 'allocated', ?, 0)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ephemeral_checkout', ?, ?, 'allocated', ?, 0)`,
       [
         workerId, leaseKey, leaseKey, actor.scope, actor.tenant_id, actor.user_id,
         operation, context.owner, context.repo, context.branch,
@@ -266,22 +303,96 @@ export async function prepareManagedGitWorkerLifecycle({
     });
   }
 
-  await db(
-    pool,
-    `UPDATE operation_managed_git_worker_leases
-        SET worker_status = 'ready', ready_at = NOW(), updated_at = NOW()
-      WHERE worker_id = ? AND worker_status = 'allocated'`,
-    [workerId],
-  );
+  let workspaceHandle = null;
+  try {
+    if (typeof createWorkspace !== "function") {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_EXECUTOR_REQUIRED", "A managed Git workspace executor is required.");
+    }
+    workspaceHandle = await createWorkspace({
+      worker_id: workerId,
+      root_dir: workspaceRoot,
+    });
+  } catch (error) {
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'failed', active_lease_key = NULL, error_json = ?,
+              released_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ?`,
+      [
+        JSON.stringify({
+          code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CREATE_FAILED",
+          message: error?.message || "The isolated workspace could not be created.",
+          details: error?.details || null,
+          secrets_included: false,
+        }),
+        workerId,
+      ],
+    );
+    throw error;
+  }
 
-  return {
+  try {
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'ready', ready_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ? AND worker_status = 'allocated'`,
+      [workerId],
+    );
+  } catch (error) {
+    let cleanupError = null;
+    try {
+      await releaseManagedGitEphemeralCheckout(workspaceHandle);
+    } catch (cleanupFailure) {
+      cleanupError = {
+        code: cleanupFailure?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+        message: cleanupFailure?.message || "Compensating workspace cleanup failed.",
+        details: cleanupFailure?.details || null,
+        secrets_included: false,
+      };
+    }
+    await db(
+      pool,
+      `UPDATE operation_managed_git_worker_leases
+          SET worker_status = 'failed', active_lease_key = NULL, error_json = ?,
+              released_at = NOW(), updated_at = NOW()
+        WHERE worker_id = ?`,
+      [
+        JSON.stringify({
+          code: "MANAGED_GIT_WORKER_READY_TRANSITION_FAILED",
+          message: "The managed Git worker could not enter the ready state.",
+          details: {
+            cause_code: String(error?.code || "ready_transition_failed"),
+            cleanup_error: cleanupError,
+          },
+          secrets_included: false,
+        }),
+        workerId,
+      ],
+    ).catch(() => {});
+    throw fail(503, "MANAGED_GIT_WORKER_READY_TRANSITION_FAILED", "The managed Git worker could not enter the ready state.", {
+      cause_code: String(error?.code || "ready_transition_failed"),
+      cleanup_verified: cleanupError === null,
+      workspace_path_exposed: false,
+      retryable: true,
+    });
+  }
+
+  return attachWorkspaceHandle({
     required: true,
     status: "ready",
     operation_key: operation,
     worker_id: workerId,
-    checkout_strategy: "virtual_git_tree",
+    checkout_strategy: "ephemeral_checkout",
     checkout_head_sha: checkoutHeadSha,
     workspace_fingerprint: fingerprint,
+    workspace_created: workspaceHandle?.workspace_created === true,
+    git_repository_initialized: workspaceHandle?.git_repository_initialized === true,
+    remote_fetch_performed: false,
+    remote_checkout_performed: false,
+    credentials_read: false,
+    workspace_path_exposed: false,
     lease_expires_at: leaseExpiresAt.toISOString(),
     input: {
       ...input,
@@ -290,7 +401,7 @@ export async function prepareManagedGitWorkerLifecycle({
       managed_worker_id: workerId,
     },
     secrets_included: false,
-  };
+  }, workspaceHandle);
 }
 
 export async function markManagedGitWorkerRunning({ pool, lifecycle = {} } = {}) {
@@ -302,7 +413,10 @@ export async function markManagedGitWorkerRunning({ pool, lifecycle = {} } = {})
       WHERE worker_id = ? AND worker_status = 'ready'`,
     [lifecycle.worker_id],
   );
-  return { ...lifecycle, status: "running", secrets_included: false };
+  return attachWorkspaceHandle(
+    { ...lifecycle, status: "running", secrets_included: false },
+    workspaceHandleOf(lifecycle),
+  );
 }
 
 export async function finalizeManagedGitWorkerLifecycle({
@@ -310,6 +424,7 @@ export async function finalizeManagedGitWorkerLifecycle({
   lifecycle = {},
   result = {},
   dispatch,
+  releaseWorkspace = releaseManagedGitEphemeralCheckout,
 } = {}) {
   if (lifecycle?.required !== true || !lifecycle?.worker_id) {
     return {
@@ -329,19 +444,12 @@ export async function finalizeManagedGitWorkerLifecycle({
   );
 
   let finalHeadSha = null;
-  let readback = null;
   let readbackError = null;
+  let cleanupResult = null;
+  let cleanupError = null;
+
   try {
     finalHeadSha = await readHead(dispatch, lifecycle.input || {});
-    readback = {
-      checkout_head_sha: lifecycle.checkout_head_sha || null,
-      final_head_sha: finalHeadSha,
-      head_changed: Boolean(lifecycle.checkout_head_sha && lifecycle.checkout_head_sha !== finalHeadSha),
-      operation_status: result?.status || null,
-      operation_ok: result?.ok !== false,
-      workspace_released: true,
-      secrets_included: false,
-    };
   } catch (error) {
     readbackError = {
       code: error?.code || "MANAGED_GIT_WORKER_READBACK_FAILED",
@@ -351,8 +459,52 @@ export async function finalizeManagedGitWorkerLifecycle({
     };
   }
 
-  const finalStatus = readbackError ? "failed" : "cleaned";
+  try {
+    const handle = workspaceHandleOf(lifecycle);
+    if (!handle) {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_HANDLE_REQUIRED", "The managed Git workspace handle is unavailable.");
+    }
+    if (typeof releaseWorkspace !== "function") {
+      throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_RELEASE_REQUIRED", "A managed Git workspace release function is required.");
+    }
+    cleanupResult = await releaseWorkspace(handle);
+  } catch (error) {
+    cleanupError = {
+      code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+      message: error?.message || "Managed worker workspace cleanup failed.",
+      details: error?.details || null,
+      secrets_included: false,
+    };
+  }
+
+  const workspaceReleased = cleanupResult?.workspace_released === true;
+  const cleanupVerified = cleanupResult?.cleanup_verified === true;
+  const readback = {
+    checkout_head_sha: lifecycle.checkout_head_sha || null,
+    final_head_sha: finalHeadSha,
+    head_changed: Boolean(lifecycle.checkout_head_sha && finalHeadSha && lifecycle.checkout_head_sha !== finalHeadSha),
+    operation_status: result?.status || null,
+    operation_ok: result?.ok !== false,
+    workspace_created: lifecycle.workspace_created === true,
+    workspace_released: workspaceReleased,
+    cleanup_verified: cleanupVerified,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
+  const finalError = readbackError || cleanupError
+    ? {
+        code: "MANAGED_GIT_WORKER_FINALIZATION_FAILED",
+        message: "Managed worker finalization requires attention.",
+        details: {
+          readback_error: readbackError,
+          cleanup_error: cleanupError,
+        },
+        secrets_included: false,
+      }
+    : null;
+  const finalStatus = finalError ? "failed" : "cleaned";
   const runId = text(result?.run_id || result?.operation_id, 64) || null;
+
   await db(
     pool,
     `UPDATE operation_managed_git_worker_leases
@@ -363,8 +515,8 @@ export async function finalizeManagedGitWorkerLifecycle({
       runId,
       finalStatus,
       finalHeadSha,
-      readback ? JSON.stringify(readback) : null,
-      readbackError ? JSON.stringify(readbackError) : null,
+      JSON.stringify(readback),
+      finalError ? JSON.stringify(finalError) : null,
       lifecycle.worker_id,
     ],
   );
@@ -374,14 +526,17 @@ export async function finalizeManagedGitWorkerLifecycle({
     status: finalStatus,
     worker_id: lifecycle.worker_id,
     run_id: runId,
-    checkout_strategy: lifecycle.checkout_strategy || "virtual_git_tree",
+    checkout_strategy: lifecycle.checkout_strategy || "ephemeral_checkout",
     checkout_head_sha: lifecycle.checkout_head_sha || null,
     final_head_sha: finalHeadSha,
     workspace_fingerprint: lifecycle.workspace_fingerprint || null,
-    workspace_released: true,
+    workspace_created: lifecycle.workspace_created === true,
+    workspace_released: workspaceReleased,
+    cleanup_verified: cleanupVerified,
+    workspace_path_exposed: false,
     readback,
-    error: readbackError,
-    readback_required: Boolean(readbackError),
+    error: finalError,
+    readback_required: Boolean(finalError),
     secrets_included: false,
   };
 }
@@ -412,7 +567,12 @@ export async function readManagedGitWorkerLease(input = {}, deps = {}) {
   return { ok: true, principal_scope: actor.scope, worker: publicRow(rows[0]), secrets_included: false };
 }
 
-export async function expireManagedGitWorkerLeases({ pool, limit = 100 } = {}) {
+export async function expireManagedGitWorkerLeases({
+  pool,
+  limit = 100,
+  workspaceRoot = process.env.MANAGED_GIT_WORKSPACE_ROOT,
+  releaseExpiredWorkspaces = releaseManagedGitEphemeralCheckoutsForWorker,
+} = {}) {
   const safeLimit = boundedInt(limit, 100, 1, 500);
   const [rows] = await db(
     pool,
@@ -425,25 +585,62 @@ export async function expireManagedGitWorkerLeases({ pool, limit = 100 } = {}) {
     [safeLimit],
   );
   const ids = (rows || []).map((row) => row.worker_id).filter(Boolean);
+  let cleanupFailureCount = 0;
   for (const workerId of ids) {
+    let cleanup = null;
+    let cleanupError = null;
+    try {
+      if (typeof releaseExpiredWorkspaces !== "function") {
+        throw fail(500, "MANAGED_GIT_WORKER_WORKSPACE_RELEASE_REQUIRED", "A managed Git workspace release function is required.");
+      }
+      cleanup = await releaseExpiredWorkspaces({
+        worker_id: workerId,
+        root_dir: workspaceRoot,
+      });
+    } catch (error) {
+      cleanupFailureCount += 1;
+      cleanupError = {
+        code: error?.code || "MANAGED_GIT_WORKER_WORKSPACE_CLEANUP_FAILED",
+        message: error?.message || "Expired workspace cleanup failed.",
+        details: error?.details || null,
+        secrets_included: false,
+      };
+    }
     await db(
       pool,
       `UPDATE operation_managed_git_worker_leases
           SET worker_status = 'expired', active_lease_key = NULL,
-              error_json = ?, released_at = NOW(), updated_at = NOW()
+              readback_json = ?, error_json = ?, released_at = NOW(), updated_at = NOW()
         WHERE worker_id = ?
           AND worker_status IN ('allocated','ready','running','cleaning')`,
       [
         JSON.stringify({
-          code: "MANAGED_GIT_WORKER_LEASE_EXPIRED",
-          message: "The managed worker lease expired before cleanup completed.",
+          workspace_released: cleanup?.workspace_released === true,
+          cleanup_verified: cleanup?.cleanup_verified === true,
+          cleanup_count: Number(cleanup?.cleanup_count || 0),
+          workspace_path_exposed: false,
+          secrets_included: false,
+        }),
+        JSON.stringify({
+          code: cleanupError ? "MANAGED_GIT_WORKER_LEASE_EXPIRED_CLEANUP_FAILED" : "MANAGED_GIT_WORKER_LEASE_EXPIRED",
+          message: cleanupError
+            ? "The managed worker lease expired and workspace cleanup requires attention."
+            : "The managed worker lease expired and its workspace was released.",
+          details: cleanupError ? { cleanup_error: cleanupError } : null,
           secrets_included: false,
         }),
         workerId,
       ],
     );
   }
-  return { ok: true, expired_count: ids.length, worker_ids: ids, secrets_included: false };
+  return {
+    ok: cleanupFailureCount === 0,
+    expired_count: ids.length,
+    cleanup_failure_count: cleanupFailureCount,
+    worker_ids: ids,
+    workspace_path_exposed: false,
+    secrets_included: false,
+  };
 }
 
 export const _testingManagedGitWorkerLifecycleService = {
