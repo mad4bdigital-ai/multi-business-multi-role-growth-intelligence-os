@@ -132,7 +132,7 @@ FROM (
     ) AS present_column_count,
     2 AS required_index_count,
     (
-      SELECT COUNT(*) FROM information_schema.statistics
+      SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
       WHERE table_schema = DATABASE()
         AND table_name = 'governed_tool_response_chunks'
         AND index_name IN (
