@@ -20,7 +20,7 @@
 - [x] T016 Implement endpoint and certification resolution.
 - [x] T017 Emit no-secret Effective Authority Manifest.
 - [x] T018 Persist bounded decision evidence.
-- [ ] T019 Run shadow-only parity with no execution effect.
+- [x] T019 Run shadow-only parity with no execution effect.
 
 ## P1 — Data and migration
 
