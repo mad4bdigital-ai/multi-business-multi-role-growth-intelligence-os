@@ -1,5 +1,3 @@
-# Trigger generated artifact reconciliation for the Brand Skills successor PR.
-# Synchronize event trigger; workflow behavior remains unchanged.
 name: PR Generated Artifact Refresh
 
 on:
