@@ -1,0 +1,94 @@
+name: EC0 Latest Main Rebuild
+
+on:
+  push:
+    branches:
+      - gpt/ec0-capsule-latest-main-sync-20260730
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest-main rebuild branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/ec0-capsule-latest-main-sync-20260730
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Fetch governed EC0 source branch
+        run: git fetch origin gpt/spec-012-execution-capsule-contract-20260730
+
+      - name: Copy permanent EC0 files only
+        run: |
+          git checkout origin/gpt/spec-012-execution-capsule-contract-20260730 -- \
+            http-generic-api/contextKernel/application/executionCapsuleService.js \
+            http-generic-api/contextKernel/application/index.js \
+            http-generic-api/contextKernel/domain/executionCapsule.js \
+            http-generic-api/contextKernel/domain/index.js \
+            http-generic-api/scripts/test-manifest.mjs \
+            http-generic-api/test-execution-capsule-contract.mjs \
+            specs/012-unified-admin-tenant-context-kernel/ec0-execution-capsule-contract.manifest.json \
+            specs/012-unified-admin-tenant-context-kernel/ec0-execution-capsule-contract.md \
+            specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify reconstructed EC0 contract
+        working-directory: http-generic-api
+        run: |
+          node --check contextKernel/domain/executionCapsule.js
+          node --check contextKernel/application/executionCapsuleService.js
+          node --check test-execution-capsule-contract.mjs
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+          node test-context-kernel-cross-tenant-isolation.mjs
+          printf '%s\n' \
+            'http-generic-api/contextKernel/application/executionCapsuleService.js' \
+            'http-generic-api/contextKernel/application/index.js' \
+            'http-generic-api/contextKernel/domain/executionCapsule.js' \
+            'http-generic-api/contextKernel/domain/index.js' \
+            'http-generic-api/test-execution-capsule-contract.mjs' \
+            > "$RUNNER_TEMP/ec0-rebuild-runtime-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --fail-on=runtime \
+            --changed-files-from="$RUNNER_TEMP/ec0-rebuild-runtime-files.txt"
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/ec0-latest-main-rebuild.yml
+
+      - name: Enforce exact reconstructed write set
+        run: |
+          mapfile -t changed < <(git diff --name-only --cached | sort)
+          expected=(
+            '.github/workflows/ec0-latest-main-rebuild.yml'
+            'http-generic-api/contextKernel/application/executionCapsuleService.js'
+            'http-generic-api/contextKernel/application/index.js'
+            'http-generic-api/contextKernel/domain/executionCapsule.js'
+            'http-generic-api/contextKernel/domain/index.js'
+            'http-generic-api/scripts/test-manifest.mjs'
+            'http-generic-api/test-execution-capsule-contract.mjs'
+            'specs/012-unified-admin-tenant-context-kernel/ec0-execution-capsule-contract.manifest.json'
+            'specs/012-unified-admin-tenant-context-kernel/ec0-execution-capsule-contract.md'
+            'specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json'
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#changed[@]}" -eq "${#expected_sorted[@]}"
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+
+      - name: Commit reconstructed EC0 branch
+        run: |
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'chore(spec-012): reconstruct EC0 on latest main'
+          git push origin HEAD:gpt/ec0-capsule-latest-main-sync-20260730
