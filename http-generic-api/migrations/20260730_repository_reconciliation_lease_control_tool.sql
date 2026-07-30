@@ -1,3 +1,10 @@
+-- Safety contract: no_provider_call
+-- Safety contract: no_credential_payload_read
+-- Safety contract: no_raw_secrets
+-- Safety contract: no_external_send
+-- Safety contract: no_external_write
+-- Safety contract: secrets_included=false
+
 INSERT INTO admin_platform_endpoint_tools (
   tool_key,
   display_name,
