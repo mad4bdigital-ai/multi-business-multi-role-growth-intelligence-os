@@ -117,6 +117,12 @@
         "role": "t022_delivery_and_acknowledgement_repository_services",
         "status": "merged",
         "merge_sha": "8aade34fda2d3e2c40b31c24b3834984b9452d5b"
+      },
+      {
+        "number": 3859,
+        "role": "t024_deployment_observation_and_request_time_correlation_foundation",
+        "status": "merged",
+        "merge_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9"
       }
     ],
     "closeout_pr": {
