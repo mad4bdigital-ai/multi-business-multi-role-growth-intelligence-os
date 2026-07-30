@@ -35,6 +35,8 @@ for (const requiredCommand of [
   "node test-platform-engine-orchestration.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
+  "node test-canonical-execution-intent-isolation.mjs",
+  "node test-execution-intent-binding-migration-contract.mjs",
 ]) {
   assert.ok(testCommands.includes(requiredCommand), `missing manifest command: ${requiredCommand}`);
 }
