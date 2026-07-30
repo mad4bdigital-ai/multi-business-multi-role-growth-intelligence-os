@@ -122,8 +122,9 @@ Admin visibility does not become execution authority.
 5. Atomically claim the state with a compare-and-set from `issued` to `claimed` before code exchange, credential lookup, or credential mutation.
 6. Exactly one callback receives the claim token and may continue. Concurrent or later callbacks fail with `OAUTH_STATE_CLAIM_CONFLICT` or `OAUTH_STATE_REPLAYED` and perform no provider exchange or credential mutation.
 7. Exchange the authorization code using the claimed state.
-8. Validate returned provider account and reconnect connection revision against the signed expected binding.
-9. Encrypt and store the credential for the exact owner scope.
-10. Mark the claimed state `consumed` in the same governed completion path and perform same-cycle readback.
+8. Validate the returned provider account and re-read the target connection revision against the signed expected binding.
+9. For reconnect, replace the encrypted credential only through a compare-and-set that requires the signed `expectedConnectionRevision`, the live `claimed` state revision, and the valid internal claim token. Atomically advance the connection revision and transition the same authorization state from `claimed` to `consumed` in one governed completion boundary.
+10. If the connection or state revision moved, fail closed with no visible credential replacement and require a new authorization attempt.
+11. Perform same-cycle readback of the connection revision, owner scope, provider-account binding, and consumed authorization state.
 
 A failed exchange may move the claim to a governed terminal or recoverable state according to policy, but it never returns the same state to freely claimable `issued` status without a new authorization attempt.
