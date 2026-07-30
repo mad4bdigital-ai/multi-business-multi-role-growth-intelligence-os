@@ -1,6 +1,11 @@
 name: Spec011 Current Main Reconcile
 
 on:
+  push:
+    branches:
+      - gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720
+    paths:
+      - .github/workflows/spec011-current-main-reconcile.yml
   pull_request:
     types: [reopened]
 
@@ -13,7 +18,7 @@ concurrency:
 
 jobs:
   reconcile:
-    if: github.event.pull_request.number == 2878 && github.event.pull_request.head.ref == 'gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720'
+    if: github.event_name == 'push' || (github.event.pull_request.number == 2878 && github.event.pull_request.head.ref == 'gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MAIN_SHA='0b77554d8ae12d9c502ccf0ea7f09f260ca8e5b6'
+          MAIN_SHA='2487786004d403a4ee988b4e6c5ab329f2c5234f'
           ROUTES='http-generic-api/routes/index.js'
           ARTIFACT='http-generic-api/frontend-surface-dispatch.generated.json'
           WORKFLOW='.github/workflows/spec011-current-main-reconcile.yml'
