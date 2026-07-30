@@ -137,7 +137,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 ### Hierarchical connection ownership
 
 - FR-046: Every workspace MUST expose a governed `workspaceOwnershipType` of `personal` or `company` before connection ownership is resolved. This field is independent from, and MUST NOT redefine, the existing operational `workspaceType` classification.
-- FR-047: Every provider connection MUST have one exact `ownerScopeType` of `personal_workspace`, `company_workspace`, or `brand`, with an exact owner reference. Every resolved decision that selects a connection MUST carry that exact owner scope type and reference in the immutable decision.
+- FR-047: Every provider connection MUST have one exact `ownerScopeType` of `personal_workspace`, `company_workspace`, or `brand`, with an exact owner reference. Every resolved decision that selects a connection MUST carry that exact owner scope type and reference in the immutable decision. A decision that has not selected one exact connection MUST omit selected connection and owner-scope fields rather than invent values.
 - FR-048: A personal connection MUST be eligible only when its owner user equals the effective user.
 - FR-049: Company-workspace membership MUST NOT authorize use of another member's personal connection.
 - FR-050: A brand connection MUST be eligible only for the exact brand and workspace that own it.
@@ -150,7 +150,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - FR-057: Connection ownership, authorization, provider-scope, membership, workspace ownership, or brand revision changes MUST invalidate dependent pins, plans, approvals, and cached decisions.
 - FR-058: Google identity login MUST NOT be treated as Google Drive, Docs, Gmail, Analytics, Ads, or other provider API consent.
 - FR-059: Provider authorization state MUST be signed, expiring, nonce-bound, single-use, redirect-allowlisted, and bound to the authenticated principal and exact owner scope. Reconnect state MUST additionally bind the intended connection reference, expected connection revision, and expected provider account reference or privacy-preserving account-binding hash.
-- FR-060: OAuth callbacks MUST derive authority from authenticated and signed state and MUST NOT accept free caller-supplied user or tenant identifiers as authority. Reconnect callbacks MUST reject a returned provider account or connection revision that differs from the signed expected binding.
+- FR-060: OAuth callbacks MUST derive authority from authenticated and signed state and MUST NOT accept free caller-supplied user or tenant identifiers as authority. Reconnect callbacks MUST reject a returned provider account that differs from the signed expected binding. Credential replacement MUST itself use a compare-and-set against the signed expected connection revision and live claimed-state revision; the replacement, connection revision increment, and transition from `claimed` to `consumed` MUST complete atomically or all remain unapplied.
 - FR-061: Public connection APIs MUST use strict OpenAPI 3.1 contracts, stable structured errors, no-secret projections, bounded pagination, and same-cycle readback for mutations.
 - FR-062: Legacy connection records MUST be preserved and classified through an additive compatibility path before destructive cleanup.
 - FR-063: Effective Capability Envelope and Effective Authority MUST consume the exact Context Kernel connection and owner-scope decision instead of implementing competing selectors or re-fetching mutable ownership metadata.
@@ -169,7 +169,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - NFR-007: Failure modes MUST be structured and actionable.
 - NFR-008: Multi-tenant isolation tests are release blocking.
 - NFR-009: Cross-user and cross-brand connection-isolation tests are release blocking.
-- NFR-010: OAuth state replay, concurrent claim, context-mismatch, and reconnect-account-binding tests are release blocking.
+- NFR-010: OAuth state replay, concurrent claim, context-mismatch, reconnect-account-binding, and reconnect-write revision-race tests are release blocking.
 - NFR-011: Compatibility tests proving existing operational workspace-type values remain unchanged are release blocking for persistence work.
 - NFR-012: Migration-readback-before-rollout and rollback-owner-isolation tests are release blocking.
 - NFR-013: Registered end-to-end flows MUST preserve plan and approval ordering before credential-dependent readiness.
@@ -189,8 +189,10 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - Google login and provider consent remain distinct observable readiness states.
 - Existing operational workspace classifications remain intact while personal/company ownership is represented separately.
 - Credential-dependent readiness can execute without exposing credentials before the exact-owner, plan, authority, and approval gates pass.
-- Reconnect cannot attach a different provider account to an existing connection silently.
+- Reconnect cannot attach a different provider account or overwrite a newer connection revision silently.
 - Concurrent callbacks cannot consume the same authorization state more than once.
+- Reconnect credential replacement and state consumption either commit together or remain unapplied.
+- Unresolved decisions never fabricate selected owner-scope evidence.
 - Shadow/read/write rollout does not begin before governed migration readback succeeds.
 - Rollback never restores an owner-unsafe selector.
 
