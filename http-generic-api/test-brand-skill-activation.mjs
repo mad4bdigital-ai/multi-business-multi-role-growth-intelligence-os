@@ -11,6 +11,7 @@ import {
   grantCoversOperations,
   mergeAllowedOperations,
 } from "./brandSkillResourceBinding.js";
+import { brandSkillActivationHttpStatus } from "./routes/brandSkillRoutes.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 assert.deepEqual(normalizeRequestedOperations(["Publish", "update", "publish"]), ["publish", "update"]);
@@ -31,6 +32,30 @@ assert.deepEqual(
   ["publish", "update"],
   "operations removed from the current policy must not survive grant expansion",
 );
+assert.equal(brandSkillActivationHttpStatus({ created: true, changed: true }), 201);
+assert.equal(brandSkillActivationHttpStatus({ created: false, changed: true }), 200);
+assert.equal(brandSkillActivationHttpStatus({ created: false, changed: false }), 200);
+
+const ttlClampQueries = [];
+const ttlClampChanged = await _testingBrandSkillActivationService.clampActiveGrantTtl({
+  async query(sql, params) {
+    ttlClampQueries.push({ sql: String(sql), params });
+    return [{ affectedRows: 1 }];
+  },
+}, { grantId: "grant-1", ttlHours: 48 });
+assert.equal(ttlClampChanged, true);
+assert.equal(ttlClampQueries.length, 1);
+assert.match(ttlClampQueries[0].sql, /expires_at IS NULL OR expires_at > DATE_ADD\(NOW\(\), INTERVAL \? HOUR\)/i);
+assert.deepEqual(ttlClampQueries[0].params, [48, "grant-1", 48]);
+let skippedClampQueries = 0;
+const skippedClamp = await _testingBrandSkillActivationService.clampActiveGrantTtl({
+  async query() {
+    skippedClampQueries += 1;
+    return [{ affectedRows: 1 }];
+  },
+}, { grantId: "grant-2", ttlHours: null });
+assert.equal(skippedClamp, false);
+assert.equal(skippedClampQueries, 0);
 
 assert.throws(
   () => _testingBrandSkillActivationService.validatePolicy({
@@ -159,6 +184,10 @@ for (const marker of [
   "allowed_operations_json = ?",
   "operation_set_extended: true",
   "policy.allowed_operations_json",
+  "clampActiveGrantTtl",
+  "ttl_clamped: ttlClamped",
+  "created: false",
+  "created: true",
   "SET status = 'expired'",
   "expires_at <= CURRENT_TIMESTAMP",
   "provider_call_allowed: false",
@@ -183,6 +212,8 @@ assert(routes.includes("requireUserJwt"));
 assert(routes.includes("/me/workspaces/:tenant_id/brands/:brand_key/skills"));
 assert(routes.includes("/:skill_key/activate"));
 assert(routes.includes("/:skill_key/activation"));
+assert(routes.includes("brandSkillActivationHttpStatus"));
+assert(routes.includes("result.created === true ? 201 : 200"));
 assert(routes.includes("requestId"));
 
 const gate = readFileSync(new URL("./agentToolAuthorizationGate.js", import.meta.url), "utf8");
