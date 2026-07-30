@@ -264,7 +264,7 @@ function hasStandaloneSqlCommentMarker(source = "", marker = "") {
   const token = String(marker || "");
   if (!/^[a-z0-9_]+$/i.test(token)) return false;
   const commentLine = new RegExp(
-    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
+    `(?:^|\\r?\\n)\\s*(?:--|#|\\/\\*+|\\*)\\s*(?:[-*]\\s*)?${token}\\s*(?:\\*\\/)?\\s*(?=\\r?\\n|$)`,
     "i"
   );
   return commentLine.test(String(source || ""));
