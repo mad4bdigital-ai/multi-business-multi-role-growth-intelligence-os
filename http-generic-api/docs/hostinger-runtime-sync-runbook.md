@@ -30,6 +30,23 @@ The binding is not proof of deployment. After applying it, rerun deploy dry-run,
 
 This runbook prevents credential-intake or deployment flows from being treated as live-ready when the SQL registry and GitHub `main` are newer than the running Hostinger Node.js runtime.
 
+## Mandatory `main` to `Production` synchronization
+
+`main` is the source-of-change branch. `Production` is the protected Hostinger deployment branch. Every merge that moves `main` requires a new governed synchronization of `Production` from the latest `main`, even when a previous Production promotion or ancestry-only merge recently completed.
+
+The required sequence is:
+
+1. Read the latest exact SHA from `main`.
+2. Compare `Production` with that SHA and require `behind_by=0` before release readiness.
+3. Create or update a `main` to `Production` pull request; do not write directly to the protected branch.
+4. Require the repository CI gate and a fresh typed merge approval.
+5. Merge the exact approved head into `Production` without force.
+6. Require Hostinger to create a build after the resulting Production merge timestamp.
+7. Require the build to complete successfully and produce a deployment manifest whose commit equals the exact Production merge SHA.
+8. Require same-cycle `/health`, `/version`, and runtime-parity readback.
+
+A GitHub push, branch ancestry match, merge acceptance, or Hostinger build acceptance is not sufficient proof of deployment. Until a fresh build and exact-SHA runtime readback pass, classify the release as `production_sync_required` or blocked. The planning handoff is `release.sync_production_from_latest_main`; it performs no deployment, provider write, restart, migration apply, external send, or secret access.
+
 ## Trigger condition
 
 Use this runbook when any of the following are true:
