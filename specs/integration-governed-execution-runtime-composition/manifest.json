@@ -2,7 +2,7 @@
   "schema_version": 3,
   "package_key": "integration-governed-execution-runtime-composition",
   "package_type": "cross_spec_integration_kit",
-  "status": "draft",
+  "status": "in_progress",
   "runtime_authority": false,
   "functional_authority": false,
   "owner_specs": {
