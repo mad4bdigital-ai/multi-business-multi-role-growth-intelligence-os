@@ -13,9 +13,14 @@ export {
   createExecutionCapsuleService,
 } from "./executionCapsuleService.js";
 export { createExecutionPlanService } from "./executionPlanService.js";
+export { createPrincipalResolverService } from "./principalResolverService.js";
+export { createSubjectScopeDelegationResolverService } from "./subjectScopeDelegationResolverService.js";
 export { createUnknownOutcomeReconciliationService } from "./unknownOutcomeReconciliationService.js";
 
 export {
+  assertPrincipalRepository,
+  assertSubjectScopeRepository,
+  assertDelegationContextRepository,
   assertAuthorizedScopeRepository,
   assertCapabilityReadinessRepository,
   assertContextPinRepository,
