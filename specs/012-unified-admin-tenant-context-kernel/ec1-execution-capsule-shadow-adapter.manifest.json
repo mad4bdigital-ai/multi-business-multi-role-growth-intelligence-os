@@ -94,8 +94,8 @@
   "certification_request": {
     "status": "pending_exact_head_ci",
     "technical_changes_complete": true,
-    "requested_from_pr": 3719,
-    "required_trigger": "new_pull_request_open",
+    "requested_from_pr": 3739,
+    "required_trigger": "fresh_branch_new_pull_request_open",
     "runtime_authority_granted": false
   },
   "human_review": {
