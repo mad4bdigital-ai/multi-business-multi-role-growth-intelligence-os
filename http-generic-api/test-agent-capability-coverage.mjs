@@ -90,4 +90,13 @@ await assert.rejects(
   (error) => error.code === "agent_capability_coverage_engine_key_invalid" && error.status === 400
 );
 
+const migrationSql = readFileSync(
+  new URL("./migrations/1006_sprint69_agent_capability_evidence_coverage.sql", import.meta.url),
+  "utf8"
+);
+assert.match(
+  migrationSql,
+  /ci\.capability_key COLLATE utf8mb4_unicode_ci = ld\.logic_key COLLATE utf8mb4_unicode_ci/
+);
+
 console.log("agent capability coverage tests passed");
