@@ -59,17 +59,20 @@ jobs:
           test_file.write_text(text)
           PY
 
+      - name: Install API dependencies
+        shell: bash
+        run: npm ci --prefix http-generic-api
+
       - name: Validate hardcoding ratchet and focused test
         shell: bash
-        working-directory: http-generic-api
         run: |
           set -euo pipefail
           printf '%s\n' \
-            'scripts/delegation-mariadb-disposable-certification.mjs' \
-            'test-delegation-grant-mariadb-runtime-binding.mjs' \
+            'http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs' \
+            'http-generic-api/test-delegation-grant-mariadb-runtime-binding.mjs' \
             > "$RUNNER_TEMP/spec011-hardcoding-files.txt"
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/spec011-hardcoding-files.txt"
-          node test-delegation-grant-mariadb-runtime-binding.mjs
+          node http-generic-api/scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/spec011-hardcoding-files.txt"
+          node http-generic-api/test-delegation-grant-mariadb-runtime-binding.mjs
 
       - name: Commit clean hardcoding fix
         shell: bash
