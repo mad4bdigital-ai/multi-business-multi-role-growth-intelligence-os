@@ -1,6 +1,7 @@
 import { deepFreeze } from "../domain/index.js";
 
 const REASON_CODE_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,190}$/u;
+const STATUS_TOKEN_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,63}$/u;
 
 function cleanString(value) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
@@ -11,6 +12,25 @@ function nowMilliseconds(clock) {
   if (value instanceof Date) return value.getTime();
   if (Number.isFinite(Number(value))) return Number(value);
   throw new TypeError("clock must return a Date or finite timestamp.");
+}
+
+function safeNowMilliseconds(clock) {
+  try {
+    return nowMilliseconds(clock);
+  } catch {
+    return null;
+  }
+}
+
+function safeDurationMilliseconds(clock, startedAt) {
+  const finishedAt = safeNowMilliseconds(clock);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(finishedAt)) return 0;
+  return Math.max(0, Math.round(finishedAt - startedAt));
+}
+
+function safeStatusToken(value) {
+  const candidate = cleanString(value);
+  return candidate && STATUS_TOKEN_PATTERN.test(candidate) ? candidate : null;
 }
 
 function candidateCountFrom(resolution) {
@@ -62,8 +82,8 @@ function baseEvent(resolution, durationMs) {
   return {
     eventType: "execution_capsule_shadow",
     shadowMode: true,
-    durationMs: Math.max(0, Math.round(durationMs)),
-    resolutionStatus: cleanString(resolution?.status),
+    durationMs,
+    resolutionStatus: safeStatusToken(resolution?.status),
     candidateCount: candidateCountFrom(resolution),
     selectedCandidatePresent: Boolean(selectedCandidateFrom(resolution)),
     providerDispatchPerformed: false,
@@ -105,13 +125,16 @@ export function createExecutionCapsuleShadowResolutionService({
 
   return Object.freeze({
     async resolve(input) {
-      const startedAt = nowMilliseconds(clock);
+      const startedAt = safeNowMilliseconds(clock);
       const resolution = await resolutionService.resolve(input);
-      const common = baseEvent(resolution, nowMilliseconds(clock) - startedAt);
+      const currentBaseEvent = () => baseEvent(
+        resolution,
+        safeDurationMilliseconds(clock, startedAt),
+      );
 
       if (resolution?.status !== "resolved") {
         await emitSafely(emitTelemetry, {
-          ...common,
+          ...currentBaseEvent(),
           capsuleAttempted: false,
           capsuleCreated: false,
           capsuleOutcome: "not_attempted",
@@ -140,17 +163,17 @@ export function createExecutionCapsuleShadowResolutionService({
         assertShadowSecurityInvariants(capsuleResult);
         const matched = targetMatches(resolution, capsuleResult.capsule);
         await emitSafely(emitTelemetry, {
-          ...common,
+          ...currentBaseEvent(),
           capsuleAttempted: true,
           capsuleCreated: true,
           capsuleOutcome: matched ? "matched" : "mismatched",
-          capsuleStatus: capsuleResult.status,
+          capsuleStatus: safeStatusToken(capsuleResult.status),
           capsuleTargetMatched: matched,
-          reasonCodes: [],
+          reasonCodes: matched ? [] : ["execution_capsule_shadow_target_mismatch"],
         });
       } catch (error) {
         await emitSafely(emitTelemetry, {
-          ...common,
+          ...currentBaseEvent(),
           capsuleAttempted: true,
           capsuleCreated: false,
           capsuleOutcome: "build_failed",
@@ -167,5 +190,6 @@ export function createExecutionCapsuleShadowResolutionService({
 
 export const _testingExecutionCapsuleShadow = Object.freeze({
   safeReasonCode,
+  safeStatusToken,
   targetMatches,
 });

@@ -166,6 +166,18 @@ assert.equal(unresolvedEvents[0].capsuleCreated, false);
 assert.equal(unresolvedEvents[0].capsuleOutcome, "not_attempted");
 assert.deepEqual(unresolvedEvents[0].reasonCodes, ["context_not_resolved"]);
 
+const unboundedStatusResolution = createResolution({ status: `blocked-${"x".repeat(100)}` });
+const unboundedStatusEvents = [];
+const unboundedStatusWrapper = createExecutionCapsuleShadowResolutionService({
+  resolutionService: { async resolve() { return unboundedStatusResolution; } },
+  capsuleService,
+  capsuleEvidenceProvider: async () => capsuleEvidence(),
+  async emitTelemetry(event) { unboundedStatusEvents.push(event); },
+});
+assert.equal(await unboundedStatusWrapper.resolve({}), unboundedStatusResolution);
+assert.equal(unboundedStatusEvents[0].resolutionStatus, null);
+assert.deepEqual(unboundedStatusEvents[0].reasonCodes, ["context_not_resolved"]);
+
 const evidenceFailureEvents = [];
 const evidenceFailureWrapper = createExecutionCapsuleShadowResolutionService({
   resolutionService: { async resolve() { return resolution; } },
@@ -239,6 +251,10 @@ assert.equal(await mismatchWrapper.resolve({}), resolution);
 assert.equal(mismatchEvents[0].capsuleCreated, true);
 assert.equal(mismatchEvents[0].capsuleOutcome, "mismatched");
 assert.equal(mismatchEvents[0].capsuleTargetMatched, false);
+assert.deepEqual(
+  mismatchEvents[0].reasonCodes,
+  ["execution_capsule_shadow_target_mismatch"],
+);
 
 const telemetryOutageWrapper = createExecutionCapsuleShadowResolutionService({
   resolutionService: { async resolve() { return resolution; } },
@@ -251,6 +267,22 @@ assert.equal(
   resolution,
   "telemetry failure must not affect the legacy resolution",
 );
+
+const clockFailureEvents = [];
+const clockFailureWrapper = createExecutionCapsuleShadowResolutionService({
+  resolutionService: { async resolve() { return resolution; } },
+  capsuleService,
+  capsuleEvidenceProvider: async () => capsuleEvidence(),
+  async emitTelemetry(event) { clockFailureEvents.push(event); },
+  clock() { throw new Error("shadow clock unavailable"); },
+});
+assert.equal(
+  await clockFailureWrapper.resolve({}),
+  resolution,
+  "shadow clock failure must not affect the legacy resolution",
+);
+assert.equal(clockFailureEvents[0].durationMs, 0);
+assert.equal(clockFailureEvents[0].capsuleOutcome, "matched");
 
 class FakeResponse extends EventEmitter {
   constructor(statusCode = 200) {
@@ -328,5 +360,7 @@ assert.match(source, /providerDispatchPerformed: false/);
 assert.match(source, /legacyResolutionModified: false/);
 assert.match(source, /executionAllowed: false/);
 assert.match(source, /automaticWritePerformed: false/);
+assert.match(source, /execution_capsule_shadow_target_mismatch/);
+assert.match(source, /STATUS_TOKEN_PATTERN/);
 
 console.log("execution capsule shadow adapter tests passed");
