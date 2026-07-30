@@ -9,11 +9,7 @@ ALTER TABLE `workspace_registry`
   ADD COLUMN IF NOT EXISTS `owner_user_id`
     VARCHAR(36) NULL AFTER `workspace_ownership_type`,
   ADD COLUMN IF NOT EXISTS `ownership_revision`
-    BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER `owner_user_id`,
-  ADD KEY IF NOT EXISTS `idx_workspace_ownership_type`
-    (`tenant_id`, `workspace_ownership_type`),
-  ADD KEY IF NOT EXISTS `idx_workspace_owner_user`
-    (`tenant_id`, `owner_user_id`);
+    BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER `owner_user_id`;
 
 CREATE TABLE IF NOT EXISTS `connection_ownership_scopes` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
