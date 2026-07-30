@@ -811,7 +811,10 @@ export function parseRoutesFromFile(
     // Authentication is sometimes enforced inside the final handler rather than
     // as Express middleware (for example, signed installer download tokens).
     // Inspect every post-path argument so those gates remain visible to parity.
-    const routeGuards = unique(args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)));
+    const routeGuards = unique([
+    ...args.slice(1).flatMap((argument) => middlewareGuards(argument, aliases)),
+    ...middlewareGuards(declaration, aliases),
+  ]);
     const expansions = staticTemplateExpansions(scanSource, match.index, match[3]);
     const routes = expansions.length ? expansions : [match[3]];
     for (const route of routes) {
