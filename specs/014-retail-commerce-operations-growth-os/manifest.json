@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-retail-commerce-operations-growth-os",
+  "title": "Retail Commerce, POS, Operations, Media, and Growth OS",
+  "status": "draft",
+  "current_phase": "specify",
+  "delivery_mode": "multi_pr",
+  "branch": "gpt/spec-014-retail-commerce-operations-growth-20260731",
+  "created_at": "2026-07-30T21:47:00Z",
+  "baseline": {
+    "default_branch": "main",
+    "observed_commit_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
+    "evidence_timestamp": "2026-07-30T22:30:00Z",
+    "production_behavior_verified": false,
+    "classification": "repository_brownfield_review_only"
+  },
+  "spec_kit": {
+    "constitution_version": "1.0.0",
+    "lifecycle": [
+      "specify",
+      "clarify",
+      "plan",
+      "tasks",
+      "implement",
+      "verify",
+      "merge",
+      "deploy",
+      "closeout"
+    ]
+  },
+  "scope": {
+    "includes": [
+      "multi_tenant_commerce_context",
+      "commerce_backend_authority_adapter",
+      "product_variant_stock_unit_catalog",
+      "atomic_inventory_reservations",
+      "online_checkout_and_order_lifecycle",
+      "pos_and_branch_sales",
+      "supplier_receipt_and_quality_control",
+      "returns_refunds_and_restocking",
+      "product_intake_photography_and_media_pipeline",
+      "ai_assisted_content_with_human_approval",
+      "channel_catalog_synchronization",
+      "ga4_gtm_measurement_and_conversion_deduplication",
+      "ads_performance_and_contribution_reconciliation",
+      "crm_customer_service_and_complaint_feedback",
+      "live_commerce_reservations",
+      "arabic_rtl_responsive_and_accessible_surfaces",
+      "erpnext_frappe_adapter_mode",
+      "platform_native_commerce_mode",
+      "durable_outbox_jobs_readback_and_evidence"
+    ],
+    "excludes": [
+      "immediate_production_mutation",
+      "database_migration_apply",
+      "provider_credential_creation_or_rotation",
+      "real_payment_or_refund_execution",
+      "real_ad_spend_change",
+      "real_catalog_publication",
+      "erpnext_installation_or_deployment",
+      "tax_or_e_invoice_certification",
+      "claiming_demo_behavior_as_production_evidence"
+    ]
+  },
+  "architectural_decisions": [
+    "one_authoritative_commerce_backend_per_workspace",
+    "platform_api_is_the_stable_experience_and_governance_boundary",
+    "commerce_domain_transactions_own_inventory_and_order_invariants",
+    "context_kernel_resolves_tenant_workspace_brand_location_channel_and_connection",
+    "platform_outbox_propagates_committed_domain_events",
+    "bullmq_is_transport_not_business_state_authority",
+    "automatic_controls_do_not_require_human_approval",
+    "human_approval_is_reserved_for_judgment_or_high_risk_actions",
+    "provider_credentials_remain_in_governed_connection_surfaces",
+    "frontend_is_registered_in_the_governed_unified_surface_catalog"
+  ],
+  "artifacts": {
+    "required": [
+      "README.md",
+      "spec.md",
+      "research.md",
+      "demo-baseline.md",
+      "gap-and-reuse-matrix.md",
+      "concerns.md",
+      "operation-paths.md",
+      "plan.md",
+      "data-model.md",
+      "acceptance-matrix.md",
+      "contracts/retail-commerce-operations.openapi.yaml",
+      "contracts/commerce-events.schema.json",
+      "contracts/commerce-provider-adapter.schema.json",
+      "quickstart.md",
+      "tasks.md",
+      "checklists/requirements.md",
+      "checklists/security.md",
+      "checklists/operations.md",
+      "checklists/parity.md",
+      "completion.json"
+    ],
+    "present": false,
+    "omitted": []
+  },
+  "authority": {
+    "runtime_authority": "mysql_primary_registry_and_selected_commerce_backend",
+    "specification_is_runtime_authority": false,
+    "demo_is_runtime_authority": false,
+    "mutation_authority_created": false,
+    "provider_execution_authorized": false,
+    "secrets_included": false
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "status": "pending"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "status": "pending"
+    }
+  },
+  "production_mutation": false,
+  "provider_write": false,
+  "migration_apply": false,
+  "deployment_required": false,
+  "protected_branch_write": false,
+  "secrets_included": false
+}
