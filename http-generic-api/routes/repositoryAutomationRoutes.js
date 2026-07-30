@@ -6,6 +6,7 @@ import {
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationControlPlane.js";
+import { runRepositoryReconciliationLeaseControl } from "../repositoryReconciliationLeaseControl.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
 
@@ -84,6 +85,15 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
       return res.status(200).json(result);
     } catch (error) {
       return errorResponse(res, error, "repository_automation_hygiene_scan_failed");
+    }
+  });
+
+  router.post("/admin/repository-automation/reconciliation-lease", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await runRepositoryReconciliationLeaseControl(bodyOf(req), automationDeps(req));
+      return res.status(200).json(result);
+    } catch (error) {
+      return errorResponse(res, error, "repository_reconciliation_lease_control_failed");
     }
   });
 
