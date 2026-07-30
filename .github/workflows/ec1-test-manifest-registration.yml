@@ -1,4 +1,5 @@
 name: EC1 Test Manifest Registration
+# One-shot branch-local registration; removes itself after successful verification.
 
 on:
   push:
