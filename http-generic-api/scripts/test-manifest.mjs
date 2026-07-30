@@ -52,6 +52,7 @@ const staticDiscoveryCommands = [
   "node test-status-database-lifecycle-component.mjs",
   "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
+  "node test-task-route-authority-resolver.mjs",
   "node test-tenant-blocked-capability-export-cleanup.mjs",
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",
   "node test-tenant-export-manifest-eligibility.mjs",
@@ -59,6 +60,7 @@ const staticDiscoveryCommands = [
   "node test-test-manifest-runner.mjs",
   "node test-ticket-external-delivery-completion-certification.mjs",
   "node test-user-dashboard-dynamic-tabs-bridge.mjs",
+  "node test-workflow-registry-authority-resolver.mjs",
 ];
 
 export const testCommands = Object.freeze([
