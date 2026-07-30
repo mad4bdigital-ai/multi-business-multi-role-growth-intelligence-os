@@ -151,6 +151,9 @@ for (const required of [
   "createReleaseAdvisorRun",
   "REPOSITORY_MAIN_MOVED_EVENT_TYPE",
   "release.await_typed_approval",
+  "release.sync_production_from_latest_main",
+  "fresh_hostinger_build_required",
+  "same_cycle_readback_required",
 ]) assert.match(service, new RegExp(required));
 for (const forbidden of [
   "createReleaseOperation(",
