@@ -1,0 +1,7 @@
+{
+  "schema_version": "spec011.preflight_sync_current_main.v1",
+  "expected_source_head": "ce20d765d6184647c8d3a1128126cad33380f942",
+  "force_push_allowed": false,
+  "sql_execution_allowed": false,
+  "secrets_included": false
+}
