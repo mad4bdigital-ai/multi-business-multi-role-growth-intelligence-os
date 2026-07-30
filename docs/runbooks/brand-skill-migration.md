@@ -32,11 +32,18 @@ The command is read-only and must report:
 - a valid 64-character `SHA2(..., 256)` probe
 - absence of all three target objects
 - compatible `agent_skills.skill_id` collation and prerequisite columns
+- presence of the baseline `agent_skill_grants` table
+- presence of `v_effective_agent_skill_grants` as a view
+- runtime-required baseline view columns `grant_id`, `agent_id`, `skill_id`, `tenant_id`, and `brand_key` with compatible collations
+- `runtime_baseline_required=true`
+- `runtime_baseline_checked=true`
 - `provider_calls=false`
 - `external_writes=false`
 - `secrets_included=false`
 
 If any target object already exists, stop. Do not rely on `CREATE TABLE IF NOT EXISTS` to reconcile a partial or incompatible schema. Perform exact `SHOW CREATE` and information-schema readback, then prepare a separately reviewed corrective migration if necessary.
+
+If the baseline agent-skill table or effective view is missing or incompatible, stop before migration apply. Repair the baseline authority through its own reviewed migration; do not weaken the Brand Skills runtime requirement.
 
 ## Final artifact binding
 
@@ -53,11 +60,12 @@ Also verify the governed SQL parser reports exactly three statements. The approv
 1. Confirm a current backup or environment-appropriate snapshot.
 2. Run the read-only compatibility preflight.
 3. Confirm the target object set is absent.
-4. Create a fresh governed migration authorization bound to the final SHA-256 and statement count.
-5. Run governed dry-run and require zero destructive statements.
-6. Apply once through the governed migration executor.
-7. Perform same-cycle schema and data readback.
-8. Do not seed a policy or grant during the schema migration run.
+4. Confirm baseline agent-skill table/view authority passes readback.
+5. Create a fresh governed migration authorization bound to the final SHA-256 and statement count.
+6. Run governed dry-run and require zero destructive statements.
+7. Apply once through the governed migration executor.
+8. Perform same-cycle schema and data readback.
+9. Do not seed a policy or grant during the schema migration run.
 
 ## Same-cycle schema readback
 
@@ -65,10 +73,14 @@ Also verify the governed SQL parser reports exactly three statements. The approv
 SELECT VERSION() AS database_version, @@version_comment AS version_comment;
 SELECT SHA2('brand-skill-preflight', 256) AS sha2_probe;
 
+SHOW TABLES LIKE 'agent_skill_grants';
+SHOW FULL TABLES LIKE 'v_effective_agent_skill_grants';
 SHOW TABLES LIKE 'brand_skill_policies';
 SHOW TABLES LIKE 'user_brand_skill_grants';
 SHOW FULL TABLES LIKE 'v_effective_user_brand_skill_grants';
 
+SHOW CREATE TABLE agent_skill_grants;
+SHOW CREATE VIEW v_effective_agent_skill_grants;
 SHOW CREATE TABLE brand_skill_policies;
 SHOW CREATE TABLE user_brand_skill_grants;
 SHOW CREATE VIEW v_effective_user_brand_skill_grants;
@@ -81,7 +93,8 @@ Confirm:
 - every scope component is encoded with `HEX(...)` before delimiter concatenation.
 - `uq_user_brand_skill_grant_active_scope` exists and is unique.
 - `utf8mb4_uca1400_ai_ci` is used for identity and scope columns.
-- the effective view filters to active, unexpired grants and active policies/skills.
+- the user-brand effective view filters to active, unexpired grants and active policies/skills.
+- the baseline effective view still exposes the runtime-required grant, agent, skill, tenant, and brand columns.
 
 ## Empty-state readback
 
