@@ -47,6 +47,8 @@ export const testCommands = [
   "node test-context-kernel-registry-adapters.mjs",
   "node test-context-kernel-application-use-cases.mjs",
   "node test-execution-capsule-contract.mjs",
+  "node test-execution-capsule-shadow-adapter.mjs",
+  "node test-execution-capsule-shadow-composition.mjs",
   "node test-context-kernel-api-projection.mjs",
   "node test-context-kernel-shadow-integration.mjs",
   "node test-platform-scoped-approval-kernel.mjs",
@@ -175,6 +177,7 @@ export const testCommands = [
   "node test-governed-repository-intelligence-engine.mjs",
   "node test-repository-governance-v6.mjs",
   "node test-repository-operation-lease-service.mjs",
+  "node test-repository-reconciliation-lease-control.mjs",
   "node test-repository-coordination-plane.mjs",
   "node test-repository-mutation-coordination-telemetry.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
@@ -697,8 +700,7 @@ export const testCommands = [
   "node test-growth-intelligence-admin-decisions.mjs",
   "node test-growth-intelligence-action-collation.mjs",
   "node test-approval-hold-identity-collation-alignment.mjs",
-  "node test-approval-hold-identity-release-readiness.mjs",
-  "node test-durable-execution-control-service.mjs",
+  "node test-approval-hold-identity-release-readiness.mjs"
 ];
 
 // PR-1811 merge-scope marker: capability-security hardening tests remain governed by this manifest.

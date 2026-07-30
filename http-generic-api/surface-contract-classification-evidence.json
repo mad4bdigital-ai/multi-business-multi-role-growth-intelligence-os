@@ -1,0 +1,39 @@
+{
+  "schema_version": "surface-contract-classification-evidence-v1",
+  "checksum_mode": "git_blob_sha1",
+  "items": [
+    {
+      "migration_file": "20260714_validate_hostinger_connection_and_complete_continuation_task.sql",
+      "source_git_blob_sha": "8cc9206127a5931cb2f1613b2aa3c4351a5e1c1a",
+      "classification_status": "verified_evidence_only",
+      "documentation_targets": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "route_literals": [
+        {
+          "route": "/api/vps/v1/public-keys",
+          "classification": "evidence_only_external_readback",
+          "reason": "Historical provider-validation evidence stored in task context; not a declared platform HTTP handler."
+        },
+        {
+          "route": "/api/vps/v1/virtual-machines",
+          "classification": "evidence_only_external_readback",
+          "reason": "Historical provider-validation evidence stored in task context; not a declared platform HTTP handler."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    }
+  ]
+}
