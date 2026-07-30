@@ -1,0 +1,6 @@
+{
+  "purpose": "create a linked-account commit before restoring the source-only tree",
+  "source_head": "76e0bec925ab24b7762c4ca2ee9dd65086931149",
+  "sql_executed": false,
+  "secrets_included": false
+}
