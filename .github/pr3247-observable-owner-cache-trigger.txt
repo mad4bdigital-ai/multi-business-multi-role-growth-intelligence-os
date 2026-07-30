@@ -1,0 +1,6 @@
+purpose=execute_observable_owner_cache_patch
+base_branch=gpt/response-chunk-ownership-a23e0076
+runtime_mutation_in_trigger_branch=false
+migration_applied=false
+deployment_executed=false
+secrets_included=false
