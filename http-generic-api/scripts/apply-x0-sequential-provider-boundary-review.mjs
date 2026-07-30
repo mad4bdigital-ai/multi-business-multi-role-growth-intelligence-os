@@ -100,14 +100,14 @@ test = replaceExactlyOnce(
 
 test = replaceExactlyOnce(
   test,
-  `assert.match(sequentialRuntime, /claim_token_sha256: sha256\(claimToken\)/);
-assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");`,
-  `assert.match(sequentialRuntime, /claim_token_sha256: sha256\(claimToken\)/);
-assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
+  `assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
+assert.match(jobRunner, /runSequentialPlan/);`,
+  `assert.equal(sequentialRuntime.includes("evidence: { claim_token: claimToken }"), false, "raw claim token must never enter audit evidence");
 assert.match(sequentialRuntime, /SELECT \\* FROM execution_plans WHERE plan_id = \\? LIMIT 2 FOR UPDATE/);
 assert.doesNotMatch(sequentialRuntime, /const plan = planRows\\[0\\]/);
 assert.match(sequentialRuntime, /observeProviderDispatch: !executeStep \\|\\| baselineProviderDispatch === true/);
-assert.match(sequentialRuntime, /executeStep\\(claim\\.step, \\{ pool, plan: claim\\.plan, actorId, baselineTrace \\}\\)/);`,
+assert.match(sequentialRuntime, /executeStep\\(claim\\.step, \\{ pool, plan: claim\\.plan, actorId, baselineTrace \\}\\)/);
+assert.match(jobRunner, /runSequentialPlan/);`,
   "reviewed provider and uniqueness source contracts",
 );
 
