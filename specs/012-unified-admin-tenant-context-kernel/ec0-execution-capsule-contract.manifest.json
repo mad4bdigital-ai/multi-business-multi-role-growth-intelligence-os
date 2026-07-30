@@ -44,11 +44,11 @@
     "domain_application_index_exports",
     "standalone_contract_test",
     "complete_test_manifest_registration",
-    "generated_test_manifest_evidence_refresh"
+    "generated_test_manifest_evidence_refresh",
+    "exact_head_ci_evidence",
+    "human_architecture_security_review"
   ],
   "pending_contracts": [
-    "exact_head_ci_evidence",
-    "human_architecture_security_review",
     "EC1_shadow_adapter",
     "EC2_selected_read_pilot",
     "EC3_unified_dispatch_integration",
