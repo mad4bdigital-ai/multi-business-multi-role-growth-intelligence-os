@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(scriptDir, "..");
+const repositoryRoot = path.resolve(apiRoot, "..");
 const routesPath = path.join(apiRoot, "routes", "systemLayerRoutes.js");
 const openapiPath = path.join(apiRoot, "openapi.yaml");
+const testManifestPath = path.join(apiRoot, "scripts", "test-manifest.mjs");
 
 function replaceExactlyOnce(value, before, after, label) {
   const first = value.indexOf(before);
@@ -72,6 +75,26 @@ openapi = replaceExactlyOnce(
   "fixed connected-system identifier",
 );
 
+const mainManifest = execFileSync(
+  "git",
+  ["show", "origin/main:http-generic-api/scripts/test-manifest.mjs"],
+  { cwd: repositoryRoot, encoding: "utf8" },
+);
+const manifestAnchor = '  "node test-semantic-capability-effective-resolution.mjs",';
+const manifestInsert = [
+  manifestAnchor,
+  '  "node test-system-tool-catalog-v2.mjs",',
+  '  "node test-system-layer-response-fallback.mjs",',
+  '  "node test-spec013-runtime-ratchet-contract.mjs",',
+].join("\n");
+const testManifest = replaceExactlyOnce(
+  mainManifest,
+  manifestAnchor,
+  manifestInsert,
+  "Spec 013 test manifest insertion",
+);
+
 fs.writeFileSync(routesPath, routes);
 fs.writeFileSync(openapiPath, openapi);
-console.log("Spec 013 runtime ratchet repair applied");
+fs.writeFileSync(testManifestPath, testManifest);
+console.log("Spec 013 runtime ratchet repair and complete test manifest restoration applied");
