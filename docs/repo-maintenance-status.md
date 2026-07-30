@@ -78,10 +78,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
-- `.github/workflows/surface-contract-bootstrap-escape-hotfix.yml`
-- `.github/workflows/surface-contract-classification-bootstrap.yml`
-- `.github/workflows/surface-contract-classification-marker-hotfix.yml`
-- `.github/workflows/surface-contract-phase-a-current-main-rebuild-v3.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
 - `.github/workflows/verify-runtime.yml`
 
@@ -103,6 +99,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/surface-contract-auto-remediator.mjs`
 - `http-generic-api/scripts/surface-contract-discovery.mjs`
 - `http-generic-api/scripts/surface-contract-gap-triage.mjs`
+- `http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 
