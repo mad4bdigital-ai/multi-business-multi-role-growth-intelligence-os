@@ -1,0 +1,434 @@
+import {
+  assertExecutionCapsuleIntegrity,
+  compareExecutionCapsuleDependencies,
+  createExecutionCapsule,
+  projectExecutionCapsule,
+} from "../domain/executionCapsule.js";
+import { deepFreeze } from "../domain/model.js";
+import {
+  ContextApplicationError,
+  requireApplicationFunction,
+  requireApplicationObject,
+  requireApplicationString,
+} from "./applicationSupport.js";
+
+export const ExecutionCapsuleValidationStatus = Object.freeze({
+  VALID: "valid",
+  EXPIRED: "expired",
+  REVISION_MISMATCH: "revision_mismatch",
+  CONTEXT_MISMATCH: "context_mismatch",
+  DYNAMIC_REFRESH_REQUIRED: "dynamic_refresh_required",
+  INTERPRETATION_REQUIRED: "interpretation_required",
+  BLOCKED: "blocked",
+});
+
+const OPERATION_KINDS = new Set(["read", "mutation"]);
+const REASON_CODE_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,190}$/u;
+
+function optionalString(value) {
+  if (value == null || value === "") return null;
+  return requireApplicationString(value, "value");
+}
+
+function normalizedDate(value, fieldName) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new TypeError(`${fieldName} must be a valid date.`);
+  return date;
+}
+
+function normalizeReasonCodes(reasonCodes) {
+  return [...new Set(reasonCodes.map((reason, index) => {
+    const normalized = String(reason || "").trim();
+    if (!REASON_CODE_PATTERN.test(normalized)) {
+      throw new TypeError(`blockedReasonCodes[${index}] must be a bounded reason code.`);
+    }
+    return normalized;
+  }))];
+}
+
+function selectedCandidateFromResolution(resolution) {
+  const selected = requireApplicationObject(
+    resolution.selectedCandidate,
+    "resolution.selectedCandidate",
+  );
+  const stableRef = requireApplicationString(selected.stableRef, "selectedCandidate.stableRef");
+  const candidates = Array.isArray(resolution.candidates) ? resolution.candidates : [];
+  const exactMatches = candidates.filter((candidate) => candidate?.stableRef === stableRef);
+  if (exactMatches.length !== 1) {
+    throw new ContextApplicationError(
+      exactMatches.length === 0
+        ? "execution_capsule_selected_candidate_missing"
+        : "execution_capsule_selected_candidate_ambiguous",
+      exactMatches.length === 0
+        ? "The selected execution candidate is not present in the resolved candidate set."
+        : "The selected execution candidate is ambiguous in the resolved candidate set.",
+      409,
+      { selected_candidate_ref: stableRef, exact_match_count: exactMatches.length },
+    );
+  }
+  return requireApplicationObject(
+    exactMatches[0],
+    "resolution.candidates[selectedCandidate]",
+  );
+}
+
+function assertExactContextConsistency(context, selected) {
+  const contextSelected = requireApplicationObject(
+    context.selectedCandidate,
+    "resolution.context.selectedCandidate",
+  );
+  const pairs = [
+    ["selectedCandidate.candidateType", contextSelected.candidateType, selected.candidateType],
+    ["selectedCandidate.stableRef", contextSelected.stableRef, selected.stableRef],
+    ["selectedCandidate.tenantRef", contextSelected.tenantRef, selected.tenantRef],
+    ["selectedCandidate.workspaceRef", contextSelected.workspaceRef, selected.workspaceRef],
+    ["selectedCandidate.brandRef", contextSelected.brandRef ?? null, selected.brandRef ?? null],
+    ["selectedCandidate.resourceType", contextSelected.resourceType, selected.resourceType],
+    ["selectedCandidate.resourceRef", contextSelected.resourceRef, selected.resourceRef],
+    ["selectedCandidate.connectionRef", contextSelected.connectionRef, selected.connectionRef],
+    ["tenantRef", context.tenantRef, selected.tenantRef],
+    ["workspaceRef", context.workspaceRef, selected.workspaceRef],
+    ["brandRef", context.brandRef ?? null, selected.brandRef ?? null],
+    ["resourceType", context.resourceType, selected.resourceType],
+    ["resourceRef", context.resourceRef, selected.resourceRef],
+    ["connectionRef", context.connectionRef, selected.connectionRef],
+  ];
+  const mismatches = pairs
+    .filter(([, left, right]) => (left ?? null) !== (right ?? null))
+    .map(([field]) => field);
+  if (mismatches.length > 0) {
+    throw new ContextApplicationError(
+      "execution_capsule_context_candidate_mismatch",
+      "Resolved context and authorized selected candidate do not describe the same exact target.",
+      409,
+      { mismatch_fields: [...new Set(mismatches)].sort() },
+    );
+  }
+}
+
+function contextIdentity(context) {
+  const principal = requireApplicationObject(context.principal, "context.principal");
+  const subject = requireApplicationObject(
+    context.effectiveSubject,
+    "context.effectiveSubject",
+  );
+  return {
+    contextHash: requireApplicationString(context.contextHash, "context.contextHash"),
+    contextRevision: requireApplicationString(
+      context.contextRevision,
+      "context.contextRevision",
+    ),
+    principalType: requireApplicationString(
+      principal.principalType,
+      "context.principal.principalType",
+    ),
+    principalRef: requireApplicationString(
+      principal.principalRef,
+      "context.principal.principalRef",
+    ),
+    effectiveSubjectRef: requireApplicationString(
+      subject.subjectRef,
+      "context.effectiveSubject.subjectRef",
+    ),
+    tenantRef: requireApplicationString(context.tenantRef, "context.tenantRef"),
+    workspaceRef: requireApplicationString(context.workspaceRef, "context.workspaceRef"),
+    brandRef: optionalString(context.brandRef),
+    resourceType: requireApplicationString(context.resourceType, "context.resourceType"),
+    resourceRef: requireApplicationString(context.resourceRef, "context.resourceRef"),
+    connectionRef: requireApplicationString(context.connectionRef, "context.connectionRef"),
+  };
+}
+
+function capsuleContextMismatchFields(capsule, current) {
+  const pairs = [
+    ["contextHash", capsule.contextHash, current.contextHash],
+    ["principalType", capsule.principalType, current.principalType],
+    ["principalRef", capsule.principalRef, current.principalRef],
+    ["effectiveSubjectRef", capsule.effectiveSubjectRef, current.effectiveSubjectRef],
+    ["tenantRef", capsule.tenantRef, current.tenantRef],
+    ["workspaceRef", capsule.workspaceRef, current.workspaceRef],
+    ["brandRef", capsule.brandRef ?? null, current.brandRef ?? null],
+    ["resourceType", capsule.resourceType, current.resourceType],
+    ["resourceRef", capsule.resourceRef, current.resourceRef],
+    ["connectionRef", capsule.connectionRef, current.connectionRef],
+  ];
+  return pairs
+    .filter(([, expected, actual]) => expected !== actual)
+    .map(([field]) => field)
+    .sort();
+}
+
+function integrityFailureResult(rawCapsule, validatedAt) {
+  const safeCapsuleRef = typeof rawCapsule?.capsuleRef === "string" &&
+    /^ctxc-[0-9a-f]{32}$/u.test(rawCapsule.capsuleRef)
+    ? rawCapsule.capsuleRef
+    : null;
+  return deepFreeze({
+    status: ExecutionCapsuleValidationStatus.BLOCKED,
+    valid: false,
+    capsuleRef: safeCapsuleRef,
+    contextHash: null,
+    contextRevision: null,
+    reasonCodes: ["execution_capsule_integrity_invalid"],
+    mismatchFields: [],
+    dependencyComparison: null,
+    requiresContextReresolution: true,
+    dynamicRefreshRequired: false,
+    executionAllowed: false,
+    automaticWritePerformed: false,
+    validatedAt,
+    secretsIncluded: false,
+  });
+}
+
+function validationResult({
+  status,
+  capsule,
+  reasonCodes = [],
+  mismatchFields = [],
+  dependencyComparison = null,
+  validatedAt,
+}) {
+  return deepFreeze({
+    status,
+    valid: status === ExecutionCapsuleValidationStatus.VALID,
+    capsuleRef: capsule.capsuleRef,
+    contextHash: capsule.contextHash,
+    contextRevision: capsule.contextRevision,
+    reasonCodes: [...new Set(reasonCodes)],
+    mismatchFields: [...new Set(mismatchFields)].sort(),
+    dependencyComparison,
+    requiresContextReresolution: [
+      ExecutionCapsuleValidationStatus.EXPIRED,
+      ExecutionCapsuleValidationStatus.REVISION_MISMATCH,
+      ExecutionCapsuleValidationStatus.CONTEXT_MISMATCH,
+      ExecutionCapsuleValidationStatus.INTERPRETATION_REQUIRED,
+    ].includes(status),
+    dynamicRefreshRequired:
+      status === ExecutionCapsuleValidationStatus.DYNAMIC_REFRESH_REQUIRED,
+    executionAllowed: false,
+    automaticWritePerformed: false,
+    validatedAt,
+    secretsIncluded: false,
+  });
+}
+
+export function createExecutionCapsuleService({
+  clock = () => new Date(),
+  defaultTtlMs = 15 * 60 * 1000,
+} = {}) {
+  requireApplicationFunction(clock, "clock");
+  if (!Number.isFinite(defaultTtlMs) || defaultTtlMs <= 0) {
+    throw new TypeError("defaultTtlMs must be a positive finite number.");
+  }
+
+  function resolve({
+    resolution,
+    authorityPathRef,
+    authorityRevision,
+    capabilityRevision,
+    registryRevision,
+    credentialReadinessRevision,
+    invalidationDependencies = [],
+    expiresAt = null,
+  }) {
+    const resolved = requireApplicationObject(resolution, "resolution");
+    if (resolved.status !== "resolved" || !resolved.context || !resolved.selectedCandidate) {
+      throw new ContextApplicationError(
+        "execution_capsule_requires_resolved_context",
+        "An execution capsule can only be created from one resolved exact context.",
+        409,
+      );
+    }
+    const context = requireApplicationObject(resolved.context, "resolution.context");
+    const selected = selectedCandidateFromResolution(resolved);
+    assertExactContextConsistency(context, selected);
+    const identity = contextIdentity(context);
+    const authorityScope = requireApplicationObject(
+      resolved.authorityScope || context.authority,
+      "resolution.authorityScope",
+    );
+    if (authorityScope.tenantRef && authorityScope.tenantRef !== identity.tenantRef) {
+      throw new ContextApplicationError(
+        "execution_capsule_authority_context_mismatch",
+        "Resolved authority scope and exact context do not reference the same Tenant.",
+        409,
+      );
+    }
+    const readiness = resolved.capabilityReadiness || context.capability || null;
+    if (!readiness || readiness.dispatchAllowed !== true) {
+      throw new ContextApplicationError(
+        "execution_capsule_capability_not_ready",
+        "Execution capsule creation requires a dispatchable capability decision.",
+        409,
+      );
+    }
+    const capabilityKey = requireApplicationString(
+      readiness.capabilityKey,
+      "capabilityKey",
+    );
+    if (
+      context.capability && (
+        context.capability.capabilityKey !== capabilityKey ||
+        Boolean(context.capability.dispatchAllowed) !== Boolean(readiness.dispatchAllowed) ||
+        Boolean(context.capability.applyAllowed) !== Boolean(readiness.applyAllowed)
+      )
+    ) {
+      throw new ContextApplicationError(
+        "execution_capsule_capability_context_mismatch",
+        "Resolved context and capability readiness do not reference the same capability.",
+        409,
+      );
+    }
+
+    const issued = normalizedDate(clock(), "clock result");
+    const expiry = expiresAt == null
+      ? new Date(issued.getTime() + defaultTtlMs)
+      : normalizedDate(expiresAt, "expiresAt");
+    if (expiry.getTime() <= issued.getTime()) {
+      throw new ContextApplicationError(
+        "execution_capsule_expiry_invalid",
+        "Execution capsule expiry must be later than issuance.",
+        422,
+      );
+    }
+
+    const capsule = createExecutionCapsule({
+      ...identity,
+      authorityPathRef: requireApplicationString(authorityPathRef, "authorityPathRef"),
+      capabilityKey,
+      authorityRevision: requireApplicationString(authorityRevision, "authorityRevision"),
+      capabilityRevision: requireApplicationString(capabilityRevision, "capabilityRevision"),
+      registryRevision: requireApplicationString(registryRevision, "registryRevision"),
+      credentialReadinessRevision: requireApplicationString(
+        credentialReadinessRevision,
+        "credentialReadinessRevision",
+      ),
+      invalidationDependencies,
+      issuedAt: issued,
+      expiresAt: expiry,
+    });
+
+    return deepFreeze({
+      status: "resolved",
+      capsule,
+      tenantProjection: projectExecutionCapsule(capsule, "tenant"),
+      adminProjection: projectExecutionCapsule(capsule, "admin"),
+      executionAllowed: false,
+      automaticWritePerformed: false,
+      secretsIncluded: false,
+    });
+  }
+
+  function validate({
+    capsule,
+    currentContext,
+    currentDependencies,
+    operationKind = "read",
+    dynamicRefreshComplete = false,
+    interpretationRequired = false,
+    blockedReasonCodes = [],
+    now = clock(),
+  }) {
+    const rawCapsule = requireApplicationObject(capsule, "capsule");
+    const validatedAt = normalizedDate(now, "now").toISOString();
+    let value;
+    try {
+      value = assertExecutionCapsuleIntegrity(rawCapsule);
+    } catch {
+      return integrityFailureResult(rawCapsule, validatedAt);
+    }
+    const context = requireApplicationObject(currentContext, "currentContext");
+    if (!OPERATION_KINDS.has(operationKind)) {
+      throw new TypeError(`Unsupported operationKind: ${operationKind}`);
+    }
+    if (!Array.isArray(currentDependencies)) {
+      throw new TypeError("currentDependencies must be an array.");
+    }
+    if (!Array.isArray(blockedReasonCodes)) {
+      throw new TypeError("blockedReasonCodes must be an array.");
+    }
+    if (blockedReasonCodes.length > 0) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.BLOCKED,
+        capsule: value,
+        reasonCodes: normalizeReasonCodes(blockedReasonCodes),
+        validatedAt,
+      });
+    }
+    if (interpretationRequired === true) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.INTERPRETATION_REQUIRED,
+        capsule: value,
+        reasonCodes: ["execution_capsule_interpretation_required"],
+        validatedAt,
+      });
+    }
+
+    const current = contextIdentity(context);
+    const mismatchFields = capsuleContextMismatchFields(value, current);
+    if (mismatchFields.length > 0) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.CONTEXT_MISMATCH,
+        capsule: value,
+        reasonCodes: ["execution_capsule_context_mismatch"],
+        mismatchFields,
+        validatedAt,
+      });
+    }
+    if (value.contextRevision !== current.contextRevision) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.REVISION_MISMATCH,
+        capsule: value,
+        reasonCodes: ["execution_capsule_context_revision_mismatch"],
+        validatedAt,
+      });
+    }
+
+    if (Date.parse(value.expiresAt) <= Date.parse(validatedAt)) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.EXPIRED,
+        capsule: value,
+        reasonCodes: ["execution_capsule_expired"],
+        validatedAt,
+      });
+    }
+
+    const comparison = compareExecutionCapsuleDependencies(
+      value.invalidationDependencies,
+      currentDependencies,
+    );
+    if (comparison.staticInvalidated) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.REVISION_MISMATCH,
+        capsule: value,
+        reasonCodes: ["execution_capsule_static_revision_mismatch"],
+        dependencyComparison: comparison,
+        validatedAt,
+      });
+    }
+    if (
+      comparison.dynamicRefreshRequired ||
+      (operationKind === "mutation" && dynamicRefreshComplete !== true)
+    ) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.DYNAMIC_REFRESH_REQUIRED,
+        capsule: value,
+        reasonCodes: comparison.dynamicRefreshRequired
+          ? ["execution_capsule_dynamic_dependency_changed"]
+          : ["execution_capsule_mutation_refresh_required"],
+        dependencyComparison: comparison,
+        validatedAt,
+      });
+    }
+
+    return validationResult({
+      status: ExecutionCapsuleValidationStatus.VALID,
+      capsule: value,
+      dependencyComparison: comparison,
+      validatedAt,
+    });
+  }
+
+  return Object.freeze({ resolve, validate });
+}

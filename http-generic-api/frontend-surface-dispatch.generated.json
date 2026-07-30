@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b61d04f3e05aedecda53e266472cab1f47aa4c83b4035321869aaab12b2b941a",
+    "source_digest": "08294012aaff73869c09ca5bdb62f6fd5fd3c925ff6505cfe968510a2a7cc287",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "30eb1d947b1fcc6fc64cf61f5fc7de83dda4fca7c687a33e2550dfd7892d5776",
+        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/managed-git-workers.yaml",
-        "sha256": "4ab9f0b062fd497f786d71206f0169e2af20a7d44307b0842e67cd9a245082e1",
+        "sha256": "82f7a8752e2f0e05b561b5be345c4873d76ab45388f28ab25794d8798e369ff5",
         "present": true
       },
       {
@@ -142,11 +142,6 @@
       {
         "file": "openapi/repository-main-moved-trigger.yaml",
         "sha256": "2ca826fcafec1d95075a64cd7fd80fbd7bbad1400de1dad2d9cbde08525de029",
-        "present": true
-      },
-      {
-        "file": "openapi/repository-reconciliation-lease-control.yaml",
-        "sha256": "63f63e2aa308a8bd28307f06b3eb084dfddb9b2a5b2c8c32c82a8560d95ff1c2",
         "present": true
       },
       {
@@ -596,7 +591,7 @@
       },
       {
         "file": "routes/operationOrchestratorRoutes.js",
-        "sha256": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
+        "sha256": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
         "present": true
       },
       {
@@ -671,7 +666,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+        "sha256": "78d5a043b43e2dff77c512c4b018205e749e9cda3ad89b09a9ace38837f97147",
         "present": true
       },
       {
@@ -916,7 +911,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "63a967c12f963c58348baff91ece02413b55305d5bcf89130e48c6b7140a23db",
+        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
         "present": true
       },
       {
@@ -926,7 +921,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "b23aae8a8bcad603e68f2e17be13c26376b82419549112b0cd36276e5123339a",
+        "sha256": "31c6b5412e2dfc682448f35ff5158ca65498fb20ae48bd572eb99a48d71b1f60",
         "present": true
       },
       {
@@ -1124,29 +1119,29 @@
     "mounted_family_count": 166,
     "mounted_route_file_count": 133,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1003,
-    "openapi_documented_count": 987,
-    "openapi_canonical_documented_count": 605,
+    "operation_count": 1002,
+    "openapi_documented_count": 986,
+    "openapi_canonical_documented_count": 604,
     "openapi_generated_index_count": 382,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 382,
     "auth_parity_counts": {
-      "equivalent": 987,
+      "equivalent": 986,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 609,
+    "non_get_candidate_count": 608,
     "unresolved_operation_class_count": 551,
-    "classified_mutation_count": 9,
-    "governed_mutation_operation_count": 9,
+    "classified_mutation_count": 8,
+    "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 151,
     "test_owned_family_count": 6,
     "untested_family_count": 160,
     "test_owned_operation_count": 53,
-    "untested_operation_count": 950,
+    "untested_operation_count": 949,
     "ready_task_count": 3,
     "blocked_task_count": 163,
     "coverage_complete": false
@@ -24261,7 +24256,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+      "source_digest": "78d5a043b43e2dff77c512c4b018205e749e9cda3ad89b09a9ace38837f97147",
       "mount_prefix": "/",
       "mount_order": 15438,
       "split_from_mixed_scope_file": false,
@@ -24573,116 +24568,6 @@
           },
           "mutation_candidate": true,
           "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/admin/repository-automation/reconciliation-lease",
-          "signature": "POST /admin/repository-automation/reconciliation-lease",
-          "source_file": "routes/repositoryAutomationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdmin",
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "router.use:requireAdminPrincipal",
-              "router.use:requireBackendApiKey",
-              "route:requireAdmin",
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/repository-reconciliation-lease-control.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "state_change",
-            "classification_source": "generated_operation_rule",
-            "mutation_candidate": true,
-            "governed": true,
-            "controls": {
-              "preflight": {
-                "mode": "capability_envelope_resource_and_fingerprint_binding"
-              },
-              "approval": {
-                "mode": "runtime_authorization_and_typed_confirmation"
-              },
-              "readback": {
-                "mode": "transactional_readback",
-                "same_cycle": true,
-                "before_commit": true
-              },
-              "rollback": {
-                "mode": "transaction",
-                "on": [
-                  "mutation_failure",
-                  "readback_failure"
-                ]
-              }
-            },
-            "parameter_bindings": {
-              "action": "request.body.action",
-              "capability_envelope_id": "request.body.capability_envelope_id",
-              "repository_owner": "request.body.owner|request.body.repository_owner",
-              "repository_name": "request.body.repo|request.body.repository_name",
-              "branch_name": "request.body.branch|request.body.branch_name",
-              "expected_base_sha": "request.body.expected_base_sha",
-              "expected_branch_sha": "request.body.expected_branch_sha",
-              "lease_id": "response.lease.lease_id",
-              "resource_fingerprint": "response.lease.resource_fingerprint"
-            },
-            "blockers": [],
-            "rule_id": "generated-repository-reconciliation-lease-control-governance",
-            "owner": "repository-automation",
-            "rationale": "Acquires, renews, or releases one repository reconciliation lease only after Admin authentication, exact resource and fingerprint capability-envelope binding, apply authorization, and typed confirmation; each durable mutation is verified inside the same SQL transaction before commit and rolls back on mutation or readback failure.",
-            "evidence_refs": [
-              "repositoryOperationLeaseService.js",
-              "repositoryReconciliationLeaseControl.js",
-              "routes/repositoryAutomationRoutes.js",
-              "test-repository-reconciliation-lease-control.mjs"
-            ]
-          },
-          "mutation_candidate": true,
-          "mutation": true
         }
       ],
       "openapi_gaps": [],
@@ -24698,8 +24583,7 @@
       "untested_operations": [
         "POST /admin/repository-automation/run",
         "POST /admin/repository-automation/status",
-        "POST /admin/repository-automation/hygiene-scan",
-        "POST /admin/repository-automation/reconciliation-lease"
+        "POST /admin/repository-automation/hygiene-scan"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -24711,7 +24595,6 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
@@ -24745,7 +24628,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -25599,7 +25482,7 @@
       "family_key": "operation-orchestrator.admin",
       "label": "operation orchestrator (admin)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
+      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
       "mount_prefix": "/",
       "mount_order": 15602,
       "split_from_mixed_scope_file": true,
@@ -26249,7 +26132,7 @@
       "family_key": "operation-orchestrator.tenant",
       "label": "operation orchestrator (tenant)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
+      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
       "mount_prefix": "/",
       "mount_order": 15602,
       "split_from_mixed_scope_file": true,
@@ -87259,9 +87142,7 @@
       "dependencies": [
         "F0-source-baseline",
         "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
+        "operation-classification"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -87270,7 +87151,6 @@
         "openapi.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
-        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
@@ -87284,8 +87164,7 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
+        "operation_classification_explicit"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
