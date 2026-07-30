@@ -1,0 +1,89 @@
+name: Spec 011 Phase1 Generated Refresh Once
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.event.pull_request.head.ref == 'gpt/spec-011-phase1-durable-control-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out phase1 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase1-durable-control-20260730
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify generator entrypoints
+        working-directory: http-generic-api
+        run: |
+          for entrypoint in \
+            scripts/openapi-autofill-missing-routes.mjs \
+            scripts/frontend-operation-governance-generator.mjs \
+            scripts/frontend-surface-dispatch.mjs \
+            scripts/generate-custom-gpt-schemas.mjs; do
+            test -f "$entrypoint" || { echo "Missing generator entrypoint: $entrypoint"; exit 1; }
+          done
+
+      - name: Generate bounded artifacts
+        working-directory: http-generic-api
+        run: |
+          git fetch origin main --depth=1
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+
+      - name: Verify generated contracts
+        working-directory: http-generic-api
+        run: |
+          node test-openapi-autofill-missing-routes.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
+
+      - name: Enforce bounded write set
+        shell: bash
+        run: |
+          allowed='^(http-generic-api/openapi.yaml|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml|http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|http-generic-api/openapi.gpt-action.local-connector.yaml)$'
+          bad="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | grep -Ev "$allowed" || true)"
+          test -z "$bad" || { echo "Unexpected generated paths:"; echo "$bad"; exit 1; }
+
+      - name: Commit clean generated output
+        shell: bash
+        run: |
+          rm -f .github/workflows/spec-011-phase1-generated-refresh-once.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add http-generic-api/openapi.yaml \
+                  http-generic-api/frontend-operation-governance.generated.json \
+                  http-generic-api/frontend-surface-dispatch.generated.json \
+                  http-generic-api/openapi/frontend-runtime-routes.generated.yaml \
+                  http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml \
+                  http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml \
+                  http-generic-api/openapi/openapi.tenant-gpt.auth.yaml \
+                  http-generic-api/openapi/openapi.tenant-gpt.activation.yaml \
+                  http-generic-api/openapi.gpt-action.local-connector.yaml \
+                  .github/workflows/spec-011-phase1-generated-refresh-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(ci): refresh phase1 generated artifacts"
+          git push origin HEAD:gpt/spec-011-phase1-durable-control-20260730
