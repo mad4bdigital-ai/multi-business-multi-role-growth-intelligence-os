@@ -49,6 +49,12 @@
         "role": "t027_t029_lifecycle_operation_retry_and_reconciliation_service",
         "status": "merged",
         "merge_sha": "f7d6cb1efc5c6f8979cfecf6f2751c6c907ce052"
+      },
+      {
+        "number": 3606,
+        "role": "t020_t021_t023_activation_persistence_repository",
+        "status": "merged",
+        "merge_sha": "f9baec28296019ad72971364a54acb96b9d2a143"
       }
     ],
     "closeout_pr": {
@@ -100,26 +106,60 @@
         "T015",
         "T016",
         "T017",
+        "T020",
+        "T021",
+        "T023",
         "T027",
         "T028",
         "T029",
         "T076"
       ],
-      "latest_completed_task": "T029",
+      "latest_completed_task": "T023",
       "runtime_authority": false,
-      "remaining_scope": "All unchecked tasks in tasks.md remain open. T027/T029 are merged domain-service foundations only; public runtime wiring, migration application/readback, production deployment, and protected-user-path verification remain pending."
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T020/T021/T023 are merged persistence repository foundations only; T022 delivery and acknowledgement persistence, T026 governed migration apply/readback, public runtime wiring, production deployment, protected-user-path verification, and full-spec closeout remain pending."
     },
     "ci": {
       "status": "pass_for_latest_slice",
-      "pull_request": 3468,
-      "head_sha": "919643b3f7dadc7652813706bc991763082ac5fb",
-      "ci_run_id": "30535150293",
-      "frontend_surface_dispatch_run_id": "30535150203",
-      "remaining_scope_scorecard_run_id": "30535150201",
-      "completion_cleanup_readback_run_id": "30535150227",
-      "docs_agent_run_id": "30535150269",
-      "context_kernel_report_run_id": "30535150249",
-      "automation_overlap_guard_run_id": "30535150244"
+      "pull_request": 3606,
+      "head_sha": "2faffcd4e24d9ce10d1103b6f71ae68e64344d11",
+      "ci_run_id": "30540165456",
+      "frontend_surface_dispatch_run_id": "30540165439",
+      "remaining_scope_scorecard_run_id": "30540165500",
+      "completion_cleanup_readback_run_id": "30540165449",
+      "docs_agent_run_id": "30540165537",
+      "context_kernel_report_run_id": "30540165444",
+      "automation_overlap_guard_run_id": "30540165428"
+    },
+    "t020_t021_t023_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3606,
+      "validated_head_sha": "2faffcd4e24d9ce10d1103b6f71ae68e64344d11",
+      "merge_sha": "f9baec28296019ad72971364a54acb96b9d2a143",
+      "main_readback_sha": "f9baec28296019ad72971364a54acb96b9d2a143",
+      "repository_module": "http-generic-api/activationOperationPersistenceRepository.js",
+      "regression_test": "http-generic-api/test-activation-operation-persistence-repository.mjs",
+      "implementation_note": "implementation/pr-2c-persistence-repository-services.md",
+      "repository_blob_sha": "79e460060dd2565f168e33aacb4f7a89b3faa839",
+      "test_blob_sha": "659dd94d4b2b9a589a4ebbf592fe81ad40ad9ec1",
+      "ci_blob_sha": "c2675a32b90fdaeb929e95d39ca4cf693a4ba786",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "review_threads_resolved": true,
+      "operation_projection_repository": true,
+      "optimistic_version_delegated": true,
+      "parent_operation_lock_before_attempt_numbering": true,
+      "monotonic_stage_attempt_numbering": true,
+      "monotonic_reconciliation_attempt_numbering": true,
+      "tenant_operation_scoped_reads": true,
+      "terminal_stage_attempt_reopen_allowed": false,
+      "bounded_no_secret_evidence_reads": true,
+      "free_form_references_exposed_by_read_projection": false,
+      "exact_evidence_identity_and_type_required": true,
+      "stage_attempt_default": "pending",
+      "runtime_wiring": false,
+      "database_migration_applied": false,
+      "production_deployment": false,
+      "secrets_included": false
     },
     "t027_t029_post_merge": {
       "status": "complete_on_main",
@@ -169,7 +209,7 @@
       "secrets_included": false
     },
     "migration": {
-      "status": "required_pending_design_and_apply",
+      "status": "required_pending_governed_apply_and_readback",
       "source_tasks": [
         "T020",
         "T021",
@@ -180,8 +220,11 @@
         "T024B",
         "T026"
       ],
+      "migration_file": "http-generic-api/migrations/20260724_activation_operation_projection_foundation.sql",
       "inventory_evidence": "implementation/pr-1-inventory.json#physical_mappings",
-      "data_model_evidence": "data-model.md#pr-1-physical-mapping-result"
+      "data_model_evidence": "data-model.md#pr-1-physical-mapping-result",
+      "applied": false,
+      "ledger_readback": false
     },
     "production_verification": {
       "status": "pending"
@@ -189,6 +232,9 @@
     "post_merge_audit": {
       "status": "pending_for_full_spec",
       "completed_slices": [
+        "T020",
+        "T021",
+        "T023",
         "T027",
         "T028",
         "T029"
