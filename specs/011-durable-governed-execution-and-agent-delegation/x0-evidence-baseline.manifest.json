@@ -13,9 +13,12 @@
   "artifacts": [
     "x0-evidence-baseline.md",
     "../../http-generic-api/governedExecutionBaselineTelemetry.js",
+    "../../http-generic-api/sequentialPlanOrchestrator.js",
     "../../http-generic-api/test-governed-execution-baseline-telemetry.mjs",
     "../../http-generic-api/test-governed-execution-baseline-benchmark.mjs",
-    "../../http-generic-api/scripts/governed-execution-baseline-benchmark.mjs"
+    "../../http-generic-api/test-sequential-plan-orchestrator.mjs",
+    "../../http-generic-api/scripts/governed-execution-baseline-benchmark.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs"
   ],
   "implemented_contracts": [
     "bounded_baseline_schema",
@@ -27,14 +30,16 @@
     "secret_like_identifier_rejection",
     "bounded_process_memory_sink",
     "non_throwing_optional_emitter",
-    "isolated_result_preserving_benchmark"
+    "isolated_result_preserving_benchmark",
+    "complete_test_manifest_registration",
+    "sequential_plan_entry_instrumentation",
+    "sequential_plan_result_shape_parity",
+    "sequential_identity_ambiguity_fail_closed"
   ],
   "pending_contracts": [
-    "complete_test_manifest_registration",
     "legacy_gpt_tool_entry_instrumentation",
     "legacy_system_tool_entry_instrumentation",
     "connector_plan_entry_instrumentation",
-    "sequential_plan_entry_instrumentation",
     "agent_loop_entry_instrumentation",
     "matched_runtime_fixture_artifact",
     "exact_head_ci_evidence"
