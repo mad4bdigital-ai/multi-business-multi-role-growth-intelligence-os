@@ -11,14 +11,21 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
 - Specification recovery merge SHA: `fc3494944c25d025331dec3b0a8b38a6535995f3`
 - Stale cumulative source PR `#2888`: closed without merge
 - Implementation: in progress through separate governed PRs
-- Merged implementation slice: PR `#3471` for T010 Principal Resolver and T011 Subject Scope & Delegation Resolver
+- Merged T010/T011 slice: PR `#3471`
+  - Principal Resolver
+  - Subject Scope & Delegation Resolver
+  - merge SHA `0ff39a85661a9552daa52d3a56338a24fe6bf560`
+- Merged T012 slice: PR `#3561`
+  - bounded Resource Graph resolver
+  - reviewed head `dd68d6808852798ce904fcc84bbd77a5aea80ddb`
+  - merge SHA `990bfe44bbace76dd64aad8d5e7d6627e7abdd69`
 - Superseded implementation recovery: PR `#3351`
 - Delivery: multi-PR, additive, shadow-first
 - Runtime effect of the specification recovery: none
-- Runtime wiring or enforcement cutover from PR `#3471`: none
-- Migration execution, provider calls, external writes, deployment, or Production promotion from this recovery path: none
+- Runtime enforcement or PEP cutover from T010–T012: none
+- Migration execution, provider calls, external writes, deployment, or Production promotion from this delivery chain: none
 
-The recovery chain is closed. The overall Spec remains `in_progress`; remaining tasks must be delivered through bounded PRs based on current `main`.
+The stale recovery chain and bounded T010–T012 delivery chain are closed. The overall Spec remains `in_progress`; remaining tasks must be delivered through bounded PRs based on current `main`.
 
 ## Normative documents
 
@@ -42,7 +49,10 @@ The recovery chain is closed. The overall Spec remains `in_progress`; remaining 
 
 The recovered directory preserves authority inventory, compatibility semantics, implementation, SQL census, performance/retention, and security-review evidence from the former mixed-scope branch. These files are historical snapshots. Their old PR numbers, branch SHAs, CI results, and implementation claims are not current merge, deployment, migration, or Production evidence.
 
-Current merged evidence for T010/T011 is recorded separately in `completion.json` and `RECOVERY_PROVENANCE.md` using PR `#3471`, reviewed head `9452d47d628ca17985c998720b56060b6a82c7e7`, and merge SHA `0ff39a85661a9552daa52d3a56338a24fe6bf560`.
+Current merged evidence is recorded in `completion.json` and `manifest.json`:
+
+- T010/T011: PR `#3471`, reviewed head `9452d47d628ca17985c998720b56060b6a82c7e7`, merge SHA `0ff39a85661a9552daa52d3a56338a24fe6bf560`.
+- T012: PR `#3561`, reviewed head `dd68d6808852798ce904fcc84bbd77a5aea80ddb`, merge SHA `990bfe44bbace76dd64aad8d5e7d6627e7abdd69`.
 
 ## Relationship to existing specifications
 
