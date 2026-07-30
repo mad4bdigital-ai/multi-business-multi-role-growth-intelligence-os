@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "cd21711dfcc6a956e1b9324681b796d0c1d41e3f27f419f35ff3dc05a0efc2e5",
+    "source_digest": "29b073de155543fbff1e4b722056a788165685f83e1ba4724c7b0595ab54dfcd",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "1a2b3d4590a758f17d60818eddd5e8ce82d8e5a5bb277055b95c9a7b6da4491e",
+        "sha256": "d5d56ac6fbd3201a2840fe6d7738dac378a2d548eb0072f8a10d74eae42275df",
         "present": true
       },
       {
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "cee4e323abba1ef99549b9ead3387170d1040556ff4d1ab4b1f5517b14dec3c6",
+        "sha256": "e1a49953cbedd260ea9f69aed4930fedc98fcdece8909de854cfc74348a20296",
         "present": true
       },
       {
@@ -167,6 +167,11 @@
       {
         "file": "openapi/typed-catalogs.yaml",
         "sha256": "ea770521ab864b118693ccab17199c40d6f8c7790319855f765a4eb3af497e29",
+        "present": true
+      },
+      {
+        "file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+        "sha256": "f7aba6f873710f191de5859edef3b34d09c7fbff9a0343a3f39d9c47094f5cfa",
         "present": true
       },
       {
@@ -891,7 +896,7 @@
       },
       {
         "file": "routes/tenantLifecycleRoutes.js",
-        "sha256": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
+        "sha256": "bbdb2538c426485203d77ce23651213a488c87dd6c5557f1d337a2632b571c74",
         "present": true
       },
       {
@@ -921,7 +926,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+        "sha256": "a2659ceed5fa1266a4b8885c32b7a286a2a2c8e5424c7b7b8070d650810f2880",
         "present": true
       },
       {
@@ -957,6 +962,11 @@
       {
         "file": "test-dynamic-container-rollout-safety.mjs",
         "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
+        "present": true
+      },
+      {
+        "file": "test-frontend-operation-governance-generator.mjs",
+        "sha256": "657bbcb703b7484ca8d11c98d09f24b3660614e09ed85fddaed88abff9919c8e",
         "present": true
       },
       {
@@ -1134,29 +1144,29 @@
     "mounted_family_count": 167,
     "mounted_route_file_count": 134,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1003,
-    "openapi_documented_count": 987,
-    "openapi_canonical_documented_count": 605,
-    "openapi_generated_index_count": 382,
+    "operation_count": 1001,
+    "openapi_documented_count": 985,
+    "openapi_canonical_documented_count": 610,
+    "openapi_generated_index_count": 375,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 382,
+    "openapi_detail_gap_count": 375,
     "auth_parity_counts": {
-      "equivalent": 987,
+      "equivalent": 985,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 609,
-    "unresolved_operation_class_count": 552,
-    "classified_mutation_count": 8,
-    "governed_mutation_operation_count": 8,
+    "non_get_candidate_count": 608,
+    "unresolved_operation_class_count": 549,
+    "classified_mutation_count": 10,
+    "governed_mutation_operation_count": 10,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 152,
     "test_owned_family_count": 6,
     "untested_family_count": 161,
-    "test_owned_operation_count": 54,
-    "untested_operation_count": 949,
+    "test_owned_operation_count": 56,
+    "untested_operation_count": 945,
     "ready_task_count": 3,
     "blocked_task_count": 164,
     "coverage_complete": false
@@ -20124,7 +20134,7 @@
       "family_key": "tenant-lifecycle",
       "label": "tenant lifecycle",
       "source_file": "routes/tenantLifecycleRoutes.js",
-      "source_digest": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
+      "source_digest": "bbdb2538c426485203d77ce23651213a488c87dd6c5557f1d337a2632b571c74",
       "mount_prefix": "/",
       "mount_order": 15234,
       "split_from_mixed_scope_file": false,
@@ -20475,7 +20485,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20489,9 +20499,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -20791,7 +20801,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20805,131 +20815,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/me/access-requests",
-          "signature": "GET /me/access-requests",
-          "source_file": "routes/tenantLifecycleRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUserJwt"
-            ],
-            "evidence": [
-              "route:requireUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-          "signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-          "source_file": "routes/tenantLifecycleRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUserJwt"
-            ],
-            "evidence": [
-              "route:requireUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21097,7 +20985,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21111,9 +20999,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21223,7 +21111,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21237,9 +21125,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21287,7 +21175,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21301,9 +21189,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21330,18 +21218,11 @@
         "PATCH /me/workspaces/{tenant_id}/members/{user_id}",
         "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
         "POST /me/workspaces/{tenant_id}/ownership/transfer",
-        "POST /me/workspaces/{tenant_id}/invitations",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
-        "POST /me/invitations/accept",
         "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-        "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-        "POST /me/workspaces/{tenant_id}/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
+        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [
@@ -21360,8 +21241,6 @@
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
         "GET /me/workspaces/{tenant_id}/invitations",
         "POST /me/invitations/accept",
-        "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "POST /me/workspaces/{tenant_id}/access-requests",
@@ -21387,6 +21266,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/workspace-lifecycle-mutations.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantLifecycleRoutes.js",
@@ -21442,12 +21322,6 @@
         },
         {
           "signature": "POST /me/invitations/accept",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -22847,20 +22721,54 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-frontend-operation-governance-generator.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_and_rollout_readiness_check"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "target_canary_key": "request.body.targetCanaryKey",
+              "capability_envelope_id": "request.body.capabilityEnvelopeId",
+              "confirmation": "request.body.confirm",
+              "rollout_mode": "response.readback.rollout_mode"
+            },
+            "blockers": [],
+            "rule_id": "generated-dynamic-container-canary-promotion-governance",
+            "owner": "platform-governance",
+            "rationale": "Promotes one exact read-only canary only after capability-envelope authorization, rollout-readiness validation, and typed confirmation, then verifies the exact promoted state and consumes the envelope before committing one SQL transaction.",
+            "evidence_refs": [
+              "dynamicContainerRolloutSafety.js",
+              "routes/dynamicContainerAuthorityRoutes.js",
+              "scripts/test-manifest.mjs",
+              "test-dynamic-container-rollout-safety.mjs",
+              "test-frontend-operation-governance-generator.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -22920,7 +22828,8 @@
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
           "tests": [
-            "test-dynamic-container-rollout-safety.mjs"
+            "test-dynamic-container-rollout-safety.mjs",
+            "test-frontend-operation-governance-generator.mjs"
           ],
           "governance": {
             "classification": "state_change",
@@ -22960,7 +22869,9 @@
             "evidence_refs": [
               "dynamicContainerRolloutSafety.js",
               "routes/dynamicContainerAuthorityRoutes.js",
-              "test-dynamic-container-rollout-safety.mjs"
+              "scripts/test-manifest.mjs",
+              "test-dynamic-container-rollout-safety.mjs",
+              "test-frontend-operation-governance-generator.mjs"
             ]
           },
           "mutation_candidate": true,
@@ -23023,20 +22934,55 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-frontend-operation-governance-generator.mjs"
+          ],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "capability_envelope_and_active_canary_lock"
+              },
+              "approval": {
+                "mode": "runtime_authorization_and_typed_confirmation"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "target_canary_key": "request.body.targetCanaryKey",
+              "capability_envelope_id": "request.body.capabilityEnvelopeId",
+              "confirmation": "request.body.confirm",
+              "reason": "request.body.reason|runtime_canary_not_observed",
+              "rollout_mode": "response.readback.rollout_mode"
+            },
+            "blockers": [],
+            "rule_id": "generated-dynamic-container-canary-rollback-governance",
+            "owner": "platform-governance",
+            "rationale": "Returns one exact active canary to shadow mode only after capability-envelope authorization and typed confirmation, then verifies the exact shadow state and consumes the envelope before committing one SQL transaction.",
+            "evidence_refs": [
+              "dynamicContainerRolloutSafety.js",
+              "routes/dynamicContainerAuthorityRoutes.js",
+              "scripts/test-manifest.mjs",
+              "test-dynamic-container-rollout-safety.mjs",
+              "test-frontend-operation-governance-generator.mjs"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "POST",
@@ -23549,7 +23495,8 @@
         "GET /admin/container-authority/topology-verification"
       ],
       "tests": [
-        "test-dynamic-container-rollout-safety.mjs"
+        "test-dynamic-container-rollout-safety.mjs",
+        "test-frontend-operation-governance-generator.mjs"
       ],
       "untested_operations": [
         "POST /admin/container-authority/resolution-preview",
@@ -23561,8 +23508,6 @@
         "POST /container-overrides/{overrideId}/approvals",
         "POST /admin/container-authority/projection-preview",
         "POST /container-authority/projections",
-        "POST /admin/container-authority/canary-promotions",
-        "POST /admin/container-authority/canary-rollbacks",
         "POST /admin/container-authority/canary-probes",
         "POST /admin/container-authority/preview-canary-probes",
         "POST /admin/container-authority/shadow-samples",
@@ -23587,7 +23532,8 @@
         "routes/dynamicContainerAuthorityRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
-        "test-dynamic-container-rollout-safety.mjs"
+        "test-dynamic-container-rollout-safety.mjs",
+        "test-frontend-operation-governance-generator.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -23639,18 +23585,6 @@
         },
         {
           "signature": "POST /container-authority/projections",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/container-authority/canary-promotions",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /admin/container-authority/canary-rollbacks",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -84383,6 +84317,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/workspace-lifecycle-mutations.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantLifecycleRoutes.js",
@@ -85900,7 +85835,8 @@
         "routes/dynamicContainerAuthorityRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
-        "test-dynamic-container-rollout-safety.mjs"
+        "test-dynamic-container-rollout-safety.mjs",
+        "test-frontend-operation-governance-generator.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -85914,7 +85850,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-dynamic-container-rollout-safety.mjs"
+        "node test-dynamic-container-rollout-safety.mjs",
+        "node test-frontend-operation-governance-generator.mjs"
       ]
     },
     {

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "609f2b7f6a7e592d5bb2901ceb5bd9eca10023fa195d27fb744a2dac75c2b3f6",
+    "source_digest": "6593762dc48a04acb098691bad31b5bb8bcc4fe3f7f1c493f577309f9c9328fe",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "a9e77e6e7cda969fcf7bb926aac5c41c943e331d5fff3cccbd96f72332c00869",
+      "sha256": "8f557aa4f94810b65db5291f5c6072b733e26d5ac126acfb045edd0280dd2602",
       "present": true
     },
     {
@@ -33,7 +33,12 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "53b89c4859f247bec9356690496c3fd178d7423cfa7dd78b2c045984528ea458",
+      "sha256": "a2659ceed5fa1266a4b8885c32b7a286a2a2c8e5424c7b7b8070d650810f2880",
+      "present": true
+    },
+    {
+      "file": "scripts/test-manifest.mjs",
+      "sha256": "e0951d9b5b07e5803bd0fa007a0394e52b47736ed1256cdea0eb4631a89e340b",
       "present": true
     },
     {
@@ -62,6 +67,11 @@
       "present": true
     },
     {
+      "file": "test-frontend-operation-governance-generator.mjs",
+      "sha256": "657bbcb703b7484ca8d11c98d09f24b3660614e09ed85fddaed88abff9919c8e",
+      "present": true
+    },
+    {
       "file": "test-resource-api-service.mjs",
       "sha256": "e6591bda960fc30825b3a8ba165868e3025433f044eaaaef650197839082a317",
       "present": true
@@ -73,8 +83,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 6,
-    "generated_rule_count": 6,
+    "candidate_count": 8,
+    "generated_rule_count": 8,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -196,11 +206,102 @@
       "evidence_refs": [
         "routes/dynamicContainerAuthorityRoutes.js",
         "dynamicContainerRolloutSafety.js",
-        "test-dynamic-container-rollout-safety.mjs"
+        "test-frontend-operation-governance-generator.mjs",
+        "test-dynamic-container-rollout-safety.mjs",
+        "scripts/test-manifest.mjs"
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "2b8269f9c0e0fc6227f4494d40bd0bf9143d222d03371a57a070e3dda4e61927",
+        "source_digest": "f111baca8f9bf70650c6fe6f03b355200e43d13102e7078ce3cdbdf536593ea7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-dynamic-container-canary-promotion-governance",
+      "operation": "POST /admin/container-authority/canary-promotions",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "state_change",
+      "owner": "platform-governance",
+      "rationale": "Promotes one exact read-only canary only after capability-envelope authorization, rollout-readiness validation, and typed confirmation, then verifies the exact promoted state and consumes the envelope before committing one SQL transaction.",
+      "preflight": {
+        "mode": "capability_envelope_and_rollout_readiness_check"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "target_canary_key": "request.body.targetCanaryKey",
+        "capability_envelope_id": "request.body.capabilityEnvelopeId",
+        "confirmation": "request.body.confirm",
+        "rollout_mode": "response.readback.rollout_mode"
+      },
+      "evidence_refs": [
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "dynamicContainerRolloutSafety.js",
+        "test-frontend-operation-governance-generator.mjs",
+        "test-dynamic-container-rollout-safety.mjs",
+        "scripts/test-manifest.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
+        "source_digest": "f111baca8f9bf70650c6fe6f03b355200e43d13102e7078ce3cdbdf536593ea7",
+        "fail_closed": true
+      }
+    },
+    {
+      "rule_id": "generated-dynamic-container-canary-rollback-governance",
+      "operation": "POST /admin/container-authority/canary-rollbacks",
+      "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "classification": "state_change",
+      "owner": "platform-governance",
+      "rationale": "Returns one exact active canary to shadow mode only after capability-envelope authorization and typed confirmation, then verifies the exact shadow state and consumes the envelope before committing one SQL transaction.",
+      "preflight": {
+        "mode": "capability_envelope_and_active_canary_lock"
+      },
+      "approval": {
+        "mode": "runtime_authorization_and_typed_confirmation"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "target_canary_key": "request.body.targetCanaryKey",
+        "capability_envelope_id": "request.body.capabilityEnvelopeId",
+        "confirmation": "request.body.confirm",
+        "reason": "request.body.reason|runtime_canary_not_observed",
+        "rollout_mode": "response.readback.rollout_mode"
+      },
+      "evidence_refs": [
+        "routes/dynamicContainerAuthorityRoutes.js",
+        "dynamicContainerRolloutSafety.js",
+        "test-frontend-operation-governance-generator.mjs",
+        "test-dynamic-container-rollout-safety.mjs",
+        "scripts/test-manifest.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
+        "source_digest": "f111baca8f9bf70650c6fe6f03b355200e43d13102e7078ce3cdbdf536593ea7",
         "fail_closed": true
       }
     },
