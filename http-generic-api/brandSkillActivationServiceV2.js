@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
-import { platformResourceContextResolve } from "./platformResourceContextResolver.js";
 
 const OWNER_ROLES = new Set(["owner", "admin", "tenant_owner", "tenant_admin"]);
 const ACTIVE_MODES = new Set(["self_service", "temporary_only"]);
@@ -128,23 +127,11 @@ async function resolveWorkspace(connection, tenantId, brandKey) {
   return rows[0] || null;
 }
 
-export function resourceContextIncludesBrand(result, requestedResourceType, requestedResourceRef, brandKey) {
-  if (!result?.ok || result.status !== "resolved") return false;
-  if (safeText(result.match?.resource_type, 64).toLowerCase() !== safeText(requestedResourceType, 64).toLowerCase()) {
-    return false;
-  }
-  return Array.isArray(result.context?.brands)
-    && result.context.brands.some((brand) => safeText(brand?.target_key, 128) === safeText(brandKey, 128));
-}
-
-async function verifyExplicitResourceBrandBinding({
-  pool,
+async function verifyExplicitResourceBrandBinding(connection, {
   tenantId,
-  userId,
   brandKey,
   requestedResourceType,
   requestedResourceRef,
-  resourceContextResolver,
 }) {
   if (!requestedResourceType && !requestedResourceRef) return null;
   if (!requestedResourceType || !requestedResourceRef) {
@@ -176,48 +163,49 @@ async function verifyExplicitResourceBrandBinding({
     );
   }
 
-  let resolved;
-  try {
-    resolved = await resourceContextResolver(
-      {
-        resource_type: requestedResourceType,
-        resource_ref: requestedResourceRef,
-        candidate_refs: [requestedResourceRef],
-        include_brand_context: false,
-      },
-      {
-        auth: { tenant_id: tenantId, user_id: userId, is_admin: false },
-        pool,
-      },
-    );
-  } catch (error) {
-    throw httpError(
-      503,
-      "BRAND_SKILL_RESOURCE_BRAND_RESOLUTION_FAILED",
-      "The requested resource could not be verified against the selected brand.",
-      {
-        brand_key: brandKey,
-        resource_type: requestedResourceType,
-        resource_ref: requestedResourceRef,
-        resolver_code: safeText(error?.code, 128) || null,
-      },
-    );
+  let sql;
+  let params;
+  if (requestedResourceType === "workspace") {
+    sql = `SELECT workspace_id AS resource_id
+             FROM workspace_registry
+            WHERE tenant_id = ?
+              AND (workspace_id = ? OR workspace_key = ?)
+              AND linked_brand_key = ?
+              AND bootstrap_status NOT IN ('failed','archived')
+            LIMIT 1
+            FOR UPDATE`;
+    params = [tenantId, requestedResourceRef, requestedResourceRef, brandKey];
+  } else if (requestedResourceType === "asset") {
+    sql = `SELECT asset_id AS resource_id
+             FROM workspace_assets
+            WHERE tenant_id = ?
+              AND (asset_id = ? OR asset_ref = ?)
+              AND brand_ref = ?
+              AND lifecycle_status = 'active'
+            LIMIT 1
+            FOR UPDATE`;
+    params = [tenantId, requestedResourceRef, requestedResourceRef, brandKey];
+  } else {
+    sql = `SELECT site_id AS resource_id
+             FROM cms_sites
+            WHERE (site_id = ? OR app_key = ? OR normalized_domain = ? OR site_url = ?)
+              AND canonical_target_key = ?
+              AND LOWER(COALESCE(platform_status, 'active')) NOT IN ('archived','disabled','inactive')
+            LIMIT 1
+            FOR UPDATE`;
+    params = [requestedResourceRef, requestedResourceRef, requestedResourceRef, requestedResourceRef, brandKey];
   }
 
-  if (!resourceContextIncludesBrand(resolved, requestedResourceType, requestedResourceRef, brandKey)) {
+  const [rows] = await connection.query(sql, params);
+  if (!rows[0]) {
     throw httpError(
       403,
       "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
-      "The requested resource is not authorized as part of the selected brand.",
+      "The requested resource is not registered as part of the selected brand.",
       { brand_key: brandKey, resource_type: requestedResourceType, resource_ref: requestedResourceRef },
     );
   }
-
-  return {
-    resource_type: requestedResourceType,
-    resource_ref: requestedResourceRef,
-    brand_key: brandKey,
-  };
+  return { resource_type: requestedResourceType, resource_ref: requestedResourceRef, brand_key: brandKey };
 }
 
 async function resolveResourceAuthority(connection, {
@@ -393,6 +381,15 @@ async function loadGrantReadback(connection, grantId) {
   return rows[0] || null;
 }
 
+export function mergeOperationsUnderPolicy(existingOperations, requestedOperations, policyOperations) {
+  const existing = normalizedOperationList(existingOperations);
+  const requested = normalizeRequestedOperations(requestedOperations);
+  const policy = normalizedOperationList(policyOperations);
+  const policySet = new Set(policy);
+  const retained = policySet.has("*") ? existing : existing.filter((operation) => policySet.has(operation));
+  return normalizeRequestedOperations([...retained, ...requested]);
+}
+
 function expiryCompliesWithTtl(expiresAt, ttlHours, now = Date.now()) {
   if (ttlHours === null) return true;
   const expiry = new Date(expiresAt || "").getTime();
@@ -410,7 +407,6 @@ export async function activateBrandSkillForUser({
   actor = {},
   pool = getPool(),
   uuid = randomUUID,
-  resourceContextResolver = platformResourceContextResolve,
 } = {}) {
   const userId = actorUserId(actor);
   const normalizedTenantId = safeText(tenantId, 36);
@@ -426,16 +422,6 @@ export async function activateBrandSkillForUser({
   const operations = normalizeRequestedOperations(input.requested_operations || input.allowed_operations);
   const requestedResourceType = safeText(input.resource_type, 64).toLowerCase() || null;
   const requestedResourceRef = safeText(input.resource_ref, 255) || null;
-
-  await verifyExplicitResourceBrandBinding({
-    pool,
-    tenantId: normalizedTenantId,
-    userId,
-    brandKey: normalizedBrandKey,
-    requestedResourceType,
-    requestedResourceRef,
-    resourceContextResolver,
-  });
 
   return withTransaction(pool, async (connection) => {
     const membership = await resolveMembership(connection, normalizedTenantId, userId);
@@ -462,6 +448,13 @@ export async function activateBrandSkillForUser({
       brandKey: normalizedBrandKey,
       membershipRole: membership.role,
       workspace,
+      requestedResourceType,
+      requestedResourceRef,
+    });
+
+    await verifyExplicitResourceBrandBinding(connection, {
+      tenantId: normalizedTenantId,
+      brandKey: normalizedBrandKey,
       requestedResourceType,
       requestedResourceRef,
     });
@@ -514,13 +507,18 @@ export async function activateBrandSkillForUser({
         return {
           ok: true,
           changed: false,
+          created: false,
           grant: readback,
           activation_mode: mode,
           secrets_included: false,
         };
       }
 
-      const mergedOperations = normalizeRequestedOperations([...existingOperations, ...operations]);
+      const mergedOperations = mergeOperationsUnderPolicy(
+        existingOperations,
+        operations,
+        policy.allowed_operations_json,
+      );
       await connection.query(
         `UPDATE user_brand_skill_grants
             SET policy_id = ?,
@@ -549,6 +547,7 @@ export async function activateBrandSkillForUser({
       return {
         ok: true,
         changed: true,
+        created: false,
         updated_existing: true,
         activation_mode: mode,
         grant: readback,
@@ -595,6 +594,7 @@ export async function activateBrandSkillForUser({
     return {
       ok: true,
       changed: true,
+      created: true,
       activation_mode: mode,
       membership_role: membership.role,
       resource_authority: {
@@ -702,7 +702,7 @@ export const _testingBrandSkillActivationService = {
   normalizeRequestedOperations,
   operationsAllowed,
   normalizeTtlHours,
-  resourceContextIncludesBrand,
   validatePolicy,
+  mergeOperationsUnderPolicy,
   expiryCompliesWithTtl,
 };
