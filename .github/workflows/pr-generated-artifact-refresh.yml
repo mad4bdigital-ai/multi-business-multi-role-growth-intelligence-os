@@ -1,3 +1,4 @@
+# Trigger generated artifact reconciliation for the Brand Skills successor PR.
 name: PR Generated Artifact Refresh
 
 on:
