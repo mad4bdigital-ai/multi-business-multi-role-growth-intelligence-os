@@ -1,0 +1,4 @@
+main_sha=bdf3c72143d8942b04da6ef3d83919d0502e5985
+production_sha=abdeed2c5a588c19a2d1f2e35046e7b120d97016
+purpose=temporary candidate construction marker; deleted in the next commit
+secrets_included=false
