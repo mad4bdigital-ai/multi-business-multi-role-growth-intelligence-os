@@ -4,6 +4,7 @@ const PORT_METHODS = Object.freeze({
   delegationContext: Object.freeze(["findDelegationContext"]),
   authorizedScope: Object.freeze(["findAuthorizedScope"]),
   resourceGraph: Object.freeze(["listAuthorizedResources"]),
+  boundedResourceGraph: Object.freeze(["findBoundedResourceGraph"]),
   exactConnection: Object.freeze(["findExactConnection"]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   contextPin: Object.freeze(["findContextPin", "createPin", "invalidatePin"]),
@@ -39,6 +40,14 @@ export function assertAuthorizedScopeRepository(repository) {
 
 export function assertResourceGraphRepository(repository) {
   return assertRepositoryMethods(repository, "Resource graph", PORT_METHODS.resourceGraph);
+}
+
+export function assertBoundedResourceGraphRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Bounded resource graph",
+    PORT_METHODS.boundedResourceGraph,
+  );
 }
 
 export function assertExactConnectionRepository(repository) {
