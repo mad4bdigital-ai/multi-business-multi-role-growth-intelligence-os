@@ -13,6 +13,12 @@ function parseArray(value) {
   }
 }
 
+function normalizeOperations(value) {
+  return parseArray(value)
+    .map((item) => safeText(item, 64).toLowerCase())
+    .filter(Boolean);
+}
+
 function httpError(status, code, message, details = null) {
   const error = new Error(message);
   error.status = status;
@@ -22,14 +28,28 @@ function httpError(status, code, message, details = null) {
 }
 
 export function grantCoversOperations(existing = [], requested = []) {
-  const allowed = new Set(parseArray(existing).map((item) => safeText(item, 64).toLowerCase()).filter(Boolean));
-  return allowed.has("*") || requested.every((item) => allowed.has(safeText(item, 64).toLowerCase()));
+  const allowed = new Set(normalizeOperations(existing));
+  return allowed.has("*") || normalizeOperations(requested).every((item) => allowed.has(item));
 }
 
-export function mergeAllowedOperations(existing = [], requested = []) {
-  const current = parseArray(existing).map((item) => safeText(item, 64).toLowerCase()).filter(Boolean);
-  const additions = parseArray(requested).map((item) => safeText(item, 64).toLowerCase()).filter(Boolean);
-  return [...new Set([...current, ...additions])];
+export function mergeAllowedOperations(existing = [], requested = [], policyAllowed = ["*"]) {
+  const policy = new Set(normalizeOperations(policyAllowed));
+  const unrestricted = policy.has("*");
+  const preserved = normalizeOperations(existing).filter((item) => unrestricted || policy.has(item));
+  const additions = normalizeOperations(requested);
+  return [...new Set([...preserved, ...additions])];
+}
+
+function assertUnambiguousBinding(rows, { brandKey, resourceType, resourceRef }) {
+  const [binding, duplicate] = rows;
+  if (duplicate) {
+    throw httpError(409, "BRAND_SKILL_RESOURCE_BINDING_AMBIGUOUS", "More than one canonical resource-to-brand binding matched the request.", {
+      brand_key: brandKey,
+      resource_type: resourceType,
+      resource_ref: resourceRef,
+    });
+  }
+  return binding || null;
 }
 
 async function verifySiteBinding(connection, { brandKey, resourceRef }) {
@@ -41,11 +61,16 @@ async function verifySiteBinding(connection, { brandKey, resourceRef }) {
         AND b.status = 'active'
         AND s.platform_status = 'active'
         AND (s.site_id = ? OR s.normalized_domain = ? OR s.site_url = ?)
-      LIMIT 1
+      ORDER BY (s.site_id = ?) DESC, b.binding_id ASC
+      LIMIT 2
       FOR UPDATE`,
-    [brandKey, resourceRef, resourceRef, resourceRef]
+    [brandKey, resourceRef, resourceRef, resourceRef, resourceRef]
   );
-  return rows[0] || null;
+  return assertUnambiguousBinding(rows, {
+    brandKey,
+    resourceType: "site",
+    resourceRef,
+  });
 }
 
 async function verifyAssetBinding(connection, { tenantId, brandKey, resourceRef }) {
@@ -56,11 +81,16 @@ async function verifyAssetBinding(connection, { tenantId, brandKey, resourceRef 
         AND brand_ref = ?
         AND lifecycle_status NOT IN ('archived','deleted')
         AND (asset_id = ? OR asset_ref = ?)
-      LIMIT 1
+      ORDER BY (asset_id = ?) DESC, asset_id ASC
+      LIMIT 2
       FOR UPDATE`,
-    [tenantId, brandKey, resourceRef, resourceRef]
+    [tenantId, brandKey, resourceRef, resourceRef, resourceRef]
   );
-  return rows[0] || null;
+  return assertUnambiguousBinding(rows, {
+    brandKey,
+    resourceType: "asset",
+    resourceRef,
+  });
 }
 
 export async function assertRequestedResourceBelongsToBrand(connection, {
