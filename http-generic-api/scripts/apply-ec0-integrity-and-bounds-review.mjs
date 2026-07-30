@@ -36,13 +36,13 @@ domain = replaceExactlyOnce(
 domain = replaceExactlyOnce(
   domain,
   `  const normalized = value.trim();\n  if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(normalized))) {`,
-  `  const normalized = value.trim();\n  if (normalized.length > MAX_FIELD_LENGTH) {\n    throw new TypeError(\`${fieldName} must contain at most \\${MAX_FIELD_LENGTH} characters.\`);\n  }\n  if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(normalized))) {`,
+  `  const normalized = value.trim();\n  if (normalized.length > MAX_FIELD_LENGTH) {\n    throw new TypeError(fieldName + " must contain at most " + MAX_FIELD_LENGTH + " characters.");\n  }\n  if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(normalized))) {`,
   "bounded string contract",
 );
 domain = replaceExactlyOnce(
   domain,
   `function buildDependencyMap(dependencies, fieldName) {\n  const result = new Map();`,
-  `function buildDependencyMap(dependencies, fieldName, maxDependencies) {\n  if (dependencies.length > maxDependencies) {\n    throw new TypeError(\`${fieldName} may contain at most \\${maxDependencies} dependencies.\`);\n  }\n  const result = new Map();`,
+  `function buildDependencyMap(dependencies, fieldName, maxDependencies) {\n  if (dependencies.length > maxDependencies) {\n    throw new TypeError(fieldName + " may contain at most " + maxDependencies + " dependencies.");\n  }\n  const result = new Map();`,
   "dependency map bounds",
 );
 domain = replaceExactlyOnce(
@@ -54,7 +54,7 @@ domain = replaceExactlyOnce(
 domain = replaceExactlyOnce(
   domain,
   `  if (!Array.isArray(invalidationDependencies)) {\n    throw new TypeError("invalidationDependencies must be an array.");\n  }`,
-  `  if (!Array.isArray(invalidationDependencies)) {\n    throw new TypeError("invalidationDependencies must be an array.");\n  }\n  if (invalidationDependencies.length > MAX_CAPSULE_DEPENDENCIES) {\n    throw new TypeError(\`invalidationDependencies may contain at most \\${MAX_CAPSULE_DEPENDENCIES} dependencies.\`);\n  }`,
+  `  if (!Array.isArray(invalidationDependencies)) {\n    throw new TypeError("invalidationDependencies must be an array.");\n  }\n  if (invalidationDependencies.length > MAX_CAPSULE_DEPENDENCIES) {\n    throw new TypeError("invalidationDependencies may contain at most " + MAX_CAPSULE_DEPENDENCIES + " dependencies.");\n  }`,
   "capsule dependency count bound",
 );
 domain = replaceExactlyOnce(
@@ -73,7 +73,7 @@ const projectStart = domain.indexOf("export function projectExecutionCapsule");
 if (projectStart < 0 || domain.indexOf("export function projectExecutionCapsule", projectStart + 1) >= 0) {
   throw new Error("projectExecutionCapsule function boundary is invalid");
 }
-domain = `${domain.slice(0, projectStart)}export function projectExecutionCapsule(capsule, mode = "tenant") {\n  const canonical = assertExecutionCapsuleIntegrity(capsule);\n  if (!ExecutionCapsuleProjectionModes.includes(mode)) {\n    throw new TypeError(\`Unsupported execution capsule projection mode: \\${mode}\`);\n  }\n\n  const tenantProjection = {\n    schemaVersion: canonical.schemaVersion,\n    capsuleRef: canonical.capsuleRef,\n    capsuleHash: canonical.capsuleHash,\n    contextHash: canonical.contextHash,\n    contextRevision: canonical.contextRevision,\n    effectiveSubjectRef: canonical.effectiveSubjectRef,\n    tenantRef: canonical.tenantRef,\n    workspaceRef: canonical.workspaceRef,\n    brandRef: canonical.brandRef,\n    resourceType: canonical.resourceType,\n    resourceRef: canonical.resourceRef,\n    connectionRef: canonical.connectionRef,\n    capabilityKey: canonical.capabilityKey,\n    issuedAt: canonical.issuedAt,\n    expiresAt: canonical.expiresAt,\n    executionAllowed: false,\n    secretsIncluded: false,\n  };\n  if (mode === "tenant") return deepFreeze(tenantProjection);\n\n  return deepFreeze({\n    ...tenantProjection,\n    principalType: canonical.principalType,\n    principalRef: canonical.principalRef,\n    authorityPathRef: canonical.authorityPathRef,\n    authorityRevision: canonical.authorityRevision,\n    capabilityRevision: canonical.capabilityRevision,\n    registryRevision: canonical.registryRevision,\n    credentialReadinessRevision: canonical.credentialReadinessRevision,\n    invalidationDependencies: canonical.invalidationDependencies,\n  });\n}\n`;
+domain = `${domain.slice(0, projectStart)}export function projectExecutionCapsule(capsule, mode = "tenant") {\n  const canonical = assertExecutionCapsuleIntegrity(capsule);\n  if (!ExecutionCapsuleProjectionModes.includes(mode)) {\n    throw new TypeError("Unsupported execution capsule projection mode: " + mode);\n  }\n\n  const tenantProjection = {\n    schemaVersion: canonical.schemaVersion,\n    capsuleRef: canonical.capsuleRef,\n    capsuleHash: canonical.capsuleHash,\n    contextHash: canonical.contextHash,\n    contextRevision: canonical.contextRevision,\n    effectiveSubjectRef: canonical.effectiveSubjectRef,\n    tenantRef: canonical.tenantRef,\n    workspaceRef: canonical.workspaceRef,\n    brandRef: canonical.brandRef,\n    resourceType: canonical.resourceType,\n    resourceRef: canonical.resourceRef,\n    connectionRef: canonical.connectionRef,\n    capabilityKey: canonical.capabilityKey,\n    issuedAt: canonical.issuedAt,\n    expiresAt: canonical.expiresAt,\n    executionAllowed: false,\n    secretsIncluded: false,\n  };\n  if (mode === "tenant") return deepFreeze(tenantProjection);\n\n  return deepFreeze({\n    ...tenantProjection,\n    principalType: canonical.principalType,\n    principalRef: canonical.principalRef,\n    authorityPathRef: canonical.authorityPathRef,\n    authorityRevision: canonical.authorityRevision,\n    capabilityRevision: canonical.capabilityRevision,\n    registryRevision: canonical.registryRevision,\n    credentialReadinessRevision: canonical.credentialReadinessRevision,\n    invalidationDependencies: canonical.invalidationDependencies,\n  });\n}\n`;
 
 let domainIndex = fs.readFileSync(domainIndexPath, "utf8");
 domainIndex = replaceExactlyOnce(
@@ -131,7 +131,7 @@ test = replaceExactlyOnce(
 test = replaceExactlyOnce(
   test,
   `assert(Object.isFrozen(capsule.invalidationDependencies));\nassert(capsule.invalidationDependencies.every(Object.isFrozen));`,
-  `assert(Object.isFrozen(capsule.invalidationDependencies));\nassert(capsule.invalidationDependencies.every(Object.isFrozen));\nassert.equal(assertExecutionCapsuleIntegrity(capsule).capsuleHash, capsule.capsuleHash);\nassert.throws(\n  () => assertExecutionCapsuleIntegrity({ ...capsule, capsuleHash: "0".repeat(64) }),\n  /canonical hash does not match/u,\n);\nassert.throws(\n  () => projectExecutionCapsule({ ...capsule, executionAllowed: true }, "tenant"),\n  /security invariants/u,\n);\nassert.throws(\n  () => createBaseCapsule({ principalRef: "x".repeat(513) }),\n  /at most 512 characters/u,\n);\nassert.throws(\n  () => createBaseCapsule({\n    invalidationDependencies: Array.from({ length: 129 }, (_, index) => ({\n      domain: "resourceVersion",\n      ref: `resource-version-\\${index}`,\n      revision: `revision-\\${index}`,\n      refreshClass: "dynamic",\n    })),\n  }),\n  /at most 128 dependencies/u,\n);`,
+  `assert(Object.isFrozen(capsule.invalidationDependencies));\nassert(capsule.invalidationDependencies.every(Object.isFrozen));\nassert.equal(assertExecutionCapsuleIntegrity(capsule).capsuleHash, capsule.capsuleHash);\nassert.throws(\n  () => assertExecutionCapsuleIntegrity({ ...capsule, capsuleHash: "0".repeat(64) }),\n  /canonical hash does not match/u,\n);\nassert.throws(\n  () => projectExecutionCapsule({ ...capsule, executionAllowed: true }, "tenant"),\n  /security invariants/u,\n);\nassert.throws(\n  () => createBaseCapsule({ principalRef: "x".repeat(513) }),\n  /at most 512 characters/u,\n);\nassert.throws(\n  () => createBaseCapsule({\n    invalidationDependencies: Array.from({ length: 129 }, (_, index) => ({\n      domain: "resourceVersion",\n      ref: "resource-version-" + index,\n      revision: "revision-" + index,\n      refreshClass: "dynamic",\n    })),\n  }),\n  /at most 128 dependencies/u,\n);`,
   "integrity and bounds tests",
 );
 test = replaceExactlyOnce(
@@ -143,7 +143,8 @@ test = replaceExactlyOnce(
 test = replaceExactlyOnce(
   test,
   `assert(dependencyVector.some((dependency) =>\n  dependency.domain === "credentialReadiness" &&\n  dependency.refreshClass === "dynamic"\n));`,
-  `assert(dependencyVector.some((dependency) =>\n  dependency.domain === "credentialReadiness" &&\n  dependency.refreshClass === "dynamic"\n));\nfor (const domain of [\n  "approval",\n  "capabilityEnvelope",\n  "effectiveAuthority",\n  "resourceVersion",\n  "providerVersion",\n  "connectionStatus",\n  "expectedVersion",\n]) {\n  assert(dependencyVector.some((dependency) =>\n    dependency.domain === domain && dependency.refreshClass === "dynamic"\n  ));\n}`,n  "dynamic dependency assertions",
+  `assert(dependencyVector.some((dependency) =>\n  dependency.domain === "credentialReadiness" &&\n  dependency.refreshClass === "dynamic"\n));\nfor (const domain of [\n  "approval",\n  "capabilityEnvelope",\n  "effectiveAuthority",\n  "resourceVersion",\n  "providerVersion",\n  "connectionStatus",\n  "expectedVersion",\n]) {\n  assert(dependencyVector.some((dependency) =>\n    dependency.domain === domain && dependency.refreshClass === "dynamic"\n  ));\n}`,
+  "dynamic dependency assertions",
 );
 test = replaceExactlyOnce(
   test,
