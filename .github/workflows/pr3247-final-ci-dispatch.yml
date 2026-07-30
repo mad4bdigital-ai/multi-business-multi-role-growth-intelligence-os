@@ -1,4 +1,4 @@
-name: PR 3247 final CI dispatch
+name: PR 3247 current-main reconcile and CI
 
 on:
   pull_request:
@@ -9,17 +9,98 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
-  dispatch-ci:
+  reconcile-and-dispatch:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_REF: gpt/response-chunk-ownership-a23e0076
+      TARGET_REF: gpt/pr3247-reconciled-current-main-v2-20260730
     steps:
-      - name: Dispatch official CI on final helper branch
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Three-way reconcile onto current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main "${SOURCE_REF}" --prune
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git checkout -B "${TARGET_REF}" origin/main
+
+          set +e
+          git merge --no-ff --no-commit "origin/${SOURCE_REF}"
+          merge_status=$?
+          set -e
+
+          conflicts="$(git diff --name-only --diff-filter=U || true)"
+          if [[ -n "${conflicts}" ]]; then
+            echo "Conflicted paths:"
+            printf '%s\n' "${conflicts}"
+            unexpected="$(printf '%s\n' "${conflicts}" | grep -Ev '^(http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+            if [[ -n "${unexpected}" ]]; then
+              echo "::error::unexpected semantic conflicts require bounded human resolution"
+              printf '%s\n' "${unexpected}"
+              exit 1
+            fi
+            while IFS= read -r path; do
+              [[ -z "${path}" ]] && continue
+              git checkout --ours -- "${path}"
+              git add "${path}"
+            done <<< "${conflicts}"
+          elif [[ "${merge_status}" -ne 0 ]]; then
+            echo "::error::merge failed without listed conflict paths"
+            exit 1
+          fi
+
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo "::error::unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          git commit -m "merge: reconcile PR 3247 ownership with current main"
+          echo "RECONCILED_HEAD=$(git rev-parse HEAD)"
+          echo "CURRENT_MAIN=$(git rev-parse origin/main)"
+          git diff --check origin/main...HEAD
+          git diff --name-status origin/main...HEAD
+
+      - name: Run focused ownership regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          node --check governedToolResponseChunkOwnership.js
+          node --check governedToolResponseChunkStore.js
+          node test-governed-tool-response-chunk-store.mjs
+          node test-governed-response-chunk-durable-recovery-smoke.mjs
+          node test-gpt-tools-response-chunking.mjs
+          node test-activation-awareness-completeness.mjs
+          node test-hard-activation-transport-semantics.mjs
+          node test-system-layer-response-chunk-passthrough.mjs
+          node test-tenant-activation-session-alias.mjs
+
+      - name: Push reconciled branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force origin "HEAD:refs/heads/${TARGET_REF}"
+
+      - name: Dispatch official CI and report run ID
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          TARGET_REF: gpt/pr3247-direct-current-main-ci-20260730
         shell: bash
         run: |
           set -euo pipefail
