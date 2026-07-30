@@ -44,16 +44,31 @@ assert(_testingTenantLifecycleRoutes.OWNER_ROLES.has("admin"), "admin role may m
 const resourceManifest = JSON.parse(readFileSync("resource-api-coverage.manifest.json", "utf8"));
 const mutationCallability = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: resourceManifest });
 assert.equal(mutationCallability.ok, true, JSON.stringify(mutationCallability.findings));
-for (const toolKey of [
+const mutationToolKeys = [
   "workspace_invitation_create",
   "workspace_invitation_accept",
   "workspace_access_request_create",
   "workspace_access_request_approve",
   "workspace_access_request_reject",
-]) assert(mutationCallability.covered_tool_keys.includes(toolKey), `${toolKey} must have fail-closed mutation callability evidence`);
+];
+for (const toolKey of mutationToolKeys) {
+  assert(mutationCallability.covered_tool_keys.includes(toolKey), `${toolKey} must have fail-closed mutation callability evidence`);
+  const transactionMarker = `MUTATION_TRANSACTION: ${toolKey}`;
+  const readbackMarker = `MUTATION_READBACK: ${toolKey}`;
+  assert.equal(routeSource.split(transactionMarker).length - 1, 1, `${toolKey} must declare exactly one transaction marker`);
+  assert.equal(routeSource.split(readbackMarker).length - 1, 1, `${toolKey} must declare exactly one readback marker`);
+  const transactionIndex = routeSource.indexOf(transactionMarker);
+  const readbackIndex = routeSource.indexOf(readbackMarker, transactionIndex);
+  const commitIndex = routeSource.indexOf("await connection.commit();", readbackIndex);
+  assert(transactionIndex >= 0 && readbackIndex > transactionIndex && commitIndex > readbackIndex, `${toolKey} must read back persisted state before commit`);
+}
 assert.equal((routeSource.match(/router\.get\("\/me\/access-requests"/g) || []).length, 1, "duplicate lifecycle routes must be removed");
 assert.equal((routeSource.match(/router\.post\("\/me\/workspaces\/:tenant_id\/access-requests\/:request_id\/cancel"/g) || []).length, 1, "duplicate lifecycle routes must be removed");
-assert(routeSource.includes("token_returned: false"), "invitation creation must not return the raw invitation token");
+const invitationCreateStart = routeSource.indexOf("RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create");
+const invitationCreateEnd = routeSource.indexOf('router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke"', invitationCreateStart);
+const invitationCreateSource = routeSource.slice(invitationCreateStart, invitationCreateEnd);
+assert(invitationCreateSource.includes("token_returned: false"), "invitation creation must declare that its token is not returned");
+assert(!/\btoken\s*:/.test(invitationCreateSource), "invitation creation response must not expose a token field");
 assert(routeSource.includes("workspace_access_request_create_readback_invalid"), "access request creation must return the persisted request identity");
 
 console.log("workspace lifecycle foundation tests passed");
