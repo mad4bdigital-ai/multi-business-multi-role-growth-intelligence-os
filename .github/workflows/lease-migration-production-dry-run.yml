@@ -134,7 +134,7 @@ jobs:
               `--tenant-id=${PLATFORM_TENANT_ID}`,
               '--user-role=Admin',
               '--app-key=platform_orchestration',
-              '--capability-key=governed_migration_authorization_bootstrap',
+              '--capability-key=governed_migration_execute',
               '--operation-intent=governed_migration_authorization_bootstrap',
               '--runtime-surface=auth_host',
               '--requested-by=github_actions_production_migration',
@@ -145,6 +145,8 @@ jobs:
 
           let envelope = findObjectWithKey(envelopeCreate, 'envelope_id');
           assert.ok(envelope?.envelope_id, 'Capability envelope creation did not return envelope_id');
+          assert.notEqual(envelope.envelope_status, 'blocked', `Capability envelope is blocked: ${envelope.decision || 'unknown'}`);
+          assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
 
           if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
             const approval = await request('/gpt/tools/call', {
