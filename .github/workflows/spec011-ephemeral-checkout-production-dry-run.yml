@@ -114,7 +114,7 @@ jobs:
             return null;
           }
 
-          async function request(pathname, body) {
+          async function requestRaw(pathname, body) {
             const response = await fetch(`${BASE}${pathname}`, {
               method: 'POST',
               redirect: 'error',
@@ -130,14 +130,18 @@ jobs:
             let payload;
             try { payload = text ? JSON.parse(text) : null; }
             catch { payload = { raw_preview: text.slice(0, 500) }; }
-            const result = { status: response.status, http_ok: response.ok, payload };
+            return { status: response.status, http_ok: response.ok, payload };
+          }
+
+          async function request(pathname, body) {
+            const result = await requestRaw(pathname, body);
             console.log(JSON.stringify(sanitize(result), null, 2));
-            if (!response.ok || payload?.ok === false) {
-              const error = new Error(`Governed runtime call failed for ${pathname} with HTTP ${response.status}`);
-              error.code = payload?.error?.code || 'governed_runtime_call_failed';
+            if (!result.http_ok || result.payload?.ok === false) {
+              const error = new Error(`Governed runtime call failed for ${pathname} with HTTP ${result.status}`);
+              error.code = result.payload?.error?.code || 'governed_runtime_call_failed';
               throw error;
             }
-            return payload;
+            return result.payload;
           }
 
           const envelopeCreate = await request('/admin/control', {
@@ -229,7 +233,7 @@ jobs:
           assert.equal(dryRunEvidence?.preflight?.status, 'pass', 'Migration preflight must pass');
           assert.equal(Number(dryRunEvidence?.preflight?.risk_count || 0), 0, 'Migration preflight must have zero risks');
 
-          const readback = await request('/gpt/tools/call', {
+          const readbackResponse = await requestRaw('/gpt/tools/call', {
             name: 'governed_migration_schema_readback',
             tool_args: {
               migration: MIGRATION,
@@ -237,9 +241,21 @@ jobs:
               expected_statement_count: STATEMENT_COUNT,
             },
           });
+          console.log(JSON.stringify(sanitize(readbackResponse), null, 2));
+          assert.ok([200, 409].includes(readbackResponse.status), `Unexpected pre-apply schema readback HTTP ${readbackResponse.status}`);
+          const preApplyReadback = readbackResponse.payload;
+          if (readbackResponse.status === 409) {
+            assert.equal(preApplyReadback?.readback_status, 'fail', 'Pre-apply readback must explicitly report fail while ledger is absent');
+            assert.equal(preApplyReadback?.ledger?.found, false, 'Pre-apply readback must confirm migration ledger is absent');
+            assert.equal(preApplyReadback?.migration, MIGRATION, 'Pre-apply readback migration mismatch');
+            assert.equal(String(preApplyReadback?.migration_checksum_sha256 || '').toLowerCase(), CHECKSUM, 'Pre-apply readback checksum mismatch');
+            assert.equal(Number(preApplyReadback?.statement_count), STATEMENT_COUNT, 'Pre-apply readback statement count mismatch');
+          } else {
+            assert.equal(preApplyReadback?.ok, true, 'Successful pre-apply readback must report ok=true');
+          }
 
           const summary = {
-            schema_version: 'spec011.ephemeral_checkout_production_dry_run.v3',
+            schema_version: 'spec011.ephemeral_checkout_production_dry_run.v4',
             ok: true,
             stage: 'production_authorization_and_dry_run_complete',
             migration: MIGRATION,
@@ -255,7 +271,9 @@ jobs:
             dry_run_verified: true,
             preflight_status: dryRunEvidence.preflight.status,
             preflight_risk_count: Number(dryRunEvidence.preflight.risk_count || 0),
-            schema_readback_received: Boolean(readback),
+            pre_apply_schema_readback_received: true,
+            pre_apply_ledger_found: Boolean(preApplyReadback?.ledger?.found),
+            post_apply_schema_readback_required: true,
             migration_sql_applied: false,
             provider_call_executed: false,
             external_write_executed: false,
