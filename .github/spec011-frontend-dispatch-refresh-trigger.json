@@ -1,0 +1,7 @@
+{
+  "schema_version": "spec011.frontend_dispatch_refresh_trigger.v1",
+  "pinned_main_sha": "bf914e7705caf8a656b8c21252e394bb56eb5908",
+  "generated_only": true,
+  "sql_execution_allowed": false,
+  "secrets_included": false
+}
