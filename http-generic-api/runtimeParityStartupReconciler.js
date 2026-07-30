@@ -111,6 +111,7 @@ export async function reconcileRuntimeParityOnStartup(options = {}) {
     }, {
       pool,
       env,
+      allowDeploymentBranch: true,
     });
 
     return {

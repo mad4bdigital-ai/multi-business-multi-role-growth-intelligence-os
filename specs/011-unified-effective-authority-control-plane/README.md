@@ -19,13 +19,19 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
   - bounded Resource Graph resolver
   - reviewed head `dd68d6808852798ce904fcc84bbd77a5aea80ddb`
   - merge SHA `990bfe44bbace76dd64aad8d5e7d6627e7abdd69`
+- Merged T013 slice: PR `#3711`
+  - semantic capability readiness now gates exact connection/provider selection
+  - reviewed head `57de7a570fee96ccb2fe90a59f063ac0a69a9685`
+  - merge SHA `f1c1cf1ebf9c28d2799ec9537a5c13bd8bfbced2`
+  - required CI run `30544155804`: 4/4 success
+  - supporting checks: 7/7 success
 - Superseded implementation recovery: PR `#3351`
 - Delivery: multi-PR, additive, shadow-first
 - Runtime effect of the specification recovery: none
-- Runtime enforcement or PEP cutover from T010–T012: none
+- Runtime enforcement or PEP cutover from T010–T013: none
 - Migration execution, provider calls, external writes, deployment, or Production promotion from this delivery chain: none
 
-The stale recovery chain and bounded T010–T012 delivery chain are closed. The overall Spec remains `in_progress`; remaining tasks must be delivered through bounded PRs based on current `main`.
+The stale recovery chain and bounded T010–T013 delivery chain are closed. The overall Spec remains `in_progress`; remaining tasks must be delivered through bounded PRs based on current `main`.
 
 ## Normative documents
 
@@ -53,6 +59,9 @@ Current merged evidence is recorded in `completion.json` and `manifest.json`:
 
 - T010/T011: PR `#3471`, reviewed head `9452d47d628ca17985c998720b56060b6a82c7e7`, merge SHA `0ff39a85661a9552daa52d3a56338a24fe6bf560`.
 - T012: PR `#3561`, reviewed head `dd68d6808852798ce904fcc84bbd77a5aea80ddb`, merge SHA `990bfe44bbace76dd64aad8d5e7d6627e7abdd69`.
+- T013: PR `#3711`, reviewed head `57de7a570fee96ccb2fe90a59f063ac0a69a9685`, merge SHA `f1c1cf1ebf9c28d2799ec9537a5c13bd8bfbced2`.
+
+The Frontend dispatch failure observed after the T013 merge was generated-evidence drift in the downstream merge candidate for PR `#3725`, bound to `routes/connectorAgentRoutes.js`; it did not include or invalidate the three T013 files. T013 exact-head Frontend dispatch and all required CI checks passed before merge, and default-branch source readback confirmed the required ordering after merge.
 
 ## Relationship to existing specifications
 
