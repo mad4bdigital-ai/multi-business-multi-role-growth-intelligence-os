@@ -1,0 +1,446 @@
+name: Apply Hostinger Production Resync Policy Once
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/hostinger-production-resync-policy-apply.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-resync-policy-apply-once
+  cancel-in-progress: false
+
+jobs:
+  governed-production-apply:
+    if: github.event.pull_request.head.ref == 'ops/hostinger-production-resync-policy-apply-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out pinned Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify immutable Production and migration contract
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: fae54a372350d23d915bbe564e972b714ca363f4
+          REQUIRED_SOURCE_MERGE_SHA: 1b1cb8ef7ab5f91e57828469a7c0275351765bb5
+          EXPECTED_MIGRATION_BLOB: 553e0ab987e04009ddced67c3ef986a2669a0f8b
+          MIGRATION_PATH: http-generic-api/migrations/20260730_hostinger_production_resync_policy.sql
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          [[ "$actual_head" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA actual $actual_head"
+            exit 1
+          }
+          git merge-base --is-ancestor "$REQUIRED_SOURCE_MERGE_SHA" HEAD || {
+            echo "::error::Production does not contain PR #3265 merge"
+            exit 1
+          }
+          actual_blob="$(git rev-parse "HEAD:${MIGRATION_PATH}")"
+          [[ "$actual_blob" == "$EXPECTED_MIGRATION_BLOB" ]] || {
+            echo "::error::migration blob mismatch: $actual_blob"
+            exit 1
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify deployed Production runtime
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: queue_worker
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
+
+      - name: Apply exact migration once and enforce readback
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { promises as fs } from 'node:fs';
+          import { splitMigrationSqlStatements } from './http-generic-api/migrationSqlStatements.js';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260730_hostinger_production_resync_policy.sql';
+          const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
+          const CHECKSUM = '320581d0adf690f6ef4cf09d4ecd6dbcd5b6625743a529fbf0bc10a4948b41a6';
+          const STATEMENT_COUNT = 8;
+          const PRODUCTION_SHA = 'fae54a372350d23d915bbe564e972b714ca363f4';
+          const MIGRATION_BLOB_SHA = '553e0ab987e04009ddced67c3ef986a2669a0f8b';
+          const SOURCE_PR = 3265;
+          const SOURCE_MERGE_SHA = '1b1cb8ef7ab5f91e57828469a7c0275351765bb5';
+          const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+          const RESOURCE_URI = `db-migration://growth_intelligence_platform/${MIGRATION}`;
+          const EVIDENCE_DIR = `${process.env.RUNNER_TEMP}/hostinger-resync-policy-apply`;
+
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+          await fs.mkdir(EVIDENCE_DIR, { recursive: true });
+
+          const sql = await fs.readFile(MIGRATION_PATH, 'utf8');
+          const actualChecksum = createHash('sha256').update(sql, 'utf8').digest('hex');
+          const actualStatementCount = splitMigrationSqlStatements(sql).length;
+          assert.equal(actualChecksum, CHECKSUM, 'Pinned migration checksum changed');
+          assert.equal(actualStatementCount, STATEMENT_COUNT, 'Pinned migration statement count changed');
+
+          const bindingSha = createHash('sha256').update(JSON.stringify({
+            schema_version: 'governed_migration_envelope_binding.v1',
+            app_key: 'platform_orchestration',
+            capability_key: 'governed_migration_execute',
+            operation_intent: 'governed_migration_execute',
+            resource_uri: RESOURCE_URI,
+            migration_file: MIGRATION,
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: STATEMENT_COUNT,
+          })).digest('hex');
+
+          const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          function sanitize(value) {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+              key,
+              sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+            ]));
+          }
+
+          function parsedValue(value) {
+            if (typeof value !== 'string') return value;
+            const text = value.trim();
+            if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
+            try { return JSON.parse(text); } catch { return value; }
+          }
+
+          function findObject(value, predicate, seen = new Set()) {
+            value = parsedValue(value);
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (predicate(value)) return value;
+            for (const child of Object.values(value)) {
+              const found = findObject(child, predicate, seen);
+              if (found) return found;
+            }
+            return null;
+          }
+
+          function findObjectWithKey(value, key) {
+            return findObject(value, (candidate) => Object.prototype.hasOwnProperty.call(candidate, key));
+          }
+
+          async function requestRaw(pathname, body, timeoutMs = 300000) {
+            let response;
+            let text = '';
+            try {
+              response = await fetch(`${BASE}${pathname}`, {
+                method: 'POST',
+                redirect: 'error',
+                headers: {
+                  Authorization: `Bearer ${KEY}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(timeoutMs),
+              });
+              text = await response.text();
+              let payload;
+              try { payload = text ? JSON.parse(text) : null; }
+              catch { payload = { raw_preview: text.slice(0, 500) }; }
+              const result = { transport_ok: true, status: response.status, http_ok: response.ok, payload };
+              console.log(JSON.stringify(sanitize(result), null, 2));
+              return result;
+            } catch (error) {
+              const result = {
+                transport_ok: false,
+                status: null,
+                http_ok: false,
+                payload: null,
+                transport_error: String(error?.name || 'Error'),
+              };
+              console.log(JSON.stringify(result, null, 2));
+              return result;
+            }
+          }
+
+          function requireSuccess(result, label) {
+            if (!result.transport_ok || !result.http_ok || result.payload?.ok === false) {
+              const error = new Error(`${label} failed with HTTP ${result.status ?? 'transport_error'}`);
+              error.code = result.payload?.error?.code || result.payload?.error_code || `${label}_failed`;
+              throw error;
+            }
+            return result.payload;
+          }
+
+          function shellInvocation(alias, extraArgs) {
+            return {
+              tool: 'shell',
+              action: 'run',
+              alias,
+              authority_context: {
+                resource_type: 'shell_alias',
+                resource_uri: `shell://${alias}`,
+                operation_mode: alias,
+                required: true,
+              },
+              extra_args: extraArgs,
+            };
+          }
+
+          async function createReadyEnvelope({ capabilityKey, operationIntent, requestedBy, binding = false }) {
+            const args = [
+              `--tenant-id=${PLATFORM_TENANT_ID}`,
+              `--user-id=${PLATFORM_ADMIN_USER_ID}`,
+              '--user-role=Admin',
+              '--app-key=platform_orchestration',
+              `--capability-key=${capabilityKey}`,
+              `--operation-intent=${operationIntent}`,
+              '--runtime-surface=auth_host',
+              '--requested-source-tier=platform_managed_fallback',
+              `--requested-by=${requestedBy}`,
+              '--ttl-minutes=30',
+              '--explain',
+            ];
+            if (binding) {
+              args.push(`--resource-uri=${RESOURCE_URI}`);
+              args.push(`--expected-commit-sha=${PRODUCTION_SHA}`);
+              args.push(`--binding-sha256=${bindingSha}`);
+            }
+
+            const created = requireSuccess(await requestRaw('/admin/control', shellInvocation(
+              'capability_resolution_envelope_create', args,
+            )), `${capabilityKey}_envelope_create`);
+            let envelope = findObjectWithKey(created, 'envelope_id');
+            assert.ok(envelope?.envelope_id, `${capabilityKey} envelope creation returned no envelope_id`);
+            assert.notEqual(envelope.envelope_status, 'blocked', `${capabilityKey} envelope blocked: ${envelope.decision || 'unknown'}`);
+            assert.equal(Number(envelope.blocking_gap_count || 0), 0, `${capabilityKey} envelope has blocking gaps`);
+
+            if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
+              const approved = requireSuccess(await requestRaw('/admin/control', shellInvocation(
+                'capability_resolution_envelope_approve', [
+                  `--envelope-id=${envelope.envelope_id}`,
+                  '--approved-by=github_actions',
+                  `--decision-note=Approve the checksum-bound ${capabilityKey} envelope for the explicitly authorized Production migration.`,
+                  '--ttl-minutes=30',
+                ],
+              )), `${capabilityKey}_envelope_approve`);
+              envelope = findObjectWithKey(approved, 'envelope_id') || envelope;
+            }
+            assert.equal(envelope.envelope_status, 'ready_for_dispatch', `${capabilityKey} envelope is not ready_for_dispatch`);
+            assert.equal(envelope.dispatch_allowed, true, `${capabilityKey} envelope dispatch_allowed is not true`);
+            return envelope;
+          }
+
+          async function exactReadback() {
+            const result = await requestRaw('/gpt/tools/call', {
+              name: 'governed_migration_schema_readback',
+              tool_args: {
+                migration: MIGRATION,
+                expected_checksum_sha256: CHECKSUM,
+                expected_statement_count: STATEMENT_COUNT,
+              },
+            }, 180000);
+            if (!result.transport_ok || result.status !== 200 || result.payload?.ok !== true) return { result, readback: null };
+            const readback = findObjectWithKey(result.payload, 'readback_status') || result.payload;
+            return { result, readback };
+          }
+
+          function exactApplyLedger(readback) {
+            const ledger = readback?.ledger;
+            return Boolean(
+              readback?.readback_status === 'pass'
+              && ledger?.found === true
+              && ledger?.migration_file === MIGRATION
+              && ledger?.migration_checksum_sha256 === CHECKSUM
+              && ledger?.mode === 'apply'
+              && Number(ledger?.statement_count) === STATEMENT_COUNT
+              && ledger?.preflight_status === 'pass'
+              && Number(ledger?.preflight_risk_count || 0) === 0
+              && ledger?.secrets_included === false
+            );
+          }
+
+          const initial = await exactReadback();
+          let ledgerAlreadyApplied = exactApplyLedger(initial.readback);
+          let applySent = false;
+          let applyAttempt = null;
+          let executionEnvelopeId = initial.readback?.ledger?.capability_envelope_id || null;
+          let applyPolicyEvidence = null;
+          let applyAuthorizationEvidence = null;
+
+          if (!ledgerAlreadyApplied) {
+            const dryRunPayload = requireSuccess(await requestRaw('/gpt/tools/call', {
+              name: 'governed_migration_execute',
+              tool_args: {
+                migration: MIGRATION,
+                mode: 'dry_run',
+                expected_checksum_sha256: CHECKSUM,
+                expected_statement_count: STATEMENT_COUNT,
+              },
+            }), 'same_cycle_governed_migration_dry_run');
+            const dryRun = findObjectWithKey(dryRunPayload, 'applies_sql');
+            assert.equal(dryRun?.applies_sql, false, 'Same-cycle dry-run must report applies_sql=false');
+            assert.equal(dryRun?.mode, 'dry_run', 'Same-cycle dry-run mode mismatch');
+            assert.equal(dryRun?.migration_checksum_sha256, CHECKSUM, 'Same-cycle dry-run checksum mismatch');
+            assert.equal(Number(dryRun?.statement_count), STATEMENT_COUNT, 'Same-cycle dry-run statement count mismatch');
+            assert.equal(dryRun?.preflight?.status, 'pass', 'Same-cycle migration preflight did not pass');
+            assert.equal(Number(dryRun?.preflight?.risk_count || 0), 0, 'Same-cycle migration preflight has risks');
+
+            const policyEnvelope = await createReadyEnvelope({
+              capabilityKey: 'governed_migration_apply_policy_bootstrap',
+              operationIntent: 'governed_migration_apply_policy_bootstrap',
+              requestedBy: 'github_actions_hostinger_resync_policy_apply_policy',
+            });
+            const policyPayload = requireSuccess(await requestRaw('/gpt/tools/call', {
+              name: 'governed_migration_apply_policy_bootstrap',
+              tool_args: {
+                confirm: 'BOOTSTRAP_GOVERNED_MIGRATION_EXECUTE_APPLY_POLICY',
+                decision_note: 'Install or verify the fixed no-external-write governed migration apply authorization policy required for the explicitly authorized Hostinger Production resynchronization policy migration.',
+                capability_envelope_id: policyEnvelope.envelope_id,
+              },
+            }), 'governed_migration_apply_policy_bootstrap');
+            applyPolicyEvidence = findObjectWithKey(policyPayload, 'policy_created') || policyPayload;
+            assert.equal(applyPolicyEvidence?.ok, true, 'Governed migration apply policy bootstrap did not report ok=true');
+            assert.equal(applyPolicyEvidence?.policy?.policy_key, 'governed_migration_execute_apply_v1', 'Unexpected governed migration apply policy key');
+            assert.equal(Number(applyPolicyEvidence?.policy?.allow_external_write || 0), 0, 'Apply policy must forbid external writes');
+            assert.equal(Number(applyPolicyEvidence?.policy?.requires_readback || 0), 1, 'Apply policy must require readback');
+            assert.equal(Number(applyPolicyEvidence?.policy?.requires_same_cycle_dry_run || 0), 1, 'Apply policy must require same-cycle dry-run');
+
+            const executionEnvelope = await createReadyEnvelope({
+              capabilityKey: 'governed_migration_execute',
+              operationIntent: 'governed_migration_execute',
+              requestedBy: 'github_actions_hostinger_resync_policy_apply_once',
+              binding: true,
+            });
+            executionEnvelopeId = executionEnvelope.envelope_id;
+
+            const applyAuthorizationPayload = requireSuccess(await requestRaw('/gpt/tools/call', {
+              name: 'capability_resolution_envelope_apply_authorize',
+              tool_args: {
+                envelope_id: executionEnvelopeId,
+                authorized_by: 'github_actions',
+                decision_note: 'Authorize one checksum-bound apply for the reviewed Hostinger Production resynchronization policy migration; same-cycle dry-run passed and exact ledger readback is mandatory.',
+                ttl_minutes: 30,
+              },
+            }), 'capability_resolution_envelope_apply_authorize');
+            applyAuthorizationEvidence = findObjectWithKey(applyAuthorizationPayload, 'apply_allowed') || applyAuthorizationPayload;
+            assert.equal(applyAuthorizationEvidence?.apply_allowed, true, 'Execution envelope was not apply-authorized');
+            assert.equal(applyAuthorizationEvidence?.policy_key, 'governed_migration_execute_apply_v1', 'Execution envelope used unexpected apply policy');
+            assert.equal(applyAuthorizationEvidence?.external_write_allowed, false, 'Execution envelope must not allow external writes');
+
+            applySent = true;
+            applyAttempt = await requestRaw('/gpt/tools/call', {
+              name: 'governed_migration_execute',
+              tool_args: {
+                migration: MIGRATION,
+                mode: 'apply',
+                expected_checksum_sha256: CHECKSUM,
+                expected_statement_count: STATEMENT_COUNT,
+                confirm: 'APPLY_20260730_HOSTINGER_PRODUCTION_RESYNC_POLICY',
+                capability_envelope_id: executionEnvelopeId,
+                applied_by: 'github_actions_hostinger_production_resync_policy_authorized',
+                authorization_reference: 'user-authorized-pr3265-production-policy-20260731',
+              },
+            }, 360000);
+            // Deliberately no retry here. Any transport or HTTP ambiguity is resolved by readback only.
+          }
+
+          let finalReadback = null;
+          for (let attempt = 1; attempt <= 5; attempt += 1) {
+            const candidate = await exactReadback();
+            if (exactApplyLedger(candidate.readback)) {
+              finalReadback = candidate.readback;
+              break;
+            }
+            if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+          assert.ok(finalReadback, 'Exact apply ledger/schema readback was not proven; Apply was not retried');
+
+          const applyResult = applyAttempt?.payload || null;
+          const runnerResult = applyResult ? findObjectWithKey(applyResult, 'applies_sql') : null;
+          if (applySent && applyAttempt?.transport_ok && applyAttempt?.http_ok && applyAttempt?.payload?.ok !== false) {
+            assert.equal(runnerResult?.mode, 'apply', 'Apply runner mode mismatch');
+            assert.equal(runnerResult?.applies_sql, true, 'Apply runner did not report applies_sql=true');
+            assert.equal(Number(runnerResult?.statements_executed), STATEMENT_COUNT, 'Apply runner statements_executed mismatch');
+            assert.equal(runnerResult?.ledger?.recorded, true, 'Apply runner did not record ledger');
+          }
+
+          const policyRow = applyResult ? findObject(applyResult, (candidate) => candidate?.policy_key === 'repository_main_moved_trigger_policy_v1') : null;
+          assert.ok(policyRow, 'Apply response did not expose the final repository_main_moved_trigger_policy_v1 readback row');
+          assert.equal(String(policyRow.source_branch), 'main', 'Policy source_branch mismatch');
+          assert.equal(String(policyRow.deployment_branch), 'Production', 'Policy deployment_branch mismatch');
+          assert.equal(Number(policyRow.production_sync_required_after_main_movement), 1, 'Policy production sync requirement mismatch');
+          assert.equal(Number(policyRow.fresh_hostinger_build_required), 1, 'Policy fresh Hostinger build requirement mismatch');
+          assert.equal(Number(policyRow.exact_production_merge_sha_readback_required), 1, 'Policy exact SHA readback requirement mismatch');
+          assert.equal(Number(policyRow.active), 1, 'Policy active flag mismatch');
+          assert.equal(Number(policyRow.blocking), 1, 'Policy blocking flag mismatch');
+
+          const enumReadback = applyResult ? findObjectWithKey(applyResult, 'production_sync_status_registered') : null;
+          assert.ok(enumReadback, 'Apply response did not expose coordination_status readback');
+          assert.equal(Number(enumReadback.production_sync_status_registered), 1, 'production_sync_required enum status was not registered');
+
+          const summary = {
+            schema_version: 'hostinger_production_resync_policy_apply.v1',
+            ok: true,
+            migration: MIGRATION,
+            migration_blob_sha: MIGRATION_BLOB_SHA,
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: STATEMENT_COUNT,
+            production_sha: PRODUCTION_SHA,
+            source_pr: SOURCE_PR,
+            source_merge_sha: SOURCE_MERGE_SHA,
+            apply_sent_by_this_workflow: applySent,
+            ledger_already_applied_before_workflow: ledgerAlreadyApplied,
+            apply_transport_ok: applyAttempt?.transport_ok ?? null,
+            apply_http_status: applyAttempt?.status ?? null,
+            exact_apply_ledger_verified: true,
+            ledger: sanitize(finalReadback.ledger),
+            policy: sanitize(policyRow),
+            production_sync_status_registered: true,
+            apply_policy: sanitize(applyPolicyEvidence),
+            apply_authorization: sanitize(applyAuthorizationEvidence),
+            execution_envelope_id: executionEnvelopeId,
+            apply_retried: false,
+            provider_call_executed: false,
+            credential_payload_read: false,
+            external_send_executed: false,
+            external_write_executed: false,
+            deployment_executed: false,
+            restart_executed: false,
+            secrets_included: false,
+          };
+          await fs.writeFile(`${EVIDENCE_DIR}/summary.json`, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
+      - name: Upload bounded apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-resync-policy-apply
+          path: ${{ runner.temp }}/hostinger-resync-policy-apply
+          if-no-files-found: error
+          retention-days: 30
