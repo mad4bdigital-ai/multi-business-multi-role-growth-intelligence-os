@@ -54,13 +54,14 @@ Every request MUST begin with an authenticated principal. A principal MAY have m
 8. Resolve authority path.
 9. Resolve semantic capability and runtime binding.
 10. Compile execution plan.
-11. Validate context revision, ownership, capability, authority, approval, and non-secret readiness evidence.
-12. Materialize credential through the guarded credential boundary for the selected connection only.
-13. Validate credential-dependent provider readiness, including credential validity, granted scopes, reachability, quota, and readback capability.
-14. Dispatch.
-15. Read back and reconcile.
+11. Obtain approval when required.
+12. Revalidate context revision, ownership, capability, authority, plan, approval, and non-secret readiness evidence.
+13. Materialize credential through the guarded credential boundary for the selected connection only.
+14. Validate credential-dependent provider readiness, including credential validity, provider-account binding, granted scopes, reachability, quota, schema, and readback capability.
+15. Dispatch.
+16. Read back and reconcile.
 
-A later stage MUST NOT repair or replace a missing earlier stage silently. Credential materialization MUST NOT occur before all pre-credential context, ownership, capability, and authority checks pass.
+A later stage MUST NOT repair or replace a missing earlier stage silently. Credential materialization MUST NOT occur before all pre-credential context, ownership, capability, authority, plan, approval, and non-secret readiness checks pass.
 
 ## 6. Functional requirements
 
@@ -104,7 +105,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 ### Capability and readiness
 
 - FR-026: Context readiness and operation readiness MUST be evaluated separately.
-- FR-027: Operation readiness MUST be evaluated in two phases: pre-credential readiness covers configuration, context, ownership, capability, authority, approval, and non-secret policy evidence; credential-dependent provider readiness follows guarded credential materialization and covers credential validity, granted scopes, reachability, quota, schema verification, and readback readiness.
+- FR-027: Operation readiness MUST be evaluated in two phases: pre-credential readiness covers configuration, context, ownership, capability, authority, plan, approval, and non-secret policy evidence; credential-dependent provider readiness follows guarded credential materialization and covers credential validity, provider-account binding, granted scopes, reachability, quota, schema verification, and readback readiness.
 - FR-028: High-risk operations MUST NOT select platform fallback, provider fallback, or the first connection silently.
 - FR-029: The runtime MUST bind one exact connection before provider dispatch.
 - FR-030: The runtime MUST reject capability and runtime-surface mismatches.
@@ -145,7 +146,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - FR-053: A revoked, expired, disabled, insufficient-scope, stale, or owner-mismatched connection MUST be ineligible.
 - FR-054: Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
 - FR-055: Personal connection inheritance inside a company-workspace operation MUST require an explicit operation policy.
-- FR-056: Credential material MUST remain unavailable during candidate discovery and all pre-credential checks. After one exact connection, owner scope, capability, authority path, approval state, and non-secret readiness decision agree, the runtime MAY materialize the credential through the guarded credential boundary solely to perform credential-dependent provider readiness and dispatch. Credential material MUST NOT enter customer projections, context decisions, plans, logs, or evidence.
+- FR-056: Credential material MUST remain unavailable during candidate discovery and all pre-credential checks. After one exact connection, owner scope, capability, authority path, execution plan, approval state, and non-secret readiness decision agree, the runtime MAY materialize the credential through the guarded credential boundary solely to perform credential-dependent provider readiness and dispatch. Credential material MUST NOT enter customer projections, context decisions, plans, logs, or evidence.
 - FR-057: Connection ownership, authorization, provider-scope, membership, workspace ownership, or brand revision changes MUST invalidate dependent pins, plans, approvals, and cached decisions.
 - FR-058: Google identity login MUST NOT be treated as Google Drive, Docs, Gmail, Analytics, Ads, or other provider API consent.
 - FR-059: Provider authorization state MUST be signed, expiring, nonce-bound, single-use, redirect-allowlisted, and bound to the authenticated principal and exact owner scope. Reconnect state MUST additionally bind the intended connection reference, expected connection revision, and expected provider account reference or privacy-preserving account-binding hash.
@@ -155,6 +156,7 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - FR-063: Effective Capability Envelope and Effective Authority MUST consume the exact Context Kernel connection and owner-scope decision instead of implementing competing selectors or re-fetching mutable ownership metadata.
 - FR-064: Additive ownership and authorization-state migrations MUST be separately authorized, applied, and read back successfully before shadow resolution or any read/write rollout depends on the new persistence fields.
 - FR-065: Rollback after hierarchical connection routing is enabled MUST retain the exact-owner isolation guard. If the guarded resolver is unavailable, affected provider operations MUST be disabled or fail closed rather than return to an earlier selector that can choose another user's connection.
+- FR-066: Before authorization-code exchange, provider calls, credential lookup, or credential mutation, an OAuth callback MUST atomically claim the signed authorization state with a revision-bound compare-and-set from `issued` to `claimed`. Exactly one concurrent callback may continue. Losing or later callbacks MUST fail closed without exchanging a code or mutating credentials, and completion to `consumed` MUST remain bound to the successful claim.
 
 ## 7. Non-functional requirements
 
@@ -167,9 +169,10 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - NFR-007: Failure modes MUST be structured and actionable.
 - NFR-008: Multi-tenant isolation tests are release blocking.
 - NFR-009: Cross-user and cross-brand connection-isolation tests are release blocking.
-- NFR-010: OAuth state replay, context-mismatch, and reconnect-account-binding tests are release blocking.
+- NFR-010: OAuth state replay, concurrent claim, context-mismatch, and reconnect-account-binding tests are release blocking.
 - NFR-011: Compatibility tests proving existing operational workspace-type values remain unchanged are release blocking for persistence work.
 - NFR-012: Migration-readback-before-rollout and rollback-owner-isolation tests are release blocking.
+- NFR-013: Registered end-to-end flows MUST preserve plan and approval ordering before credential-dependent readiness.
 
 ## 8. Success criteria
 
@@ -185,8 +188,9 @@ A later stage MUST NOT repair or replace a missing earlier stage silently. Crede
 - Invalid more-specific connections do not silently widen consequential writes.
 - Google login and provider consent remain distinct observable readiness states.
 - Existing operational workspace classifications remain intact while personal/company ownership is represented separately.
-- Credential-dependent readiness can execute without exposing credentials before the exact-owner and authority gates pass.
+- Credential-dependent readiness can execute without exposing credentials before the exact-owner, plan, authority, and approval gates pass.
 - Reconnect cannot attach a different provider account to an existing connection silently.
+- Concurrent callbacks cannot consume the same authorization state more than once.
 - Shadow/read/write rollout does not begin before governed migration readback succeeds.
 - Rollback never restores an owner-unsafe selector.
 
