@@ -1,0 +1,127 @@
+name: Frontend Dispatch Generated Refresh Once
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - gpt/build-production-candidate-trigger-base-07f6a70c-v4
+    paths:
+      - docs/frontend-dispatch-generated-refresh-trigger.md
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frontend-dispatch-generated-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.event.pull_request.head.ref == 'gpt/build-production-candidate-trigger-head-07f6a70c-v4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout workflow authority
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/build-production-candidate-trigger-base-07f6a70c-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Regenerate bounded frontend dispatch evidence on atomic main snapshot
+        id: refresh
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/frontend-dispatch-generated-live-v1
+        run: |
+          set -euo pipefail
+
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          PINNED_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          TARGET_HEAD="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ -n "$TARGET_HEAD" ]] || { echo '::error::target repair branch missing'; exit 1; }
+          git merge-base --is-ancestor "$TARGET_HEAD" "$PINNED_MAIN_SHA" || {
+            echo "::error::target repair branch is not an ancestor of current main: $TARGET_HEAD -> $PINNED_MAIN_SHA"
+            exit 1
+          }
+
+          git checkout --detach "$PINNED_MAIN_SHA"
+          git update-ref refs/heads/main "$PINNED_MAIN_SHA"
+
+          npm ci --prefix http-generic-api
+          npm --prefix http-generic-api run frontend:dispatch:generate -- --baseline-ref=main
+
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          if [[ ${#CHANGED[@]} -ne 1 \
+             || "${CHANGED[0]}" != 'http-generic-api/frontend-surface-dispatch.generated.json' ]]; then
+            echo '::error::generated refresh write set is not the single expected dispatch artifact'
+            printf 'changed=%s\n' "${CHANGED[*]:-}"
+            exit 1
+          fi
+
+          (
+            cd http-generic-api
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+          )
+
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          MAIN_READBACK="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$MAIN_READBACK" != "$PINNED_MAIN_SHA" ]]; then
+            echo "::error::main moved during generated refresh: $PINNED_MAIN_SHA -> $MAIN_READBACK"
+            exit 1
+          fi
+
+          git add http-generic-api/frontend-surface-dispatch.generated.json
+          git diff --cached --check
+          git config user.name 'mad4b-release-bot'
+          git config user.email 'mad4b-release-bot@users.noreply.github.com'
+          git commit -m 'chore(frontend): refresh deterministic dispatch evidence'
+          REPAIR_SHA="$(git rev-parse HEAD)"
+
+          git merge-base --is-ancestor "$TARGET_HEAD" "$REPAIR_SHA" || {
+            echo '::error::repair branch cannot move by fast-forward'
+            exit 1
+          }
+          git push origin "$REPAIR_SHA:refs/heads/$TARGET_BRANCH"
+          TARGET_READBACK="$(git ls-remote --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ "$TARGET_READBACK" == "$REPAIR_SHA" ]] || {
+            echo '::error::repair branch readback mismatch'
+            exit 1
+          }
+
+          echo "main_sha=$PINNED_MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "repair_sha=$REPAIR_SHA" >> "$GITHUB_OUTPUT"
+
+          jq -n \
+            --arg main_sha "$PINNED_MAIN_SHA" \
+            --arg repair_sha "$REPAIR_SHA" \
+            --arg target_branch "$TARGET_BRANCH" \
+            '{
+              schema_version: "frontend_dispatch_generated_refresh.v1",
+              ok: true,
+              main_sha: $main_sha,
+              repair_sha: $repair_sha,
+              target_branch: $target_branch,
+              changed_files: ["http-generic-api/frontend-surface-dispatch.generated.json"],
+              tests_passed: true,
+              main_freshness_preserved: true,
+              fast_forward_only: true,
+              protected_branch_mutation: false,
+              deployment_executed: false,
+              migration_executed: false,
+              database_apply_executed: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/frontend-dispatch-generated-refresh.json"
+
+      - name: Upload bounded refresh evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dispatch-generated-refresh-${{ steps.refresh.outputs.repair_sha }}
+          path: ${{ runner.temp }}/frontend-dispatch-generated-refresh.json
+          if-no-files-found: error
+          retention-days: 30
