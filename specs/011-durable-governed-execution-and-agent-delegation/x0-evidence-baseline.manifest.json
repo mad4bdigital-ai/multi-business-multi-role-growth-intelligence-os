@@ -34,7 +34,10 @@
     "complete_test_manifest_registration",
     "sequential_plan_entry_instrumentation",
     "sequential_plan_result_shape_parity",
-    "sequential_identity_ambiguity_fail_closed"
+    "sequential_compile_identity_ambiguity_fail_closed",
+    "sequential_claim_identity_ambiguity_fail_closed",
+    "sequential_step_claim_ambiguity_fail_closed",
+    "explicit_custom_provider_telemetry_boundary"
   ],
   "pending_contracts": [
     "legacy_gpt_tool_entry_instrumentation",
