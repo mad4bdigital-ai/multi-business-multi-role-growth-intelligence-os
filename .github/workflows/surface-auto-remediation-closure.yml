@@ -1,0 +1,105 @@
+name: Surface Auto-remediation Closure
+
+on:
+  pull_request:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-auto-remediation-closure
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    if: github.event.pull_request.head.ref == 'gpt/surface-auto-remediation-final-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout governed remediation branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/surface-auto-remediation-final-20260730
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply official static auto-remediation
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(node -e "const q=require('../docs/surface-contract-gap-queue.json');process.stdout.write(String(q.total_items))")"
+          node scripts/surface-contract-auto-remediator.mjs --write
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-contract-discovery.mjs --check
+          after="$(node -e "const q=require('../docs/surface-contract-gap-queue.json');process.stdout.write(String(q.total_items))")"
+          test "$after" -lt "$before" || { echo "::error::Surface auto-remediation did not decrease queue: before=$before after=$after"; exit 1; }
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const names = new Set(queue.top_items.map((item) => item.migration_file));
+          for (const migration of [
+            '20260723_dynamic_container_override_governance_smoke.sql',
+            '20260730_context_kernel_connection_ownership_persistence.sql',
+            '1006_sprint69_agent_capability_evidence_coverage.sql',
+          ]) assert.equal(names.has(migration), false, `${migration} remains after official auto-remediation`);
+          for (const migration of [
+            '199_sprint68_workspace_ownership_member_control_tools.sql',
+            '200_sprint68_workspace_invitation_control_tools.sql',
+            '201_sprint68_workspace_access_request_control_tools.sql',
+          ]) assert.equal(names.has(migration), true, `${migration} was incorrectly hidden by static auto-remediation`);
+          assert.equal(queue.total_items, 21, `expected 21 actionable manual-review items, received ${queue.total_items}`);
+          console.log({ surface_queue_after_auto_remediation: queue.total_items, secrets_included: false });
+          NODE
+
+      - name: Commit bounded attestations, docs, and generated queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            'Updating Registry Patch Index.md' \
+            deployment_parity_checklist.md \
+            docs/ai-docs-agent-governance.md \
+            docs/auto-docs-agent/README.md \
+            docs/change-documentation-governance.md \
+            docs/surface-contract-safety-attestations.json \
+            docs/surface-contract-discovery-status.md \
+            docs/surface-contract-discovery-status.json \
+            docs/surface-contract-gap-queue.md \
+            docs/surface-contract-gap-queue.json
+          python3 <<'PY'
+          import subprocess
+          allowed = {
+              'Updating Registry Patch Index.md',
+              'deployment_parity_checklist.md',
+              'docs/ai-docs-agent-governance.md',
+              'docs/auto-docs-agent/README.md',
+              'docs/change-documentation-governance.md',
+              'docs/surface-contract-safety-attestations.json',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-gap-queue.json',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()))
+          if not changed or not changed.issubset(allowed):
+              raise SystemExit(f'bounded_write_set_invalid:actual={sorted(changed)}')
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs: close static Surface Contract evidence gaps'
+          git push origin HEAD:gpt/surface-auto-remediation-final-20260730

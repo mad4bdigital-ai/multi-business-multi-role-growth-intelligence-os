@@ -55,15 +55,25 @@ function expectedRepository(env = process.env) {
   return text(env.RELEASE_TRIGGER_REPOSITORY || env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY, 255).toLowerCase();
 }
 
-export function resolveConfiguredReleaseBranch(env = process.env) {
+export function resolveConfiguredSourceBranch(env = process.env) {
   const branch = text(
-    env.RELEASE_TRIGGER_BRANCH
-      || env.ACTIVATION_GITHUB_BRANCH
+    env.RELEASE_TRIGGER_SOURCE_BRANCH
+      || env.RELEASE_TRIGGER_BRANCH
       || env.GITHUB_DEFAULT_BRANCH
       || "main",
     191,
   ).replace(/^refs\/heads\//, "");
   return branch || "main";
+}
+
+export function resolveConfiguredReleaseBranch(env = process.env) {
+  const branch = text(
+    env.RELEASE_TRIGGER_DEPLOYMENT_BRANCH
+      || env.ACTIVATION_GITHUB_BRANCH
+      || "Production",
+    191,
+  ).replace(/^refs\/heads\//, "");
+  return branch || "Production";
 }
 
 export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
@@ -76,12 +86,17 @@ export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
       expected_repository: allowedRepository,
     });
   }
-  const allowedBranch = resolveConfiguredReleaseBranch(env);
+  const sourceBranch = resolveConfiguredSourceBranch(env);
+  const deploymentBranch = resolveConfiguredReleaseBranch(env);
+  const allowDeploymentBranch = options.allowDeploymentBranch === true;
+  const allowedBranch = allowDeploymentBranch ? deploymentBranch : sourceBranch;
   const branch = text(input.branch || input.branch_name || allowedBranch, 191).replace(/^refs\/heads\//, "");
   if (branch !== allowedBranch) {
-    fail("repository_main_moved_branch_not_supported", "Only the configured release branch may trigger release coordination.", 400, {
+    fail("repository_main_moved_branch_not_supported", "Only the configured branch for this trigger mode may trigger release coordination.", 400, {
       branch,
       expected_branch: allowedBranch,
+      source_branch: sourceBranch,
+      deployment_branch: deploymentBranch,
     });
   }
   const beforeSha = sha(input.before_sha || input.before, "before_sha");
@@ -108,6 +123,9 @@ export function normalizeRepositoryMainMovedEvent(input = {}, options = {}) {
     source_event_id: sourceEventId,
     repository,
     branch,
+    source_branch: sourceBranch,
+    deployment_branch: deploymentBranch,
+    trigger_mode: allowDeploymentBranch ? "runtime_deployment_reconciliation" : "source_branch_moved",
     before_sha: beforeSha,
     after_sha: afterSha,
     forced: input.forced === true,
@@ -122,7 +140,33 @@ export function buildRepositoryMainMovedFingerprint(event) {
   return sha256([event.repository, event.branch, event.after_sha].join("|"));
 }
 
-export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = {} } = {}) {
+export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = {}, event = {} } = {}) {
+  const sourceBranch = text(event.source_branch || "main", 191);
+  const deploymentBranch = text(event.deployment_branch || "Production", 191);
+  const sourceMovement = Boolean(event.branch) && event.branch === sourceBranch;
+  if (sourceMovement) {
+    return {
+      coordination_status: "production_sync_required",
+      next_action_key: "release.sync_production_from_latest_main",
+      approval_required: true,
+      production_sync_required: true,
+      source_branch: sourceBranch,
+      deployment_branch: deploymentBranch,
+      fresh_hostinger_build_required: true,
+      same_cycle_readback_required: true,
+      execution_allowed: false,
+      release_operation_created: false,
+      gate_opened: false,
+      capability_envelope_created: false,
+      job_enqueued: false,
+      deploy_executed: false,
+      restart_executed: false,
+      provider_call_performed: false,
+      external_write_performed: false,
+      secrets_included: false,
+    };
+  }
+
   const advisorRun = advisor.advisor_run || {};
   const advisorStatus = text(advisorRun.advisor_status || "blocked", 32);
   const productionParity = text(verification.production_parity || "unknown", 32);
@@ -145,6 +189,11 @@ export function deriveRepositoryMainMovedOutcome({ verification = {}, advisor = 
     coordination_status: coordinationStatus,
     next_action_key: nextActionKey,
     approval_required: approvalRequired,
+    production_sync_required: false,
+    source_branch: sourceBranch,
+    deployment_branch: deploymentBranch,
+    fresh_hostinger_build_required: false,
+    same_cycle_readback_required: true,
     execution_allowed: false,
     release_operation_created: false,
     gate_opened: false,
@@ -172,12 +221,26 @@ function shapeTrigger(row) {
   };
 }
 
+function uniqueTriggerRow(rowset, context) {
+  if (!Array.isArray(rowset)) {
+    fail("repository_main_moved_resolution_invalid", "Repository trigger resolution returned an invalid rowset.", 500, { context });
+  }
+  if (rowset.length > 1) {
+    fail("repository_main_moved_resolution_ambiguous", "Repository trigger resolution returned multiple candidates.", 409, {
+      context,
+      candidate_count: rowset.length,
+    });
+  }
+  const [row] = rowset;
+  return row || null;
+}
+
 async function loadByFingerprint(pool, fingerprint) {
   const [rows] = await pool.query(
-    `SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 1`,
+    `SELECT * FROM repository_main_moved_trigger_events WHERE event_fingerprint_sha256 = ? LIMIT 2`,
     [fingerprint],
   );
-  return shapeTrigger(rows[0] || null);
+  return shapeTrigger(uniqueTriggerRow(rows, "event_fingerprint_sha256"));
 }
 
 export async function getRepositoryMainMovedTriggerEvent(triggerEventId, deps = {}) {
@@ -185,13 +248,14 @@ export async function getRepositoryMainMovedTriggerEvent(triggerEventId, deps = 
   const id = optionalUuid(triggerEventId, "trigger_event_id");
   if (!id) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
   const [rows] = await pool.query(
-    `SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 1`,
+    `SELECT * FROM repository_main_moved_trigger_events WHERE trigger_event_id = ? LIMIT 2`,
     [id],
   );
-  if (!rows[0]) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
+  const row = uniqueTriggerRow(rows, "trigger_event_id");
+  if (!row) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
   return {
     ok: true,
-    trigger_event: shapeTrigger(rows[0]),
+    trigger_event: shapeTrigger(row),
     execution_allowed: false,
     provider_write: false,
     external_write: false,

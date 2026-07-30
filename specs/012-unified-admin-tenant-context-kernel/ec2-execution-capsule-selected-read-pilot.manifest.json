@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-012-ec2-execution-capsule-selected-read-pilot",
+  "parent_extension": "spec-012-execution-capsule-runtime-integration",
+  "phase": "EC2_selected_read_pilot",
+  "status": "in_progress",
+  "runtime_authority": false,
+  "production_activation": false,
+  "provider_call": false,
+  "database_write": false,
+  "migration_apply": false,
+  "route_or_openapi_change": false,
+  "response_or_dispatch_change": false,
+  "deployment": false,
+  "artifacts": [
+    "ec2-execution-capsule-selected-read-pilot.md",
+    "../../http-generic-api/contextKernel/api/executionCapsuleSelectedReadPilot.js",
+    "../../http-generic-api/contextKernel/api/index.js",
+    "../../http-generic-api/test-execution-capsule-selected-read-pilot.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-operation-governance.generated.json",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
+  ],
+  "selected_read_contract": {
+    "operation": "getContextResolution",
+    "route_contract": "GET /context-resolutions/{resolutionId}",
+    "route_mounted": false,
+    "view_modes": ["tenant", "admin"],
+    "legacy_operation_remains_authoritative": true
+  },
+  "implemented_contracts": [
+    "default_off_selected_read_pilot",
+    "tenant_read_capsule_parity",
+    "admin_read_capsule_parity",
+    "exact_legacy_resolution_identity_preservation",
+    "canonical_ec0_capsule_service_reuse",
+    "hardened_ec1_shadow_adapter_reuse",
+    "trusted_view_mode_telemetry_tagging",
+    "tenant_projection_baseline_parity",
+    "admin_projection_baseline_parity",
+    "provider_dispatch_always_false",
+    "automatic_write_performed_always_false",
+    "no_secret_projection_or_telemetry",
+    "exact_operations_object_rollback",
+    "standalone_selected_read_pilot_test",
+    "complete_test_manifest_registration",
+    "generated_test_manifest_evidence_refresh"
+  ],
+  "pending_contracts": [
+    "exact_head_ci_evidence",
+    "human_architecture_security_review",
+    "post_merge_main_readback"
+  ],
+  "registration_evidence": {
+    "status": "passed",
+    "run_id": 30578636119,
+    "registered_head_sha": "526c79513a11ef1821da8da1bd7159d1c6917b0c",
+    "registered_commands": [
+      "node test-execution-capsule-selected-read-pilot.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_removed": true,
+    "bounded_regressions_passed": true,
+    "bounded_write_set_passed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30578778057,
+    "generated_head_sha": "ff882a96396d7c9dbeb0dfcf8e7ed7483bea9572",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true,
+    "baseline_reconciled_with_main": true
+  },
+  "controlled_parity_sample": {
+    "status": "implemented_pending_exact_head_ci",
+    "view_count": 2,
+    "tenant_read_count": 1,
+    "admin_read_count": 1,
+    "expected_capsule_target_matches": 2,
+    "expected_provider_dispatches": 0,
+    "expected_automatic_writes": 0
+  },
+  "rollback_evidence": {
+    "status": "implemented_pending_exact_head_ci",
+    "restores_exact_legacy_operations_object": true,
+    "capsule_telemetry_after_rollback": 0,
+    "provider_dispatch_performed": false,
+    "database_write_performed": false
+  },
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "legacy_get_context_resolution_remains_authoritative",
+    "no_route_mount",
+    "no_openapi_behavior_change",
+    "no_response_or_dispatch_modification",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_credential_mutation",
+    "no_production_activation",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}
