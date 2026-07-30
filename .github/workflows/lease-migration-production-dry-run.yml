@@ -61,6 +61,7 @@ jobs:
           const SOURCE_PR = 3354;
           const SOURCE_MERGE_SHA = '07f6a70cc824befc2017dc48d25becf98f54b8f6';
           const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+          const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
 
           assert.equal(BASE, 'https://auth.mad4b.com');
           assert.ok(KEY, 'BACKEND_API_KEY is required');
@@ -132,6 +133,7 @@ jobs:
             },
             extra_args: [
               `--tenant-id=${PLATFORM_TENANT_ID}`,
+              `--user-id=${PLATFORM_ADMIN_USER_ID}`,
               '--user-role=Admin',
               '--app-key=platform_orchestration',
               '--capability-key=governed_migration_execute',
