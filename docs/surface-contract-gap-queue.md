@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 25
-- Critical review: 22
+- Total queue items: 21
+- Critical review: 20
 - High review: 1
-- Medium review: 1
-- Low review: 1
+- Medium review: 0
+- Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -132,21 +132,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/resource-grants`, `/me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_resource_grant_create`, `workspace_resource_grant_revoke`
 
-### 10. `20260730_repository_reconciliation_lease_control_tool.sql`
-
-- Queue class: critical_review
-- Score: 857
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=1, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `repository_reconciliation_lease_control`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 11. `1030_sprint69_generic_platform_resource_context.sql`
+### 10. `1030_sprint69_generic_platform_resource_context.sql`
 
 - Queue class: critical_review
 - Score: 826
@@ -160,21 +146,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_resource_context_catalog`, `platform_resource_context_diagnostic_handoff`, `platform_resource_context_related`, `platform_resource_context_resolve`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_resource_context_dynamic_policy_v1`, `resource_reference_interpretation_policy_v1`
 
-### 12. `20260723_dynamic_container_override_governance_smoke.sql`
-
-- Queue class: critical_review
-- Score: 815
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=1, routes=1
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `dynamic_container_override_governance_smoke`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `dynamic_container_override_governance_smoke_policy_v1`
-
-### 13. `1029_sprint69_minimal_dynamic_brand_resolution.sql`
+### 11. `1029_sprint69_minimal_dynamic_brand_resolution.sql`
 
 - Queue class: critical_review
 - Score: 771
@@ -188,7 +160,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `brand_workspace_context_resolve`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `brand_reference_interpretation_policy_v1`, `brand_workspace_context_minimal_policy_v1`
 
-### 14. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
+### 12. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
 
 - Queue class: critical_review
 - Score: 738
@@ -201,7 +173,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/connect/api/credential-intake/sessions/{session_id}/wait`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `connect_credential_intake_wait`
 
-### 15. `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
+### 13. `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
 
 - Queue class: critical_review
 - Score: 737
@@ -214,7 +186,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_execute`
 
-### 16. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
+### 14. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
 
 - Queue class: critical_review
 - Score: 737
@@ -227,7 +199,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_execute_job_result`
 
-### 17. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
+### 15. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
 
 - Queue class: critical_review
 - Score: 730
@@ -241,7 +213,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_approval_request_create`
 - `verify_readback_view` → db-readback-review; targets: `v_json`
 
-### 18. `199_sprint66_tenant_ssh_cli_dry_run_tool.sql`
+### 16. `199_sprint66_tenant_ssh_cli_dry_run_tool.sql`
 
 - Queue class: critical_review
 - Score: 720
@@ -254,7 +226,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_dry_run`
 
-### 19. `196_sprint66_tenant_database_schema_read_tool.sql`
+### 17. `196_sprint66_tenant_database_schema_read_tool.sql`
 
 - Queue class: critical_review
 - Score: 719
@@ -267,7 +239,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/schema`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_schema_read`
 
-### 20. `197_sprint66_tenant_database_query_readonly_tool.sql`
+### 18. `197_sprint66_tenant_database_query_readonly_tool.sql`
 
 - Queue class: critical_review
 - Score: 719
@@ -280,7 +252,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/query-readonly`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_query_readonly`
 
-### 21. `198_sprint66_tenant_ssh_probe_tool.sql`
+### 19. `198_sprint66_tenant_ssh_probe_tool.sql`
 
 - Queue class: critical_review
 - Score: 719
@@ -293,7 +265,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/probe`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_probe`
 
-### 22. `191_sprint66_tenant_credential_intake_connection_status.sql`
+### 20. `191_sprint66_tenant_credential_intake_connection_status.sql`
 
 - Queue class: critical_review
 - Score: 717
@@ -306,7 +278,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/connections/{connection_id}/credential-intake-status`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `credential_intake_connection_status`
 
-### 23. `20260730_hostinger_production_resync_policy.sql`
+### 21. `20260730_hostinger_production_resync_policy.sql`
 
 - Queue class: high_review
 - Score: 546
@@ -319,31 +291,4 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `repository_main_moved_trigger_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
-
-### 24. `20260730_context_kernel_connection_ownership_persistence.sql`
-
-- Queue class: medium_review
-- Score: 390
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_readback_view` → db-readback-review; targets: `v_context_kernel_connection_ownership_compatibility`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-
-### 25. `1006_sprint69_agent_capability_evidence_coverage.sql`
-
-- Queue class: low_review
-- Score: 100
-- Gap severity: none
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-- Surface counts: plugins=0, tools=0, views=2, policies=0, routes=0
-- Remediation actions:
-- `verify_readback_view` → db-readback-review; targets: `v_engine_runtime_coverage`, `v_logic_runtime_coverage`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
