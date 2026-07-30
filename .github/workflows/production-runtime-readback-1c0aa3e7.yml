@@ -34,7 +34,7 @@ jobs:
               printf '%s\n' "$code" > "runtime-evidence/${endpoint}.status"
             done
 
-            ATTEMPT="$attempt" python3 - <<'PY'
+            if ATTEMPT="$attempt" python3 - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -55,7 +55,7 @@ jobs:
                   parsed = json.loads(body)
               except Exception:
                   parsed = None
-              return status, body, parsed
+              return status, parsed
 
           def values(value):
               if isinstance(value, dict):
@@ -68,9 +68,9 @@ jobs:
               elif value is not None:
                   yield str(value)
 
-          health_status, health_body, health = load('health')
-          version_status, version_body, version = load('version')
-          info_status, info_body, info = load('deployment-info')
+          health_status, health = load('health')
+          version_status, version = load('version')
+          info_status, info = load('deployment-info')
 
           health_ok = 200 <= health_status < 300 and health is not None
           combined_values = [item.lower() for document in (version, info) if document is not None for item in values(document)]
@@ -100,8 +100,7 @@ jobs:
           print(json.dumps(result, indent=2, ensure_ascii=False))
           raise SystemExit(0 if result['runtime_parity_ok'] else 1)
           PY
-            rc=$?
-            if [[ "$rc" -eq 0 ]]; then
+            then
               success=1
               break
             fi
