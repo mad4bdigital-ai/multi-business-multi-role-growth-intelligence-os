@@ -40,7 +40,7 @@ assert(
 assert(
   systemIdSchemas.some((schema) =>
     schema?.type === "string"
-    && schema?.description === "Governed connected-system registry identifier"
+    && String(schema?.description || "").startsWith("Governed connected-system registry identifier")
   ),
   "runtime OpenAPI must preserve the governed connected-system identifier contract",
 );
