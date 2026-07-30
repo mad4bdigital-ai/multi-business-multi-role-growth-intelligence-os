@@ -26,6 +26,11 @@ assert.throws(() => normalizeTtlHours(49, "temporary_only", 48), (error) => erro
 assert.equal(grantCoversOperations('["publish","update"]', ["update"]), true);
 assert.equal(grantCoversOperations('["publish"]', ["update"]), false);
 assert.deepEqual(mergeAllowedOperations('["publish"]', ["update", "publish"]), ["publish", "update"]);
+assert.deepEqual(
+  mergeAllowedOperations('["publish","delete"]', ["update"], ["publish", "update"]),
+  ["publish", "update"],
+  "operations removed from the current policy must not survive grant expansion",
+);
 
 assert.throws(
   () => _testingBrandSkillActivationService.validatePolicy({
@@ -87,7 +92,8 @@ const siteBinding = await assertRequestedResourceBelongsToBrand({
 });
 assert.equal(siteBinding.binding_source, "brand_site_bindings");
 assert.match(siteQueries[0].sql, /JOIN cms_sites/i);
-assert.deepEqual(siteQueries[0].params, ["brand-1", "site-1", "site-1", "site-1"]);
+assert.match(siteQueries[0].sql, /LIMIT 2/i);
+assert.deepEqual(siteQueries[0].params, ["brand-1", "site-1", "site-1", "site-1", "site-1"]);
 
 await assert.rejects(
   () => assertRequestedResourceBelongsToBrand({ query: async () => [[]] }, {
@@ -97,6 +103,21 @@ await assert.rejects(
     requestedResourceRef: "site-2",
   }),
   (error) => error.code === "BRAND_SKILL_RESOURCE_BRAND_MISMATCH"
+);
+
+await assert.rejects(
+  () => assertRequestedResourceBelongsToBrand({
+    query: async () => [[
+      { binding_id: "binding-1", site_id: "site-1" },
+      { binding_id: "binding-2", site_id: "site-2" },
+    ]],
+  }, {
+    tenantId: "tenant-1",
+    brandKey: "brand-1",
+    requestedResourceType: "site",
+    requestedResourceRef: "shared.example.com",
+  }),
+  (error) => error.code === "BRAND_SKILL_RESOURCE_BINDING_AMBIGUOUS"
 );
 
 await assert.rejects(
@@ -137,21 +158,25 @@ for (const marker of [
   "assertRequestedResourceBelongsToBrand",
   "allowed_operations_json = ?",
   "operation_set_extended: true",
+  "policy.allowed_operations_json",
   "SET status = 'expired'",
   "expires_at <= CURRENT_TIMESTAMP",
   "provider_call_allowed: false",
   "external_write_allowed: false",
 ]) assert(service.includes(marker), `service missing ${marker}`);
 assert.doesNotMatch(service, /m\.role_key AS role/);
+assert.doesNotMatch(service, /\brows\s*\[\s*0\s*\]/);
 
 const bindingGuard = readFileSync(new URL("./brandSkillResourceBinding.js", import.meta.url), "utf8");
 for (const marker of [
   "brand_site_bindings",
   "workspace_assets",
   "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
+  "BRAND_SKILL_RESOURCE_BINDING_AMBIGUOUS",
   "BRAND_SKILL_RESOURCE_BRAND_BINDING_UNSUPPORTED",
   "BRAND_SKILL_RESOURCE_BINDING_UNAVAILABLE",
 ]) assert(bindingGuard.includes(marker), `binding guard missing ${marker}`);
+assert.doesNotMatch(bindingGuard, /\brows\s*\[\s*0\s*\]/);
 
 const routes = readFileSync(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
 assert(routes.includes("requireUserJwt"));
@@ -163,8 +188,12 @@ assert(routes.includes("requestId"));
 const gate = readFileSync(new URL("./agentToolAuthorizationGate.js", import.meta.url), "utf8");
 assert(gate.includes("resolveUserBrandSkillEntitlement"));
 assert(gate.includes("user_brand_skill_grant"));
+assert(gate.includes("action_registry_resolution_failed"));
+assert(gate.includes("AGENT_TOOL_ACTION_AMBIGUOUS"));
 assert(gate.includes('configured: true'));
 assert(gate.includes('granted: false'));
+assert.doesNotMatch(gate, /\brows\s*\[\s*0\s*\]/);
+assert.doesNotMatch(gate, /loadAction\([^)]*\)\.catch\(\(\)\s*=>\s*null\)/);
 
 const entitlement = readFileSync(new URL("./userBrandSkillEntitlement.js", import.meta.url), "utf8");
 assert(entitlement.includes("brand_skill_policies"));
