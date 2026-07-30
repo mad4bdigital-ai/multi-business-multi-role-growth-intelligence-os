@@ -5,6 +5,10 @@ function read(relativePath) {
   return fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
+function normalizeEscapedDoubleQuotes(source) {
+  return source.replace(/\\"/g, '"');
+}
+
 const cleanupWorkflow = read(".github/workflows/platform-completion-cleanup-readback.yml");
 const scorecardWorkflow = read(".github/workflows/platform-remaining-scope-scorecard.yml");
 const cleanupAudit = read("http-generic-api/scripts/platform-completion-cleanup-readback-audit.mjs");
@@ -24,7 +28,7 @@ for (const [name, workflow] of [
 assert.match(cleanupAudit, /excludedFiles:/, "cleanup audit must exclude its guard sources from forbidden scans");
 assert.match(cleanupAudit, /Release readiness remains the authority/, "cleanup audit must preserve release-readiness authority");
 assert.ok(
-  cleanupAudit.includes(String.raw`pathValue === \"/system/tools/call\"`),
+  normalizeEscapedDoubleQuotes(cleanupAudit).includes('pathValue === "/system/tools/call"'),
   "cleanup audit must validate the concrete recursion guard",
 );
 assert.doesNotMatch(cleanupAudit, /live_provider_dispatch_disabled_by_policy/, "cleanup audit must not require an invented migration marker");
