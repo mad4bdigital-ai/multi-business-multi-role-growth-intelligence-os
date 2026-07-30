@@ -88,7 +88,15 @@ The bound migration remains:
 
 ## Test contract
 
-The registered Context Kernel adapter command covers:
+The focused command is:
+
+```text
+npm run test:context-kernel:provider-consent
+```
+
+The same test remains registered through `test-context-kernel-registry-adapters.mjs`, so the repository-wide Unit & Integration Tests execute it without relying on the focused command.
+
+The registered coverage includes:
 
 - HMAC issue and verification;
 - signature tamper rejection;
@@ -101,6 +109,8 @@ The registered Context Kernel adapter command covers:
 - single-winner claim semantics;
 - sequential replay rejection;
 - absence of provider calls, credential reads, credential mutation, secrets, and raw claim-token output.
+
+The repository-owned generated-artifact workflow regenerated and verified the bounded frontend dispatch evidence after the focused command was registered. The bounded write set contained only the governed generated evidence files; no runtime or OpenAPI surface was introduced by the generator.
 
 ## Remaining work
 
