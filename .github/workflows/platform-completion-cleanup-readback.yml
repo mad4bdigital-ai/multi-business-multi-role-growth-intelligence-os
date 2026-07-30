@@ -3,9 +3,9 @@ name: Platform Completion Cleanup Readback
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [main, Production]
   push:
-    branches: [main]
+    branches: [main, Production]
   schedule:
     - cron: "47 3 * * *"
 
@@ -29,11 +29,23 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Verify fail-closed workflow contract
+        run: node http-generic-api/test-platform-static-readback-fail-closed.mjs
+
       - name: Run platform completion cleanup/readback audit
         id: audit
         run: |
-          set -e
+          set -euo pipefail
           node http-generic-api/scripts/platform-completion-cleanup-readback-audit.mjs | tee platform-completion-cleanup-readback-audit.json
+          test -s platform-completion-cleanup-readback-audit.json
+          node -e '
+            const fs = require("node:fs");
+            const result = JSON.parse(fs.readFileSync("platform-completion-cleanup-readback-audit.json", "utf8"));
+            if (result.ok !== true || Number(result.failed_checks || 0) !== 0) {
+              console.error("Cleanup/readback audit did not pass", result);
+              process.exit(1);
+            }
+          '
 
       - name: Publish audit summary
         if: always()
@@ -54,4 +66,4 @@ jobs:
         with:
           name: platform-completion-cleanup-readback-audit
           path: platform-completion-cleanup-readback-audit.json
-          if-no-files-found: warn
+          if-no-files-found: error
