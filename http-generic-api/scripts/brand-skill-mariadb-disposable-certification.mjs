@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,40 +121,82 @@ async function inspectEmptyState(pool) {
   return result;
 }
 
+async function insertFixtureGrant(connection, {
+  grantId,
+  tenantId,
+  userId,
+  brandKey,
+  agentId,
+  skillId,
+  policyId,
+  resourceType,
+  resourceRef,
+  status,
+}) {
+  await connection.query(`INSERT INTO user_brand_skill_grants
+    (grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, policy_id,
+     resource_type, resource_ref, allowed_operations_json, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, JSON_ARRAY('publish'), ?)`, [
+    grantId,
+    tenantId,
+    userId,
+    brandKey,
+    agentId,
+    skillId,
+    policyId,
+    resourceType,
+    resourceRef,
+    status,
+  ]);
+}
+
 async function certifyLifecycleContracts(pool) {
   const connection = await pool.getConnection();
+  const fixture = {
+    skillId: randomUUID(),
+    policyId: randomUUID(),
+    tenantId: `tenant-cert-${randomUUID()}`,
+    userId: `user-cert-${randomUUID()}`,
+    brandKey: `brand-cert-${randomUUID()}`,
+    agentId: `agent-cert-${randomUUID()}`,
+  };
+
   try {
     await connection.beginTransaction();
-    await connection.query(`INSERT INTO agent_skills (skill_id, skill_key, status)
-      VALUES ('00000000-0000-4000-a000-000000000101', 'brand-skill-cert', 'active')`);
+    await connection.query(
+      "INSERT INTO agent_skills (skill_id, skill_key, status) VALUES (?, ?, 'active')",
+      [fixture.skillId, `brand-skill-cert-${randomUUID()}`],
+    );
     await connection.query(`INSERT INTO brand_skill_policies
       (policy_id, tenant_id, brand_key, skill_id, activation_mode, allowed_operations_json, status)
-      VALUES ('00000000-0000-4000-a000-000000000201', 'tenant-cert', 'brand-cert',
-              '00000000-0000-4000-a000-000000000101', 'self_service', JSON_ARRAY('publish'), 'active')`);
+      VALUES (?, ?, ?, ?, 'self_service', JSON_ARRAY('publish'), 'active')`, [
+      fixture.policyId,
+      fixture.tenantId,
+      fixture.brandKey,
+      fixture.skillId,
+    ]);
 
-    const common = [
-      "tenant-cert",
-      "user-cert",
-      "brand-cert",
-      "agent-cert",
-      "00000000-0000-4000-a000-000000000101",
-      "00000000-0000-4000-a000-000000000201",
-    ];
-    await connection.query(`INSERT INTO user_brand_skill_grants
-      (grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, policy_id,
-       resource_type, resource_ref, allowed_operations_json, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, JSON_ARRAY('publish'), 'active')`,
-    ["grant-cert-active-a", ...common, "a|b", "c"]);
-    await connection.query(`INSERT INTO user_brand_skill_grants
-      (grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, policy_id,
-       resource_type, resource_ref, allowed_operations_json, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, JSON_ARRAY('publish'), 'active')`,
-    ["grant-cert-active-b", ...common, "a", "b|c"]);
-    await connection.query(`INSERT INTO user_brand_skill_grants
-      (grant_id, tenant_id, user_id, brand_key, agent_id, skill_id, policy_id,
-       resource_type, resource_ref, allowed_operations_json, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, JSON_ARRAY('publish'), 'suspended')`,
-    ["grant-cert-suspended", ...common, "site", "site-cert"]);
+    await insertFixtureGrant(connection, {
+      ...fixture,
+      grantId: randomUUID(),
+      resourceType: "a|b",
+      resourceRef: "c",
+      status: "active",
+    });
+    await insertFixtureGrant(connection, {
+      ...fixture,
+      grantId: randomUUID(),
+      resourceType: "a",
+      resourceRef: "b|c",
+      status: "active",
+    });
+    await insertFixtureGrant(connection, {
+      ...fixture,
+      grantId: randomUUID(),
+      resourceType: "site",
+      resourceRef: `site-cert-${randomUUID()}`,
+      status: "suspended",
+    });
 
     const [activeRows] = await connection.query(`SELECT grant_id, active_scope_hash
       FROM user_brand_skill_grants
