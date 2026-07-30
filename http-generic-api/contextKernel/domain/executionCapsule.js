@@ -1,4 +1,5 @@
-import { createContextHash } from "./contextIntegrity.js";
+import crypto from "node:crypto";
+
 import { deepFreeze } from "./model.js";
 
 export const EXECUTION_CAPSULE_SCHEMA_VERSION = 1;
@@ -53,11 +54,11 @@ function normalizeDate(value, fieldName) {
   return date.toISOString();
 }
 
-function normalizeDependency(dependency, index) {
+function normalizeDependency(dependency, index, fieldName = "dependencies") {
   if (!dependency || typeof dependency !== "object" || Array.isArray(dependency)) {
-    throw new TypeError(`invalidationDependencies[${index}] must be an object.`);
+    throw new TypeError(`${fieldName}[${index}] must be an object.`);
   }
-  const domain = requireString(dependency.domain, `invalidationDependencies[${index}].domain`);
+  const domain = requireString(dependency.domain, `${fieldName}[${index}].domain`);
   if (!DEPENDENCY_DOMAIN_SET.has(domain)) {
     throw new TypeError(`Unsupported execution capsule dependency domain: ${domain}`);
   }
@@ -67,8 +68,8 @@ function normalizeDependency(dependency, index) {
   }
   return {
     domain,
-    ref: requireString(dependency.ref, `invalidationDependencies[${index}].ref`),
-    revision: requireString(dependency.revision, `invalidationDependencies[${index}].revision`),
+    ref: requireString(dependency.ref, `${fieldName}[${index}].ref`),
+    revision: requireString(dependency.revision, `${fieldName}[${index}].revision`),
     refreshClass,
   };
 }
@@ -90,6 +91,34 @@ function addDependency(target, dependency) {
     return;
   }
   target.set(key, dependency);
+}
+
+function buildDependencyMap(dependencies, fieldName) {
+  const result = new Map();
+  dependencies.forEach((dependency, index) => {
+    const normalized = normalizeDependency(dependency, index, fieldName);
+    const key = dependencyKey(normalized);
+    if (result.has(key)) throw new TypeError(`Duplicate ${fieldName} dependency: ${key}`);
+    result.set(key, normalized);
+  });
+  return result;
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (!value || typeof value !== "object") return JSON.stringify(value);
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`)
+    .join(",")}}`;
+}
+
+export function createExecutionCapsuleHash(value) {
+  const canonical = canonicalize(value);
+  return crypto
+    .createHash("sha256")
+    .update(`execution-capsule-v1:${canonical}`)
+    .digest("hex");
 }
 
 export function createExecutionCapsuleDependencyVector({
@@ -176,7 +205,11 @@ export function createExecutionCapsuleDependencyVector({
   });
 
   invalidationDependencies
-    .map(normalizeDependency)
+    .map((dependency, index) => normalizeDependency(
+      dependency,
+      index,
+      "invalidationDependencies",
+    ))
     .forEach((dependency) => addDependency(dependencies, dependency));
 
   return deepFreeze([...dependencies.values()].sort((left, right) =>
@@ -223,8 +256,7 @@ export function createExecutionCapsule(input = {}) {
     ...descriptor,
     invalidationDependencies: input.invalidationDependencies || [],
   });
-  const capsuleHash = createContextHash({
-    contract: "execution-capsule-v1",
+  const capsuleHash = createExecutionCapsuleHash({
     ...descriptor,
     invalidationDependencies,
   });
@@ -247,16 +279,8 @@ export function compareExecutionCapsuleDependencies(capsuleDependencies, current
   if (!Array.isArray(capsuleDependencies) || !Array.isArray(currentDependencies)) {
     throw new TypeError("capsuleDependencies and currentDependencies must be arrays.");
   }
-  const expected = new Map(capsuleDependencies.map((dependency, index) => {
-    const normalized = normalizeDependency(dependency, index);
-    return [dependencyKey(normalized), normalized];
-  }));
-  const current = new Map(currentDependencies.map((dependency, index) => {
-    const normalized = normalizeDependency(dependency, index);
-    const key = dependencyKey(normalized);
-    if (current?.has?.(key)) throw new TypeError(`Duplicate current dependency: ${key}`);
-    return [key, normalized];
-  }));
+  const expected = buildDependencyMap(capsuleDependencies, "capsuleDependencies");
+  const current = buildDependencyMap(currentDependencies, "currentDependencies");
 
   const changed = [];
   for (const [key, dependency] of expected.entries()) {
@@ -265,11 +289,17 @@ export function compareExecutionCapsuleDependencies(capsuleDependencies, current
       changed.push({ ...dependency, actualRevision: null, reason: "dependency_missing" });
       continue;
     }
-    if (actual.revision !== dependency.revision) {
+    if (
+      actual.revision !== dependency.revision ||
+      actual.refreshClass !== dependency.refreshClass
+    ) {
       changed.push({
         ...dependency,
         actualRevision: actual.revision,
-        reason: "dependency_revision_mismatch",
+        actualRefreshClass: actual.refreshClass,
+        reason: actual.revision !== dependency.revision
+          ? "dependency_revision_mismatch"
+          : "dependency_refresh_class_mismatch",
       });
     }
   }
