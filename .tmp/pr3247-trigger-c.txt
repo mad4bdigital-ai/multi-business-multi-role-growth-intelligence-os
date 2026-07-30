@@ -1,0 +1,5 @@
+trigger=pr3247-owner-cache-c
+base=1b1b79cf9479b21e7c6aac78fa1c2d7252789404
+purpose=observable-executor-only
+merge_allowed=false
+secrets_included=false
