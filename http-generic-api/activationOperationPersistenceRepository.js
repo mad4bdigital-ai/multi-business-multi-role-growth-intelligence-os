@@ -13,7 +13,6 @@ import { ACTIVATION_SUCCESS_EVIDENCE_TYPES } from "./activationRetryReconciliati
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STATE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 const SAFE_REDACTION_STATES = new Set(["sanitized", "reference_only"]);
-
 const STAGE_ATTEMPT_TRANSITIONS = Object.freeze({
   pending: new Set(["running", "cancelled"]),
   started: new Set([
@@ -32,7 +31,6 @@ const STAGE_ATTEMPT_TRANSITIONS = Object.freeze({
     "cancelled",
   ]),
 });
-
 const TERMINAL_STAGE_ATTEMPT_STATES = new Set([
   "succeeded",
   "degraded",
@@ -125,6 +123,31 @@ async function readSingle(pool, sql, params) {
   return rows?.[0] || null;
 }
 
+async function lockActivationOperationScope(pool, operationId, tenantId) {
+  const locked = await readSingle(
+    pool,
+    `SELECT operation_id
+       FROM activation_operation_projections
+      WHERE operation_id = ?
+        AND tenant_id = ?
+      FOR UPDATE`,
+    [operationId, tenantId],
+  );
+  if (!locked?.operation_id) {
+    fail(
+      "activation_operation_not_found",
+      "Activation operation was not found in the authorized tenant scope.",
+      404,
+    );
+  }
+}
+
+function validateNextAttemptNumber(value, code, message) {
+  const next = Number(value || 1);
+  if (!Number.isSafeInteger(next) || next < 1) fail(code, message, 500);
+  return next;
+}
+
 export async function nextActivationStageAttemptNumber(
   pool,
   { operation_id, tenant_id, stage_key } = {},
@@ -133,25 +156,21 @@ export async function nextActivationStageAttemptNumber(
   const operationId = normalizeUuid(operation_id, "operation_id");
   const tenantId = normalizeText(tenant_id, "tenant_id", 36);
   const stageKey = normalizeState(stage_key, "stage_key");
+  await lockActivationOperationScope(pool, operationId, tenantId);
   const row = await readSingle(
     pool,
     `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next_attempt_number
        FROM activation_stage_attempts
       WHERE operation_id = ?
         AND tenant_id = ?
-        AND stage_key = ?
-      FOR UPDATE`,
+        AND stage_key = ?`,
     [operationId, tenantId, stageKey],
   );
-  const next = Number(row?.next_attempt_number || 1);
-  if (!Number.isSafeInteger(next) || next < 1) {
-    fail(
-      "activation_stage_attempt_number_invalid",
-      "The next stage-attempt number could not be determined.",
-      500,
-    );
-  }
-  return next;
+  return validateNextAttemptNumber(
+    row?.next_attempt_number,
+    "activation_stage_attempt_number_invalid",
+    "The next stage-attempt number could not be determined.",
+  );
 }
 
 export async function readActivationStageAttempt(
@@ -189,7 +208,6 @@ export async function transitionActivationStageAttempt(pool, input = {}) {
     required: false,
   });
   const terminal = TERMINAL_STAGE_ATTEMPT_STATES.has(transition.to_status);
-
   const [result] = await pool.query(
     `UPDATE activation_stage_attempts
         SET attempt_status = ?,
@@ -223,7 +241,6 @@ export async function transitionActivationStageAttempt(pool, input = {}) {
   if (Number(result?.affectedRows || 0) === 1) {
     return { updated: true, idempotent: false, state: transition.to_status };
   }
-
   const current = await readActivationStageAttempt(pool, {
     attempt_id: attemptId,
     operation_id: operationId,
@@ -246,24 +263,20 @@ export async function nextActivationReconciliationAttemptNumber(
   requirePool(pool);
   const operationId = normalizeUuid(operation_id, "operation_id");
   const tenantId = normalizeText(tenant_id, "tenant_id", 36);
+  await lockActivationOperationScope(pool, operationId, tenantId);
   const row = await readSingle(
     pool,
     `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next_attempt_number
        FROM activation_reconciliation_attempts
       WHERE operation_id = ?
-        AND tenant_id = ?
-      FOR UPDATE`,
+        AND tenant_id = ?`,
     [operationId, tenantId],
   );
-  const next = Number(row?.next_attempt_number || 1);
-  if (!Number.isSafeInteger(next) || next < 1) {
-    fail(
-      "activation_reconciliation_attempt_number_invalid",
-      "The next reconciliation-attempt number could not be determined.",
-      500,
-    );
-  }
-  return next;
+  return validateNextAttemptNumber(
+    row?.next_attempt_number,
+    "activation_reconciliation_attempt_number_invalid",
+    "The next reconciliation-attempt number could not be determined.",
+  );
 }
 
 export async function readActivationReconciliationAttempt(
@@ -372,7 +385,6 @@ export function createActivationOperationPersistenceRepository() {
 
 export const activationOperationPersistenceRepository =
   createActivationOperationPersistenceRepository();
-
 export const ACTIVATION_SAFE_EVIDENCE_REDACTION_STATES = Object.freeze([
   ...SAFE_REDACTION_STATES,
 ]);
