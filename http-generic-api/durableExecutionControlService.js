@@ -104,7 +104,8 @@ function resolveUnique(rows, code, message) {
   const candidates = Array.isArray(rows) ? rows : [];
   if (candidates.length === 0) return null;
   if (candidates.length > 1) throw durableError(message, code, 409);
-  return candidates[0];
+  const [candidate] = candidates;
+  return candidate;
 }
 
 export function assertDurablePlanTransition(fromStatus, toStatus) {
