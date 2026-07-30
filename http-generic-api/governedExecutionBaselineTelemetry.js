@@ -93,6 +93,10 @@ function freezeRecord(record) {
   return Object.freeze({ ...record });
 }
 
+function frozenSorted(values) {
+  return Object.freeze([...values].sort());
+}
+
 function nowFrom(clock) {
   const observed = safeNumber(clock(), 0);
   return observed >= 0 ? observed : 0;
@@ -120,6 +124,23 @@ function totalStageMilliseconds(stageDurations) {
   return roundMilliseconds(Object.values(stageDurations).reduce((total, value) => total + safeNumber(value), 0));
 }
 
+function coveragePartition(allKeys, observed) {
+  const observedKeys = allKeys.filter((key) => observed.has(key));
+  const unobservedKeys = allKeys.filter((key) => !observed.has(key));
+  return Object.freeze({
+    observed: frozenSorted(observedKeys),
+    unobserved: frozenSorted(unobservedKeys),
+  });
+}
+
+function validCoveragePartition(partition, allowedKeys) {
+  if (!partition || !Array.isArray(partition.observed) || !Array.isArray(partition.unobserved)) return false;
+  const combined = [...partition.observed, ...partition.unobserved];
+  if (new Set(combined).size !== combined.length) return false;
+  if (combined.some((key) => !allowedKeys.has(key))) return false;
+  return combined.length === allowedKeys.size;
+}
+
 export function createGovernedExecutionBaselineTrace(input = {}, dependencies = {}) {
   const clock = typeof dependencies.clock === "function" ? dependencies.clock : () => performance.now();
   const generatedTraceId = safeIdentifier(dependencies.traceIdFactory?.()) || randomUUID();
@@ -137,18 +158,27 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
   const startedAt = nowFrom(clock);
   const counters = initialCounters();
   const stageDurations = initialStageDurations();
+  const observedStages = new Set();
+  const observedCounters = new Set();
   const activeStages = new Map();
   let finalizedSnapshot = null;
 
   function recordInstrumentationError() {
+    observedCounters.add("instrumentation_errors");
     counters.instrumentation_errors = boundedCounterValue(counters.instrumentation_errors + 1);
   }
 
-  function increment(counter, amount = 1) {
+  function observeCounter(counter) {
     if (finalizedSnapshot || !COUNTER_SET.has(counter)) {
       recordInstrumentationError();
       return false;
     }
+    observedCounters.add(counter);
+    return true;
+  }
+
+  function increment(counter, amount = 1) {
+    if (!observeCounter(counter)) return false;
     counters[counter] = boundedCounterValue(counters[counter] + safeNumber(amount));
     return true;
   }
@@ -158,6 +188,7 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
       recordInstrumentationError();
       return () => false;
     }
+    observedStages.add(stage);
     const stageStartedAt = nowFrom(clock);
     activeStages.set(stage, stageStartedAt);
     let completed = false;
@@ -169,9 +200,7 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
       completed = true;
       const observedAt = nowFrom(clock);
       const elapsed = observedAt - stageStartedAt;
-      if (elapsed < 0) {
-        increment("clock_regressions");
-      }
+      if (elapsed < 0) increment("clock_regressions");
       stageDurations[stage] = roundMilliseconds(stageDurations[stage] + Math.max(0, elapsed));
       activeStages.delete(stage);
       return true;
@@ -183,16 +212,21 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
     const finishedAt = nowFrom(clock);
     for (const [stage, stageStartedAt] of activeStages.entries()) {
       const elapsed = finishedAt - stageStartedAt;
-      if (elapsed < 0) counters.clock_regressions = boundedCounterValue(counters.clock_regressions + 1);
+      if (elapsed < 0) {
+        observedCounters.add("clock_regressions");
+        counters.clock_regressions = boundedCounterValue(counters.clock_regressions + 1);
+      }
       stageDurations[stage] = roundMilliseconds(stageDurations[stage] + Math.max(0, elapsed));
     }
     activeStages.clear();
 
     const totalMs = roundMilliseconds(Math.max(0, finishedAt - startedAt));
     const stagesMs = totalStageMilliseconds(stageDurations);
-    const instrumentationOverheadMs = roundMilliseconds(Math.max(0, totalMs - stagesMs));
+    const unattributedMs = roundMilliseconds(Math.max(0, totalMs - stagesMs));
+    const overlapMs = roundMilliseconds(Math.max(0, stagesMs - totalMs));
     const responseBytes = output.response_bytes ?? output.responseBytes;
     if (responseBytes !== undefined) {
+      observedCounters.add("response_bytes");
       counters.response_bytes = boundedCounterValue(responseBytes);
     }
 
@@ -215,9 +249,16 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
       stage_durations_ms: freezeRecord(stageDurations),
       total_stage_ms: stagesMs,
       total_ms: totalMs,
-      instrumentation_overhead_ms: instrumentationOverheadMs,
+      unattributed_ms: unattributedMs,
+      overlap_ms: overlapMs,
       counters: freezeRecord(counters),
-      provider_call_made: counters.provider_calls > 0,
+      coverage: Object.freeze({
+        stages: coveragePartition(GOVERNED_EXECUTION_BASELINE_STAGES, observedStages),
+        counters: coveragePartition(GOVERNED_EXECUTION_BASELINE_COUNTERS, observedCounters),
+      }),
+      provider_call_made: observedCounters.has("provider_calls")
+        ? counters.provider_calls > 0
+        : null,
       secrets_included: false,
     });
     return finalizedSnapshot;
@@ -233,6 +274,7 @@ export function createGovernedExecutionBaselineTrace(input = {}, dependencies = 
     step_id: stepId,
     entry_point: entryPoint,
     increment,
+    observeCounter,
     startStage,
     finalize,
     snapshot: () => finalizedSnapshot,
@@ -262,9 +304,14 @@ export function validateGovernedExecutionBaselineSnapshot(snapshot = {}) {
     if (!Number.isInteger(value) || value < 0 || value > MAX_COUNTER_VALUE) errors.push("counter_value_invalid");
   }
 
+  if (!validCoveragePartition(snapshot.coverage?.stages, STAGE_SET)) errors.push("stage_coverage_invalid");
+  if (!validCoveragePartition(snapshot.coverage?.counters, COUNTER_SET)) errors.push("counter_coverage_invalid");
   if (!Number.isFinite(snapshot.total_ms) || snapshot.total_ms < 0) errors.push("total_ms_invalid");
   if (!Number.isFinite(snapshot.total_stage_ms) || snapshot.total_stage_ms < 0) errors.push("total_stage_ms_invalid");
-  if (snapshot.total_stage_ms > snapshot.total_ms + 0.001) errors.push("stage_total_exceeds_total");
+  if (!Number.isFinite(snapshot.unattributed_ms) || snapshot.unattributed_ms < 0) errors.push("unattributed_ms_invalid");
+  if (!Number.isFinite(snapshot.overlap_ms) || snapshot.overlap_ms < 0) errors.push("overlap_ms_invalid");
+  const reconciled = roundMilliseconds(snapshot.total_stage_ms + snapshot.unattributed_ms - snapshot.overlap_ms);
+  if (Math.abs(reconciled - snapshot.total_ms) > 0.002) errors.push("timing_reconciliation_invalid");
   if (looksSecret(JSON.stringify(snapshot))) errors.push("secret_like_value_detected");
 
   return Object.freeze({
