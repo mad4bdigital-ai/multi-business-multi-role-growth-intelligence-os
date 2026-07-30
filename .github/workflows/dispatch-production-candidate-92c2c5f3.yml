@@ -1,4 +1,4 @@
-name: Dispatch Production Candidate 9879e844
+name: Dispatch Current Production Candidate
 
 on:
   pull_request:
@@ -14,34 +14,61 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/dispatch-production-candidate-92c2c5f3-20260730'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
-      - name: Dispatch and observe governed Production candidate builder
+      - name: Dispatch current governed candidate with bounded ref-drift retries
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          RUN_URL="$(gh workflow run production-promotion-candidate.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref main \
-            -f expected_main_sha=9879e844918355e8945105d8a231ff65ffbd524b \
-            -f expected_production_sha=fae54a372350d23d915bbe564e972b714ca363f4 \
-            -f release_branch=release/production-candidate-9879e844-fae54a37-20260730 \
-            -f validation_branch=gpt/validate-production-candidate-9879e844-fae54a37 \
-            -f validation_base_branch=gpt/validate-production-base-9879e844-fae54a37 \
-            -f create_pull_requests=true)"
-          printf '%s\n' "$RUN_URL"
-          RUN_ID="${RUN_URL##*/}"
-          if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo "Unable to parse governed builder run ID from: $RUN_URL" >&2
-            exit 1
-          fi
-          echo "builder_run_id=$RUN_ID"
 
-          if ! gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
-            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+          for attempt in $(seq 1 8); do
+            MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            PRODUCTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/Production" --jq '.object.sha')"
+            MAIN_SHORT="${MAIN_SHA:0:8}"
+            PRODUCTION_SHORT="${PRODUCTION_SHA:0:8}"
+            SUFFIX="${MAIN_SHORT}-${PRODUCTION_SHORT}-${GITHUB_RUN_ID}-${attempt}"
+            RELEASE_BRANCH="release/production-candidate-auto-${SUFFIX}"
+            VALIDATION_BRANCH="gpt/validate-production-candidate-auto-${SUFFIX}"
+            VALIDATION_BASE_BRANCH="gpt/validate-production-base-auto-${SUFFIX}"
+
+            echo "attempt=$attempt main=$MAIN_SHA Production=$PRODUCTION_SHA"
+            RUN_URL="$(gh workflow run production-promotion-candidate.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref main \
+              -f expected_main_sha="$MAIN_SHA" \
+              -f expected_production_sha="$PRODUCTION_SHA" \
+              -f release_branch="$RELEASE_BRANCH" \
+              -f validation_branch="$VALIDATION_BRANCH" \
+              -f validation_base_branch="$VALIDATION_BASE_BRANCH" \
+              -f create_pull_requests=true)"
+            printf '%s\n' "$RUN_URL"
+            RUN_ID="${RUN_URL##*/}"
+            if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
+              echo "Unable to parse governed builder run ID from: $RUN_URL" >&2
+              exit 1
+            fi
+            echo "builder_run_id=$RUN_ID"
+
+            if gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
+              gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,headSha,jobs
+              echo "Governed candidate builder completed successfully on attempt $attempt."
+              echo 'This observer performed no merge, deployment, migration, provider call, credential read, or external send.'
+              exit 0
+            fi
+
+            LOG_FILE="$RUNNER_TEMP/production-candidate-builder-${attempt}.log"
+            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed 2>&1 | tee "$LOG_FILE" || true
+            if grep -Eq 'main moved:|Production moved:|protected refs moved during candidate construction' "$LOG_FILE"; then
+              echo "Protected refs moved during attempt $attempt; retrying from fresh readback."
+              sleep 5
+              continue
+            fi
+
+            echo "Governed candidate builder failed for a non-ref-drift reason on attempt $attempt." >&2
             exit 1
-          fi
-          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,headSha,jobs
-          echo 'Governed candidate builder completed successfully. This observer performed no merge, deployment, migration, provider call, credential read, or external send.'
+          done
+
+          echo 'Protected refs did not remain stable within the bounded retry window; no Production merge was attempted.' >&2
+          exit 1
