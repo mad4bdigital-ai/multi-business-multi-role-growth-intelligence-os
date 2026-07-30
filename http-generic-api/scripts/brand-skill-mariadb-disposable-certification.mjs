@@ -14,6 +14,7 @@ const MIGRATION_NAME = "20260728_brand_scoped_user_skill_activation.sql";
 const MIGRATION_PATH = path.join(API_DIR, "migrations", MIGRATION_NAME);
 const ARTIFACT_PATH = path.join(API_DIR, "artifacts", "brand-skill-mariadb-certification.json");
 const REQUIRED_COLLATION = "utf8mb4_uca1400_ai_ci";
+let failureEvidence = {};
 
 function sha256(value = "") {
   return createHash("sha256").update(String(value), "utf8").digest("hex");
@@ -187,11 +188,18 @@ async function main() {
   const checksum = sha256(sql);
   const staticPreflight = assessMigrationSqlPreflight(MIGRATION_NAME, sql);
   const statements = splitSqlStatements(sql);
+  failureEvidence = {
+    migration: MIGRATION_NAME,
+    migration_checksum_sha256: checksum,
+    statement_count: statements.length,
+    static_preflight: staticPreflight,
+  };
   assertContract(staticPreflight.status === "pass", "BRAND_SKILL_STATIC_PREFLIGHT_FAILED");
   assertContract(statements.length === 3, "BRAND_SKILL_STATEMENT_COUNT_INVALID");
 
   await resetDisposableSchema(pool);
   const livePreflight = await assessBrandSkillMigrationPreflight({ pool, requireRuntimeBaseline: true });
+  failureEvidence = { ...failureEvidence, live_preflight: livePreflight };
   assertContract(livePreflight.ready === true, "BRAND_SKILL_LIVE_PREFLIGHT_FAILED");
   assertContract(livePreflight.applies_sql === false, "BRAND_SKILL_PREFLIGHT_APPLIED_SQL");
 
@@ -234,6 +242,7 @@ main().catch(async (error) => {
     ok: false,
     certification: "brand_skill_mariadb_disposable_v1",
     error_code: error?.code || "BRAND_SKILL_MARIADB_CERTIFICATION_FAILED",
+    ...failureEvidence,
     production_authorized: false,
     staging_apply_authorized: false,
     applies_sql_to_external_environment: false,
