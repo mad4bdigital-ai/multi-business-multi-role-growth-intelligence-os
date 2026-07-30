@@ -4,6 +4,7 @@ import {
   CANONICAL_IDENTIFIER_CONTRACTS,
   assessLiveIdentifierComparisonContracts,
   extractCanonicalIdentifierComparisons,
+  requiresDedicatedIdentifierRepairRunner,
 } from "./canonicalIdentifierContract.js";
 
 const unsafeSql = `
@@ -58,6 +59,30 @@ assert(registryMigration.includes("canonical_identifier_column_binding_registry"
 assert(registryMigration.includes("uuid.system_id.v1"));
 assert(registryMigration.includes("binary(16)"));
 assert(!/ALTER\s+TABLE/i.test(registryMigration));
+
+const readinessRepairMigration = readFileSync(
+  new URL("./migrations/20260725_repository_authority_capability_readiness_repair.sql", import.meta.url),
+  "utf8",
+);
+assert.equal(requiresDedicatedIdentifierRepairRunner(readinessRepairMigration), true);
+let genericRunnerQueryCalled = false;
+const dedicatedRunnerResult = await assessLiveIdentifierComparisonContracts(readinessRepairMigration, {
+  query: async () => {
+    genericRunnerQueryCalled = true;
+    return [schemaRows];
+  },
+});
+assert.equal(genericRunnerQueryCalled, false);
+assert.equal(dedicatedRunnerResult.status, "block");
+assert.equal(dedicatedRunnerResult.dedicated_atomic_runner_required, true);
+assert.equal(
+  dedicatedRunnerResult.issues[0]?.code,
+  "IDENTIFIER_REPAIR_DEDICATED_ATOMIC_RUNNER_REQUIRED",
+);
+assert.equal(
+  dedicatedRunnerResult.required_runner,
+  "repository-authority-capability-readiness-repair-runner.mjs",
+);
 
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 assert(runner.includes("assessLiveIdentifierComparisonContracts"));
