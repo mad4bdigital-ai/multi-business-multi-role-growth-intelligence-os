@@ -425,11 +425,10 @@ jobs:
           console.log({ surface_queue_after: queue.total_items, critical_after: queue.class_counts.critical_review });
           NODE
 
-      - name: Enforce bounded write set and commit
+      - name: Enforce bounded product write set and commit
         shell: bash
         run: |
           set -euo pipefail
-          git rm .github/workflows/surface-contract-classification-bootstrap.yml
           git add \
             http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
             http-generic-api/scripts/surface-contract-discovery.mjs \
@@ -443,7 +442,6 @@ jobs:
           python3 <<'PY'
           import subprocess
           allowed = {
-            '.github/workflows/surface-contract-classification-bootstrap.yml',
             'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
             'http-generic-api/scripts/surface-contract-discovery.mjs',
             'http-generic-api/surface-contract-classification-evidence.json',
