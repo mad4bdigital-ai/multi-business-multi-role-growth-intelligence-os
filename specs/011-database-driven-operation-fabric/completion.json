@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-database-driven-operation-fabric",
+  "title": "Database-Driven Operation Fabric",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "rollback_drill": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/no-docs-agent/011-database-driven-operation-fabric-20260721",
+      "role": "specification_only",
+      "status": "branch_created",
+      "merge_sha": null
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete",
+      "registry_first_authority": true,
+      "dynamic_binding_model": true,
+      "tool_projection_contract": true,
+      "managed_git_worker_contract": true,
+      "ci_diagnosis_contract": true,
+      "generated_artifact_contract": true,
+      "migration_rollout_contract": true,
+      "acceptance_matrix": true,
+      "risk_register": true
+    },
+    "current_state": {
+      "high_level_operation_contracts_in_code": true,
+      "generic_operation_routes_in_code": true,
+      "automatic_capability_lifecycle_in_code": true,
+      "operation_tool_projection_complete": false,
+      "managed_git_worker_executes_git": false,
+      "repo_reconcile_executes_merge": false,
+      "ci_diagnosis_step_level_complete": false,
+      "production_main_parity_verified": false
+    },
+    "implementation": {
+      "status": "not_started",
+      "registry_foundation": false,
+      "projection_compiler": false,
+      "sql_operation_runtime": false,
+      "dynamic_binding_resolver": false,
+      "managed_git_executor": false,
+      "step_level_ci_diagnosis": false,
+      "admin_projection_active": false,
+      "tenant_projection_active": false
+    },
+    "ci": { "status": "required_for_specification_branch_and_each_implementation_pr" },
+    "migration": { "status": "pending_future_implementation_pr" },
+    "production_verification": { "status": "pending" },
+    "post_merge_audit": { "status": "pending" }
+  },
+  "safety": {
+    "provider_calls": false,
+    "credential_payload_reads": false,
+    "external_writes": false,
+    "runtime_mutations": false,
+    "database_writes": false,
+    "deployments": false,
+    "secrets_included": false
+  }
+}

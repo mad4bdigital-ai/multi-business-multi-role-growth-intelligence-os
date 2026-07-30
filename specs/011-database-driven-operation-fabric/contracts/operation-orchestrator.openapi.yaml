@@ -1,0 +1,265 @@
+openapi: 3.1.0
+info:
+  title: Database-Driven Operation Fabric Preview
+  version: 0.1.0
+  description: Design-only contract preview. It does not declare current runtime readiness.
+servers:
+  - url: https://auth.mad4b.com
+paths:
+  /admin/operations/context:
+    post:
+      operationId: resolveAdminOperationContext
+      summary: Resolve bounded operation context
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationRequest'
+      responses:
+        '200':
+          description: Context resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationContextResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/operations/preview:
+    post:
+      operationId: previewAdminOperation
+      summary: Compile a no-write operation preview
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationRequest'
+      responses:
+        '200':
+          description: Preview compiled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationPreviewResponse'
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /admin/operations/execute:
+    post:
+      operationId: executeAdminOperation
+      summary: Execute a governed operation
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 191 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationRequest'
+      responses:
+        '202':
+          description: Operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationAcceptedResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /admin/operations/{operationId}:
+    get:
+      operationId: getAdminOperation
+      summary: Read operation status and evidence
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatusResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/operations/{operationId}/resume:
+    post:
+      operationId: resumeAdminOperation
+      summary: Resume an interrupted governed operation
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                input:
+                  type: object
+                  additionalProperties: true
+                expectedFingerprint:
+                  type: string
+      responses:
+        '202':
+          description: Resume accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationAcceptedResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/operations/{operationId}/diagnosis:
+    get:
+      operationId: diagnoseAdminOperation
+      summary: Diagnose an operation or CI blocker
+      tags: [Operations]
+      security:
+        - backendApiKey: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Diagnosis resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisResponse'
+components:
+  securitySchemes:
+    backendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    OperationRequest:
+      type: object
+      additionalProperties: false
+      required: [operationKey, target]
+      properties:
+        operationKey: { type: string, minLength: 3, maxLength: 191 }
+        target:
+          type: object
+          additionalProperties: true
+        goal: { type: string, maxLength: 4000 }
+        constraints:
+          type: object
+          additionalProperties: true
+        preferences:
+          type: object
+          additionalProperties: true
+        input:
+          type: object
+          additionalProperties: true
+    OperationContextResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operationKey, context, secretsIncluded]
+      properties:
+        ok: { const: true }
+        operationKey: { type: string }
+        context: { type: object, additionalProperties: true }
+        secretsIncluded: { const: false }
+    OperationPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operationKey, plan, candidates, secretsIncluded]
+      properties:
+        ok: { const: true }
+        operationKey: { type: string }
+        plan: { type: object, additionalProperties: true }
+        candidates: { type: array, items: { type: object, additionalProperties: true } }
+        secretsIncluded: { const: false }
+    OperationAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operationId, status, secretsIncluded]
+      properties:
+        ok: { const: true }
+        operationId: { type: string }
+        status: { type: string, enum: [requested, planning, awaiting_approval, running, retrying, recovering] }
+        secretsIncluded: { const: false }
+    OperationStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operationId, status, secretsIncluded]
+      properties:
+        ok: { const: true }
+        operationId: { type: string }
+        status: { type: string }
+        result: { type: object, additionalProperties: true }
+        evidenceRefs: { type: array, items: { type: string } }
+        secretsIncluded: { const: false }
+    DiagnosisResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, status, reasonCode, secretsIncluded]
+      properties:
+        ok: { type: boolean }
+        status: { type: string }
+        reasonCode: { type: string }
+        failingCheck: { type: string }
+        failingJob: { type: string }
+        failingStep: { type: string }
+        affectedPaths: { type: array, items: { type: string } }
+        recommendedOperation: { type: string }
+        secretsIncluded: { const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: { type: object, additionalProperties: true } }
+            requestId: { type: string }
+            retryable: { type: boolean }
+            secretsIncluded: { const: false }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Not authorized
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: State, version, or idempotency conflict
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Semantically invalid or no eligible binding
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unavailable:
+      description: No healthy execution surface
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
