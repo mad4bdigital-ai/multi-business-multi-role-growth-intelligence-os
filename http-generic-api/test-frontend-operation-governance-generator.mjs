@@ -1,3 +1,10 @@
+// frontend-surface-operation: POST /admin/container-authority/canary-promotions
+// frontend-state-change-proof: POST /admin/container-authority/canary-promotions
+// frontend-surface-operation: POST /admin/container-authority/canary-rollbacks
+// frontend-state-change-proof: POST /admin/container-authority/canary-rollbacks
+// frontend-surface-operation: POST /admin/container-authority/canary-closeouts
+// frontend-state-change-proof: POST /admin/container-authority/canary-closeouts
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -8,10 +15,18 @@ import {
   syncOperationGovernance,
 } from "./scripts/frontend-operation-governance-generator.mjs";
 
+await import("./test-dynamic-container-rollout-safety.mjs");
+
+const CANARY_OPERATIONS = [
+  "POST /admin/container-authority/canary-closeouts",
+  "POST /admin/container-authority/canary-promotions",
+  "POST /admin/container-authority/canary-rollbacks",
+].sort();
+
 const EXPECTED_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-  "POST /admin/container-authority/canary-closeouts",
+  ...CANARY_OPERATIONS,
   "POST /connect/bootstrap",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
@@ -19,6 +34,7 @@ const EXPECTED_OPERATIONS = [
 
 const EVIDENCE_FILES = [
   "scripts/frontend-operation-governance-generator.mjs",
+  "scripts/test-manifest.mjs",
   "frontend-operation-governance-tests.json",
   "routes/resourceApiRoutes.js",
   "src/application/resourceApi/resourceApiService.js",
@@ -26,6 +42,7 @@ const EVIDENCE_FILES = [
   "test-resource-api-service.mjs",
   "routes/dynamicContainerAuthorityRoutes.js",
   "dynamicContainerRolloutSafety.js",
+  "test-frontend-operation-governance-generator.mjs",
   "test-dynamic-container-rollout-safety.mjs",
   "routes/connectRoutes.js",
   "tenantConnectBootstrapService.js",
@@ -58,11 +75,14 @@ const serviceSource = fs.readFileSync("src/application/resourceApi/resourceApiSe
 assert.match(extractFunctionBlock(serviceSource, "tenantCreateResource"), /withMutationTransaction/);
 assert.equal(extractFunctionBlock(serviceSource, "missingFunction"), "");
 
+const canarySource = fs.readFileSync("dynamicContainerRolloutSafety.js", "utf8");
+assert.match(extractFunctionBlock(canarySource, "buildContainerCanaryPromotionPlan"), /ready_for_review/);
+
 const plan = buildOperationGovernance();
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 6,
-  generated_rule_count: 6,
+  candidate_count: 8,
+  generated_rule_count: 8,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
@@ -71,6 +91,13 @@ assert(plan.operation_rules.every((rule) => rule.classification === "state_chang
 assert(plan.operation_rules.every((rule) => rule.readback.mode === "transactional_readback" && rule.readback.before_commit === true));
 assert(plan.operation_rules.every((rule) => rule.rollback.mode === "transaction"));
 assert(plan.operation_rules.every((rule) => /^[a-f0-9]{64}$/.test(rule.generated_evidence.source_digest)));
+for (const operation of CANARY_OPERATIONS) {
+  const rule = plan.operation_rules.find((entry) => entry.operation === operation);
+  assert(rule, `generated rule must exist for ${operation}`);
+  assert(rule.evidence_refs.includes("test-frontend-operation-governance-generator.mjs"));
+  assert(rule.evidence_refs.includes("test-dynamic-container-rollout-safety.mjs"));
+  assert(rule.evidence_refs.includes("scripts/test-manifest.mjs"));
+}
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
   writes_database: false,
@@ -82,7 +109,7 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 6);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 8);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
@@ -123,22 +150,84 @@ replaceEvidence(
   "envelope.applyEvidenceRemoved"
 );
 const noCanaryEnvelopePlan = buildOperationGovernance({ apiRoot: noCanaryEnvelopeFixture });
-assert(
-  rejection(noCanaryEnvelopePlan, "POST /admin/container-authority/canary-closeouts")
-    .missing_evidence.includes("capability_envelope_preflight")
-);
+for (const operation of CANARY_OPERATIONS) {
+  assert(rejection(noCanaryEnvelopePlan, operation).missing_evidence.includes("capability_envelope_preflight"));
+}
 
 const noCanaryTestFixture = createFixture();
 replaceEvidence(
   noCanaryTestFixture,
-  "test-dynamic-container-rollout-safety.mjs",
+  "test-frontend-operation-governance-generator.mjs",
   "// frontend-surface-operation: POST /admin/container-authority/canary-closeouts",
-  "// operation claim removed for fail-closed regression"
+  "// closeout operation claim removed for fail-closed regression"
 );
 const noCanaryTestPlan = buildOperationGovernance({ apiRoot: noCanaryTestFixture });
 assert(
   rejection(noCanaryTestPlan, "POST /admin/container-authority/canary-closeouts")
     .missing_evidence.includes("registered_operation_test")
+);
+
+const noPromotionTestFixture = createFixture();
+replaceEvidence(
+  noPromotionTestFixture,
+  "test-frontend-operation-governance-generator.mjs",
+  "// frontend-surface-operation: POST /admin/container-authority/canary-promotions",
+  "// promotion operation claim removed for fail-closed regression"
+);
+const noPromotionTestPlan = buildOperationGovernance({ apiRoot: noPromotionTestFixture });
+assert(
+  rejection(noPromotionTestPlan, "POST /admin/container-authority/canary-promotions")
+    .missing_evidence.includes("registered_operation_test")
+);
+
+const noCanaryBehaviorBindingFixture = createFixture();
+replaceEvidence(
+  noCanaryBehaviorBindingFixture,
+  "test-frontend-operation-governance-generator.mjs",
+  'await import("./test-dynamic-container-rollout-safety.mjs");',
+  "// behavioral test import removed"
+);
+const noCanaryBehaviorBindingPlan = buildOperationGovernance({ apiRoot: noCanaryBehaviorBindingFixture });
+for (const operation of CANARY_OPERATIONS) {
+  assert(rejection(noCanaryBehaviorBindingPlan, operation).missing_evidence.includes("behavioral_test_bound"));
+}
+
+const noCanaryExecutableRegistrationFixture = createFixture();
+replaceEvidence(
+  noCanaryExecutableRegistrationFixture,
+  "scripts/test-manifest.mjs",
+  '"node test-frontend-operation-governance-generator.mjs"',
+  '"node test-unregistered-frontend-operation-governance-generator.mjs"'
+);
+const noCanaryExecutableRegistrationPlan = buildOperationGovernance({ apiRoot: noCanaryExecutableRegistrationFixture });
+for (const operation of CANARY_OPERATIONS) {
+  assert(rejection(noCanaryExecutableRegistrationPlan, operation).missing_evidence.includes("executable_test_registered"));
+}
+
+const noPromotionReadinessQueryFixture = createFixture();
+replaceEvidence(
+  noPromotionReadinessQueryFixture,
+  "dynamicContainerRolloutSafety.js",
+  "v_container_rollout_readiness",
+  "rollout_readiness_removed"
+);
+const noPromotionReadinessQueryPlan = buildOperationGovernance({ apiRoot: noPromotionReadinessQueryFixture });
+assert(
+  rejection(noPromotionReadinessQueryPlan, "POST /admin/container-authority/canary-promotions")
+    .missing_evidence.includes("rollout_readiness_query")
+);
+
+const noPromotionReadinessValidationFixture = createFixture();
+replaceEvidence(
+  noPromotionReadinessValidationFixture,
+  "dynamicContainerRolloutSafety.js",
+  'String(readiness.readinessCode ?? readiness.readiness_code) !== "ready_for_review"',
+  "false"
+);
+const noPromotionReadinessValidationPlan = buildOperationGovernance({ apiRoot: noPromotionReadinessValidationFixture });
+assert(
+  rejection(noPromotionReadinessValidationPlan, "POST /admin/container-authority/canary-promotions")
+    .missing_evidence.includes("rollout_readiness_validation")
 );
 
 const noBootstrapRollbackFixture = createFixture();
