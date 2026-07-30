@@ -1,6 +1,10 @@
 name: Surface Contract Phase A Current Main Rebuild V3
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/surface-contract-phase-a-current-main-rebuild-v3.yml
   pull_request_target:
     types: [opened, reopened]
 
@@ -14,8 +18,11 @@ concurrency:
 jobs:
   rebuild:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/surface-contract-phase-a-current-main-20260730-v3'
+      github.event_name == 'push' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'gpt/surface-contract-phase-a-current-main-20260730-v3'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
