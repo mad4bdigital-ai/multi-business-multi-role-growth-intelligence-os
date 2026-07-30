@@ -1,4 +1,3 @@
-# One-shot trigger for bounded frontend dispatch artifact reconciliation.
 # Trigger bounded generated-artifact reconciliation for Brand Skills.
 name: PR Generated Artifact Refresh
 
