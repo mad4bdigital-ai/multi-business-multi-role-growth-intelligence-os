@@ -1,10 +1,10 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.98,
+  "docs_completion_percent": 97.81,
   "docs_complete_count": 581,
-  "docs_gap_count": 12,
-  "queue_items": 35,
+  "docs_gap_count": 13,
+  "queue_items": 34,
   "blocking_new_item_count": 17,
   "gate_ok": false,
   "top_actionable": [
@@ -72,7 +72,7 @@
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 667,
   "total_sql_route_like_count": 700,
-  "safety_marker_gap_migrations": 6,
+  "safety_marker_gap_migrations": 7,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
