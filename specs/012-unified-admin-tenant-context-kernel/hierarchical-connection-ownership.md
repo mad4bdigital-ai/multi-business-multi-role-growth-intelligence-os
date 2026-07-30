@@ -83,6 +83,8 @@ Every connection has one exact owner scope and MUST include:
 
 A resolved connection decision MUST carry the selected connection reference, exact owner scope type, exact owner scope reference, and connection revision together. Downstream consumers MUST use this immutable owner-scope evidence rather than re-fetch mutable ownership metadata.
 
+An unresolved decision that has not selected one exact connection MUST omit selected connection and owner-scope fields. It represents candidates and their revisions separately and MUST NOT invent an owner scope for `interpretation_required` or `connection_required`.
+
 Credential values and refresh tokens are stored only through the credential boundary. They MUST NOT appear in Context Kernel models, API projections, logs, traces, plans, approvals, readiness evidence, or support artifacts.
 
 ## Deterministic resolution precedence
@@ -109,7 +111,7 @@ This is eligibility precedence, not blind fallback.
 6. Equal-ranked eligible connections produce `CONNECTION_AMBIGUOUS`; no first-row selection is allowed.
 7. Revoked, expired, disabled, insufficient-scope, owner-mismatched, or stale-revision connections are ineligible.
 8. Candidate discovery and pre-credential readiness MUST remain secret-free.
-9. After one exact connection, owner scope, capability, authority path, approval state, and non-secret readiness decision agree, the guarded credential boundary MAY materialize that connection's credential for credential-dependent provider readiness and dispatch only.
+9. After one exact connection, owner scope, capability, authority path, exact execution plan, approval state, and non-secret readiness decision agree, the guarded credential boundary MAY materialize that connection's credential for credential-dependent provider readiness and dispatch only.
 10. Consequential writes MUST NOT silently fall back from an explicitly bound or more-specific invalid connection.
 11. Context pins, plans, and approvals MUST be invalidated when membership, workspace ownership, brand, connection ownership, authorization, provider account, provider scopes, or connection revision changes.
 
@@ -125,12 +127,13 @@ Exact context
 + exact connection metadata
 + capability binding
 + authority path
++ exact execution plan
 + approval state
 + non-secret configuration and policy
 = credential materialization eligible
 ```
 
-No secret is loaded during candidate discovery, ambiguity resolution, ownership validation, capability resolution, or authority validation.
+No secret is loaded during candidate discovery, ambiguity resolution, ownership validation, capability resolution, authority validation, or plan compilation. The exact plan MUST bind the operation, target, selected connection, owner scope, connection revision, and readback contract before credential materialization, even when the operation requires no human approval.
 
 ### Credential-dependent provider readiness
 
@@ -215,8 +218,27 @@ Provider authorization state MUST be signed, expiring, nonce-bound, single-use, 
 - allowlisted redirect target reference;
 - nonce hash;
 - issue and expiry timestamps;
+- optional claimed timestamp;
+- claim revision;
+- internal non-exportable claim-token hash;
 - consumed timestamp when completed;
+- completion revision;
 - state status and signature version.
+
+The state lifecycle is normative:
+
+```text
+issued
+→ atomic revision-bound claim
+→ claimed by exactly one callback
+→ provider exchange and guarded connection mutation
+→ atomic completion
+→ consumed
+```
+
+Before any authorization-code exchange, provider call, credential lookup, or credential mutation, the callback MUST atomically claim the state through a compare-and-set from `issued` to `claimed`, conditioned on the state revision, expiry, nonce, context binding, and unconsumed status. Exactly one concurrent callback receives the internal claim token and may continue. Concurrent losers fail with `OAUTH_STATE_CLAIM_CONFLICT`; later callbacks against a consumed state fail with `OAUTH_STATE_REPLAYED`. Neither case may exchange a code or mutate credentials.
+
+The claim token is short-lived, state-specific, internal, and non-exportable. A failed exchange may move the state only through a governed terminal or recoverable transition and MUST NOT make the same state freely claimable again.
 
 Reconnect state additionally includes:
 
@@ -226,7 +248,7 @@ Reconnect state additionally includes:
 
 Callbacks MUST reject replay, expiry, signature failure, redirect mismatch, provider-account mismatch, connection-revision mismatch, and any mismatch between signed state and live tenant, workspace, brand, membership, ownership, or target-connection context.
 
-A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection.
+A reconnect callback MUST reject a different provider account before replacing credentials for the existing connection. Credential replacement itself MUST use a compare-and-set conditioned on the signed expected connection revision, the live target connection revision, the current claimed-state revision, and the valid claim token. The encrypted credential replacement, target connection revision increment, and transition of the same authorization state from `claimed` to `consumed` MUST commit through one governed atomic completion boundary. If any revision moved, no credential replacement becomes visible and a new authorization attempt is required.
 
 Callbacks MUST NOT accept free `user_id`, `tenant_id`, `workspace_id`, or `brand_id` values as authority.
 
@@ -341,10 +363,14 @@ The platform MUST NOT restore a prior selector that can choose a connection usin
 14. Legacy records continue through a compatibility adapter during additive rollout.
 15. OAuth state replay, expiry, context mismatch, redirect mismatch, reconnect account mismatch, and connection-revision mismatch fail closed.
 16. Existing operational workspace types remain unchanged while personal/company ownership is stored and resolved independently.
-17. Credential-dependent readiness runs only after one exact selected owner scope passes all pre-credential gates.
-18. Every resolved selected-connection decision carries immutable owner-scope evidence.
+17. Credential-dependent readiness runs only after one exact selected owner scope, an exact execution plan, and all applicable approval gates pass.
+18. Every resolved selected-connection decision carries immutable owner-scope evidence, while unresolved decisions omit selected owner scope.
 19. Migration ledger and same-cycle readback are verified before dependent shadow/read rollout.
 20. Rollback retains exact-owner isolation or disables affected provider operations.
+21. Concurrent callbacks using one issued state yield exactly one atomic claim and no losing provider exchange or credential mutation.
+22. Reconnect credential replacement is rejected without visible mutation when the target connection revision moves after callback validation.
+23. Reconnect credential replacement and authorization-state consumption complete atomically or both remain unapplied.
+24. Operations requiring no human approval still compile and bind an exact execution plan before credential materialization.
 
 ## Multi-PR implementation sequence
 
