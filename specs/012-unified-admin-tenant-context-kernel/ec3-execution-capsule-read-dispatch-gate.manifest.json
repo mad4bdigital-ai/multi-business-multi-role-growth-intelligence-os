@@ -57,10 +57,10 @@
     "bounded_dispatch_telemetry",
     "telemetry_outage_isolation",
     "exact_legacy_dispatch_rollback",
-    "standalone_read_dispatch_gate_test"
+    "standalone_read_dispatch_gate_test",
+    "latest_main_test_manifest_registration"
   ],
   "pending_contracts": [
-    "latest_main_test_manifest_registration",
     "latest_main_generated_evidence_refresh",
     "latest_main_exact_head_ci_evidence",
     "human_architecture_security_review",
@@ -69,25 +69,24 @@
   "historical_registration_evidence": {
     "status": "passed_superseded_by_latest_main_rebuild",
     "run_id": 30581798756,
-    "registered_head_sha": "768118a585487667a5ec76e09f4f14a089e053c0",
-    "exact_registration_count_per_command": 1,
-    "temporary_workflow_removed": true,
-    "bounded_regressions_passed": true,
-    "bounded_write_set_passed": true
+    "registered_head_sha": "768118a585487667a5ec76e09f4f14a089e053c0"
   },
   "historical_generated_evidence": {
     "status": "passed_superseded_by_latest_main_rebuild",
     "run_id": 30582526202,
-    "generated_head_sha": "80a452606fb017c61a5bebcf658afc96df67cde8",
-    "bounded_write_set_passed": true,
-    "generated_contracts_passed": true
+    "generated_head_sha": "80a452606fb017c61a5bebcf658afc96df67cde8"
   },
   "latest_main_certification": {
     "status": "in_progress",
     "base_main_sha": "9879e844918355e8945105d8a231ff65ffbd524b",
     "rebuilt_source_commit": "7ae9ba3ea6319cd8f39c413d75d9efe8754da752",
     "branch": "gpt/spec-012-ec3-read-dispatch-certification-20260730",
-    "test_manifest_registration": "pending",
+    "registration_run_id": 30583709948,
+    "registered_head_sha": "4014e2e63a39943d657a98b2b7713ecc0f423c46",
+    "test_manifest_registration": "passed_exactly_once",
+    "temporary_workflow_removed": true,
+    "bounded_regressions": "passed",
+    "bounded_write_set": "passed",
     "generated_evidence_refresh": "pending",
     "exact_head_ci": "pending",
     "human_review": "pending",
