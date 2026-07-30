@@ -79,6 +79,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-contract-bootstrap-escape-hotfix.yml`
 - `.github/workflows/surface-contract-classification-bootstrap.yml`
 - `.github/workflows/surface-contract-classification-marker-hotfix.yml`
+- `.github/workflows/surface-phase-a-final-rebuild.yml`
 - `.github/workflows/verify-runtime.yml`
 
 ## Maintenance Scripts
