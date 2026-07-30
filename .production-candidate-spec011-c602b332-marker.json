@@ -1,0 +1,11 @@
+{
+  "schema_version": "production_candidate_marker.v1",
+  "pinned_main_sha": "c602b332eb5b0dd6bcb68862345771571f9ebd9a",
+  "pinned_production_sha": "abdeed2c5a588c19a2d1f2e35046e7b120d97016",
+  "supersedes_candidate_sha": "7deb6d001d3dc2a95bb97627a4a625cf8b833221",
+  "purpose": "create a distinct refreshed candidate before restoring the exact pinned-main tree",
+  "merge_executed": false,
+  "deployment_executed": false,
+  "migration_executed": false,
+  "secrets_included": false
+}
