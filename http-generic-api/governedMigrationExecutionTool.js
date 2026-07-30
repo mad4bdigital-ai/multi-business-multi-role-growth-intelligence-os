@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { readDeploymentManifest } from "./deploymentManifest.js";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const execFileAsync = promisify(execFile);
@@ -11,6 +12,11 @@ const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 const DEFAULT_RUNNER_PATH = path.join(API_DIR, "scripts", "governed-migration-runner.mjs");
 const READINESS_REPAIR_MIGRATION = "20260725_repository_authority_capability_readiness_repair.sql";
+const GOVERNED_MIGRATION_APP_KEY = "platform_orchestration";
+const GOVERNED_MIGRATION_CAPABILITY_KEY = "governed_migration_execute";
+const GOVERNED_MIGRATION_OPERATION_INTENT = "governed_migration_execute";
+const GOVERNED_MIGRATION_RUNTIME_SURFACE = "auth_host";
+const PRODUCTION_BRANCH = "Production";
 const MIGRATION_RUNNER_PATHS = Object.freeze({
   [READINESS_REPAIR_MIGRATION]: path.join(
     API_DIR,
@@ -20,6 +26,7 @@ const MIGRATION_RUNNER_PATHS = Object.freeze({
 });
 const MIGRATION_PATTERN = /^[A-Za-z0-9._-]+\.sql$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 function toolError(code, message, status = 400, details = undefined) {
   const error = new Error(message);
@@ -27,6 +34,10 @@ function toolError(code, message, status = 400, details = undefined) {
   error.status = status;
   if (details !== undefined) error.details = details;
   return error;
+}
+
+function sha256(value = "") {
+  return createHash("sha256").update(String(value), "utf8").digest("hex");
 }
 
 export function governedMigrationApplyConfirmation(migration = "") {
@@ -39,6 +50,27 @@ export function governedMigrationApplyConfirmation(migration = "") {
 
 export function splitGovernedMigrationStatements(sql = "") {
   return splitMigrationSqlStatements(sql);
+}
+
+export function governedMigrationResourceUri(migration = "") {
+  return `db-migration://growth_intelligence_platform/${String(migration || "").trim()}`;
+}
+
+export function governedMigrationEnvelopeBindingSha({
+  migration = "",
+  migrationChecksumSha256 = "",
+  statementCount = 0,
+} = {}) {
+  return sha256(JSON.stringify({
+    schema_version: "governed_migration_envelope_binding.v1",
+    app_key: GOVERNED_MIGRATION_APP_KEY,
+    capability_key: GOVERNED_MIGRATION_CAPABILITY_KEY,
+    operation_intent: GOVERNED_MIGRATION_OPERATION_INTENT,
+    resource_uri: governedMigrationResourceUri(migration),
+    migration_file: String(migration || "").trim(),
+    migration_checksum_sha256: String(migrationChecksumSha256 || "").trim().toLowerCase(),
+    statement_count: Number(statementCount || 0),
+  }));
 }
 
 function normalizeInput(input = {}) {
@@ -67,6 +99,43 @@ function normalizeInput(input = {}) {
     expectedStatementCount,
     confirm: String(input.confirm || "").trim(),
     capabilityEnvelopeId: String(input.capability_envelope_id || "").trim(),
+  };
+}
+
+function resolveApplyDeploymentBinding(deps = {}) {
+  const readManifest = deps.readDeploymentManifest || readDeploymentManifest;
+  const result = readManifest(deps.env || process.env);
+  if (!result?.ok) {
+    throw toolError(
+      "governed_migration_deployment_manifest_required",
+      "Migration apply requires a readable deployment manifest.",
+      409,
+      { error: result?.error || null, secrets_included: false },
+    );
+  }
+  const branch = String(result.manifest?.branch || "").trim();
+  if (branch !== PRODUCTION_BRANCH) {
+    throw toolError(
+      "governed_migration_production_branch_required",
+      "Migration apply is permitted only from a deployed Production manifest.",
+      409,
+      { deployed_branch: branch || null, required_branch: PRODUCTION_BRANCH, secrets_included: false },
+    );
+  }
+  const commitSha = String(result.manifest?.commit_sha || "").trim().toLowerCase();
+  if (!COMMIT_SHA_PATTERN.test(commitSha)) {
+    throw toolError(
+      "governed_migration_deployed_commit_required",
+      "Deployment manifest must contain a full 40-character commit SHA before migration apply.",
+      409,
+      { deployed_commit_sha: commitSha || null, secrets_included: false },
+    );
+  }
+  return {
+    branch,
+    commit_sha: commitSha,
+    source: result.manifest?.source || null,
+    secrets_included: false,
   };
 }
 
@@ -107,6 +176,14 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     throw toolError("migration_apply_capability_envelope_required", "Apply requires capability_envelope_id.", 403);
   }
 
+  const resourceUri = governedMigrationResourceUri(normalized.migration);
+  const bindingSha256 = governedMigrationEnvelopeBindingSha({
+    migration: normalized.migration,
+    migrationChecksumSha256: checksum,
+    statementCount,
+  });
+  const deployment = normalized.mode === "apply" ? resolveApplyDeploymentBinding(deps) : null;
+
   return {
     ...normalized,
     migrationPath,
@@ -115,6 +192,22 @@ export async function inspectGovernedMigrationExecution(input = {}, deps = {}) {
     required_confirmation: requiredConfirmation,
     runner_path: MIGRATION_RUNNER_PATHS[normalized.migration] || DEFAULT_RUNNER_PATH,
     atomic_runner_required: normalized.migration === READINESS_REPAIR_MIGRATION,
+    deployment,
+    required_envelope: {
+      app_key: GOVERNED_MIGRATION_APP_KEY,
+      capability_key: GOVERNED_MIGRATION_CAPABILITY_KEY,
+      operation_intent: GOVERNED_MIGRATION_OPERATION_INTENT,
+      selected_runtime_surface: GOVERNED_MIGRATION_RUNTIME_SURFACE,
+      resource_uri: resourceUri,
+      binding_sha256: bindingSha256,
+      expected_commit_sha: deployment?.commit_sha || null,
+      apply_allowed: true,
+      dispatch_allowed: true,
+      audit_required: true,
+      readback_required: true,
+      blocking_gap_count: 0,
+      secrets_included: false,
+    },
     secrets_included: false,
   };
 }
@@ -290,23 +383,64 @@ function validateRunnerReadback(result, inspection) {
   }
 }
 
+function capabilityMismatch(code, message, capability, inspection, extra = {}) {
+  throw toolError(code, message, 403, {
+    migration: inspection.migration,
+    capability_envelope_id: capability?.envelope_id || null,
+    ...extra,
+    secrets_included: false,
+  });
+}
+
 function assertApplyCapability(capability, inspection) {
   if (!capability || !capability.envelope_id) {
     throw toolError("governed_migration_apply_capability_envelope_unresolved", "Apply authorizer did not return a capability envelope.", 403);
   }
-  if (capability.apply_allowed !== true) {
-    throw toolError("governed_migration_apply_not_allowed", "Capability envelope does not permit migration apply.", 403, {
-      migration: inspection.migration,
-      capability_envelope_id: capability.envelope_id,
-      apply_allowed: false,
-      secrets_included: false,
+  if (capability.app_key !== inspection.required_envelope.app_key) {
+    capabilityMismatch("governed_migration_envelope_app_mismatch", "Capability envelope app_key is not bound to governed migration execution.", capability, inspection);
+  }
+  if (capability.capability_key !== inspection.required_envelope.capability_key) {
+    capabilityMismatch("governed_migration_envelope_capability_mismatch", "Capability envelope capability_key is not bound to governed migration execution.", capability, inspection);
+  }
+  if (capability.operation_intent !== inspection.required_envelope.operation_intent) {
+    capabilityMismatch("governed_migration_envelope_intent_mismatch", "Capability envelope operation_intent is not bound to governed migration execution.", capability, inspection);
+  }
+  if (capability.selected_runtime_surface !== inspection.required_envelope.selected_runtime_surface) {
+    capabilityMismatch("governed_migration_envelope_runtime_surface_mismatch", "Capability envelope runtime surface is not the governed auth-host surface.", capability, inspection);
+  }
+  if (capability.resource_uri !== inspection.required_envelope.resource_uri) {
+    capabilityMismatch("governed_migration_envelope_resource_mismatch", "Capability envelope resource_uri is not bound to the requested migration.", capability, inspection, {
+      expected_resource_uri: inspection.required_envelope.resource_uri,
+      envelope_resource_uri: capability.resource_uri || null,
     });
   }
+  if (capability.binding_sha256 !== inspection.required_envelope.binding_sha256) {
+    capabilityMismatch("governed_migration_envelope_binding_mismatch", "Capability envelope binding SHA does not match the migration/checksum/statement contract.", capability, inspection, {
+      expected_binding_sha256: inspection.required_envelope.binding_sha256,
+      envelope_binding_sha256: capability.binding_sha256 || null,
+    });
+  }
+  if (capability.expected_commit_sha !== inspection.required_envelope.expected_commit_sha) {
+    capabilityMismatch("governed_migration_envelope_commit_mismatch", "Capability envelope expected commit does not match the deployed Production commit.", capability, inspection, {
+      expected_commit_sha: inspection.required_envelope.expected_commit_sha,
+      envelope_commit_sha: capability.expected_commit_sha || null,
+    });
+  }
+  if (capability.apply_allowed !== true) {
+    capabilityMismatch("governed_migration_apply_not_allowed", "Capability envelope does not permit migration apply.", capability, inspection, { apply_allowed: false });
+  }
+  if (capability.dispatch_allowed !== true) {
+    capabilityMismatch("governed_migration_dispatch_not_allowed", "Capability envelope does not permit dispatch.", capability, inspection);
+  }
+  if (capability.audit_required !== true) {
+    capabilityMismatch("governed_migration_audit_not_required", "Capability envelope must require audit evidence.", capability, inspection);
+  }
   if (capability.readback_required !== true) {
-    throw toolError("governed_migration_readback_not_required", "Capability envelope must require migration readback.", 403, {
-      migration: inspection.migration,
-      capability_envelope_id: capability.envelope_id,
-      secrets_included: false,
+    capabilityMismatch("governed_migration_readback_not_required", "Capability envelope must require migration readback.", capability, inspection);
+  }
+  if (Number(capability.blocking_gap_count || 0) !== 0) {
+    capabilityMismatch("governed_migration_envelope_has_blocking_gaps", "Capability envelope contains blocking gaps.", capability, inspection, {
+      blocking_gap_count: Number(capability.blocking_gap_count || 0),
     });
   }
 }
@@ -356,6 +490,8 @@ export async function runGovernedMigrationExecution(input = {}, deps = {}) {
     ...result,
     execution_mode: inspection.mode,
     capability_envelope_id: approvedCapabilityEnvelopeId || null,
+    required_envelope: inspection.required_envelope,
+    deployed_commit_sha: inspection.deployment?.commit_sha || null,
     checksum_verified_before_execution: true,
     statement_count_verified_before_execution: true,
     same_cycle_readback_verified: true,
