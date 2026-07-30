@@ -7,6 +7,8 @@ on:
       - .github/workflows/surface-contract-phase-a-current-main-rebuild-v3.yml
   pull_request_target:
     types: [opened, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -20,6 +22,14 @@ jobs:
     if: >-
       github.event_name == 'push' ||
       (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.number == 3754 &&
+        github.event.issue.pull_request != null &&
+        github.event.comment.body == '/surface-phase-a-v3-rebuild' &&
+        github.event.comment.user.login == 'mad4bdigital-ai'
+      ) ||
+      (
+        github.event_name == 'pull_request_target' &&
         github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.head.ref == 'gpt/surface-contract-phase-a-current-main-20260730-v3'
       )
