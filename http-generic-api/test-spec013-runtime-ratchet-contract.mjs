@@ -13,7 +13,7 @@ assert.match(platformBindingBlock, /platform_endpoint_tool_binding_ambiguous/u);
 assert.doesNotMatch(platformBindingBlock, /const row = rows\[0\]/u);
 
 const connectorGetBlock = routes.match(
-  /async function connectorRegistryGet[\s\S]*?async function activationDriveProbe/u,
+  /async function getConnectorRegistrySystem[\s\S]*?function clampDriveToolLimit/u,
 )?.[0] || "";
 assert(connectorGetBlock, "connector registry exact-read block must exist");
 assert.match(connectorGetBlock, /WHERE cs\.system_id = \?[\s\S]*?LIMIT 2`/u);
