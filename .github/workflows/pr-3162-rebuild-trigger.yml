@@ -1,0 +1,57 @@
+name: Trigger PR 3162 rebuild
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/pr-3162-rebuild-main.yml
+      - .github/workflows/pr-3162-rebuild-trigger.yml
+
+permissions:
+  contents: write
+
+jobs:
+  run-bounded-rebuild:
+    if: github.head_ref == 'gpt/pr-3162-rebuild-main-20260730-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/pr-3162-rebuild-main-20260730-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - run: npm ci
+        working-directory: http-generic-api
+      - name: Execute bounded rebuild steps
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const YAML = require('./http-generic-api/node_modules/yaml');
+          const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
+          const steps = workflow.jobs.rebuild.steps;
+          const selectedNames = [
+            'Apply bounded reconciliation patch',
+            'Generate and validate frontend surface evidence',
+            'Commit bounded reconciliation result',
+          ];
+          for (const name of selectedNames) {
+            const step = steps.find((entry) => entry.name === name);
+            if (!step || typeof step.run !== 'string') {
+              throw new Error(`Missing bounded workflow step: ${name}`);
+            }
+            const result = spawnSync('bash', ['-lc', step.run], {
+              cwd: process.cwd(),
+              env: process.env,
+              stdio: 'inherit',
+            });
+            if (result.status !== 0) process.exit(result.status || 1);
+          }
+          NODE
