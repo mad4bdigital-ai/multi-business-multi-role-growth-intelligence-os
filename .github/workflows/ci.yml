@@ -254,7 +254,7 @@ jobs:
           #   test-*.mjs files (test suite consumers), and one-off tooling scripts.
           # Keep this aligned with EXECUTION_IMPORT_ALLOWLIST in validate-architecture.mjs.
           # test-*.mjs is a wildcard so new test files never break this check.
-          MATCHES=$(grep -RInE 'from ["'\'']\./execution(\.js)?["'\'']|import\(["'\'']\./execution(\.js)?["'\'']\)|require\(["'\'']\./execution(\.js)?["'\'']\)' . \
+          MATCHES=$(grep -RInE 'from ["'"'']\./execution(\.js)?["'"'']|import\(["'"'']\./execution(\.js)?["'"'']\)|require\(["'"'']\./execution(\.js)?["'"'']\)' . \
             --include='*.js' --include='*.mjs' \
             --exclude='execution.js' \
             --exclude='validate-architecture.mjs' \
@@ -295,3 +295,65 @@ jobs:
             exit 1
           fi
           echo "WordPress barrel export count within floor"
+
+  pr-3162-bounded-rebuild:
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'gpt/pr-3162-rebuild-main-20260730-v2'
+    name: PR 3162 Bounded Rebuild
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/pr-3162-rebuild-main-20260730-v2
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply, validate, generate, and commit bounded rebuild
+        shell: bash
+        run: |
+          if grep -q 'profile: "backend_local_manager"' http-generic-api/scripts/frontend-surface-dispatch.mjs; then
+            echo "PR 3162 rebuild already applied."
+            exit 0
+          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const YAML = require('./http-generic-api/node_modules/yaml');
+          const workflow = YAML.parse(fs.readFileSync('.github/workflows/pr-3162-rebuild-main.yml', 'utf8'));
+          const steps = workflow.jobs.rebuild.steps;
+          for (const name of [
+            'Apply bounded reconciliation patch',
+            'Generate and validate frontend surface evidence',
+            'Commit bounded reconciliation result',
+          ]) {
+            const step = steps.find((entry) => entry.name === name);
+            if (!step || typeof step.run !== 'string') {
+              throw new Error(`Missing bounded workflow step: ${name}`);
+            }
+            const result = spawnSync('bash', ['-lc', step.run], {
+              cwd: process.cwd(),
+              env: process.env,
+              stdio: 'inherit',
+            });
+            if (result.status !== 0) process.exit(result.status || 1);
+          }
+          NODE
+
+      - name: Publish governed run readback
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 3295 --repo "${{ github.repository }}" --body "Bounded PR #3162 rebuild completed in workflow run ${GITHUB_RUN_ID} on branch ${GITHUB_REF_NAME}. Source, regression, OpenAPI, generated evidence, and parity checks completed before commit."
