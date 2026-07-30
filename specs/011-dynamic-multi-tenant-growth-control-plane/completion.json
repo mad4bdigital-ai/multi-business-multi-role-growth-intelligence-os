@@ -48,7 +48,7 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "7476ba1145adb0e43fad70b15a1d4c1890a65bf4"
+      "head_sha": "ed2a9f63e0f3267bdce72f358a5614de06fa740f"
     },
     "reference_packs": {
       "status": "passed_catalog_and_manifest_validation",
@@ -71,6 +71,22 @@
       "resolver": "tenant_effective_capability_resolver_v1",
       "integration": "growth_control_plane_semantic_capability_adapter_v1",
       "preview_only": true,
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "workflow_plan_compiler": {
+      "status": "passed_spec_006_immutable_plan_compilation",
+      "head_sha": "ed2a9f63e0f3267bdce72f358a5614de06fa740f",
+      "contract": "spec-006-workflow-compiled-plan-v1",
+      "compiler": "spec-006-workflow-compiler-v1",
+      "immutable": true,
+      "canonical_hash": "sha256",
+      "extension_composition": true,
+      "approval_checkpoints": true,
+      "compensation_graph": true,
       "provider_calls": false,
       "provider_dispatch_allowed": false,
       "provider_apply_allowed": false,
