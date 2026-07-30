@@ -1,0 +1,114 @@
+name: Spec 011 Delegation MariaDB Patch Once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Patch lifecycle, adapter, and test manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          lifecycle = Path('http-generic-api/delegationGrantLifecycleShadowService.js')
+          source = lifecycle.read_text(encoding='utf-8')
+          old = '''  const grantHash = canonicalGrantHash(grant);
+          const command = {
+            action: "create",
+            expected_status: "preview",
+            proposed_status: "active",
+            grant,
+          '''
+          new = '''  const persistedGrant = normalizeCanonicalGrant({ ...grant, status: "active" });
+          const grantHash = canonicalGrantHash(persistedGrant);
+          const command = {
+            action: "create",
+            expected_status: "preview",
+            proposed_status: "active",
+            grant: persistedGrant,
+          '''
+          if old not in source:
+              raise SystemExit('Lifecycle active hash anchor missing')
+          lifecycle.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          repository = Path('http-generic-api/delegationGrantMariaDbRepository.js')
+          source = repository.read_text(encoding='utf-8')
+          anchor = '''function iso(value) {
+            if (value === null || value === undefined || value === "") return null;
+            const timestamp = new Date(value).getTime();
+            if (!Number.isFinite(timestamp)) {
+              throw adapterError(409, "DELEGATION_MARIADB_DATE_INVALID", "Persisted date-time is invalid.");
+            }
+            return new Date(timestamp).toISOString();
+          }
+          '''
+          replacement = anchor + '''
+          function sqlDateTime(value) {
+            const normalized = iso(value);
+            return normalized ? normalized.replace("T", " ").replace("Z", "") : null;
+          }
+          '''
+          if anchor not in source:
+              raise SystemExit('MariaDB ISO anchor missing')
+          source = source.replace(anchor, replacement, 1)
+          replacements = {
+            'const createdAt = iso(grant.created_at || receipt.created_at);': 'const createdAt = sqlDateTime(grant.created_at || receipt.created_at);',
+            'const expiresAt = iso(grant.expires_at);': 'const expiresAt = sqlDateTime(grant.expires_at);',
+            'iso(command.revoked_at),': 'sqlDateTime(command.revoked_at),',
+            'iso(command.expired_at),': 'sqlDateTime(command.expired_at),',
+            '  iso,\n  tenantOperationKey,': '  iso,\n  sqlDateTime,\n  tenantOperationKey,',
+          }
+          for old_value, new_value in replacements.items():
+              if old_value not in source:
+                  raise SystemExit(f'MariaDB patch anchor missing: {old_value}')
+              source = source.replace(old_value, new_value)
+          repository.write_text(source, encoding='utf-8')
+
+          manifest = Path('http-generic-api/scripts/test-manifest.mjs')
+          source = manifest.read_text(encoding='utf-8')
+          anchor = '  "node test-delegation-grant-mariadb-adapter-contract.mjs",\n'
+          addition = anchor + '  "node test-delegation-grant-mariadb-readiness-collector.mjs",\n  "node test-delegation-grant-mariadb-runtime-binding.mjs",\n'
+          if anchor not in source:
+              raise SystemExit('Test manifest anchor missing')
+          manifest.write_text(source.replace(anchor, addition, 1), encoding='utf-8')
+          PY
+
+      - name: Run focused tests
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          node --check delegationGrantMariaDbRepository.js
+          node --check delegationGrantMariaDbReadinessCollector.js
+          node --check delegationGrantMariaDbRuntimeBinding.js
+          node --check scripts/delegation-mariadb-disposable-certification.mjs
+          node --check scripts/delegation-mariadb-production-cycle.mjs
+          node test-delegation-grant-lifecycle-shadow.mjs
+          node test-delegation-grant-repository-mutation.mjs
+          node test-delegation-grant-mariadb-adapter-contract.mjs
+          node test-delegation-grant-mariadb-readiness-collector.mjs
+          node test-delegation-grant-mariadb-runtime-binding.mjs
+
+      - name: Commit patch and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/spec-011-delegation-mariadb-patch-once.yml
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --check
+          git commit -m "feat(spec-011): integrate delegation MariaDB certification"
+          git push origin HEAD:gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
