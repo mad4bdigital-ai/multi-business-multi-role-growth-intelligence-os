@@ -16,7 +16,8 @@
     "../../http-generic-api/contextKernel/application/executionCapsuleService.js",
     "../../http-generic-api/contextKernel/application/index.js",
     "../../http-generic-api/contextKernel/application/applicationSupport.js",
-    "../../http-generic-api/test-execution-capsule-contract.mjs"
+    "../../http-generic-api/test-execution-capsule-contract.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs"
   ],
   "implemented_contracts": [
     "immutable_execution_capsule",
@@ -31,10 +32,11 @@
     "validation_outcome_matrix",
     "no_silent_context_substitution",
     "execution_allowed_always_false",
-    "no_secret_capsule_projection"
+    "no_secret_capsule_projection",
+    "domain_application_index_exports",
+    "complete_test_manifest_registration"
   ],
   "pending_contracts": [
-    "complete_test_manifest_registration",
     "exact_head_ci_evidence",
     "human_architecture_security_review",
     "EC1_shadow_adapter",
