@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 577/580 (99.48%)
-- Documentation gap migrations: 3
-- Gap severity: high=22, medium=2, low=0
+- Documentation complete migrations: 576/580 (99.31%)
+- Documentation gap migrations: 4
+- Gap severity: high=22, medium=2, low=1
 - SQL route coverage in OpenAPI: 30/32 (93.75%)
 - SQL route-like literals exempted from OpenAPI scoring: 667/699
 - SQL routes missing OpenAPI path coverage: 2
@@ -54,20 +54,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 3 |
-| `deployment_parity_checklist.md` | 3 |
-| `docs/ai-docs-agent-governance.md` | 3 |
-| `docs/auto-docs-agent/README.md` | 3 |
-| `docs/change-documentation-governance.md` | 3 |
+| `Updating Registry Patch Index.md` | 4 |
+| `deployment_parity_checklist.md` | 4 |
+| `docs/ai-docs-agent-governance.md` | 4 |
+| `docs/auto-docs-agent/README.md` | 4 |
+| `docs/change-documentation-governance.md` | 4 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
 | no_provider_call | 577 |
-| no_credential_payload_read | 577 |
-| no_raw_secrets | 577 |
-| no_external_send | 577 |
+| no_credential_payload_read | 576 |
+| no_raw_secrets | 576 |
+| no_external_send | 576 |
 | no_external_write | 577 |
 | secrets_included_false | 579 |
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 24
+- Total queue items: 25
 - Critical review: 22
 - High review: 2
-- Medium review: 0
+- Medium review: 1
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
