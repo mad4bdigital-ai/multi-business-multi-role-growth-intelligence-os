@@ -2,10 +2,14 @@
   "schema_version": 1,
   "extension_key": "spec-012-execution-capsule-runtime-integration",
   "parent_spec_key": "unified_admin_tenant_context_kernel",
-  "status": "draft",
+  "status": "in_progress",
   "specification_authority": true,
   "runtime_authority": false,
   "primary_artifact": "execution-capsule-runtime-addendum.md",
+  "implementation_artifacts": [
+    "ec0-execution-capsule-contract.md",
+    "ec0-execution-capsule-contract.manifest.json"
+  ],
   "requirement_range": {
     "prefix": "FR-EC",
     "first": "FR-EC-001",
@@ -33,14 +37,23 @@
     "EC4_mutation_validation_pilot",
     "EC5_rollout_and_duplicate_resolver_retirement"
   ],
+  "slice_status": {
+    "EC0_contract_and_tests": "in_progress",
+    "EC1_shadow_adapter": "not_started",
+    "EC2_selected_read_pilot": "not_started",
+    "EC3_unified_dispatch_integration": "not_started",
+    "EC4_mutation_validation_pilot": "not_started",
+    "EC5_rollout_and_duplicate_resolver_retirement": "not_started"
+  },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
     "no_secret_payload_in_capsule",
     "no_ttl_only_authority_cache",
     "no_silent_context_substitution",
-    "no_provider_call_from_specification",
+    "no_provider_call",
     "no_database_write",
     "no_migration_apply",
+    "no_route_or_openapi_change",
     "no_deployment"
   ],
   "secrets_included": false
