@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "edf74730ce395ae27e89360fee723465dda3f08daa61ea20f1d2ed2dd06930df",
+    "source_digest": "1b027dece2713d797ee1b6f8eb496e7498bd71308df749e77dead6815d39060a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -906,7 +906,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "bcbfc1f83042d8639e748769a6901b2d4588d825c969a9b87bc750d2d81def74",
+        "sha256": "8f03b15ce0a9282968b13955c3d315d55776b2eafff7049c20e1c2f2b87835c6",
         "present": true
       },
       {
@@ -1117,11 +1117,10 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 385,
     "auth_parity_counts": {
-      "equivalent": 975,
-      "exempt": 16,
-      "unknown": 3
+      "equivalent": 978,
+      "exempt": 16
     },
-    "auth_contract_gap_count": 3,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 605,
     "unresolved_operation_class_count": 548,
@@ -28128,13 +28127,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28147,10 +28156,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28180,13 +28187,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28199,10 +28216,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28232,13 +28247,23 @@
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUser"
+            ],
+            "evidence": [
+              "route:requireUser"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
           },
           "openapi_auth": {
             "source_file": "openapi.yaml",
@@ -28251,10 +28276,8 @@
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -28957,29 +28980,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        },
-        {
-          "signature": "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
@@ -29028,8 +29029,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 10,
-        "class": "critical"
+        "score": 8,
+        "class": "high"
       },
       "wave": "F1-tenant-shell"
     },
@@ -83122,7 +83123,6 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],
