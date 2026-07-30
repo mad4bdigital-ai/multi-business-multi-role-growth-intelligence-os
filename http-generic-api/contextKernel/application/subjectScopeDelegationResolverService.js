@@ -163,6 +163,52 @@ function assertDirectSubject(principal, requested) {
   }
 }
 
+function assertDelegationRequestBinding({ principalRef, requested, delegationContext }) {
+  const actorPrincipalRef = requireApplicationString(
+    delegationContext.actorPrincipalRef,
+    "delegationContext.actorPrincipalRef",
+  );
+  if (actorPrincipalRef !== principalRef) {
+    fail(
+      "subject_delegation_actor_mismatch",
+      "Delegation context does not belong to the acting principal.",
+    );
+  }
+
+  const delegatedSubjectRef = requireApplicationString(
+    delegationContext.subjectRef,
+    "delegationContext.subjectRef",
+  );
+  if (delegatedSubjectRef !== requested.subjectRef) {
+    fail(
+      "subject_delegation_subject_mismatch",
+      "Delegation context does not authorize the requested subject.",
+    );
+  }
+
+  const delegatedTenantRef = requireApplicationString(
+    delegationContext.tenantRef,
+    "delegationContext.tenantRef",
+  );
+  if (delegatedTenantRef !== requested.tenantRef) {
+    fail(
+      "subject_delegation_tenant_mismatch",
+      "Delegation context does not authorize the requested tenant.",
+    );
+  }
+
+  const delegatedWorkspaceRef = optionalString(
+    delegationContext.workspaceRef,
+    "delegationContext.workspaceRef",
+  );
+  if (delegatedWorkspaceRef !== requested.workspaceRef) {
+    fail(
+      "subject_delegation_workspace_mismatch",
+      "Delegation context does not authorize the requested workspace.",
+    );
+  }
+}
+
 function findWorkspace(workspaces, workspaceRef) {
   if (!workspaceRef) return null;
   return (Array.isArray(workspaces) ? workspaces : []).find(
@@ -170,10 +216,7 @@ function findWorkspace(workspaces, workspaceRef) {
   ) || null;
 }
 
-async function revalidateSubjectScope({
-  effectiveSubject,
-  authorizedScopeRepository,
-}) {
+async function revalidateSubjectScope({ effectiveSubject, authorizedScopeRepository }) {
   if (effectiveSubject.subjectType !== "tenant_user") return null;
 
   const scope = await authorizedScopeRepository.findAuthorizedScope({
@@ -229,13 +272,7 @@ async function revalidateSubjectScope({
   };
 }
 
-function evaluateDelegation({
-  principal,
-  effectiveSubject,
-  evidence,
-  operationIntent,
-  now,
-}) {
+function evaluateDelegation({ principal, effectiveSubject, evidence, operationIntent, now }) {
   try {
     return evaluateSupportDelegation({
       principal,
@@ -293,11 +330,41 @@ export function createSubjectScopeDelegationResolverService({
 
     const requestIndicatesDelegation =
       principalType === "delegated_agent" || requested.subjectRef !== principalRef;
+    const requiresDelegation = Boolean(delegationRef) || requestIndicatesDelegation;
     if (requestIndicatesDelegation && !delegationRef) {
       fail(
         "subject_delegation_context_required",
         "Delegated subject resolution requires delegation context.",
       );
+    }
+
+    let delegationContext = null;
+    if (requiresDelegation) {
+      delegationContext = await delegationContextRepository.findDelegationContext({ delegationRef });
+      if (!delegationContext) {
+        fail("subject_delegation_context_not_found", "No delegation context was found.", 404);
+      }
+      const authoritativeDelegationRef = requireApplicationString(
+        delegationContext.delegationRef,
+        "delegationContext.delegationRef",
+      );
+      if (authoritativeDelegationRef !== delegationRef) {
+        fail(
+          "subject_delegation_reference_mismatch",
+          "Requested and authoritative delegation references differ.",
+        );
+      }
+      if (delegationContext.stale === true) {
+        fail("subject_delegation_context_stale", "Delegation context evidence is stale.", 409);
+      }
+      if (delegationContext.conflicting === true) {
+        fail(
+          "subject_delegation_context_conflicting",
+          "Delegation context evidence is conflicting.",
+          409,
+        );
+      }
+      assertDelegationRequestBinding({ principalRef, requested, delegationContext });
     }
 
     const subjectScope = await subjectScopeRepository.findSubjectScope({
@@ -324,9 +391,6 @@ export function createSubjectScopeDelegationResolverService({
       record: subjectScope,
     });
 
-    const requiresDelegation = Boolean(delegationRef) || requestIndicatesDelegation;
-
-    let delegationContext = null;
     let delegationDecision = null;
     let effectiveSubject = null;
 
@@ -346,33 +410,6 @@ export function createSubjectScopeDelegationResolverService({
           "The authoritative subject scope does not permit delegation.",
         );
       }
-      delegationContext = await delegationContextRepository.findDelegationContext({
-        delegationRef,
-      });
-      if (!delegationContext) {
-        fail("subject_delegation_context_not_found", "No delegation context was found.", 404);
-      }
-      const authoritativeDelegationRef = requireApplicationString(
-        delegationContext.delegationRef,
-        "delegationContext.delegationRef",
-      );
-      if (authoritativeDelegationRef !== delegationRef) {
-        fail(
-          "subject_delegation_reference_mismatch",
-          "Requested and authoritative delegation references differ.",
-        );
-      }
-      if (delegationContext.stale === true) {
-        fail("subject_delegation_context_stale", "Delegation context evidence is stale.", 409);
-      }
-      if (delegationContext.conflicting === true) {
-        fail(
-          "subject_delegation_context_conflicting",
-          "Delegation context evidence is conflicting.",
-          409,
-        );
-      }
-
       const delegatedByPrincipalRef =
         delegationContext.mode === "support_impersonation"
           ? principalRef
@@ -412,10 +449,7 @@ export function createSubjectScopeDelegationResolverService({
     return freezeApplicationValue({
       status: "resolved",
       resolutionMode: requiresDelegation ? "delegated" : "direct",
-      actor: {
-        principalType,
-        principalRef,
-      },
+      actor: { principalType, principalRef },
       effectiveSubject,
       operationIntent,
       delegationDecision,
@@ -452,6 +486,7 @@ export function createSubjectScopeDelegationResolverService({
 
 export const _testingSubjectScopeDelegationResolverService = Object.freeze({
   assertActiveWindow,
+  assertDelegationRequestBinding,
   assertDirectSubject,
   assertSubjectScopeMatchesRequest,
   tenantIsAuthorized,
