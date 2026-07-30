@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "014-retail-commerce-operations-growth-os",
   "status": "pending",
-  "current_phase": "specify",
+  "current_phase": "clarify",
   "specification": {
     "artifacts_complete": true,
     "brownfield_review_complete": true,
@@ -27,6 +27,8 @@
     "implementation_prs": []
   },
   "verification": {
+    "artifact_readback": "complete",
+    "branch_freshness_at_pr_open": "complete",
     "contract_validation": "pending_ci",
     "unit_tests": "not_started",
     "integration_tests": "not_started",
@@ -38,14 +40,18 @@
     "production_smoke": "not_started"
   },
   "delivery": {
-    "specification_pr": null,
+    "specification_pr": 3922,
+    "specification_pr_state": "open_draft",
+    "specification_head_sha": "46951019efa0d2919a1e395740d6b22278e6efd2",
+    "specification_base_sha_at_open": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
     "merged_to_main": false,
     "merge_sha": null,
     "deployed_commit_sha": null,
     "production_main_parity": false
   },
   "evidence": {
-    "repository_baseline_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
+    "repository_review_started_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
+    "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
     "demo_evidence_class": "design_and_contract_prototype_only",
     "production_evidence_present": false,
     "secrets_included": false
