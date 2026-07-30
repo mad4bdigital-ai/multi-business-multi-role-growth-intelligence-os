@@ -1,0 +1,75 @@
+name: EC1 Closeout Test Registration
+
+on:
+  push:
+    branches:
+      - gpt/spec-012-ec1-closeout-20260730
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ec1-closeout-register-tests
+  cancel-in-progress: false
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-ec1-closeout-20260730
+          fetch-depth: 0
+
+      - name: Register EC1 tests exactly once
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'http-generic-api/scripts/test-manifest.mjs';
+          const anchor = '  "node test-execution-capsule-contract.mjs",';
+          const commands = [
+            '  "node test-execution-capsule-shadow-adapter.mjs",',
+            '  "node test-execution-capsule-shadow-composition.mjs",',
+          ];
+          let text = fs.readFileSync(path, 'utf8');
+          const lines = text.split(/\r?\n/).filter((line) => !commands.includes(line));
+          const anchorIndex = lines.indexOf(anchor);
+          if (anchorIndex < 0) throw new Error('canonical execution capsule test anchor not found');
+          lines.splice(anchorIndex + 1, 0, ...commands);
+          text = `${lines.join('\n').replace(/\n+$/u, '')}\n`;
+          for (const command of commands) {
+            const count = text.split(command).length - 1;
+            if (count !== 1) throw new Error(`${command} registration count=${count}`);
+          }
+          fs.writeFileSync(path, text);
+          NODE
+
+      - name: Run bounded EC1 and Context Kernel regressions
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-shadow-adapter.mjs
+          node test-execution-capsule-shadow-composition.mjs
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-shadow-integration.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+
+      - name: Remove one-shot workflow and verify write set
+        shell: bash
+        run: |
+          rm .github/workflows/ec1-closeout-register-tests.yml
+          git add http-generic-api/scripts/test-manifest.mjs .github/workflows/ec1-closeout-register-tests.yml
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' '.github/workflows/ec1-closeout-register-tests.yml' 'http-generic-api/scripts/test-manifest.mjs' | sort)"
+          test "$changed" = "$expected"
+
+      - name: Commit bounded registration
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "test(spec-012): register EC1 shadow closeout tests"
+          git push origin HEAD:gpt/spec-012-ec1-closeout-20260730
