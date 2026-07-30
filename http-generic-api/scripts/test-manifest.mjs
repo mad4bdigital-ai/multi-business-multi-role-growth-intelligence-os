@@ -39,6 +39,8 @@ export const testCommands = [
   "node test-system-tool-catalog-v2.mjs",
   "node test-system-layer-response-fallback.mjs",
   "node test-spec013-runtime-ratchet-contract.mjs",
+  "node test-governed-execution-baseline-telemetry.mjs",
+  "node test-governed-execution-baseline-benchmark.mjs",
   "node test-platform-execution-envelope-kernel.mjs",
   "node test-context-kernel-domain.mjs",
   "node test-context-kernel-cross-tenant-isolation.mjs",
