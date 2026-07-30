@@ -24,6 +24,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
       - name: Patch standalone safety marker parser structurally
         shell: bash
         run: |
