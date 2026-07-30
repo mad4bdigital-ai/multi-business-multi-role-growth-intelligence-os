@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
   title: Managed Git Worker Leases
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Read-only lifecycle evidence for operation-scoped managed Git workers.
-    Repository mutations use an isolated virtual Git-tree checkout lease,
-    compare the branch head before execution, and release the lease after
-    final provider readback. Repository contents and provider credentials are
-    never stored in the worker ledger.
+    New workers use an isolated ephemeral local Git checkout. Historical
+    virtual_git_tree rows remain readable for backward compatibility.
+    Workspace paths, repository contents, and provider credentials are never
+    stored in the worker ledger or returned by these endpoints.
 servers:
   - url: https://auth.mad4b.com
 paths:
@@ -73,7 +73,7 @@ components:
         format: uuid
   responses:
     WorkerResult:
-      description: Managed Git worker lifecycle and cleanup readback.
+      description: Managed Git worker lifecycle and verified cleanup readback.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/WorkerEnvelope' }
@@ -91,7 +91,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     Unavailable:
-      description: Managed worker ledger or branch-head readback is unavailable.
+      description: Managed worker ledger, workspace lifecycle, or branch-head readback is unavailable.
       headers:
         Retry-After:
           schema: { type: integer, minimum: 1 }
@@ -114,7 +114,8 @@ components:
       type: object
       required:
         [worker_id, operation_key, owner, repo, branch, checkout_strategy,
-         status, workspace_released, secrets_included]
+         status, workspace_created, workspace_released, cleanup_verified,
+         workspace_path_exposed, secrets_included]
       additionalProperties: false
       properties:
         worker_id: { type: string, format: uuid }
@@ -123,7 +124,9 @@ components:
         owner: { type: string }
         repo: { type: string }
         branch: { type: string }
-        checkout_strategy: { type: string, const: virtual_git_tree }
+        checkout_strategy:
+          type: string
+          enum: [virtual_git_tree, ephemeral_checkout]
         status:
           type: string
           enum: [allocated, ready, running, cleaning, cleaned, failed, expired]
@@ -142,7 +145,19 @@ components:
         running_at: { type: [string, 'null'], format: date-time }
         cleanup_started_at: { type: [string, 'null'], format: date-time }
         released_at: { type: [string, 'null'], format: date-time }
-        workspace_released: { type: boolean }
+        workspace_created:
+          type: boolean
+          description: True only when persisted readback confirms that a local workspace was created.
+        workspace_released:
+          type: boolean
+          description: True only when persisted readback confirms workspace removal.
+        cleanup_verified:
+          type: boolean
+          description: True only when the executor verified that the workspace path no longer exists.
+        workspace_path_exposed:
+          type: boolean
+          const: false
+          description: Absolute workspace paths are never returned by this API.
         readback: { type: [object, 'null'], additionalProperties: true }
         error: { type: [object, 'null'], additionalProperties: true }
         secrets_included: { type: boolean, const: false }
@@ -168,6 +183,11 @@ components:
                 - MANAGED_GIT_WORKER_LEASE_CONFLICT
                 - MANAGED_GIT_WORKER_CHECKOUT_UNAVAILABLE
                 - MANAGED_GIT_WORKER_LEDGER_UNAVAILABLE
+                - MANAGED_GIT_WORKER_WORKSPACE_EXECUTOR_REQUIRED
+                - MANAGED_GIT_WORKER_WORKSPACE_HANDLE_REQUIRED
+                - MANAGED_GIT_WORKER_WORKSPACE_RELEASE_REQUIRED
+                - MANAGED_GIT_WORKER_READY_TRANSITION_FAILED
+                - MANAGED_GIT_WORKER_FINALIZATION_FAILED
             message: { type: string }
             details: {}
             requestId: { type: [string, 'null'] }
