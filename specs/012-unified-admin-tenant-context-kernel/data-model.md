@@ -34,13 +34,16 @@ All identifiers shown in examples are synthetic placeholders. Production identif
 
 - `workspaceRef`
 - `tenantRef`
-- `workspaceType`: `personal` or `company`
-- `ownerUserRef` when personal
+- `workspaceType`: existing operational classification such as `brand`, `project`, `campaign`, or `sandbox`
+- `workspaceOwnershipType`: `personal` or `company`
+- `ownerUserRef` when `workspaceOwnershipType=personal`
 - `membershipRef` when company membership is required
 - `status`
 - `revision`
 
-A personal workspace has one owner user. A company workspace uses independent membership and role evidence. Workspace type is resolved before connection ownership.
+`workspaceType` and `workspaceOwnershipType` are independent dimensions. The ownership extension MUST NOT redefine or overwrite the existing operational `workspaceType` values.
+
+A personal workspace has one owner user. A company workspace uses independent membership and role evidence. Workspace ownership type is resolved before connection ownership.
 
 ## ContextCandidate
 
@@ -62,6 +65,7 @@ A personal workspace has one owner user. A company workspace uses independent me
 - `tenantRef`
 - `workspaceRef`
 - `workspaceType`
+- `workspaceOwnershipType`
 - `brandRef` optional
 - `resourceRef`
 - `connectionRef`
@@ -178,6 +182,7 @@ Authorization state is signed, expiring, nonce-bound, single-use, and context-bo
 - `tenantRef`
 - `workspaceRef`
 - `workspaceType`
+- `workspaceOwnershipType`
 - `brandRef` optional
 - `resourceRef`
 - `capabilityKey`
@@ -268,6 +273,6 @@ A service principal or delegated agent may resolve a company-workspace connectio
 
 ## Revision rules
 
-Context revisions MUST change when any authority, membership, workspace type, brand ownership, resource binding, connection ownership, connection authorization, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
+Context revisions MUST change when any authority, membership, operational workspace type, workspace ownership type, brand ownership, resource binding, connection ownership, connection authorization, provider scope, connection binding, capability binding, or relevant registry policy changes. Cached decisions MUST be rejected when their revision is stale.
 
-Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, and approval binding. Changing workspace invalidates dependent brand, resource, connection, plan, and approval bindings. Changing brand or connection ownership invalidates all plans and approvals that reference the previous revision.
+Changing tenant invalidates every dependent workspace, brand, resource, connection, authority, plan, and approval binding. Changing workspace or either workspace classification invalidates dependent brand, resource, connection, plan, and approval bindings. Changing brand or connection ownership invalidates all plans and approvals that reference the previous revision.
