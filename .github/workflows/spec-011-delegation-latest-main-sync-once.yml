@@ -20,23 +20,37 @@ jobs:
           ref: gpt/spec-011-phase3-delegation-mariadb-certification-final-20260730
           fetch-depth: 0
 
-      - name: Merge latest main
+      - name: Merge latest main with generated-only reconciliation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "admin-assitant-growth-os[bot]"
           git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
           git fetch origin main
-          git merge --no-edit origin/main
+          if ! git merge --no-edit origin/main; then
+            CONFLICTS="$(git diff --name-only --diff-filter=U)"
+            EXPECTED="http-generic-api/frontend-surface-dispatch.generated.json"
+            if [[ "${CONFLICTS}" != "${EXPECTED}" ]]; then
+              echo "::error::Unexpected merge conflicts"
+              printf '%s\n' "${CONFLICTS}"
+              exit 1
+            fi
+            git checkout --theirs -- "${EXPECTED}"
+            git add "${EXPECTED}"
+          fi
 
-      - name: Validate generated evidence and delegation contracts
+      - name: Regenerate evidence and validate delegation contracts
         shell: bash
         working-directory: http-generic-api
         run: |
           npm ci
           npm run frontend:dispatch:generate -- --baseline-ref=main
-          git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
           node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
           node test-delegation-grant-lifecycle-shadow.mjs
           node test-delegation-grant-repository-mutation.mjs
           node test-delegation-grant-mariadb-adapter-contract.mjs
