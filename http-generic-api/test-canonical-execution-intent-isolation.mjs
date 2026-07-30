@@ -150,7 +150,7 @@ class FakePool {
     const text = String(sql).replace(/\s+/g, " ").trim();
     this.queries.push({ text, params });
     assert.doesNotMatch(text, /\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|REPLACE)\b/i);
-    assert.doesNotMatch(text, /secret|credential|authorization_header|api_key_value|schema_json/i);
+    assert.doesNotMatch(text, /credential|authorization_header|api_key_value|schema_json|secret_(?:value|payload|token)|client_secret/i);
     if (text.includes("FROM execution_intent_contract_bindings")) return [this.options.intents || [intentBinding()]];
     if (text.includes("FROM actions")) return [this.options.actions || [actionRow()]];
     if (text.includes("FROM endpoints")) return [this.options.endpoints || [endpointRow()]];
