@@ -125,18 +125,25 @@ if (migration229QueueItem) {
 
 const migration190 = report.all_migrations.find((entry) => entry.migration_file === "190_sprint66_workspace_lifecycle_foundation.sql");
 assert(migration190, "migration 190 must remain discoverable");
-assert.equal(migration190.coverage.route_coverage.callability_review_count, 3, "three mutation-only route paths must remain in callability review while five mutation tools remain unverified");
-for (const toolKey of ["workspace_members_list", "workspace_invitations_list", "workspace_access_requests_list"]) {
+assert.equal(migration190.coverage.route_coverage.callability_review_count, 0, "all registered Workspace lifecycle routes must leave callability review after mutation contract closure");
+for (const toolKey of [
+  "workspace_members_list",
+  "workspace_invitations_list",
+  "workspace_access_requests_list",
+  "workspace_invitation_create",
+  "workspace_invitation_accept",
+  "workspace_access_request_create",
+  "workspace_access_request_approve",
+  "workspace_access_request_reject",
+]) {
   assert(migration190.surfaces.callability_covered_tools.includes(toolKey), `${toolKey} must be callability covered`);
   assert(!migration190.surfaces.callability_unverified_tools.includes(toolKey), `${toolKey} must leave callability review`);
 }
-for (const toolKey of ["workspace_invitation_create", "workspace_invitation_accept", "workspace_access_request_create", "workspace_access_request_approve", "workspace_access_request_reject"]) {
-  assert(migration190.surfaces.callability_unverified_tools.includes(toolKey), `${toolKey} must remain in callability review`);
-}
 const migration190QueueItem = report.gap_queue.top_items.find((entry) => entry.migration_file === "190_sprint66_workspace_lifecycle_foundation.sql");
-assert(migration190QueueItem, "partially covered migration 190 must remain in the actionable queue");
-assert(migration190QueueItem.remediation.some((action) => action.action_key === "verify_callable_handler_or_admin_preview"));
-assert(migration190QueueItem.remediation.some((action) => action.action_key === "verify_tool_registry_binding"));
+if (migration190QueueItem) {
+  assert(!migration190QueueItem.remediation.some((action) => action.action_key === "verify_callable_handler_or_admin_preview"));
+  assert(!migration190QueueItem.remediation.some((action) => action.action_key === "verify_tool_registry_binding"));
+}
 
 const migration287 = report.all_migrations.find((entry) => entry.migration_file === "287_sprint68_external_delivery_orchestration_graph_plugin.sql");
 assert(migration287, "migration 287 must be discoverable as a SQL-backed surface migration");
