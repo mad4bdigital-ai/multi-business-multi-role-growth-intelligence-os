@@ -29,9 +29,17 @@
         "role": "t010_t011_principal_subject_delegation_resolvers",
         "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
         "merge_sha": "0ff39a85661a9552daa52d3a56338a24fe6bf560"
+      },
+      {
+        "number": 3561,
+        "role": "t012_bounded_resource_graph_resolver",
+        "head_sha": "dd68d6808852798ce904fcc84bbd77a5aea80ddb",
+        "merge_sha": "990bfe44bbace76dd64aad8d5e7d6627e7abdd69"
       }
     ],
     "superseded_prs": [3351],
+    "completed_tasks": ["T010", "T011", "T012"],
+    "runtime_enforcement_enabled": false,
     "remaining_delivery": "bounded_current_main_prs"
   },
   "architecture": {
