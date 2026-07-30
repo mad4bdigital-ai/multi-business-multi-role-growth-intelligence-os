@@ -19,6 +19,10 @@ function sendError(req, res, error) {
   });
 }
 
+export function brandSkillActivationHttpStatus(result = {}) {
+  return result.created === true ? 201 : 200;
+}
+
 export function buildBrandSkillRoutes(deps = {}) {
   const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
   const router = Router();
@@ -46,7 +50,7 @@ export function buildBrandSkillRoutes(deps = {}) {
         input: req.body || {},
         actor: req.auth,
       });
-      return res.status(result.changed ? 201 : 200).json(result);
+      return res.status(brandSkillActivationHttpStatus(result)).json(result);
     } catch (error) {
       return sendError(req, res, error);
     }

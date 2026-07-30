@@ -4,16 +4,16 @@
 
 ## Summary
 
-- Triaged items: 33
+- Triaged items: 34
 - Gate candidates: 14
 - New-gap gate: fail
-- Blocking new items: 15
+- Blocking new items: 16
 
 ## Class counts
 
 - new_surface_immediate_review: 14
 - legacy_baseline_backlog: 18
-- safety_marker_review: 1
+- safety_marker_review: 2
 
 ## Immediate review candidates
 
