@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createActivationLifecycleOperationService } from "./activationLifecycleOperationService.js";
 import {
+  ACTIVATION_SUCCESS_EVIDENCE_TYPES,
   authorizeActivationRetryRequest,
   resolveActivationReconciliationOutcome,
 } from "./activationRetryReconciliationPolicy.js";
@@ -12,15 +13,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "tenant-user-1";
 const subject = { tenant_id: tenantId, user_id: userId, is_admin: false };
+const successEvidenceTypes = new Set(ACTIVATION_SUCCESS_EVIDENCE_TYPES);
 
-function operation(id, status, version = 0) {
+function operation(id, status, optimisticVersion = 0) {
   return {
     operation_id: id,
     tenant_id: tenantId,
     user_id: userId,
     current_stage: status,
     operation_status: status,
-    optimistic_version: version,
+    optimistic_version: optimisticVersion,
   };
 }
 
@@ -57,23 +59,6 @@ function createFakeRepository(initialOperations = []) {
       row.optimistic_version += 1;
       return { updated: true, optimistic_version: row.optimistic_version };
     },
-    async appendStageAttempt(_pool, input) {
-      const duplicate = state.stage_attempts.find(
-        (item) =>
-          item.operation_id === input.operation_id &&
-          item.stage_key === input.stage_key &&
-          item.attempt_number === input.attempt_number,
-      );
-      if (duplicate) {
-        const error = new Error("duplicate stage attempt");
-        error.code = "activation_stage_attempt_conflict";
-        error.status = 409;
-        throw error;
-      }
-      const attempt_id = `20000000-0000-4000-8000-${String(state.stage_attempts.length + 1).padStart(12, "0")}`;
-      state.stage_attempts.push({ attempt_id, ...input });
-      return { attempt_id, affected_rows: 1 };
-    },
     async nextStageAttemptNumber(_pool, input) {
       const numbers = state.stage_attempts
         .filter(
@@ -84,6 +69,24 @@ function createFakeRepository(initialOperations = []) {
         )
         .map((item) => item.attempt_number);
       return Math.max(0, ...numbers) + 1;
+    },
+    async appendStageAttempt(_pool, input) {
+      if (
+        state.stage_attempts.some(
+          (item) =>
+            item.operation_id === input.operation_id &&
+            item.stage_key === input.stage_key &&
+            item.attempt_number === input.attempt_number,
+        )
+      ) {
+        const error = new Error("duplicate stage attempt");
+        error.code = "activation_stage_attempt_conflict";
+        error.status = 409;
+        throw error;
+      }
+      const attempt_id = `20000000-0000-4000-8000-${String(state.stage_attempts.length + 1).padStart(12, "0")}`;
+      state.stage_attempts.push({ attempt_id, ...input });
+      return { attempt_id, affected_rows: 1 };
     },
     async readStageAttempt(_pool, input) {
       const row = state.stage_attempts.find(
@@ -126,11 +129,12 @@ function createFakeRepository(initialOperations = []) {
       state.evidence.push({ evidence_id, ...input, secrets_included: false });
       return { evidence_id, affected_rows: 1, secrets_included: false };
     },
-    async hasSameOperationEvidence(_pool, input) {
+    async hasSameOperationSuccessEvidence(_pool, input) {
       return state.evidence.some(
         (item) =>
           item.operation_id === input.operation_id &&
           item.tenant_id === input.tenant_id &&
+          successEvidenceTypes.has(item.evidence_type) &&
           item.secrets_included === false,
       );
     },
@@ -138,8 +142,7 @@ function createFakeRepository(initialOperations = []) {
       const numbers = state.reconciliations
         .filter(
           (item) =>
-            item.operation_id === input.operation_id &&
-            item.tenant_id === input.tenant_id,
+            item.operation_id === input.operation_id && item.tenant_id === input.tenant_id,
         )
         .map((item) => item.attempt_number);
       return Math.max(0, ...numbers) + 1;
@@ -220,19 +223,39 @@ assert.deepEqual(
   },
 );
 assert.throws(
-  () => resolveActivationReconciliationOutcome({ outcome: "executed", operation_id: "op-1" }),
-  (error) => error?.code === "activation_evidence_operation_id_required" || error?.code === "activation_evidence_operation_id_required",
+  () =>
+    resolveActivationReconciliationOutcome({
+      outcome: "executed",
+      operation_id: "10000000-0000-4000-8000-000000000001",
+      evidence_operation_id: "10000000-0000-4000-8000-000000000001",
+      evidence_verified: true,
+      evidence_type: "session_resolution",
+    }),
+  (error) => error?.code === "activation_success_evidence_type_invalid" && error?.status === 409,
 );
 assert.deepEqual(
-  resolveActivationReconciliationOutcome({ outcome: "not_executed" }),
+  resolveActivationReconciliationOutcome({
+    outcome: "executed",
+    operation_id: "10000000-0000-4000-8000-000000000001",
+    evidence_operation_id: "10000000-0000-4000-8000-000000000001",
+    evidence_verified: true,
+    evidence_type: "reconciliation_readback",
+  }),
   {
-    outcome: "not_executed",
-    operation_status: "degraded",
-    retry_allowed: true,
-    governed_retry_required: true,
+    outcome: "executed",
+    operation_status: "active",
+    retry_allowed: false,
+    governed_retry_required: false,
     reconciliation_required: false,
   },
 );
+assert.deepEqual(resolveActivationReconciliationOutcome({ outcome: "not_executed" }), {
+  outcome: "not_executed",
+  operation_status: "degraded",
+  retry_allowed: true,
+  governed_retry_required: true,
+  reconciliation_required: false,
+});
 
 const op1 = "10000000-0000-4000-8000-000000000001";
 const op2 = "10000000-0000-4000-8000-000000000002";
@@ -242,10 +265,20 @@ const repository = createFakeRepository([
   operation(op1, "created"),
   operation(op2, "degraded"),
   operation(op3, "unknown_outcome"),
-  operation(op4, "reconciling"),
+  operation(op4, "unknown_outcome"),
 ]);
 const service = createActivationLifecycleOperationService({ repository });
 const pool = fakePool();
+
+await assert.rejects(
+  service.transitionOperation({
+    pool,
+    subject,
+    operation_id: op1,
+    to_status: "authorized",
+  }),
+  (error) => error?.code === "activation_expected_version_required",
+);
 
 const authorized = await service.transitionOperation({
   pool,
@@ -278,7 +311,7 @@ const completedStage = await service.completeStageAttempt({
   evidence: {
     evidence_type: "session_resolution",
     source_type: "session_registry",
-    evidence: { membership_verified: true, token: "must-be-sanitized-by-default-repository" },
+    evidence: { membership_verified: true },
   },
 });
 assert.equal(completedStage.to_status, "succeeded");
@@ -300,6 +333,31 @@ await service.transitionOperation({
   to_status: "ready",
   current_stage: "ready",
 });
+await assert.rejects(
+  service.transitionOperation({
+    pool,
+    subject,
+    operation_id: op1,
+    expected_version: 4,
+    to_status: "active",
+  }),
+  (error) => error?.code === "activation_same_operation_success_evidence_required",
+);
+await assert.rejects(
+  service.transitionOperation({
+    pool,
+    subject,
+    operation_id: op1,
+    expected_version: 4,
+    to_status: "active",
+    evidence: {
+      evidence_type: "session_resolution",
+      source_type: "session_registry",
+      evidence: { membership_verified: true },
+    },
+  }),
+  (error) => error?.code === "activation_success_evidence_type_invalid",
+);
 const active = await service.transitionOperation({
   pool,
   subject,
@@ -307,9 +365,15 @@ const active = await service.transitionOperation({
   expected_version: 4,
   to_status: "active",
   current_stage: "active",
+  evidence: {
+    evidence_type: "activation_success_readback",
+    source_type: "runtime_readback",
+    evidence: { same_operation: true, status: "active" },
+  },
 });
 assert.equal(active.evidence_verified, true);
 assert.equal(active.optimistic_version, 5);
+assert.ok(active.evidence_id);
 assert.throws(
   () =>
     authorizeActivationRetryRequest({
@@ -321,6 +385,15 @@ assert.throws(
   (error) => error?.code === "activation_retry_terminal",
 );
 
+await assert.rejects(
+  service.startStageAttempt({
+    pool,
+    subject,
+    operation_id: op2,
+    stage_key: "dispatch",
+  }),
+  (error) => error?.code === "activation_stage_attempt_operation_state_invalid",
+);
 await assert.rejects(
   service.scheduleRetry({
     pool,
@@ -346,6 +419,16 @@ assert.equal(scheduled.scheduled_status, "retry_scheduled");
 assert.equal(scheduled.optimistic_version, 1);
 assert.equal(repository.state.operations.get(op2).operation_status, "retry_scheduled");
 assert.equal(repository.state.evidence.at(-1).evidence_type, "governed_retry_authorization");
+const retryAttempt = await service.startStageAttempt({
+  pool,
+  subject,
+  operation_id: op2,
+  stage_key: "dispatch",
+  operation_target_status: "executing",
+  expected_version: 1,
+});
+assert.equal(retryAttempt.attempt_number, 1);
+assert.equal(retryAttempt.optimistic_version, 2);
 
 await assert.rejects(
   service.scheduleRetry({
@@ -359,24 +442,22 @@ await assert.rejects(
   }),
   (error) => error?.code === "activation_reconciliation_required",
 );
-const reconciliation = await service.beginReconciliation({
+const reconciliation1 = await service.beginReconciliation({
   pool,
   subject,
   operation_id: op3,
   expected_version: 0,
 });
-assert.equal(reconciliation.operation_status, "reconciling");
-assert.equal(reconciliation.optimistic_version, 1);
 const stillUnknown = await service.completeReconciliation({
   pool,
   subject,
   operation_id: op3,
-  reconciliation_id: reconciliation.reconciliation_id,
+  reconciliation_id: reconciliation1.reconciliation_id,
   expected_version: 1,
   outcome: "still_unknown",
 });
 assert.equal(stillUnknown.operation_status, "unknown_outcome");
-assert.equal(stillUnknown.reconciliation_required, true);
+assert.equal(stillUnknown.optimistic_version, 2);
 
 const reconciliation2 = await service.beginReconciliation({
   pool,
@@ -394,6 +475,7 @@ const notExecuted = await service.completeReconciliation({
 });
 assert.equal(notExecuted.operation_status, "degraded");
 assert.equal(notExecuted.retry_allowed, true);
+assert.equal(notExecuted.optimistic_version, 4);
 const safeRetry = await service.scheduleRetry({
   pool,
   subject,
@@ -405,17 +487,55 @@ const safeRetry = await service.scheduleRetry({
 });
 assert.equal(safeRetry.optimistic_version, 5);
 
+const reconciliation3 = await service.beginReconciliation({
+  pool,
+  subject,
+  operation_id: op4,
+  expected_version: 0,
+});
 await assert.rejects(
   service.completeReconciliation({
     pool,
     subject,
     operation_id: op4,
-    reconciliation_id: "40000000-0000-4000-8000-999999999999",
-    expected_version: 0,
+    reconciliation_id: reconciliation3.reconciliation_id,
+    expected_version: 1,
     outcome: "executed",
   }),
-  (error) => error?.code === "activation_evidence_operation_id_required" || error?.code === "activation_evidence_operation_id_required",
+  (error) => error?.code === "activation_same_operation_success_evidence_required",
 );
+await assert.rejects(
+  service.completeReconciliation({
+    pool,
+    subject,
+    operation_id: op4,
+    reconciliation_id: reconciliation3.reconciliation_id,
+    expected_version: 1,
+    outcome: "executed",
+    evidence: {
+      evidence_type: "session_resolution",
+      source_type: "session_registry",
+      evidence: { status: "executed" },
+    },
+  }),
+  (error) => error?.code === "activation_success_evidence_type_invalid",
+);
+const executed = await service.completeReconciliation({
+  pool,
+  subject,
+  operation_id: op4,
+  reconciliation_id: reconciliation3.reconciliation_id,
+  expected_version: 1,
+  outcome: "executed",
+  evidence: {
+    evidence_type: "reconciliation_readback",
+    source_type: "reconciliation_ledger",
+    evidence: { same_operation: true, outcome: "executed" },
+  },
+});
+assert.equal(executed.operation_status, "active");
+assert.equal(executed.optimistic_version, 2);
+assert.ok(executed.evidence_id);
 
 for (const runtimeFile of [
   "server.js",
