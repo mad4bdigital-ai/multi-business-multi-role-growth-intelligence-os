@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-30T11:31:00Z",
+  "last_updated_at": "2026-07-30T12:12:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -39,6 +39,14 @@
         "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
         "merge_sha": "0ff39a85661a9552daa52d3a56338a24fe6bf560",
         "merged_at": "2026-07-30T10:17:40Z"
+      },
+      {
+        "number": 3561,
+        "status": "merged",
+        "role": "t012_bounded_resource_graph_resolver",
+        "head_sha": "dd68d6808852798ce904fcc84bbd77a5aea80ddb",
+        "merge_sha": "990bfe44bbace76dd64aad8d5e7d6627e7abdd69",
+        "merged_at": "2026-07-30T12:08:15Z"
       }
     ],
     "recovery_closeout_pr": {
@@ -59,31 +67,55 @@
       "status": "bounded_slices_in_progress",
       "merged_slices": [
         "T010_principal_resolver",
-        "T011_subject_scope_and_delegation_resolver"
+        "T011_subject_scope_and_delegation_resolver",
+        "T012_bounded_resource_graph_resolver"
       ],
       "remaining_scope_requires_separate_current_main_prs": true,
       "full_legacy_branch_not_mergeable_as_unit": true
     },
-    "implementation_ci": {
-      "status": "pass",
-      "pr": 3471,
-      "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
-      "required_checks": [
-        "Syntax Check",
-        "Architecture Drift Detection",
-        "Execution Resolver Gate",
-        "Unit & Integration Tests"
-      ],
-      "additional_checks": [
-        "Automation Overlap Guard",
-        "Context Kernel Hardcoding Report",
-        "Docs Agent",
-        "Frontend surface dispatch",
-        "HTTP Generic API Fanout Relocation",
-        "Platform Completion Cleanup Readback",
-        "Platform Remaining Scope Scorecard"
-      ]
-    },
+    "implementation_ci": [
+      {
+        "status": "pass",
+        "pr": 3471,
+        "head_sha": "9452d47d628ca17985c998720b56060b6a82c7e7",
+        "required_checks": [
+          "Syntax Check",
+          "Architecture Drift Detection",
+          "Execution Resolver Gate",
+          "Unit & Integration Tests"
+        ],
+        "additional_checks": [
+          "Automation Overlap Guard",
+          "Context Kernel Hardcoding Report",
+          "Docs Agent",
+          "Frontend surface dispatch",
+          "HTTP Generic API Fanout Relocation",
+          "Platform Completion Cleanup Readback",
+          "Platform Remaining Scope Scorecard"
+        ]
+      },
+      {
+        "status": "pass",
+        "pr": 3561,
+        "head_sha": "dd68d6808852798ce904fcc84bbd77a5aea80ddb",
+        "required_ci_run": 30540459587,
+        "required_checks": [
+          "Syntax Check",
+          "Architecture Drift Detection",
+          "Execution Resolver Gate",
+          "Unit & Integration Tests"
+        ],
+        "additional_checks": [
+          "Automation Overlap Guard",
+          "Context Kernel Hardcoding Report",
+          "Docs Agent",
+          "Frontend surface dispatch",
+          "HTTP Generic API Fanout Relocation",
+          "Platform Completion Cleanup Readback",
+          "Platform Remaining Scope Scorecard"
+        ]
+      }
+    ],
     "specification_ci": {
       "status": "pass",
       "pr": 3498,
@@ -102,35 +134,37 @@
     },
     "historical_snapshots": {
       "status": "preserved_non_authoritative",
-      "note": "Old branch SHAs, PR state, CI results, and implementation claims in historical evidence documents remain snapshots. Current recovery evidence is limited to the merged PRs explicitly recorded here."
+      "note": "Old branch SHAs, PR state, CI results, and implementation claims in historical evidence documents remain snapshots. Current recovery and implementation evidence is limited to the merged PRs explicitly recorded here."
     },
     "security_review": {
-      "status": "bounded_t010_t011_review_passed_remaining_feature_review_open",
-      "reviewed_pr": 3471,
+      "status": "bounded_t010_t012_review_passed_remaining_feature_review_open",
+      "reviewed_prs": [3471, 3561],
       "historical_evidence_preserved": true
     },
     "migrations": {
-      "status": "not_executed_by_recovery_chain",
+      "status": "not_executed_by_recovery_or_t010_t012_slices",
       "execution_authorized": false,
       "schema_readback_completed": false
     },
     "production_verification": {
       "status": "not_started_for_remaining_feature_delivery",
-      "not_required_for_specification_recovery": true
+      "not_required_for_shadow_only_t010_t012_slices": true
     },
     "post_merge_audit": {
-      "status": "complete_for_recovery_chain",
-      "main_readback_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
+      "status": "complete_for_recovery_and_t010_t012_slices",
+      "specification_main_readback_sha": "fc3494944c25d025331dec3b0a8b38a6535995f3",
+      "t012_main_readback_sha": "990bfe44bbace76dd64aad8d5e7d6627e7abdd69",
       "spec_directory_present": true,
+      "t012_resource_graph_service_present": true,
       "governance_files_present": true,
-      "runtime_effect_detected": false
+      "runtime_enforcement_enabled": false
     },
     "release_readiness": {
-      "status": "recovery_chain_closed_remaining_feature_delivery_in_progress"
+      "status": "recovery_chain_and_t010_t012_delivery_closed_remaining_feature_delivery_in_progress"
     },
     "safety_readback": {
       "spec_recovery_runtime_behavior_changed": false,
-      "t010_t011_runtime_wiring_enabled": false,
+      "t010_t012_runtime_enforcement_enabled": false,
       "production_runtime_behavior_changed": false,
       "provider_mutation_allowed": false,
       "external_write_allowed": false,
