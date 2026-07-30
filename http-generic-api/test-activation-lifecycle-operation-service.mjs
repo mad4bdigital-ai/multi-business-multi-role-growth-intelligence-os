@@ -132,6 +132,7 @@ function createFakeRepository(initialOperations = []) {
     async hasSameOperationSuccessEvidence(_pool, input) {
       return state.evidence.some(
         (item) =>
+          item.evidence_id === input.evidence_id &&
           item.operation_id === input.operation_id &&
           item.tenant_id === input.tenant_id &&
           successEvidenceTypes.has(item.evidence_type) &&
@@ -271,15 +272,9 @@ const service = createActivationLifecycleOperationService({ repository });
 const pool = fakePool();
 
 await assert.rejects(
-  service.transitionOperation({
-    pool,
-    subject,
-    operation_id: op1,
-    to_status: "authorized",
-  }),
+  service.transitionOperation({ pool, subject, operation_id: op1, to_status: "authorized" }),
   (error) => error?.code === "activation_expected_version_required",
 );
-
 const authorized = await service.transitionOperation({
   pool,
   subject,
@@ -301,6 +296,7 @@ const stage = await service.startStageAttempt({
 assert.equal(stage.attempt_number, 1);
 assert.equal(stage.attempt_status, "running");
 assert.equal(stage.optimistic_version, 2);
+assert.equal(stage.governed_retry_attempt, false);
 
 const completedStage = await service.completeStageAttempt({
   pool,
@@ -386,12 +382,7 @@ assert.throws(
 );
 
 await assert.rejects(
-  service.startStageAttempt({
-    pool,
-    subject,
-    operation_id: op2,
-    stage_key: "dispatch",
-  }),
+  service.startStageAttempt({ pool, subject, operation_id: op2, stage_key: "dispatch" }),
   (error) => error?.code === "activation_stage_attempt_operation_state_invalid",
 );
 await assert.rejects(
@@ -412,23 +403,42 @@ const scheduled = await service.scheduleRetry({
   operation_id: op2,
   expected_version: 0,
   target_status: "executing",
+  stage_key: "dispatch",
   governed_retry_approved: true,
   approval_ref: "approval-2",
 });
 assert.equal(scheduled.scheduled_status, "retry_scheduled");
 assert.equal(scheduled.optimistic_version, 1);
+assert.equal(scheduled.attempt_number, 1);
+assert.equal(scheduled.attempt_status, "pending");
+assert.ok(scheduled.attempt_id);
 assert.equal(repository.state.operations.get(op2).operation_status, "retry_scheduled");
 assert.equal(repository.state.evidence.at(-1).evidence_type, "governed_retry_authorization");
+await assert.rejects(
+  service.startStageAttempt({
+    pool,
+    subject,
+    operation_id: op2,
+    stage_key: "dispatch",
+    operation_target_status: "executing",
+    expected_version: 1,
+  }),
+  (error) => error?.code === "activation_attempt_id_required",
+);
 const retryAttempt = await service.startStageAttempt({
   pool,
   subject,
   operation_id: op2,
+  attempt_id: scheduled.attempt_id,
   stage_key: "dispatch",
   operation_target_status: "executing",
   expected_version: 1,
 });
+assert.equal(retryAttempt.attempt_id, scheduled.attempt_id);
 assert.equal(retryAttempt.attempt_number, 1);
 assert.equal(retryAttempt.optimistic_version, 2);
+assert.equal(retryAttempt.governed_retry_attempt, true);
+assert.equal(repository.state.stage_attempts.length, 2);
 
 await assert.rejects(
   service.scheduleRetry({
@@ -482,10 +492,12 @@ const safeRetry = await service.scheduleRetry({
   operation_id: op3,
   expected_version: 4,
   target_status: "executing",
+  stage_key: "dispatch",
   governed_retry_approved: true,
   approval_ref: "approval-after-readback",
 });
 assert.equal(safeRetry.optimistic_version, 5);
+assert.equal(safeRetry.attempt_status, "pending");
 
 const reconciliation3 = await service.beginReconciliation({
   pool,
