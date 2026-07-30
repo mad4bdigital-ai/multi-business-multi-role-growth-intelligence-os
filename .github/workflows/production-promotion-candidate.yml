@@ -1,0 +1,326 @@
+name: Governed Production Promotion Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: Exact 40-character main SHA to snapshot
+        required: true
+        type: string
+      expected_production_sha:
+        description: Exact 40-character Production SHA to preserve
+        required: true
+        type: string
+      release_branch:
+        description: Source-pinned branch for the Production PR
+        required: true
+        default: release/production-candidate
+        type: string
+      validation_branch:
+        description: Source-pinned branch for the non-merge main validation PR
+        required: true
+        default: gpt/validate-production-candidate
+        type: string
+      create_pull_requests:
+        description: Create or update release and validation PRs
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-promotion-candidate
+  cancel-in-progress: false
+
+jobs:
+  prepare-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      main_sha: ${{ steps.prepare.outputs.main_sha }}
+      production_sha: ${{ steps.prepare.outputs.production_sha }}
+      candidate_sha: ${{ steps.prepare.outputs.candidate_sha }}
+      candidate_tree: ${{ steps.prepare.outputs.candidate_tree }}
+      release_branch: ${{ steps.prepare.outputs.release_branch }}
+      validation_branch: ${{ steps.prepare.outputs.validation_branch }}
+      candidate_mode: ${{ steps.prepare.outputs.candidate_mode }}
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prepare exact source-pinned candidate
+        id: prepare
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+          RELEASE_BRANCH: ${{ inputs.release_branch }}
+          VALIDATION_BRANCH: ${{ inputs.validation_branch }}
+        run: |
+          set -euo pipefail
+
+          require_sha() {
+            local label="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$label must be an exact lowercase 40-character SHA"
+              exit 1
+            fi
+          }
+
+          require_branch() {
+            local label="$1"
+            local value="$2"
+            if ! git check-ref-format --branch "$value" >/dev/null 2>&1; then
+              echo "::error::$label is not a valid Git branch name"
+              exit 1
+            fi
+            case "$value" in
+              main|Production|refs/*)
+                echo "::error::$label must not target a protected branch or full ref"
+                exit 1
+                ;;
+            esac
+          }
+
+          require_sha EXPECTED_MAIN_SHA "$EXPECTED_MAIN_SHA"
+          require_sha EXPECTED_PRODUCTION_SHA "$EXPECTED_PRODUCTION_SHA"
+          require_branch RELEASE_BRANCH "$RELEASE_BRANCH"
+          require_branch VALIDATION_BRANCH "$VALIDATION_BRANCH"
+          if [[ "$RELEASE_BRANCH" == "$VALIDATION_BRANCH" ]]; then
+            echo "::error::release and validation branches must be distinct"
+            exit 1
+          fi
+
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+
+          ACTUAL_MAIN="$(git rev-parse refs/remotes/origin/main)"
+          ACTUAL_PRODUCTION="$(git rev-parse refs/remotes/origin/Production)"
+          if [[ "$ACTUAL_MAIN" != "$EXPECTED_MAIN_SHA" ]]; then
+            echo "::error::main moved: expected $EXPECTED_MAIN_SHA, actual $ACTUAL_MAIN"
+            exit 1
+          fi
+          if [[ "$ACTUAL_PRODUCTION" != "$EXPECTED_PRODUCTION_SHA" ]]; then
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA, actual $ACTUAL_PRODUCTION"
+            exit 1
+          fi
+
+          PREVIOUS_RELEASE=""
+          if git show-ref --verify --quiet "refs/remotes/origin/$RELEASE_BRANCH"; then
+            PREVIOUS_RELEASE="$(git rev-parse "refs/remotes/origin/$RELEASE_BRANCH")"
+          fi
+
+          MAIN_TREE="$(git rev-parse "$ACTUAL_MAIN^{tree}")"
+          CANDIDATE_SHA=""
+          CANDIDATE_MODE="created"
+
+          if [[ -n "$PREVIOUS_RELEASE" ]] \
+            && git merge-base --is-ancestor "$ACTUAL_MAIN" "$PREVIOUS_RELEASE" \
+            && git merge-base --is-ancestor "$ACTUAL_PRODUCTION" "$PREVIOUS_RELEASE" \
+            && git diff --quiet "$ACTUAL_MAIN" "$PREVIOUS_RELEASE"; then
+            CANDIDATE_SHA="$PREVIOUS_RELEASE"
+            CANDIDATE_MODE="reused"
+          else
+            PARENTS=(-p "$ACTUAL_MAIN" -p "$ACTUAL_PRODUCTION")
+            if [[ -n "$PREVIOUS_RELEASE" ]] \
+              && ! git merge-base --is-ancestor "$PREVIOUS_RELEASE" "$ACTUAL_MAIN" \
+              && ! git merge-base --is-ancestor "$PREVIOUS_RELEASE" "$ACTUAL_PRODUCTION"; then
+              PARENTS+=(-p "$PREVIOUS_RELEASE")
+              CANDIDATE_MODE="fast_forwarded"
+            fi
+
+            CANDIDATE_DATE="$(git show -s --format=%cI "$ACTUAL_MAIN")"
+            CANDIDATE_SHA="$(
+              printf '%s\n\n%s\n%s\n%s\n' \
+                'release: build governed Production promotion candidate' \
+                "main=$ACTUAL_MAIN" \
+                "production=$ACTUAL_PRODUCTION" \
+                'tree_policy=exact_main_tree' |
+              GIT_AUTHOR_NAME='mad4b-release-bot' \
+              GIT_AUTHOR_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+              GIT_AUTHOR_DATE="$CANDIDATE_DATE" \
+              GIT_COMMITTER_NAME='mad4b-release-bot' \
+              GIT_COMMITTER_EMAIL='mad4b-release-bot@users.noreply.github.com' \
+              GIT_COMMITTER_DATE="$CANDIDATE_DATE" \
+              git commit-tree "$MAIN_TREE" "${PARENTS[@]}"
+            )"
+          fi
+
+          if ! git diff --quiet "$ACTUAL_MAIN" "$CANDIDATE_SHA"; then
+            echo "::error::candidate tree differs from pinned main"
+            git diff --stat "$ACTUAL_MAIN" "$CANDIDATE_SHA"
+            exit 1
+          fi
+          git merge-base --is-ancestor "$ACTUAL_MAIN" "$CANDIDATE_SHA" || {
+            echo "::error::candidate does not contain pinned main ancestry"
+            exit 1
+          }
+          git merge-base --is-ancestor "$ACTUAL_PRODUCTION" "$CANDIDATE_SHA" || {
+            echo "::error::candidate does not contain pinned Production ancestry"
+            exit 1
+          }
+          if [[ -n "$PREVIOUS_RELEASE" ]]; then
+            git merge-base --is-ancestor "$PREVIOUS_RELEASE" "$CANDIDATE_SHA" || {
+              echo "::error::candidate would require rewriting the existing release branch"
+              exit 1
+            }
+          fi
+
+          git fetch --prune --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          READBACK_MAIN="$(git rev-parse refs/remotes/origin/main)"
+          READBACK_PRODUCTION="$(git rev-parse refs/remotes/origin/Production)"
+          if [[ "$READBACK_MAIN" != "$ACTUAL_MAIN" || "$READBACK_PRODUCTION" != "$ACTUAL_PRODUCTION" ]]; then
+            echo "::error::protected refs moved during candidate construction"
+            echo "main: $ACTUAL_MAIN -> $READBACK_MAIN"
+            echo "Production: $ACTUAL_PRODUCTION -> $READBACK_PRODUCTION"
+            exit 1
+          fi
+
+          push_fast_forward_only() {
+            local branch="$1"
+            local remote_head=""
+            remote_head="$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')"
+            if [[ "$remote_head" == "$CANDIDATE_SHA" ]]; then
+              echo "$branch already points to $CANDIDATE_SHA"
+              return 0
+            fi
+            if [[ -n "$remote_head" ]] && ! git merge-base --is-ancestor "$remote_head" "$CANDIDATE_SHA"; then
+              echo "::error::$branch cannot move by fast-forward to $CANDIDATE_SHA"
+              exit 1
+            fi
+            git push origin "$CANDIDATE_SHA:refs/heads/$branch"
+          }
+
+          push_fast_forward_only "$RELEASE_BRANCH"
+          push_fast_forward_only "$VALIDATION_BRANCH"
+
+          RELEASE_READBACK="$(git ls-remote --heads origin "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')"
+          VALIDATION_READBACK="$(git ls-remote --heads origin "refs/heads/$VALIDATION_BRANCH" | awk '{print $1}')"
+          if [[ "$RELEASE_READBACK" != "$CANDIDATE_SHA" || "$VALIDATION_READBACK" != "$CANDIDATE_SHA" ]]; then
+            echo "::error::candidate branch readback mismatch"
+            exit 1
+          fi
+
+          CANDIDATE_TREE="$(git rev-parse "$CANDIDATE_SHA^{tree}")"
+          {
+            echo "main_sha=$ACTUAL_MAIN"
+            echo "production_sha=$ACTUAL_PRODUCTION"
+            echo "candidate_sha=$CANDIDATE_SHA"
+            echo "candidate_tree=$CANDIDATE_TREE"
+            echo "release_branch=$RELEASE_BRANCH"
+            echo "validation_branch=$VALIDATION_BRANCH"
+            echo "candidate_mode=$CANDIDATE_MODE"
+          } >> "$GITHUB_OUTPUT"
+
+          jq -n \
+            --arg main_sha "$ACTUAL_MAIN" \
+            --arg production_sha "$ACTUAL_PRODUCTION" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg candidate_tree "$CANDIDATE_TREE" \
+            --arg release_branch "$RELEASE_BRANCH" \
+            --arg validation_branch "$VALIDATION_BRANCH" \
+            --arg candidate_mode "$CANDIDATE_MODE" \
+            '{
+              schema_version: "production_promotion_candidate.v1",
+              ok: true,
+              main_sha: $main_sha,
+              production_sha: $production_sha,
+              candidate_sha: $candidate_sha,
+              candidate_tree: $candidate_tree,
+              release_branch: $release_branch,
+              validation_branch: $validation_branch,
+              candidate_mode: $candidate_mode,
+              tree_policy: "exact_main_tree",
+              merge_executed: false,
+              deployment_executed: false,
+              migration_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/production-promotion-candidate.json"
+
+      - name: Upload candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-promotion-candidate-${{ steps.prepare.outputs.candidate_sha }}
+          path: ${{ runner.temp }}/production-promotion-candidate.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create or update governed pull requests
+        if: ${{ inputs.create_pull_requests }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ steps.prepare.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.prepare.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.prepare.outputs.candidate_sha }}
+          RELEASE_BRANCH: ${{ steps.prepare.outputs.release_branch }}
+          VALIDATION_BRANCH: ${{ steps.prepare.outputs.validation_branch }}
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/release-pr.md" <<EOF
+          ## Governed source-pinned Production candidate
+
+          - pinned main: \`$MAIN_SHA\`
+          - pinned Production: \`$PRODUCTION_SHA\`
+          - exact candidate: \`$CANDIDATE_SHA\`
+          - tree policy: exact pinned-main tree
+
+          This PR only promotes Git ancestry. It does not execute deployment, SQL, migrations, provider calls, credential reads, restarts, or external writes.
+
+          Merge remains blocked until explicit authorization, exact-head validation, protected-ref freshness readback, and post-merge Hostinger/runtime verification.
+          EOF
+
+          cat > "$RUNNER_TEMP/validation-pr.md" <<EOF
+          Temporary non-merge validation surface for candidate \`$CANDIDATE_SHA\`.
+
+          Candidate tree is identical to pinned main \`$MAIN_SHA\` and contains pinned Production \`$PRODUCTION_SHA\` as ancestry.
+
+          Close without merge after CI and evidence readback. No deployment, SQL, migration, provider, credential, restart, or Production mutation is authorized.
+          EOF
+
+          upsert_pr() {
+            local head="$1"
+            local base="$2"
+            local title="$3"
+            local body_file="$4"
+            local existing=""
+            existing="$(gh pr list --state open --head "$head" --base "$base" --json number --jq '.[0].number // empty')"
+            if [[ -n "$existing" ]]; then
+              gh pr edit "$existing" --title "$title" --body-file "$body_file"
+            else
+              gh pr create --head "$head" --base "$base" --title "$title" --body-file "$body_file"
+            fi
+          }
+
+          upsert_pr "$RELEASE_BRANCH" Production "release: promote pinned main ${MAIN_SHA:0:8} to Production" "$RUNNER_TEMP/release-pr.md"
+          upsert_pr "$VALIDATION_BRANCH" main "ci: validate Production candidate ${CANDIDATE_SHA:0:8}" "$RUNNER_TEMP/validation-pr.md"
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Production promotion candidate prepared
+
+          - main: \`${{ steps.prepare.outputs.main_sha }}\`
+          - Production: \`${{ steps.prepare.outputs.production_sha }}\`
+          - candidate: \`${{ steps.prepare.outputs.candidate_sha }}\`
+          - candidate mode: \`${{ steps.prepare.outputs.candidate_mode }}\`
+          - tree policy: exact main tree
+          - release branch: \`${{ steps.prepare.outputs.release_branch }}\`
+          - validation branch: \`${{ steps.prepare.outputs.validation_branch }}\`
+          - merge executed: false
+          - deployment executed: false
+          - secrets included: false
+          EOF
