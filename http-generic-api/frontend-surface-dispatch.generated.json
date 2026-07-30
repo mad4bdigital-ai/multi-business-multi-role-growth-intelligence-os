@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "9e551990ce99e1ec206b2faaa472b8f75c0503fe346b5806f78c02285f92221c",
+    "source_digest": "f8a2393ea93c41c01c1b1660f79842159a224886b4685687c7b98d80b4fcc0b5",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "cee4e323abba1ef99549b9ead3387170d1040556ff4d1ab4b1f5517b14dec3c6",
+        "sha256": "e1a49953cbedd260ea9f69aed4930fedc98fcdece8909de854cfc74348a20296",
         "present": true
       },
       {
@@ -170,6 +170,11 @@
         "present": true
       },
       {
+        "file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
+        "sha256": "f7aba6f873710f191de5859edef3b34d09c7fbff9a0343a3f39d9c47094f5cfa",
+        "present": true
+      },
+      {
         "file": "public/connect/app.jsx",
         "sha256": "526917d67a8b142a0f527e159f48113dc5d27a8ac170de2542952e0bd8a7ce06",
         "present": true
@@ -256,7 +261,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+        "sha256": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
         "present": true
       },
       {
@@ -266,7 +271,7 @@
       },
       {
         "file": "routes/activationHardRunRoutes.js",
-        "sha256": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
+        "sha256": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
         "present": true
       },
       {
@@ -276,7 +281,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
+        "sha256": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
         "present": true
       },
       {
@@ -501,7 +506,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
+        "sha256": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
         "present": true
       },
       {
@@ -851,12 +856,12 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+        "sha256": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
         "present": true
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+        "sha256": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
         "present": true
       },
       {
@@ -891,7 +896,7 @@
       },
       {
         "file": "routes/tenantLifecycleRoutes.js",
-        "sha256": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
+        "sha256": "bbdb2538c426485203d77ce23651213a488c87dd6c5557f1d337a2632b571c74",
         "present": true
       },
       {
@@ -1096,7 +1101,7 @@
       },
       {
         "file": "test-tenant-activation-session-alias.mjs",
-        "sha256": "057edb5d3079cc5458e1aa022f63a53b38c3c1b5348941da99e476e12c7ae456",
+        "sha256": "2931c56a9cef691fe3d68c3940b5d4ede87901cc473526acea274ab0c5fe2e86",
         "present": true
       },
       {
@@ -1134,21 +1139,21 @@
     "mounted_family_count": 167,
     "mounted_route_file_count": 134,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1003,
-    "openapi_documented_count": 987,
-    "openapi_canonical_documented_count": 605,
-    "openapi_generated_index_count": 382,
+    "operation_count": 1001,
+    "openapi_documented_count": 985,
+    "openapi_canonical_documented_count": 610,
+    "openapi_generated_index_count": 375,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 382,
+    "openapi_detail_gap_count": 375,
     "auth_parity_counts": {
-      "equivalent": 987,
+      "equivalent": 985,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 609,
-    "unresolved_operation_class_count": 552,
+    "non_get_candidate_count": 608,
+    "unresolved_operation_class_count": 551,
     "classified_mutation_count": 8,
     "governed_mutation_operation_count": 8,
     "embedded_ui_family_count": 7,
@@ -1156,7 +1161,7 @@
     "test_owned_family_count": 6,
     "untested_family_count": 161,
     "test_owned_operation_count": 54,
-    "untested_operation_count": 949,
+    "untested_operation_count": 947,
     "ready_task_count": 3,
     "blocked_task_count": 164,
     "coverage_complete": false
@@ -9386,7 +9391,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
       "mount_prefix": "/",
       "mount_order": 13461,
       "split_from_mixed_scope_file": true,
@@ -10151,7 +10156,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
       "mount_prefix": "/",
       "mount_order": 13461,
       "split_from_mixed_scope_file": true,
@@ -11707,7 +11712,7 @@
       "family_key": "activation-hard-run",
       "label": "activation hard run",
       "source_file": "routes/activationHardRunRoutes.js",
-      "source_digest": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
+      "source_digest": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
       "mount_prefix": "/",
       "mount_order": 13621,
       "split_from_mixed_scope_file": false,
@@ -12856,7 +12861,7 @@
       "family_key": "tenant-activation-overlay.tenant",
       "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
       "mount_order": 13831,
       "split_from_mixed_scope_file": true,
@@ -13044,7 +13049,7 @@
       "family_key": "tenant-activation-overlay.unresolved",
       "label": "tenant activation overlay (unresolved)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
       "mount_order": 13831,
       "split_from_mixed_scope_file": true,
@@ -13168,7 +13173,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
       "mount_order": 13940,
       "split_from_mixed_scope_file": true,
@@ -14192,7 +14197,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
       "mount_order": 13940,
       "split_from_mixed_scope_file": true,
@@ -14819,7 +14824,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
+      "source_digest": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
       "mount_prefix": "/",
       "mount_order": 14045,
       "split_from_mixed_scope_file": false,
@@ -20124,7 +20129,7 @@
       "family_key": "tenant-lifecycle",
       "label": "tenant lifecycle",
       "source_file": "routes/tenantLifecycleRoutes.js",
-      "source_digest": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
+      "source_digest": "bbdb2538c426485203d77ce23651213a488c87dd6c5557f1d337a2632b571c74",
       "mount_prefix": "/",
       "mount_order": 15234,
       "split_from_mixed_scope_file": false,
@@ -20475,7 +20480,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20489,9 +20494,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -20791,7 +20796,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20805,131 +20810,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/me/access-requests",
-          "signature": "GET /me/access-requests",
-          "source_file": "routes/tenantLifecycleRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUserJwt"
-            ],
-            "evidence": [
-              "route:requireUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-          "signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-          "source_file": "routes/tenantLifecycleRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireUserJwt"
-            ],
-            "evidence": [
-              "route:requireUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21097,7 +20980,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21111,9 +20994,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21223,7 +21106,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21237,9 +21120,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21287,7 +21170,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/workspace-lifecycle-mutations.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21301,9 +21184,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21330,18 +21213,11 @@
         "PATCH /me/workspaces/{tenant_id}/members/{user_id}",
         "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
         "POST /me/workspaces/{tenant_id}/ownership/transfer",
-        "POST /me/workspaces/{tenant_id}/invitations",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
-        "POST /me/invitations/accept",
         "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-        "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
-        "POST /me/workspaces/{tenant_id}/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
+        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel"
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [
@@ -21360,8 +21236,6 @@
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
         "GET /me/workspaces/{tenant_id}/invitations",
         "POST /me/invitations/accept",
-        "GET /me/access-requests",
-        "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "POST /me/workspaces/{tenant_id}/access-requests",
@@ -21387,6 +21261,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/workspace-lifecycle-mutations.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantLifecycleRoutes.js",
@@ -21442,12 +21317,6 @@
         },
         {
           "signature": "POST /me/invitations/accept",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
           "blockers": [
             "operation_classification_gap"
           ]
@@ -39429,7 +39298,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
+      "source_digest": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
       "mount_prefix": "/",
       "mount_order": 16553,
       "split_from_mixed_scope_file": false,
@@ -84383,6 +84252,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/workspace-lifecycle-mutations.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/tenantLifecycleRoutes.js",
