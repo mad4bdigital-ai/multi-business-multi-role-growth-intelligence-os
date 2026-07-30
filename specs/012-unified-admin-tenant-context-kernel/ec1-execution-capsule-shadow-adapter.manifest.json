@@ -41,7 +41,8 @@
     "no_secret_shadow_projection",
     "standalone_contract_test",
     "bounded_contract_review",
-    "human_architecture_security_review"
+    "human_architecture_security_review",
+    "clean_core_build_readback"
   ],
   "pending_contracts": [
     "complete_test_manifest_registration",
@@ -51,6 +52,15 @@
     "controlled_non_production_parity_sample",
     "shadow_adapter_rollback_evidence"
   ],
+  "core_build": {
+    "status": "passed",
+    "build_run_id": 30542084403,
+    "built_head_sha": "e63cd5aedcb325a2383f505c20697030dfb808d6",
+    "permanent_changed_file_count": 6,
+    "global_test_registration_included": false,
+    "generated_artifact_included": false,
+    "runtime_authority_granted": false
+  },
   "human_review": {
     "status": "passed",
     "blocking_findings": 0,
