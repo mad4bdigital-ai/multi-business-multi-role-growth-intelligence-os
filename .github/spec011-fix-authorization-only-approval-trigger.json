@@ -1,0 +1,9 @@
+{
+  "schema_version": "spec011.authorization_only_approval_repair.v1",
+  "failed_run_id": 30583012798,
+  "failed_error_code": "capability_envelope_apply_capability_not_allowlisted",
+  "replacement_tool": "capability_resolution_envelope_approve",
+  "apply_authority_grant_allowed": false,
+  "sql_execution_allowed": false,
+  "secrets_included": false
+}
