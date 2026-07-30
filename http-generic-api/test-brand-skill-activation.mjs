@@ -40,6 +40,26 @@ assert.throws(
 );
 
 assert.deepEqual(
+  _testingBrandSkillActivationService.resolveUniqueCandidate([{ id: "only" }]),
+  { id: "only" },
+);
+assert.equal(
+  _testingBrandSkillActivationService.resolveUniqueCandidate([], { allowMissing: true }),
+  null,
+);
+assert.throws(
+  () => _testingBrandSkillActivationService.resolveUniqueCandidate(
+    [{ id: "first" }, { id: "second" }],
+    { ambiguousCode: "TEST_SCOPE_AMBIGUOUS" },
+  ),
+  (error) => error.code === "TEST_SCOPE_AMBIGUOUS" && error.status === 409,
+);
+assert.deepEqual(
+  _testingBrandSkillActivationService.selectRankedCandidate([{ id: "preferred" }, { id: "fallback" }]),
+  { id: "preferred" },
+);
+
+assert.deepEqual(
   mergeOperationsUnderPolicy(["publish", "delete"], ["update"], ["publish", "update"]),
   ["publish", "update"],
 );
@@ -70,11 +90,15 @@ assert.match(compatibilityService, /export \* from "\.\/brandSkillActivationServ
 const service = readFileSync(new URL("./brandSkillActivationServiceV2.js", import.meta.url), "utf8");
 for (const marker of [
   "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED",
+  "BRAND_SKILL_MEMBERSHIP_AMBIGUOUS",
   "BRAND_SKILL_RESOURCE_GRANT_REQUIRED",
+  "BRAND_SKILL_RESOURCE_BRAND_AMBIGUOUS",
   "BRAND_SKILL_AGENT_GRANT_REQUIRED",
   "BRAND_SKILL_POLICY_REQUIRED",
+  "BRAND_SKILL_POLICY_AMBIGUOUS",
   "BRAND_SKILL_OPERATION_DENIED",
   "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
+  "BRAND_SKILL_GRANT_SCOPE_AMBIGUOUS",
   "v_effective_user_brand_skill_grants",
   "FROM cms_sites",
   "canonical_target_key = ?",
@@ -87,6 +111,11 @@ for (const marker of [
 ]) assert(service.includes(marker), `service missing ${marker}`);
 assert.equal(service.includes("m.role_key AS role"), false);
 assert.equal((service.match(/SET status = 'expired'/g) || []).length, 1);
+assert.doesNotMatch(
+  service,
+  /\b(?:rows|rowset|candidates|results|items|connections|memberships|tenants|workspaces|brands|resources|systems|providers)\s*(?:\[\s*0\s*\]|\.at\(\s*0\s*\))/i,
+);
+assert.doesNotMatch(service, /\bLIMIT\s+1\b/i);
 
 const routes = readFileSync(new URL("./routes/brandSkillRoutes.js", import.meta.url), "utf8");
 assert(routes.includes("requireUserJwt"));
