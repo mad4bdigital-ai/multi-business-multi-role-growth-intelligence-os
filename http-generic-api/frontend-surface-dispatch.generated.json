@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "64dc9925b493f0ed5562480f41c91eabd3b2d897364ed60ace2f45c7117add7b",
+    "source_digest": "9f940dd419f61a4b334cc07a064b18969ec7550d51caed3b8cbd391489730759",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "b87d2e346edf37d9d79adc7ee7d9f3357a03925eb1f108afb97f4492ef860e9c",
+        "sha256": "adade1998861dea91beb9a51853fd7fea8d1ae8da122eae2e3400306113f3ae2",
         "present": true
       },
       {
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ef92df92dd6a30e9266a86014cd3c043183fecb6d1ccea10b9c5708b244b892f",
+        "sha256": "ce66f7157b8d26482fddb31cbf4fddcc8d3c2cbf6a828777539c337bc71e8067",
         "present": true
       },
       {
@@ -141,7 +141,7 @@
       },
       {
         "file": "openapi/repository-main-moved-trigger.yaml",
-        "sha256": "720f2505f084986da6d207dab6524130a3fb0e1c83237288fc9f33d185ae7608",
+        "sha256": "2ca826fcafec1d95075a64cd7fd80fbd7bbad1400de1dad2d9cbde08525de029",
         "present": true
       },
       {
@@ -241,7 +241,7 @@
       },
       {
         "file": "resource-api-coverage.manifest.json",
-        "sha256": "3be4a5365a3d5e20d88e2587e3a286f48341fcbf9ee146459739b7bc80eda686",
+        "sha256": "3824fc66014516b7f726bb3bef7d07a15dd83c976bd823bf803d66c317d4abca",
         "present": true
       },
       {
@@ -881,7 +881,7 @@
       },
       {
         "file": "routes/tenantLifecycleRoutes.js",
-        "sha256": "c19b0a84299625ea9826adde57d77d2821813a7fec8a73bba6de7c0bf6472942",
+        "sha256": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
         "present": true
       },
       {
@@ -916,7 +916,7 @@
       },
       {
         "file": "scripts/frontend-surface-dispatch.mjs",
-        "sha256": "3198e1cb326fa17139694c3c9046f2162a6622ca95e3317d015803191f925623",
+        "sha256": "d4d78bb6c21628b6313f7fa9574e4e06288fa0fd9869e6f9d6fb55e335ae1514",
         "present": true
       },
       {
@@ -1121,11 +1121,11 @@
     "mixed_scope_route_file_count": 25,
     "operation_count": 1002,
     "openapi_documented_count": 986,
-    "openapi_canonical_documented_count": 601,
-    "openapi_generated_index_count": 385,
+    "openapi_canonical_documented_count": 604,
+    "openapi_generated_index_count": 382,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 385,
+    "openapi_detail_gap_count": 382,
     "auth_parity_counts": {
       "equivalent": 986,
       "exempt": 16
@@ -20105,7 +20105,7 @@
       "family_key": "tenant-lifecycle",
       "label": "tenant lifecycle",
       "source_file": "routes/tenantLifecycleRoutes.js",
-      "source_digest": "c19b0a84299625ea9826adde57d77d2821813a7fec8a73bba6de7c0bf6472942",
+      "source_digest": "17af7ea3d96343e3e4a1109f65a5e62a3650a17fd35b92fa03503a9dd4005b9c",
       "mount_prefix": "/",
       "mount_order": 15113,
       "split_from_mixed_scope_file": false,
@@ -20202,7 +20202,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20216,9 +20216,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -20712,7 +20712,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -20726,9 +20726,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21142,7 +21142,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -21156,9 +21156,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -21308,7 +21308,6 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
-        "GET /me/workspaces/{tenant_id}/members",
         "PATCH /me/workspaces/{tenant_id}/members/{user_id}",
         "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
         "POST /me/workspaces/{tenant_id}/ownership/transfer",
@@ -21316,14 +21315,12 @@
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke",
         "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
         "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
-        "GET /me/workspaces/{tenant_id}/invitations",
         "POST /me/invitations/accept",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "GET /me/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
         "POST /me/workspaces/{tenant_id}/access-requests",
-        "GET /me/workspaces/{tenant_id}/access-requests",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
       ],
@@ -21353,7 +21350,13 @@
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
         "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/reject"
       ],
-      "resources": [],
+      "resources": [
+        "sessions",
+        "executions",
+        "assets",
+        "approvals",
+        "resource_api_governance"
+      ],
       "embedded_ui": false,
       "embedded_ui_operations": [],
       "source_refs": [
@@ -55863,35 +55866,36 @@
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "growth",
-      "scope": "unresolved",
+      "scope": "admin",
       "operations": [
         {
           "method": "POST",
           "path": "/tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
           "signature": "POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -55899,10 +55903,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -55939,28 +55943,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -55968,10 +55973,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56006,28 +56011,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/metrics",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/metrics",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -56035,10 +56041,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56073,28 +56079,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
           "signature": "GET /tenants/{tenant_id}/growth-intelligence/reports/{report_id}",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -56102,10 +56109,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56140,28 +56147,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -56169,10 +56177,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56209,28 +56217,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -56238,10 +56247,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56278,28 +56287,29 @@
           "path": "/tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
           "signature": "POST /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments",
           "source_file": "routes/growthIntelligenceRoutes.js",
-          "scope": "unresolved",
+          "scope": "admin",
           "runtime_auth": {
             "state": "resolved",
-            "profile": "backend_or_user",
+            "profile": "admin_backend",
             "alternatives": [
               [
-                "backendBearerAuth"
+                "adminBearerAuth"
               ],
               [
                 "backendApiKeyAuth"
               ]
             ],
-            "principal": "authenticated",
+            "principal": "admin",
             "guard_chain": [
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
+              "BACKEND_API_KEY"
             ]
           },
           "openapi_auth": {
@@ -56307,10 +56317,10 @@
             "security_declared": true,
             "security_alternatives": [
               [
-                "backendApiKeyAuth"
+                "adminBearerAuth"
               ],
               [
-                "backendBearerAuth"
+                "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
@@ -56409,7 +56419,7 @@
         "score": 11,
         "class": "critical"
       },
-      "wave": "F0-authority-resolution"
+      "wave": "F3-admin-workspaces"
     },
     {
       "family_key": "identity",
@@ -65039,8 +65049,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65448,8 +65457,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65518,8 +65526,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -65588,8 +65595,7 @@
               "requireBackendApiKey"
             ],
             "evidence": [
-              "router.use:requireBackendApiKey",
-              "route:requireBackendApiKey"
+              "router.use:requireBackendApiKey"
             ],
             "configuration_dependencies": [
               "BACKEND_API_KEY",
@@ -80837,10 +80843,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -80905,10 +80913,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -80973,10 +80983,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -81041,10 +81053,12 @@
             "principal": "admin",
             "guard_chain": [
               "requireAdmin",
+              "requireAdminPrincipal",
               "requireBackendApiKey"
             ],
             "evidence": [
               "route:requireAdmin",
+              "route:requireAdminPrincipal",
               "route:requireBackendApiKey"
             ],
             "configuration_dependencies": [
@@ -82414,47 +82428,6 @@
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/dynamicContainerAuthorityRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
-      "task_key": "frontend.growth-intelligence",
-      "title": "Resolve and deliver growth intelligence",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/growthIntelligenceRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs"
       ],
@@ -85991,6 +85964,47 @@
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/gptToolsRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
+      "task_key": "frontend.growth-intelligence",
+      "title": "Resolve and deliver growth intelligence",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/growthIntelligenceRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs"
       ],
