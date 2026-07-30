@@ -15,13 +15,14 @@ const RESOURCE_REPOSITORY_FILE = "src/infrastructure/resourceApi/resourceReposit
 const RESOURCE_TEST_FILE = "test-resource-api-service.mjs";
 const CANARY_ROUTE_FILE = "routes/dynamicContainerAuthorityRoutes.js";
 const CANARY_SERVICE_FILE = "dynamicContainerRolloutSafety.js";
-const CANARY_TEST_FILE = "test-dynamic-container-canary-state-change-evidence.mjs";
+const CANARY_TEST_FILE = "test-frontend-operation-governance-generator.mjs";
 const CANARY_BEHAVIOR_TEST_FILE = "test-dynamic-container-rollout-safety.mjs";
 const BOOTSTRAP_ROUTE_FILE = "routes/connectRoutes.js";
 const BOOTSTRAP_SERVICE_FILE = "tenantConnectBootstrapService.js";
 const BOOTSTRAP_TRANSACTION_FILE = "tenantConnectBootstrapTransaction.js";
 const BOOTSTRAP_TEST_FILE = "test-tenant-connect-bootstrap-transaction.mjs";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
+const TEST_MANIFEST_FILE = "scripts/test-manifest.mjs";
 
 const RESOURCE_RECIPES = [
   {
@@ -161,7 +162,7 @@ function registeredTestEvidence(apiRoot) {
 
 export function extractFunctionBlock(source = "", functionName = "") {
   const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const matcher = new RegExp(`(?:export\\s+)?async\\s+function\\s+${escapedName}\\s*\\(`);
+  const matcher = new RegExp(`(?:export\\s+)?(?:async\\s+)?function\\s+${escapedName}\\s*\\(`);
   const normalized = canonicalText(source);
   const start = normalized.search(matcher);
   if (start < 0) return "";
@@ -265,8 +266,14 @@ function evaluateResourceRecipe(recipe, context) {
 function evaluateCanaryRecipe(recipe, context) {
   const normalizedRecipe = { ...recipe, source_file: CANARY_ROUTE_FILE, owner: "platform-governance", approval_mode: "runtime_authorization_and_typed_confirmation" };
   const route = context.canaryRoutes.get(normalizedRecipe.operation);
-  const serviceBlock = extractFunctionBlock(context.sourceByFile.get(CANARY_SERVICE_FILE), normalizedRecipe.service_function);
+  const serviceSource = context.sourceByFile.get(CANARY_SERVICE_FILE);
+  const serviceBlock = extractFunctionBlock(serviceSource, normalizedRecipe.service_function);
+  const requiresRolloutReadiness = normalizedRecipe.service_function === "runContainerCanaryPromotion";
+  const promotionPlanBlock = requiresRolloutReadiness
+    ? extractFunctionBlock(serviceSource, "buildContainerCanaryPromotionPlan")
+    : "";
   const evidenceTest = context.sourceByFile.get(CANARY_TEST_FILE) || "";
+  const testManifest = context.sourceByFile.get(TEST_MANIFEST_FILE) || "";
   const claimedTests = context.testEvidence.byOperation.get(normalizedRecipe.operation) || [];
   const readbackSql = "FROM container_shadow_canary_registry WHERE canary_key=? LIMIT 1";
   const gates = [
@@ -277,18 +284,34 @@ function evaluateCanaryRecipe(recipe, context) {
     evidenceGate("transaction_begin_commit", serviceBlock.includes("beginTransaction") && serviceBlock.includes("executor.commit"), "beginTransaction/commit"),
     evidenceGate("transaction_rollback", serviceBlock.includes("executor.rollback"), "executor.rollback"),
     evidenceGate("capability_envelope_preflight", serviceBlock.includes("resolveCapabilityExecutionEnvelope") && serviceBlock.includes("envelope.apply_allowed"), "capability envelope/apply_allowed"),
+    evidenceGate(
+      "rollout_readiness_query",
+      !requiresRolloutReadiness
+        || (serviceBlock.includes("v_container_rollout_readiness")
+          && serviceBlock.includes("readinessRows?.[0]")
+          && serviceBlock.includes("buildContainerCanaryPromotionPlan")),
+      "v_container_rollout_readiness/readinessRows/buildContainerCanaryPromotionPlan"
+    ),
+    evidenceGate(
+      "rollout_readiness_validation",
+      !requiresRolloutReadiness
+        || (promotionPlanBlock.includes("readinessCode ?? readiness.readiness_code")
+          && promotionPlanBlock.includes('!== "ready_for_review"')),
+      "buildContainerCanaryPromotionPlan/ready_for_review"
+    ),
     evidenceGate("typed_confirmation", serviceBlock.includes("confirm !== plan.confirmation"), "plan.confirmation"),
     evidenceGate("mutation_present", serviceBlock.includes(normalizedRecipe.mutation_sql), normalizedRecipe.mutation_sql),
     evidenceGate("transactional_readback_follows_mutation", ordered(serviceBlock, normalizedRecipe.mutation_sql, readbackSql), readbackSql),
     evidenceGate("envelope_consumed_before_commit", ordered(serviceBlock, "transitionCapabilityEnvelopeLifecycle", "executor.commit"), "envelope lifecycle/commit"),
     evidenceGate("provider_write_denial", serviceBlock.includes("providerCalls:false") && serviceBlock.includes("externalWrites:false"), "providerCalls:false/externalWrites:false"),
     evidenceGate("behavioral_test_bound", evidenceTest.includes(`await import("./${CANARY_BEHAVIOR_TEST_FILE}")`), CANARY_BEHAVIOR_TEST_FILE),
+    evidenceGate("executable_test_registered", testManifest.includes(`node ${CANARY_TEST_FILE}`), TEST_MANIFEST_FILE),
     evidenceGate("registered_operation_test", claimedTests.includes(CANARY_TEST_FILE), CANARY_TEST_FILE),
   ];
   return {
     recipe: normalizedRecipe,
     gates,
-    evidenceFiles: [CANARY_ROUTE_FILE, CANARY_SERVICE_FILE, CANARY_TEST_FILE, CANARY_BEHAVIOR_TEST_FILE],
+    evidenceFiles: [CANARY_ROUTE_FILE, CANARY_SERVICE_FILE, CANARY_TEST_FILE, CANARY_BEHAVIOR_TEST_FILE, TEST_MANIFEST_FILE],
   };
 }
 
@@ -340,6 +363,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const evidenceFiles = unique([
     generatorFile,
     TEST_REGISTRY_FILE,
+    TEST_MANIFEST_FILE,
     RESOURCE_ROUTE_FILE,
     RESOURCE_SERVICE_FILE,
     RESOURCE_REPOSITORY_FILE,
