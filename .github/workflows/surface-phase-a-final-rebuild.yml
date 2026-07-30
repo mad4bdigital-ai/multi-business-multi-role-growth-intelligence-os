@@ -13,14 +13,16 @@ concurrency:
 
 jobs:
   rebuild:
-    if: github.event.pull_request.head.ref == 'gpt/surface-contract-classification-final-20260730'
+    if: startsWith(github.event.pull_request.head.ref, 'gpt/surface-contract-classification-final-20260730')
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      TARGET_REF: ${{ github.event.pull_request.head.ref }}
     steps:
       - name: Checkout final Surface branch
         uses: actions/checkout@v5
         with:
-          ref: gpt/surface-contract-classification-final-20260730
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -107,4 +109,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix: rebuild Surface Phase A on current main'
-          git push origin HEAD:gpt/surface-contract-classification-final-20260730
+          git push origin "HEAD:${TARGET_REF}"
