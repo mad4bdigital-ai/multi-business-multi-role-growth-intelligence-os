@@ -1,0 +1,10 @@
+{
+  "schema_version": "spec011.production_promotion_trigger.v1",
+  "expected_main_sha": "39edefde2c148649df90abb9f4d92cd7e460195f",
+  "expected_production_sha": "fbcf77ae19738fcbd31211e874bfa315da83294e",
+  "tree_policy": "exact_main_tree",
+  "force_push_allowed": false,
+  "deployment_allowed": false,
+  "sql_execution_allowed": false,
+  "secrets_included": false
+}
