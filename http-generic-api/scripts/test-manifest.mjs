@@ -1,4 +1,5 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
+import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
   "node test-managed-git-ephemeral-checkout-executor.mjs",
@@ -43,5 +44,10 @@ const staticDiscoveryCommands = [
 ];
 
 export const testCommands = Object.freeze([
-  ...new Set([...spec011Commands, ...upstreamCommands, ...staticDiscoveryCommands]),
+  ...new Set([
+    ...spec011Commands,
+    ...upstreamMainCommands,
+    ...upstreamCommands,
+    ...staticDiscoveryCommands,
+  ]),
 ]);

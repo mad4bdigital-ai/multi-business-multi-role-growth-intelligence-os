@@ -2,7 +2,7 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
 Core delivery: PR `#3348`, merged at `66d4e5c6c014e124970421f9e3c877a647d2c04e`.
 
