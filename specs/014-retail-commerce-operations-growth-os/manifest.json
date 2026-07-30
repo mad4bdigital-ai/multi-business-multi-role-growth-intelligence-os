@@ -2,15 +2,16 @@
   "schema_version": 1,
   "feature_key": "014-retail-commerce-operations-growth-os",
   "title": "Retail Commerce, POS, Operations, Media, and Growth OS",
-  "status": "draft",
-  "current_phase": "specify",
+  "status": "ready_for_review",
+  "current_phase": "clarify",
   "delivery_mode": "multi_pr",
   "branch": "gpt/spec-014-retail-commerce-operations-growth-20260731",
   "created_at": "2026-07-30T21:47:00Z",
   "baseline": {
     "default_branch": "main",
-    "observed_commit_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
-    "evidence_timestamp": "2026-07-30T22:30:00Z",
+    "review_started_from_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
+    "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+    "evidence_timestamp": "2026-07-30T22:36:00Z",
     "production_behavior_verified": false,
     "classification": "repository_brownfield_review_only"
   },
@@ -97,8 +98,18 @@
       "checklists/parity.md",
       "completion.json"
     ],
-    "present": false,
+    "present": true,
     "omitted": []
+  },
+  "clarification": {
+    "blocking_questions": [
+      "initial_commerce_backend_pilot_mode",
+      "erpnext_frappe_version_and_topology",
+      "media_storage_and_processing_provider",
+      "payment_and_shipping_sandbox_providers",
+      "country_tax_and_einvoice_scope",
+      "production_slo_and_retention_values"
+    ]
   },
   "authority": {
     "runtime_authority": "mysql_primary_registry_and_selected_commerce_backend",
