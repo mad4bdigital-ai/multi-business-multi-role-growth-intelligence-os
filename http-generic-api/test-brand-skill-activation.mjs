@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   _testingBrandSkillActivationService,
+  mergeOperationsUnderPolicy,
   normalizeRequestedOperations,
   normalizeTtlHours,
   operationsAllowed,
-  resourceContextIncludesBrand,
 } from "./brandSkillActivationService.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
@@ -38,15 +38,14 @@ assert.throws(
   (error) => error.code === "BRAND_SKILL_ROLE_DENIED",
 );
 
-const matchingResourceContext = {
-  ok: true,
-  status: "resolved",
-  match: { resource_type: "site", resource_key: "site-1" },
-  context: { brands: [{ target_key: "brand-1" }] },
-};
-assert.equal(resourceContextIncludesBrand(matchingResourceContext, "site", "site-1", "brand-1"), true);
-assert.equal(resourceContextIncludesBrand(matchingResourceContext, "site", "site-1", "brand-2"), false);
-assert.equal(resourceContextIncludesBrand(matchingResourceContext, "workspace", "site-1", "brand-1"), false);
+assert.deepEqual(
+  mergeOperationsUnderPolicy(["publish", "delete"], ["update"], ["publish", "update"]),
+  ["publish", "update"],
+);
+assert.deepEqual(
+  mergeOperationsUnderPolicy(["publish", "delete"], ["update"], ["*"]),
+  ["publish", "delete", "update"],
+);
 
 const migrationName = "20260728_brand_scoped_user_skill_activation.sql";
 const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
@@ -75,8 +74,10 @@ for (const marker of [
   "BRAND_SKILL_POLICY_REQUIRED",
   "BRAND_SKILL_OPERATION_DENIED",
   "BRAND_SKILL_RESOURCE_BRAND_MISMATCH",
-  "BRAND_SKILL_RESOURCE_BRAND_RESOLUTION_FAILED",
   "v_effective_user_brand_skill_grants",
+  "FROM cms_sites",
+  "canonical_target_key = ?",
+  "mergeOperationsUnderPolicy",
   "m.role AS role",
   "allowed_operations_json, expires_at",
   "SET policy_id = ?",
@@ -92,6 +93,7 @@ assert(routes.includes("/me/workspaces/:tenant_id/brands/:brand_key/skills"));
 assert(routes.includes("/:skill_key/activate"));
 assert(routes.includes("/:skill_key/activation"));
 assert(routes.includes("requestId"));
+assert(routes.includes("result.created === true"));
 
 const gate = readFileSync(new URL("./agentToolAuthorizationGate.js", import.meta.url), "utf8");
 assert(gate.includes("resolveUserBrandSkillEntitlement"));
