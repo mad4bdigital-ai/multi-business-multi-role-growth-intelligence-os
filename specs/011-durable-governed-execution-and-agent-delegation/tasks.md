@@ -21,13 +21,13 @@
 
 ## Phase 1 — Durable Execution Kernel
 
-- [ ] T100 Add durable operation and step lifecycle persistence.
-- [ ] T101 Add transition guards and terminal-state invariants.
-- [ ] T102 Add idempotency scope and pending mutation receipt before dispatch.
-- [ ] T103 Add status, resume, cancel, and explain operations.
-- [ ] T104 Add canonical `next_action` and blocker response.
-- [ ] T105 Add bounded operation timeline and evidence references.
-- [ ] T106 Add read-only pilot and low-risk internal mutation pilot.
+- [x] T100 Add durable operation and step lifecycle persistence.
+- [x] T101 Add transition guards and terminal-state invariants.
+- [x] T102 Add idempotency scope and pending mutation receipt before dispatch.
+- [x] T103 Add status, resume, cancel, and explain operations.
+- [x] T104 Add canonical `next_action` and blocker response.
+- [x] T105 Add bounded operation timeline and evidence references.
+- [x] T106 Add read-only pilot and low-risk internal mutation pilot.
 
 ## Phase 2 — Canonical Execution Resolver
 
