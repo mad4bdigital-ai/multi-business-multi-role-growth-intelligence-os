@@ -79,13 +79,7 @@ jobs:
               1,
               "insert uniqueTriggerRow",
           )
-          trigger = replace_count(
-              trigger,
-              '  return shapeTrigger(rows[0] || null);',
-              '  return shapeTrigger(uniqueTriggerRow(rows, "event_fingerprint_sha256"));',
-              1,
-              "replace fingerprint first-row selection",
-          )
+          trigger = replace_count(trigger, '  return shapeTrigger(rows[0] || null);', '  return shapeTrigger(uniqueTriggerRow(rows, "event_fingerprint_sha256"));', 1, "replace fingerprint first-row selection")
           trigger = replace_count(
               trigger,
               '''  if (!rows[0]) fail("repository_main_moved_trigger_not_found", "Trigger event was not found.", 404);
@@ -177,15 +171,9 @@ jobs:
 
           trigger_test_path = Path("http-generic-api/test-repository-main-moved-trigger-coordinator.mjs")
           trigger_test = trigger_test_path.read_text(encoding="utf-8")
-          trigger_test = replace_count(
-              trigger_test,
-              'assert.match(service, /job_enqueued: false/);',
-              '''assert.match(service, /job_enqueued: false/);
+          trigger_test = replace_count(trigger_test, 'assert.match(service, /job_enqueued: false/);', '''assert.match(service, /job_enqueued: false/);
           assert.doesNotMatch(service, /\\brows\\s*\\[\\s*0\\s*\\]/);
-          assert.match(service, /repository_main_moved_resolution_ambiguous/);''',
-              1,
-              "trigger row regression assertions",
-          )
+          assert.match(service, /repository_main_moved_resolution_ambiguous/);''', 1, "trigger row regression assertions")
           trigger_test_path.write_text(trigger_test, encoding="utf-8")
 
           advisor_test_path = Path("http-generic-api/test-self-healing-release-advisor.mjs")
@@ -203,6 +191,10 @@ jobs:
           )
           advisor_test_path.write_text(advisor_test, encoding="utf-8")
           PY
+
+      - name: Install focused test dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
 
       - name: Validate focused contracts
         shell: bash
