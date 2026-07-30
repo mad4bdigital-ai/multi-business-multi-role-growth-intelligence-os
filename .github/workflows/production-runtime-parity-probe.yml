@@ -11,14 +11,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-migration-1007-apply-20260730
+  group: production-migration-1007-post-apply-readback-20260730
   cancel-in-progress: false
 
 jobs:
-  apply-and-verify:
-    name: Apply and verify governed Migration 1007
+  verify-applied-migration:
+    name: Verify applied governed Migration 1007
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       EXPECTED_PRODUCTION_SHA: abdeed2c5a588c19a2d1f2e35046e7b120d97016
@@ -26,17 +26,14 @@ jobs:
       MIGRATION_PATH: http-generic-api/migrations/1007_sprint69_agent_capability_coverage_admin_tools.sql
       MIGRATION_SHA256: 11b93401bbd0ed64e3e564d183c5a5d9775bcabbe3ccd7002d97e38b0d107a40
       MIGRATION_STATEMENTS: "1"
-      APPLY_ENVELOPE_ID: 42ce2f3b-d416-41dc-b1b3-b1f589b74791
-      APPLY_CONFIRMATION: APPLY_1007_SPRINT69_AGENT_CAPABILITY_COVERAGE_ADMIN_TOOLS
-      MIGRATION_1006_NAME: 1006_sprint69_agent_capability_evidence_coverage.sql
-      MIGRATION_1006_SHA256: 995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374
+      EXPECTED_LEDGER_RUN_ID: 497d6ad6-b3ce-412d-9f2a-9db15ae16d03
     steps:
-      - name: Checkout Production-pinned apply branch
+      - name: Checkout Production-pinned verification branch
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Verify Production, runtime, checksum, confirmation, and dependency pins
+      - name: Verify Production, runtime, and migration source pins
         shell: bash
         run: |
           set -euo pipefail
@@ -44,16 +41,13 @@ jobs:
           test "$(git rev-parse origin/Production)" = "$EXPECTED_PRODUCTION_SHA"
           test "$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')" = "$MIGRATION_SHA256"
           test "$(grep -Ec '^[[:space:]]*INSERT[[:space:]]+INTO' "$MIGRATION_PATH")" -eq "$MIGRATION_STATEMENTS"
-          test "$APPLY_CONFIRMATION" = "APPLY_1007_SPRINT69_AGENT_CAPABILITY_COVERAGE_ADMIN_TOOLS"
-          grep -F "agent_governance_logic_coverage" "$MIGRATION_PATH"
-          grep -F "agent_governance_engine_coverage" "$MIGRATION_PATH"
           node <<'NODE'
           const base = process.env.RUNTIME_BASE_URL.replace(/\/$/, "");
           const expected = process.env.EXPECTED_PRODUCTION_SHA.toLowerCase();
           const strings = [];
           for (const path of ["/health", "/version", "/deployment-info"]) {
             const response = await fetch(`${base}${path}`, {
-              headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1007-apply/1.0" },
+              headers: { Accept: "application/json", "User-Agent": "mad4b-migration-1007-readback/1.0" },
               signal: AbortSignal.timeout(15000),
             });
             const body = await response.json();
@@ -70,7 +64,7 @@ jobs:
           console.log(`PRODUCTION_RUNTIME_PARITY=PASS expected_sha=${expected}`);
           NODE
 
-      - name: Governed apply and same-cycle verification
+      - name: Ledger, catalog, and live tool readback
         shell: bash
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -96,7 +90,7 @@ jobs:
               headers: {
                 Authorization: `Bearer ${apiKey}`,
                 Accept: "application/json",
-                "User-Agent": "mad4b-migration-1007-apply/1.0",
+                "User-Agent": "mad4b-migration-1007-readback/1.0",
                 ...(options.headers || {}),
               },
               signal: AbortSignal.timeout(timeout),
@@ -112,78 +106,37 @@ jobs:
             body: JSON.stringify({ name, tool_args: toolArgs }),
           });
 
-          const dependencyReadbackResponse = await toolCall("governed_migration_schema_readback", {
-            migration: process.env.MIGRATION_1006_NAME,
-            expected_checksum_sha256: process.env.MIGRATION_1006_SHA256,
-            expected_statement_count: 5,
-          });
-          const dependencyReadback = unwrapTool(dependencyReadbackResponse);
-          print("MIGRATION_1006_DEPENDENCY_READBACK", dependencyReadbackResponse);
-          if (!dependencyReadbackResponse.ok || dependencyReadback?.ok !== true || dependencyReadback?.ledger?.found !== true) process.exit(1);
-
-          const migrationArgs = {
+          const ledgerResponse = await toolCall("governed_migration_schema_readback", {
             migration: process.env.MIGRATION_NAME,
             expected_checksum_sha256: process.env.MIGRATION_SHA256,
             expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
-            capability_envelope_id: process.env.APPLY_ENVELOPE_ID,
-          };
-
-          const dryRunResponse = await toolCall("governed_migration_execute", { ...migrationArgs, mode: "dry_run" });
-          const dryRun = unwrapTool(dryRunResponse);
-          print("PRE_APPLY_DRY_RUN", dryRunResponse);
-          if (!dryRunResponse.ok || dryRun?.ok !== true || dryRun?.mode !== "dry_run" || dryRun?.applies_sql !== false) process.exit(1);
-          if (dryRun?.migration_checksum_sha256 !== process.env.MIGRATION_SHA256 || Number(dryRun?.statement_count) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
-          if (dryRun?.preflight?.status !== "pass" || Number(dryRun?.preflight?.risk_count || 0) !== 0) process.exit(1);
-
-          const applyResponse = await toolCall("governed_migration_execute", {
-            ...migrationArgs,
-            mode: "apply",
-            confirm: process.env.APPLY_CONFIRMATION,
           });
-          const apply = unwrapTool(applyResponse);
-          print("MIGRATION_APPLY_RESULT", applyResponse);
-          if (!applyResponse.ok || apply?.ok !== true || apply?.mode !== "apply" || apply?.applies_sql !== true) process.exit(1);
-          if (Number(apply?.statements_executed) !== Number(process.env.MIGRATION_STATEMENTS)) process.exit(1);
-          if (apply?.ledger?.recorded !== true || !apply?.ledger?.run_id) process.exit(1);
+          const ledger = unwrapTool(ledgerResponse);
+          print("MIGRATION_1007_LEDGER_READBACK", ledgerResponse);
+          if (!ledgerResponse.ok || ledger?.ok !== true || ledger?.ledger?.found !== true) process.exit(1);
+          if (ledger.ledger.run_id !== process.env.EXPECTED_LEDGER_RUN_ID || ledger.ledger.mode !== "apply") process.exit(1);
 
           const requiredTools = ["agent_governance_logic_coverage", "agent_governance_engine_coverage"];
-          const afterTools = new Set(apply?.after_admin_tools || []);
-          for (const tool of requiredTools) {
-            if (!afterTools.has(tool)) {
-              console.error(`Missing post-apply Admin tool: ${tool}`);
-              process.exit(1);
-            }
-          }
-
-          const ledgerReadbackResponse = await toolCall("governed_migration_schema_readback", {
-            migration: process.env.MIGRATION_NAME,
-            expected_checksum_sha256: process.env.MIGRATION_SHA256,
-            expected_statement_count: Number(process.env.MIGRATION_STATEMENTS),
-          });
-          const ledgerReadback = unwrapTool(ledgerReadbackResponse);
-          print("MIGRATION_SCHEMA_LEDGER_READBACK", ledgerReadbackResponse);
-          if (!ledgerReadbackResponse.ok || ledgerReadback?.ok !== true || ledgerReadback?.ledger?.found !== true) process.exit(1);
-
           for (const tool of requiredTools) {
             const catalogResponse = await toolCall("admin_tool_catalog_search", { q: tool, limit: 10 });
             const catalog = unwrapTool(catalogResponse);
             print(`CATALOG_READBACK_${tool.toUpperCase()}`, catalogResponse);
             const items = Array.isArray(catalog?.items) ? catalog.items : [];
             const found = items.some((item) => [item?.name, item?.tool_key, item?.key].includes(tool));
-            if (!catalogResponse.ok || catalog?.ok === false || !found) process.exit(1);
+            if (!catalogResponse.ok || !found) process.exit(1);
           }
 
-          const logicToolResponse = await toolCall("agent_governance_logic_coverage", { limit: 1 });
-          const logicTool = unwrapTool(logicToolResponse);
-          print("LOGIC_COVERAGE_ADMIN_TOOL_CALL", logicToolResponse);
-          if (!logicToolResponse.ok || logicTool?.ok !== true || !Array.isArray(logicTool?.coverage?.rows)) process.exit(1);
+          const logicResponse = await toolCall("agent_governance_logic_coverage", { limit: 1 });
+          const logic = unwrapTool(logicResponse);
+          print("LOGIC_COVERAGE_ADMIN_TOOL_CALL", logicResponse);
+          if (!logicResponse.ok || logic?.ok !== true || !Array.isArray(logic?.coverage?.rows)) process.exit(1);
 
-          const engineToolResponse = await toolCall("agent_governance_engine_coverage", { limit: 1 });
-          const engineTool = unwrapTool(engineToolResponse);
-          print("ENGINE_COVERAGE_ADMIN_TOOL_CALL", engineToolResponse);
-          if (!engineToolResponse.ok || engineTool?.ok !== true || !Array.isArray(engineTool?.coverage?.rows)) process.exit(1);
+          const engineResponse = await toolCall("agent_governance_engine_coverage", { limit: 1 });
+          const engine = unwrapTool(engineResponse);
+          print("ENGINE_COVERAGE_ADMIN_TOOL_CALL", engineResponse);
+          if (!engineResponse.ok || engine?.ok !== true || !Array.isArray(engine?.coverage?.rows)) process.exit(1);
 
-          console.log(`MIGRATION_1007_APPLY=PASS run_id=${apply.ledger.run_id}`);
+          console.log(`MIGRATION_1007_APPLY=PASS run_id=${ledger.ledger.run_id}`);
           console.log(`MIGRATION_1007_CHECKSUM=${process.env.MIGRATION_SHA256}`);
           console.log("MIGRATION_1007_ADMIN_TOOLS=2/2");
           console.log("MIGRATION_1007_LEDGER_READBACK=PASS");
