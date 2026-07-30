@@ -31,6 +31,18 @@ function readJsonSafe(file) {
   }
 }
 
+function isCommitSha(value) {
+  return /^[a-f0-9]{40}$/i.test(String(value || "").trim());
+}
+
+function readPullRequestBaseSha() {
+  const eventPath = String(process.env.GITHUB_EVENT_PATH || "").trim();
+  if (!eventPath) return null;
+  const event = readJsonSafe(eventPath);
+  const baseSha = String(event?.pull_request?.base?.sha || "").trim();
+  return isCommitSha(baseSha) ? baseSha : null;
+}
+
 function parseArgs(argv) {
   const options = {
     ci: false,
@@ -39,6 +51,7 @@ function parseArgs(argv) {
     verifyEvidence: null,
     maxAgeMinutes: 360,
     target: "origin/main",
+    targetExplicit: false,
     dependencies: true,
     merge: true,
     worktree: true,
@@ -52,9 +65,13 @@ function parseArgs(argv) {
     else if (arg === "--skip-merge") options.merge = false;
     else if (arg === "--skip-worktree") options.worktree = false;
     else if (arg === "--skip-engine") options.engine = false;
-    else if (arg === "--target") options.target = argv[++index];
-    else if (arg.startsWith("--target=")) options.target = arg.slice("--target=".length);
-    else if (arg === "--report-file") options.reportFile = argv[++index];
+    else if (arg === "--target") {
+      options.target = argv[++index];
+      options.targetExplicit = true;
+    } else if (arg.startsWith("--target=")) {
+      options.target = arg.slice("--target=".length);
+      options.targetExplicit = true;
+    } else if (arg === "--report-file") options.reportFile = argv[++index];
     else if (arg.startsWith("--report-file=")) options.reportFile = arg.slice("--report-file=".length);
     else if (arg === "--verify-evidence") options.verifyEvidence = argv[++index];
     else if (arg.startsWith("--verify-evidence=")) options.verifyEvidence = arg.slice("--verify-evidence=".length);
@@ -63,6 +80,8 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!Number.isFinite(options.maxAgeMinutes) || options.maxAgeMinutes < 0) throw new Error("--max-age-minutes must be a non-negative number");
+  if (options.ci && !options.targetExplicit) options.target = readPullRequestBaseSha() || options.target;
+  delete options.targetExplicit;
   return options;
 }
 
