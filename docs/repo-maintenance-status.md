@@ -74,6 +74,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/verify-runtime.yml`
+- `.github/workflows/workspace-lifecycle-clean-rebuild-bootstrap.yml`
 - `.github/workflows/workspace-lifecycle-mutation-bootstrap.yml`
 
 ## Maintenance Scripts
