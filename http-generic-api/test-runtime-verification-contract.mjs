@@ -99,4 +99,6 @@ try {
 assert.doesNotMatch(service, /input\.(?:deployed_commit_sha|runtime_commit_sha)/, "deployed parity evidence must not trust caller-supplied commit fields");
 assert.match(service, /checkout_git_head/, "runtime verification must disclose checkout Git HEAD as the deployed commit source");
 
+await import("./test-activation-deployment-observation-service.mjs");
+
 console.log("runtime verification contract tests passed");
