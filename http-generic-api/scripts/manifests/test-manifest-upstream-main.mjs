@@ -49,6 +49,8 @@ export const testCommands = [
   "node test-execution-capsule-contract.mjs",
   "node test-execution-capsule-shadow-adapter.mjs",
   "node test-execution-capsule-shadow-composition.mjs",
+  "node test-execution-capsule-selected-read-pilot.mjs",
+  "node test-execution-capsule-read-dispatch-gate.mjs",
   "node test-context-kernel-api-projection.mjs",
   "node test-context-kernel-shadow-integration.mjs",
   "node test-platform-scoped-approval-kernel.mjs",

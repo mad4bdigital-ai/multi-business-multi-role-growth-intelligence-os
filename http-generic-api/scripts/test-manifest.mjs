@@ -18,6 +18,7 @@ const upstreamCommands = [
 // here while Set-based composition prevents duplicate runtime execution.
 const staticDiscoveryCommands = [
   "node scripts/activation-surface-coverage-check.mjs --changed",
+  "node test-activation-deployment-projection-service.mjs",
   "node test-activation-followup-hardening.mjs",
   "node test-activation-surface-coverage-gate.mjs",
   "node test-audit-payload-evidence.mjs",
@@ -30,6 +31,7 @@ const staticDiscoveryCommands = [
   "node test-dynamic-capability-projection-preview.mjs",
   "node test-dynamic-container-projection-apply-tool.mjs",
   "node test-dynamic-container-rollout-safety.mjs",
+  "node test-execution-capsule-read-dispatch-gate.mjs",
   "node test-f5-f6-positive-smoke-certification.mjs",
   "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
