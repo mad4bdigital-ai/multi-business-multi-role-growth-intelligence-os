@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c9d6a4d5db97544b2ea927f5c782fe7f94d3bc14f83a04ed947c2a1f1f1357c7",
+    "source_digest": "99358614e6e866cc8d201c9c4ea17106ad5118e5efbcb296987cc3434e70e7c0",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -61,7 +61,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ba972f77b62a5d5576ed7e9b1b5be7374d745f2d5e8f018f5ce06362a142c537",
+        "sha256": "ef92df92dd6a30e9266a86014cd3c043183fecb6d1ccea10b9c5708b244b892f",
         "present": true
       },
       {
@@ -142,6 +142,11 @@
       {
         "file": "openapi/repository-main-moved-trigger.yaml",
         "sha256": "2ca826fcafec1d95075a64cd7fd80fbd7bbad1400de1dad2d9cbde08525de029",
+        "present": true
+      },
+      {
+        "file": "openapi/repository-reconciliation-lease-control.yaml",
+        "sha256": "63f63e2aa308a8bd28307f06b3eb084dfddb9b2a5b2c8c32c82a8560d95ff1c2",
         "present": true
       },
       {
@@ -1121,11 +1126,11 @@
     "mixed_scope_route_file_count": 25,
     "operation_count": 1003,
     "openapi_documented_count": 987,
-    "openapi_canonical_documented_count": 601,
-    "openapi_generated_index_count": 386,
+    "openapi_canonical_documented_count": 602,
+    "openapi_generated_index_count": 385,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 386,
+    "openapi_detail_gap_count": 385,
     "auth_parity_counts": {
       "equivalent": 987,
       "exempt": 16
@@ -24601,7 +24606,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/repository-reconciliation-lease-control.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -24618,9 +24623,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -24643,9 +24648,7 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "POST /admin/repository-automation/reconciliation-lease"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /admin/repository-automation/status"
@@ -24668,8 +24671,8 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
@@ -24709,7 +24712,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -87205,7 +87208,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -87221,8 +87223,8 @@
         "openapi-route-coverage.allowlist.json",
         "openapi.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",

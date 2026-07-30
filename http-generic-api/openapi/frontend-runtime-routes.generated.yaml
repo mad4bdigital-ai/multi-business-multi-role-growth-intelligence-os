@@ -5354,30 +5354,6 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
-  /admin/repository-automation/reconciliation-lease:
-    post:
-      operationId: postAdminRepositoryAutomationReconciliationLeaseb63b9a17
-      summary: POST /admin/repository-automation/reconciliation-lease (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/repositoryAutomationRoutes.js
-      x-mad4b-runtime-auth:
-        profile: admin_backend
-        principal: admin
-        guard_chain:
-          - requireAdmin
-          - requireAdminPrincipal
-          - requireBackendApiKey
-        configuration_dependencies:
-          - BACKEND_API_KEY
   /admin/resource-authority/grants:
     post:
       operationId: postAdminResourceAuthorityGrants15c22b81
