@@ -1,0 +1,27 @@
+{
+  "schema_version": "connection_ownership_migration_identity.v1",
+  "feature_key": "012-unified-admin-tenant-context-kernel",
+  "migration_file": "20260730_context_kernel_connection_ownership_persistence.sql",
+  "source_implementation_merge_sha": "a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902",
+  "migration_checksum_sha256": "8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf",
+  "expected_statement_count": 4,
+  "typed_apply_confirmation": "APPLY_20260730_CONTEXT_KERNEL_CONNECTION_OWNERSHIP_PERSISTENCE",
+  "resource_uri": "db-migration://growth_intelligence_platform/20260730_context_kernel_connection_ownership_persistence.sql",
+  "reviewed_top_level_statements": [
+    "ALTER TABLE workspace_registry",
+    "CREATE TABLE connection_ownership_scopes",
+    "CREATE TABLE provider_authorization_states",
+    "CREATE OR REPLACE VIEW v_context_kernel_connection_ownership_compatibility"
+  ],
+  "authorization_status": "pending_separate_authorization",
+  "live_dry_run_executed": false,
+  "migration_applied": false,
+  "database_mutated": false,
+  "same_cycle_readback_complete": false,
+  "runtime_consumers_enabled": false,
+  "provider_called": false,
+  "credential_mutated": false,
+  "production_deployed": false,
+  "rollback_strategy": "disable_consumers_and_retain_additive_schema",
+  "secrets_included": false
+}
