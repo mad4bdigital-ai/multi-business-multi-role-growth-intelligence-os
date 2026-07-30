@@ -9,6 +9,7 @@ const outMd = path.join(outDir, "latest.md");
 
 function rel(...parts) { return path.join(repoRoot, ...parts); }
 function exists(file) { return existsSync(rel(file)); }
+function isFile(file) { return exists(file) && statSync(rel(file)).isFile(); }
 function read(file) { return readFileSync(rel(file), "utf8"); }
 function listRecursive(startDir, predicate = () => true) {
   const root = rel(startDir);
@@ -28,7 +29,11 @@ function listRecursive(startDir, predicate = () => true) {
   }
   return out.sort();
 }
-function includes(file, needle) { return exists(file) && read(file).includes(needle); }
+function includes(file, needle) { return isFile(file) && read(file).includes(needle); }
+function directoryIncludes(startDir, needle) {
+  return listRecursive(startDir, (file) => /\.(js|mjs|sql|md|yaml|yml|json)$/.test(file))
+    .some((file) => read(file).includes(needle));
+}
 function check(key, ok, detail, severity = "fail") { return { key, ok: Boolean(ok), detail, severity }; }
 function percent(ok, total) { return total ? Math.round((ok / total) * 100) : 100; }
 function summarize(name, checks) {
@@ -37,8 +42,10 @@ function summarize(name, checks) {
   const pass = checks.filter((c) => c.ok).length;
   return { name, status: fails.length ? "fail" : warns.length ? "warn" : "pass", pass, total: checks.length, score: percent(pass, checks.length), fails, warns, checks };
 }
-function scanForbidden(rootDir, forbidden) {
-  const files = listRecursive(rootDir, (file) => /\.(js|mjs|sql|md|yaml|yml|json)$/.test(file));
+function scanForbidden(rootDir, forbidden, options = {}) {
+  const excludedFiles = new Set(options.excludedFiles || []);
+  const files = listRecursive(rootDir, (file) => /\.(js|mjs|sql|md|yaml|yml|json)$/.test(file))
+    .filter((file) => !excludedFiles.has(file));
   return forbidden.map((needle) => {
     const matches = files.filter((file) => read(file).includes(needle));
     return check(`forbidden:${needle}`, matches.length === 0, matches.length ? `${needle} found in ${matches.join(", ")}` : `${needle} absent`);
@@ -84,7 +91,7 @@ sections.push(summarize("execution_evidence_enforcement", [
 sections.push(summarize("tool_bus_kernel", [
   check("runtime_endpoint_call_kernel_exists", includes("http-generic-api/routes/systemLayerRoutes.js", "runtime_endpoint_call"), "Kernel runtime_endpoint_call is present."),
   check("self_recursive_guard", includes("http-generic-api/routes/systemLayerRoutes.js", "self_recursive_dispatch_blocked") || includes("http-generic-api/routes/systemLayerRoutes.js", "isTenantRegistryToolAllowedInSystemFacade"), "Self-recursive tenant wrapper guard is present."),
-  check("descriptor_resolver_missing_tracked", !includes("http-generic-api", "resolveToolDescriptor") || exists("docs/dynamic-capability-tool-bus-v2.md"), "Tool Bus descriptor resolver gap is documented/tracked.", "warn"),
+  check("descriptor_resolver_missing_tracked", !directoryIncludes("http-generic-api", "resolveToolDescriptor") || exists("docs/dynamic-capability-tool-bus-v2.md"), "Tool Bus descriptor resolver gap is documented/tracked.", "warn"),
   check("tool_bus_doc", exists("docs/dynamic-capability-tool-bus-v2.md"), "Tool Bus v2 document exists.", "warn"),
   check("tool_bus_descriptor_dry_run_complete", exists("http-generic-api/scripts/tool-bus-descriptor-dry-run.mjs") && includes("http-generic-api/routes/adminCliRoutes.js", "tool_bus_descriptor_dry_run"), "Tool Bus descriptor dry-run is implemented and exposed."),
   check("tool_bus_collision_audit_complete", exists("http-generic-api/scripts/tool-bus-collision-audit.mjs") && includes("http-generic-api/scripts/tool-bus-collision-audit.mjs", "actual_collision_requires_review"), "Tool Bus collision audit classifies intentional and blocking collisions."),
@@ -148,7 +155,12 @@ const forbiddenChecks = scanForbidden("http-generic-api", [
   "v_session_insight_capability_envelope_adapter_execution_readiness",
   "v_session_insight_capability_envelope_adapter_execution_gate_issues",
   "v_session_insight_capability_envelope_adapter_apply_dispatch_readiness",
-]);
+], {
+  excludedFiles: [
+    "http-generic-api/scripts/platform-completion-cleanup-readback-audit.mjs",
+    "http-generic-api/scripts/platform-remaining-scope-scorecard.mjs",
+  ],
+});
 sections.push(summarize("mysql_identifier_regression_guard", [
   ...sqlIdentifiersUnderLimit([...supportMigrations, ...sessionMigrations, ...executionMigrations]),
   ...forbiddenChecks,

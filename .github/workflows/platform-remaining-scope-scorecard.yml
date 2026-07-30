@@ -3,9 +3,9 @@ name: Platform Remaining Scope Scorecard
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [main, Production]
   push:
-    branches: [main]
+    branches: [main, Production]
   schedule:
     - cron: "31 3 * * *"
 
@@ -29,10 +29,25 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Verify fail-closed workflow contract
+        run: node http-generic-api/test-platform-static-readback-fail-closed.mjs
+
       - name: Generate remaining scope scorecard
         run: |
-          set -e
+          set -euo pipefail
           node http-generic-api/scripts/platform-remaining-scope-scorecard.mjs | tee platform-remaining-scope-scorecard.json
+          test -s platform-remaining-scope-scorecard.json
+          test -s docs/auto-platform-scorecard/latest.json
+          test -s docs/auto-platform-scorecard/latest.md
+          node -e '
+            const fs = require("node:fs");
+            const stdoutResult = JSON.parse(fs.readFileSync("platform-remaining-scope-scorecard.json", "utf8"));
+            const generatedResult = JSON.parse(fs.readFileSync("docs/auto-platform-scorecard/latest.json", "utf8"));
+            if (stdoutResult.ok !== true || generatedResult.ok !== true) {
+              console.error("Remaining-scope scorecard did not pass", { stdoutResult, generatedResult });
+              process.exit(1);
+            }
+          '
 
       - name: Publish scorecard summary
         if: always()
@@ -40,7 +55,7 @@ jobs:
           {
             echo "## Platform Remaining Scope Scorecard"
             echo
-            if [ -f docs/auto-platform-scorecard/latest.md ]; then
+            if [ -s docs/auto-platform-scorecard/latest.md ]; then
               cat docs/auto-platform-scorecard/latest.md
             else
               echo "Scorecard markdown was not generated."
@@ -56,4 +71,4 @@ jobs:
             platform-remaining-scope-scorecard.json
             docs/auto-platform-scorecard/latest.json
             docs/auto-platform-scorecard/latest.md
-          if-no-files-found: warn
+          if-no-files-found: error
