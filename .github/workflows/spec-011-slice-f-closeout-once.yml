@@ -1,0 +1,97 @@
+name: Spec 011 Slice F closeout once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-phase3-delegation-mariadb-adapter-closeout-20260730
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out closeout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile Slice F evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          merge_sha = "33dbcc6f15bbee07b8b106bcf99a77acf9206494"
+          final_head_sha = "fd92e241d423d6820779ff0593f40ce9863f12fb"
+          final_base_sha = "5503e71f86a9fb175698566fc8b6d49cf9a0ecad"
+
+          manifest_path = Path("specs/011-durable-governed-execution-and-agent-delegation/manifest.json")
+          completion_path = Path("specs/011-durable-governed-execution-and-agent-delegation/completion.json")
+
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          assert manifest["phase3_delegation_mariadb_adapter_pull_request"] == 3246
+          assert manifest["phase3_delegation_mariadb_adapter_migration_applied"] is False
+          assert manifest["phase3_delegation_mariadb_adapter_runtime_binding"] is False
+          assert manifest["phase3_delegation_mariadb_adapter_deployment_required"] is False
+
+          reconciled_manifest = {}
+          for key, value in manifest.items():
+              if key == "phase3_delegation_mariadb_adapter_final_ci_head_sha":
+                  value = final_head_sha
+              elif key == "phase3_delegation_mariadb_adapter_final_ci_base_sha":
+                  value = final_base_sha
+              reconciled_manifest[key] = value
+              if key == "phase3_delegation_mariadb_adapter_pull_request":
+                  reconciled_manifest["phase3_delegation_mariadb_adapter_merge_sha"] = merge_sha
+
+          completion = json.loads(completion_path.read_text(encoding="utf-8"))
+          delivery = completion["delivery"]
+          adapter_pr = delivery["phase3_delegation_mariadb_adapter_pr"]
+          assert adapter_pr["number"] == 3246
+          adapter_pr["status"] = "merged"
+          adapter_pr["merge_sha"] = merge_sha
+
+          implementation_pr = next(item for item in delivery["implementation_prs"] if item["number"] == 3246)
+          implementation_pr["status"] = "merged"
+          implementation_pr["merge_sha"] = merge_sha
+
+          evidence = completion["evidence"]
+          adapter_contract = evidence["phase3_delegation_mariadb_adapter_contract"]
+          assert adapter_contract["migration_applied"] is False
+          assert adapter_contract["runtime_adapter_bound"] is False
+          assert adapter_contract["deployment_required"] is False
+          assert adapter_contract["t141_status"] == "open_pending_governed_lifecycle_mutations"
+          adapter_contract["status"] = "complete_on_main"
+          adapter_contract["merge_sha"] = merge_sha
+
+          evidence["implementation"]["status"] = "phase3_delegation_mariadb_adapter_contract_complete_on_main"
+          adapter_ci = evidence["phase3_delegation_mariadb_adapter_ci"]
+          adapter_ci["head_sha"] = final_head_sha
+          adapter_ci["base_sha"] = final_base_sha
+
+          post_merge = evidence["post_merge_audit"]
+          post_merge["phase3_delegation_mariadb_adapter_status"] = "complete_on_main"
+          post_merge["phase3_delegation_mariadb_adapter_merge_sha"] = merge_sha
+          assert post_merge["t141_status"] == "open_pending_governed_lifecycle_mutations"
+
+          manifest_path.write_text(json.dumps(reconciled_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          completion_path.write_text(json.dumps(completion, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          PY
+
+      - name: Validate and commit evidence-only closeout
+        shell: bash
+        run: |
+          python -m json.tool specs/011-durable-governed-execution-and-agent-delegation/manifest.json >/dev/null
+          python -m json.tool specs/011-durable-governed-execution-and-agent-delegation/completion.json >/dev/null
+          rm .github/workflows/spec-011-slice-f-closeout-once.yml
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git add specs/011-durable-governed-execution-and-agent-delegation/manifest.json \
+                  specs/011-durable-governed-execution-and-agent-delegation/completion.json \
+                  .github/workflows/spec-011-slice-f-closeout-once.yml
+          git diff --cached --check
+          git commit -m "docs: close out Spec 011 Slice F merge evidence"
+          git push origin HEAD:gpt/spec-011-phase3-delegation-mariadb-adapter-closeout-20260730
