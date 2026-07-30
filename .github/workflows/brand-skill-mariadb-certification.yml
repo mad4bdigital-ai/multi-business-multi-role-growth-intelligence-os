@@ -90,6 +90,7 @@ jobs:
           node -e 'const fs=require("fs"); const p="artifacts/brand-skill-mariadb-certification.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ok||v.statement_count!==3||v.live_preflight?.ready!==true||v.lifecycle?.delimiter_collision_prevented!==true||v.lifecycle?.suspended_status_accepted!==true||v.production_authorized!==false||v.staging_apply_authorized!==false||v.applies_sql_to_external_environment!==false||v.secrets_included!==false) process.exit(1);'
 
       - name: Upload disposable certification evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: brand-skill-mariadb-certification
