@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b90ce2f118af5d6558269a76152fb3a445096e8a26cc258fe1864ecd6f49f6e1",
+    "source_digest": "6039ab29af1fc52a85ece5174e973f6072eb3642db1b6c2c367e336bc282f4ca",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/managed-git-workers.yaml",
-        "sha256": "82f7a8752e2f0e05b561b5be345c4873d76ab45388f28ab25794d8798e369ff5",
+        "sha256": "4ab9f0b062fd497f786d71206f0169e2af20a7d44307b0842e67cd9a245082e1",
         "present": true
       },
       {
@@ -361,7 +361,7 @@
       },
       {
         "file": "routes/brandSkillRoutes.js",
-        "sha256": "739d481fa7a308a29200ce633ee57bbea9053c3131efc2e945bc189cf14d5cd1",
+        "sha256": "68a5dc8a68e4d3269881385c5093934f68c9b110b8a4ee915f122a1ad2ce0544",
         "present": true
       },
       {
@@ -591,7 +591,7 @@
       },
       {
         "file": "routes/operationOrchestratorRoutes.js",
-        "sha256": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+        "sha256": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
         "present": true
       },
       {
@@ -921,7 +921,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "31c6b5412e2dfc682448f35ff5158ca65498fb20ae48bd572eb99a48d71b1f60",
+        "sha256": "b23aae8a8bcad603e68f2e17be13c26376b82419549112b0cd36276e5123339a",
         "present": true
       },
       {
@@ -25482,7 +25482,7 @@
       "family_key": "operation-orchestrator.admin",
       "label": "operation orchestrator (admin)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+      "source_digest": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
       "mount_prefix": "/",
       "mount_order": 15602,
       "split_from_mixed_scope_file": true,
@@ -26132,7 +26132,7 @@
       "family_key": "operation-orchestrator.tenant",
       "label": "operation orchestrator (tenant)",
       "source_file": "routes/operationOrchestratorRoutes.js",
-      "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
+      "source_digest": "060ea0d0e3b4efaf163ded80049258db8e617a6e597203f4f98c20096c0c64a7",
       "mount_prefix": "/",
       "mount_order": 15602,
       "split_from_mixed_scope_file": true,
@@ -27176,7 +27176,7 @@
       "family_key": "brand-skill",
       "label": "brand skill",
       "source_file": "routes/brandSkillRoutes.js",
-      "source_digest": "739d481fa7a308a29200ce633ee57bbea9053c3131efc2e945bc189cf14d5cd1",
+      "source_digest": "68a5dc8a68e4d3269881385c5093934f68c9b110b8a4ee915f122a1ad2ce0544",
       "mount_prefix": "/",
       "mount_order": 15726,
       "split_from_mixed_scope_file": false,
