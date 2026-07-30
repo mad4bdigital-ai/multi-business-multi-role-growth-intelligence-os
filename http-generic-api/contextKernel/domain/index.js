@@ -24,3 +24,14 @@ export {
   createContextRevision,
   validateContextRevision,
 } from "./contextIntegrity.js";
+
+export {
+  EXECUTION_CAPSULE_SCHEMA_VERSION,
+  ExecutionCapsuleDependencyDomains,
+  ExecutionCapsuleProjectionModes,
+  compareExecutionCapsuleDependencies,
+  createExecutionCapsule,
+  createExecutionCapsuleDependencyVector,
+  createExecutionCapsuleHash,
+  projectExecutionCapsule,
+} from "./executionCapsule.js";
