@@ -256,7 +256,7 @@ jobs:
           #   test-*.mjs files (test suite consumers), and one-off tooling scripts.
           # Keep this aligned with EXECUTION_IMPORT_ALLOWLIST in validate-architecture.mjs.
           # test-*.mjs is a wildcard so new test files never break this check.
-          MATCHES=$(grep -RInE 'from ["'"']\./execution(\.js)?["'"']|import\(["'"']\./execution(\.js)?["'"']\)|require\(["'"']\./execution(\.js)?["'"']\)' . \
+          MATCHES=$(grep -RInE "from [\"']\\./execution(\\.js)?[\"']|import\\([\"']\\./execution(\\.js)?[\"']\\)|require\\([\"']\\./execution(\\.js)?[\"']\\)" . \
             --include='*.js' --include='*.mjs' \
             --exclude='execution.js' \
             --exclude='validate-architecture.mjs' \
