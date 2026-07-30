@@ -57,14 +57,20 @@ When enabled, the adapter records only bounded metadata:
 - maximum observed `ready_set_width`;
 - executed `critical_path_steps`;
 - ledger time around claim and finalization boundaries;
-- `provider_dispatch` stage time only for workflow steps;
 - trace/request/correlation/plan references supplied through `baselineTraceInput`.
 
-It does not infer provider-call counts. `provider_calls` remains unobserved and `provider_call_made` remains `null` until a precise provider boundary is instrumented.
+Provider timing is intentionally stricter:
 
-The same change also removes two legacy first-candidate assumptions in the modified runtime file:
+- the default Sequential executor automatically records `provider_dispatch` only around workflow steps it owns;
+- a custom executor does not receive an automatic provider-stage claim;
+- a custom caller may set `baselineProviderDispatch=true` only when the whole custom workflow executor is a verified provider boundary;
+- `baselineTrace` is passed into the custom executor context so a more precise nested provider boundary can be recorded directly;
+- `provider_calls` is never inferred from stage timing and remains unobserved until a precise provider-call counter is connected.
 
-- plan identity lookup reads at most two rows and fails closed on ambiguity;
+The same slice removes three legacy first-candidate assumptions in the modified runtime file:
+
+- compiled-plan identity lookup reads at most two rows and fails closed on ambiguity;
+- plan claim identity lookup reads at most two rows and fails closed on ambiguity;
 - claimed-step lookup reads at most two rows and fails closed on ambiguity.
 
 A shared tested helper returns `null` for no row, returns the only row for an exact match, and raises a stable `409` ambiguity error for multiple rows.
@@ -92,7 +98,8 @@ A shared tested helper returns `null` for no row, returns the only row for an ex
 - the existing Sequential Plan response shape and plan-state transitions remain unchanged;
 - telemetry is emitted only when explicitly configured;
 - observed and unobserved coverage is accurate;
-- no provider-call claim is made without coverage;
+- provider timing for a custom executor requires an explicit boundary declaration;
+- no provider-call count is claimed without precise coverage;
 - plan and claim identity ambiguity fails closed;
 - raw claim tokens remain excluded from evidence.
 
