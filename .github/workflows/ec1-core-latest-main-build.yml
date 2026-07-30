@@ -1,0 +1,115 @@
+name: EC1 Core Latest Main Build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  build-core:
+    if: github.event.pull_request.head.ref == 'gpt/spec-012-ec1-core-latest-main-20260730'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout clean EC1 core branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-ec1-core-latest-main-20260730
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Copy reviewed EC1 core files
+        run: |
+          git fetch origin gpt/spec-012-ec1-shadow-adapter-exact-head-20260730
+          git checkout origin/gpt/spec-012-ec1-shadow-adapter-exact-head-20260730 -- \
+            http-generic-api/contextKernel/integration/executionCapsuleShadow.js \
+            http-generic-api/contextKernel/integration/index.js \
+            http-generic-api/test-execution-capsule-shadow-adapter.mjs \
+            specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.manifest.json \
+            specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.md \
+            specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json
+
+      - name: Bound EC1 core and defer global registration evidence
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifestPath = 'specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.manifest.json';
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const deferred = [
+            'complete_test_manifest_registration',
+            'generated_test_manifest_evidence_refresh',
+            'exact_head_ci_evidence',
+          ];
+          manifest.artifacts = (manifest.artifacts || []).filter((item) =>
+            !item.endsWith('/scripts/test-manifest.mjs') &&
+            !item.endsWith('/frontend-surface-dispatch.generated.json')
+          );
+          manifest.implemented_contracts = (manifest.implemented_contracts || []).filter(
+            (item) => !deferred.includes(item)
+          );
+          manifest.pending_contracts = [...new Set([
+            ...deferred,
+            ...(manifest.pending_contracts || []),
+          ])];
+          delete manifest.generated_evidence;
+          fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+
+          const docPath = 'specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.md';
+          let doc = fs.readFileSync(docPath, 'utf8');
+          doc = doc.replace(
+            /## Repository-wide test registration[\s\S]*?## Test coverage/u,
+            `## Repository-wide test registration\n\nRepository-wide registration and generator-owned evidence are intentionally deferred to a small follow-up PR. This keeps the EC1 Core contract independent from rapidly changing global generated artifacts while preserving the standalone test and its bounded contract-review evidence.\n\n## Test coverage`
+          );
+          doc = doc.replace(
+            /## Remaining EC1 work[\s\S]*?## Safety boundaries/u,
+            `## Remaining EC1 work\n\n- repository-wide test-manifest registration;\n- generator-owned evidence refresh;\n- exact-head CI and final architecture/security review for this clean core PR;\n- one explicit composition factory for selected runtime shadow configuration;\n- measured parity evidence from a controlled non-production sample;\n- rollback evidence proving removal of the decorator restores the prior shadow path exactly.\n\n## Safety boundaries`
+          );
+          fs.writeFileSync(docPath, doc);
+          NODE
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify EC1 core contracts
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-shadow-adapter.mjs
+          node test-execution-capsule-contract.mjs
+          node test-context-kernel-shadow-integration.mjs
+          node test-context-kernel-domain.mjs
+          node test-context-kernel-application-use-cases.mjs
+
+      - name: Remove builder and enforce exact permanent write set
+        run: |
+          git rm .github/workflows/ec1-core-latest-main-build.yml
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sort)
+          expected=(
+            'http-generic-api/contextKernel/integration/executionCapsuleShadow.js'
+            'http-generic-api/contextKernel/integration/index.js'
+            'http-generic-api/test-execution-capsule-shadow-adapter.mjs'
+            'specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.manifest.json'
+            'specs/012-unified-admin-tenant-context-kernel/ec1-execution-capsule-shadow-adapter.md'
+            'specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json'
+            '.github/workflows/ec1-core-latest-main-build.yml'
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for file in "${expected[@]}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fx -- "$file" >/dev/null
+          done
+
+      - name: Commit clean EC1 core
+        run: |
+          git config user.name 'mad4b-governed-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(spec-012): add EC1 execution capsule shadow core'
+          git push origin HEAD:gpt/spec-012-ec1-core-latest-main-20260730
