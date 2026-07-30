@@ -47,8 +47,9 @@ All public errors use the platform structured error envelope and include a reque
 - `PROVIDER_CONSENT_REQUIRED`: platform identity is valid but no eligible provider API consent exists.
 - `OAUTH_STATE_INVALID`: provider authorization state is malformed or signature validation failed.
 - `OAUTH_STATE_EXPIRED`: provider authorization state is past its expiry.
-- `OAUTH_STATE_REPLAYED`: single-use authorization state has already been consumed.
-- `OAUTH_STATE_CONTEXT_MISMATCH`: signed state conflicts with live principal, tenant, workspace, brand, membership, or owner scope.
+- `OAUTH_STATE_CLAIM_CONFLICT`: another callback atomically claimed the authorization state first; no code exchange or credential mutation occurred.
+- `OAUTH_STATE_REPLAYED`: single-use authorization state has already been consumed or reached a terminal state.
+- `OAUTH_STATE_CONTEXT_MISMATCH`: signed state conflicts with live principal, tenant, workspace, brand, membership, owner scope, target connection, or expected revision.
 - `OAUTH_REDIRECT_NOT_ALLOWED`: redirect target is not allowlisted or does not match signed state.
 - `PROVIDER_ACCOUNT_MISMATCH`: returned provider identity conflicts with the approved authorization context.
 
@@ -82,4 +83,4 @@ All public errors use the platform structured error envelope and include a reque
 - `RECONCILIATION_REQUIRED`
 - `DEPENDENCY_TEMPORARILY_UNAVAILABLE`
 
-Raw provider errors are logged internally after redaction and mapped to these stable codes. Credential material, refresh tokens, authorization codes, raw state values, and provider secrets never appear in public errors.
+Raw provider errors are logged internally after redaction and mapped to these stable codes. Credential material, refresh tokens, authorization codes, raw state values, claim tokens, and provider secrets never appear in public errors.
