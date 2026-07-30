@@ -240,7 +240,7 @@ async function leaseDependencies(deps = {}) {
   return { ...service, ...deps };
 }
 
-async function requireCapabilityEnvelope(action, args, auth, deps) {
+async function requireCapabilityEnvelope(action, args, input, auth, deps) {
   const capability = await capabilityDependencies(deps);
   const resolved = await capability.resolveCapabilityExecutionEnvelope({
     pool: deps.pool,
@@ -250,15 +250,31 @@ async function requireCapabilityEnvelope(action, args, auth, deps) {
       "repository_reconciliation_lease_control",
       `repository_reconciliation_lease_${action}`,
       "repository_operation_lease_control",
-      "repo_mutation",
     ],
     expectedTenantId: auth?.tenant_id || PLATFORM_TENANT_ID,
     expectedUserId: auth?.user_id || "",
+    expectedResourceUri: action === "acquire"
+      ? `github://${input.repository_owner}/${input.repository_name}/branch/${input.branch_name}`
+      : "",
+    expectedBindingSha256: action === "acquire"
+      ? input.operation_fingerprint
+      : input.resource_fingerprint,
   });
   if (!resolved?.ok) {
     throw capability.capabilityEnvelopeError(
       resolved,
       "Repository reconciliation lease control requires a ready capability resolution envelope.",
+    );
+  }
+  if (resolved.apply_allowed !== true) {
+    throw capability.capabilityEnvelopeError(
+      {
+        ok: false,
+        status: "capability_resolution_envelope_apply_not_allowed",
+        envelope_id: resolved.envelope_id,
+        secrets_included: false,
+      },
+      "Repository reconciliation lease control requires an apply-authorized capability resolution envelope.",
     );
   }
   const executionSubject = action === "acquire"
@@ -281,7 +297,7 @@ export async function runRepositoryReconciliationLeaseControl(args = {}, deps = 
     ? buildRepositoryReconciliationLeaseAcquireInput(args)
     : buildLifecycleInput(args, action);
 
-  const envelope = await requireCapabilityEnvelope(action, args, deps.auth || {}, deps);
+  const envelope = await requireCapabilityEnvelope(action, args, input, deps.auth || {}, deps);
   const service = await leaseDependencies(deps);
   let result;
   if (action === "acquire") {
