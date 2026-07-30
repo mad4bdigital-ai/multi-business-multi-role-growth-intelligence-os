@@ -296,6 +296,21 @@ function fakeReadinessRepairResult(mode) {
 }
 
 {
+  await assert.rejects(
+    () => runGovernedMigrationExecution(readinessRepairInput(), {
+      execFile: async () => ({
+        stdout: JSON.stringify({
+          ...fakeReadinessRepairResult("dry_run"),
+          preflight: { status: "already_satisfied", recommended_action: "record_only" },
+        }),
+        stderr: "",
+      }),
+    }),
+    (error) => error.code === "governed_migration_record_only_manual_readback_required" && error.status === 409,
+  );
+}
+
+{
   let runnerPath = "";
   const result = await runGovernedMigrationExecution(readinessRepairInput("apply"), {
     authorizeApply: async () => authorizedEnvelope(),
