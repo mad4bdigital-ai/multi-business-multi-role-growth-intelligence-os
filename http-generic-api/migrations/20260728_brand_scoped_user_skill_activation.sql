@@ -44,9 +44,17 @@ CREATE TABLE IF NOT EXISTS user_brand_skill_grants (
   revoked_at DATETIME NULL,
   provenance_type VARCHAR(64) NOT NULL DEFAULT 'brand_self_service',
   provenance_ref VARCHAR(255) NULL,
-  status ENUM('active','pending','revoked','expired') NOT NULL DEFAULT 'active',
+  status ENUM('active','pending','suspended','revoked','expired') NOT NULL DEFAULT 'active',
   active_scope_hash CHAR(64) GENERATED ALWAYS AS (
-    CASE WHEN status = 'active' THEN SHA2(CONCAT_WS('|', tenant_id, user_id, brand_key, agent_id, skill_id, COALESCE(resource_type, ''), COALESCE(resource_ref, '')), 256) ELSE NULL END
+    CASE WHEN status = 'active' THEN SHA2(CONCAT_WS('|',
+      HEX(tenant_id),
+      HEX(user_id),
+      HEX(brand_key),
+      HEX(agent_id),
+      HEX(skill_id),
+      HEX(COALESCE(resource_type, '')),
+      HEX(COALESCE(resource_ref, ''))
+    ), 256) ELSE NULL END
   ) STORED,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -93,14 +101,16 @@ WHERE g.status = 'active'
   AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP);
 
 -- Runtime policy markers:
--- no_provider_call=true
--- no_credential_payload_read=true
--- no_raw_secrets=true
--- no_external_send=true
--- no_external_write=true
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
 -- authority=user_jwt_plus_membership_plus_workspace_resource_grants
 -- legacy_agent_skill_grants_preserved=true
 -- configured_brand_policy_enforcement_fail_closed=true
 -- automatic_skill_activation=false
 -- same_cycle_readback_required=true
--- secrets_included=false
+-- read_only_preflight=brand_skill_migration_preflight_v1
+-- rollback_runbook=docs/runbooks/brand-skill-migration.md
+-- secrets_included_false
