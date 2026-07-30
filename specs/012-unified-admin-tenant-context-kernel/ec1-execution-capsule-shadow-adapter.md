@@ -6,6 +6,8 @@
 
 EC1 introduces a framework-independent decorator around an existing Context Kernel resolution service. It builds an EC0 Execution Capsule beside the existing shadow resolution and emits bounded comparison telemetry without changing the resolution object, HTTP response, dispatch decision, provider behavior, or persistence state.
 
+Core delivery: PR `#3678`, merge SHA `71475ad136684da1ec86dfb2c9d1f4ff50af7b54`.
+
 ## Delivered implementation
 
 ### Adapter
@@ -133,6 +135,61 @@ original resolution returned to existing shadow comparison
 
 No route changes are required for the adapter contract. Production composition remains intentionally disabled in this slice.
 
+## Selected default-off composition factory
+
+`http-generic-api/contextKernel/integration/executionCapsuleShadowComposition.js`
+
+The factory exposes:
+
+```text
+createExecutionCapsuleResourceApiShadowComposition
+```
+
+The selected composition is the existing Tenant Resource API read shadow only. It is framework-independent and is not wired into route construction by this slice.
+
+When `enabled` is not exactly `true`, the factory:
+
+- returns the exact original resolution service by identity;
+- returns the existing disabled Resource API shadow middleware;
+- schedules no shadow work;
+- requires no capsule, telemetry, database, provider, or route dependency.
+
+When explicitly enabled by an injected non-production caller, the factory:
+
+- decorates the supplied resolution service with EC1;
+- injects the decorated service into the existing Resource API shadow middleware;
+- keeps both capsule and Resource API telemetry separate;
+- does not alter the legacy response, dispatch, or persistence path.
+
+The factory has no environment-variable lookup and cannot activate itself through ambient process state.
+
+## Controlled non-production parity sample
+
+`http-generic-api/test-execution-capsule-shadow-composition.mjs` runs a deterministic in-process sample of three separately selected read contexts.
+
+The sample proves:
+
+- three of three legacy resolution objects are returned by identity;
+- three of three capsule targets match the exact selected context;
+- zero provider dispatches occur;
+- zero automatic writes occur;
+- every result keeps `executionAllowed=false` and `secretsIncluded=false`;
+- the existing Resource API shadow response status remains unchanged;
+- request authorization material is absent from both telemetry streams.
+
+This is contract evidence only. It is not a Production canary, deployment, provider call, or live Tenant activation.
+
+## Rollback evidence
+
+The enabled composition exposes a bounded `rollback()` operation. Rollback:
+
+- restores the exact pre-EC1 resolution service object;
+- returns the existing disabled Resource API shadow middleware;
+- schedules no capsule or Resource API shadow work;
+- requires no database cleanup, migration rollback, route edit, provider action, or credential mutation.
+
+The rollback regression proves the legacy resolution path is restored by identity and that emitting a response `finish` event after rollback schedules no shadow task.
+
 ## Contract review evidence
 
 The temporary read-only EC1 Contract Review succeeded and was removed from the branch. It ran:
@@ -145,11 +202,13 @@ The temporary read-only EC1 Contract Review succeeded and was removed from the b
 
 The review also proved that execution left the checkout unchanged.
 
-A subsequent architecture review identified and repaired three telemetry-boundary gaps before exact-head certification: missing mismatch reason evidence, unbounded status projection, and clock-failure propagation risk. Regression tests now cover all three.
+A subsequent architecture review identified and repaired three telemetry-boundary gaps before exact-head certification: missing mismatch reason evidence, unbounded status projection, and clock-failure propagation risk. Regression tests cover all three.
+
+PR #3678 then passed required CI 4/4 and all relevant side workflows on exact head `63a96bc953e9b78cbd1e0a06833ecbbe1d7aea6c`, received a Human Architecture/Security Review with no blocking findings, and merged at `71475ad136684da1ec86dfb2c9d1f4ff50af7b54`.
 
 ## Repository-wide test registration
 
-Repository-wide registration and generator-owned evidence are intentionally deferred to a small follow-up PR. This keeps the EC1 Core contract independent from rapidly changing global generated artifacts while preserving the standalone test and its bounded contract-review evidence.
+Repository-wide registration and generator-owned evidence are delivered by the EC1 closeout follow-up. The follow-up registers both EC1 contract tests exactly once and delegates generated evidence to repository generator authority.
 
 ## Test coverage
 
@@ -170,14 +229,23 @@ Repository-wide registration and generator-owned evidence are intentionally defe
 - no credential or authorization leakage;
 - no process environment, network, database, cloud SDK, or provider dependency.
 
+`http-generic-api/test-execution-capsule-shadow-composition.mjs` covers:
+
+- default-off transparent behavior;
+- selected Resource API read-shadow composition;
+- three-context deterministic parity evidence;
+- separate bounded telemetry streams;
+- exact legacy-service rollback;
+- no post-rollback scheduling;
+- fail-closed enabled configuration;
+- no ambient environment or route dependency.
+
 ## Remaining EC1 work
 
-- repository-wide test-manifest registration;
+- repository-wide registration of both EC1 tests;
 - generator-owned evidence refresh;
-- exact-head CI and final architecture/security review for this clean core PR;
-- one explicit composition factory for selected runtime shadow configuration;
-- measured parity evidence from a controlled non-production sample;
-- rollback evidence proving removal of the decorator restores the prior shadow path exactly.
+- exact-head CI and Human Architecture/Security Review for the closeout follow-up;
+- post-merge readback and EC1 status reconciliation.
 
 ## Safety boundaries
 
