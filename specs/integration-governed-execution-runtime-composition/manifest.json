@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "package_key": "integration-governed-execution-runtime-composition",
   "package_type": "cross_spec_integration_kit",
   "status": "draft",
@@ -9,6 +9,13 @@
     "durable_execution_and_orchestration": "011-durable-governed-execution-and-agent-delegation",
     "execution_context": "012-unified-admin-tenant-context-kernel",
     "catalog_and_execution_surface": "013-system-tool-catalog-v2"
+  },
+  "baseline_dependencies": {
+    "system_tool_catalog_v2": {
+      "pull_request": 3260,
+      "merge_sha": "0de0cdd6727040a2670821025c32615991cb3251",
+      "state": "merged_on_main"
+    }
   },
   "artifacts": [
     "README.md",
@@ -33,6 +40,16 @@
     "../011-durable-governed-execution-and-agent-delegation/runtime-composition-performance-addendum.md",
     "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-addendum.md",
     "../013-system-tool-catalog-v2/intent-execution-surface-addendum.md"
+  ],
+  "extension_manifests": [
+    "../011-durable-governed-execution-and-agent-delegation/runtime-composition-extension.manifest.json",
+    "../012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
+    "../013-system-tool-catalog-v2/intent-execution-surface-extension.manifest.json"
+  ],
+  "owner_manifests": [
+    "../011-durable-governed-execution-and-agent-delegation/manifest.json",
+    "../012-unified-admin-tenant-context-kernel/manifest.json",
+    "../013-system-tool-catalog-v2/manifest.json"
   ],
   "coverage_domains": [
     "cross_spec_ownership",
