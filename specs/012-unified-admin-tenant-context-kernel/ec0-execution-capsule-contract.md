@@ -6,11 +6,11 @@
 
 Delivery PR: `#3348` on `gpt/spec-012-ec0-clean-9c9b-20260730`.
 
-The clean latest-main build completed successfully: the nine permanent EC0 files were copied from the reviewed source onto the clean baseline, the EC0 and existing Context Kernel domain/application/isolation regressions passed, the latest hardcoding scanner passed, and the one-shot workflow removed itself.
+The clean core build completed successfully: the permanent EC0 domain, application, export, standalone-test, and Spec evidence files were copied onto a current baseline; the EC0 and existing Context Kernel domain/application/isolation regressions passed; the latest hardcoding scanner passed; and every one-shot workflow was removed from the delivery diff.
 
-Repository generator authority then refreshed and verified `frontend-surface-dispatch.generated.json` with a bounded write set on the clean branch. The branch was subsequently synchronized with `main=6966d63fffc1f31dcce5f89afc341ec2e18d1d86`, including the independently certified static-readback assertion fix from PR `#3353`; no EC0 or generated-artifact conflict occurred. Exact-head platform CI and human review remain required before merge.
+Global registration in `scripts/test-manifest.mjs` and its generated frontend evidence are intentionally deferred to a small follow-up PR. This keeps EC0 Core independent from rapidly changing repository-wide generated artifacts without removing the standalone test or weakening coverage. Exact-head platform CI and human review remain required before merge.
 
-EC0 delivers the pure domain/application contract and tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
+EC0 delivers the pure domain/application contract and standalone tests for the Execution Capsule. It does not activate runtime resolution, dispatch, persistence, provider access, routes, workers, or public surfaces.
 
 ## Delivered contract
 
@@ -146,11 +146,12 @@ Both projection modes verify canonical capsule integrity before returning fields
 - `executionAllowed=false` for every outcome;
 - removal of raw credentials and authorization material.
 
-The EC0 contract test and existing Context Kernel domain/application/isolation regressions succeeded in the bounded security review. The test remains registered in the complete platform manifest.
+The standalone EC0 contract test and existing Context Kernel domain/application/isolation regressions succeeded in bounded reviews. Repository-wide test-manifest registration and generated evidence are pending a separate follow-up delivery.
 
 ## Remaining work
 
 - exact-head CI and human review for PR `#3348`;
+- complete test-manifest registration and generated evidence refresh in a follow-up PR;
 - EC1 shadow adapter beside legacy resolution;
 - EC2 selected Tenant/Admin read pilot;
 - EC3 read-only unified-dispatch integration;
