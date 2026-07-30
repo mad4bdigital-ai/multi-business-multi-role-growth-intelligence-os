@@ -22,6 +22,7 @@ export const ExecutionCapsuleValidationStatus = Object.freeze({
 });
 
 const OPERATION_KINDS = new Set(["read", "mutation"]);
+const REASON_CODE_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,190}$/u;
 
 function optionalString(value) {
   if (value == null || value === "") return null;
@@ -32,6 +33,16 @@ function normalizedDate(value, fieldName) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) throw new TypeError(`${fieldName} must be a valid date.`);
   return date;
+}
+
+function normalizeReasonCodes(reasonCodes) {
+  return [...new Set(reasonCodes.map((reason, index) => {
+    const normalized = String(reason || "").trim();
+    if (!REASON_CODE_PATTERN.test(normalized)) {
+      throw new TypeError(`blockedReasonCodes[${index}] must be a bounded reason code.`);
+    }
+    return normalized;
+  }))];
 }
 
 function selectedCandidateFromResolution(resolution) {
@@ -74,7 +85,6 @@ function assertExactContextConsistency(context, selected) {
   const mismatches = pairs
     .filter(([, left, right]) => (left ?? null) !== (right ?? null))
     .map(([field]) => field);
-  if (contextSelected.stableRef !== selected.stableRef) mismatches.push("contextSelectedCandidateRef");
   if (mismatches.length > 0) {
     throw new ContextApplicationError(
       "execution_capsule_context_candidate_mismatch",
@@ -118,11 +128,9 @@ function contextIdentity(context) {
   };
 }
 
-function capsuleContextMismatchFields(capsule, currentContext) {
-  const current = contextIdentity(currentContext);
+function capsuleContextMismatchFields(capsule, current) {
   const pairs = [
     ["contextHash", capsule.contextHash, current.contextHash],
-    ["contextRevision", capsule.contextRevision, current.contextRevision],
     ["principalType", capsule.principalType, current.principalType],
     ["principalRef", capsule.principalRef, current.principalRef],
     ["effectiveSubjectRef", capsule.effectiveSubjectRef, current.effectiveSubjectRef],
@@ -157,6 +165,7 @@ function validationResult({
     mismatchFields: [...new Set(mismatchFields)].sort(),
     dependencyComparison,
     requiresContextReresolution: [
+      ExecutionCapsuleValidationStatus.EXPIRED,
       ExecutionCapsuleValidationStatus.REVISION_MISMATCH,
       ExecutionCapsuleValidationStatus.CONTEXT_MISMATCH,
       ExecutionCapsuleValidationStatus.INTERPRETATION_REQUIRED,
@@ -202,8 +211,15 @@ export function createExecutionCapsuleService({
     assertExactContextConsistency(context, selected);
     const identity = contextIdentity(context);
     const readiness = resolved.capabilityReadiness || context.capability || null;
+    if (!readiness || readiness.dispatchAllowed !== true) {
+      throw new ContextApplicationError(
+        "execution_capsule_capability_not_ready",
+        "Execution capsule creation requires a dispatchable capability decision.",
+        409,
+      );
+    }
     const capabilityKey = requireApplicationString(
-      readiness?.capabilityKey,
+      readiness.capabilityKey,
       "capabilityKey",
     );
 
@@ -273,7 +289,7 @@ export function createExecutionCapsuleService({
       return validationResult({
         status: ExecutionCapsuleValidationStatus.BLOCKED,
         capsule: value,
-        reasonCodes: blockedReasonCodes.map((reason) => String(reason)),
+        reasonCodes: normalizeReasonCodes(blockedReasonCodes),
         validatedAt,
       });
     }
@@ -286,13 +302,22 @@ export function createExecutionCapsuleService({
       });
     }
 
-    const mismatchFields = capsuleContextMismatchFields(value, context);
+    const current = contextIdentity(context);
+    const mismatchFields = capsuleContextMismatchFields(value, current);
     if (mismatchFields.length > 0) {
       return validationResult({
         status: ExecutionCapsuleValidationStatus.CONTEXT_MISMATCH,
         capsule: value,
         reasonCodes: ["execution_capsule_context_mismatch"],
         mismatchFields,
+        validatedAt,
+      });
+    }
+    if (value.contextRevision !== current.contextRevision) {
+      return validationResult({
+        status: ExecutionCapsuleValidationStatus.REVISION_MISMATCH,
+        capsule: value,
+        reasonCodes: ["execution_capsule_context_revision_mismatch"],
         validatedAt,
       });
     }
