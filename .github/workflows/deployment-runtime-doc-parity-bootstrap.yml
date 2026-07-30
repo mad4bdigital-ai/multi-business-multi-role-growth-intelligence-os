@@ -1,6 +1,11 @@
 name: Deployment Runtime Documentation Parity Bootstrap
 
 on:
+  push:
+    branches:
+      - gpt/deployment-runtime-doc-parity-20260730
+    paths:
+      - .github/workflows/deployment-runtime-doc-parity-bootstrap.yml
   pull_request:
     branches: [main]
     paths:
@@ -15,7 +20,7 @@ concurrency:
 
 jobs:
   patch:
-    if: github.event.pull_request.head.ref == 'gpt/deployment-runtime-doc-parity-20260730'
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'gpt/deployment-runtime-doc-parity-20260730'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
