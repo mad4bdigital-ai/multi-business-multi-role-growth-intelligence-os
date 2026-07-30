@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      EXPECTED_MAIN_SHA: 6896b2085b619bfc4d6d22523f5a2a007c107c0d
+      EXPECTED_MAIN_SHA: 3a4a643c64e16ccddafd3967c6b87b3f1b4ad7a0
       TARGET_REF: gpt/reconcile-pr-3182-20260730-v2
     steps:
       - name: Checkout PR branch
