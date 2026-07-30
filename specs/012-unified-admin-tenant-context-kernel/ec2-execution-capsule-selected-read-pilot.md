@@ -2,9 +2,11 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
 EC2 selects the existing Context Kernel `GET /context-resolutions/{resolutionId}` read contract as the first bounded capsule-consuming pilot. The package remains unmounted and default-off.
+
+The implementation merged in PR `#3808` at `92c2c5f3a75d2669fea3290017726c56550bfea8` after exact-head certification on `b5d828b7fed0cd3dc6d1cec3364195eac5643d54`.
 
 ## Selected Tenant and Admin paths
 
@@ -27,38 +29,33 @@ For each selected read:
 4. bounded telemetry is tagged with the trusted `viewMode`;
 5. the exact legacy resolution object is returned unchanged to the existing controller projection.
 
-The Tenant and Admin HTTP projections remain byte-for-byte equivalent to their disabled baseline for the same input. EC2 does not expose capsule contents, hashes, credentials, raw grants, provider payloads, or revision evidence.
+The Tenant and Admin HTTP projections remain equivalent to their disabled baseline for the same input. EC2 does not expose capsule contents, hashes, credentials, raw grants, provider payloads, or revision evidence.
 
-## Default-off and rollback
+## Certified parity and rollback
 
-When `enabled !== true`, the factory returns controllers backed by the exact original operations object and emits no capsule telemetry.
+The certified regression proved:
 
-`rollback()` restores the same disabled composition. It requires no route edit, database cleanup, migration rollback, provider operation, credential mutation, or deployment.
-
-## Regression contract
-
-`http-generic-api/test-execution-capsule-selected-read-pilot.mjs` proves:
-
-- exact legacy resolution identity for Tenant and Admin reads;
-- Tenant and Admin response parity with the disabled baseline;
-- Tenant projection excludes Admin authority/readiness fields;
-- Admin projection preserves only the existing safe diagnostics;
-- one matched capsule event per selected view;
-- zero provider dispatches and zero automatic writes;
+- one Tenant and one Admin selected read;
+- two of two capsule target matches;
+- exact legacy resolution identity preservation;
+- Tenant/Admin response parity with the disabled baseline;
+- zero provider dispatches;
+- zero automatic writes;
 - no secret-like value in telemetry or projections;
-- rollback stops capsule telemetry and restores the original operations object;
-- no environment, network, database, cloud SDK, or provider dependency.
+- rollback restores the exact original operations object and emits no further capsule telemetry.
 
-## Completion gates
+## Repository evidence
 
-EC2 completes only after:
+- Registration run `30578636119` registered `node test-execution-capsule-selected-read-pilot.mjs` exactly once, ran bounded EC0–EC2 regressions, verified the bounded write set, and removed the temporary workflow.
+- Generator run `30578778057` refreshed the generated artifacts; final exact-head run `30578924307` passed with no further head movement.
+- Required CI run `30578924257` passed Syntax Check, Architecture Drift Detection, Execution Resolver Gate, and Unit & Integration Tests.
+- Frontend Surface Dispatch `30578924353`, Custom GPT Contract Guard `30578924101`, Automation Overlap Guard `30578924359`, Context Kernel Hardcoding Report `30578924237`, HTTP Generic API Fanout `30578924222`, Docs Agent `30578924362`, Remaining Scope Scorecard `30578924421`, and Completion Cleanup Readback `30578924426` passed.
+- Human Architecture/Security Review passed with no unresolved review threads.
+- Latest-main non-overlap and post-merge readback passed.
 
-1. the pilot test is registered exactly once in the canonical test manifest;
-2. generator-owned evidence is refreshed;
-3. required CI and relevant side workflows pass on the final head;
-4. Human Architecture/Security Review passes with no unresolved threads;
-5. latest-main non-overlap or governed reconciliation succeeds;
-6. post-merge readback marks only EC2 complete.
+## Completion result
+
+EC2 is complete. EC3–EC5 remain separately bounded delivery slices. Completion of EC2 does not mount the Context Kernel routes, replace dispatch authority, or authorize Production activation.
 
 ## Safety boundaries
 
