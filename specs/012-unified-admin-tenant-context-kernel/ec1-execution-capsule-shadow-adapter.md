@@ -68,7 +68,7 @@ For a blocked, ambiguous, incomplete, or otherwise unresolved context:
 
 ### Failure isolation
 
-A revision-evidence failure, capsule creation failure, security-invariant violation, target mismatch, or telemetry outage:
+A revision-evidence failure, capsule creation failure, security-invariant violation, target mismatch, telemetry outage, or shadow-clock failure:
 
 - does not alter the legacy resolution;
 - does not change the HTTP response;
@@ -77,6 +77,8 @@ A revision-evidence failure, capsule creation failure, security-invariant violat
 - does not authorize execution;
 - emits only a bounded reason code when telemetry is available.
 
+Target mismatch emits `execution_capsule_shadow_target_mismatch`. Invalid, unavailable, or unbounded timing evidence falls back to `durationMs=0` rather than propagating through the legacy resolution path.
+
 Error messages, credentials, provider details, and raw evidence are never copied into telemetry.
 
 ## Telemetry contract
@@ -84,17 +86,19 @@ Error messages, credentials, provider details, and raw evidence are never copied
 The `execution_capsule_shadow` event contains bounded fields only:
 
 - shadow mode;
-- duration;
-- resolution status;
+- non-negative duration;
+- bounded resolution status token;
 - candidate count;
 - whether a selected candidate exists;
 - whether capsule creation was attempted;
 - whether a capsule was created;
 - matched, mismatched, not-attempted, or build-failed outcome;
-- capsule status;
+- bounded capsule status token;
 - target parity;
 - bounded reason codes;
 - fixed security invariants.
+
+Resolution and capsule status values are emitted only when they match the bounded status-token contract; invalid or overlong values are projected as `null`.
 
 It does not contain:
 
@@ -141,6 +145,8 @@ The temporary read-only EC1 Contract Review succeeded and was removed from the b
 
 The review also proved that execution left the checkout unchanged.
 
+A subsequent architecture review identified and repaired three telemetry-boundary gaps before exact-head certification: missing mismatch reason evidence, unbounded status projection, and clock-failure propagation risk. Regression tests now cover all three.
+
 ## Repository-wide test registration
 
 The bounded one-shot registration completed successfully and removed itself. The canonical repository test manifest now contains exactly one:
@@ -164,7 +170,9 @@ Generator-owned evidence refresh and exact-head CI remain pending until reposito
 - explicit revision-evidence requirement;
 - sanitized evidence-provider failures;
 - security-invariant violation handling;
-- target mismatch detection;
+- target mismatch detection with a bounded reason code;
+- overlong status-token sanitization;
+- shadow-clock failure isolation with zero-duration fallback;
 - telemetry outage isolation;
 - composition with the existing Resource API post-response shadow middleware;
 - no credential or authorization leakage;
