@@ -23,6 +23,14 @@ jobs:
           ref: gpt/spec-011-phase3-delegation-mariadb-certification-binding-20260730
           fetch-depth: 0
 
+      - name: Synchronize current main
+        shell: bash
+        run: |
+          git fetch origin main
+          git config user.name "admin-assitant-growth-os[bot]"
+          git config user.email "admin-assitant-growth-os[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
+
       - name: Patch lifecycle, adapter, and test manifest
         shell: bash
         run: |
