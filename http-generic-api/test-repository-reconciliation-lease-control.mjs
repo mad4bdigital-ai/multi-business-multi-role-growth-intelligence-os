@@ -198,6 +198,26 @@ await assert.rejects(
 );
 assert.deepEqual(rejectedEnvelopeDeps.order, ["resolve-envelope"]);
 
+const migration = readFileSync(
+  new URL("./migrations/20260730_repository_reconciliation_lease_control_tool.sql", import.meta.url),
+  "utf8",
+);
+for (const token of [
+  "INSERT INTO admin_platform_endpoint_tools",
+  "repository_reconciliation_lease_control",
+  "/admin/repository-automation/reconciliation-lease",
+  "apply_authorized",
+  "resource_binding",
+  "typed_confirmation",
+  "no_force",
+  "same_cycle_readback",
+  "no_secrets",
+]) {
+  assert.ok(migration.includes(token), `lease control migration missing ${token}`);
+}
+assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE)\b/i);
+assert.match(migration, /ON DUPLICATE KEY UPDATE/);
+
 const routes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
 assert.match(routes, /runRepositoryReconciliationLeaseControl/);
 assert.match(routes, /\/admin\/repository-automation\/reconciliation-lease/);
