@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v2-lease-extension",
-    "source_digest": "6d854e5ebb5f91f07281190a5ecd519dff45e2ee307b4e3d3d49fe28618dece9",
+    "source_digest": "6ce7453d5c1b7156718189ccf51eb553cade4a451ee903efa9afae9c107be317",
     "fail_closed": true
   },
   "source_authority": [
@@ -58,7 +58,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "7cc22fa965877823812b14c773c1c26f2debbf02673b9c72083469925776a488",
+      "sha256": "58df7df8d31cc414de7d02159071f79728208ce014cf26b6f811baa31b182eb9",
       "present": true
     },
     {
@@ -237,7 +237,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "d97eae66d2b44202560b45ac7e765ab818bdcdc2e1a291b8db8e2c4174e3df19",
+        "source_digest": "b2a4fd70e5d9ff3a8dfe299bab416fb7e2c697c3540c88a2bcc7a5ce7a8cc408",
         "fail_closed": true
       }
     },
@@ -281,7 +281,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "d97eae66d2b44202560b45ac7e765ab818bdcdc2e1a291b8db8e2c4174e3df19",
+        "source_digest": "b2a4fd70e5d9ff3a8dfe299bab416fb7e2c697c3540c88a2bcc7a5ce7a8cc408",
         "fail_closed": true
       }
     },
@@ -326,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "d97eae66d2b44202560b45ac7e765ab818bdcdc2e1a291b8db8e2c4174e3df19",
+        "source_digest": "b2a4fd70e5d9ff3a8dfe299bab416fb7e2c697c3540c88a2bcc7a5ce7a8cc408",
         "fail_closed": true
       }
     },
