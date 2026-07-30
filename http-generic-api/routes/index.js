@@ -122,6 +122,7 @@ import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
 import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 import { buildDynamicContainerAuthorityRoutes } from "./dynamicContainerAuthorityRoutes.js";
+import { buildDynamicContainerOverrideGovernanceSmokeRoutes } from "./dynamicContainerOverrideGovernanceSmokeRoutes.js";
 import { buildDynamicContainerTeamRoutes } from "./dynamicContainerTeamRoutes.js";
 import { buildOpenApiRegistrySyncRoutes } from "./openApiRegistrySyncRoutes.js";
 import { buildSqlCachePolicyRoutes } from "./sqlCachePolicyRoutes.js";
@@ -214,6 +215,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantLifecycleRoutes());
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOpenApiRegistrySyncRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSqlCachePolicyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRepositoryAutomationRoutes({ ...deps, requireAdminPrincipal }));

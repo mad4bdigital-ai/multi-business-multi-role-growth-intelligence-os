@@ -7,10 +7,12 @@ on:
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi*.yaml"
       - "http-generic-api/openapi/**/*.yaml"
+      - "http-generic-api/openapi-route-contracts.yaml"
       - "http-generic-api/routes/**"
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
       - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/package.json"
@@ -60,6 +62,7 @@ jobs:
         working-directory: http-generic-api
         run: |
           git fetch origin main --depth=1
+          node scripts/openapi-autofill-missing-routes.mjs --write
           npm run frontend:dispatch:generate -- --baseline-ref=main
           node scripts/generate-custom-gpt-schemas.mjs --write
 
@@ -85,6 +88,7 @@ jobs:
           UNEXPECTED=""
           for file in "${CHANGED[@]}"; do
             case "$file" in
+              http-generic-api/openapi.yaml|\
               http-generic-api/frontend-operation-governance.generated.json|\
               http-generic-api/frontend-surface-dispatch.generated.json|\
               http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
