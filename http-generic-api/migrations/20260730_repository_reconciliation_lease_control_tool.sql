@@ -1,0 +1,67 @@
+-- Safety contract: no_provider_call
+-- Safety contract: no_credential_payload_read
+-- Safety contract: no_raw_secrets
+-- Safety contract: no_external_send
+-- Safety contract: no_external_write
+-- Safety contract: secrets_included=false
+
+INSERT INTO admin_platform_endpoint_tools (
+  tool_key,
+  display_name,
+  description,
+  http_method,
+  http_path,
+  path_param_keys,
+  input_schema,
+  fixed_body,
+  tags,
+  is_enabled,
+  sort_order
+) VALUES (
+  'repository_reconciliation_lease_control',
+  'Repository Reconciliation Lease Control',
+  'Acquire, renew, or release one governed repository reconciliation lease. Requires Admin authority, an apply-authorized GitHub capability envelope bound to the exact resource and fingerprint, action-specific typed confirmation, and no force or protected-branch bypass.',
+  'POST',
+  '/admin/repository-automation/reconciliation-lease',
+  JSON_ARRAY(),
+  JSON_OBJECT(
+    'type', 'object',
+    'required', JSON_ARRAY('action', 'capability_envelope_id', 'confirm'),
+    'properties', JSON_OBJECT(
+      'action', JSON_OBJECT('type', 'string', 'enum', JSON_ARRAY('acquire', 'renew', 'release')),
+      'capability_envelope_id', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 64),
+      'confirm', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 96),
+      'owner', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 100),
+      'repo', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 100),
+      'branch', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 255),
+      'default_branch', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 255, 'default', 'main'),
+      'expected_base_sha', JSON_OBJECT('type', 'string', 'pattern', '^[0-9a-fA-F]{40}$'),
+      'expected_branch_sha', JSON_OBJECT('type', 'string', 'pattern', '^[0-9a-fA-F]{40}$'),
+      'operation_key', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 128, 'default', 'repo.pr.reconcile_and_finalize'),
+      'holder_run_id', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 64),
+      'holder_actor_type', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 64, 'default', 'platform_orchestrator'),
+      'holder_actor_id', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 64),
+      'ttl_seconds', JSON_OBJECT('type', 'integer', 'minimum', 60, 'maximum', 3600, 'default', 300),
+      'operation_fingerprint', JSON_OBJECT('type', 'string', 'pattern', '^[0-9a-fA-F]{64}$'),
+      'lease_id', JSON_OBJECT('type', 'string', 'minLength', 1, 'maxLength', 64),
+      'resource_fingerprint', JSON_OBJECT('type', 'string', 'pattern', '^[0-9a-fA-F]{64}$'),
+      'release_reason', JSON_OBJECT('type', 'string', 'maxLength', 500)
+    ),
+    'additionalProperties', false
+  ),
+  NULL,
+  'admin,repository,reconciliation,lease,mutation,capability_envelope,apply_authorized,resource_binding,typed_confirmation,no_force,same_cycle_readback,no_secrets',
+  1,
+  327
+)
+ON DUPLICATE KEY UPDATE
+  display_name = VALUES(display_name),
+  description = VALUES(description),
+  http_method = VALUES(http_method),
+  http_path = VALUES(http_path),
+  path_param_keys = VALUES(path_param_keys),
+  input_schema = VALUES(input_schema),
+  fixed_body = VALUES(fixed_body),
+  tags = VALUES(tags),
+  is_enabled = VALUES(is_enabled),
+  sort_order = VALUES(sort_order);

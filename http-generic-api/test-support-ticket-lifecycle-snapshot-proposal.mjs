@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 // frontend-surface-operation: POST /platform/orchestration/support-ticket/snapshot-propose
 
 const service = readFileSync("supportTicketLifecycleSnapshotProposal.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql", "utf8");
-const openapi = readFileSync("openapi.yaml", "utf8");
+const openapiSource = readFileSync("openapi.yaml", "utf8");
+const openapi = YAML.parse(openapiSource);
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
@@ -41,9 +43,13 @@ assert(service.includes("will_execute_provider_call: false"), "service must not 
 assert(service.includes("will_read_credential_payload: false"), "service must not read credential payloads");
 assert(service.includes("will_external_send: false"), "service must not send externally");
 assert(service.includes("recommendation_only"), "service must classify recommendation-only behavior");
-assert(openapi.includes("operationId: supportTicketLifecycleSnapshotPropose"), "OpenAPI must document Support Ticket proposal route");
-assert(openapi.includes("will_mutate_ticket: { type: boolean, enum: [false] }"), "OpenAPI must declare no ticket mutation");
-assert(openapi.includes("will_external_send: { type: boolean, enum: [false] }"), "OpenAPI must declare no external send");
+
+const proposalOperation = openapi?.paths?.["/platform/orchestration/support-ticket/snapshot-propose"]?.post;
+assert.equal(proposalOperation?.operationId, "supportTicketLifecycleSnapshotPropose", "OpenAPI must document Support Ticket proposal route");
+const executionProperties = proposalOperation?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.execution?.properties;
+assert.deepEqual(executionProperties?.will_mutate_ticket?.enum, [false], "OpenAPI must declare no ticket mutation");
+assert.deepEqual(executionProperties?.will_external_send?.enum, [false], "OpenAPI must declare no external send");
+
 assert(releaseReadiness.includes("272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql"), "release readiness must track migration 272");
 assert(releaseReadiness.includes('policy_key: "support_ticket_lifecycle_snapshot_proposal_policy_v1"'), "release readiness must require proposal policy");
 assert(runner.includes("272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql"), "governed migration runner must allowlist migration 272");

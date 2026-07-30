@@ -100,7 +100,7 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
       },"The capability envelope is not apply-authorized for override governance smoke.");
     }
 
-    const tenantId=String(envelope.tenant_id || "").trim();
+    const tenantId=String(envelope.tenant_id || "");
     if(!tenantId) {
       throw capabilityEnvelopeError({
         status:"capability_resolution_envelope_tenant_required",
@@ -109,19 +109,27 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
       },"A tenant-bound capability envelope is required for override governance smoke fixtures.");
     }
     const [epochRows]=await connection.query(
-      "SELECT tenant_id,authority_epoch FROM container_authority_epochs WHERE tenant_id=? LIMIT 1 FOR UPDATE",
+      "SELECT tenant_id,authority_epoch FROM container_authority_epochs WHERE BINARY tenant_id = BINARY ? LIMIT 1 FOR UPDATE",
       [tenantId]
     );
     const epochRow=epochRows?.[0];
-    if(!epochRow) throw smokeError(409,"override_governance_smoke_fixture_unavailable","No authority epoch fixture candidate is available for the envelope tenant.");
+    if(!epochRow) throw smokeError(409,"override_governance_smoke_fixture_unavailable","No authority epoch fixture candidate is available for the exact envelope tenant.");
+    if(String(epochRow.tenant_id) !== tenantId) {
+      throw smokeError(409,"override_governance_smoke_tenant_mismatch","Authority epoch fixture tenant does not exactly match the capability envelope tenant.");
+    }
     const authorityEpoch=Number(epochRow.authority_epoch || 0);
 
     const [containerRows]=await connection.query(
-      "SELECT container_id FROM containers WHERE tenant_id=? AND status='active' ORDER BY container_id LIMIT 1",
+      "SELECT tenant_id,container_id FROM containers WHERE BINARY tenant_id = BINARY ? AND status='active' ORDER BY container_id LIMIT 1",
       [tenantId]
     );
-    const targetContainerId=String(containerRows?.[0]?.container_id || "");
-    if(!targetContainerId) throw smokeError(409,"override_governance_smoke_fixture_unavailable","No active container fixture candidate is available.");
+    const containerRow=containerRows?.[0];
+    if(!containerRow) throw smokeError(409,"override_governance_smoke_fixture_unavailable","No active container fixture candidate is available for the exact envelope tenant.");
+    if(String(containerRow.tenant_id) !== tenantId) {
+      throw smokeError(409,"override_governance_smoke_tenant_mismatch","Container fixture tenant does not exactly match the capability envelope tenant.");
+    }
+    const targetContainerId=String(containerRow.container_id || "");
+    if(!targetContainerId) throw smokeError(409,"override_governance_smoke_fixture_unavailable","The exact envelope tenant has no usable active container fixture.");
 
     const [policyRows]=await connection.query(
       "SELECT required_approval_count,self_approval_allowed,one_time_consumption_required FROM container_override_policy_registry WHERE risk_class='destructive' AND status='active' LIMIT 1 FOR UPDATE"
@@ -321,24 +329,39 @@ export async function runDynamicContainerOverrideGovernanceSmoke({
     });
     if(!envelopeLifecycle.ok) throw capabilityEnvelopeError(envelopeLifecycle,"Override governance smoke envelope consumption failed.");
 
+    const [threadRows]=await connection.query(
+      "SELECT thread_key,state,observed_evidence_json,blocker_json,next_action,updated_at FROM platform_closure_threads WHERE thread_key='dynamic_container_override_governance' LIMIT 1 FOR UPDATE"
+    );
+    const thread=threadRows?.[0] || null;
+    const observedEvidence=parseJson(thread?.observed_evidence_json,[]);
+    const blockerJson=parseJson(thread?.blocker_json,[]);
+    const evidenceReadback=observedEvidence.find((entry) =>
+      String(entry?.evidenceType || "") === "dynamic_container_override_governance_smoke_v1"
+      && String(entry?.runId || "") === runId
+    );
+    if(!thread || !evidenceReadback || !Array.isArray(blockerJson) || blockerJson.length !== 0) {
+      throw smokeError(
+        409,
+        "override_governance_smoke_closure_thread_readback_failed",
+        "Override governance closure evidence did not pass required same-cycle readback before commit."
+      );
+    }
+    const closureThread={
+      ...thread,
+      observed_evidence_json:observedEvidence,
+      blocker_json:blockerJson
+    };
+
     await connection.commit();
     transactionStarted=false;
 
-    const [threadRows]=await connection.query(
-      "SELECT thread_key,state,observed_evidence_json,blocker_json,next_action,updated_at FROM platform_closure_threads WHERE thread_key='dynamic_container_override_governance' LIMIT 1"
-    );
-    const thread=threadRows?.[0] || null;
     return {
       ok:true,
       mode:"apply",
       plan,
       results:evidence,
       cleanup,
-      closureThread:thread ? {
-        ...thread,
-        observed_evidence_json:parseJson(thread.observed_evidence_json,[]),
-        blocker_json:parseJson(thread.blocker_json,[])
-      } : null,
+      closureThread,
       capabilityEnvelope:{
         envelopeId:envelope.envelope_id,
         executionStatus:envelopeLifecycle?.after?.execution_status || null
