@@ -338,13 +338,24 @@ export async function addContainerOverrideApproval({ overrideId, approverPrincip
 export async function consumeContainerOverride({
   overrideId,executionRef,resolution,targetContainerId,dimensionKey,resourceType,resourceRef,operationKey,
   actionKey,endpointKey,bindingRef = null,readbackRef
-}) {
-  const connection = await getPool().getConnection();
+}, { executor = null, manageTransaction = true } = {}) {
+  if (!manageTransaction && !executor) {
+    throw Object.assign(
+      new Error("An explicit executor is required when transaction management is disabled."),
+      { status:500,code:"override_executor_required" }
+    );
+  }
+  const connection = executor || await getPool().getConnection();
+  const releaseConnection = !executor;
+  let transactionStarted = false;
   try {
     if (!executionRef || !readbackRef || !actionKey || !endpointKey) {
       throw Object.assign(new Error("Execution, action, endpoint, and same-cycle readback references are required."), { status:422, code:"override_scope_mismatch" });
     }
-    await connection.beginTransaction();
+    if (manageTransaction) {
+      await connection.beginTransaction();
+      transactionStarted = true;
+    }
     const override = await readContainerOverrideForUpdate(connection,overrideId);
     if (!override) throw Object.assign(new Error("Container override was not found."), { status:404,code:"container_override_not_found" });
     const envelopeRows = await queryRows(connection,
@@ -395,13 +406,29 @@ export async function consumeContainerOverride({
       [consumptionId,overrideId,executionRef,resolution.resolutionId,resolution.resolutionSha256,resolution.authorityEpoch,actionKey,endpointKey,bindingRef,readbackRef,stableSha256(payload)]
     );
     await connection.query("UPDATE container_override_requests SET status='consumed',consumed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE override_id=?", [overrideId]);
-    await connection.commit();
+    if (manageTransaction) await connection.commit();
     return { ...payload,consumptionId,status:"consumed",secretsIncluded:false };
   } catch (error) {
-    await connection.rollback();
+    if (manageTransaction && transactionStarted) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        const aggregate = new AggregateError(
+          [error,rollbackError],
+          "Container override consumption failed and its transaction rollback also failed."
+        );
+        aggregate.status = 500;
+        aggregate.code = "container_override_consumption_rollback_failed";
+        aggregate.details = [
+          { stage:"override_consumption",code:String(error?.code || "unknown"),message:String(error?.message || error) },
+          { stage:"transaction_rollback",code:String(rollbackError?.code || "unknown"),message:String(rollbackError?.message || rollbackError) }
+        ];
+        throw aggregate;
+      }
+    }
     throw error;
   } finally {
-    connection.release();
+    if (releaseConnection) connection.release();
   }
 }
 
