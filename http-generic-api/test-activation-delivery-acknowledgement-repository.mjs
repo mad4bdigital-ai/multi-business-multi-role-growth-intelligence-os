@@ -76,6 +76,9 @@ const appendCalls = [];
 const appendConnection = {
   async query(sql, params) {
     appendCalls.push({ sql, params });
+    if (/^\s*SELECT delivery_id/.test(sql) && /FOR UPDATE/.test(sql)) {
+      return [[{ delivery_id: deliveryId }]];
+    }
     return [{ affectedRows: 1 }];
   },
 };
@@ -120,6 +123,11 @@ const acknowledgement = await appendActivationAcknowledgementRecord(appendConnec
 });
 assert.equal(acknowledgement.acknowledgement_id, acknowledgementId);
 assert.match(acknowledgement.acknowledgement_key_sha256, /^[0-9a-f]{64}$/);
+const deliveryScopeLock = appendCalls.find(
+  ({ sql }) => /^\s*SELECT delivery_id/.test(sql) && /FOR UPDATE/.test(sql),
+);
+assert(deliveryScopeLock);
+assert.deepEqual(deliveryScopeLock.params, [deliveryId, operationId, tenantId]);
 const acknowledgementInsert = appendCalls.find(({ sql }) =>
   /INSERT INTO activation_acknowledgements/.test(sql),
 );
@@ -127,6 +135,26 @@ assert(acknowledgementInsert);
 assert.equal(acknowledgementInsert.params[7], "pending");
 assert.equal(acknowledgementInsert.params.includes(actorRef), false);
 assert.equal(JSON.stringify(acknowledgementInsert.params).includes(actorRef), false);
+await assert.rejects(
+  () =>
+    appendActivationAcknowledgementRecord(
+      {
+        async query(sql) {
+          if (/^\s*SELECT delivery_id/.test(sql)) return [[]];
+          throw new Error("acknowledgement insert must not run for a cross-scope delivery");
+        },
+      },
+      {
+        acknowledgement_id: acknowledgementId,
+        operation_id: operationId,
+        delivery_id: deliveryId,
+        tenant_id: tenantId,
+        actor_type: "tenant_user",
+        actor_ref: actorRef,
+      },
+    ),
+  (error) => error?.code === "activation_delivery_not_found" && error?.status === 404,
+);
 await assert.rejects(
   () =>
     appendActivationAcknowledgementRecord(appendConnection, {
