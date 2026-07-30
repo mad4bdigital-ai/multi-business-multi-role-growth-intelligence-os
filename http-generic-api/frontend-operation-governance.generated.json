@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v1",
-    "source_digest": "d8a25512823f458999c88dcde22da923c7dcaf024a442b92c07087cf9e9d9437",
+    "source_digest": "609f2b7f6a7e592d5bb2901ceb5bd9eca10023fa195d27fb744a2dac75c2b3f6",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "3914e1c4c007034d67c087329af42e31fdcd98723bd96779c677919c6aad4813",
+      "sha256": "a9e77e6e7cda969fcf7bb926aac5c41c943e331d5fff3cccbd96f72332c00869",
       "present": true
     },
     {

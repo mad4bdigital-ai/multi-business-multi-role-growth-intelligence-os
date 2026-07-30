@@ -64,6 +64,15 @@ export function buildMixedRoutes({ requireAdminPrincipal }) {
   router.get("/admin/support/tickets", requireAdminPrincipal, handler);
   router.get("/credential-intake/:token", (_req, res) => res.type("html").send("<!doctype html>"));
   router.get("/credential-intake/:token/schema", (_req, res) => res.json({ fields: [] }));
+  router.get(
+    "/signed-download/:token",
+    requireBackendApiKey,
+    requireFreshLocalManagerDeviceForPrivilegedInstaller,
+    async (req, res) => {
+      verifyInstallerDownloadToken(req.query.token);
+      return handler(req, res);
+    },
+  );
   /* router.delete("/disabled/commented-route", requireAdminPrincipal, handler); */
   return router;
 }
@@ -93,6 +102,10 @@ components:
           authorizationUrl: https://example.test/authorize
           tokenUrl: https://example.test/token
           scopes: {}
+    signedQueryTokenAuth:
+      type: apiKey
+      in: query
+      name: token
 paths:
   /me/workspaces/{tenant_id}/dashboard:
     get:
@@ -134,6 +147,10 @@ paths:
       responses: {}
   /admin/control:
     post:
+      responses: {}
+  /signed-download/{token}:
+    get:
+      security: [{ signedQueryTokenAuth: [] }]
       responses: {}
   /me/workspaces/{workspaceId}/team:
     $ref: './openapi/team.yaml#/workspaceTeam'
@@ -237,6 +254,14 @@ write(apiRoot, "frontend-surface-policy.json", JSON.stringify({
       owner: "tenant-ui",
       rationale: "Fixture auth decision.",
       evidence_refs: ["fixture-auth-rule"]
+    },
+    {
+      rule_id: "signed-download-auth",
+      operation: "GET /signed-download/{token}",
+      profile: "signed_query_token",
+      owner: "installer-security",
+      rationale: "Signed downloads require an explicit short-lived token.",
+      evidence_refs: ["fixture-signed-download-auth"]
     }
   ],
   operation_rules: [
@@ -336,16 +361,104 @@ const explicitRequireUserRoute = parseRoutesFromFile(
   "routes/resourceApiRoutes.js",
 )[0];
 assert.deepEqual(explicitRequireUserRoute.route_guards, ["requireUser"]);
+const nestedRouterOperations = parseRoutesFromFile(`
+  function mountOperationRoutes(router, middleware = []) {
+    router.get("/operations/contracts", ...middleware, handler);
+    router.post("/operations/execute", ...middleware, handler);
+  }
+  export function buildOperationRoutes() {
+    const router = Router();
+    const backendGuard = requireBackendApiKey;
+    const adminGuard = requireAdminPrincipal;
+    const admin = Router();
+    mountOperationRoutes(admin, [backendGuard, adminGuard]);
+    router.use("/admin", admin);
+    const tenant = Router();
+    mountOperationRoutes(tenant, [requireTenantOperationPrincipal]);
+    router.use("/tenant", tenant);
+    return router;
+  }
+`, "routes/nestedOperationRoutes.js");
+assert.deepEqual(
+  nestedRouterOperations.map((operation) => operation.signature).sort(),
+  [
+    "GET /admin/operations/contracts",
+    "GET /tenant/operations/contracts",
+    "POST /admin/operations/execute",
+    "POST /tenant/operations/execute",
+  ].sort(),
+  "nested child routers must inherit their mounted prefixes without emitting bare helper routes",
+);
+assert.deepEqual(
+  nestedRouterOperations.find((operation) => operation.signature === "GET /admin/operations/contracts").route_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+);
+assert.deepEqual(
+  nestedRouterOperations.find((operation) => operation.signature === "GET /tenant/operations/contracts").route_guards,
+  ["requireTenantOperationPrincipal"],
+);
+assert.equal(
+  nestedRouterOperations.some((operation) => operation.path.startsWith("/operations/")),
+  false,
+  "helper-local bare routes must not enter the runtime inventory",
+);
+const adjacentInstallerOperations = parseRoutesFromFile(`
+  router.post("/device-download-link", async (req, res) => {
+    const principal = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
+    const token = signInstallerDownloadToken({ device_id: principal.device_id });
+    return res.json({ token });
+  });
+  router.post("/download-link", requireBackendApiKey, async (req, res) => {
+    const principal = await resolveRequestedLocalPrincipal(req);
+    const token = signInstallerDownloadToken({ user_id: principal.user_id });
+    return res.json({ token });
+  });
+  router.get("/download", async (req, res) => {
+    const token = verifyInstallerDownloadToken(req.query.token);
+    return res.json({ token });
+  });
+`, "routes/localConnectorInstallRoutes.js");
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "POST /device-download-link").route_guards,
+  ["requireFreshLocalManagerDeviceForPrivilegedInstaller"],
+  "handler-local token aliases must not leak signed-download verification into the device link route",
+);
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "POST /download-link").route_guards,
+  ["requireBackendApiKey"],
+  "handler-local principal and token aliases must not leak guards into the backend link route",
+);
+assert.deepEqual(
+  adjacentInstallerOperations.find((operation) => operation.signature === "GET /download").route_guards,
+  ["verifyInstallerDownloadToken"],
+  "the signed download verifier must remain visible on the route that invokes it",
+);
+const semanticHelperOperations = parseRoutesFromFile(`
+  const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
+  const tenantReadHandlers = (handler) => [requireUser, handler];
+  router.get("/admin-only", ...adminOnly, handler);
+  router.get("/tenant-read", ...tenantReadHandlers(handler));
+`, "routes/semanticHelperRoutes.js");
+assert.deepEqual(
+  semanticHelperOperations.find((operation) => operation.signature === "GET /admin-only").route_guards,
+  ["requireAdminPrincipal", "requireBackendApiKey"],
+  "Only-suffixed middleware arrays must preserve backend and admin guards",
+);
+assert.deepEqual(
+  semanticHelperOperations.find((operation) => operation.signature === "GET /tenant-read").route_guards,
+  ["requireUser"],
+  "Handlers-suffixed arrow helpers must preserve tenant authentication guards",
+);
 assert.deepEqual(
   parseTestEvidenceClaims("// frontend-surface-operation: POST /\n// frontend-surface-operation: GET /nested\n"),
   ["GET /nested", "POST /"],
   "registered evidence must support the root path as well as nested paths",
 );
-assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 12);
+assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8")).size, 13);
 assert.equal(parseOpenApiOperations(fs.readFileSync(path.join(apiRoot, "openapi.yaml"), "utf8"), {
   sourcePath: path.join(apiRoot, "openapi.yaml"),
   apiRoot,
-}).size, 20);
+}).size, 21);
 const blockSecuritySource = "security:\n  - adminBearerAuth: []\n  - backendApiKeyAuth: []\n";
 const blockSecurityDocument = YAML.parseDocument(blockSecuritySource, { keepSourceTokens: true });
 const blockSecurityNode = blockSecurityDocument.getIn(["security"], true);
@@ -388,9 +501,9 @@ const plan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
 assert.equal(plan.schema_version, "frontend-surface-dispatch-v1");
 assert.equal(plan.baseline.ref, "fixture-sha");
 assert.equal(plan.coverage.mounted_route_file_count, 5);
-assert.equal(plan.coverage.mounted_family_count, 7);
+assert.equal(plan.coverage.mounted_family_count, 8);
 assert.equal(plan.coverage.mixed_scope_route_file_count, 1);
-assert.equal(plan.coverage.operation_count, 20);
+assert.equal(plan.coverage.operation_count, 21);
 const tenantOperations = plan.families.find((family) => family.source_file === "routes/tenantRoutes.js").operations;
 assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights"));
 assert(tenantOperations.some((entry) => entry.signature === "GET /me/workspaces/{tenant_id}/insights/{view}"));
@@ -418,6 +531,37 @@ const inlineHandlerAuth = plan.families
   .find((entry) => entry.signature === "GET /me/support/tickets");
 assert.equal(inlineHandlerAuth.runtime_auth.profile, "user_jwt", "handler-internal auth calls must be discovered");
 assert.equal(inlineHandlerAuth.auth_parity.state, "equivalent");
+const signedDownloadOperation = plan.families
+  .find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "developer")
+  .operations
+  .find((entry) => entry.signature === "GET /signed-download/{token}");
+assert.equal(signedDownloadOperation.runtime_auth.state, "resolved");
+assert.equal(signedDownloadOperation.runtime_auth.profile, "signed_query_token");
+assert.equal(signedDownloadOperation.auth_parity.state, "equivalent");
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("requireBackendApiKey"));
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller"));
+assert(signedDownloadOperation.runtime_auth.guard_chain.includes("verifyInstallerDownloadToken"));
+assert(signedDownloadOperation.runtime_auth.evidence.includes("fixture-signed-download-auth"));
+assert(signedDownloadOperation.runtime_auth.evidence.includes("runtime_guard:verifyInstallerDownloadToken"));
+
+const mixedRoutesPath = path.join(apiRoot, "routes/mixedRoutes.js");
+const validMixedRoutesSource = fs.readFileSync(mixedRoutesPath, "utf8");
+fs.writeFileSync(
+  mixedRoutesPath,
+  validMixedRoutesSource.replace("verifyInstallerDownloadToken(req.query.token);", "void req.query.token;"),
+);
+const missingSignedGuardPlan = buildDispatchPlan({ apiRoot, baselineRef: "fixture-sha" });
+const missingSignedGuardOperation = missingSignedGuardPlan.families
+  .filter((family) => family.source_file === "routes/mixedRoutes.js")
+  .flatMap((family) => family.operations)
+  .find((entry) => entry.signature === "GET /signed-download/{token}");
+assert.equal(missingSignedGuardOperation.runtime_auth.state, "unresolved");
+assert.equal(
+  missingSignedGuardOperation.runtime_auth.profile,
+  "auth_policy_conflicts_with_runtime_guard",
+  "signed-query-token policy must fail closed when the runtime token verifier is absent",
+);
+fs.writeFileSync(mixedRoutesPath, validMixedRoutesSource);
 assert(
   !plan.baseline.authority.some((entry) => entry.file === "openapi/openapi.tenant-gpt.auth.yaml"),
   "generated audience projections must not satisfy canonical OpenAPI coverage",
@@ -434,8 +578,11 @@ assert(
     .every((entry) => entry.runtime_auth.profile === "admin_backend"),
   "filtered admin guard arrays must retain both authenticator and authorizer evidence",
 );
-assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 3);
-assert.deepEqual(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(), ["admin", "tenant", "unresolved"]);
+assert.equal(plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").length, 4);
+assert.deepEqual(
+  plan.families.filter((family) => family.source_file === "routes/mixedRoutes.js").map((family) => family.scope).sort(),
+  ["admin", "developer", "tenant", "unresolved"],
+);
 assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").embedded_ui, true);
 assert.equal(plan.families.find((family) => family.source_file === "routes/mixedRoutes.js" && family.scope === "unresolved").operations.find((operation) => operation.path.endsWith("/schema")).embedded_ui, false);
 assert.equal(new Set(plan.tasks.map((task) => task.task_key)).size, plan.tasks.length, "split-scope dispatch tasks must keep unique keys");
