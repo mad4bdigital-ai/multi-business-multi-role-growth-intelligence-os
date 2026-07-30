@@ -24,6 +24,7 @@ const SAFE_SECURITY_FLAG_KEYS = new Set([
   "automaticwriteperformed",
   "credentialpayloadread",
   "credentialpayloadreads",
+  "credentialreadinessrevision",
   "providercallmade",
   "readbackperformed",
   "retryallowed",
