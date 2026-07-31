@@ -1,0 +1,133 @@
+name: Spec 013 Post-Merge Contract Closure
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-013-post-merge-contract-closure-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/spec-013-post-merge-contract-closure-20260731' &&
+      github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/spec-013-post-merge-contract-closure-20260731
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Synchronize latest main without force
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge --no-edit origin/main
+          fi
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply bounded runtime, OpenAPI, and regression repairs
+        run: python3 .github/scripts/spec-013-post-merge-repair.py
+
+      - name: Check repaired syntax
+        working-directory: http-generic-api
+        run: |
+          node --check routes/systemLayerRoutes.js
+          node --check test-system-tool-catalog-v2-post-merge-contract.mjs
+
+      - name: Run existing Catalog V2 regression
+        working-directory: http-generic-api
+        run: node test-system-tool-catalog-v2.mjs
+
+      - name: Run post-merge Catalog V2 contract regression
+        working-directory: http-generic-api
+        run: node test-system-tool-catalog-v2-post-merge-contract.mjs
+
+      - name: Run system-layer response fallback regression
+        working-directory: http-generic-api
+        run: node test-system-layer-response-fallback.mjs
+
+      - name: Run platform route regression
+        working-directory: http-generic-api
+        run: node test-platform-routes.mjs
+
+      - name: Refresh bounded generated artifacts and contract guards
+        working-directory: http-generic-api
+        run: |
+          git fetch origin main
+          npm run frontend:dispatch:generate -- --baseline-ref=origin/main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
+
+      - name: Enforce bounded write set
+        shell: bash
+        run: |
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          test ${#CHANGED[@]} -gt 0
+          UNEXPECTED=""
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              .github/scripts/spec-013-post-merge-repair.py|\
+              http-generic-api/routes/systemLayerRoutes.js|\
+              http-generic-api/openapi.yaml|\
+              http-generic-api/test-platform-routes.mjs|\
+              http-generic-api/test-system-tool-catalog-v2-post-merge-contract.mjs|\
+              http-generic-api/scripts/test-manifest.mjs|\
+              specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml|\
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+              http-generic-api/openapi.gpt-action.local-connector.yaml)
+                ;;
+              *) UNEXPECTED+="$file"$'\n' ;;
+            esac
+          done
+          if [[ -n "$UNEXPECTED" ]]; then
+            echo '::error::Repair changed files outside the bounded allowlist'
+            printf '%s' "$UNEXPECTED"
+            exit 1
+          fi
+          git diff --check
+
+      - name: Commit bounded repair and remove temporary automation
+        shell: bash
+        run: |
+          rm -f .github/workflows/spec-013-post-merge-contract-closure.yml
+          rm -f .github/scripts/spec-013-post-merge-repair.py
+          git add --all
+          git diff --cached --check
+          git commit -m "fix(spec-013): close post-merge catalog contracts"
+          git push origin HEAD:fix/spec-013-post-merge-contract-closure-20260731
