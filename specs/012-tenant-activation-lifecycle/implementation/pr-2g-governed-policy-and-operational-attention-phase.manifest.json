@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "governed_policy_and_operational_attention",
+  "delivery_mode": "integrated_phase",
+  "tasks": ["T018", "T019", "T024B", "T025", "T029A", "T029B", "T029C"],
+  "layers": {
+    "domain_engine": "http-generic-api/src/domain/governedPolicy/governedPolicyQuestionnaireEngine.js",
+    "questionnaire_service": "http-generic-api/src/application/governedPolicy/governedPolicyQuestionnaireService.js",
+    "lifecycle_service": "http-generic-api/src/application/governedPolicy/governedPolicyLifecycleService.js",
+    "repository": "http-generic-api/src/infrastructure/governedPolicy/governedPolicyRepository.js",
+    "deployment_exposure_adapter": "http-generic-api/src/domain/governedPolicy/adapters/activationDeploymentExposurePolicyAdapter.js",
+    "operational_attention_adapter": "http-generic-api/src/domain/governedPolicy/adapters/activationOperationalAttentionPolicyAdapter.js"
+  },
+  "contracts": [
+    "specs/012-tenant-activation-lifecycle/contracts/governed-policy-questionnaire.openapi.yaml",
+    "specs/012-tenant-activation-lifecycle/contracts/governed-policy-questionnaire.schema.json",
+    "specs/012-tenant-activation-lifecycle/contracts/deployment-evidence-exposure-policy.schema.json",
+    "specs/012-tenant-activation-lifecycle/contracts/activation-operational-attention-policy.schema.json"
+  ],
+  "tests": [
+    "http-generic-api/test-governed-policy-questionnaire-domain.mjs",
+    "http-generic-api/test-governed-policy-application-lifecycle.mjs",
+    "http-generic-api/test-governed-policy-repository-contract.mjs",
+    "http-generic-api/test-governed-policy-migration-and-contracts.mjs"
+  ],
+  "migration_designs": [
+    "http-generic-api/migrations/20260731_governed_policy_questionnaire_foundation.sql",
+    "http-generic-api/migrations/20260731_governed_policy_registry_authority.sql"
+  ],
+  "migration_authorized": false,
+  "migration_applied": false,
+  "active_seed_written": false,
+  "runtime_wired": false,
+  "production_deployed": false,
+  "provider_dispatch_performed": false,
+  "external_send_performed": false,
+  "secrets_included": false
+}
