@@ -1972,7 +1972,9 @@ export function buildActivationRoutes(deps) {
           max_response_chars: req.query.max_response_chars,
           chunk_ttl_minutes: req.query.chunk_ttl_minutes,
         },
+        auth: req?.auth || null,
         source_tool_key: "activation_session_context_read_api",
+        source_surface: "activation_session_context_read_api",
       });
       return res.status(200).json(transportBody);
     } catch (err) {

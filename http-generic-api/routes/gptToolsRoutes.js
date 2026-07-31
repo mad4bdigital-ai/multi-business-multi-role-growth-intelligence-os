@@ -31,6 +31,11 @@ import {
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
 } from "../governedToolResponseChunkStore.js";
+import {
+  canAccessGovernedResponseChunk,
+  governedResponseChunkOwnerFields,
+  resolveGovernedResponseChunkPrincipal,
+} from "../governedToolResponseChunkOwnership.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
@@ -2199,6 +2204,20 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
   const serialized = JSON.stringify(body ?? {});
   const ttlMs = resolveToolResponseChunkTtlMs(optionsSource, serialized.length);
   const chunkId = crypto.randomUUID();
+  const principalInput = {
+    auth: optionsSource?.auth,
+    trustedInternal: optionsSource?.trustedInternal === true || optionsSource?.trusted_internal === true,
+    principalId: optionsSource?.principalId || optionsSource?.principal_id,
+    source_surface: optionsSource?.source_surface || optionsSource?.sourceSurface || "gpt_tools",
+  };
+  const principal = resolveGovernedResponseChunkPrincipal(principalInput);
+  if (!principal) {
+    const err = new Error("A governed response chunk owner is required.");
+    err.status = 403;
+    err.code = "response_chunk_owner_required";
+    throw err;
+  }
+  const owner = governedResponseChunkOwnerFields(principal);
   const durable = await persistGovernedToolResponseChunk({
     chunk_id: chunkId,
     serialized,
@@ -2206,6 +2225,7 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
     source_tool_key: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || null,
     cursor_policy: GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
     secrets_included: false,
+    ...principalInput,
   }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
     serialized,
@@ -2217,6 +2237,7 @@ async function storeToolResponseForChunks(body, optionsSource = {}, deps = {}) {
     durable: true,
     cursorPolicy: durable.cursor_policy,
     responseSha256: durable.response_sha256,
+    ...owner,
   });
   return { chunkId, serialized, ttlMs, expiresAt: new Date(durable.expires_at).getTime() };
 }
@@ -2269,18 +2290,32 @@ export async function readCachedToolResponseChunk(args = {}, deps = {}) {
     err.code = "missing_chunk_id";
     throw err;
   }
+  const principalInput = {
+    auth: args?.auth,
+    trustedInternal: args?.trustedInternal === true || args?.trusted_internal === true,
+    principalId: args?.principalId || args?.principal_id,
+    source_surface: args?.source_surface || args?.sourceSurface || "gpt_tools",
+  };
+  const principal = resolveGovernedResponseChunkPrincipal(principalInput);
+  const notFound = () => {
+    const err = new Error("response chunk was not found or has expired.");
+    err.status = 404;
+    err.code = "response_chunk_not_found";
+    return err;
+  };
+  if (!principal) throw notFound();
+
   const now = toolResponseChunkNow(deps);
   cleanupToolResponseChunkCache(now);
   let entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
   let source = "tool_response_cache";
+  if (entry && !canAccessGovernedResponseChunk(principal, entry)) throw notFound();
   if (!entry) {
-    const durable = await loadGovernedToolResponseChunk({ chunk_id: chunkId }, deps);
-    if (!durable) {
-      const err = new Error("response chunk was not found or has expired.");
-      err.status = 404;
-      err.code = "response_chunk_not_found";
-      throw err;
-    }
+    const durable = await loadGovernedToolResponseChunk({
+      chunk_id: chunkId,
+      ...principalInput,
+    }, deps);
+    if (!durable || !canAccessGovernedResponseChunk(principal, durable)) throw notFound();
     entry = {
       serialized: durable.serialized,
       createdAt: durable.created_at ? new Date(durable.created_at).getTime() : now,
@@ -2291,6 +2326,12 @@ export async function readCachedToolResponseChunk(args = {}, deps = {}) {
       durable: true,
       cursorPolicy: durable.cursor_policy,
       responseSha256: durable.response_sha256,
+      owner_tenant_id: durable.owner_tenant_id,
+      owner_user_id: durable.owner_user_id,
+      owner_workspace_id: durable.owner_workspace_id,
+      owner_principal_type: durable.owner_principal_type,
+      owner_principal_id: durable.owner_principal_id,
+      source_surface: durable.source_surface,
     };
     source = "governed_tool_response_chunk_store";
   }
@@ -2300,7 +2341,11 @@ export async function readCachedToolResponseChunk(args = {}, deps = {}) {
   entry.lastReadAt = now;
   entry.readCount = Number(entry.readCount || 0) + 1;
   entry.expiresAt = now + entry.ttlMs;
-  await extendGovernedToolResponseChunkExpiry({ chunk_id: chunkId, ttl_ms: entry.ttlMs }, deps);
+  await extendGovernedToolResponseChunkExpiry({
+    chunk_id: chunkId,
+    ttl_ms: entry.ttlMs,
+    ...principalInput,
+  }, deps);
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, entry);
   return buildToolResponseChunk({
     serialized: entry.serialized,
@@ -2491,7 +2536,9 @@ async function dispatchTool(callerType, toolKey, args, req) {
     body: shouldChunkDispatchedToolResponse(toolKey)
       ? await maybeChunkToolResponseBody(result?.body, {
           ...responseOptions,
+          auth: req?.auth || null,
           source_tool_key: toolKey,
+          source_surface: "gpt_tools_dispatch",
         })
       : result?.body,
   };
@@ -2660,7 +2707,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_read") {
-    return { status: 200, body: await readCachedToolResponseChunk(args) };
+    return {
+      status: 200,
+      body: await readCachedToolResponseChunk({
+        ...(args || {}),
+        auth: req?.auth || null,
+        source_surface: "gpt_tools_admin_response_chunk_read",
+      }),
+    };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
@@ -4218,7 +4272,9 @@ export function buildGptToolsRoutes(deps) {
       };
       return res.status(200).json(await maybeChunkToolResponseBody(body, {
         response_options: req.query || {},
+        auth: req?.auth || null,
         source_tool_key: "gpt_tools_list",
+        source_surface: "gpt_tools_list",
       }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });

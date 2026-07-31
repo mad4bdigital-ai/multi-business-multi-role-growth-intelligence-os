@@ -1,0 +1,11 @@
+Governed Local Connector Production closure trigger
+
+production_pr=3945
+production_merge_sha=792ff63af82791e9a482029f5078931fa0707c8c
+launcher=.github/workflows/governed-local-connector-production-closure-push.yml
+trigger_revision=v2-dual-path
+trusted_ref=main
+non_cancelling=true
+migrations_authorized=false
+provider_mutation_authorized=false
+credential_rotation_authorized=false

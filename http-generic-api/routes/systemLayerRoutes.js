@@ -997,9 +997,17 @@ function sendSystemToolCatalogError(res, error, fallbackCode) {
   });
 }
 
-async function chunkSystemLayerResponse(body, source = {}) {
+async function chunkSystemLayerResponse(
+  body,
+  source = {},
+  auth = null,
+  sourceSurface = "system_layer_response",
+  trustedSourceToolKey = null,
+) {
   const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
-  const sourceToolKey = source?.source_tool_key || "system_layer_response";
+  const sourceToolKey = String(
+    trustedSourceToolKey || source?.source_tool_key || "system_layer_response",
+  ).trim() || "system_layer_response";
   try {
     return await maybeChunkToolResponseBody(body, {
       response_options: {
@@ -1008,7 +1016,9 @@ async function chunkSystemLayerResponse(body, source = {}) {
         chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
         chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
       },
+      auth,
       source_tool_key: sourceToolKey,
+      source_surface: sourceSurface,
     });
   } catch (error) {
     const { buildBoundedInlineChunkFallback } = await import("../systemLayerResponseFallback.js");
@@ -2230,7 +2240,11 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   switch (name) {
     case "response_chunk_read":
-      return await readCachedToolResponseChunk(args);
+      return await readCachedToolResponseChunk({
+        ...(args || {}),
+        auth,
+        source_surface: "system_layer_response_chunk_read",
+      });
     case "system_layer_descriptor_readiness":
       return {
         ok: true,
@@ -2402,7 +2416,13 @@ export function buildSystemLayerRoutes(deps) {
         is_admin: isAdminPrincipal(req.auth),
         tenant_id: principalTenantId(req.auth),
       };
-      return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+      return res.status(200).json(await chunkSystemLayerResponse(
+        body,
+        req.query || {},
+        req.auth,
+        "system_tools_list",
+        "system_tools_list",
+      ));
     } catch (error) {
       return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
     }
@@ -2466,7 +2486,13 @@ export function buildSystemLayerRoutes(deps) {
       if (!shouldChunkDispatchedToolResponse(name, result)) {
         return res.status(200).json(result);
       }
-      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
+      return res.status(200).json(await chunkSystemLayerResponse(
+        { ok: true, name, result, secrets_included: false },
+        args || {},
+        req.auth,
+        "system_tools_call",
+        name,
+      ));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
@@ -2510,7 +2536,13 @@ export function buildSystemLayerRoutes(deps) {
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
     const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+    return res.status(200).json(await chunkSystemLayerResponse(
+      body,
+      req.query || {},
+      req.auth,
+      "admin_system_tools_list",
+      "admin_system_tools_list",
+    ));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
@@ -2538,7 +2570,13 @@ export function buildSystemLayerRoutes(deps) {
       if (!shouldChunkDispatchedToolResponse(name, result)) {
         return res.status(200).json(result);
       }
-      return res.status(200).json(await chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
+      return res.status(200).json(await chunkSystemLayerResponse(
+        { ok: true, name, result, secrets_included: false },
+        args || {},
+        req.auth,
+        "admin_system_tools_call",
+        name,
+      ));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }

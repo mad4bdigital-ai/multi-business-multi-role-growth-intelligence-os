@@ -1,0 +1,17 @@
+{
+  "schema_version": "governed_migration_dependencies.v1",
+  "migrations": {
+    "1007_sprint69_agent_capability_coverage_admin_tools.sql": {
+      "checksum_sha256": "11b93401bbd0ed64e3e564d183c5a5d9775bcabbe3ccd7002d97e38b0d107a40",
+      "statement_count": 1,
+      "dependencies": [
+        {
+          "migration": "1006_sprint69_agent_capability_evidence_coverage.sql",
+          "checksum_sha256": "995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374",
+          "statement_count": 5,
+          "required_ledger_mode": "apply"
+        }
+      ]
+    }
+  }
+}
