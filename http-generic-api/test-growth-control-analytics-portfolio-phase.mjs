@@ -93,6 +93,12 @@ const observations = Object.freeze([
     sourceObservationId: "commerce-row-1",
   }),
 ]);
+const persistedObservations = observations.map(({ sourceSystemKey, sourceObservationId, sourceEventId = null, ...item }) => Object.freeze({
+  ...item,
+  lineage: Object.freeze({
+    source: Object.freeze({ sourceSystemKey, sourceObservationId, sourceEventId }),
+  }),
+}));
 
 const typedDefinition = validateGrowthControlKpiDefinition(definition);
 assert.match(typedDefinition.checksumSha256, /^[0-9a-f]{64}$/);
@@ -148,7 +154,7 @@ const repository = {
   async listActivityKpiBindings() { return bindings; },
   async getActivityKpiBinding(input) { return bindings.find((item) => item.activityBindingId === input.activityBindingId && item.nativeKpiKey === input.nativeKpiKey) || null; },
   async listNormalizedMetricObservations(input) {
-    return observations.filter((item) => item.tenantId === input.tenantId && (!input.workspaceIds?.length || input.workspaceIds.includes(item.workspaceId)) && (!input.brandKeys?.length || input.brandKeys.includes(item.brandKey)));
+    return persistedObservations.filter((item) => item.tenantId === input.tenantId && (!input.workspaceIds?.length || input.workspaceIds.includes(item.workspaceId)) && (!input.brandKeys?.length || input.brandKeys.includes(item.brandKey)));
   },
   async listObservabilitySamples() { return []; },
   async listReconciliationFindings() { return []; },
@@ -163,12 +169,30 @@ const tenantProjection = await service.projectTenantPortfolio(
 );
 assert.equal(tenantProjection.audience, "tenant");
 assert.equal(tenantProjection.observationCount, 1);
+assert.equal(tenantProjection.series[0].nativeDefinitions[0].sourceSystemKeys[0], "travel.analytics");
 assert.equal(tenantProjection.otherTenantsIncluded, false);
 
 const writeResult = await service.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-1", now });
 assert.equal(writeResult.sameCycleReadback, true);
 assert.equal(writeResult.providerCalls, false);
 assert.equal(appendedObservation.observationSha256, writeResult.observation.observationSha256);
+
+const scopedBinding = Object.freeze({
+  ...bindings[0],
+  activityKpiBindingId: "binding-kpi-scoped",
+  tenantId: "tenant-2",
+  workspaceId: "workspace-2",
+  brandKey: "brand-b",
+});
+const scopedRepository = {
+  ...repository,
+  async getActivityKpiBinding() { return scopedBinding; },
+};
+const scopedService = createGrowthControlAnalyticsObservabilityService({ repository: scopedRepository });
+await assert.rejects(
+  () => scopedService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-cross-scope", now }),
+  (error) => error?.code === "GROWTH_CONTROL_KPI_BINDING_SCOPE_MISMATCH" && error?.status === 403,
+);
 
 const mismatchingRepository = { ...repository, async appendNormalizedMetricObservation() { return { observationSha256: "0".repeat(64) }; } };
 const mismatchingService = createGrowthControlAnalyticsObservabilityService({ repository: mismatchingRepository });
