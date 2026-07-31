@@ -24,6 +24,7 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-authority-data-foundation-planner.mjs",
   "node test-authority-evidence-source-adapters.mjs",
   "node test-authority-ownership-review.mjs",
+  "node test-authority-live-census-adapter.mjs",
   "node test-authority-live-evidence-orchestrator.mjs",
   "node test-authority-live-evidence-fail-closed.mjs",
 ]);
