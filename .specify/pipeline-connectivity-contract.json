@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "artifact_groups": [
+    {
+      "key": "platform_work_maps",
+      "root": "docs/work-maps",
+      "producer_signatures": [
+        "platform-work-map-generator.mjs --write",
+        "repo-maintenance-sync.mjs"
+      ],
+      "consumer_signatures": [
+        "platform-work-map-generator.mjs --check"
+      ],
+      "approved_producers": [
+        "spec-kit-work-map-autofix",
+        "docs-agent"
+      ],
+      "required_consumers": [
+        "spec-kit-work-map-integration"
+      ]
+    }
+  ],
+  "pipelines": [
+    {
+      "key": "spec-kit-work-map-integration",
+      "workflow": ".github/workflows/spec-kit-work-map-integration.yml",
+      "mode": "validate",
+      "required_permissions": {
+        "contents": "read"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "pull_request",
+        "push"
+      ],
+      "required_path_patterns": [
+        ".specify/pipeline-connectivity-contract.json",
+        "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+        "http-generic-api/test-pipeline-connectivity-check.mjs",
+        ".github/workflows/spec-kit-work-map-integration.yml",
+        ".github/workflows/spec-kit-work-map-autofix.yml",
+        ".github/workflows/docs-agent.yml"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --check"
+      ],
+      "forbidden_commands": [
+        "platform-work-map-generator.mjs --write",
+        "git push",
+        "git commit"
+      ]
+    },
+    {
+      "key": "spec-kit-work-map-autofix",
+      "workflow": ".github/workflows/spec-kit-work-map-autofix.yml",
+      "mode": "write",
+      "required_permissions": {
+        "contents": "write"
+      },
+      "required_triggers": [
+        "workflow_dispatch"
+      ],
+      "forbidden_triggers": [
+        "pull_request",
+        "push",
+        "schedule",
+        "workflow_run"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --write",
+        "platform-work-map-generator.mjs --check",
+        "expected_head_sha",
+        "--force-with-lease",
+        "Direct autofix writes to main are forbidden"
+      ],
+      "forbidden_commands": []
+    },
+    {
+      "key": "docs-agent",
+      "workflow": ".github/workflows/docs-agent.yml",
+      "mode": "conditional_write",
+      "required_permissions": {
+        "contents": "write"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "pull_request",
+        "push"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --write",
+        "docs-agent-write",
+        "docs-agent-automerge",
+        "github.actor != 'github-actions[bot]'",
+        "github.event.pull_request.head.repo.full_name == github.repository"
+      ],
+      "forbidden_commands": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "spec-kit-work-map-autofix",
+      "to": "platform_work_maps",
+      "type": "produces"
+    },
+    {
+      "from": "docs-agent",
+      "to": "platform_work_maps",
+      "type": "conditionally_produces"
+    },
+    {
+      "from": "platform_work_maps",
+      "to": "spec-kit-work-map-integration",
+      "type": "validated_by"
+    },
+    {
+      "from": "spec-kit-work-map-integration",
+      "to": "spec-kit-work-map-autofix",
+      "type": "manual_repair_handoff"
+    }
+  ]
+}
