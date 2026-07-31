@@ -1,0 +1,181 @@
+name: Spec 011 Final Column Contract Readback
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-final-column-contract-readback
+  cancel-in-progress: false
+
+jobs:
+  production-column-readback:
+    if: github.event.pull_request.head.ref == 'gpt/spec-011-production-migration-closeout-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out deployed Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify migration source contract
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(sha256sum migrations/20260728_operation_managed_git_ephemeral_checkout.sql | awk '{print $1}')"
+          EXPECTED='8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c'
+          [[ "$ACTUAL" == "$EXPECTED" ]] || {
+            echo "::error::migration checksum mismatch: $ACTUAL"
+            exit 1
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify deployed runtime parity
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RUNTIME_PROFILE: queue_worker
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
+
+      - name: Read back governed ledger and exact column type
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260728_operation_managed_git_ephemeral_checkout.sql';
+          const CHECKSUM = '8fa1da6161e914b73eb3fba7ce60a0245cee8cf0b5c953bd7ee596b3183cad9c';
+          const LEDGER_RUN_ID = '99f726d7-4f09-4d1c-900d-378d5c89d5b9';
+          const EXPECTED_COLUMN_TYPE = "enum('virtual_git_tree','ephemeral_checkout')";
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+
+          const response = await fetch(`${BASE}/gpt/tools/call`, {
+            method: 'POST',
+            redirect: 'error',
+            headers: {
+              Authorization: `Bearer ${KEY}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: 'governed_migration_schema_readback',
+              tool_args: {
+                migration: MIGRATION,
+                expected_checksum_sha256: CHECKSUM,
+                expected_statement_count: 1,
+                expected_columns: [
+                  { table: 'operation_managed_git_worker_leases', column: 'checkout_strategy' },
+                ],
+              },
+            }),
+            signal: AbortSignal.timeout(180000),
+          });
+          const text = await response.text();
+          let payload;
+          try { payload = text ? JSON.parse(text) : null; }
+          catch { payload = { raw_preview: text.slice(0, 500) }; }
+          assert.equal(response.ok, true, `readback HTTP ${response.status}`);
+          assert.notEqual(payload?.ok, false, 'tool call returned ok=false');
+
+          function parsed(value) {
+            if (typeof value !== 'string') return value;
+            const trimmed = value.trim();
+            if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) return value;
+            try { return JSON.parse(trimmed); } catch { return value; }
+          }
+          function findObject(value, predicate, seen = new Set()) {
+            value = parsed(value);
+            if (!value || typeof value !== 'object' || seen.has(value)) return null;
+            seen.add(value);
+            if (predicate(value)) return value;
+            for (const child of Object.values(value)) {
+              const found = findObject(child, predicate, seen);
+              if (found) return found;
+            }
+            return null;
+          }
+
+          const evidence = findObject(payload, (value) => value.readback_status && value.ledger && value.schema);
+          assert.ok(evidence, 'governed readback evidence not found');
+          assert.equal(evidence.ok, true);
+          assert.equal(evidence.readback_status, 'pass');
+          assert.equal(evidence.migration_checksum_sha256, CHECKSUM);
+          assert.equal(Number(evidence.statement_count), 1);
+          assert.equal(evidence.ledger?.found, true);
+          assert.equal(evidence.ledger?.run_id, LEDGER_RUN_ID);
+          assert.equal(evidence.ledger?.mode, 'apply');
+          assert.equal(evidence.ledger?.preflight_status, 'pass');
+          assert.equal(Number(evidence.ledger?.preflight_risk_count || 0), 0);
+          assert.equal(evidence.ledger?.secrets_included, false);
+          assert.deepEqual(evidence.expectations?.missing?.columns || [], []);
+
+          const column = (evidence.schema?.columns || []).find((row) =>
+            row.TABLE_NAME === 'operation_managed_git_worker_leases'
+            && row.COLUMN_NAME === 'checkout_strategy'
+          );
+          assert.ok(column, 'checkout_strategy column readback missing');
+          assert.equal(String(column.COLUMN_TYPE || '').toLowerCase(), EXPECTED_COLUMN_TYPE);
+          assert.equal(column.IS_NULLABLE, 'NO');
+
+          const summary = {
+            schema_version: 'spec011.ephemeral_checkout_column_readback.v1',
+            ok: true,
+            migration: MIGRATION,
+            migration_checksum_sha256: CHECKSUM,
+            statement_count: 1,
+            ledger_run_id: evidence.ledger.run_id,
+            ledger_mode: evidence.ledger.mode,
+            preflight_status: evidence.ledger.preflight_status,
+            preflight_risk_count: Number(evidence.ledger.preflight_risk_count),
+            table_name: column.TABLE_NAME,
+            column_name: column.COLUMN_NAME,
+            column_type: column.COLUMN_TYPE,
+            is_nullable: column.IS_NULLABLE,
+            expected_column_type: EXPECTED_COLUMN_TYPE,
+            readback_status: evidence.readback_status,
+            schema_expectation_gaps: (evidence.expectations?.missing?.columns || []).length,
+            provider_call_executed: false,
+            external_write_executed: false,
+            row_data_read: false,
+            freeform_sql_accepted: false,
+            secrets_included: false,
+          };
+          const output = path.join(process.env.RUNNER_TEMP, 'spec011-final-column-contract-readback.json');
+          fs.writeFileSync(output, JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
+      - name: Upload non-secret readback evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-final-column-contract-readback
+          path: ${{ runner.temp }}/spec011-final-column-contract-readback.json
+          if-no-files-found: error
+          retention-days: 30
