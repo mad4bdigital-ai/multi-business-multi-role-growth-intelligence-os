@@ -72,10 +72,13 @@
         "platform-work-map-generator.mjs --write",
         "platform-work-map-generator.mjs --check",
         "expected_head_sha",
-        "--force-with-lease",
+        "git push origin",
         "Direct autofix writes to main are forbidden"
       ],
-      "forbidden_commands": []
+      "forbidden_commands": [
+        "--force",
+        "--force-with-lease"
+      ]
     },
     {
       "key": "docs-agent",
