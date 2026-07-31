@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ueacp-authority-foundation-classification.v1.json",
+  "title": "UEACP Authority Foundation Classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "census_sha256", "classification_source", "classifications"],
+  "properties": {
+    "contract": { "const": "mad4b.ueacp-authority-foundation-classification.v1" },
+    "census_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "classification_source": { "type": "string", "minLength": 3, "maxLength": 300 },
+    "classifications": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "logical_key",
+          "disposition",
+          "owner_key",
+          "approved",
+          "storage_semantics",
+          "revision_strategy",
+          "object_names",
+          "evidence_refs",
+          "rationale"
+        ],
+        "properties": {
+          "logical_key": {
+            "enum": [
+              "principal_authority",
+              "subject_scope_authority",
+              "delegation_context_authority",
+              "resource_relation_authority",
+              "resource_restriction_authority",
+              "policy_grant_authority",
+              "connection_authority",
+              "endpoint_certification_authority",
+              "decision_evidence_ledger",
+              "projection_snapshot_ledger",
+              "invalidation_event_ledger",
+              "drift_finding_ledger"
+            ]
+          },
+          "disposition": { "enum": ["reuse", "extend", "create", "blocked"] },
+          "owner_key": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,190}$" },
+          "approved": { "type": "boolean" },
+          "storage_semantics": {
+            "enum": ["source_authority", "derived_projection", "append_only_evidence", "append_only_event"]
+          },
+          "revision_strategy": {
+            "enum": [
+              "existing_explicit_revision",
+              "add_explicit_revision",
+              "append_only_event_revision",
+              "immutable_version_pointer",
+              "not_applicable"
+            ]
+          },
+          "object_names": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,190}$" }
+          },
+          "proposed_object_name": {
+            "type": ["string", "null"],
+            "pattern": "^[a-z][a-z0-9_]{1,190}$"
+          },
+          "shared_object": { "type": "boolean", "default": false },
+          "shared_reason": { "type": ["string", "null"], "minLength": 12, "maxLength": 1000 },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+          },
+          "rationale": { "type": "string", "minLength": 12, "maxLength": 2000 }
+        }
+      }
+    }
+  }
+}
