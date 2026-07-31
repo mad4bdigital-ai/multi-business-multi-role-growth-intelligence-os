@@ -1,0 +1,137 @@
+name: Repository Convergence Wave
+
+on:
+  pull_request:
+    branches:
+      - ops/repository-convergence-wave-base-20260731
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: repository-convergence-wave-20260731
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'ops/repository-convergence-wave-trigger-20260731'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: spec014
+            target_branch: gpt/spec-014-retail-commerce-operations-growth-20260731
+            expected_head: 1a05236c149228e744ad90e78e6414a4c853ae94
+          - key: workmap
+            target_branch: gpt/spec-kit-work-map-integration-fabric-20260731
+            expected_head: 093e90e8994390b794c1f64ccc8db67e90f8399a
+    steps:
+      - name: Check out exact target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.target_branch }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Reconcile exact current main without force
+        id: reconcile
+        shell: bash
+        env:
+          TARGET_KEY: ${{ matrix.key }}
+          TARGET_BRANCH: ${{ matrix.target_branch }}
+          EXPECTED_TARGET_HEAD: ${{ matrix.expected_head }}
+          EXPECTED_MAIN_HEAD: 467b10cf3ac29c839399324a8076ccab5f7c7988
+        run: |
+          set -euo pipefail
+          git config user.name "repository-convergence-wave[bot]"
+          git config user.email "repository-convergence-wave[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+
+          actual_target="$(git rev-parse HEAD)"
+          actual_main="$(git rev-parse origin/main)"
+          if [[ "$actual_target" != "$EXPECTED_TARGET_HEAD" ]]; then
+            printf '{"key":"%s","status":"stale_target","expected_target":"%s","actual_target":"%s","expected_main":"%s","actual_main":"%s","push_executed":false}\n' \
+              "$TARGET_KEY" "$EXPECTED_TARGET_HEAD" "$actual_target" "$EXPECTED_MAIN_HEAD" "$actual_main" > "convergence-${TARGET_KEY}.json"
+            exit 0
+          fi
+          if [[ "$actual_main" != "$EXPECTED_MAIN_HEAD" ]]; then
+            printf '{"key":"%s","status":"stale_main","expected_target":"%s","actual_target":"%s","expected_main":"%s","actual_main":"%s","push_executed":false}\n' \
+              "$TARGET_KEY" "$EXPECTED_TARGET_HEAD" "$actual_target" "$EXPECTED_MAIN_HEAD" "$actual_main" > "convergence-${TARGET_KEY}.json"
+            exit 0
+          fi
+
+          set +e
+          git merge --no-ff --no-edit origin/main
+          merge_status=$?
+          set -e
+          if [[ $merge_status -ne 0 ]]; then
+            conflicts="$(git diff --name-only --diff-filter=U | paste -sd, -)"
+            git merge --abort || true
+            printf '{"key":"%s","status":"conflict","expected_target":"%s","actual_target":"%s","expected_main":"%s","actual_main":"%s","conflicts":"%s","push_executed":false}\n' \
+              "$TARGET_KEY" "$EXPECTED_TARGET_HEAD" "$actual_target" "$EXPECTED_MAIN_HEAD" "$actual_main" "$conflicts" > "convergence-${TARGET_KEY}.json"
+            exit 0
+          fi
+
+          git diff --name-only origin/main...HEAD > "convergence-${TARGET_KEY}-paths.txt"
+          unexpected=""
+          if [[ "$TARGET_KEY" == "spec014" ]]; then
+            unexpected="$(grep -Ev '^specs/014-retail-commerce-operations-growth-os/' "convergence-${TARGET_KEY}-paths.txt" || true)"
+          else
+            unexpected="$(grep -Ev '^(\.github/|\.specify/|docs/|http-generic-api/scripts/|http-generic-api/test-)' "convergence-${TARGET_KEY}-paths.txt" || true)"
+          fi
+          if [[ -n "$unexpected" ]]; then
+            git reset --hard "$actual_target"
+            compact_unexpected="$(printf '%s\n' "$unexpected" | paste -sd, -)"
+            printf '{"key":"%s","status":"unexpected_paths","expected_target":"%s","actual_target":"%s","expected_main":"%s","actual_main":"%s","unexpected_paths":"%s","push_executed":false}\n' \
+              "$TARGET_KEY" "$EXPECTED_TARGET_HEAD" "$actual_target" "$EXPECTED_MAIN_HEAD" "$actual_main" "$compact_unexpected" > "convergence-${TARGET_KEY}.json"
+            exit 0
+          fi
+
+          merged_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          printf '{"key":"%s","status":"updated","expected_target":"%s","previous_target":"%s","expected_main":"%s","actual_main":"%s","merged_head":"%s","push_executed":true,"force_push":false,"production_mutated":false,"database_mutated":false,"provider_call_executed":false,"secrets_included":false}\n' \
+            "$TARGET_KEY" "$EXPECTED_TARGET_HEAD" "$actual_target" "$EXPECTED_MAIN_HEAD" "$actual_main" "$merged_head" > "convergence-${TARGET_KEY}.json"
+
+      - name: Upload bounded reconciliation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-convergence-${{ matrix.key }}
+          path: |
+            convergence-${{ matrix.key }}.json
+            convergence-${{ matrix.key }}-paths.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    if: always() && github.event.pull_request.head.ref == 'ops/repository-convergence-wave-trigger-20260731'
+    needs: reconcile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download reconciliation evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: repository-convergence-*
+          merge-multiple: true
+      - name: Publish phase summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Repository Convergence Wave'
+            echo
+            for file in convergence-*.json; do
+              echo '```json'
+              cat "$file"
+              echo
+              echo '```'
+            done
+            echo
+            echo '- protected main mutated: false'
+            echo '- Production mutated: false'
+            echo '- SQL/database mutation: false'
+            echo '- provider or external write: false'
+            echo '- force update: false'
+          } >> "$GITHUB_STEP_SUMMARY"
