@@ -8,10 +8,7 @@ import {
   parseWorkMapRegistry,
   validateRepository,
 } from "./spec-kit-work-map-integration-gate.mjs";
-import {
-  applySchemaClassificationRegistry,
-  validateSchemaClassification,
-} from "./work-map-schema-classification.mjs";
+import { validateClassificationReport } from "./work-map-classification-gate.mjs";
 
 const DEFAULT_POLICY_PATH = ".specify/spec-kit-work-map-integration-policy.json";
 
@@ -29,18 +26,17 @@ function parseArg(args, flag) {
 export function buildEffectiveWorkMapRegistry(options = {}) {
   const root = options.root || REPO_ROOT;
   const policy = options.policy || readJson(path.join(root, DEFAULT_POLICY_PATH));
-  const baseRegistry = options.baseRegistry || parseWorkMapRegistry({ root, policy });
-  const effectiveRegistry = applySchemaClassificationRegistry(baseRegistry, { root, policy });
-  return { root, policy, baseRegistry, effectiveRegistry };
+  const registry = options.registry || parseWorkMapRegistry({ root, policy });
+  return { root, policy, registry };
 }
 
 export function validateGovernedRepository(options = {}) {
-  const { root, policy, effectiveRegistry } = buildEffectiveWorkMapRegistry(options);
-  const classification = validateSchemaClassification({ root, policy });
+  const { root, policy, registry } = buildEffectiveWorkMapRegistry(options);
+  const classification = validateClassificationReport({ root, now: options.now || new Date() });
   const repositoryOptions = {
     root,
     policy,
-    registry: effectiveRegistry,
+    registry,
     all: options.all === true,
   };
   if (Object.prototype.hasOwnProperty.call(options, "changedFiles")) repositoryOptions.changedFiles = options.changedFiles;
@@ -48,24 +44,37 @@ export function validateGovernedRepository(options = {}) {
   if (Object.prototype.hasOwnProperty.call(options, "implementationChanged")) repositoryOptions.implementationChanged = options.implementationChanged;
   const integration = validateRepository(repositoryOptions);
   return {
-    ok: classification.ok && integration.findings.length === 0,
+    ok: classification.findings.length === 0 && integration.findings.length === 0,
     findings: [
       ...classification.findings.map((finding) => ({ source: "schema_classification", ...finding })),
       ...integration.findings.map((finding) => ({ source: "spec_kit_integration", ...finding })),
     ],
     classification,
     integration,
-    effective_registry: effectiveRegistry,
+    effective_registry: registry,
     policy,
   };
 }
 
 function scaffold(feature, options = {}) {
-  const { root, policy, effectiveRegistry } = buildEffectiveWorkMapRegistry(options);
+  const { root, policy, registry } = buildEffectiveWorkMapRegistry(options);
+  const classification = validateClassificationReport({ root });
+  if (classification.findings.length) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: {
+        code: "work_map_schema_classification_not_ready",
+        message: "Resolve schema classification findings before scaffolding a Spec Kit integration manifest.",
+        details: { findings: classification.findings, metrics: classification.metrics },
+      },
+      secrets_included: false,
+    }, null, 2));
+    process.exit(1);
+  }
   const manifest = buildScaffoldManifest(feature, {
     root,
     policy,
-    registry: effectiveRegistry,
+    registry,
     owner: options.owner || "unassigned",
   });
   const outputPath = path.join(root, policy.spec_root, feature, policy.manifest_filename);
@@ -79,11 +88,11 @@ function scaffold(feature, options = {}) {
       action: "scaffold",
       feature_key: feature,
       output: path.relative(root, outputPath).replaceAll("\\", "/"),
-      map_count: effectiveRegistry.maps.length,
-      domain_count: effectiveRegistry.domains.length,
-      globally_classified_schema_objects: effectiveRegistry.globally_classified_schema_objects.length,
-      intentionally_unclassified_schema_objects: effectiveRegistry.intentionally_unclassified_schema_objects.length,
-      unresolved_schema_objects: effectiveRegistry.uncategorized_objects.length,
+      map_count: registry.maps.length,
+      domain_count: registry.domains.length,
+      classified_schema_objects: classification.metrics.classified_objects,
+      intentionally_unclassified_schema_objects: classification.metrics.intentional_unclassified_objects,
+      unresolved_schema_objects: classification.metrics.unresolved_unclassified_objects,
       secrets_included: false,
     }, null, 2));
   }
@@ -107,10 +116,10 @@ function main() {
     policy_key: result.policy.policy_key,
     work_maps_discovered: result.effective_registry.maps.length,
     schema_domains_discovered: result.effective_registry.domains.length,
-    source_uncategorized_schema_objects: result.classification.source_uncategorized_count,
-    classified_by_existing_maps: result.classification.classified.length,
-    intentionally_unclassified: result.classification.intentional_unclassified.length,
-    unresolved_schema_objects: result.classification.unresolved.length,
+    schema_objects_discovered: result.classification.metrics.total_discovered_objects,
+    classified_schema_objects: result.classification.metrics.classified_objects,
+    intentionally_unclassified: result.classification.metrics.intentional_unclassified_objects,
+    unresolved_schema_objects: result.classification.metrics.unresolved_unclassified_objects,
     spec_kits_checked: result.integration.targets,
     new_spec_kits: result.integration.new_features,
     implementation_changed: result.integration.implementation_changed,
