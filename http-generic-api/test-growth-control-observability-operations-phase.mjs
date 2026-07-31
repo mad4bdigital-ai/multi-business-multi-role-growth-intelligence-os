@@ -10,6 +10,7 @@ import {
   validateGrowthControlObservabilitySample,
 } from "./src/domain/growthControlPlane/growthControlObservability.js";
 import { createGrowthControlAnalyticsObservabilityService } from "./src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js";
+import { createGrowthControlAnalyticsObservabilityRepository } from "./src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js";
 
 const decision = {
   requestId: "request-1",
@@ -154,6 +155,32 @@ const tenantHealth = await service.projectTenantOperationalHealth(
 assert.equal(tenantHealth.audience, "tenant");
 assert.equal(tenantHealth.otherTenantsIncluded, false);
 
+const platformSample = {
+  ...samples[0],
+  sampleId: "platform-read-availability",
+  tenantId: null,
+  workspaceId: null,
+  brandKey: null,
+};
+const platformFinding = {
+  ...findings[0],
+  findingId: "platform-finding",
+  tenantId: null,
+  workspaceId: null,
+  brandKey: null,
+};
+const platformRepository = {
+  ...repository,
+  async listObservabilitySamples() { return [...samples, platformSample]; },
+  async listReconciliationFindings() { return [...findings, platformFinding]; },
+};
+const platformService = createGrowthControlAnalyticsObservabilityService({ repository: platformRepository });
+const platformHealth = await platformService.projectAdminOperationalHealth({ environment: "development", windowStart, windowEnd });
+const readAvailabilitySlo = platformHealth.sloResults.find((item) => item.metricKey === "growth_control.read_catalog.availability");
+assert.equal(readAvailabilitySlo.sampleCount, 1);
+assert.equal(platformHealth.reconciliation.findingCount, 1);
+assert.equal(platformHealth.scope.tenantId, null);
+
 const sampleWrite = await service.recordObservabilitySample({ ...samples[0], idempotencyKey: "sample-write-1" });
 assert.equal(sampleWrite.sameCycleReadback, true);
 assert.equal(storedSample.sampleSha256, sampleWrite.sample.sampleSha256);
@@ -161,6 +188,46 @@ const evidenceWrite = await service.recordDecisionEvidence({ ...decision, idempo
 assert.equal(evidenceWrite.sameCycleReadback, true);
 assert.equal(evidenceWrite.telemetrySpanRecorded, true);
 assert.equal(storedEvidence.evidenceSha256, evidenceWrite.evidence.evidenceSha256);
+
+const transactionState = { began: 0, committed: 0, rolledBack: 0, released: 0, queries: 0 };
+const wrongReadbackRow = {
+  sample_id: typedSample.sampleId,
+  metric_key: typedSample.metricKey,
+  tenant_id: typedSample.tenantId,
+  workspace_id: typedSample.workspaceId,
+  brand_key: typedSample.brandKey,
+  environment: typedSample.environment,
+  value_number: typedSample.value,
+  weight_value: typedSample.weight,
+  observed_at: typedSample.observedAt,
+  source_evidence_sha256: typedSample.sourceEvidenceSha256,
+  sample_sha256: "0".repeat(64),
+  idempotency_key: "rollback-sample-1",
+};
+const connection = {
+  async beginTransaction() { transactionState.began += 1; },
+  async commit() { transactionState.committed += 1; },
+  async rollback() { transactionState.rolledBack += 1; },
+  release() { transactionState.released += 1; },
+  async query(sql) {
+    transactionState.queries += 1;
+    if (sql.includes("WHERE idempotency_key")) return [[]];
+    if (sql.includes("INSERT INTO growth_control_observability_samples")) return [{ affectedRows: 1 }];
+    if (sql.includes("WHERE sample_id")) return [[wrongReadbackRow]];
+    throw new Error(`Unexpected SQL in rollback test: ${sql}`);
+  },
+};
+const transactionalRepository = createGrowthControlAnalyticsObservabilityRepository({
+  pool: { query: connection.query.bind(connection), async getConnection() { return connection; } },
+});
+await assert.rejects(
+  () => transactionalRepository.appendObservabilitySample({ sample: typedSample, idempotencyKey: "rollback-sample-1" }),
+  (error) => error?.code === "GROWTH_CONTROL_OBSERVABILITY_READBACK_MISMATCH",
+);
+assert.equal(transactionState.began, 1);
+assert.equal(transactionState.committed, 0);
+assert.equal(transactionState.rolledBack, 1);
+assert.equal(transactionState.released, 1);
 
 const migration = await fs.readFile(new URL("./migrations/20260731_growth_control_analytics_observability_foundation.sql", import.meta.url), "utf8");
 for (const table of [
@@ -180,7 +247,8 @@ assert.match(repositorySource, /beginTransaction/);
 assert.match(repositorySource, /FOR UPDATE/);
 assert.match(repositorySource, /commit\(\)/);
 assert.match(repositorySource, /rollback\(\)/);
+assert.match(repositorySource, /assertReadbackHash/);
 assert.match(repositorySource, /telemetry_spans/);
 assert.doesNotMatch(repositorySource, /provider\.dispatch|external send|credential_payload/i);
 
-console.log("Growth Control SLO, trace, dashboard, alert, and reconciliation phase contract passed.");
+console.log("Growth Control SLO, trace, dashboard, alert, reconciliation, and transactional readback contracts passed.");
