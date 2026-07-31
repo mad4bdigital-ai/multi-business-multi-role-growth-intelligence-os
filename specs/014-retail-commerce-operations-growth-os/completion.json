@@ -9,52 +9,6 @@
     "production_verification": true,
     "post_merge_audit": true
   },
-  "scope": {
-    "specification_complete_for_review": true,
-    "brand_commerce_authority_defined": true,
-    "commerce_enablement_fabric_defined": true,
-    "wordpress_woocommerce_blueprints_defined": true,
-    "workspace_file_fabric_defined": true,
-    "runtime_implementation_started": false,
-    "provider_execution_started": false
-  },
-  "implementation": {
-    "status": "not_started",
-    "implementation_prs": [],
-    "runtime_routes_added": false,
-    "database_migrations_created": false,
-    "database_migrations_applied": false,
-    "wordpress_woocommerce_provider_writes": false,
-    "google_drive_provider_writes": false,
-    "deployment_performed": false
-  },
-  "verification": {
-    "spec_contract_validation_required": true,
-    "adapter_certification_required": true,
-    "wordpress_sandbox_required": true,
-    "woocommerce_standard_sandbox_required": true,
-    "woocommerce_bridge_sandbox_required": true,
-    "two_brand_isolation_pilot_required": true,
-    "production_behavior_verified": false,
-    "post_merge_audit_completed": false
-  },
-  "pending": [
-    "clarify first Commerce Enablement blueprints",
-    "select first two-Brand pilot Workspace",
-    "select first WordPress lifecycle inventory site",
-    "select first WooCommerce sandbox and authority mode",
-    "define WooCommerce bridge plugin boundary",
-    "define initial extension compatibility profiles",
-    "define ERPNext/WooCommerce hybrid topology when required",
-    "implement Capability Catalog and Blueprint Registry",
-    "implement Brand Site Profile and exact connection resolution",
-    "implement WooCommerce adapters and Webhook Inbox",
-    "implement Enablement Center and Operations Cockpit",
-    "create and apply governed migrations",
-    "run sandbox and staging certification",
-    "run production verification",
-    "complete post-merge audit"
-  ],
   "production_mutation": false,
   "provider_write": false,
   "wordpress_woocommerce_write": false,
@@ -62,5 +16,19 @@
   "migration_apply": false,
   "deployment_required": false,
   "post_merge_audit_completed": false,
-  "secrets_included": false
+  "secrets_included": false,
+  "pending": [
+    "Capability Catalog implementation",
+    "Solution Blueprint Registry implementation",
+    "Brand Site Profile implementation",
+    "WordPress lifecycle capability registration",
+    "WooCommerce discovery and adapter implementation",
+    "Provider Webhook Inbox implementation",
+    "WooCommerce bridge certification",
+    "Enablement Center and Operations Cockpit implementation",
+    "governed migrations",
+    "sandbox and staging certification",
+    "production verification",
+    "post-merge audit"
+  ]
 }
