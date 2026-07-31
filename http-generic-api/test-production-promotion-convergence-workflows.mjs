@@ -66,8 +66,12 @@ for (const required of [
 
 for (const required of [
   /name: Certified Production Release Cut Validation/,
+  /pull_request_target:/,
   /gpt\/validate-certified-release-base-\*/,
   /gpt\/validate-certified-release-candidate-/,
+  /Validate trusted same-repository validation surface/,
+  /certified validation requires a same-repository head/,
+  /persist-credentials: false/,
   /candidate first parent must be the certified release cut/,
   /candidate tree differs from certified release cut/,
   /certified release cut is not contained by current main/,
@@ -96,6 +100,15 @@ for (const required of [
 ]) {
   assert.match(certifiedReleaseCut, required);
 }
+
+const certifiedJobHeader =
+  certifiedReleaseCut.match(/  certified-release-cut-ci:\n[\s\S]*?    steps:/)?.[0] ?? "";
+assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
+assert.doesNotMatch(
+  certifiedJobHeader,
+  /^    if:/m,
+  "certified release-cut validation must not use a job-level eligibility condition",
+);
 
 for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
   assert.doesNotMatch(workflow, /gh pr merge/i);
