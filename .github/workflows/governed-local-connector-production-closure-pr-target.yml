@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: governed-local-connector-production-closure-pr-3945
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   close-production-acceptance:
@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/visible-local-connector-closure-run-20260731' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
@@ -54,7 +54,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=pull_request_target trusted_ref=main event_pr=4017"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=pull_request_target trusted_ref=main event_pr=4017 supersedes_older_runs=true"
 
       - name: Verify exact merged Production PR
         env:
