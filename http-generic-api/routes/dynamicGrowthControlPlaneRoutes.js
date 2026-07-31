@@ -3,9 +3,11 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { createGrowthControlPlaneRepository } from "../src/infrastructure/growthControlPlane/growthControlPlaneRepository.js";
 import { createGrowthControlShadowParityRepository } from "../src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js";
+import { createGrowthControlAnalyticsObservabilityRepository } from "../src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js";
 import { createGrowthControlPlaneService } from "../src/application/growthControlPlane/growthControlPlaneService.js";
 import { createGrowthControlShadowParityService } from "../src/application/growthControlPlane/growthControlShadowParityService.js";
 import { createAdminGrowthControlUiProjectionService } from "../src/application/growthControlPlane/adminGrowthControlUiProjectionService.js";
+import { createGrowthControlAnalyticsObservabilityService } from "../src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js";
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
@@ -40,6 +42,27 @@ function idempotencyKey(req) {
   return String(req.headers["idempotency-key"] || "").trim();
 }
 
+function requireTenantUserJwt(req, res, next) {
+  const auth = req.auth || {};
+  if (auth.mode !== "user_jwt" || !auth.user_id || !auth.tenant_id || auth.is_admin === true) {
+    return res.status(401).json({
+      error: {
+        code: "TENANT_USER_JWT_REQUIRED",
+        message: "A signed non-admin tenant user JWT is required.",
+        details: [],
+        requestId: requestId(req)
+      },
+      secretsIncluded: false
+    });
+  }
+  return next();
+}
+
+function booleanQuery(value) {
+  if (value == null || value === "") return false;
+  return String(value).trim().toLowerCase() === "true";
+}
+
 function errorResponse(req, res, error) {
   const status = Number(error?.status || 500);
   return res.status(status).json({
@@ -58,6 +81,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
   requireAdminPrincipal,
   service = null,
   uiProjectionService = null,
+  analyticsObservabilityService = null,
   resolvePool = () => getPool(),
   shadowParityEnabled = process.env.GROWTH_CONTROL_SHADOW_PARITY_ENABLED === "true"
 }) {
@@ -71,6 +95,11 @@ export function buildDynamicGrowthControlPlaneRoutes({
     : null;
   const controlPlane = service || createGrowthControlPlaneService({ repository, shadowParityObserver });
   const adminUiProjection = uiProjectionService || createAdminGrowthControlUiProjectionService({ repository });
+  const analyticsRepository = analyticsObservabilityService
+    ? null
+    : createGrowthControlAnalyticsObservabilityRepository({ resolvePool });
+  const analyticsOperations = analyticsObservabilityService
+    || createGrowthControlAnalyticsObservabilityService({ repository: analyticsRepository });
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal];
 
   // frontend-surface-operation: GET /admin/control-plane/configurations
@@ -216,7 +245,76 @@ export function buildDynamicGrowthControlPlaneRoutes({
     } catch (error) { return errorResponse(req, res, error); }
   });
 
+  // frontend-surface-operation: GET /admin/control-plane/analytics/kpis
+  router.get("/admin/control-plane/analytics/kpis", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["tenantId","workspaceIds","brandKeys","activityBindingIds","normalizedKpiKeys"]));
+      const result = await analyticsOperations.projectKpiCatalog(req.query || {});
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: GET /admin/control-plane/analytics/portfolio
+  router.get("/admin/control-plane/analytics/portfolio", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["tenantId","workspaceIds","brandKeys","normalizedKpiKeys","periodStart","periodEnd","limit"]));
+      const result = await analyticsOperations.projectAdminPortfolio(req.query || {});
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: GET /tenant/control-plane/analytics/portfolio
+  router.get("/tenant/control-plane/analytics/portfolio", requireTenantUserJwt, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["workspaceId","brandKey","normalizedKpiKeys","periodStart","periodEnd","limit"]));
+      const result = await analyticsOperations.projectTenantPortfolio(req.auth, req.query || {});
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: GET /admin/control-plane/operations/dashboard
+  router.get("/admin/control-plane/operations/dashboard", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["tenantId","workspaceIds","brandKeys","environment","windowStart","windowEnd","sampleLimit","findingLimit","includePortfolio","normalizedKpiKeys","periodStart","periodEnd","limit"]));
+      const result = await analyticsOperations.projectAdminOperationalHealth({ ...req.query, includePortfolio: booleanQuery(req.query.includePortfolio) });
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: GET /tenant/control-plane/operations/dashboard
+  router.get("/tenant/control-plane/operations/dashboard", requireTenantUserJwt, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["workspaceId","brandKey","environment","windowStart","windowEnd","sampleLimit","findingLimit","includePortfolio","normalizedKpiKeys","periodStart","periodEnd","limit"]));
+      const result = await analyticsOperations.projectTenantOperationalHealth(req.auth, { ...req.query, includePortfolio: booleanQuery(req.query.includePortfolio) });
+      return res.status(200).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  router.post("/internal/control-plane/analytics/observations", requireBackendApiKey, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["observationId","tenantId","workspaceId","brandKey","activityBindingId","nativeKpiKey","nativeValue","weight","periodStart","periodEnd","observedAt","confidence","sourceSystemKey","sourceObservationId","sourceEventId","now"]));
+      const result = await analyticsOperations.recordMetricObservation({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  router.post("/internal/control-plane/operations/samples", requireBackendApiKey, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["sampleId","metricKey","tenantId","workspaceId","brandKey","environment","value","weight","observedAt","sourceEvidenceSha256"]));
+      const result = await analyticsOperations.recordObservabilitySample({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  router.post("/internal/control-plane/operations/decision-evidence", requireBackendApiKey, async (req, res) => {
+    try {
+      assertAllowedKeys(req.body, new Set(["requestId","traceId","tenantId","workspaceId","brandKey","activityBindingId","planId","runId","capabilityKey","workflowVersion","configSnapshotId","policySnapshotId","selectedAdapterKey","gateResults","reasonCodes","durationMs","resultClassification","readbackStatus"]));
+      const result = await analyticsOperations.recordDecisionEvidence({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
+      return res.status(201).json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
   return router;
 }
 
-export const _testingDynamicGrowthControlPlaneRoutes = Object.freeze({ requestId, actorId, assertAllowedKeys, idempotencyKey, errorResponse });
+export const _testingDynamicGrowthControlPlaneRoutes = Object.freeze({ requestId, actorId, assertAllowedKeys, idempotencyKey, requireTenantUserJwt, booleanQuery, errorResponse });
