@@ -10,6 +10,10 @@ export {
 } from "./providerAuthorizationStateRepository.js";
 export { createProviderAuthorizationRuntimeRepository } from "./providerAuthorizationRuntimeRepository.js";
 export {
+  createCertifiedProviderConnectionRevocationRepository,
+  createDurableProviderConsentHandoffAdapter,
+} from "./providerConsentActivationPilotRepositories.js";
+export {
   createBrandManagementAuthorityRepository,
   createProviderConnectionAccessRepository,
   createProviderConsentReadinessRepository,
