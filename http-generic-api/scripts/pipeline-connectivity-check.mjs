@@ -42,19 +42,33 @@ function indentation(line) {
   return line.match(/^\s*/)?.[0].length || 0;
 }
 
+function normalizeExecutableCommand(command) {
+  return command
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .filter((line) => !/^\s*#/.test(line))
+    .join("\n")
+    .replace(/\\\s*\n\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function executableCommands(text) {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const commands = [];
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const inline = line.match(/^\s*run:\s*(?![|>][-+0-9]*\s*$)(.+)$/);
-    if (inline) {
-      commands.push(inline[1]);
+    const run = line.match(/^\s*run:\s*(.*?)\s*$/);
+    if (!run) continue;
+
+    const value = run[1];
+    const blockScalar = /^[|>][-+0-9]*$/.test(value);
+    if (!blockScalar) {
+      if (value) commands.push(value);
       continue;
     }
 
-    if (!/^\s*run:\s*[|>][-+0-9]*\s*$/.test(line)) continue;
     const baseIndent = indentation(line);
     const block = [];
     for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
@@ -66,7 +80,7 @@ function executableCommands(text) {
     commands.push(block.join("\n"));
   }
 
-  return commands.join("\n");
+  return commands.map(normalizeExecutableCommand).filter(Boolean).join("\n");
 }
 
 function detectTriggers(text) {
