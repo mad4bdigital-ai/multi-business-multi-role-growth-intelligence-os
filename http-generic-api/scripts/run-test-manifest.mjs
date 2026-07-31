@@ -22,6 +22,7 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-policy-compiler.mjs",
   "node test-growth-control-final-boundary.mjs",
   "node test-growth-control-provider-adapter-resolver.mjs",
+  "node test-growth-control-provider-effect-reconciliation.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,
