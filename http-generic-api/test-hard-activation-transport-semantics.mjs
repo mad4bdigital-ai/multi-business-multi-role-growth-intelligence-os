@@ -24,5 +24,15 @@ assert.doesNotMatch(
   /const statusCode = hard\.activation_complete \? 200 : 424;/,
   "activation outcome alone must not determine transport failure",
 );
+assert.match(
+  source,
+  /auth: req\?\.auth \|\| null/,
+  "hard activation chunk ownership must come from authenticated request middleware",
+);
+assert.match(
+  source,
+  /source_surface: "activation_hard_run"/,
+  "hard activation chunks must carry a fixed trusted source surface",
+);
 
 console.log("hard activation transport semantics contract tests passed");
