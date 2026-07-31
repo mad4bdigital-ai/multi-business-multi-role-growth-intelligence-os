@@ -11,25 +11,37 @@ on:
         description: Exact branch head SHA authorized for regeneration
         required: true
         type: string
+  pull_request:
+    branches: [main]
+    types: [reopened]
 
 permissions:
   actions: write
   contents: write
 
 concurrency:
-  group: spec-kit-work-map-autofix-${{ inputs.branch }}
+  group: spec-kit-work-map-autofix-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
   cancel-in-progress: false
 
 jobs:
   regenerate:
     name: Regenerate Work Maps
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'reopened' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'github-actions[bot]' &&
+        contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')
+      )
     runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
     steps:
       - name: Validate authorized target
         shell: bash
-        env:
-          TARGET_BRANCH: ${{ inputs.branch }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
         run: |
           set -euo pipefail
           git check-ref-format --branch "${TARGET_BRANCH}"
@@ -45,7 +57,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ inputs.expected_head_sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
 
       - uses: actions/setup-node@v6
         with:
@@ -53,9 +65,6 @@ jobs:
 
       - name: Pin authorized branch head
         shell: bash
-        env:
-          TARGET_BRANCH: ${{ inputs.branch }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
         run: |
           set -euo pipefail
           actual_head_sha="$(git rev-parse HEAD)"
@@ -109,8 +118,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_BRANCH: ${{ inputs.branch }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
         run: |
           set -euo pipefail
           if git diff --quiet -- docs/work-maps; then
