@@ -16,9 +16,15 @@ export { formatReport, readChangedFiles };
 
 const DIFF_FILE_HEADER = /^\+\+\+ b\/(.+)$/u;
 const DIFF_HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/u;
+const DIRECT_SELECTION_RULE = "first_candidate_selection";
+const DIRECT_SELECTION = /\b([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\[\s*0\s*\]|\.at\(\s*0\s*\))/u;
 
 function normalize(value) {
   return String(value || "").split(path.sep).join("/").replace(/^\.\//u, "");
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function addRange(target, file, start, count) {
@@ -92,6 +98,72 @@ function lineIsChanged(rangesByFile, finding) {
   return ranges.some((range) => finding.line >= range.start && finding.line <= range.end);
 }
 
+function exactKeyPredicates(whereClause) {
+  if (!whereClause || /\b(?:OR|IN|LIKE|BETWEEN|GROUP\s+BY)\b/iu.test(whereClause)) return false;
+  const predicates = whereClause.split(/\bAND\b/iu).map((value) => value.trim()).filter(Boolean);
+  let exactKeyCount = 0;
+  for (const predicate of predicates) {
+    const normalized = predicate.replace(/^\(+|\)+$/gu, "").trim();
+    const parameterMatch = normalized.match(/^(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)\s*=\s*\?$/u);
+    if (parameterMatch) {
+      if (/(?:^id$|_id$|_key$|_sha256$)/iu.test(parameterMatch[1])) exactKeyCount += 1;
+      else return false;
+      continue;
+    }
+    if (/^(?:[A-Za-z0-9_]+\.)?status\s*=\s*["'][A-Za-z0-9_-]+["']$/iu.test(normalized)) continue;
+    return false;
+  }
+  return exactKeyCount > 0;
+}
+
+function hasExactKeyQueryProof(context, variableName) {
+  const escaped = escapeRegex(variableName);
+  const assignment = new RegExp(`(?:const|let)\\s*\\[\\s*${escaped}\\s*\\]\\s*=\\s*await[\\s\\S]*?\\.query\\s*\\(`, "u");
+  if (!assignment.test(context)) return false;
+  const compact = context.replace(/\s+/gu, " ");
+  const queries = compact.match(/\bSELECT\b[\s\S]*?\bLIMIT\s+(?:1|2)\b/giu) ?? [];
+  return queries.some((query) => {
+    const where = query.match(/\bWHERE\b([\s\S]*?)\bLIMIT\s+(?:1|2)\b/iu)?.[1]?.trim();
+    return exactKeyPredicates(where);
+  });
+}
+
+function hasCardinalityGuard(context, variableName) {
+  const escaped = escapeRegex(variableName);
+  const patterns = [
+    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*>\\s*1[^)]*\\)\\s*throw\\b`, "su"),
+    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*>=\\s*2[^)]*\\)\\s*throw\\b`, "su"),
+    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*!={1,2}\\s*1[^)]*\\)\\s*throw\\b`, "su"),
+  ];
+  return patterns.some((pattern) => pattern.test(context));
+}
+
+export function hasScannerVisibleSelectionProof({ repositoryRoot, finding } = {}) {
+  if (!finding || finding.rule_id !== DIRECT_SELECTION_RULE) return false;
+  const root = path.resolve(repositoryRoot || ".");
+  const absolutePath = path.resolve(root, normalize(finding.path));
+  if (absolutePath !== root && !absolutePath.startsWith(`${root}${path.sep}`)) return false;
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) return false;
+  const lines = fs.readFileSync(absolutePath, "utf8").split(/\r?\n/u);
+  const lineIndex = Number(finding.line) - 1;
+  if (!Number.isInteger(lineIndex) || lineIndex < 0 || lineIndex >= lines.length) return false;
+  const selection = lines[lineIndex].match(DIRECT_SELECTION);
+  if (!selection) return false;
+  const context = lines.slice(Math.max(0, lineIndex - 24), Math.min(lines.length, lineIndex + 3)).join("\n");
+  return hasCardinalityGuard(context, selection[1]) || hasExactKeyQueryProof(context, selection[1]);
+}
+
+function applyProofAwareSuppressions(findings, repositoryRoot) {
+  return findings.map((finding) => {
+    if (finding.suppressed || !hasScannerVisibleSelectionProof({ repositoryRoot, finding })) return finding;
+    return {
+      ...finding,
+      suppressed: true,
+      suppression_reason: "Scanner-visible uniqueness proof rejects ambiguity before selecting the sole candidate.",
+    };
+  });
+}
+
 function summarize(findings) {
   const active = findings.filter((item) => !item.suppressed);
   const byRule = {};
@@ -121,7 +193,8 @@ export function scanRepository(options = {}) {
   const rangesByFile = options.changedLineRanges ?? resolveChangedLineRanges(repositoryRoot, changedFiles);
   if (!rangesByFile) return report;
 
-  const findings = report.findings.filter((item) => lineIsChanged(rangesByFile, item));
+  const changedFindings = report.findings.filter((item) => lineIsChanged(rangesByFile, item));
+  const findings = applyProofAwareSuppressions(changedFindings, repositoryRoot);
   return {
     ...report,
     scan_scope: "changed_lines",
