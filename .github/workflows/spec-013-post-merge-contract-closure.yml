@@ -20,9 +20,9 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - name: Check out governed repair branch
+      - name: Check out synchronized repair branch
         uses: actions/checkout@v5
         with:
           ref: fix/spec-013-post-merge-contract-closure-20260731
@@ -45,6 +45,12 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
+          from textwrap import dedent
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              assert count == 1, f'{label}: expected exactly one match, found {count}'
+              return text.replace(old, new)
 
           routes_path = Path('http-generic-api/routes/systemLayerRoutes.js')
           routes = routes_path.read_text()
@@ -60,54 +66,66 @@ jobs:
               return sendSystemToolCatalogError(res, error, "admin_system_tool_catalog_list_failed");
             }
           });'''
-          assert routes.count(old_admin) == 1, 'admin catalog handler shape changed'
-          routes_path.write_text(routes.replace(old_admin, new_admin))
+          routes_path.write_text(replace_once(routes, old_admin, new_admin, 'admin Catalog V2 handler'))
 
-          root_openapi_path = Path('http-generic-api/openapi.yaml')
-          root_openapi = root_openapi_path.read_text()
-          replacements = {
-            'security: [backendBearerAuth: [], backendApiKeyAuth: []]': 'security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]',
-            'security: [adminBearerAuth: [], backendApiKeyAuth: []]': 'security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]',
-          }
-          replacement_counts = {}
-          for old, new in replacements.items():
-            count = root_openapi.count(old)
-            assert count > 0, f'expected combined security form not found: {old}'
-            replacement_counts[old] = count
-            root_openapi = root_openapi.replace(old, new)
-          root_openapi_path.write_text(root_openapi)
-          print({'root_openapi_security_replacements': replacement_counts})
+          root_path = Path('http-generic-api/openapi.yaml')
+          root = root_path.read_text()
+          root_targets = [
+              ('/system/tools', 'get', 'backendBearerAuth'),
+              ('/system/tools/catalog-observability', 'get', 'adminBearerAuth'),
+              ('/system/tools/{toolName}', 'get', 'backendBearerAuth'),
+              ('/system/capabilities/resolve', 'post', 'backendBearerAuth'),
+              ('/system/tools/call', 'post', 'backendBearerAuth'),
+          ]
+          for path, method, bearer in root_targets:
+              old = f'''  {path}:
+                {method}:
+                  tags: [system-layer]
+                  security: [{bearer}: [], backendApiKeyAuth: []]'''
+              new = f'''  {path}:
+                {method}:
+                  tags: [system-layer]
+                  security: [{{ {bearer}: [] }}, {{ backendApiKeyAuth: [] }}]'''
+              root = replace_once(root, old, new, f'root OpenAPI auth alternatives for {method.upper()} {path}')
+          root_path.write_text(root)
 
           contract_path = Path('specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml')
           contract = contract_path.read_text()
-          old_global = '''security:
-            - bearerAuth: []'''
-          new_global = '''security:
-            - bearerAuth: []
-            - backendApiKeyAuth: []'''
-          assert contract.count(old_global) == 1, 'Spec 013 global security shape changed'
-          contract = contract.replace(old_global, new_global)
-          old_observability = '''      security:
-                - bearerAuth: [admin]'''
-          new_observability = '''      security:
-                - bearerAuth: [admin]
-                - backendApiKeyAuth: []'''
-          assert contract.count(old_observability) == 1, 'Spec 013 observability security shape changed'
-          contract = contract.replace(old_observability, new_observability)
-          old_schemes = '''    bearerAuth:
-                type: http
-                scheme: bearer
-                bearerFormat: JWT'''
-          new_schemes = '''    bearerAuth:
-                type: http
-                scheme: bearer
-                bearerFormat: JWT
-              backendApiKeyAuth:
-                type: apiKey
-                in: header
-                name: x-api-key'''
-          assert contract.count(old_schemes) == 1, 'Spec 013 security schemes shape changed'
-          contract_path.write_text(contract.replace(old_schemes, new_schemes))
+          contract = replace_once(
+              contract,
+              '''security:
+                - bearerAuth: []''',
+              '''security:
+                - bearerAuth: []
+                - backendApiKeyAuth: []''',
+              'Spec 013 global auth alternatives',
+          )
+          contract = replace_once(
+              contract,
+              '''      security:
+                    - bearerAuth: [admin]''',
+              '''      security:
+                    - bearerAuth: [admin]
+                    - backendApiKeyAuth: []''',
+              'Spec 013 observability auth alternatives',
+          )
+          contract = replace_once(
+              contract,
+              '''    bearerAuth:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT''',
+              '''    bearerAuth:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT
+                  backendApiKeyAuth:
+                    type: apiKey
+                    in: header
+                    name: x-api-key''',
+              'Spec 013 API-key security scheme',
+          )
+          contract_path.write_text(contract)
 
           platform_test_path = Path('http-generic-api/test-platform-routes.mjs')
           platform_test = platform_test_path.read_text()
@@ -121,58 +139,63 @@ jobs:
           }
           {
             const r = await get("/system/tools/runtime_endpoint_preview");'''
-          assert platform_test.count(anchor) == 1, 'Catalog V2 platform test anchor changed'
-          platform_test_path.write_text(platform_test.replace(anchor, inserted))
+          platform_test_path.write_text(replace_once(platform_test, anchor, inserted, 'Catalog V2 HTTP regression anchor'))
 
           regression_path = Path('http-generic-api/test-system-tool-catalog-v2-post-merge-contract.mjs')
-          regression_path.write_text('''import assert from "node:assert/strict";
-          import { readFileSync } from "node:fs";
-          import YAML from "yaml";
+          regression_path.write_text(dedent(r'''
+              import assert from "node:assert/strict";
+              import { readFileSync } from "node:fs";
+              import YAML from "yaml";
 
-          const routes = readFileSync("routes/systemLayerRoutes.js", "utf8");
-          const root = YAML.parse(readFileSync("openapi.yaml", "utf8"));
-          const spec = YAML.parse(readFileSync("../specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml", "utf8"));
+              const routes = readFileSync("routes/systemLayerRoutes.js", "utf8");
+              const rootText = readFileSync("openapi.yaml", "utf8");
+              const root = YAML.parse(rootText);
+              const spec = YAML.parse(readFileSync("../specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml", "utf8"));
 
-          const adminHandler = routes.match(/router\.get\("\\\/admin\\\/system\\\/tools"[\\s\\S]*?\n  \}\);/u)?.[0] || "";
-          assert.match(adminHandler, /try\s*\{/u, "admin Catalog V2 list route must catch async cursor errors");
-          assert.match(adminHandler, /sendSystemToolCatalogError/u, "admin Catalog V2 list route must return the stable catalog error envelope");
-          assert.match(adminHandler, /admin_system_tool_catalog_list_failed/u);
+              const adminStart = routes.indexOf('router.get("/admin/system/tools"');
+              const adminEnd = routes.indexOf('router.post("/admin/system/tools/call"', adminStart);
+              assert.ok(adminStart >= 0 && adminEnd > adminStart, "admin Catalog V2 list handler must be discoverable");
+              const adminHandler = routes.slice(adminStart, adminEnd);
+              assert.match(adminHandler, /try\s*\{/u);
+              assert.match(adminHandler, /sendSystemToolCatalogError/u);
+              assert.match(adminHandler, /admin_system_tool_catalog_list_failed/u);
 
-          function assertAlternatives(document, path, method, schemes) {
-            const security = document.paths?.[path]?.[method]?.security ?? document.security;
-            assert.ok(Array.isArray(security), `${method.toUpperCase()} ${path} must declare security alternatives`);
-            for (const scheme of schemes) {
-              assert.ok(security.some((entry) => Object.keys(entry || {}).length === 1 && Object.hasOwn(entry, scheme)), `${method.toUpperCase()} ${path} must allow ${scheme} independently`);
-            }
-            assert.ok(security.every((entry) => Object.keys(entry || {}).length === 1), `${method.toUpperCase()} ${path} must not require multiple auth schemes in one Security Requirement Object`);
-          }
+              function assertAlternatives(document, path, method, schemes) {
+                const security = document.paths?.[path]?.[method]?.security ?? document.security;
+                assert.ok(Array.isArray(security), `${method.toUpperCase()} ${path} must declare security alternatives`);
+                assert.ok(security.every((entry) => Object.keys(entry || {}).length === 1), `${method.toUpperCase()} ${path} must not combine auth schemes in one requirement object`);
+                for (const scheme of schemes) {
+                  assert.ok(security.some((entry) => Object.hasOwn(entry || {}, scheme)), `${method.toUpperCase()} ${path} must independently allow ${scheme}`);
+                }
+              }
 
-          for (const [path, method, schemes] of [
-            ["/system/tools", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
-            ["/system/tools/{toolName}", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
-            ["/system/capabilities/resolve", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
-            ["/system/tools/catalog-observability", "get", ["adminBearerAuth", "backendApiKeyAuth"]],
-            ["/system/tools/call", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
-          ]) assertAlternatives(root, path, method, schemes);
+              for (const [path, method, schemes] of [
+                ["/system/tools", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
+                ["/system/tools/catalog-observability", "get", ["adminBearerAuth", "backendApiKeyAuth"]],
+                ["/system/tools/{toolName}", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
+                ["/system/capabilities/resolve", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
+                ["/system/tools/call", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
+              ]) assertAlternatives(root, path, method, schemes);
 
-          assert.doesNotMatch(readFileSync("openapi.yaml", "utf8"), /security:\s*\[(?:backendBearerAuth|adminBearerAuth):\s*\[\],\s*backendApiKeyAuth:\s*\[\]\]/u);
-          assertAlternatives(spec, "/system/tools", "get", ["bearerAuth", "backendApiKeyAuth"]);
-          assertAlternatives(spec, "/system/tools/{toolName}", "get", ["bearerAuth", "backendApiKeyAuth"]);
-          assertAlternatives(spec, "/system/capabilities/resolve", "post", ["bearerAuth", "backendApiKeyAuth"]);
-          assertAlternatives(spec, "/system/tools/catalog-observability", "get", ["bearerAuth", "backendApiKeyAuth"]);
-          assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.name, "x-api-key");
-          assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.in, "header");
+              assert.doesNotMatch(rootText, /security:\s*\[(?:backendBearerAuth|adminBearerAuth):\s*\[\],\s*backendApiKeyAuth:\s*\[\]\]/u);
+              for (const [path, method] of [
+                ["/system/tools", "get"],
+                ["/system/tools/catalog-observability", "get"],
+                ["/system/tools/{toolName}", "get"],
+                ["/system/capabilities/resolve", "post"],
+              ]) assertAlternatives(spec, path, method, ["bearerAuth", "backendApiKeyAuth"]);
+              assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.name, "x-api-key");
+              assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.in, "header");
 
-          console.log("System Tool Catalog V2 post-merge runtime and OpenAPI contract regressions passed");
-          '''.replace(/^          /gm, ''))
+              console.log("System Tool Catalog V2 post-merge runtime and OpenAPI contract regressions passed");
+          ''').lstrip())
 
           manifest_path = Path('http-generic-api/scripts/test-manifest.mjs')
           manifest = manifest_path.read_text()
           command = '  "node test-system-tool-catalog-v2-post-merge-contract.mjs",\n'
+          assert command not in manifest, 'post-merge Catalog V2 regression already registered unexpectedly'
           anchor = '  "node test-status-component-readiness-freshness.mjs",\n'
-          assert command not in manifest, 'regression already registered unexpectedly'
-          assert manifest.count(anchor) == 1, 'manifest anchor changed'
-          manifest_path.write_text(manifest.replace(anchor, command + anchor))
+          manifest_path.write_text(replace_once(manifest, anchor, command + anchor, 'test manifest registration'))
           PY
 
       - name: Run focused Catalog V2 closure regressions
@@ -185,7 +208,7 @@ jobs:
           node test-system-layer-response-fallback.mjs
           node test-platform-routes.mjs
 
-      - name: Refresh bounded generated artifacts
+      - name: Refresh bounded generated artifacts and contract guards
         working-directory: http-generic-api
         run: |
           git fetch origin main --depth=1
@@ -231,11 +254,13 @@ jobs:
           fi
           git diff --check
 
-      - name: Commit bounded repair
+      - name: Commit bounded repair and remove temporary workflow
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/spec-013-post-merge-contract-closure.yml
           git add --all
+          git diff --cached --check
           git commit -m "fix(spec-013): close post-merge catalog contracts"
           git push origin HEAD:fix/spec-013-post-merge-contract-closure-20260731
