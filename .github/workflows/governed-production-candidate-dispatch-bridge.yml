@@ -38,7 +38,7 @@ jobs:
           grep -Fq "headRepository.nameWithOwner" "$FILE"
           grep -Fq "duplicate_suppressed" "$FILE"
           grep -Fq "id: eligibility" "$FILE"
-          grep -Fq "eligible=$ELIGIBLE" "$FILE"
+          grep -Fq 'eligible=$ELIGIBLE' "$FILE"
           grep -Fq "merge_executed=false" "$FILE"
           grep -Fq "deployment_executed=false" "$FILE"
           if grep -Eqi 'gh pr merge|git push[[:space:]]+--force|force-with-lease' "$FILE"; then
