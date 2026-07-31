@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.mad4b.com/commerce/commerce-provider-adapter-v1.schema.json",
-  "title": "Brand-Scoped Commerce Authority Adapter Manifest v1",
+  "$id": "https://schemas.mad4b.com/commerce/commerce-provider-adapter-v2.schema.json",
+  "title": "Business-Profile-Bound Brand Commerce Authority Adapter Manifest v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,6 +12,7 @@
     "status",
     "authority_domains",
     "supported_operations",
+    "business_profile_contract",
     "brand_context_contract",
     "transaction_contract",
     "idempotency_contract",
@@ -21,7 +22,7 @@
     "secrets_included"
   ],
   "properties": {
-    "schema_version": { "const": "commerce-authority-adapter-v1" },
+    "schema_version": { "const": "commerce-authority-adapter-v2" },
     "adapter_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{2,127}$" },
     "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
     "backend_mode": { "type": "string", "enum": ["platform_native", "erpnext", "woocommerce"] },
@@ -94,6 +95,51 @@
         ]
       }
     },
+    "business_profile_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_business_profile_required",
+        "effective_profile_context_hash_required",
+        "effective_profile_version_vector_required",
+        "activity_pack_compatibility_declared",
+        "stale_profile_rejected",
+        "unsupported_profile_behavior",
+        "supported_activity_type_keys",
+        "supported_activity_pack_refs"
+      ],
+      "properties": {
+        "effective_business_profile_required": { "const": true },
+        "effective_profile_context_hash_required": { "const": true },
+        "effective_profile_version_vector_required": { "const": true },
+        "activity_pack_compatibility_declared": { "const": true },
+        "stale_profile_rejected": { "const": true },
+        "unsupported_profile_behavior": { "type": "string", "enum": ["block", "read_only_discovery"] },
+        "supported_activity_type_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 191 }
+        },
+        "excluded_activity_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 191 }
+        },
+        "supported_activity_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 191 }
+        },
+        "required_profile_dimension_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 191 }
+        },
+        "applicability_contract_version": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
     "brand_context_contract": {
       "type": "object",
       "additionalProperties": false,
@@ -127,13 +173,14 @@
     "transaction_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["atomic_reservation", "expected_version_supported", "unique_item_conflict_code", "commit_boundary_documented", "brand_in_aggregate_identity"],
+      "required": ["atomic_reservation", "expected_version_supported", "unique_item_conflict_code", "commit_boundary_documented", "brand_in_aggregate_identity", "effective_profile_context_in_command_identity"],
       "properties": {
         "atomic_reservation": { "type": "boolean" },
         "expected_version_supported": { "type": "boolean" },
         "unique_item_conflict_code": { "type": "string", "minLength": 1, "maxLength": 128 },
         "commit_boundary_documented": { "type": "boolean" },
         "brand_in_aggregate_identity": { "const": true },
+        "effective_profile_context_in_command_identity": { "const": true },
         "supports_caller_owned_transaction": { "type": "boolean", "default": false },
         "external_transaction_semantics": { "type": ["string", "null"], "maxLength": 2000 }
       }
@@ -141,11 +188,12 @@
     "idempotency_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["supported", "scope", "brand_in_scope", "payload_mismatch_rejected", "retention_seconds"],
+      "required": ["supported", "scope", "brand_in_scope", "effective_profile_context_hash_in_scope", "payload_mismatch_rejected", "retention_seconds"],
       "properties": {
         "supported": { "const": true },
-        "scope": { "type": "string", "enum": ["tenant_workspace_brand_operation", "provider_brand_operation", "brand_resource_operation"] },
+        "scope": { "type": "string", "enum": ["tenant_workspace_brand_profile_operation", "provider_brand_profile_operation", "brand_profile_resource_operation"] },
         "brand_in_scope": { "const": true },
+        "effective_profile_context_hash_in_scope": { "const": true },
         "payload_mismatch_rejected": { "const": true },
         "retention_seconds": { "type": "integer", "minimum": 3600, "maximum": 31536000 }
       }
@@ -153,10 +201,11 @@
     "readback_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["same_operation_identity", "same_brand_context", "unknown_outcome_supported", "methods"],
+      "required": ["same_operation_identity", "same_brand_context", "same_effective_business_profile_context", "unknown_outcome_supported", "methods"],
       "properties": {
         "same_operation_identity": { "const": true },
         "same_brand_context": { "const": true },
+        "same_effective_business_profile_context": { "const": true },
         "unknown_outcome_supported": { "type": "boolean" },
         "methods": {
           "type": "array",
@@ -174,6 +223,7 @@
         "supported": { "type": "boolean", "default": false },
         "unique_item_allocation_lease_required": { "type": "boolean", "default": true },
         "brand_bound_lease_required": { "const": true },
+        "business_profile_bound_lease_required": { "const": true },
         "lease_signature_mode": { "type": ["string", "null"], "maxLength": 128 },
         "maximum_lease_seconds": { "type": ["integer", "null"], "minimum": 30, "maximum": 86400 }
       }
@@ -202,6 +252,8 @@
         "tenant_scope_required",
         "workspace_scope_required",
         "brand_scope_required",
+        "active_effective_business_profile_required",
+        "caller_profile_override_forbidden",
         "exact_brand_connection_binding_required",
         "workspace_fallback_forbidden",
         "personal_fallback_forbidden",
@@ -215,6 +267,8 @@
         "tenant_scope_required": { "const": true },
         "workspace_scope_required": { "const": true },
         "brand_scope_required": { "const": true },
+        "active_effective_business_profile_required": { "const": true },
+        "caller_profile_override_forbidden": { "const": true },
         "exact_brand_connection_binding_required": { "const": true },
         "workspace_fallback_forbidden": { "const": true },
         "personal_fallback_forbidden": { "const": true },
@@ -246,7 +300,10 @@
         "evidence_refs",
         "behaviorally_certified",
         "cross_brand_isolation_tested",
-        "brand_connection_binding_tested"
+        "brand_connection_binding_tested",
+        "business_profile_context_tested",
+        "activity_pack_compatibility_tested",
+        "stale_profile_rejection_tested"
       ],
       "properties": {
         "environment": { "type": "string", "enum": ["none", "fixture", "sandbox", "staging", "production"] },
@@ -257,6 +314,9 @@
         "behaviorally_certified": { "type": "boolean" },
         "cross_brand_isolation_tested": { "type": "boolean" },
         "brand_connection_binding_tested": { "type": "boolean" },
+        "business_profile_context_tested": { "type": "boolean" },
+        "activity_pack_compatibility_tested": { "type": "boolean" },
+        "stale_profile_rejection_tested": { "type": "boolean" },
         "provider_execution_certified": { "type": "boolean", "default": false }
       }
     },
@@ -272,7 +332,10 @@
               "environment": { "enum": ["sandbox", "staging", "production"] },
               "behaviorally_certified": { "const": true },
               "cross_brand_isolation_tested": { "const": true },
-              "brand_connection_binding_tested": { "const": true }
+              "brand_connection_binding_tested": { "const": true },
+              "business_profile_context_tested": { "const": true },
+              "activity_pack_compatibility_tested": { "const": true },
+              "stale_profile_rejection_tested": { "const": true }
             }
           }
         }
