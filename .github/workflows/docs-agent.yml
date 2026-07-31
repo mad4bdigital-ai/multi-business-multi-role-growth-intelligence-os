@@ -9,6 +9,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -70,8 +71,11 @@ jobs:
         if: >-
           contains(github.event.pull_request.labels.*.name, 'docs-agent-write') ||
           contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          set -e
+          set -euo pipefail
           if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
             echo "Docs Agent: no generated docs or work-map changes to commit."
             exit 0
@@ -80,8 +84,15 @@ jobs:
           git config user.email "docs-agent[bot]@users.noreply.github.com"
           git add docs/auto-docs-agent docs/work-maps
           git commit -m "Docs agent: update generated documentation"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
+            echo "Generated documentation push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
 
       - name: Enable auto-merge when explicitly labeled
         if: contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
@@ -124,7 +135,7 @@ jobs:
           DOCS_AGENT_BRANCH: docs-agent/${{ github.event.after }}
           DOCS_AGENT_SHA: ${{ github.event.after }}
         run: |
-          set -e
+          set -euo pipefail
           if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
             echo "Docs Agent: no generated docs or work-map changes to publish."
             exit 0
@@ -141,5 +152,6 @@ jobs:
             --title "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}" \
             --body "Automated docs-only impact note for merged commit ${DOCS_AGENT_SHA}. This PR contains no runtime code, schema, DB, or credential changes.")
           echo "Created $PR_URL"
-          gh workflow run ci.yml --ref "$DOCS_AGENT_BRANCH" || true
+          gh workflow run ci.yml --ref "$DOCS_AGENT_BRANCH"
+          gh workflow run spec-kit-work-map-integration.yml --ref "$DOCS_AGENT_BRANCH"
           gh pr merge "$PR_URL" --auto --squash || true

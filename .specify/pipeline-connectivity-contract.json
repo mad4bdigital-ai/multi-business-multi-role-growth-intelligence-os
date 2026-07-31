@@ -56,6 +56,7 @@
       "workflow": ".github/workflows/spec-kit-work-map-autofix.yml",
       "mode": "write",
       "required_permissions": {
+        "actions": "write",
         "contents": "write"
       },
       "required_triggers": [
@@ -73,6 +74,9 @@
         "platform-work-map-generator.mjs --check",
         "expected_head_sha",
         "git push origin",
+        "git rev-parse HEAD",
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
         "Direct autofix writes to main are forbidden"
       ],
       "forbidden_commands": [
@@ -85,6 +89,7 @@
       "workflow": ".github/workflows/docs-agent.yml",
       "mode": "conditional_write",
       "required_permissions": {
+        "actions": "write",
         "contents": "write"
       },
       "required_triggers": [
@@ -97,6 +102,9 @@
         "platform-work-map-generator.mjs --write",
         "docs-agent-write",
         "docs-agent-automerge",
+        "git rev-parse HEAD",
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
         "github.actor != 'github-actions[bot]'",
         "github.event.pull_request.head.repo.full_name == github.repository"
       ],
@@ -154,6 +162,16 @@
       "from": "spec-kit-work-map-integration",
       "to": "spec-kit-work-map-autofix",
       "type": "manual_repair_handoff"
+    },
+    {
+      "from": "spec-kit-work-map-autofix",
+      "to": "spec-kit-work-map-integration",
+      "type": "dispatches_validation"
+    },
+    {
+      "from": "docs-agent",
+      "to": "spec-kit-work-map-integration",
+      "type": "dispatches_validation"
     }
   ]
 }

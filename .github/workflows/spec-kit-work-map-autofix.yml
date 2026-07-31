@@ -13,6 +13,7 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -107,6 +108,7 @@ jobs:
       - name: Commit generated artifacts
         shell: bash
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_BRANCH: ${{ inputs.branch }}
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
         run: |
@@ -125,3 +127,11 @@ jobs:
             exit 1
           fi
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
+            echo "Autofix push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"

@@ -136,18 +136,25 @@ When maps, migrations, schema taxonomy, classification rules, or exception recor
 
 ## Generated-map synchronization
 
-The dedicated pull-request workflow runs the canonical generator with `--write` before validation. On a same-repository PR it commits only when `docs/work-maps` contains a real generated diff, using the exact generator output. When the generated files are already current, it exits without creating a commit.
+The required validation workflow is read-only. It checks an immutable pull-request head SHA and never commits, pushes, or runs the generator in write mode.
+
+Generated changes may be published only by a producer registered in `.specify/pipeline-connectivity-contract.json`. The normal pull-request path is preview-only. An explicit `docs-agent-write` or `docs-agent-automerge` label authorizes Docs Agent to publish a real generated diff. The separate Work Map Autofix workflow requires a non-main branch and its exact expected head SHA.
 
 ```text
-run generator
-→ inspect docs/work-maps diff
-→ no diff: create no commit
-→ real diff: commit generated files
-→ verify with --check
-→ run classification and Spec Kit gates
+source change
+→ read-only freshness check
+→ stale: preview or explicitly authorized repair
+→ generate twice and prove idempotency
+→ reject files outside the governed generated root
+→ re-read the remote branch head
+→ normal fast-forward push only
+→ read back the pushed SHA
+→ explicitly dispatch CI and Work Map validation for the new head
 ```
 
-The bot-generated commit does not weaken review: GitHub starts a fresh validation cycle for the resulting head, or the head is explicitly revalidated before merge. Direct manual editing of generated maps remains prohibited.
+A producer may not use `--force`, `--force-with-lease`, a stale branch head, a no-op commit, or a silent best-effort validation dispatch. Because pushes made with `GITHUB_TOKEN` do not provide a reliable recursive validation trigger, every governed producer must explicitly dispatch `ci.yml` and `spec-kit-work-map-integration.yml` after successful push readback. Failure to dispatch either validator fails the producer job.
+
+The connectivity contract verifies the producer, consumer, trigger, permission, command, and graph-edge relationships. Generated Work Maps remain generator-owned and direct manual editing is prohibited.
 
 ## Implementation readiness
 
@@ -169,7 +176,10 @@ Documentation-only drafting may retain unresolved decisions, but it never create
 ## CI commands
 
 ```bash
+node http-generic-api/scripts/pipeline-connectivity-check.mjs
+node http-generic-api/test-pipeline-connectivity-check.mjs
 node http-generic-api/scripts/platform-work-map-generator.mjs --check
+node http-generic-api/scripts/work-map-schema-classification-contract.mjs
 node http-generic-api/scripts/work-map-schema-classification.mjs
 node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 ```
@@ -179,14 +189,16 @@ Regression tests:
 ```bash
 cd http-generic-api
 node test-work-map-schema-classification.mjs
+node test-work-map-schema-classification-contract.mjs
 node test-spec-kit-work-map-governance-gate.mjs
 node test-spec-kit-completion-gate.mjs
 ```
 
-The dedicated workflow is:
+The dedicated validation and repair workflows are:
 
 ```text
 .github/workflows/spec-kit-work-map-integration.yml
+.github/workflows/spec-kit-work-map-autofix.yml
 ```
 
 ## Discovery of new platform dimensions
