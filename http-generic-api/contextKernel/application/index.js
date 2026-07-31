@@ -18,7 +18,7 @@ export { createExecutionPlanService } from "./executionPlanService.js";
 export { createPolicyGrantEvaluatorService } from "./policyGrantEvaluatorService.js";
 export { createPrincipalResolverService } from "./principalResolverService.js";
 export { createProviderConsentActivationPilotService } from "./providerConsentActivationPilotCertifiedService.js";
-export { createProviderConsentAdapterEvidenceService } from "./providerConsentAdapterEvidenceService.js";
+export { createProviderConsentAdapterEvidenceService } from "./providerConsentAdapterEvidenceCertifiedService.js";
 export { createProviderConsentCallbackRuntimeService } from "./providerConsentCallbackRuntimeService.js";
 export { createProviderConsentService } from "./providerConsentService.js";
 export { createProviderConsentStateCodec } from "./providerConsentStateCodec.js";
