@@ -18,6 +18,7 @@ import {
   resourcePermissionCoversBrandSkillOperations,
   resourcePermissionRank,
 } from "./brandSkillResourcePermission.js";
+import { inferBrandSkillOperation } from "./userBrandSkillEntitlement.js";
 import { assessBrandSkillMigrationPreflight } from "./brandSkillMigrationPreflight.js";
 import { brandSkillActivationHttpStatus } from "./routes/brandSkillRoutes.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
@@ -63,6 +64,14 @@ assert.equal(resourcePermissionCoversBrandSkillOperations("view", ["publish"]), 
 assert.equal(resourcePermissionCoversBrandSkillOperations("operate", ["publish"]), true);
 assert.equal(resourcePermissionCoversBrandSkillOperations("operate", ["delete"]), false);
 assert.equal(resourcePermissionCoversBrandSkillOperations("manage", ["delete", "publish"]), true);
+assert.equal(inferBrandSkillOperation("wordpress_create_post", { operation: "create", status: "publish" }, {
+  action_key: "wordpress_create_post",
+  runtime_capability_class: "mcp_connector",
+}, {}), "publish");
+assert.equal(inferBrandSkillOperation("workspace_update_and_execute", {}, {
+  action_key: "workspace_update_and_execute",
+  runtime_capability_class: "system_control",
+}, {}), "execute");
 assert.equal(brandSkillActivationHttpStatus({ created: true, changed: true }), 201);
 assert.equal(brandSkillActivationHttpStatus({ created: false, changed: true }), 200);
 assert.equal(brandSkillActivationHttpStatus({ created: false, changed: false }), 200);
