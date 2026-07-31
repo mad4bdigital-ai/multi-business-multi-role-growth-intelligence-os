@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "phase": "readiness",
+  "issue_number": 4122,
+  "confirmation_comment_id": 5143273227,
+  "confirmation_body": "AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE",
+  "migration_id": "1006_sprint69_agent_capability_evidence_coverage",
+  "checksum": "995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374",
+  "statement_count": 5,
+  "requested_by": "mad4bdigital-ai",
+  "requested_at": "2026-07-31T13:24:00Z",
+  "database_mutation_authorized": false,
+  "apply_authorized": false
+}
