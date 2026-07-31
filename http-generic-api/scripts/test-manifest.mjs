@@ -1,4 +1,5 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
+import { testCommands as spec012Commands } from "./manifests/test-manifest-spec012.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
@@ -47,6 +48,7 @@ const staticDiscoveryCommands = [
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-hostinger-apply-policy-safe-field-names.mjs",
   "node test-hostinger-deploy-restart-tool-exports.mjs",
+  "node test-hostinger-ssh-probe-mode-choice-boundary.mjs",
   "node test-hostinger-stored-credential-apply-policy.mjs",
   "node test-interruption-readiness.mjs",
   "node test-interruption-verification-recovery.mjs",
@@ -81,6 +83,7 @@ const staticDiscoveryCommands = [
 export const testCommands = Object.freeze([
   ...new Set([
     ...spec011Commands,
+    ...spec012Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
