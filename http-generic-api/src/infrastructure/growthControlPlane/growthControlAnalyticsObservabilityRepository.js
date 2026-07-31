@@ -29,6 +29,15 @@ function one(rows, entity) {
   if (normalized.length > 1) throw new Error(`${entity} lookup returned more than one row.`);
   return normalized[0] || null;
 }
+function assertReadbackHash(readback, field, expected, code, entity) {
+  if (!readback || readback[field] !== expected) {
+    const error = new Error(`${entity} same-cycle readback did not match the inserted hash.`);
+    error.code = code;
+    error.status = 500;
+    throw error;
+  }
+  return readback;
+}
 
 function definitionRow(row) {
   return row && Object.freeze({
@@ -321,7 +330,13 @@ export function createGrowthControlAnalyticsObservabilityRepository({ pool = nul
            FROM growth_control_normalized_metric_observations WHERE observation_id=? LIMIT 2`,
         [observation.observationId],
       );
-      return observationRow(one(rows, "Metric observation readback"));
+      return assertReadbackHash(
+        observationRow(one(rows, "Metric observation readback")),
+        "observationSha256",
+        observation.observationSha256,
+        "GROWTH_CONTROL_KPI_READBACK_MISMATCH",
+        "Metric observation",
+      );
     });
   }
 
@@ -348,7 +363,13 @@ export function createGrowthControlAnalyticsObservabilityRepository({ pool = nul
            FROM growth_control_observability_samples WHERE sample_id=? LIMIT 2`,
         [sample.sampleId],
       );
-      return sampleRow(one(rows, "Observability sample readback"));
+      return assertReadbackHash(
+        sampleRow(one(rows, "Observability sample readback")),
+        "sampleSha256",
+        sample.sampleSha256,
+        "GROWTH_CONTROL_OBSERVABILITY_READBACK_MISMATCH",
+        "Observability sample",
+      );
     });
   }
 
@@ -382,11 +403,17 @@ export function createGrowthControlAnalyticsObservabilityRepository({ pool = nul
            FROM growth_control_decision_evidence WHERE evidence_id=? LIMIT 2`,
         [evidenceId],
       );
-      return evidenceRow(one(rows, "Decision evidence readback"));
+      return assertReadbackHash(
+        evidenceRow(one(rows, "Decision evidence readback")),
+        "evidenceSha256",
+        evidence.evidenceSha256,
+        "GROWTH_CONTROL_DECISION_EVIDENCE_READBACK_MISMATCH",
+        "Decision evidence",
+      );
     });
   }
 
   return Object.freeze({ resolveTenantWorkspaceScope, listKpiDefinitions, getKpiDefinition, listActivityKpiBindings, getActivityKpiBinding, listNormalizedMetricObservations, listObservabilitySamples, listReconciliationFindings, appendNormalizedMetricObservation, appendObservabilitySample, appendDecisionEvidence });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityRepository = Object.freeze({ executor, limit, json, unique, filter, one, definitionRow, bindingRow, observationRow, sampleRow, findingRow, evidenceRow });
+export const _testingGrowthControlAnalyticsObservabilityRepository = Object.freeze({ executor, limit, json, unique, filter, one, assertReadbackHash, definitionRow, bindingRow, observationRow, sampleRow, findingRow, evidenceRow });
