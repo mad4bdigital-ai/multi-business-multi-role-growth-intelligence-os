@@ -33,10 +33,15 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-typed-invalidation-consumer.mjs",
 ]);
 
+const diagnosticAutomationTestCommands = Object.freeze([
+  "node test-branch-test-diagnostic-shards.mjs",
+]);
+
 export const testCommands = Object.freeze([
   ...canonicalTestCommands,
   ...authorityRecoveryTestCommands,
   ...growthControlContinuationTestCommands,
+  ...diagnosticAutomationTestCommands,
 ]);
 
 function parseArgs(argv) {
