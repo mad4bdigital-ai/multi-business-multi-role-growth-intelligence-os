@@ -1,0 +1,120 @@
+name: Governed Local Connector Production Closure
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/scripts/governed-local-connector-production-closure.mjs"
+      - ".github/workflows/governed-local-connector-production-closure.yml"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-local-connector-production-closure-pr-3945
+  cancel-in-progress: false
+
+jobs:
+  static-contract:
+    name: Validate governed closure contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate runner syntax and bounded contract
+        run: |
+          set -euo pipefail
+          node --check .github/scripts/governed-local-connector-production-closure.mjs
+          grep -F "RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A" .github/workflows/governed-local-connector-production-closure.yml
+          grep -F "database_mutation_executed: false" .github/scripts/governed-local-connector-production-closure.mjs
+          grep -F "migration_applied: false" .github/scripts/governed-local-connector-production-closure.mjs
+          grep -F "existing_active_command" .github/scripts/governed-local-connector-production-closure.mjs
+          grep -F "status IN ('queued','claimed')" .github/scripts/governed-local-connector-production-closure.mjs
+          if grep -E "DROP[[:space:]]+TABLE|TRUNCATE[[:space:]]+TABLE|DELETE[[:space:]]+FROM" .github/scripts/governed-local-connector-production-closure.mjs; then
+            echo "Destructive SQL is not allowed in the closure runner."
+            exit 1
+          fi
+
+  close-production-acceptance:
+    name: Close Production Local Connector acceptance
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      github.event.issue.number == 3945 &&
+      github.event.comment.body == 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      HOTFIX_MERGE_SHA: 792ff63af82791e9a482029f5078931fa0707c8c
+      ADMIN_USER_ID: 00000000-0000-4000-a000-000000000002
+      PLATFORM_TENANT_ID: 00000000-0000-4000-a000-000000000001
+      DEVICE_ID: mohammedlap
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-local-connector-production-closure.json
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact merged Production PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MERGED=$(gh api "/repos/${REPOSITORY}/pulls/3945" --jq '.merged')
+          MERGE_SHA=$(gh api "/repos/${REPOSITORY}/pulls/3945" --jq '.merge_commit_sha')
+          test "$MERGED" = "true"
+          test "$MERGE_SHA" = "$HOTFIX_MERGE_SHA"
+
+      - name: Execute bounded closure
+        id: closure
+        run: node .github/scripts/governed-local-connector-production-closure.mjs
+
+      - name: Upload bounded closure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-local-connector-production-closure-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record governed closure outcome on Production PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOSURE_RESULT: ${{ steps.closure.outputs.result }}
+          PRODUCTION_SHA: ${{ steps.closure.outputs.production_sha }}
+          COMMAND_ID: ${{ steps.closure.outputs.command_id }}
+          ROUTE_COUNT: ${{ steps.closure.outputs.registered_route_count }}
+          HEALTH_AGE: ${{ steps.closure.outputs.health_age_seconds }}
+          FAILURE_MESSAGE: ${{ steps.closure.outputs.failure_message }}
+        run: |
+          set -euo pipefail
+          RESULT="${CLOSURE_RESULT:-unknown}"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} head_sha=${GITHUB_SHA} production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID}"
+          if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
+            BODY="${BODY} failure=${FAILURE_MESSAGE}"
+          fi
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/3945/comments" \
+            -f body="$BODY"
