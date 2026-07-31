@@ -54,24 +54,25 @@ jobs:
             .provider_call_executed == false and
             .credential_payload_read == false and
             .secrets_included == false and
+            (.request_pr | test("^[0-9]+$")) and
             (.main_sha | test("^[0-9a-f]{40}$")) and
             (.production_sha | test("^[0-9a-f]{40}$")) and
             (.candidate_sha | test("^[0-9a-f]{40}$")) and
             (.release_pr | test("^[0-9]+$"))
           ' "$EVIDENCE_PATH" >/dev/null
 
+          REQUEST_PR="$(jq -r '.request_pr' "$EVIDENCE_PATH")"
           MAIN_SHA="$(jq -r '.main_sha' "$EVIDENCE_PATH")"
           PRODUCTION_SHA="$(jq -r '.production_sha' "$EVIDENCE_PATH")"
           CANDIDATE_SHA="$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
           RELEASE_PR="$(jq -r '.release_pr' "$EVIDENCE_PATH")"
-          REQUEST_PR="$(gh api "/repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" --jq '.pull_requests[0].number // empty')"
 
           {
+            echo "request_pr=$REQUEST_PR"
             echo "main_sha=$MAIN_SHA"
             echo "production_sha=$PRODUCTION_SHA"
             echo "candidate_sha=$CANDIDATE_SHA"
             echo "release_pr=$RELEASE_PR"
-            echo "request_pr=$REQUEST_PR"
             echo "evidence_path=$EVIDENCE_PATH"
           } >> "$GITHUB_OUTPUT"
 
@@ -146,11 +147,6 @@ jobs:
           MARKER="POST_FINALIZATION_STALE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} reason=${STALE_REASON} main_before=${PINNED_MAIN_SHA} main_after=${CURRENT_MAIN_SHA} production_before=${PINNED_PRODUCTION_SHA} production_after=${CURRENT_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
           gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$MARKER" || true
           gh pr close "$RELEASE_PR" --repo "$REPOSITORY" || true
-
-          if [[ -z "$REQUEST_PR" ]]; then
-            echo "::error::source request PR could not be resolved for bounded convergence restart"
-            exit 1
-          fi
 
           RETRY_COUNT="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" --paginate --jq '[.[] | select(.body | startswith("POST_FINALIZATION_STALE"))] | length')"
           gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$MARKER retry_count=$RETRY_COUNT max_retries=$MAX_POST_FINALIZATION_RETRIES"
