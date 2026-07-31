@@ -96,6 +96,49 @@ function contextFor(lines, index, radius = 3) {
   return lines.slice(Math.max(0, index - radius), Math.min(lines.length, index + radius + 1)).join("\n");
 }
 
+function yamlAncestorKeys(lines, index) {
+  const keys = [];
+  let ceiling = lines[index].match(/^\s*/u)?.[0].length ?? 0;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const candidate = lines[cursor];
+    const trimmed = candidate.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const indent = candidate.match(/^\s*/u)?.[0].length ?? 0;
+    if (indent >= ceiling) continue;
+    const key = trimmed.match(/^([A-Za-z0-9_-]+):(?:\s|$)/u)?.[1];
+    if (!key) continue;
+    keys.push(key.toLowerCase());
+    ceiling = indent;
+    if (indent === 0) break;
+  }
+  return keys;
+}
+
+function isStructuredExampleValue(relativePath, lines, index) {
+  if (!/\.ya?ml$/iu.test(relativePath)) return false;
+  if (/^\s*examples?:\s*\S/iu.test(lines[index])) return true;
+  return yamlAncestorKeys(lines, index).some((key) => key === "example" || key === "examples");
+}
+
+function isScannerVisibleExactKeyLookup(line) {
+  const compact = String(line || "").replace(/\s+/gu, " ");
+  const where = compact.match(/\bWHERE\b([\s\S]*?)\bLIMIT\s+1\b/iu)?.[1]?.trim();
+  if (!where || /\b(?:OR|IN|LIKE|BETWEEN|ORDER\s+BY|GROUP\s+BY)\b/iu.test(where)) return false;
+  const predicates = where.split(/\bAND\b/iu).map((value) => value.trim()).filter(Boolean);
+  let exactKeyCount = 0;
+  for (const predicate of predicates) {
+    const parameterMatch = predicate.match(/^(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)\s*=\s*\?$/u);
+    if (parameterMatch) {
+      if (/(?:^id$|_id$|_key$)/iu.test(parameterMatch[1])) exactKeyCount += 1;
+      else return false;
+      continue;
+    }
+    if (/^(?:[A-Za-z0-9_]+\.)?status\s*=\s*["'][A-Za-z0-9_-]+["']$/iu.test(predicate)) continue;
+    return false;
+  }
+  return exactKeyCount > 0;
+}
+
 function suppressionFor(lines, index, ruleId) {
   const candidate = lines.slice(Math.max(0, index - 2), index + 1).join("\n");
   const match = candidate.match(/context-kernel-scan:\s*allow\s+([a-z0-9_-]+)\s+--\s+(.{12,})/i);
@@ -103,6 +146,18 @@ function suppressionFor(lines, index, ruleId) {
   const requestedRule = match[1].toLowerCase();
   if (requestedRule !== "all" && requestedRule !== ruleId) return null;
   return match[2].trim();
+}
+
+function configuredSuppression(item, config) {
+  for (const approved of config.approved_findings || []) {
+    if (normalizeChangedFile(approved.path) !== item.path) continue;
+    if (String(approved.rule_id || "").toLowerCase() !== item.rule_id) continue;
+    if (approved.line != null && Number(approved.line) !== item.line) continue;
+    const reason = String(approved.reason || "").trim();
+    if (reason.length < 12) continue;
+    return reason;
+  }
+  return null;
 }
 
 function finding({ ruleId, relativePath, lineIndex, column = 1, evidence, lines, confidence = "medium" }) {
@@ -146,7 +201,7 @@ function scanFile(repositoryRoot, absolutePath) {
 
     UUID.lastIndex = 0;
     for (const match of line.matchAll(UUID)) {
-      if (!ZERO_UUID.test(match[0]) && CUSTOMER_CONTEXT.test(context)) {
+      if (!ZERO_UUID.test(match[0]) && CUSTOMER_CONTEXT.test(context) && !isStructuredExampleValue(relativePath, lines, index)) {
         add(finding({ ruleId: "fixed_customer_identifier", relativePath, lineIndex: index, column: match.index + 1, evidence: line, lines, confidence: "high" }));
       }
     }
@@ -156,7 +211,7 @@ function scanFile(repositoryRoot, absolutePath) {
       add(finding({ ruleId: "first_candidate_selection", relativePath, lineIndex: index, column: first.index + 1, evidence: line, lines, confidence: "high" }));
     }
 
-    if (/\bLIMIT\s+1\b/i.test(line) && QUERY_CONTEXT.test(context)) {
+    if (/\bLIMIT\s+1\b/i.test(line) && QUERY_CONTEXT.test(context) && !isScannerVisibleExactKeyLookup(line)) {
       add(finding({ ruleId: "unproven_single_candidate_query", relativePath, lineIndex: index, evidence: line, lines }));
     }
 
@@ -216,6 +271,7 @@ function readConfig(configPath) {
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   if (config.schema_version !== 1) throw new Error("Scanner config must use schema_version 1.");
   if (!Array.isArray(config.scan_roots) || !Array.isArray(config.extensions)) throw new Error("Scanner config is incomplete.");
+  if (config.approved_findings != null && !Array.isArray(config.approved_findings)) throw new Error("approved_findings must be an array when provided.");
   return config;
 }
 
@@ -233,6 +289,11 @@ export function scanRepository({ repositoryRoot = DEFAULT_ROOT, configPath = DEF
   const files = collectFiles(root, resolvedConfig, normalizedChangedFiles);
   const findings = files
     .flatMap((file) => scanFile(root, file))
+    .map((item) => {
+      if (item.suppressed) return item;
+      const reason = configuredSuppression(item, resolvedConfig);
+      return reason ? { ...item, suppressed: true, suppression_reason: reason } : item;
+    })
     .sort((left, right) => left.path.localeCompare(right.path) || left.line - right.line || left.rule_id.localeCompare(right.rule_id));
   const active = findings.filter((item) => !item.suppressed);
   const byRule = {};

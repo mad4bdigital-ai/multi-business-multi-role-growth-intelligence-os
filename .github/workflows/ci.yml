@@ -140,7 +140,18 @@ jobs:
 
       - name: Run tests
         working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
         run: npm test
+
+      - name: Upload ordered test progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-integration-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Prove runtime startup and deployment evidence
         working-directory: http-generic-api
