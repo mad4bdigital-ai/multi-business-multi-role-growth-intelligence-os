@@ -48,7 +48,6 @@ flowchart TD
   n_activation_connector_pack_component_registry["activation_connector_pack_component_registry<br/>table"]
   n_api_credentials["api_credentials<br/>table"]
   n_connected_systems["connected_systems<br/>table"]
-  n_connection_ownership_scopes["connection_ownership_scopes<br/>table"]
   n_external_delivery_provider_adapter_contract_registry["external_delivery_provider_adapter_contract_registry<br/>table"]
   n_external_delivery_provider_adapter_enablement_proposals["external_delivery_provider_adapter_enablement_proposals<br/>table"]
   n_external_delivery_provider_send_mode_policy_registry["external_delivery_provider_send_mode_policy_registry<br/>table"]
@@ -71,6 +70,7 @@ flowchart TD
   n_external_delivery_provider_family_registry["external_delivery_provider_family_registry<br/>table"]
   n_google_ads_credential_readiness_ledger["google_ads_credential_readiness_ledger<br/>table"]
   n_local_connector_app_allowlists["local_connector_app_allowlists<br/>table"]
+  n_local_connector_capability_grants["local_connector_capability_grants<br/>table"]
   n_activation_connector_pack_component_registry --> n_activation_connector_pack_registry
   n_credential_bindings --> n_installations
   n_external_delivery_provider_adapter_contract_registry --> n_external_delivery_provider_family_registry
@@ -93,79 +93,77 @@ flowchart TD
 
 ## Discovered object inventory
 
-| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |
-|---|---|---|---|---|---:|---:|---|
-| `activation_connector_pack_component_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_connector_pack_registry` |
-| `activation_connector_pack_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
-| `ads_provider_capability_profile_registry` | table | Platform resources & graph | generated_domain_rule | - | 1 | - | - |
-| `ads_provider_preflight_contract_registry` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `ads_provider_preflight_surface_blueprint_registry` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `ads_provider_profile_onboarding_requests` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
-| `ai_model_providers` | table | Agents & intelligence | generated_domain_rule | - | 1 | - | - |
-| `api_credentials` | table | Connectors & providers | generated_domain_rule | - | 1 | 12 | `tenants` |
-| `app_integration_action_bindings` | table | Connectors & providers | generated_domain_rule | - | 1 | 11 | - |
-| `app_integration_tool_bindings` | table | Connectors & providers | generated_domain_rule | - | 1 | 12 | - |
-| `app_integrations` | table | Connectors & providers | generated_domain_rule | - | 5 | 16 | - |
-| `connected_systems` | table | Connectors & providers | generated_domain_rule | - | 1 | 17 | `tenants` |
-| `connection_ownership_scopes` | table | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | 19 | `tenants` |
-| `connector_family_registry` | table | Connectors & providers | generated_domain_rule | - | 1 | 14 | - |
-| `credential_bindings` | table | Connectors & providers | generated_domain_rule | - | 2 | 20 | `installations`, `tenants`, `users` |
-| `credential_intake_sessions` | table | Connectors & providers | generated_domain_rule | - | 4 | 21 | `tenants`, `users` |
-| `dev_agent_provider_registry` | table | Agents & intelligence | generated_domain_rule | - | 1 | - | - |
-| `dev_agent_runtime_provider_profiles` | table | Agents & intelligence | generated_domain_rule | - | 1 | - | - |
-| `external_delivery_provider_adapter_contract_registry` | table | Delivery & support | generated_domain_rule | - | 1 | 20 | `external_delivery_provider_family_registry` |
-| `external_delivery_provider_adapter_enablement_proposals` | table | Repository & development | generated_domain_rule | - | 1 | 17 | `external_delivery_provider_adapter_contract_registry` |
-| `external_delivery_provider_adapter_future_pr_scopes` | table | Delivery & support | generated_domain_rule | - | 1 | 19 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_adapter_readiness_decisions` |
-| `external_delivery_provider_adapter_readiness_checklists` | table | Delivery & support | generated_domain_rule | - | 1 | 12 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals` |
-| `external_delivery_provider_adapter_readiness_decisions` | table | Platform resources & graph | generated_domain_rule | - | 1 | 18 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists` |
-| `external_delivery_provider_family_registry` | table | Delivery & support | generated_domain_rule | - | 1 | 12 | - |
-| `external_delivery_provider_send_mode_policy_registry` | table | Delivery & support | generated_domain_rule | - | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
-| `google_ads_credential_readiness_ledger` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `installations` | table | Connectors & providers | generated_domain_rule | - | 1 | 10 | `tenants` |
-| `local_connector_app_allowlists` | table | Connectors & providers | generated_domain_rule | - | 1 | 15 | - |
-| `local_connector_app_routes` | table | Workflow & tasks | generated_domain_rule | - | 1 | 12 | `local_connector_user_configs` |
-| `local_connector_capability_grants` | table | Platform resources & graph | generated_domain_rule | - | 1 | 10 | - |
-| `local_connector_device_aliases` | table | Connectors & providers | generated_domain_rule | - | 2 | 10 | `tenants`, `users` |
-| `local_connector_device_routes` | table | Workflow & tasks | generated_domain_rule | - | 1 | 25 | `tenants`, `users` |
-| `local_connector_devices` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `local_connector_file_access_rules` | table | Connectors & providers | generated_domain_rule | - | 2 | 8 | `local_connector_user_configs` |
-| `local_connector_heartbeats` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `local_connector_probe_results` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `local_connector_recovery_events` | table | Migration & lifecycle | generated_domain_rule | - | 1 | 15 | `tenants`, `users` |
-| `local_connector_recovery_plans` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
-| `local_connector_routes` | table | Workflow & tasks | generated_domain_rule | - | 1 | - | - |
-| `local_connector_shell_allowlists` | table | Connectors & providers | generated_domain_rule | - | 3 | 9 | `local_connector_user_configs` |
-| `local_connector_user_configs` | table | Tenancy & identity | generated_domain_rule | - | 8 | 10 | `tenants`, `users` |
-| `local_gateway_tool_call_log` | table | Connectors & providers | generated_domain_rule | - | 4 | 26 | `tenants`, `users` |
-| `local_gateway_tools` | table | Connectors & providers | generated_domain_rule | - | 3 | 26 | - |
-| `local_manager_device_link_sessions` | table | Connectors & providers | generated_domain_rule | - | 1 | 17 | `tenants`, `users` |
-| `platform_capability_provider_bindings` | table | Platform resources & graph | generated_domain_rule | - | 1 | 16 | - |
-| `provider_authorization_states` | table | Connectors & providers | generated_domain_rule | - | 1 | 31 | `tenants`, `users` |
-| `tenant_gpt_oauth_authorization_codes` | table | Tenancy & identity | generated_domain_rule | - | 1 | 10 | `tenants`, `users` |
-| `user_app_connections` | table | Tenancy & identity | generated_domain_rule | - | 8 | 19 | `tenants`, `users` |
-| `user_credentials` | table | Tenancy & identity | generated_domain_rule | - | 2 | 6 | `users` |
-| `webhook_deliveries` | table | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `webhooks` | table | Connectors & providers | generated_domain_rule | - | 1 | 11 | `tenants` |
-| `v_activation_app_integration_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
-| `v_activation_local_gateway_tool_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
-| `v_app_integration_capability_map` | view | Platform resources & graph | generated_domain_rule | - | 2 | - | - |
-| `v_app_integration_tool_map` | view | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `v_cloudflare_mutation_policy_readiness` | view | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `v_connector_family_coverage` | view | Connectors & providers | generated_domain_rule | - | 2 | - | - |
-| `v_context_kernel_connection_ownership_compatibility` | view | Connectors & providers | registry:connection_ownership_context | `connector-provider-map`, `data-model-domain-map`, `policy-authority-map` | 1 | - | - |
-| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
-| `v_external_delivery_provider_adapter_future_pr_scope_summary` | view | Delivery & support | generated_domain_rule | - | 1 | - | - |
-| `v_external_delivery_provider_adapter_readiness_checklist_summary` | view | Delivery & support | generated_domain_rule | - | 1 | - | - |
-| `v_external_delivery_provider_adapter_readiness_decision_summary` | view | Platform resources & graph | generated_domain_rule | - | 1 | - | - |
-| `v_external_delivery_provider_contract_readiness` | view | Delivery & support | generated_domain_rule | - | 1 | - | - |
-| `v_external_delivery_provider_enablement_proposal_readiness` | view | Repository & development | generated_domain_rule | - | 1 | - | - |
-| `v_hostinger_apply_policy_readiness` | view | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `v_hostinger_apply_policy_safe_field_readiness` | view | Connectors & providers | generated_domain_rule | - | 1 | - | - |
-| `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
-| `v_n8n_instance_mode_ownership_policy_readiness` | view | Connectors & providers | generated_domain_rule | - | 1 | - | - |
+| Object | Type | Domain | Source migrations | Columns | References |
+|---|---|---|---:|---:|---|
+| `activation_connector_pack_component_registry` | table | Activation & onboarding | 1 | - | `activation_connector_pack_registry` |
+| `activation_connector_pack_registry` | table | Activation & onboarding | 1 | - | - |
+| `ads_provider_capability_profile_registry` | table | Platform resources & graph | 1 | - | - |
+| `ads_provider_preflight_contract_registry` | table | Connectors & providers | 1 | - | - |
+| `ads_provider_preflight_surface_blueprint_registry` | table | Connectors & providers | 1 | - | - |
+| `ads_provider_profile_onboarding_requests` | table | Activation & onboarding | 1 | - | - |
+| `ai_model_providers` | table | Agents & intelligence | 1 | - | - |
+| `api_credentials` | table | Connectors & providers | 1 | 12 | `tenants` |
+| `app_integration_action_bindings` | table | Connectors & providers | 1 | 11 | - |
+| `app_integration_tool_bindings` | table | Connectors & providers | 1 | 12 | - |
+| `app_integrations` | table | Connectors & providers | 5 | 16 | - |
+| `connected_systems` | table | Connectors & providers | 1 | 17 | `tenants` |
+| `connector_family_registry` | table | Connectors & providers | 1 | 14 | - |
+| `credential_bindings` | table | Connectors & providers | 2 | 20 | `installations`, `tenants`, `users` |
+| `credential_intake_sessions` | table | Connectors & providers | 4 | 21 | `tenants`, `users` |
+| `dev_agent_provider_registry` | table | Agents & intelligence | 1 | - | - |
+| `dev_agent_runtime_provider_profiles` | table | Agents & intelligence | 1 | - | - |
+| `external_delivery_provider_adapter_contract_registry` | table | Delivery & support | 1 | 20 | `external_delivery_provider_family_registry` |
+| `external_delivery_provider_adapter_enablement_proposals` | table | Repository & development | 1 | 17 | `external_delivery_provider_adapter_contract_registry` |
+| `external_delivery_provider_adapter_future_pr_scopes` | table | Delivery & support | 1 | 19 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists`, `external_delivery_provider_adapter_readiness_decisions` |
+| `external_delivery_provider_adapter_readiness_checklists` | table | Delivery & support | 1 | 12 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals` |
+| `external_delivery_provider_adapter_readiness_decisions` | table | Platform resources & graph | 1 | 18 | `external_delivery_provider_adapter_contract_registry`, `external_delivery_provider_adapter_enablement_proposals`, `external_delivery_provider_adapter_readiness_checklists` |
+| `external_delivery_provider_family_registry` | table | Delivery & support | 1 | 12 | - |
+| `external_delivery_provider_send_mode_policy_registry` | table | Delivery & support | 1 | 14 | `external_delivery_provider_adapter_contract_registry` |
+| `google_ads_credential_readiness_ledger` | table | Connectors & providers | 1 | - | - |
+| `installations` | table | Connectors & providers | 1 | 10 | `tenants` |
+| `local_connector_app_allowlists` | table | Connectors & providers | 1 | 15 | - |
+| `local_connector_app_routes` | table | Workflow & tasks | 1 | 12 | `local_connector_user_configs` |
+| `local_connector_capability_grants` | table | Platform resources & graph | 1 | 10 | - |
+| `local_connector_device_aliases` | table | Connectors & providers | 2 | 10 | `tenants`, `users` |
+| `local_connector_device_routes` | table | Workflow & tasks | 1 | 25 | `tenants`, `users` |
+| `local_connector_devices` | table | Connectors & providers | 1 | - | - |
+| `local_connector_file_access_rules` | table | Connectors & providers | 2 | 8 | `local_connector_user_configs` |
+| `local_connector_heartbeats` | table | Connectors & providers | 1 | - | - |
+| `local_connector_probe_results` | table | Connectors & providers | 1 | - | - |
+| `local_connector_recovery_events` | table | Migration & lifecycle | 1 | 15 | `tenants`, `users` |
+| `local_connector_recovery_plans` | table | Migration & lifecycle | 1 | - | - |
+| `local_connector_routes` | table | Workflow & tasks | 1 | - | - |
+| `local_connector_shell_allowlists` | table | Connectors & providers | 3 | 9 | `local_connector_user_configs` |
+| `local_connector_user_configs` | table | Tenancy & identity | 8 | 10 | `tenants`, `users` |
+| `local_gateway_tool_call_log` | table | Connectors & providers | 4 | 26 | `tenants`, `users` |
+| `local_gateway_tools` | table | Connectors & providers | 3 | 26 | - |
+| `local_manager_device_link_sessions` | table | Connectors & providers | 1 | 17 | `tenants`, `users` |
+| `platform_capability_provider_bindings` | table | Platform resources & graph | 1 | 16 | - |
+| `provider_authorization_states` | table | Connectors & providers | 1 | 31 | `tenants`, `users` |
+| `tenant_gpt_oauth_authorization_codes` | table | Tenancy & identity | 1 | 10 | `tenants`, `users` |
+| `user_app_connections` | table | Tenancy & identity | 8 | 19 | `tenants`, `users` |
+| `user_credentials` | table | Tenancy & identity | 2 | 6 | `users` |
+| `webhook_deliveries` | table | Connectors & providers | 1 | - | - |
+| `webhooks` | table | Connectors & providers | 1 | 11 | `tenants` |
+| `v_activation_app_integration_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_activation_local_gateway_tool_catalog` | view | Activation & onboarding | 1 | - | - |
+| `v_app_integration_capability_map` | view | Platform resources & graph | 2 | - | - |
+| `v_app_integration_tool_map` | view | Connectors & providers | 1 | - | - |
+| `v_cloudflare_mutation_policy_readiness` | view | Connectors & providers | 1 | - | - |
+| `v_connector_family_coverage` | view | Connectors & providers | 2 | - | - |
+| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | 1 | - | - |
+| `v_external_delivery_provider_adapter_future_pr_scope_summary` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_adapter_readiness_checklist_summary` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_adapter_readiness_decision_summary` | view | Platform resources & graph | 1 | - | - |
+| `v_external_delivery_provider_contract_readiness` | view | Delivery & support | 1 | - | - |
+| `v_external_delivery_provider_enablement_proposal_readiness` | view | Repository & development | 1 | - | - |
+| `v_hostinger_apply_policy_readiness` | view | Connectors & providers | 1 | - | - |
+| `v_hostinger_apply_policy_safe_field_readiness` | view | Connectors & providers | 1 | - | - |
+| `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | 1 | - | - |
+| `v_n8n_instance_mode_ownership_policy_readiness` | view | Connectors & providers | 1 | - | - |
 
 ## Coverage counters
 
-- Matching schema objects: **68**
+- Matching schema objects: **66**
 - Diagram objects shown: **45**
 - Source migrations: **61**

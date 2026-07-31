@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "businessTypeKey": "b2b_product_supplier",
+      "knowledgeProfileKey": "b2b_product_knowledge_profile",
+      "activityPackKey": "b2b_product_supplier.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "business_services",
+      "knowledgeProfileKey": "business_services_knowledge_profile",
+      "activityPackKey": "business_services.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": []
+    },
+    {
+      "businessTypeKey": "connectivity_service_provider",
+      "knowledgeProfileKey": "connectivity_service_knowledge_profile",
+      "activityPackKey": "connectivity_service_provider.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "consumer_service_business",
+      "knowledgeProfileKey": "consumer_service_knowledge_profile",
+      "activityPackKey": "consumer_service_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "destination_or_travel_business",
+      "knowledgeProfileKey": "destination_travel_knowledge_profile",
+      "activityPackKey": "destination_or_travel_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "destination_analysis_workflow", "brand_marketing_workflow"]
+    },
+    {
+      "businessTypeKey": "education_service_provider",
+      "knowledgeProfileKey": "education_service_knowledge_profile",
+      "activityPackKey": "education_service_provider.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "employment_or_career_service",
+      "knowledgeProfileKey": "employment_career_knowledge_profile",
+      "activityPackKey": "employment_or_career_service.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "expert_service_firm",
+      "knowledgeProfileKey": "expert_service_knowledge_profile",
+      "activityPackKey": "expert_service_firm.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "financial_service_firm",
+      "knowledgeProfileKey": "financial_service_knowledge_profile",
+      "activityPackKey": "financial_service_firm.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "fitness_or_recreation_business",
+      "knowledgeProfileKey": "fitness_recreation_knowledge_profile",
+      "activityPackKey": "fitness_or_recreation_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "food_and_dining_business",
+      "knowledgeProfileKey": "food_dining_knowledge_profile",
+      "activityPackKey": "food_and_dining_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "gift_or_event_retail_business",
+      "knowledgeProfileKey": "gift_event_retail_knowledge_profile",
+      "activityPackKey": "gift_or_event_retail_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "home_garden",
+      "knowledgeProfileKey": "home_garden_knowledge_profile",
+      "activityPackKey": "home_garden.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": []
+    },
+    {
+      "businessTypeKey": "hvac_air_conditioning_services",
+      "knowledgeProfileKey": "hvac_knowledge_profile",
+      "activityPackKey": "hvac_air_conditioning_services.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["market_intelligence", "brand_intelligence", "seo_engines", "marketing_engines", "content_engines", "report_engines"],
+      "routeKeys": ["brand_strategy", "seo_audit", "content_creation", "local_seo"],
+      "workflowKeys": ["content_generation_workflow", "seo_strategy_workflow", "brand_marketing_workflow"]
+    },
+    {
+      "businessTypeKey": "media_or_entertainment_business",
+      "knowledgeProfileKey": "media_entertainment_knowledge_profile",
+      "activityPackKey": "media_or_entertainment_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "property_service_business",
+      "knowledgeProfileKey": "property_service_knowledge_profile",
+      "activityPackKey": "property_service_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "retail_or_home_service_business",
+      "knowledgeProfileKey": "retail_home_service_knowledge_profile",
+      "activityPackKey": "retail_or_home_service_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "retail_or_personal_care_business",
+      "knowledgeProfileKey": "retail_personal_care_knowledge_profile",
+      "activityPackKey": "retail_or_personal_care_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "retail_product_category",
+      "knowledgeProfileKey": "retail_product_knowledge_profile",
+      "activityPackKey": "retail_product_category.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "seasonal_retail_program",
+      "knowledgeProfileKey": "seasonal_retail_knowledge_profile",
+      "activityPackKey": "seasonal_retail_program.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "software_service",
+      "knowledgeProfileKey": "software_service_knowledge_profile",
+      "activityPackKey": "software_service.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "product"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "stay_or_guest_service",
+      "knowledgeProfileKey": "stay_guest_service_knowledge_profile",
+      "activityPackKey": "stay_or_guest_service.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "destination_analysis_workflow", "brand_marketing_workflow"]
+    },
+    {
+      "businessTypeKey": "ticketing_or_event_access_business",
+      "knowledgeProfileKey": "ticketing_event_knowledge_profile",
+      "activityPackKey": "ticketing_or_event_access_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth", "brand"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    },
+    {
+      "businessTypeKey": "travel",
+      "knowledgeProfileKey": "travel_knowledge_profile",
+      "activityPackKey": "travel.reference_pack",
+      "version": 1,
+      "referenceMode": "specialized",
+      "engineCategories": ["product_intelligence", "market_intelligence", "brand_intelligence", "seo_engines", "revenue_engines", "innovation_engines", "marketing_engines", "content_engines", "report_engines"],
+      "routeKeys": ["brand_strategy", "seo_audit", "content_creation", "market_analysis", "revenue_optimisation"],
+      "workflowKeys": ["content_generation_workflow", "destination_analysis_workflow", "brand_marketing_workflow"]
+    },
+    {
+      "businessTypeKey": "vehicle_or_auto_service_business",
+      "knowledgeProfileKey": "vehicle_auto_service_knowledge_profile",
+      "activityPackKey": "vehicle_or_auto_service_business.reference_pack",
+      "version": 1,
+      "referenceMode": "baseline",
+      "engineCategories": ["seo", "content", "growth"],
+      "routeKeys": [],
+      "workflowKeys": ["content_generation_workflow", "brand_marketing_workflow", "growth_strategy_workflow"]
+    }
+  ]
+}

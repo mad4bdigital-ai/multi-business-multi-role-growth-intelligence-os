@@ -48,26 +48,26 @@ flowchart TD
 
 ## Discovered object inventory
 
-| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |
-|---|---|---|---|---|---:|---:|---|
-| `asset_audit_events` | table | Assets & packages | generated_domain_rule | - | 1 | 9 | - |
-| `asset_equivalence_groups` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `asset_equivalence_members` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `json_asset_subject_links` | table | Assets & packages | generated_domain_rule | - | 3 | 15 | `tenants`, `users` |
-| `pack_attachments` | table | Assets & packages | generated_domain_rule | - | 2 | 8 | - |
-| `platform_copy_locations` | table | Assets & packages | generated_domain_rule | - | 1 | 22 | `tenants`, `users` |
-| `platform_package_variant_assets` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_package_variant_patches` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_package_variants` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_package_versions` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_private_package_assets` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_private_packages` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_variant_edit_sessions` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `platform_variant_merge_runs` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `repo_candidate_assets` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `tenant_package_installs` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `workspace_assets` | table | Assets & packages | generated_domain_rule | - | 1 | - | - |
-| `v_activation_skill_package_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| Object | Type | Domain | Source migrations | Columns | References |
+|---|---|---|---:|---:|---|
+| `asset_audit_events` | table | Assets & packages | 1 | 9 | - |
+| `asset_equivalence_groups` | table | Assets & packages | 1 | - | - |
+| `asset_equivalence_members` | table | Assets & packages | 1 | - | - |
+| `json_asset_subject_links` | table | Assets & packages | 3 | 15 | `tenants`, `users` |
+| `pack_attachments` | table | Assets & packages | 2 | 8 | - |
+| `platform_copy_locations` | table | Assets & packages | 1 | 22 | `tenants`, `users` |
+| `platform_package_variant_assets` | table | Assets & packages | 1 | - | - |
+| `platform_package_variant_patches` | table | Assets & packages | 1 | - | - |
+| `platform_package_variants` | table | Assets & packages | 1 | - | - |
+| `platform_package_versions` | table | Assets & packages | 1 | - | - |
+| `platform_private_package_assets` | table | Assets & packages | 1 | - | - |
+| `platform_private_packages` | table | Assets & packages | 1 | - | - |
+| `platform_variant_edit_sessions` | table | Assets & packages | 1 | - | - |
+| `platform_variant_merge_runs` | table | Assets & packages | 1 | - | - |
+| `repo_candidate_assets` | table | Assets & packages | 1 | - | - |
+| `tenant_package_installs` | table | Assets & packages | 1 | - | - |
+| `workspace_assets` | table | Assets & packages | 1 | - | - |
+| `v_activation_skill_package_catalog` | view | Activation & onboarding | 1 | - | - |
 
 ## Coverage counters
 

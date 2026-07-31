@@ -1,0 +1,27 @@
+{
+  "surface_key": "growth_control_activity_binding_readiness_evidence",
+  "display_name": "Growth Control Activity Binding Readiness Evidence",
+  "description": "Admin-only metadata for bounded brand activity binding readiness assessments.",
+  "source_table": "growth_control_activity_binding_readiness_evidence",
+  "result_key_column": "evidence_id",
+  "result_label_column": "target_status",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "target_status",
+  "active_status_values": ["ready", "blocked"],
+  "result_columns": [
+    "evidence_id",
+    "activity_binding_id",
+    "binding_revision",
+    "target_status",
+    "evidence_sha256",
+    "assessed_at",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 50,
+  "sort_order": 231,
+  "status": "active",
+  "notes": "Repo-managed Admin-only metadata surface. Readiness checks, actor identity, request and correlation identifiers, provider flags, external-write flags, and secret indicators are intentionally excluded. Tenant access is resolved through the parent activity binding rather than direct table exposure."
+}
