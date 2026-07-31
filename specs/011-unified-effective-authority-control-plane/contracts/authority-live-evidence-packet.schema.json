@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ueacp/authority-live-evidence-packet.schema.json",
+  "title": "UEACP Governed Live Evidence Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "status",
+    "operation",
+    "cycle",
+    "source_bundle",
+    "catalog_census",
+    "bindings",
+    "blocking_issues",
+    "closure_state",
+    "read_only",
+    "applies_sql",
+    "runtime_authority_changed",
+    "provider_calls",
+    "credential_payload_read",
+    "external_writes",
+    "secrets_included",
+    "packet_sha256"
+  ],
+  "properties": {
+    "contract": { "const": "mad4b.ueacp.authority-live-evidence-packet.v1" },
+    "status": { "enum": ["ready_for_human_ownership_review", "blocked"] },
+    "operation": { "type": "object" },
+    "cycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["earliest_observed_at", "latest_observed_at", "observation_spread_ms", "observation_count"],
+      "properties": {
+        "earliest_observed_at": { "type": "string", "format": "date-time" },
+        "latest_observed_at": { "type": "string", "format": "date-time" },
+        "observation_spread_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "observation_count": { "const": 9 }
+      }
+    },
+    "source_bundle": { "type": "object" },
+    "catalog_census": { "type": "object" },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_bundle_sha256", "inventory_sha256", "catalog_sha256"],
+      "properties": {
+        "source_bundle_sha256": { "$ref": "#/$defs/sha256" },
+        "inventory_sha256": { "$ref": "#/$defs/sha256" },
+        "catalog_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "blocking_issues": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "closure_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "t001_complete",
+        "t002_complete",
+        "live_evidence_ready_for_human_ownership_review",
+        "migration_design_input_ready",
+        "migration_apply_authorized"
+      ],
+      "properties": {
+        "t001_complete": { "const": false },
+        "t002_complete": { "const": false },
+        "live_evidence_ready_for_human_ownership_review": { "type": "boolean" },
+        "migration_design_input_ready": { "const": false },
+        "migration_apply_authorized": { "const": false }
+      }
+    },
+    "read_only": { "const": true },
+    "applies_sql": { "const": false },
+    "runtime_authority_changed": { "const": false },
+    "provider_calls": { "const": false },
+    "credential_payload_read": { "const": false },
+    "external_writes": { "const": false },
+    "secrets_included": { "const": false },
+    "packet_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
