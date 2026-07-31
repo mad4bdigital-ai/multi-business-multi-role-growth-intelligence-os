@@ -12,6 +12,12 @@ import {
   grantCoversOperations,
   mergeAllowedOperations,
 } from "./brandSkillResourceBinding.js";
+import {
+  requiredResourcePermissionForBrandSkillOperation,
+  requiredResourcePermissionForBrandSkillOperations,
+  resourcePermissionCoversBrandSkillOperations,
+  resourcePermissionRank,
+} from "./brandSkillResourcePermission.js";
 import { assessBrandSkillMigrationPreflight } from "./brandSkillMigrationPreflight.js";
 import { brandSkillActivationHttpStatus } from "./routes/brandSkillRoutes.js";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
@@ -47,6 +53,16 @@ assert.deepEqual(
   ["publish", "update"],
   "operations removed from the current policy must not survive grant expansion",
 );
+assert.equal(resourcePermissionRank("view"), 1);
+assert.equal(resourcePermissionRank("owner"), 7);
+assert.equal(requiredResourcePermissionForBrandSkillOperation("publish"), "operate");
+assert.equal(requiredResourcePermissionForBrandSkillOperation("delete"), "manage");
+assert.equal(requiredResourcePermissionForBrandSkillOperation("unknown-operation"), "manage");
+assert.equal(requiredResourcePermissionForBrandSkillOperations(["update", "publish"]), "operate");
+assert.equal(resourcePermissionCoversBrandSkillOperations("view", ["publish"]), false);
+assert.equal(resourcePermissionCoversBrandSkillOperations("operate", ["publish"]), true);
+assert.equal(resourcePermissionCoversBrandSkillOperations("operate", ["delete"]), false);
+assert.equal(resourcePermissionCoversBrandSkillOperations("manage", ["delete", "publish"]), true);
 assert.equal(brandSkillActivationHttpStatus({ created: true, changed: true }), 201);
 assert.equal(brandSkillActivationHttpStatus({ created: false, changed: true }), 200);
 assert.equal(brandSkillActivationHttpStatus({ created: false, changed: false }), 200);
@@ -246,12 +262,15 @@ const service = readFileSync(new URL("./brandSkillActivationService.js", import.
 for (const marker of [
   "BRAND_SKILL_ACTIVE_MEMBERSHIP_REQUIRED",
   "BRAND_SKILL_RESOURCE_GRANT_REQUIRED",
+  "BRAND_SKILL_RESOURCE_PERMISSION_DENIED",
   "BRAND_SKILL_AGENT_GRANT_REQUIRED",
   "BRAND_SKILL_POLICY_REQUIRED",
   "BRAND_SKILL_OPERATION_DENIED",
   "v_effective_user_brand_skill_grants",
   "m.role AS role",
   "assertRequestedResourceBelongsToBrand",
+  "requiredResourcePermissionForBrandSkillOperations",
+  "resourcePermissionCoversBrandSkillOperations",
   "allowed_operations_json = ?",
   "operation_set_extended: true",
   "policy.allowed_operations_json",
@@ -279,6 +298,16 @@ for (const marker of [
   "BRAND_SKILL_RESOURCE_BINDING_UNAVAILABLE",
 ]) assert(bindingGuard.includes(marker), `binding guard missing ${marker}`);
 assert.doesNotMatch(bindingGuard, /\brows\s*\[\s*0\s*\]/);
+
+const permissionContract = readFileSync(new URL("./brandSkillResourcePermission.js", import.meta.url), "utf8");
+for (const marker of [
+  "view: 1",
+  "operate: 4",
+  "manage: 5",
+  "publish: \"operate\"",
+  "delete: \"manage\"",
+  '"*": "manage"',
+]) assert(permissionContract.includes(marker), `permission contract missing ${marker}`);
 
 const preflightSource = readFileSync(new URL("./brandSkillMigrationPreflight.js", import.meta.url), "utf8");
 for (const marker of [
@@ -318,6 +347,9 @@ const entitlement = readFileSync(new URL("./userBrandSkillEntitlement.js", impor
 assert(entitlement.includes("brand_skill_policies"));
 assert(entitlement.includes("v_effective_user_brand_skill_grants"));
 assert(entitlement.includes("user_brand_skill_grant_missing"));
+assert(entitlement.includes("user_brand_skill_resource_permission_insufficient"));
+assert(entitlement.includes("user_brand_skill_resource_brand_binding_inactive"));
+assert(entitlement.includes("brand_skill_operation_intent_trusted"));
 assert(entitlement.includes("enforce_brand_skill_entitlement"));
 
 const openapi = readFileSync(new URL("./openapi/brand-skill-activation.yaml", import.meta.url), "utf8");
