@@ -49,14 +49,14 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 - [x] T501 Implement bounded policy compiler and approval profiles.
 - [x] T502 Enforce final-boundary capability/resource/approval/certification checks.
 - [x] T503 Implement adapter registry, ranking, readiness and tie blocking.
-- [ ] T504 Implement unknown/partial effect reconciliation and rollback contracts.
-- [ ] T505 Add idempotency, lease and outbox integration tests.
+- [x] T504 Implement unknown/partial effect reconciliation and rollback contracts.
+- [x] T505 Add idempotency, lease and outbox integration tests.
 
 ## Phase G — UI, events, analytics and operations
 
-- [ ] T601 Implement schema/manifest-driven Admin forms and diff/lineage views.
-- [ ] T602 Implement Tenant-safe views with role/field allowlists.
-- [ ] T603 Implement typed event schemas, outbox consumers and invalidation.
+- [x] T601 Implement schema/manifest-driven Admin forms and diff/lineage views.
+- [x] T602 Implement Tenant-safe views with role/field allowlists.
+- [x] T603 Implement typed event schemas, outbox consumers and invalidation.
 - [ ] T604 Implement KPI definition/mapping and portfolio projections.
 - [ ] T605 Implement SLO metrics, traces, dashboards, alerts and reconciliation.
 

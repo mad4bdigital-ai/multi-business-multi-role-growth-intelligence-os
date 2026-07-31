@@ -1,16 +1,18 @@
 openapi: 3.1.0
 info:
   title: Tenant Growth Control Plane Projection API
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     Tenant-safe, read-only metadata projections for Growth Control Plane
-    configuration versions and activity bindings. Responses never include
+    configuration versions and activity bindings. Every response applies a
+    default-deny role profile and explicit field allowlist. Unknown tenant roles
+    fall back to the least-privileged viewer profile. Responses never include
     configuration values, schemas, approval context, credentials, or secrets.
 servers:
   - url: https://auth.mad4b.com
 tags:
   - name: tenant-growth-control-plane
-    description: Tenant-scoped metadata projections.
+    description: Tenant-scoped metadata projections with role field policies.
 security:
   - userJwtAuth: []
 paths:
@@ -18,11 +20,13 @@ paths:
     get:
       tags: [tenant-growth-control-plane]
       operationId: listTenantGrowthControlConfigurationVersions
-      summary: List authorized configuration-version metadata
+      summary: List role-filtered configuration-version metadata
       description: >-
         Requires a signed non-admin tenant user JWT, active membership, an
         authorized workspace in the same tenant, and a brand matching the
-        workspace linked brand. Unsupported query parameters are rejected.
+        workspace linked brand. The effective tenant role is resolved from
+        authoritative membership readback; a stale JWT role claim cannot elevate
+        the bounded viewer, operator, or manager field profile.
       x-contract-completeness: canonical
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
@@ -31,7 +35,7 @@ paths:
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: Authorized metadata-only configuration versions.
+          description: Authorized metadata filtered by a default-deny field policy.
           content:
             application/json:
               schema:
@@ -42,24 +46,10 @@ paths:
                     configKey: growth.execution.policy
                     versionNumber: 2
                     scopeType: brand
-                    scopeKey: tenant:11111111-1111-4111-8111-111111111111:workspace:33333333-3333-4333-8333-333333333333:brand:example-brand
-                    tenantId: 11111111-1111-4111-8111-111111111111
-                    workspaceId: 33333333-3333-4333-8333-333333333333
-                    brandKey: example-brand
-                    activityTypeKey: travel
-                    activityBindingId: null
-                    profileKey: null
-                    workflowKey: null
-                    workflowVersion: null
-                    workflowNodeId: null
-                    planId: null
-                    executionId: null
                     lifecycle: active
-                    versionRevision: 3
                     checksumSha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                     effectiveFrom: '2026-07-24T18:00:00Z'
                     effectiveTo: null
-                    createdAt: '2026-07-24T17:00:00Z'
                     metadataOnly: true
                     secretsIncluded: false
                 page:
@@ -71,6 +61,27 @@ paths:
                   brandKey: example-brand
                   tenantRole: member
                   workspaceBootstrapStatus: ready
+                fieldPolicy:
+                  contract: mad4b.growth-control.tenant-field-policy.v1
+                  policyVersion: 1
+                  resourceType: configuration_version
+                  role: member
+                  profile: viewer
+                  roleRecognized: true
+                  fallbackApplied: false
+                  defaultDeny: true
+                  allowedFields:
+                    - configVersionId
+                    - configKey
+                    - versionNumber
+                    - scopeType
+                    - lifecycle
+                    - checksumSha256
+                    - effectiveFrom
+                    - effectiveTo
+                    - metadataOnly
+                    - secretsIncluded
+                  secretsIncluded: false
                 tenantFacing: true
                 metadataOnly: true
                 providerCalls: false
@@ -84,10 +95,11 @@ paths:
     get:
       tags: [tenant-growth-control-plane]
       operationId: listTenantGrowthControlActivityBindings
-      summary: List authorized activity-binding metadata
+      summary: List role-filtered activity-binding metadata
       description: >-
-        Returns only activity-binding metadata for the JWT tenant, authorized
-        workspace, and linked brand. It performs no provider call or external write.
+        Returns activity-binding metadata only for the JWT tenant, authorized
+        workspace, and linked brand. Viewer responses omit authority-oriented
+        fields such as allowed capabilities and canonical scope identifiers.
       x-contract-completeness: canonical
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
@@ -96,7 +108,7 @@ paths:
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: Authorized metadata-only activity bindings.
+          description: Authorized activity-binding metadata filtered by role.
           content:
             application/json:
               schema:
@@ -104,9 +116,6 @@ paths:
               example:
                 items:
                   - activityBindingId: 55555555-5555-4555-8555-555555555555
-                    tenantId: 11111111-1111-4111-8111-111111111111
-                    workspaceId: 33333333-3333-4333-8333-333333333333
-                    brandKey: example-brand
                     activityTypeKey: travel
                     activityPackKey: travel.organic-growth
                     activityPackVersion: 1
@@ -114,10 +123,7 @@ paths:
                     locales: [ar-EG]
                     channels: [organic-search]
                     objectives: [qualified-leads]
-                    allowedCapabilities: [intent_map_generate]
                     status: draft
-                    createdAt: '2026-07-24T17:00:00Z'
-                    updatedAt: '2026-07-24T17:00:00Z'
                     metadataOnly: true
                     secretsIncluded: false
                 page:
@@ -129,6 +135,28 @@ paths:
                   brandKey: example-brand
                   tenantRole: member
                   workspaceBootstrapStatus: ready
+                fieldPolicy:
+                  contract: mad4b.growth-control.tenant-field-policy.v1
+                  policyVersion: 1
+                  resourceType: activity_binding
+                  role: member
+                  profile: viewer
+                  roleRecognized: true
+                  fallbackApplied: false
+                  defaultDeny: true
+                  allowedFields:
+                    - activityBindingId
+                    - activityTypeKey
+                    - activityPackKey
+                    - activityPackVersion
+                    - markets
+                    - locales
+                    - channels
+                    - objectives
+                    - status
+                    - metadataOnly
+                    - secretsIncluded
+                  secretsIncluded: false
                 tenantFacing: true
                 metadataOnly: true
                 providerCalls: false
@@ -144,7 +172,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Signed non-admin tenant user JWT. Tenant and user identity come from the token only.
+      description: >-
+        Signed non-admin tenant user JWT. Tenant and user identity come from the
+        token; the effective role and field profile come from authoritative active
+        membership and workspace authorization readback.
   parameters:
     WorkspaceId:
       name: workspaceId
@@ -228,10 +259,49 @@ components:
         brandKey: { type: string }
         tenantRole: { type: [string, 'null'] }
         workspaceBootstrapStatus: { type: string, enum: [ready, degraded] }
+    TenantFieldPolicy:
+      type: object
+      additionalProperties: false
+      required:
+        - contract
+        - policyVersion
+        - resourceType
+        - role
+        - profile
+        - roleRecognized
+        - fallbackApplied
+        - defaultDeny
+        - allowedFields
+        - secretsIncluded
+      properties:
+        contract: { type: string, const: mad4b.growth-control.tenant-field-policy.v1 }
+        policyVersion: { type: integer, const: 1 }
+        resourceType: { type: string, enum: [configuration_version, activity_binding] }
+        role: { type: [string, 'null'], maxLength: 64 }
+        profile: { type: string, enum: [viewer, operator, manager] }
+        roleRecognized: { type: boolean }
+        fallbackApplied: { type: boolean }
+        defaultDeny: { type: boolean, const: true }
+        allowedFields:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string }
+        secretsIncluded: { type: boolean, const: false }
     TenantConfigurationVersion:
       type: object
       additionalProperties: false
-      required: [configVersionId, configKey, versionNumber, scopeType, scopeKey, tenantId, workspaceId, brandKey, lifecycle, versionRevision, checksumSha256, metadataOnly, secretsIncluded]
+      required:
+        - configVersionId
+        - configKey
+        - versionNumber
+        - scopeType
+        - lifecycle
+        - checksumSha256
+        - effectiveFrom
+        - effectiveTo
+        - metadataOnly
+        - secretsIncluded
       properties:
         configVersionId: { type: string, format: uuid }
         configKey: { type: string }
@@ -260,7 +330,18 @@ components:
     TenantActivityBinding:
       type: object
       additionalProperties: false
-      required: [activityBindingId, tenantId, workspaceId, brandKey, activityTypeKey, activityPackKey, activityPackVersion, markets, locales, channels, objectives, allowedCapabilities, status, metadataOnly, secretsIncluded]
+      required:
+        - activityBindingId
+        - activityTypeKey
+        - activityPackKey
+        - activityPackVersion
+        - markets
+        - locales
+        - channels
+        - objectives
+        - status
+        - metadataOnly
+        - secretsIncluded
       properties:
         activityBindingId: { type: string, format: uuid }
         tenantId: { type: string, format: uuid }
@@ -281,10 +362,11 @@ components:
         secretsIncluded: { type: boolean, const: false }
     ProjectionEnvelopeBase:
       type: object
-      required: [page, scope, tenantFacing, metadataOnly, providerCalls, externalWrites, secretsIncluded]
+      required: [page, scope, fieldPolicy, tenantFacing, metadataOnly, providerCalls, externalWrites, secretsIncluded]
       properties:
         page: { $ref: '#/components/schemas/Page' }
         scope: { $ref: '#/components/schemas/ProjectionScope' }
+        fieldPolicy: { $ref: '#/components/schemas/TenantFieldPolicy' }
         tenantFacing: { type: boolean, const: true }
         metadataOnly: { type: boolean, const: true }
         providerCalls: { type: boolean, const: false }
