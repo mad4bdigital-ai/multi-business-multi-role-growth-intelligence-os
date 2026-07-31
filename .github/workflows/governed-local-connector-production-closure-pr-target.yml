@@ -1,15 +1,9 @@
-name: Context Kernel Hardcoding Report
+name: Governed Local Connector Production Closure PR Target
 
 on:
-  workflow_dispatch:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-    paths:
-      - "http-generic-api/**"
-      - "src/**"
-      - "specs/012-unified-admin-tenant-context-kernel/**"
-      - "docs/context-kernel/**"
-      - ".github/workflows/context-kernel-hardcoding-report.yml"
 
 permissions:
   contents: read
@@ -17,69 +11,19 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: context-kernel-hardcoding-${{ github.ref }}
-  cancel-in-progress: true
+  group: governed-local-connector-production-closure-pr-3945
+  cancel-in-progress: false
 
 jobs:
-  report:
-    name: Context Kernel Hardcoding Report
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Test scanner behavior
-        working-directory: http-generic-api
-        run: node test-context-kernel-hardcoding-scan.mjs
-
-      - name: Generate report-only baseline
-        if: always()
-        run: >-
-          node http-generic-api/scripts/context-kernel-hardcoding-scan.mjs
-          --report-only
-          --format=github
-          --output="${{ runner.temp }}/context-kernel-hardcoding-report.json"
-
-      - name: Summarize aggregate baseline
-        if: always()
-        env:
-          REPORT_PATH: ${{ runner.temp }}/context-kernel-hardcoding-report.json
-        run: |
-          if [[ ! -f "$REPORT_PATH" ]]; then
-            echo "::warning::Context kernel baseline report was not generated."
-            exit 0
-          fi
-          node -e '
-            const fs = require("node:fs");
-            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
-            console.log(`CONTEXT_KERNEL_BASELINE_SUMMARY=${JSON.stringify(report.summary)}`);
-          '
-
-      - name: Upload baseline artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: context-kernel-hardcoding-report
-          path: ${{ runner.temp }}/context-kernel-hardcoding-report.json
-          if-no-files-found: error
-          retention-days: 14
-
-  local-connector-production-closure:
-    name: Visible Local Connector Production Closure
+  close-production-acceptance:
+    name: Close Production Local Connector acceptance from trusted main
     if: >-
-      github.event_name == 'pull_request' &&
       github.event.pull_request.number == 4017 &&
       github.event.pull_request.base.ref == 'main' &&
-      github.head_ref == 'gpt/visible-local-connector-closure-run-20260731' &&
+      github.event.pull_request.head.ref == 'gpt/visible-local-connector-closure-run-20260731' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency:
-      group: governed-local-connector-production-closure-pr-3945
-      cancel-in-progress: true
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
@@ -101,7 +45,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Record established-workflow closure start
+      - name: Record trusted visible closure start
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -110,7 +54,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main event_pr=4017 supersedes_opaque_run=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=pull_request_target trusted_ref=main event_pr=4017"
 
       - name: Verify exact merged Production PR
         env:
@@ -148,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID}"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=pull_request_target trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID}"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi

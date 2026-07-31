@@ -14,6 +14,12 @@ const PORT_METHODS = Object.freeze({
     "claimAuthorizationState",
     "completeClaimedAuthorization",
   ]),
+  providerConsentReadiness: Object.freeze(["findProviderConsentReadiness"]),
+  brandManagementAuthority: Object.freeze(["findBrandManagementAuthority"]),
+  providerConnectionAccess: Object.freeze([
+    "listProviderConnections",
+    "revokeProviderConnection",
+  ]),
   capabilityReadiness: Object.freeze(["findCapabilityReadiness"]),
   policyGrantEvidence: Object.freeze(["findPolicyGrantEvidence"]),
   endpointCertificationEvidence: Object.freeze(["findEndpointCertificationEvidence"]),
@@ -88,6 +94,30 @@ export function assertProviderConsentStateRepository(repository) {
     repository,
     "Provider authorization state ingress",
     ["issueAuthorizationState", "findAuthorizationState", "claimAuthorizationState"],
+  );
+}
+
+export function assertProviderConsentReadinessRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Provider consent readiness",
+    PORT_METHODS.providerConsentReadiness,
+  );
+}
+
+export function assertBrandManagementAuthorityRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Brand management authority",
+    PORT_METHODS.brandManagementAuthority,
+  );
+}
+
+export function assertProviderConnectionAccessRepository(repository) {
+  return assertRepositoryMethods(
+    repository,
+    "Provider connection access",
+    PORT_METHODS.providerConnectionAccess,
   );
 }
 
