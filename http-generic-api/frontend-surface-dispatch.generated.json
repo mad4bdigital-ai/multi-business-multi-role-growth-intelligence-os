@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b06b91e5a9d4549cfc72c08c29c7e46ce81e7a58bf29b5e0fd10337b7114df36",
+    "source_digest": "38f445014fa2bd6a8f0088304c5a16f92710c79913d292ccfe07a5ddf096df52",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "7148cfc062c084314e29a24cc15bb6711bd4acaf91fb9bf189a32459ba7c5079",
+        "sha256": "fbb012906b5def85493eaa394f154fdca4707b18a375c3c70dc87542c1ff2b97",
         "present": true
       },
       {
@@ -351,7 +351,7 @@
       },
       {
         "file": "routes/agentRegistryRoutes.js",
-        "sha256": "dbc50bd7911e663c911409055395a1ebf144f21831339207c61c49ae294dfcfb",
+        "sha256": "97d795ac3de6f3e27f17a1e9b6dcfd2d2957853236287efddcafa7d1cc4e5e66",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "ae6215eed8f0db1abcf1891b9e4df6bc57ebaeb1e342693a8654dca3f98fecc2",
+        "sha256": "933f95eee2f4e38de7f491cc266af9310a2f721bc801aad0ebb72c843d3136fb",
         "present": true
       },
       {
@@ -63144,7 +63144,7 @@
       "family_key": "agent-registry",
       "label": "agent registry",
       "source_file": "routes/agentRegistryRoutes.js",
-      "source_digest": "dbc50bd7911e663c911409055395a1ebf144f21831339207c61c49ae294dfcfb",
+      "source_digest": "97d795ac3de6f3e27f17a1e9b6dcfd2d2957853236287efddcafa7d1cc4e5e66",
       "mount_prefix": "/",
       "mount_order": 20397,
       "split_from_mixed_scope_file": false,
