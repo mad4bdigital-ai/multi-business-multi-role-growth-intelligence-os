@@ -24,10 +24,25 @@
   "taxonomy_gap_dispositions": [
     "needs_analysis",
     "covered_by_existing_map",
+    "extend_existing_map_or_taxonomy",
     "new_work_map_candidate",
     "taxonomy_backlog",
     "not_relevant_to_feature"
   ],
+  "map_reuse_strategy": {
+    "priority_order": [
+      "reuse_existing_map",
+      "extend_existing_map",
+      "compose_existing_maps",
+      "extend_existing_generator_or_taxonomy",
+      "propose_new_map"
+    ],
+    "minimum_existing_map_assessments_for_new_candidate": 3,
+    "new_map_candidate_status": "proposal_only",
+    "new_map_candidate_implementation_blocked": true,
+    "separate_approval_required": true,
+    "contract": "A new Work Map may only be proposed after documented rejection of reuse, extension, cross-map composition, and generator/taxonomy extension against the closest existing maps. The proposal cannot authorize implementation in the same Spec Kit."
+  },
   "minimum_rationale_length": 24,
   "implementation_exempt_prefixes": [
     "specs",
