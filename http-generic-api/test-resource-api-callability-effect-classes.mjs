@@ -123,4 +123,31 @@ assert.equal(crossMigration.ok, true, JSON.stringify(crossMigration.findings));
 assert(crossMigration.covered_contracts.some((row) => row.tool_key === "tool_alpha" && row.migration_file === "migrations/alpha.sql"));
 assert(crossMigration.covered_contracts.some((row) => row.tool_key === "tool_beta" && row.migration_file === "migrations/beta.sql"));
 
+const delegatedEvidence = validate(contract({
+  evidence_files: [
+    {
+      role: "application_service",
+      file: "services/example-service.js",
+      markers: ["MUTATION_TRANSACTION: example_tool", "MUTATION_READBACK: example_tool"],
+    },
+  ],
+}), {
+  "services/example-service.js": "MUTATION_TRANSACTION: example_tool\nMUTATION_READBACK: example_tool",
+});
+assert.equal(delegatedEvidence.ok, true, JSON.stringify(delegatedEvidence.findings));
+
+const tamperedDelegatedEvidence = validate(contract({
+  evidence_files: [
+    {
+      role: "application_service",
+      file: "services/example-service.js",
+      markers: ["MUTATION_TRANSACTION: example_tool", "MUTATION_READBACK: example_tool"],
+    },
+  ],
+}), {
+  "services/example-service.js": "MUTATION_TRANSACTION: example_tool",
+});
+assert.equal(tamperedDelegatedEvidence.ok, false);
+assert(tamperedDelegatedEvidence.findings.some((row) => row.type === "direct_route_contract_marker_missing" && row.role === "application_service" && row.marker === "MUTATION_READBACK: example_tool"));
+
 console.log("resource API callability effect-class tests passed");
