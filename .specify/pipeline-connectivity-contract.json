@@ -83,7 +83,9 @@
         "github.event.pull_request.head.repo.full_name == github.repository",
         "github.actor != 'github-actions[bot]'",
         "work-map-autofix:authorized",
-        "format('spec-kit-work-map-noop-{0}', github.run_id)"
+        "format('spec-kit-work-map-noop-{0}', github.run_id)",
+        "windows-latest",
+        "shell: bash"
       ],
       "forbidden_commands": [
         "--force",
