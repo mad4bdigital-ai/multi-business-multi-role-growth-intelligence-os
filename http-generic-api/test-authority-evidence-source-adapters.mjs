@@ -71,10 +71,7 @@ function allSources(overridesByFamily = {}) {
   return AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map((family) => source(family, overridesByFamily[family] || {}));
 }
 
-const bundle = buildAuthorityEvidenceSourceBundle({
-  sources: allSources(),
-});
-
+const bundle = buildAuthorityEvidenceSourceBundle({ sources: allSources() });
 assert.equal(bundle.contract, "mad4b.ueacp.authority-evidence-source-bundle.v1");
 assert.equal(bundle.status, "ready_for_ownership_review");
 assert.equal(bundle.source_family_count, 8);
@@ -83,6 +80,7 @@ assert.equal(bundle.inventory.status, "ready_for_human_closure_review");
 assert.equal(bundle.inventory.summary.canonical_path_count, 1);
 assert.deepEqual(bundle.inventory.paths[0].source_registries, [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
 assert.deepEqual(bundle.expected_source_families, [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
+assert.equal(bundle.limits.maxSources, 128);
 assert.equal(bundle.closure_state.t001_complete, false);
 assert.equal(bundle.closure_state.source_evidence_ready_for_human_review, true);
 assert.equal(bundle.read_only, true);
@@ -134,8 +132,7 @@ assert.throws(
       },
     }),
   }),
-  (error) => error instanceof AuthorityEvidenceSourceError
-    && error.code === "authority_evidence_unsafe_source",
+  (error) => error instanceof AuthorityEvidenceSourceError && error.code === "authority_evidence_unsafe_source",
 );
 
 assert.throws(
@@ -146,8 +143,7 @@ assert.throws(
       },
     }),
   }),
-  (error) => error instanceof AuthorityEvidenceSourceError
-    && error.code === "authority_evidence_secret_value_forbidden",
+  (error) => error instanceof AuthorityEvidenceSourceError && error.code === "authority_evidence_secret_value_forbidden",
 );
 
 assert.throws(
@@ -163,21 +159,35 @@ assert.throws(
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
     expected_source_families: AUTHORITY_EVIDENCE_SOURCE_FAMILIES,
-    sources: [
-      ...allSources().slice(0, -1),
-      source("unknown_family"),
-    ],
+    sources: [...allSources().slice(0, -1), source("unknown_family")],
   }),
-  (error) => error instanceof AuthorityEvidenceSourceError
-    && error.code === "authority_evidence_unknown_source_family",
+  (error) => error instanceof AuthorityEvidenceSourceError && error.code === "authority_evidence_unknown_source_family",
 );
 
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
     sources: [...allSources(), source("system_tool_registry", { source_key: "other.snapshot" })],
   }),
+  (error) => error instanceof AuthorityEvidenceSourceError && error.code === "authority_evidence_duplicate_source_family",
+);
+
+assert.throws(
+  () => buildAuthorityEvidenceSourceBundle({
+    sources: allSources(),
+    limits: { maxRecordsPerSource: 8193 },
+  }),
   (error) => error instanceof AuthorityEvidenceSourceError
-    && error.code === "authority_evidence_duplicate_source_family",
+    && error.code === "authority_evidence_invalid_limit"
+    && error.details.key === "maxRecordsPerSource",
+);
+
+assert.throws(
+  () => buildAuthorityEvidenceSourceBundle({
+    sources: allSources(),
+    limits: { unknownLimit: 10 },
+  }),
+  (error) => error instanceof AuthorityEvidenceSourceError
+    && error.code === "authority_evidence_invalid_limits",
 );
 
 assert.deepEqual(AUTHORITY_EVIDENCE_SOURCE_FAMILIES, [
