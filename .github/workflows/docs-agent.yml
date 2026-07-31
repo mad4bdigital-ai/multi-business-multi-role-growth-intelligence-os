@@ -38,6 +38,11 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
       - name: Generate docs impact note
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
@@ -100,6 +105,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
 
       - name: Generate docs impact note for merged commit
         id: agent
