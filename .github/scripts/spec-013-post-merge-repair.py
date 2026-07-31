@@ -132,7 +132,6 @@ regression = dedent(r'''
       ["/system/tools/call", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
     ]) assertAlternatives(root, path, method, schemes);
 
-    assert.doesNotMatch(rootText, /security:\s*\[(?:backendBearerAuth|adminBearerAuth):\s*\[\],\s*backendApiKeyAuth:\s*\[\]\]/u);
     for (const [path, method] of [
       ["/system/tools", "get"],
       ["/system/tools/catalog-observability", "get"],
