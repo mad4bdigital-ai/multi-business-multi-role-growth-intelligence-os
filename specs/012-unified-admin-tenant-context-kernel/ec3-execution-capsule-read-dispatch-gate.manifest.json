@@ -3,7 +3,7 @@
   "slice_key": "spec-012-ec3-execution-capsule-read-dispatch-gate",
   "parent_extension": "spec-012-execution-capsule-runtime-integration",
   "phase": "EC3_unified_dispatch_integration",
-  "status": "in_progress",
+  "status": "complete",
   "runtime_authority": false,
   "production_activation": false,
   "provider_call": false,
@@ -59,13 +59,12 @@
     "exact_legacy_dispatch_rollback",
     "standalone_read_dispatch_gate_test",
     "complete_test_manifest_registration",
-    "generated_test_manifest_evidence_refresh"
-  ],
-  "pending_contracts": [
+    "generated_test_manifest_evidence_refresh",
     "exact_head_ci_evidence",
     "human_architecture_security_review",
     "post_merge_main_readback"
   ],
+  "pending_contracts": [],
   "reconciliation": {
     "status": "rebuilt_on_current_main",
     "baseline_sha": "9879e844918355e8945105d8a231ff65ffbd524b",
@@ -93,6 +92,33 @@
     "generated_contracts_passed": true,
     "generator_owned": true,
     "baseline_reconciled_with_main": true
+  },
+  "exact_head_ci_evidence": {
+    "status": "passed",
+    "validated_head_sha": "413aaada58655ad4d6bcf898e96021b3d98dd28c",
+    "required_ci_run_id": 30584106526,
+    "required_jobs_passed": 4,
+    "required_jobs_total": 4,
+    "generator_run_id": 30584106613,
+    "frontend_surface_run_id": 30584106628,
+    "custom_gpt_guard_run_id": 30584106505,
+    "side_workflows_passed": true
+  },
+  "human_review_evidence": {
+    "status": "passed",
+    "reviewed_head_sha": "413aaada58655ad4d6bcf898e96021b3d98dd28c",
+    "architecture_security_reviews": 2,
+    "unresolved_review_threads": 0,
+    "runtime_authority_confirmed_false": true
+  },
+  "post_merge_readback": {
+    "status": "passed",
+    "pull_request": 3858,
+    "merge_sha": "2ce9f7e43f7a3c5e9ee6cb7322d46af1c0ba5c83",
+    "main_contains_gate": true,
+    "main_contains_test_registration": true,
+    "main_contains_generator_owned_evidence": true,
+    "production_activation": false
   },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
