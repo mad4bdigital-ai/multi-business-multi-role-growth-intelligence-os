@@ -54,7 +54,6 @@ jobs:
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: production
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
