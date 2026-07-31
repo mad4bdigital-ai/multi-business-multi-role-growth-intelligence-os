@@ -31,6 +31,18 @@ function parseJson(value, fallback = {}) {
   }
 }
 
+function requireUniqueRow(rows, entity) {
+  const normalizedRows = Array.isArray(rows) ? rows : [];
+  if (normalizedRows.length > 1) {
+    const error = new Error(`${entity} lookup returned more than one row.`);
+    error.code = "GROWTH_CONTROL_INVALIDATION_UNIQUENESS_VIOLATION";
+    error.status = 500;
+    throw error;
+  }
+  const [row] = normalizedRows;
+  return row || null;
+}
+
 function eventRow(row) {
   if (!row) return null;
   return Object.freeze({
@@ -118,10 +130,10 @@ export function createGrowthControlInvalidationRepository({
               last_success_at,last_failure_at,last_error_code
          FROM platform_outbox_consumers
         WHERE consumer_key=?
-        LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
+        LIMIT 2${forUpdate ? " FOR UPDATE" : ""}`,
       [consumerKey],
     );
-    const row = rows?.[0];
+    const row = requireUniqueRow(rows, "Growth Control invalidation consumer");
     if (!row) return null;
     return Object.freeze({
       consumerKey: row.consumer_key,
@@ -271,10 +283,10 @@ export function createGrowthControlInvalidationRepository({
         `SELECT status,claim_token,attempt_count
            FROM platform_outbox_deliveries
           WHERE consumer_key=? AND event_id=?
-          LIMIT 1 FOR UPDATE`,
+          LIMIT 2 FOR UPDATE`,
         [consumerKey, eventId],
       );
-      const delivery = deliveryRows?.[0];
+      const delivery = requireUniqueRow(deliveryRows, "Growth Control invalidation delivery");
       if (!delivery) {
         const error = new Error("Growth Control invalidation delivery was not found.");
         error.code = "GROWTH_CONTROL_INVALIDATION_DELIVERY_NOT_FOUND";
@@ -373,11 +385,12 @@ export function createGrowthControlInvalidationRepository({
     const maxAttempts = consumer?.maxAttempts || 8;
     const [rows] = await db.query(
       `SELECT attempt_count FROM platform_outbox_deliveries
-        WHERE consumer_key=? AND event_id=? AND claim_token=? LIMIT 1`,
+        WHERE consumer_key=? AND event_id=? AND claim_token=? LIMIT 2`,
       [consumerKey, eventId, claimToken],
     );
-    if (!rows?.[0]) return Object.freeze({ updated: false, secretsIncluded: false });
-    const attemptCount = Number(rows[0].attempt_count || 0) + 1;
+    const delivery = requireUniqueRow(rows, "Growth Control invalidation claimed delivery");
+    if (!delivery) return Object.freeze({ updated: false, secretsIncluded: false });
+    const attemptCount = Number(delivery.attempt_count || 0) + 1;
     const deadLetter = !retryable || attemptCount >= maxAttempts;
     const delaySeconds = Math.min((consumer?.retryBaseSeconds || 30) * (2 ** Math.min(attemptCount - 1, 8)), 86400);
     const code = String(error?.code || "GROWTH_CONTROL_INVALIDATION_FAILED").slice(0, 120);
@@ -415,6 +428,7 @@ export const _testingGrowthControlInvalidationRepository = Object.freeze({
   CLAIM_MINUTES,
   boundedLimit,
   parseJson,
+  requireUniqueRow,
   eventRow,
   revisionRow,
   requireExecutor,
