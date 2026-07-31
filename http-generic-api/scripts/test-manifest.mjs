@@ -88,6 +88,7 @@ const staticDiscoveryCommands = [
 
 export const testCommands = Object.freeze([
   ...new Set([
+    "node scripts/capture-release-readiness-migration-drift-diagnostic.mjs",
     ...spec011Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
