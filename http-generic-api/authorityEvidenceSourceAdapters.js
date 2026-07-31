@@ -19,6 +19,7 @@ export const AUTHORITY_EVIDENCE_SOURCE_LIMITS = Object.freeze({
   maxEvidenceRefsPerSource: 64,
 });
 
+const LIMIT_KEYS = Object.freeze(Object.keys(AUTHORITY_EVIDENCE_SOURCE_LIMITS));
 const SOURCE_FAMILY_SET = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
 const REQUIRED_SOURCE_FAMILIES = Object.freeze([...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
@@ -116,6 +117,38 @@ function boolean(value, field) {
   return value;
 }
 
+function resolveLimits(limits = AUTHORITY_EVIDENCE_SOURCE_LIMITS) {
+  if (!limits || typeof limits !== "object" || Array.isArray(limits)) {
+    throw new AuthorityEvidenceSourceError(
+      "authority_evidence_invalid_limits",
+      "Authority evidence limits must be an object.",
+    );
+  }
+  const unknownKeys = Object.keys(limits).filter((key) => !LIMIT_KEYS.includes(key)).sort();
+  if (unknownKeys.length) {
+    throw new AuthorityEvidenceSourceError(
+      "authority_evidence_invalid_limits",
+      "Authority evidence limits contain unknown keys.",
+      { unknown_keys: unknownKeys },
+    );
+  }
+  const resolved = {};
+  for (const key of LIMIT_KEYS) {
+    const value = Number(limits[key] ?? AUTHORITY_EVIDENCE_SOURCE_LIMITS[key]);
+    const minimum = key === "maxSources" ? AUTHORITY_EVIDENCE_SOURCE_FAMILIES.length : 1;
+    const maximum = AUTHORITY_EVIDENCE_SOURCE_LIMITS[key];
+    if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+      throw new AuthorityEvidenceSourceError(
+        "authority_evidence_invalid_limit",
+        "Authority evidence limits must stay within the fixed platform bounds.",
+        { key, value, minimum, maximum },
+      );
+    }
+    resolved[key] = value;
+  }
+  return Object.freeze(resolved);
+}
+
 function stringList(value, field, maxItems) {
   if (!Array.isArray(value)) {
     throw new AuthorityEvidenceSourceError(
@@ -176,7 +209,7 @@ function normalizePagination(value, recordCount, field) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new AuthorityEvidenceSourceError(
       "authority_evidence_invalid_pagination",
-      `${field} must be an object.`,
+      `${field} must be an object.",
       { field },
     );
   }
@@ -291,17 +324,18 @@ export function buildAuthorityEvidenceSourceBundle({
   expected_source_families: expectedSourceFamilies = AUTHORITY_EVIDENCE_SOURCE_FAMILIES,
   limits = AUTHORITY_EVIDENCE_SOURCE_LIMITS,
 } = {}) {
+  const resolvedLimits = resolveLimits(limits);
   if (!Array.isArray(sources)) {
     throw new AuthorityEvidenceSourceError(
       "authority_evidence_invalid_sources",
       "sources must be an array.",
     );
   }
-  if (sources.length > limits.maxSources) {
+  if (sources.length > resolvedLimits.maxSources) {
     throw new AuthorityEvidenceSourceError(
       "authority_evidence_limit_exceeded",
       "Authority evidence source count exceeds its bound.",
-      { max_sources: limits.maxSources, observed: sources.length },
+      { max_sources: resolvedLimits.maxSources, observed: sources.length },
     );
   }
   assertNoSensitiveValues(sources, "sources");
@@ -312,7 +346,7 @@ export function buildAuthorityEvidenceSourceBundle({
   );
   const expectedFamilies = requireCompleteFamilyContract(requestedFamilies);
 
-  const normalizedSources = sources.map((source, index) => normalizeSource(source, index, limits));
+  const normalizedSources = sources.map((source, index) => normalizeSource(source, index, resolvedLimits));
   const sourceKeys = new Set();
   const sourceFamilies = new Set();
   for (const source of normalizedSources) {
@@ -358,6 +392,7 @@ export function buildAuthorityEvidenceSourceBundle({
   const bundle = {
     contract: "mad4b.ueacp.authority-evidence-source-bundle.v1",
     status: blockingGapCount === 0 ? "ready_for_ownership_review" : "incomplete",
+    limits: resolvedLimits,
     expected_source_families: expectedFamilies,
     source_family_count: normalizedSources.length,
     sources: normalizedSources.sort((left, right) => left.source_family.localeCompare(right.source_family)),
@@ -386,5 +421,6 @@ export const _testingAuthorityEvidenceSourceAdapters = {
   normalizePagination,
   normalizeSource,
   requireCompleteFamilyContract,
+  resolveLimits,
   assertNoSensitiveValues,
 };
