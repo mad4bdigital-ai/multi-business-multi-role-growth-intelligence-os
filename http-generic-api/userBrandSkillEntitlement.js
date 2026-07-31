@@ -1,4 +1,8 @@
 import { assertRequestedResourceBelongsToBrand } from "./brandSkillResourceBinding.js";
+import {
+  requiredResourcePermissionForBrandSkillOperations,
+  resourcePermissionCoversBrandSkillOperations,
+} from "./brandSkillResourcePermission.js";
 
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -273,6 +277,7 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
 
   let resourceAuthority = null;
   let resourceBrandBinding = null;
+  let requiredResourcePermission = null;
   if (requiresResourceBinding) {
     resourceAuthority = await resolveActiveResourceAuthority(pool, grant, {
       tenantId,
@@ -283,6 +288,14 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     if (!resourceAuthority) {
       return denied(policy, "user_brand_skill_resource_authority_inactive", operation, {
         membership_role: membership.role || null,
+      });
+    }
+    requiredResourcePermission = requiredResourcePermissionForBrandSkillOperations([operation]);
+    if (!resourcePermissionCoversBrandSkillOperations(resourceAuthority.permission, [operation])) {
+      return denied(policy, "user_brand_skill_resource_permission_insufficient", operation, {
+        membership_role: membership.role || null,
+        current_resource_permission: resourceAuthority.permission || null,
+        required_resource_permission: requiredResourcePermission,
       });
     }
     resourceBrandBinding = await verifyCurrentResourceBrandBinding(pool, {
@@ -308,6 +321,8 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     resource_authority_valid: requiresResourceBinding ? true : null,
     resource_brand_binding_valid: requiresResourceBinding ? true : null,
     resource_grant_id: resourceAuthority?.grant_id || grant.resource_grant_id || null,
+    resource_permission: resourceAuthority?.permission || null,
+    required_resource_permission: requiredResourcePermission,
     resource_binding_source: resourceBrandBinding?.binding_source || null,
     reason: null,
   };
