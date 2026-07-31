@@ -15,7 +15,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: governed-local-connector-production-closure-pr-3945
+  group: governed-local-connector-production-closure-pr-3945-v2
   cancel-in-progress: false
 
 jobs:
@@ -36,6 +36,7 @@ jobs:
           node --check .github/scripts/governed-local-connector-production-closure.mjs
           grep -F "RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A" .github/workflows/governed-local-connector-production-closure.yml
           grep -F "gpt/visible-local-connector-closure-run-20260731" .github/workflows/governed-local-connector-production-closure.yml
+          grep -F "governed-local-connector-production-closure-pr-3945-v2" .github/workflows/governed-local-connector-production-closure.yml
           grep -F "database_mutation_executed: false" .github/scripts/governed-local-connector-production-closure.mjs
           grep -F "migration_applied: false" .github/scripts/governed-local-connector-production-closure.mjs
           grep -F "existing_active_command" .github/scripts/governed-local-connector-production-closure.mjs
@@ -89,7 +90,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=${GITHUB_EVENT_NAME} head_sha=${GITHUB_SHA}"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=${GITHUB_EVENT_NAME} head_sha=${GITHUB_SHA} concurrency=v2"
 
       - name: Verify exact merged Production PR
         env:
@@ -127,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} head_sha=${GITHUB_SHA} production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID}"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} head_sha=${GITHUB_SHA} production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} concurrency=v2"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
