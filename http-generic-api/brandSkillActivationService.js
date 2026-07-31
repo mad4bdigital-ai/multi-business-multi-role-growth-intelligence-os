@@ -334,6 +334,12 @@ export async function activateBrandSkillForUser({
       requestedResourceType,
       requestedResourceRef,
     });
+    const canonicalResourceType = resourceBrandBinding.required
+      ? resourceBrandBinding.resource_type
+      : requestedResourceType;
+    const canonicalResourceRef = resourceBrandBinding.required
+      ? resourceBrandBinding.resource_ref
+      : requestedResourceRef;
     const skill = await resolveSkillAndAgent(connection, {
       tenantId: normalizedTenantId,
       brandKey: normalizedBrandKey,
@@ -356,8 +362,8 @@ export async function activateBrandSkillForUser({
       brandKey: normalizedBrandKey,
       membershipRole: membership.role,
       workspace,
-      requestedResourceType,
-      requestedResourceRef,
+      requestedResourceType: canonicalResourceType,
+      requestedResourceRef: canonicalResourceRef,
     });
     if (Number(policy.requires_resource_binding || 0) === 1 && !authority?.grant_id) {
       throw httpError(403, "BRAND_SKILL_RESOURCE_BINDING_REQUIRED", "The policy requires a verified resource binding.");
