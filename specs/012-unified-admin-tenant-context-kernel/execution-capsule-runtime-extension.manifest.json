@@ -17,7 +17,9 @@
     "ec3-execution-capsule-read-dispatch-gate.md",
     "ec3-execution-capsule-read-dispatch-gate.manifest.json",
     "ec4-execution-capsule-mutation-validation-pilot.md",
-    "ec4-execution-capsule-mutation-validation-pilot.manifest.json"
+    "ec4-execution-capsule-mutation-validation-pilot.manifest.json",
+    "ec5-execution-capsule-rollout-retirement.md",
+    "ec5-execution-capsule-rollout-retirement.manifest.json"
   ],
   "requirement_range": {
     "prefix": "FR-EC",
@@ -52,7 +54,7 @@
     "EC2_selected_read_pilot": "complete",
     "EC3_unified_dispatch_integration": "complete",
     "EC4_mutation_validation_pilot": "complete",
-    "EC5_rollout_and_duplicate_resolver_retirement": "not_started"
+    "EC5_rollout_and_duplicate_resolver_retirement": "in_progress"
   },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
