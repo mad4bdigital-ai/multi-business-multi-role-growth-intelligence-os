@@ -42,6 +42,10 @@ jobs:
       - name: Apply integrated delegation runtime wave
         run: python3 .github/scripts/spec011-phase3-delegation-policy-runtime-apply.py
 
+      - name: Install runtime test dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
       - name: Validate integrated delegation runtime wave
         id: validation
         working-directory: http-generic-api
