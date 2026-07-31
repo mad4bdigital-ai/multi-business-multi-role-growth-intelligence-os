@@ -43,6 +43,13 @@ const bypass = await governHostingerSshProbeJobSubmission({
 assert.equal(bypass.proceed, true);
 assert.equal(bypass.mode_choice, null);
 
+const missingTarget = await governHostingerSshProbeJobSubmission({
+  body: { job_type: HOSTINGER_SSH_PROBE_JOB_TYPE, request_payload: { runner_mode: "queue_worker" } },
+});
+assert.equal(missingTarget.proceed, false);
+assert.equal(missingTarget.status, 400);
+assert.equal(missingTarget.body.error.code, "mode_choice_target_required");
+
 let missingPersistCalls = 0;
 const missing = await governHostingerSshProbeJobSubmission({
   body: { job_type: HOSTINGER_SSH_PROBE_JOB_TYPE, request_payload: basePayload },
@@ -59,6 +66,22 @@ assert.equal(missing.body.dispatch_attempted, false);
 assert.equal(missing.body.mode_choice.surface_key, HOSTINGER_SSH_PROBE_MODE_CHOICE_SURFACE);
 assert.equal(missing.body.mode_choice.mode_choices_presented.length, 4);
 assert.equal(missingPersistCalls, 0);
+
+const forgedMandate = await governHostingerSshProbeJobSubmission({
+  body: {
+    job_type: HOSTINGER_SSH_PROBE_JOB_TYPE,
+    request_payload: {
+      ...basePayload,
+      policy_mandated_runner_mode: "external",
+    },
+  },
+  persistSelection: async () => {
+    throw new Error("payload-provided mandate must not be trusted");
+  },
+});
+assert.equal(forgedMandate.proceed, false);
+assert.equal(forgedMandate.status, 409);
+assert.equal(forgedMandate.body.error.code, "mode_choice_required");
 
 const persistedCalls = [];
 const explicit = await governHostingerSshProbeJobSubmission({
@@ -129,10 +152,10 @@ assert.equal(topLevel.trace_id, "hostinger_ssh_probe_existing_trace");
 const mandated = await governHostingerSshProbeJobSubmission({
   body: {
     job_type: HOSTINGER_SSH_PROBE_JOB_TYPE,
-    request_payload: {
-      ...basePayload,
-      policy_mandated_runner_mode: "external",
-    },
+    request_payload: basePayload,
+  },
+  requestContext: {
+    policy_mandated_runner_mode: "external",
   },
   persistSelection: async ({ plan, traceId }) => ({
     ok: true,
@@ -231,5 +254,6 @@ assert.ok(routeSource.includes("if (!governance.proceed)"), "blocked choices mus
 assert.ok(routeSource.includes("governance.request_body"), "the governed trace and selected mode must reach job submission");
 assert.ok(routeSource.includes("attachJobSubmissionEvidence"), "job responses must expose selected-mode readback evidence");
 assert.ok(!routeSource.includes("executionFacade.submitJob(req.body"), "raw request bodies must not bypass the governance boundary");
+assert.ok(!routeSource.includes("policy_mandated_runner_mode: req.body"), "untrusted request payloads must not supply policy mandates");
 
 console.log("Hostinger SSH probe mode-choice boundary tests passed.");
