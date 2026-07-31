@@ -48,7 +48,7 @@
   "evidence": {
     "ci": {
       "status": "passed_required_checks",
-      "head_sha": "ed2a9f63e0f3267bdce72f358a5614de06fa740f"
+      "head_sha": "99b1fd3cef4c15926ceccfe8cb4741f7a6d99ad6"
     },
     "reference_packs": {
       "status": "passed_catalog_and_manifest_validation",
@@ -92,6 +92,30 @@
       "provider_apply_allowed": false,
       "external_writes": false,
       "secrets_included": false
+    },
+    "workflow_plan_snapshot_persistence": {
+      "status": "passed_immutable_append_only_snapshot_persistence",
+      "head_sha": "99b1fd3cef4c15926ceccfe8cb4741f7a6d99ad6",
+      "task_key": "T403",
+      "migration": "20260731_growth_control_plan_snapshot_persistence.sql",
+      "tables": [
+        "growth_control_compiled_policy_snapshots",
+        "growth_control_compiled_plan_snapshots"
+      ],
+      "activation_surfaces": [
+        "growth_control_compiled_policy_snapshots",
+        "growth_control_compiled_plan_snapshots"
+      ],
+      "same_cycle_readback": true,
+      "idempotent_replay": true,
+      "immutable": true,
+      "canonical_hash": "sha256",
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
+      "external_writes": false,
+      "secrets_included": false,
+      "migration_applied": false
     },
     "release_readiness": {
       "status": "pending"
