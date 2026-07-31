@@ -1,0 +1,308 @@
+name: Spec 011 Phase 3 Delegation Policy Runtime Apply Once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec-011-phase3-delegation-policy-runtime-wave
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Synchronize latest main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+
+      - name: Apply integrated delegation runtime wave
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          orchestrator = "http-generic-api/sequentialPlanOrchestrator.js"
+          replace_once(
+              orchestrator,
+              '} from "./governedExecutionBaselineTelemetry.js";\n',
+              '} from "./governedExecutionBaselineTelemetry.js";\nimport {\n  assertDelegationApprovalDecision,\n  evaluateSequentialStepDelegationPolicy,\n} from "./delegationExecutionPolicyService.js";\n',
+          )
+          replace_once(
+              orchestrator,
+              "async function createApprovalHold(connection, plan, step, actorId) {",
+              "async function createApprovalHold(connection, plan, step, actorId, delegationDecision = null) {",
+          )
+          replace_once(
+              orchestrator,
+              'json({ source: "sequential_plan_orchestrator", plan_step_id: step.plan_step_id, secrets_included: false }),',
+              'json({ source: "sequential_plan_orchestrator", plan_step_id: step.plan_step_id, delegation_approval_requirements: delegationDecision?.approval_requirements || null, secrets_included: false }),',
+          )
+          replace_once(
+              orchestrator,
+              'json({ source: "sequential_plan_orchestrator", plan_id: plan.plan_id, plan_step_id: step.plan_step_id, secrets_included: false }),',
+              'json({ source: "sequential_plan_orchestrator", plan_id: plan.plan_id, plan_step_id: step.plan_step_id, delegation_approval_requirements: delegationDecision?.approval_requirements || null, secrets_included: false }),',
+          )
+
+          approval_anchor = """    if (approvalRequired(next)) {
+      const holdId = await createApprovalHold(connection, plan, next, actorId);"""
+          delegation_block = """    const delegationDecision = evaluateSequentialStepDelegationPolicy({ plan, step: next, actorId });
+    if (delegationDecision) {
+      await appendEvent(connection, {
+        planId,
+        planStepId: next.plan_step_id,
+        tenantId: plan.tenant_id,
+        eventType: "delegation_policy_decided",
+        fromStatus: "ready",
+        toStatus: delegationDecision.dispatch_allowed ? "ready" : delegationDecision.pause_required ? "paused" : delegationDecision.approval_required ? "awaiting_approval" : "blocked",
+        actorId,
+        evidence: {
+          decision: delegationDecision.decision,
+          approval_mode: delegationDecision.approval_mode,
+          blockers: delegationDecision.blockers,
+          step_fingerprint: delegationDecision.step_fingerprint,
+          next_action: delegationDecision.next_action,
+        },
+      });
+      if (!delegationDecision.dispatch_allowed) {
+        if (delegationDecision.approval_required) {
+          const holdId = await createApprovalHold(connection, plan, next, actorId, delegationDecision);
+          await connection.query("UPDATE execution_plan_steps SET status = 'awaiting_approval' WHERE plan_step_id = ?", [next.plan_step_id]);
+          await updatePlanRuntimeStatus(connection, planId, "awaiting_approval", plan.tenant_id);
+          await appendEvent(connection, {
+            planId,
+            planStepId: next.plan_step_id,
+            tenantId: plan.tenant_id,
+            eventType: "approval_requested",
+            fromStatus: "ready",
+            toStatus: "awaiting_approval",
+            actorId,
+            evidence: {
+              hold_id: holdId,
+              delegation_policy_decision: delegationDecision.decision,
+              expected_step_fingerprint: delegationDecision.step_fingerprint,
+            },
+          });
+          return {
+            stop: true,
+            reason: delegationDecision.decision,
+            plan_status: "awaiting_approval",
+            hold_id: holdId,
+            step: next,
+            delegation_policy: delegationDecision,
+          };
+        }
+        const stepStatus = delegationDecision.pause_required ? "paused" : "blocked";
+        const planStatus = delegationDecision.pause_required ? "paused" : "blocked";
+        await connection.query("UPDATE execution_plan_steps SET status = ? WHERE plan_step_id = ? AND status = 'ready'", [stepStatus, next.plan_step_id]);
+        await updatePlanRuntimeStatus(connection, planId, planStatus, plan.tenant_id);
+        await appendEvent(connection, {
+          planId,
+          planStepId: next.plan_step_id,
+          tenantId: plan.tenant_id,
+          eventType: delegationDecision.decision === "paused_on_drift" ? "delegation_boundary_drift" : "delegation_policy_blocked",
+          fromStatus: "ready",
+          toStatus: stepStatus,
+          actorId,
+          evidence: {
+            decision: delegationDecision.decision,
+            blockers: delegationDecision.blockers,
+            next_action: delegationDecision.next_action,
+          },
+        });
+        return {
+          stop: true,
+          reason: delegationDecision.decision,
+          plan_status: planStatus,
+          step: next,
+          delegation_policy: delegationDecision,
+        };
+      }
+    }
+    if (!delegationDecision && approvalRequired(next)) {
+      const holdId = await createApprovalHold(connection, plan, next, actorId);"""
+          replace_once(orchestrator, approval_anchor, delegation_block)
+
+          approval_validation_anchor = """    if (!step || step.status !== "awaiting_approval") {
+      const error = validationError("Sequential plan step is not awaiting this approval.", "sequential_plan_approval_step_mismatch");
+      error.status = 409;
+      throw error;
+    }
+
+    const stepStatus = decision === "approved""" 
+          approval_validation = """    if (!step || step.status !== "awaiting_approval") {
+      const error = validationError("Sequential plan step is not awaiting this approval.", "sequential_plan_approval_step_mismatch");
+      error.status = 409;
+      throw error;
+    }
+    assertDelegationApprovalDecision({
+      approvalPolicy: step.approval_policy_json,
+      decision,
+      decisionBy,
+      holdContext: context,
+    });
+    const delegationApprovalRequirements = parseJson(context.delegation_approval_requirements, {});
+    const approvedStepFingerprint = delegationApprovalRequirements.expected_step_fingerprint || null;
+
+    const stepStatus = decision === "approved"""
+          replace_once(orchestrator, approval_validation_anchor, approval_validation)
+
+          old_update = """    const [stepUpdate] = await connection.query(
+      `UPDATE execution_plan_steps
+          SET status = ?,
+              approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?),
+              completed_at = CASE WHEN ? IN ('completed','failed') THEN NOW() ELSE completed_at END
+        WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
+      [stepStatus, decision === "approved", stepStatus, step.plan_step_id, step.plan_id]
+    );"""
+          new_update = """    const [stepUpdate] = await connection.query(
+      `UPDATE execution_plan_steps
+          SET status = ?,
+              approval_policy_json = JSON_SET(
+                COALESCE(approval_policy_json, JSON_OBJECT()),
+                '$.approved', ?,
+                '$.approved_by', ?,
+                '$.expected_step_fingerprint', ?
+              ),
+              completed_at = CASE WHEN ? IN ('completed','failed') THEN NOW() ELSE completed_at END
+        WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
+      [
+        stepStatus,
+        decision === "approved",
+        decision === "approved" ? decisionBy : null,
+        decision === "approved" ? approvedStepFingerprint : null,
+        stepStatus,
+        step.plan_step_id,
+        step.plan_id,
+      ]
+    );"""
+          replace_once(orchestrator, old_update, new_update)
+
+          test_path = "http-generic-api/test-sequential-plan-orchestrator.mjs"
+          old_mock = """    if (text.startsWith("UPDATE execution_plan_steps SET status = ?, approval_policy_json")) {
+      const step = state.steps.find((item) => item.plan_step_id === params[3]);
+      if (step) {
+        step.status = params[0];
+        const policy = JSON.parse(step.approval_policy_json || "{}");
+        policy.approved = params[1];
+        step.approval_policy_json = JSON.stringify(policy);
+      }
+      return [{ affectedRows: step ? 1 : 0 }];
+    }"""
+          new_mock = """    if (text.startsWith("UPDATE execution_plan_steps SET status = ?, approval_policy_json")) {
+      const step = state.steps.find((item) => item.plan_step_id === params.at(-2));
+      if (step) {
+        step.status = params[0];
+        const policy = JSON.parse(step.approval_policy_json || "{}");
+        policy.approved = params[1];
+        policy.approved_by = params[2];
+        policy.expected_step_fingerprint = params[3];
+        step.approval_policy_json = JSON.stringify(policy);
+      }
+      return [{ affectedRows: step ? 1 : 0 }];
+    }"""
+          replace_once(test_path, old_mock, new_mock)
+
+          routes = "http-generic-api/routes/agentRegistryRoutes.js"
+          replace_once(
+              routes,
+              "  router.use(requireBackendApiKey);\n",
+              "  router.use(requireBackendApiKey);\n\n  function allowLegacyAgentDelegationMutation() {\n    return /^(1|true|yes|on)$/i.test(String(process.env.AGENT_DELEGATION_LEGACY_DIRECT_MUTATION_ENABLED || \"\").trim());\n  }\n",
+          )
+          legacy_anchor = """    const delegation_id = randomUUID();
+    const expires_at = new Date(Date.now() + agent.max_delegation_ttl * 1000);"""
+          legacy_gate = """    if (!allowLegacyAgentDelegationMutation()) {
+      return res.status(409).json({
+        error: {
+          code: "canonical_delegation_grant_required",
+          message: "Direct legacy delegation mutation is disabled. Use the canonical plan-bound grant preview and governed lifecycle flow.",
+          details: {
+            canonical_flow: ["preview", "create", "inspect", "revoke", "expire"],
+            legacy_direct_mutation_enabled: false,
+            runtime_authority_changed: false,
+            database_write_performed: false,
+            secrets_included: false,
+          },
+        },
+      });
+    }
+
+    const delegation_id = randomUUID();
+    const expires_at = new Date(Date.now() + agent.max_delegation_ttl * 1000);"""
+          replace_once(routes, legacy_anchor, legacy_gate)
+
+          tasks = Path("specs/011-durable-governed-execution-and-agent-delegation/tasks.md")
+          tasks_text = tasks.read_text()
+          for number in range(142, 150):
+              old = f"- [ ] T{number} "
+              new = f"- [x] T{number} "
+              if old not in tasks_text and new not in tasks_text:
+                  raise SystemExit(f"task T{number} missing")
+              tasks_text = tasks_text.replace(old, new, 1)
+          tasks.write_text(tasks_text)
+
+          manifest = "http-generic-api/scripts/manifests/test-manifest-spec011.mjs"
+          replace_once(
+              manifest,
+              '  "node test-agent-delegation-opt-in.mjs",\n',
+              '  "node test-agent-delegation-opt-in.mjs",\n  "node test-delegation-execution-policy-runtime.mjs",\n',
+          )
+          PY
+
+      - name: Validate integrated delegation runtime wave
+        working-directory: http-generic-api
+        run: |
+          node --check delegationExecutionPolicyService.js
+          node --check sequentialPlanOrchestrator.js
+          node --check routes/agentRegistryRoutes.js
+          node test-delegation-execution-policy-runtime.mjs
+          node test-sequential-plan-orchestrator.mjs
+          node test-agent-delegation-opt-in.mjs
+          node test-delegation-grant-shadow.mjs
+          node test-delegation-grant-lifecycle-shadow.mjs
+          node test-delegation-grant-repository-mutation.mjs
+          node test-delegation-grant-mariadb-runtime-binding.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Enforce bounded wave write set
+        run: |
+          allowed='^(http-generic-api/delegationExecutionPolicyService\.js|http-generic-api/test-delegation-execution-policy-runtime\.mjs|http-generic-api/sequentialPlanOrchestrator\.js|http-generic-api/test-sequential-plan-orchestrator\.mjs|http-generic-api/routes/agentRegistryRoutes\.js|http-generic-api/scripts/manifests/test-manifest-spec011\.mjs|specs/011-durable-governed-execution-and-agent-delegation/phase3-delegation-policy-runtime-wave\.md|specs/011-durable-governed-execution-and-agent-delegation/tasks\.md|\.github/workflows/spec-011-phase3-delegation-policy-runtime-apply-once\.yml)$'
+          unexpected="$(git diff --name-only origin/main | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            printf 'Unexpected files in wave diff:\n%s\n' "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit clean synchronized wave
+        run: |
+          rm -f .github/workflows/spec-011-phase3-delegation-policy-runtime-apply-once.yml
+          git add -A
+          git commit -m "feat(spec-011): integrate delegation policy runtime wave"
+          git pull --rebase origin gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731
+          git push origin HEAD:gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731
