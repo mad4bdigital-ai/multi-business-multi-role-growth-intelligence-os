@@ -2,6 +2,7 @@ import { GrowthControlPlaneError, stableSha256 } from "./growthControlPlane.js";
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const CANONICAL_KEY_RE = /^[a-z][a-z0-9_.-]{2,191}$/;
+const OPAQUE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,190}$/;
 const INTERNAL_EFFECT_CLASSES = new Set([
   "internal",
   "internal_draft",
@@ -13,6 +14,7 @@ const INTERNAL_EFFECT_CLASSES = new Set([
   "no_effect",
 ]);
 const FORBIDDEN_FIELD_RE = /(secret|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session)/i;
+const SAFE_SECRET_FLAGS = new Set(["secretsIncluded", "secrets_included"]);
 
 function fail(code, message, field, issue, extra = {}) {
   throw new GrowthControlPlaneError(code, message, 422, [{ field, issue, ...extra }]);
@@ -33,6 +35,14 @@ function canonical(value, field) {
   return normalized;
 }
 
+function identifier(value, field) {
+  const normalized = String(value ?? "").trim();
+  if (!OPAQUE_ID_RE.test(normalized)) {
+    fail("GROWTH_CONTROL_APPROVAL_PLAN_INVALID", `${field} must be a bounded opaque identifier.`, field, "invalid_identifier");
+  }
+  return normalized;
+}
+
 function sha(value, field) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (!SHA256_RE.test(normalized)) {
@@ -49,14 +59,14 @@ function positiveInteger(value, field, minimum, maximum, fallback) {
   return normalized;
 }
 
-function sortedUnique(values, field, { required = false } = {}) {
+function sortedUnique(values, field, { required = false, normalize = canonical } = {}) {
   if (values == null) values = [];
   if (!Array.isArray(values)) {
     fail("GROWTH_CONTROL_APPROVAL_PLAN_INVALID", `${field} must be an array.`, field, "invalid_type");
   }
-  const result = [...new Set(values.map((value, index) => canonical(value, `${field}[${index}]`)))].sort();
+  const result = [...new Set(values.map((value, index) => normalize(value, `${field}[${index}]`)))].sort();
   if (required && result.length === 0) {
-    fail("GROWTH_CONTROL_PROVIDER_RESOURCE_REQUIRED", `${field} must contain at least one canonical resource ID.`, field, "required");
+    fail("GROWTH_CONTROL_PROVIDER_RESOURCE_REQUIRED", `${field} must contain at least one identifier.`, field, "required");
   }
   return result;
 }
@@ -69,7 +79,7 @@ function assertSecretFree(value, field = "value", depth = 0) {
   }
   if (typeof value !== "object") return;
   for (const [key, nested] of Object.entries(value)) {
-    if (FORBIDDEN_FIELD_RE.test(key)) {
+    if (FORBIDDEN_FIELD_RE.test(key) && !(SAFE_SECRET_FLAGS.has(key) && nested === false)) {
       fail("GROWTH_CONTROL_APPROVAL_SENSITIVE_INPUT", "Approval composition contains a forbidden sensitive field.", `${field}.${key}`, "forbidden_sensitive_field");
     }
     assertSecretFree(nested, `${field}.${key}`, depth + 1);
@@ -138,8 +148,8 @@ export function composeGrowthControlProviderApprovalPlan({
   approvalProfile = {},
 } = {}) {
   validateCompiledPlan(compiledPlan);
-  const normalizedPlanId = canonical(planId, "planId");
-  const normalizedTenantId = canonical(tenantId, "tenantId");
+  const normalizedPlanId = identifier(planId, "planId");
+  const normalizedTenantId = identifier(tenantId, "tenantId");
   const normalizedEnvironment = canonical(environment, "environment");
   assertSecretFree({ resourceIdsByNode, actionIdsByNode, approvalProfile }, "approvalInput");
 
@@ -168,8 +178,16 @@ export function composeGrowthControlProviderApprovalPlan({
       fail("GROWTH_CONTROL_PROVIDER_APPROVAL_REQUIRED", "Every provider-effect node requires an explicit approval checkpoint.", `nodes.${node.nodeId}.approvalCheckpoint`, "required");
     }
 
-    const resourceIds = sortedUnique(resourceIdsByNode[node.nodeId], `resourceIdsByNode.${node.nodeId}`, { required: providerEffect });
-    const actionIds = sortedUnique(actionIdsByNode[node.nodeId] ?? [node.nodeId], `actionIdsByNode.${node.nodeId}`, { required: providerEffect });
+    const resourceIds = sortedUnique(
+      resourceIdsByNode[node.nodeId],
+      `resourceIdsByNode.${node.nodeId}`,
+      { required: providerEffect, normalize: identifier },
+    );
+    const actionIds = sortedUnique(
+      actionIdsByNode[node.nodeId] ?? [node.nodeId],
+      `actionIdsByNode.${node.nodeId}`,
+      { required: providerEffect, normalize: canonical },
+    );
     const binding = providerEffect
       ? requestBinding({ planHash, node, environment: normalizedEnvironment, resourceIds, actionIds, expiresInSeconds })
       : null;
@@ -265,5 +283,6 @@ export const _testingGrowthControlProviderApproval = Object.freeze({
   validateCompiledPlan,
   isProviderEffect,
   requestBinding,
+  identifier,
   deepFreeze,
 });
