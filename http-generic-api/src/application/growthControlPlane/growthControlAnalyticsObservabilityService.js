@@ -71,6 +71,15 @@ async function tenantScope(repository, auth, input) {
   if (!scope) throw new GrowthControlPlaneError("TENANT_GROWTH_CONTROL_SCOPE_FORBIDDEN", "The tenant workspace and brand scope is not available to this principal.", 403);
   return Object.freeze({ principal, scope });
 }
+function projectionObservation(input = {}) {
+  const source = input.lineage?.source || input.lineage_json?.source || {};
+  return Object.freeze({
+    ...input,
+    sourceSystemKey: input.sourceSystemKey ?? input.source_system_key ?? source.sourceSystemKey ?? source.source_system_key,
+    sourceObservationId: input.sourceObservationId ?? input.source_observation_id ?? source.sourceObservationId ?? source.source_observation_id,
+    sourceEventId: input.sourceEventId ?? input.source_event_id ?? source.sourceEventId ?? source.source_event_id,
+  });
+}
 
 export function createGrowthControlAnalyticsObservabilityService({ repository } = {}) {
   const store = repositoryContract(repository);
@@ -84,7 +93,7 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 1000 });
     const bindings = await store.listActivityKpiBindings({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
     const observations = await store.listNormalizedMetricObservations({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, periodStart: input.periodStart ?? input.period_start ?? null, periodEnd: input.periodEnd ?? input.period_end ?? null, limit: rowLimit });
-    return buildGrowthControlPortfolioProjection({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, definitions, bindings, observations, now: input.now || new Date() });
+    return buildGrowthControlPortfolioProjection({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, definitions, bindings, observations: observations.map(projectionObservation), now: input.now || new Date() });
   }
 
   async function projectAdminPortfolio(input = {}) {
@@ -163,4 +172,4 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   return Object.freeze({ projectAdminPortfolio, projectTenantPortfolio, projectKpiCatalog, projectAdminOperationalHealth, projectTenantOperationalHealth, recordMetricObservation, recordDecisionEvidence, recordObservabilitySample });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope });
+export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation });
