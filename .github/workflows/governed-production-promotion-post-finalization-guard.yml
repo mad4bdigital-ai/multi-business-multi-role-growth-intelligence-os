@@ -1,0 +1,215 @@
+name: Governed Production Promotion Post-Finalization Guard
+
+on:
+  workflow_run:
+    workflows:
+      - Governed Production Promotion Request Launcher
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-promotion-post-finalization-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  verify-finalized-candidate:
+    name: Verify final freshness and converge to one Release PR
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      EVIDENCE_DIR: ${{ runner.temp }}/production-promotion-post-finalization
+      MAX_POST_FINALIZATION_RETRIES: 3
+    steps:
+      - name: Download and validate convergence evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$REPOSITORY" \
+            --name "governed-production-promotion-convergence-${SOURCE_RUN_ID}" \
+            --dir "$EVIDENCE_DIR"
+
+          EVIDENCE_PATH="$(find "$EVIDENCE_DIR" -type f -name '*.json' -print -quit)"
+          test -n "$EVIDENCE_PATH"
+          jq -e '
+            .schema_version == "governed_production_promotion_convergence.v1" and
+            .ok == true and
+            .candidate_tree_matches_main == true and
+            .protected_refs_stable_during_validation == true and
+            .exact_full_ci_success == true and
+            .merge_executed == false and
+            .deployment_executed == false and
+            .migration_executed == false and
+            .provider_call_executed == false and
+            .credential_payload_read == false and
+            .secrets_included == false and
+            (.request_pr | test("^[0-9]+$")) and
+            (.main_sha | test("^[0-9a-f]{40}$")) and
+            (.production_sha | test("^[0-9a-f]{40}$")) and
+            (.candidate_sha | test("^[0-9a-f]{40}$")) and
+            (.release_pr | test("^[0-9]+$"))
+          ' "$EVIDENCE_PATH" >/dev/null
+
+          REQUEST_PR="$(jq -r '.request_pr' "$EVIDENCE_PATH")"
+          MAIN_SHA="$(jq -r '.main_sha' "$EVIDENCE_PATH")"
+          PRODUCTION_SHA="$(jq -r '.production_sha' "$EVIDENCE_PATH")"
+          CANDIDATE_SHA="$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
+          RELEASE_PR="$(jq -r '.release_pr' "$EVIDENCE_PATH")"
+
+          {
+            echo "request_pr=$REQUEST_PR"
+            echo "main_sha=$MAIN_SHA"
+            echo "production_sha=$PRODUCTION_SHA"
+            echo "candidate_sha=$CANDIDATE_SHA"
+            echo "release_pr=$RELEASE_PR"
+            echo "evidence_path=$EVIDENCE_PATH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Perform post-finalization protected-ref readback
+        id: readback
+        shell: bash
+        env:
+          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
+          RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
+        run: |
+          set -Eeuo pipefail
+          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          RELEASE_JSON="$(gh pr view "$RELEASE_PR" --repo "$REPOSITORY" --json state,headRefOid,headRefName,baseRefName)"
+          RELEASE_STATE="$(jq -r '.state' <<<"$RELEASE_JSON")"
+          RELEASE_HEAD_SHA="$(jq -r '.headRefOid' <<<"$RELEASE_JSON")"
+          RELEASE_HEAD_BRANCH="$(jq -r '.headRefName' <<<"$RELEASE_JSON")"
+          RELEASE_BASE="$(jq -r '.baseRefName' <<<"$RELEASE_JSON")"
+
+          MAIN_COMPARE="$(gh api "/repos/${REPOSITORY}/compare/${PINNED_MAIN_SHA}...${CANDIDATE_SHA}")"
+          PRODUCTION_COMPARE="$(gh api "/repos/${REPOSITORY}/compare/${PINNED_PRODUCTION_SHA}...${CANDIDATE_SHA}")"
+          TREE_DIFF_COUNT="$(jq -r '.files | length' <<<"$MAIN_COMPARE")"
+          MAIN_BEHIND="$(jq -r '.behind_by' <<<"$MAIN_COMPARE")"
+          PRODUCTION_BEHIND="$(jq -r '.behind_by' <<<"$PRODUCTION_COMPARE")"
+
+          STABLE=true
+          REASON=stable
+          if [[ "$CURRENT_MAIN_SHA" != "$PINNED_MAIN_SHA" ]]; then
+            STABLE=false
+            REASON=main_moved_after_finalization
+          elif [[ "$CURRENT_PRODUCTION_SHA" != "$PINNED_PRODUCTION_SHA" ]]; then
+            STABLE=false
+            REASON=production_moved_after_finalization
+          elif [[ "$RELEASE_STATE" != "OPEN" || "$RELEASE_BASE" != "Production" ]]; then
+            STABLE=false
+            REASON=release_surface_not_open_on_production
+          elif [[ "$RELEASE_HEAD_SHA" != "$CANDIDATE_SHA" ]]; then
+            STABLE=false
+            REASON=release_head_changed_after_finalization
+          elif [[ "$TREE_DIFF_COUNT" != "0" || "$MAIN_BEHIND" != "0" ]]; then
+            STABLE=false
+            REASON=candidate_no_longer_matches_or_contains_main
+          elif [[ "$PRODUCTION_BEHIND" != "0" ]]; then
+            STABLE=false
+            REASON=candidate_no_longer_contains_pinned_production
+          fi
+
+          {
+            echo "stable=$STABLE"
+            echo "reason=$REASON"
+            echo "current_main_sha=$CURRENT_MAIN_SHA"
+            echo "current_production_sha=$CURRENT_PRODUCTION_SHA"
+            echo "release_head_branch=$RELEASE_HEAD_BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fail closed and restart convergence when stale
+        if: steps.readback.outputs.stable != 'true'
+        shell: bash
+        env:
+          RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
+          REQUEST_PR: ${{ steps.evidence.outputs.request_pr }}
+          CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
+          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          CURRENT_MAIN_SHA: ${{ steps.readback.outputs.current_main_sha }}
+          PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
+          CURRENT_PRODUCTION_SHA: ${{ steps.readback.outputs.current_production_sha }}
+          STALE_REASON: ${{ steps.readback.outputs.reason }}
+        run: |
+          set -Eeuo pipefail
+          MARKER="POST_FINALIZATION_STALE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} reason=${STALE_REASON} main_before=${PINNED_MAIN_SHA} main_after=${CURRENT_MAIN_SHA} production_before=${PINNED_PRODUCTION_SHA} production_after=${CURRENT_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$MARKER" || true
+          gh pr close "$RELEASE_PR" --repo "$REPOSITORY" || true
+
+          RETRY_COUNT="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" --paginate --jq '[.[] | select(.body | startswith("POST_FINALIZATION_STALE"))] | length')"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$MARKER retry_count=$RETRY_COUNT max_retries=$MAX_POST_FINALIZATION_RETRIES"
+
+          if (( RETRY_COUNT >= MAX_POST_FINALIZATION_RETRIES )); then
+            echo "::error::post-finalization convergence retry limit reached"
+            exit 1
+          fi
+
+          REQUEST_STATE="$(gh pr view "$REQUEST_PR" --repo "$REPOSITORY" --json state --jq '.state')"
+          if [[ "$REQUEST_STATE" == "OPEN" ]]; then
+            gh pr close "$REQUEST_PR" --repo "$REPOSITORY"
+          fi
+          gh pr reopen "$REQUEST_PR" --repo "$REPOSITORY"
+
+      - name: Close superseded Production and validation surfaces
+        if: steps.readback.outputs.stable == 'true'
+        shell: bash
+        env:
+          RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
+          CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
+          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
+        run: |
+          set -Eeuo pipefail
+          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+
+          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
+            --json number,headRefName,baseRefName \
+            --jq '.[] | select(.baseRefName == "Production" and (.headRefName | startswith("release/production-"))) | [.number, .headRefName] | @tsv' |
+          while IFS=$'\t' read -r pr_number head_branch; do
+            [[ -n "$pr_number" ]] || continue
+            if [[ "$pr_number" == "$RELEASE_PR" ]]; then
+              continue
+            fi
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_PRODUCTION_CANDIDATE authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
+            gh pr close "$pr_number" --repo "$REPOSITORY" || true
+          done
+
+          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
+            --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("gpt/validate-production-candidate-")) | [.number, .headRefName] | @tsv' |
+          while IFS=$'\t' read -r pr_number head_branch; do
+            [[ -n "$pr_number" ]] || continue
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_EXACT_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
+            gh pr close "$pr_number" --repo "$REPOSITORY" || true
+          done
+
+          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$FINAL_MARKER single_release_surface=true final_freshness_readback=true"
+
+      - name: Publish post-finalization summary
+        if: always()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Governed Production post-finalization guard
+
+          - source convergence run: \`${SOURCE_RUN_ID}\`
+          - candidate: \`${{ steps.evidence.outputs.candidate_sha }}\`
+          - release PR: \`${{ steps.evidence.outputs.release_pr }}\`
+          - final freshness stable: \`${{ steps.readback.outputs.stable }}\`
+          - readback reason: \`${{ steps.readback.outputs.reason }}\`
+          - merge executed: false
+          - deployment executed: false
+          - migration executed: false
+          EOF
