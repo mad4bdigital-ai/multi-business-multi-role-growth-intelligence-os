@@ -97,6 +97,13 @@ function setup() {
 
 {
   const root = setup();
+  write(root, ".github/workflows/path-only-reference.yml", `name: Path only\non:\n  pull_request:\n    paths:\n      - "generator.mjs --write"\npermissions:\n  contents: read\njobs:\n  noop:\n    steps:\n      - run: echo no artifact generation\n`);
+  const result = validatePipelineConnectivity({ repoRoot: root });
+  assert.equal(result.ok, true, JSON.stringify(result.findings, null, 2));
+}
+
+{
+  const root = setup();
   write(root, ".github/workflows/hidden-writer.yml", `name: Hidden\non:\n  workflow_dispatch:\npermissions:\n  contents: write\njobs:\n  hidden:\n    steps:\n      - run: node generator.mjs --write\n`);
   const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
   assert.ok(codes.has("UNDECLARED_ARTIFACT_PRODUCER"));
