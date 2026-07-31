@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ueacp/authority-ownership-review.schema.json",
+  "title": "UEACP Authority Ownership Review Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["review_entries", "review_metadata"],
+  "properties": {
+    "review_entries": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reviewEntry" }
+    },
+    "review_metadata": { "$ref": "#/$defs/reviewMetadata" }
+  },
+  "$defs": {
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 221,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "reviewEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_name",
+        "ownership_class",
+        "owner_key",
+        "approved",
+        "revision_strategy",
+        "evidence_refs",
+        "rationale"
+      ],
+      "properties": {
+        "object_name": { "$ref": "#/$defs/token" },
+        "ownership_class": {
+          "enum": [
+            "source_authority",
+            "shared_authority",
+            "derived_projection",
+            "evidence_ledger",
+            "non_authoritative"
+          ]
+        },
+        "owner_key": { "$ref": "#/$defs/token" },
+        "shared_owner_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/token" }
+        },
+        "approved": { "type": "boolean" },
+        "revision_strategy": {
+          "enum": [
+            "reuse_explicit_revision",
+            "add_explicit_revision",
+            "add_revision",
+            "not_applicable"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/token" }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 2000
+        }
+      }
+    },
+    "reviewMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewer_key", "reviewed_at", "evidence_context"],
+      "properties": {
+        "reviewer_key": { "$ref": "#/$defs/token" },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "evidence_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "environment",
+            "operation_ref",
+            "readback_ref",
+            "live_observation",
+            "same_cycle_readback"
+          ],
+          "properties": {
+            "environment": { "$ref": "#/$defs/token" },
+            "operation_ref": { "$ref": "#/$defs/token" },
+            "readback_ref": { "$ref": "#/$defs/token" },
+            "live_observation": { "type": "boolean" },
+            "same_cycle_readback": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}
