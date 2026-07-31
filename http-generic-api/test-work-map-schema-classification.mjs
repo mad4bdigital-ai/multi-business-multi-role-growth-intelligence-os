@@ -56,10 +56,10 @@ function assertInventoryRow(mapText, {
   domain,
   classification,
 }) {
-  const row = `| \`${objectName}\` | ${objectType} | ${domain} | ${classification} |`;
+  const rowPrefix = `| \`${objectName}\` | ${objectType} | ${domain} | ${classification} |`;
   assert(
-    mapText.includes(row),
-    `Expected generated inventory to contain classification row: ${row}`,
+    mapText.split(/\r?\n/).some((line) => line.startsWith(rowPrefix)),
+    `Expected generated inventory to contain classification row beginning with: ${rowPrefix}`,
   );
 }
 
