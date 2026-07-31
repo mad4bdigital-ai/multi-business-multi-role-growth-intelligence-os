@@ -18,7 +18,7 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
