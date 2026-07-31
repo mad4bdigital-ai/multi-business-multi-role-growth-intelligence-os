@@ -76,8 +76,8 @@ The suite proves deterministic compilation, version pinning, visibility, tenant 
 
 ## Final head provenance
 
-- The branch was reconciled non-force through `main` commit `2646e5cb9e1d0d59b0f7328af9bc74047d6e857b` at source head `a4d32345dcea58090dfd34637a6b11a40041ed6c`.
-- Deterministic frontend artifacts were regenerated from that source and committed by `PR Generated Artifact Refresh` at `a072b98aa52f3e1a59eb0b53b2e9031927ade17b`.
+- The clean replacement branch was reconciled non-force through `main` commit `2cda5b837523378013333e27d3c0cb7f8fa50f3d` at source head `0abb0921936ae86361477957c482e54cc4a3f4ba`.
+- Deterministic frontend artifacts were regenerated from that source and committed by `PR Generated Artifact Refresh` at `21bf9597d1db2d5ca78ca64e534dd81eca46f6e0`.
 - The generated delta is limited to `frontend-operation-governance.generated.json` and `frontend-surface-dispatch.generated.json`; it preserves the 20-file functional phase write set.
 - This human-authored provenance commit creates the exact verification head after automation output; it does not authorize or apply migrations, wire runtime routes, deploy, restart, or mutate production.
 
