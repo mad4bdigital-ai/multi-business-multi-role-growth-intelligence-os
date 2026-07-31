@@ -75,12 +75,17 @@ function integer(value) {
   return Number.isSafeInteger(number) ? number : null;
 }
 
+function hasSemanticToken(name, token) {
+  const escaped = String(token).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[_-])${escaped}(?:s)?([_-]|$)`).test(String(name || "").toLowerCase());
+}
+
 function classifyObject(objectName, objectType) {
   const name = String(objectName || "").toLowerCase();
   const type = String(objectType || "").toUpperCase();
   if (type === "VIEW" || name.startsWith("v_")) return "derived_projection_candidate";
-  if (EVIDENCE_NAME_TOKENS.some((token) => name.includes(token))) return "evidence_ledger_candidate";
-  if (AUTHORITY_NAME_TOKENS.some((token) => name.includes(token))) return "authority_source_candidate";
+  if (EVIDENCE_NAME_TOKENS.some((token) => hasSemanticToken(name, token))) return "evidence_ledger_candidate";
+  if (AUTHORITY_NAME_TOKENS.some((token) => hasSemanticToken(name, token))) return "authority_source_candidate";
   return "unclassified";
 }
 
@@ -299,6 +304,7 @@ export function adaptAuthorityLiveCensusObservation(observation) {
 
 export const _testingAuthorityLiveCensusAdapter = {
   sha256,
+  hasSemanticToken,
   classifyObject,
   verifyObservationHash,
   assertNoSensitiveValues,
