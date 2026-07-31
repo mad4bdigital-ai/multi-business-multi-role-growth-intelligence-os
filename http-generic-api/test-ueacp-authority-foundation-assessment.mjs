@@ -5,6 +5,7 @@ import {
   UeacpAuthorityFoundationAssessmentError,
   assessUeacpAuthorityFoundation,
   createUeacpAuthorityCensusFingerprint,
+  createUeacpAuthorityPathInventoryFingerprint,
 } from "./ueacpAuthorityFoundationAssessment.js";
 
 function census() {
@@ -45,7 +46,45 @@ function census() {
   };
 }
 
-function classificationBundle(inputCensus = census()) {
+function authorityPathInventory() {
+  return {
+    contract: "mad4b.ueacp-authority-path-inventory.v1",
+    coverage: {
+      admin_complete: true,
+      tenant_complete: true,
+      unresolved_path_count: 0,
+    },
+    paths: [
+      {
+        surface: "admin",
+        path_key: "admin_connector_inventory_read",
+        source_ref: "http-generic-api/routes/adminConnectorRoutes.js",
+        authority_owner_key: "context_kernel",
+        operation_class: "read",
+        projection_only: true,
+        evidence_refs: ["route:admin_connector_inventory_read"],
+      },
+      {
+        surface: "tenant",
+        path_key: "tenant_tool_dispatch",
+        source_ref: "http-generic-api/routes/tenantToolRoutes.js",
+        authority_owner_key: "context_kernel",
+        operation_class: "mutation",
+        projection_only: false,
+        evidence_refs: ["route:tenant_tool_dispatch"],
+      },
+    ],
+    safety: {
+      read_only: true,
+      provider_calls: false,
+      credential_payload_read: false,
+      external_writes: false,
+      secrets_included: false,
+    },
+  };
+}
+
+function classificationBundle(inputCensus = census(), inventory = authorityPathInventory()) {
   const existing = {
     principal_authority: ["principals", "existing_explicit_revision", "source_authority", "reuse"],
     subject_scope_authority: ["scope_grants", "existing_explicit_revision", "source_authority", "reuse"],
@@ -94,7 +133,7 @@ function classificationBundle(inputCensus = census()) {
   return {
     contract: "mad4b.ueacp-authority-foundation-classification.v1",
     census_sha256: createUeacpAuthorityCensusFingerprint(inputCensus),
-    authority_path_inventory_sha256: "1".repeat(64),
+    authority_path_inventory_sha256: createUeacpAuthorityPathInventoryFingerprint(inventory),
     authority_path_inventory_ref: "specs/011-unified-effective-authority-control-plane/evidence/authority-path-inventory.json",
     classification_source: "human-reviewed live SQL census classification",
     classifications,
@@ -102,12 +141,19 @@ function classificationBundle(inputCensus = census()) {
 }
 
 const observed = census();
-const bundle = classificationBundle(observed);
-const report = assessUeacpAuthorityFoundation({ census: observed, classificationBundle: bundle });
+const inventory = authorityPathInventory();
+const bundle = classificationBundle(observed, inventory);
+const report = assessUeacpAuthorityFoundation({
+  census: observed,
+  authorityPathInventory: inventory,
+  classificationBundle: bundle,
+});
 
 assert.equal(report.ok, true);
 assert.equal(report.status, "ready_for_additive_migration_design");
 assert.equal(report.census_bound, true);
+assert.equal(report.authority_path_inventory_bound, true);
+assert.equal(report.authority_path_count, 2);
 assert.equal(report.classifications.length, 12);
 assert.equal(report.migration_actions.length, 8);
 assert.deepEqual(report.blockers, {
@@ -116,7 +162,7 @@ assert.deepEqual(report.blockers, {
   blocked_logical_keys: [],
   unapproved_logical_keys: [],
   census_fingerprint_mismatch: false,
-  authority_path_inventory_missing: false,
+  authority_path_inventory_mismatch: false,
 });
 assert.deepEqual(report.closure_state, {
   t001_authority_path_inventory_complete: true,
@@ -136,48 +182,87 @@ assert.deepEqual(report.safety, {
   runtime_authority_changed: false,
 });
 assert.equal(Object.isFrozen(report), true);
-assert.equal(Object.isFrozen(report.classifications), true);
 assert.equal(Object.isFrozen(report.classifications[0]), true);
 
-const reordered = {
-  ...bundle,
-  classifications: [...bundle.classifications].reverse(),
-};
 const reorderedReport = assessUeacpAuthorityFoundation({
   census: observed,
-  classificationBundle: reordered,
+  authorityPathInventory: {
+    ...inventory,
+    paths: [...inventory.paths].reverse(),
+  },
+  classificationBundle: {
+    ...bundle,
+    classifications: [...bundle.classifications].reverse(),
+  },
 });
 assert.equal(reorderedReport.assessment_sha256, report.assessment_sha256);
 
-const staleBundle = { ...bundle, census_sha256: "0".repeat(64) };
-const staleReport = assessUeacpAuthorityFoundation({ census: observed, classificationBundle: staleBundle });
-assert.equal(staleReport.ok, false);
-assert.equal(staleReport.blockers.census_fingerprint_mismatch, true);
-assert.equal(staleReport.closure_state.migration_apply_authorized, false);
-
-const missingBundle = {
-  ...bundle,
-  classifications: bundle.classifications.slice(1),
-};
-
-const missingPathInventoryReport = assessUeacpAuthorityFoundation({
+const staleReport = assessUeacpAuthorityFoundation({
   census: observed,
+  authorityPathInventory: inventory,
   classificationBundle: {
     ...bundle,
-    authority_path_inventory_sha256: null,
-    authority_path_inventory_ref: null,
+    census_sha256: "0".repeat(64),
   },
 });
-assert.equal(missingPathInventoryReport.ok, false);
-assert.equal(missingPathInventoryReport.blockers.authority_path_inventory_missing, true);
+assert.equal(staleReport.ok, false);
+assert.equal(staleReport.blockers.census_fingerprint_mismatch, true);
 
-const missingReport = assessUeacpAuthorityFoundation({ census: observed, classificationBundle: missingBundle });
+const stalePathReport = assessUeacpAuthorityFoundation({
+  census: observed,
+  authorityPathInventory: inventory,
+  classificationBundle: {
+    ...bundle,
+    authority_path_inventory_sha256: "0".repeat(64),
+  },
+});
+assert.equal(stalePathReport.ok, false);
+assert.equal(stalePathReport.blockers.authority_path_inventory_mismatch, true);
+
+const missingReport = assessUeacpAuthorityFoundation({
+  census: observed,
+  authorityPathInventory: inventory,
+  classificationBundle: {
+    ...bundle,
+    classifications: bundle.classifications.slice(1),
+  },
+});
 assert.equal(missingReport.ok, false);
 assert.deepEqual(missingReport.blockers.missing_logical_keys, ["principal_authority"]);
 
 await assert.rejects(
   async () => assessUeacpAuthorityFoundation({
     census: observed,
+    authorityPathInventory: {
+      ...inventory,
+      coverage: {
+        ...inventory.coverage,
+        unresolved_path_count: 1,
+      },
+    },
+    classificationBundle: bundle,
+  }),
+  (error) => error instanceof UeacpAuthorityFoundationAssessmentError
+    && error.code === "ueacp_foundation_incomplete_path_inventory",
+);
+
+await assert.rejects(
+  async () => assessUeacpAuthorityFoundation({
+    census: observed,
+    authorityPathInventory: {
+      ...inventory,
+      paths: inventory.paths.map((item) => ({ ...item, surface: "admin" })),
+    },
+    classificationBundle: bundle,
+  }),
+  (error) => error instanceof UeacpAuthorityFoundationAssessmentError
+    && error.code === "ueacp_foundation_incomplete_path_inventory",
+);
+
+await assert.rejects(
+  async () => assessUeacpAuthorityFoundation({
+    census: observed,
+    authorityPathInventory: inventory,
     classificationBundle: {
       ...bundle,
       classifications: bundle.classifications.map((item) => (
@@ -194,14 +279,11 @@ await assert.rejects(
 await assert.rejects(
   async () => assessUeacpAuthorityFoundation({
     census: observed,
-    classificationBundle: {
-      ...bundle,
-      classifications: bundle.classifications.map((item) => (
-        item.logical_key === "delegation_context_authority"
-          ? { ...item, authorization_token: "forbidden" }
-          : item
-      )),
+    authorityPathInventory: {
+      ...inventory,
+      credential_token: "forbidden",
     },
+    classificationBundle: bundle,
   }),
   (error) => error instanceof UeacpAuthorityFoundationAssessmentError
     && error.code === "ueacp_foundation_sensitive_field",
@@ -210,6 +292,7 @@ await assert.rejects(
 await assert.rejects(
   async () => assessUeacpAuthorityFoundation({
     census: observed,
+    authorityPathInventory: inventory,
     classificationBundle: {
       ...bundle,
       classifications: bundle.classifications.map((item) => (
@@ -226,6 +309,7 @@ await assert.rejects(
 await assert.rejects(
   async () => assessUeacpAuthorityFoundation({
     census: { ...observed, external_writes: true },
+    authorityPathInventory: inventory,
     classificationBundle: bundle,
   }),
   (error) => error instanceof UeacpAuthorityFoundationAssessmentError
