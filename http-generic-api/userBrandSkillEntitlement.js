@@ -1,3 +1,5 @@
+import { assertRequestedResourceBelongsToBrand } from "./brandSkillResourceBinding.js";
+
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
 }
@@ -86,6 +88,20 @@ async function resolveActiveMembership(pool, tenantId, userId) {
   return membership;
 }
 
+async function resolveBrandWorkspace(pool, tenantId, brandKey) {
+  const [rows] = await pool.query(
+    `SELECT workspace_id, workspace_key, linked_brand_key, bootstrap_status
+       FROM workspace_registry
+      WHERE tenant_id = ?
+        AND workspace_type = 'brand'
+        AND linked_brand_key = ?
+      ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC, workspace_id ASC
+      LIMIT 1`,
+    [tenantId, brandKey]
+  );
+  return rows[0] || null;
+}
+
 async function resolveActiveResourceAuthority(pool, grant, { tenantId, userId, resourceType, resourceRef }) {
   if (!grant?.resource_grant_id) return null;
   const [rows] = await pool.query(
@@ -102,6 +118,29 @@ async function resolveActiveResourceAuthority(pool, grant, { tenantId, userId, r
     [grant.resource_grant_id, tenantId, userId, resourceType, resourceRef]
   );
   return rows[0] || null;
+}
+
+async function verifyCurrentResourceBrandBinding(pool, {
+  tenantId,
+  brandKey,
+  resourceType,
+  resourceRef,
+}) {
+  try {
+    const workspace = resourceType === "workspace"
+      ? await resolveBrandWorkspace(pool, tenantId, brandKey)
+      : null;
+    const binding = await assertRequestedResourceBelongsToBrand(pool, {
+      tenantId,
+      brandKey,
+      workspace,
+      requestedResourceType: resourceType,
+      requestedResourceRef: resourceRef,
+    });
+    return binding?.verified === true ? binding : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}, {
@@ -231,6 +270,7 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
   }
 
   let resourceAuthority = null;
+  let resourceBrandBinding = null;
   if (requiresResourceBinding) {
     resourceAuthority = await resolveActiveResourceAuthority(pool, grant, {
       tenantId,
@@ -240,6 +280,17 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     });
     if (!resourceAuthority) {
       return denied(policy, "user_brand_skill_resource_authority_inactive", operation, {
+        membership_role: membership.role || null,
+      });
+    }
+    resourceBrandBinding = await verifyCurrentResourceBrandBinding(pool, {
+      tenantId,
+      brandKey,
+      resourceType,
+      resourceRef,
+    });
+    if (!resourceBrandBinding) {
+      return denied(policy, "user_brand_skill_resource_brand_binding_inactive", operation, {
         membership_role: membership.role || null,
       });
     }
@@ -253,7 +304,9 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     policy_id: policy.policy_id,
     membership_role: membership.role || null,
     resource_authority_valid: requiresResourceBinding ? true : null,
+    resource_brand_binding_valid: requiresResourceBinding ? true : null,
     resource_grant_id: resourceAuthority?.grant_id || grant.resource_grant_id || null,
+    resource_binding_source: resourceBrandBinding?.binding_source || null,
     reason: null,
   };
 }
