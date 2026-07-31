@@ -35,7 +35,7 @@ for (const table of [
   "governed_policy_invalidation_outbox",
   "governed_policy_rollbacks",
   "governed_policy_activations",
-]) assert.match(foundation, new RegExp(`CREATE TABLE IF NOT EXISTS \\`${table}\\``));
+]) assert.match(foundation, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`"));
 
 assert.ok(foundation.indexOf("CREATE TABLE IF NOT EXISTS `governed_policy_invalidation_outbox`")
   < foundation.indexOf("CREATE TABLE IF NOT EXISTS `governed_policy_activations`"));
