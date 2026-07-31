@@ -19,8 +19,8 @@ jobs:
       github.actor != 'github-actions[bot]'
     permissions:
       contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
       - name: Check out repair branch
         uses: actions/checkout@v5
