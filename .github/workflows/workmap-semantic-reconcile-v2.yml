@@ -1,0 +1,38 @@
+name: Work Map Semantic Reconciliation V2
+
+on:
+  pull_request:
+    branches: [ops/workmap-semantic-reconcile-base-v2-20260731]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: workmap-semantic-reconcile-v2-20260731
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'ops/workmap-semantic-reconcile-trigger-v2-20260731'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reconciler authority
+        uses: actions/checkout@v4
+        with:
+          ref: ops/workmap-semantic-reconcile-base-v2-20260731
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Reconcile and validate Work Map phase
+        shell: bash
+        run: bash .github/scripts/reconcile-workmap-semantic.sh
+
+      - name: Upload semantic reconciliation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: workmap-semantic-reconciliation-v2
+          path: workmap-semantic-reconciliation.json
+          if-no-files-found: error
+          retention-days: 14
