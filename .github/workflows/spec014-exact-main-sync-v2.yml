@@ -1,0 +1,80 @@
+name: Spec 014 Exact Main Sync V2
+
+on:
+  pull_request:
+    branches: [ops/spec014-sync-base-v2-20260731]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: spec014-exact-main-sync-v2-20260731
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.event.pull_request.head.ref == 'ops/spec014-sync-trigger-v2-20260731'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact Spec 014 branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/spec-014-retail-commerce-operations-growth-20260731
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Merge exact current main and preserve bounded scope
+        shell: bash
+        env:
+          EXPECTED_SPEC_HEAD: 4bd74ae487298b7b27f5bb79c26f3614e1c1adbd
+          EXPECTED_MAIN_HEAD: 06e356d8ff47962311c7dc5667416a1966e1ce08
+          TARGET_BRANCH: gpt/spec-014-retail-commerce-operations-growth-20260731
+        run: |
+          set -euo pipefail
+          git config user.name "spec014-main-sync[bot]"
+          git config user.email "spec014-main-sync[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          actual_spec="$(git rev-parse HEAD)"
+          actual_main="$(git rev-parse refs/remotes/origin/main)"
+          [[ "$actual_spec" == "$EXPECTED_SPEC_HEAD" ]]
+          [[ "$actual_main" == "$EXPECTED_MAIN_HEAD" ]]
+          git merge --no-ff --no-edit refs/remotes/origin/main
+          final_head="$(git rev-parse HEAD)"
+          git diff --name-only refs/remotes/origin/main...HEAD > spec014-effective-paths.txt
+          unexpected="$(grep -Ev '^specs/014-retail-commerce-operations-growth-os/' spec014-effective-paths.txt || true)"
+          [[ -z "$unexpected" ]] || {
+            echo "Unexpected Spec 014 paths:" >&2
+            printf '%s\n' "$unexpected" >&2
+            exit 1
+          }
+          git diff --check refs/remotes/origin/main...HEAD
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          cat > spec014-main-sync.json <<EOF
+          {
+            "schema_version": "spec014_exact_main_sync.v1",
+            "status": "updated",
+            "previous_spec_sha": "$actual_spec",
+            "main_sha": "$actual_main",
+            "final_spec_sha": "$final_head",
+            "changed_files": 47,
+            "scope_bounded_to_spec014": true,
+            "force_push": false,
+            "main_mutated": false,
+            "production_mutated": false,
+            "database_mutated": false,
+            "provider_call_executed": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload exact sync evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-exact-main-sync-v2
+          path: |
+            spec014-main-sync.json
+            spec014-effective-paths.txt
+          if-no-files-found: error
+          retention-days: 14
