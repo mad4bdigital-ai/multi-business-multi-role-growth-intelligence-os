@@ -115,6 +115,16 @@ jobs:
             exit 1
           fi
 
+      - name: Upload generated artifacts for governed recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-generated-artifact-recovery-${{ github.run_id }}
+          path: |
+            http-generic-api/frontend-operation-governance.generated.json
+            http-generic-api/frontend-surface-dispatch.generated.json
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Commit generated artifacts
         shell: bash
         env:
