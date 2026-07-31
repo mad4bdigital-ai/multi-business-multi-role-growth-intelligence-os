@@ -64,6 +64,16 @@ function loadMutationContracts(root, findings) {
   }
 }
 
+function contractToolKeys(contract, findings, contractKey) {
+  if (contract?.tool_keys !== undefined && !Array.isArray(contract.tool_keys)) {
+    findings.push({ type: "direct_route_contract_tool_keys_invalid", contract_key: contractKey || null });
+  }
+  const candidates = [contract?.tool_key, ...(Array.isArray(contract?.tool_keys) ? contract.tool_keys : [])];
+  const invalid = candidates.filter((value) => value !== undefined && (typeof value !== "string" || value.trim().length === 0));
+  for (const value of invalid) findings.push({ type: "direct_route_contract_tool_key_invalid", contract_key: contractKey || null, tool_key: value ?? null });
+  return unique(candidates.filter((value) => typeof value === "string").map((value) => value.trim()));
+}
+
 export function validateDirectRouteCallabilityContracts({ root = process.cwd(), manifest, fileOverrides = {} } = {}) {
   const findings = [];
   const baseContracts = manifest?.callability_gate?.direct_route_contracts;
@@ -80,20 +90,22 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
   for (const contract of contracts) {
     const startFindingCount = findings.length;
     const contractKey = String(contract?.contract_key || "").trim();
-    const toolKey = String(contract?.tool_key || "").trim();
+    const toolKeys = contractToolKeys(contract, findings, contractKey);
     const routeSignature = String(contract?.route_signature || "").trim().replace(/^([a-z]+)\s+/i, (_, method) => `${method.toUpperCase()} `);
     const migrationFile = String(contract?.migration_file || "").trim();
     const method = routeSignature.split(/\s+/, 1)[0] || "";
 
     if (!contractKey) findings.push({ type: "direct_route_contract_key_missing" });
-    if (!toolKey) findings.push({ type: "direct_route_contract_tool_key_missing", contract_key: contractKey || null });
+    if (toolKeys.length === 0) findings.push({ type: "direct_route_contract_tool_key_missing", contract_key: contractKey || null });
     if (!ALLOWED_METHODS.has(method) || !/^[A-Z]+\s+\//.test(routeSignature)) findings.push({ type: "direct_route_contract_route_signature_invalid", contract_key: contractKey || null, route_signature: routeSignature || null });
     if (!migrationFile) findings.push({ type: "direct_route_contract_migration_file_missing", contract_key: contractKey || null });
     if (contractKey && seenContractKeys.has(contractKey)) findings.push({ type: "direct_route_contract_key_duplicate", contract_key: contractKey });
-    if (toolKey && seenToolKeys.has(toolKey)) findings.push({ type: "direct_route_contract_tool_key_duplicate", contract_key: contractKey || null, tool_key: toolKey });
+    for (const toolKey of toolKeys) {
+      if (seenToolKeys.has(toolKey)) findings.push({ type: "direct_route_contract_tool_key_duplicate", contract_key: contractKey || null, tool_key: toolKey });
+    }
     if (routeSignature && seenRouteSignatures.has(routeSignature)) findings.push({ type: "direct_route_contract_route_signature_duplicate", contract_key: contractKey || null, route_signature: routeSignature });
     if (contractKey) seenContractKeys.add(contractKey);
-    if (toolKey) seenToolKeys.add(toolKey);
+    for (const toolKey of toolKeys) seenToolKeys.add(toolKey);
     if (routeSignature) seenRouteSignatures.add(routeSignature);
 
     const expectedPolicy = {
@@ -123,9 +135,11 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
     }
 
     const valid = findings.length === startFindingCount;
-    const result = { contract_key: contractKey || null, tool_key: toolKey || null, route_signature: routeSignature || null, migration_file: migrationFile || null, status: valid ? "covered" : "invalid" };
+    const result = { contract_key: contractKey || null, tool_key: toolKeys[0] || null, tool_keys: toolKeys, route_signature: routeSignature || null, migration_file: migrationFile || null, status: valid ? "covered" : "invalid" };
     results.push(result);
-    if (valid) coveredContracts.push(result);
+    if (valid) {
+      for (const toolKey of toolKeys) coveredContracts.push({ ...result, tool_key: toolKey });
+    }
   }
 
   return {
