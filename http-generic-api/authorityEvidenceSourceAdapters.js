@@ -94,7 +94,7 @@ function timestamp(value, field) {
   return parsed.toISOString();
 }
 
-function integer(value, field) {
+function nonNegativeInteger(value, field) {
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < 0) {
     throw new AuthorityEvidenceSourceError(
@@ -140,7 +140,7 @@ function resolveLimits(limits = AUTHORITY_EVIDENCE_SOURCE_LIMITS) {
     if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
       throw new AuthorityEvidenceSourceError(
         "authority_evidence_invalid_limit",
-        "Authority evidence limits must stay within the fixed platform bounds.",
+        "Authority evidence limits must stay within fixed platform bounds.",
         { key, value, minimum, maximum },
       );
     }
@@ -209,21 +209,17 @@ function normalizePagination(value, recordCount, field) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new AuthorityEvidenceSourceError(
       "authority_evidence_invalid_pagination",
-      `${field} must be an object.",
+      `${field} must be an object.`,
       { field },
     );
   }
-  const expectedCount = integer(value.expected_count, `${field}.expected_count`);
-  const observedCount = integer(value.observed_count, `${field}.observed_count`);
+  const expectedCount = nonNegativeInteger(value.expected_count, `${field}.expected_count`);
+  const observedCount = nonNegativeInteger(value.observed_count, `${field}.observed_count`);
+  const pageCount = nonNegativeInteger(value.page_count ?? 1, `${field}.page_count`);
   const complete = boolean(value.complete, `${field}.complete`);
   const nextCursor = value.next_cursor === null || value.next_cursor === undefined || value.next_cursor === ""
     ? null
     : token(value.next_cursor, `${field}.next_cursor`);
-  const pageCount = integer(value.page_count ?? 1, `${field}.page_count`);
-  const consistent = observedCount === recordCount
-    && expectedCount === observedCount
-    && complete
-    && nextCursor === null;
   return {
     expected_count: expectedCount,
     observed_count: observedCount,
@@ -231,7 +227,10 @@ function normalizePagination(value, recordCount, field) {
     page_count: pageCount,
     complete,
     next_cursor: nextCursor,
-    consistent,
+    consistent: observedCount === recordCount
+      && expectedCount === observedCount
+      && complete
+      && nextCursor === null,
   };
 }
 
@@ -247,8 +246,8 @@ function normalizePathRecord(record, sourceFamily, index) {
   return {
     ...record,
     source_registry: record.source_registry || sourceFamily,
-    secrets_included: false,
     credential_payload_read: false,
+    secrets_included: false,
   };
 }
 
@@ -300,8 +299,7 @@ function normalizeSource(source, index, limits) {
     );
   }
   const computedContentHash = hash(records);
-  const contentHashMatches = declaredContentHash === "" || declaredContentHash === computedContentHash;
-  const complete = pagination.consistent && contentHashMatches && evidenceRefs.length > 0;
+  const contentHashMatches = !declaredContentHash || declaredContentHash === computedContentHash;
 
   return {
     source_family: sourceFamily,
@@ -313,7 +311,7 @@ function normalizeSource(source, index, limits) {
     content_sha256: computedContentHash,
     declared_content_sha256: declaredContentHash || null,
     content_hash_matches: contentHashMatches,
-    complete,
+    complete: pagination.consistent && contentHashMatches && evidenceRefs.length > 0,
     records,
     safety,
   };
@@ -339,12 +337,11 @@ export function buildAuthorityEvidenceSourceBundle({
     );
   }
   assertNoSensitiveValues(sources, "sources");
-  const requestedFamilies = stringList(
+  const expectedFamilies = requireCompleteFamilyContract(stringList(
     expectedSourceFamilies,
     "expected_source_families",
     AUTHORITY_EVIDENCE_SOURCE_FAMILIES.length,
-  );
-  const expectedFamilies = requireCompleteFamilyContract(requestedFamilies);
+  ));
 
   const normalizedSources = sources.map((source, index) => normalizeSource(source, index, resolvedLimits));
   const sourceKeys = new Set();
@@ -357,7 +354,6 @@ export function buildAuthorityEvidenceSourceBundle({
         { source_key: source.source_key },
       );
     }
-    sourceKeys.add(source.source_key);
     if (sourceFamilies.has(source.source_family)) {
       throw new AuthorityEvidenceSourceError(
         "authority_evidence_duplicate_source_family",
@@ -365,21 +361,24 @@ export function buildAuthorityEvidenceSourceBundle({
         { source_family: source.source_family },
       );
     }
+    sourceKeys.add(source.source_key);
     sourceFamilies.add(source.source_family);
   }
 
   const missingFamilies = expectedFamilies.filter((family) => !sourceFamilies.has(family));
-  const incompleteFamilies = normalizedSources.filter((source) => !source.complete).map((source) => source.source_family).sort();
-  const sourceSnapshots = normalizedSources.map((source) => ({
-    source_key: source.source_key,
-    source_identity: source.source_identity,
-    observed_at: source.observed_at,
-    complete: source.complete,
-    paths: source.records,
-    secrets_included: false,
-  }));
+  const incompleteFamilies = normalizedSources
+    .filter((source) => !source.complete)
+    .map((source) => source.source_family)
+    .sort();
   const inventory = compileAuthorityPathInventory({
-    source_snapshots: sourceSnapshots,
+    source_snapshots: normalizedSources.map((source) => ({
+      source_key: source.source_key,
+      source_identity: source.source_identity,
+      observed_at: source.observed_at,
+      complete: source.complete,
+      paths: source.records,
+      secrets_included: false,
+    })),
     expected_source_keys: normalizedSources.map((source) => source.source_key),
   });
 
@@ -387,7 +386,7 @@ export function buildAuthorityEvidenceSourceBundle({
     ...missingFamilies.map((sourceFamily) => ({ code: "missing_source_family", source_family: sourceFamily, blocking: true })),
     ...incompleteFamilies.map((sourceFamily) => ({ code: "incomplete_source_family", source_family: sourceFamily, blocking: true })),
     ...inventory.gaps,
-  ];
+  ].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   const blockingGapCount = gaps.filter((gap) => gap.blocking).length;
   const bundle = {
     contract: "mad4b.ueacp.authority-evidence-source-bundle.v1",
@@ -397,7 +396,7 @@ export function buildAuthorityEvidenceSourceBundle({
     source_family_count: normalizedSources.length,
     sources: normalizedSources.sort((left, right) => left.source_family.localeCompare(right.source_family)),
     inventory,
-    gaps: gaps.sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+    gaps,
     blocking_gap_count: blockingGapCount,
     closure_state: {
       t001_complete: false,
