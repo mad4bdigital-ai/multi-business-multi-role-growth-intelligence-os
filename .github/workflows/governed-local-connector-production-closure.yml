@@ -1,4 +1,5 @@
 name: Governed Local Connector Production Closure
+# trigger-refresh: 2026-07-31T14:06+03:00
 
 on:
   issue_comment:
