@@ -29,8 +29,9 @@
     "http-generic-api/migrations/20260731_governed_policy_registry_authority.sql"
   ],
   "generated_artifacts_refreshed": true,
-  "generated_refresh_source_head": "f84ec18914e5d0d9ea358f1e7e8fb0deeee2ea81",
-  "generated_refresh_commit": "151e59d75666b476a9724072358a15c7794a009f",
+  "generated_refresh_source_head": "c969a48ec6eab13069ad7e3d599dbc6620323ada",
+  "generated_refresh_commit": "d2154e34ce4f16a4cea55eb9654539ad03af68d6",
+  "generated_refresh_workflow": "Frontend surface dispatch / refresh-generated",
   "migration_authorized": false,
   "migration_applied": false,
   "active_seed_written": false,
