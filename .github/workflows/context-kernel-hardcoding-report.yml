@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: context-kernel-hardcoding-${{ github.ref }}
@@ -101,3 +102,16 @@ jobs:
           path: ${{ env.EVIDENCE_PATH }}
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Record closure workflow outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOSURE_JOB_STATUS: ${{ job.status }}
+          CLOSURE_PR_NUMBER: "3981"
+        run: |
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CLOSURE_PR_NUMBER}/comments" \
+            -f body="POST_PRODUCTION_LOCAL_CONNECTOR_CLOSURE_RUN status=${CLOSURE_JOB_STATUS} run_id=${GITHUB_RUN_ID} head_sha=${GITHUB_SHA} artifact=local-connector-production-closure-${GITHUB_RUN_ID}"
