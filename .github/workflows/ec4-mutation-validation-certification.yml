@@ -1,3 +1,4 @@
+# certification-trigger: hardened-ec4-v2
 name: EC4 Mutation Validation Certification
 
 on:
