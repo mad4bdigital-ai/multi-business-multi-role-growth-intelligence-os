@@ -115,6 +115,11 @@ write("memory_schema.json", JSON.stringify({
   },
 }, null, 2));
 
+write(".specify/work-map-schema-classification-registry.json", JSON.stringify({
+  schema_version: "1.0.0",
+  rules: [],
+  intentional_unclassified: [],
+}, null, 2));
 write(".github/workflows/ci.yml", "name: CI\non:\n  pull_request:\n  push:\n  workflow_dispatch:\n");
 write(".github/workflows/docs-agent.yml", "name: Docs Agent\non:\n  pull_request:\n  push:\n");
 write("prompt_router.md", "# Prompt Router\n");
@@ -136,7 +141,12 @@ assert.ok(first.schema_intelligence_metrics.views_discovered >= 2);
 assert.ok(first.schema_intelligence_metrics.policy_keys_discovered >= 2);
 assert.equal(first.schema_intelligence_metrics.memory_states_discovered, 4);
 assert.equal(first.schema_intelligence_metrics.specialized_map_count, 12);
-assert.equal(first.schema_intelligence_metrics.uncategorized_objects, 0);
+assert.equal(first.schema_intelligence_metrics.unresolved_unclassified_objects, 0);
+assert.equal(first.schema_intelligence_metrics.intentional_unclassified_objects, 0);
+assert.equal(
+  first.schema_intelligence_metrics.total_accounted_objects,
+  first.schema_intelligence_metrics.total_discovered_objects,
+);
 assert.equal(first.schema_intelligence_metrics.classification_coverage_percent, 100);
 assert.ok(first.stale_generated_files.includes("docs/work-maps/stale-generated-map.md"));
 assert.equal(fs.existsSync(path.join(repoRoot, "docs/work-maps/stale-generated-map.md")), false);
@@ -183,7 +193,8 @@ for (const [file, ...patterns] of checks) {
 
 const coverage = read("docs/work-maps/work-map-coverage-matrix.md");
 assert.match(coverage, /Work Map Coverage Matrix/);
-assert.match(coverage, /Uncategorized schema objects/);
+assert.match(coverage, /Unresolved schema objects/);
+assert.match(coverage, /Intentionally unclassified schema objects/);
 assert.match(coverage, /- None\./);
 
 const index = read("docs/work-maps/README.md");
