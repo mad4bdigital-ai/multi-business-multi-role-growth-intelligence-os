@@ -1,0 +1,105 @@
+name: Governed Local Connector Production Closure
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: governed-local-connector-production-closure-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  close-production-release:
+    name: Close Local Connector Production Release
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.actor == 'mad4bdigital-ai' &&
+      github.event.comment.body == '/run-local-connector-production-closure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      TARGET_PR_NUMBER: ${{ github.event.issue.number }}
+      ADMIN_USER_ID: 00000000-0000-4000-a000-000000000002
+      PLATFORM_TENANT_ID: 00000000-0000-4000-a000-000000000001
+      DEVICE_ID: mohammedlap
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-local-connector-production-closure.json
+      COMMENT_PATH: ${{ runner.temp }}/governed-local-connector-production-closure-comment.md
+    steps:
+      - name: Record governed closure start
+        run: |
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${TARGET_PR_NUMBER}/comments" \
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} workflow_sha=${GITHUB_SHA}"
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify Production and close Local Connector acceptance
+        run: node .github/scripts/governed-local-connector-production-closure.mjs
+
+      - name: Upload bounded closure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-local-connector-production-closure-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Build bounded outcome comment
+        if: always()
+        env:
+          CLOSURE_JOB_STATUS: ${{ job.status }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = process.env.EVIDENCE_PATH;
+          let evidence = {};
+          try { evidence = JSON.parse(fs.readFileSync(path, 'utf8')); } catch {}
+          const acceptance = evidence.acceptance || {};
+          const runtime = evidence.runtime || {};
+          const command = evidence.desktop_command || {};
+          const failure = evidence.failure || {};
+          const lines = [
+            `GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=${process.env.CLOSURE_JOB_STATUS}`,
+            `run_id=${process.env.GITHUB_RUN_ID}`,
+            `target_pr=${process.env.TARGET_PR_NUMBER}`,
+            `production_sha=${evidence.production?.sha || 'unverified'}`,
+            `runtime_parity=${runtime.parity || 'not_verified'}`,
+            `connector_accepted=${acceptance.accepted === true}`,
+            `watchdog_installed=${acceptance.watchdog_installed === true}`,
+            `recent_watchdog_heartbeat=${acceptance.recent_watchdog_heartbeat === true}`,
+            `registered_route_count=${Number(acceptance.registered_route_count || 0)}`,
+            `healthy_cloudflare_route=${acceptance.healthy_cloudflare_route === true}`,
+            `repair_command_status=${command.status || 'not_enqueued'}`,
+            `sql_executed=${evidence.sql_executed === true}`,
+            `migration_applied=${evidence.migration_applied === true}`,
+            `secrets_included=${evidence.secrets_included === true}`,
+            `artifact=governed-local-connector-production-closure-${process.env.GITHUB_RUN_ID}`,
+          ];
+          if (failure.message) lines.push(`failure=${String(failure.message).replace(/[\r\n]+/g, ' ').slice(0, 500)}`);
+          fs.writeFileSync(process.env.COMMENT_PATH, lines.join('\n'));
+          NODE
+
+      - name: Record governed closure outcome
+        if: always()
+        run: |
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${TARGET_PR_NUMBER}/comments" \
+            --raw-field body="$(cat "${COMMENT_PATH}")"
