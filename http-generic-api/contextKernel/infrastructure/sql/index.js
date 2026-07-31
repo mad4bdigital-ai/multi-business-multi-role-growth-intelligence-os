@@ -8,6 +8,12 @@ export {
   createProviderAuthorizationStateRepository,
   createProviderAuthorizationStateRepository as createProviderConsentStateRepository,
 } from "./providerAuthorizationStateRepository.js";
+export { createProviderAuthorizationRuntimeRepository } from "./providerAuthorizationRuntimeRepository.js";
+export {
+  createBrandManagementAuthorityRepository,
+  createProviderConnectionAccessRepository,
+  createProviderConsentReadinessRepository,
+} from "./providerConsentRuntimeRepositories.js";
 export { createResourceGraphRepository } from "./resourceGraphRepository.js";
 export { createWorkspaceOwnershipRepository } from "./workspaceOwnershipRepository.js";
 

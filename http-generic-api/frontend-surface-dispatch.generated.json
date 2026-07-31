@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f8f1bffa4ef216f86c4158fdef5f39632157e05b227c4695446a264891e52a83",
+    "source_digest": "6d6a47bf70a9ba954595f4b26d3bbf3377a8e3b55f2534b0ceac7da75624fd30",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "258ebab07daeb749915fc5afe568ad8f776c8ba9f8be071b83ca3a8144279b9b",
+        "sha256": "cd861c8703b942ef99a92224a5d3c323a17959874472095aa02b6b245144a7e8",
         "present": true
       },
       {
@@ -291,7 +291,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+        "sha256": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
         "present": true
       },
       {
@@ -301,7 +301,7 @@
       },
       {
         "file": "routes/activationHardRunRoutes.js",
-        "sha256": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
+        "sha256": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
         "present": true
       },
       {
@@ -311,7 +311,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
+        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
         "present": true
       },
       {
@@ -546,7 +546,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+        "sha256": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
         "present": true
       },
       {
@@ -896,12 +896,12 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+        "sha256": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
         "present": true
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
+        "sha256": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "7e32e6207994444d0af1b7cf2defa213fe73246491c57ed20e0b18d57447e9e8",
+        "sha256": "8279a0e3a910f87cd4d39911c298c287070ae1dab91e783926662397ad399c7d",
         "present": true
       },
       {
@@ -9292,7 +9292,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
       "mount_prefix": "/",
       "mount_order": 13736,
       "split_from_mixed_scope_file": true,
@@ -10058,7 +10058,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
       "mount_prefix": "/",
       "mount_order": 13736,
       "split_from_mixed_scope_file": true,
@@ -11620,7 +11620,7 @@
       "family_key": "activation-hard-run",
       "label": "activation hard run",
       "source_file": "routes/activationHardRunRoutes.js",
-      "source_digest": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
+      "source_digest": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
       "mount_prefix": "/",
       "mount_order": 13896,
       "split_from_mixed_scope_file": false,
@@ -12771,7 +12771,7 @@
       "family_key": "tenant-activation-overlay.tenant",
       "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
       "mount_prefix": "/",
       "mount_order": 14106,
       "split_from_mixed_scope_file": true,
@@ -12956,7 +12956,7 @@
       "family_key": "tenant-activation-overlay.unresolved",
       "label": "tenant activation overlay (unresolved)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
+      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
       "mount_prefix": "/",
       "mount_order": 14106,
       "split_from_mixed_scope_file": true,
@@ -13081,7 +13081,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
       "mount_prefix": "/",
       "mount_order": 14215,
       "split_from_mixed_scope_file": true,
@@ -14106,7 +14106,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
       "mount_prefix": "/",
       "mount_order": 14215,
       "split_from_mixed_scope_file": true,
@@ -14734,7 +14734,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
+      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
       "mount_prefix": "/",
       "mount_order": 14320,
       "split_from_mixed_scope_file": false,
@@ -40842,7 +40842,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+      "source_digest": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
       "mount_prefix": "/",
       "mount_order": 17058,
       "split_from_mixed_scope_file": false,

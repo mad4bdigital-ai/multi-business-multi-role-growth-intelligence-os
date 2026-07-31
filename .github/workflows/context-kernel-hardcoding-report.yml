@@ -9,6 +9,8 @@ on:
       - "src/**"
       - "specs/012-unified-admin-tenant-context-kernel/**"
       - "docs/context-kernel/**"
+      - ".github/scripts/governed-local-connector-production-closure.mjs"
+      - ".github/workflows/governed-local-connector-production-closure.yml"
       - ".github/workflows/context-kernel-hardcoding-report.yml"
 
 permissions:
@@ -71,12 +73,12 @@ jobs:
     name: Visible Local Connector Production Closure
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.pull_request.number == 4017 &&
+      github.event.pull_request.number == 4076 &&
       github.event.pull_request.base.ref == 'main' &&
-      github.head_ref == 'gpt/visible-local-connector-closure-run-20260731' &&
+      github.head_ref == 'gpt/visible-local-connector-closure-run-v2-20260731' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     concurrency:
       group: governed-local-connector-production-closure-pr-3945
       cancel-in-progress: true
@@ -110,7 +112,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main event_pr=4017 supersedes_opaque_run=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main event_pr=4076 supersedes_older_runs=true"
 
       - name: Verify exact merged Production PR
         env:
@@ -148,7 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID}"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=context-kernel-established-workflow trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} event_pr=4076"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
@@ -157,3 +159,84 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
             -f body="$BODY"
+
+  authority-live-census-observation:
+    name: Governed Live Read-Only Authority Census
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.number == 4069 &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.head_ref == 'gpt/011-ueacp-live-authority-census-run-20260731' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: governed-authority-live-census-pr-4069
+      cancel-in-progress: true
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      EVIDENCE_PATH: ${{ runner.temp }}/authority-live-census-observation.json
+      OBSERVED_REF: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Assert trusted bounded observer is present
+        run: |
+          set -euo pipefail
+          test -f .github/scripts/authority-live-census-observation.mjs
+          grep -q 'mode: "read_only_authority_catalog_census"' .github/scripts/authority-live-census-observation.mjs
+          grep -q 'database_mutation_executed: false' .github/scripts/authority-live-census-observation.mjs
+          grep -q 'migration_apply_authorized: false' .github/scripts/authority-live-census-observation.mjs
+
+      - name: Observe live SQL catalog and same-cycle readback
+        run: node .github/scripts/authority-live-census-observation.mjs
+
+      - name: Validate bounded no-effect artifact
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const v = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, "utf8"));
+            if (v.contract !== "mad4b.ueacp.live-authority-catalog-observation.v1") process.exit(1);
+            if (v.read_only !== true || v.applies_sql !== false || v.database_mutation_executed !== false) process.exit(1);
+            if (v.provider_calls !== false || v.credential_payload_read !== false || v.external_writes !== false || v.secrets_included !== false) process.exit(1);
+            if (v.same_cycle_readback?.verified !== true || v.closure_state?.t002_complete !== false || v.closure_state?.migration_apply_authorized !== false) process.exit(1);
+          '
+
+      - name: Upload bounded live census evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: authority-live-census-observation-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record evidence reference on operational PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -f "$EVIDENCE_PATH" ]]; then
+            SUMMARY=$(node -e '
+              const fs = require("node:fs");
+              const v = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, "utf8"));
+              process.stdout.write(`result=pass schema=${v.database_server.schema_name} objects=${v.summary.object_count} columns=${v.summary.column_count} views=${v.summary.view_count} foreign_keys=${v.summary.foreign_key_count} sha256=${v.observation_sha256}`);
+            ')
+          else
+            SUMMARY="result=fail artifact_missing=true"
+          fi
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/4069/comments" \
+            -f body="AUTHORITY_LIVE_CENSUS_OBSERVATION ${SUMMARY} run_id=${GITHUB_RUN_ID} artifact=authority-live-census-observation-${GITHUB_RUN_ID} trusted_ref=main read_only=true database_mutation=false migration_apply=false secrets_included=false"
