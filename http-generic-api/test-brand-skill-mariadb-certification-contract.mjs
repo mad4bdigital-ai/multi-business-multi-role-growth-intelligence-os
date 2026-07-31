@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const disposable = readFileSync(new URL("./scripts/brand-skill-mariadb-disposable-certification.mjs", import.meta.url), "utf8");
 const staging = readFileSync(new URL("./scripts/brand-skill-staging-preflight-evidence.mjs", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("../.github/workflows/brand-skill-mariadb-certification.yml", import.meta.url), "utf8");
+const bridge = readFileSync(new URL("../.github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml", import.meta.url), "utf8");
 
 for (const marker of [
   "brand_skill_mariadb_disposable_v1",
@@ -53,5 +54,44 @@ for (const marker of [
 assert.doesNotMatch(workflow, /governed-migration-runner\.mjs[\s\S]*--apply/);
 assert.doesNotMatch(workflow, /environment:\s*production/i);
 assert.doesNotMatch(workflow, /PRODUCTION_DB_/);
+
+for (const marker of [
+  "issue_comment:",
+  "github.event.issue.number == 3809",
+  "github.event.issue.pull_request == null",
+  "AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC",
+  "AUTHORIZATION_COMMENT_ID: \"5136135941\"",
+  "contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]')",
+  "brand-skill-mariadb-certification.yml",
+  "/actions/workflows/${TARGET_WORKFLOW}/dispatches",
+  "run_mode:$mode",
+  "expected_commit_sha:$commit",
+  "expected_migration_sha256:$checksum",
+  "e1084397317a7f2645d78fc43a3064eef98fabaf",
+  "eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802",
+  "e36f9241a819018659788edb2a8a854da641b4b8",
+  "1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7",
+  "BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=claiming",
+  "BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched",
+  "BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=completed",
+  "brand-skill-staging-read-only-preflight",
+  "requires_separate_apply_authorization: true",
+  "applies_sql: false",
+  "records_ledger: false",
+  "migration_apply_authorized: false",
+  "production_authorized: false",
+  "provider_calls: false",
+  "external_writes: false",
+  "secrets_included: false",
+  "state_reason=completed",
+]) assert(bridge.includes(marker), `dispatch bridge missing ${marker}`);
+assert.doesNotMatch(bridge, /pull_request_target:/);
+assert.doesNotMatch(bridge, /environment:\s*staging/i);
+assert.doesNotMatch(bridge, /secrets\./);
+assert.doesNotMatch(bridge, /STAGING_DB_/);
+assert.doesNotMatch(bridge, /governed-migration-runner\.mjs/);
+assert.doesNotMatch(bridge, /--apply/);
+assert.doesNotMatch(bridge, /environment:\s*production/i);
+assert.doesNotMatch(bridge, /PRODUCTION_DB_/);
 
 console.log("PASS brand skill MariaDB certification contract");
