@@ -9,6 +9,10 @@ const postFinalizationGuard = readFileSync(
   new URL("../.github/workflows/governed-production-promotion-post-finalization-guard.yml", import.meta.url),
   "utf8",
 );
+const certifiedReleaseCut = readFileSync(
+  new URL("../.github/workflows/production-certified-release-cut-validation.yml", import.meta.url),
+  "utf8",
+);
 
 for (const required of [
   /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/,
@@ -60,10 +64,45 @@ for (const required of [
   assert.match(postFinalizationGuard, required);
 }
 
-for (const workflow of [launcher, postFinalizationGuard]) {
+for (const required of [
+  /name: Certified Production Release Cut Validation/,
+  /gpt\/validate-certified-release-base-\*/,
+  /gpt\/validate-certified-release-candidate-/,
+  /candidate first parent must be the certified release cut/,
+  /candidate tree differs from certified release cut/,
+  /certified release cut is not contained by current main/,
+  /candidate does not contain current Production ancestry/,
+  /Production moved during certified-cut validation/,
+  /git merge-base --is-ancestor "\$BASE_SHA" "\$MAIN_SHA_FINAL"/,
+  /git merge-base --is-ancestor "\$PRODUCTION_SHA" "\$HEAD_SHA"/,
+  /schema_version: "certified_production_release_cut\.v1"/,
+  /release_mode: "certified_release_cut"/,
+  /candidate_tree_matches_certified_cut: true/,
+  /certified_cut_is_ancestor_of_current_main: true/,
+  /candidate_contains_production: true/,
+  /candidate_and_base_refs_immutable_during_validation: true/,
+  /production_ref_stable_during_validation: true/,
+  /main_tip_may_advance: true/,
+  /Syntax Check/,
+  /Unit & Integration Tests/,
+  /Execution Resolver Gate/,
+  /Architecture Drift Detection/,
+  /merge_executed: false/,
+  /deployment_executed: false/,
+  /migration_executed: false/,
+  /provider_call_executed: false/,
+  /credential_payload_read: false/,
+  /secrets_included: false/,
+]) {
+  assert.match(certifiedReleaseCut, required);
+}
+
+for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
   assert.doesNotMatch(workflow, /gh pr merge/i);
   assert.doesNotMatch(workflow, /git push\s+--force/i);
   assert.doesNotMatch(workflow, /force-with-lease/i);
+  assert.doesNotMatch(workflow, /deployment_authorized=true/i);
+  assert.doesNotMatch(workflow, /migration_authorized=true/i);
 }
 
 console.log("Production promotion convergence workflow contract test passed");
