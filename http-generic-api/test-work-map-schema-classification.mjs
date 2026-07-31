@@ -14,6 +14,18 @@ function write(root, relative, content) {
   fs.writeFileSync(file, content);
 }
 
+function policy() {
+  return {
+    schema_version: 1,
+    policy_key: "work_map_schema_classification_fixture_v1",
+    work_map_root: "docs/work-maps",
+    work_map_index: "README.md",
+    coverage_matrix: "work-map-coverage-matrix.md",
+    schema_classification_registry: ".specify/work-map-schema-classification-registry.json",
+    secrets_included: false,
+  };
+}
+
 function registry(intentional = []) {
   return {
     schema_version: 1,
@@ -41,6 +53,7 @@ function registry(intentional = []) {
 function fixture(intentional = []) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "work-map-schema-classification-"));
   write(root, "memory_schema.json", JSON.stringify({ type: "object", properties: {} }));
+  write(root, ".specify/spec-kit-work-map-integration-policy.json", JSON.stringify(policy(), null, 2));
   write(root, ".specify/work-map-schema-classification-registry.json", JSON.stringify(registry(intentional), null, 2));
   write(root, "http-generic-api/migrations/001_fixture.sql", [
     "CREATE TABLE users (id BIGINT PRIMARY KEY);",
