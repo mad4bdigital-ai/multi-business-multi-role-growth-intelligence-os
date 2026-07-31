@@ -5,7 +5,7 @@ export {
   sanitizeApplicationValue,
 } from "./applicationSupport.js";
 
-export { createAuthenticatedProviderConsentUseCaseService } from "./authenticatedProviderConsentUseCaseService.js";
+export { createAuthenticatedProviderConsentUseCaseService } from "./authenticatedProviderConsentUseCaseBoundary.js";
 export { createContextPinService } from "./contextPinService.js";
 export { createContextResolutionService } from "./contextResolutionService.js";
 export { createContextSwitchService } from "./contextSwitchService.js";
