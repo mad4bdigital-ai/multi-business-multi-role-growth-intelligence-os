@@ -123,6 +123,12 @@
         "role": "t024_deployment_observation_and_request_time_correlation_foundation",
         "status": "merged",
         "merge_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9"
+      },
+      {
+        "number": 3905,
+        "role": "t024a_deployment_classification_and_bounded_exposure",
+        "status": "merged",
+        "merge_sha": "f850636ed4e8cc29e966ebb8adffa8973e3955ac"
       }
     ],
     "closeout_pr": {

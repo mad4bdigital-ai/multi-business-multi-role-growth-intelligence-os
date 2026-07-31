@@ -67,6 +67,12 @@
         "role": "t024_deployment_observation_and_request_time_correlation_foundation",
         "status": "merged",
         "merge_sha": "0c9025738d57c2be4d95a9643f9e222bd74a79d9"
+      },
+      {
+        "number": 3905,
+        "role": "t024a_deployment_classification_and_bounded_exposure",
+        "status": "merged",
+        "merge_sha": "f850636ed4e8cc29e966ebb8adffa8973e3955ac"
       }
     ],
     "closeout_pr": {
@@ -123,25 +129,26 @@
         "T022",
         "T023",
         "T024",
+        "T024A",
         "T027",
         "T028",
         "T029",
         "T076"
       ],
-      "latest_completed_task": "T024",
+      "latest_completed_task": "T024A",
       "runtime_authority": false,
-      "remaining_scope": "All unchecked tasks in tasks.md remain open. T024 is an observation and historical-correlation foundation only; T024A classification/exposure, T024B governed exposure policy, T026 governed migration apply/readback, repository persistence, public runtime wiring, production deployment, protected-user-path verification, rollback verification, and full-spec closeout remain pending."
+      "remaining_scope": "All unchecked tasks in tasks.md remain open. T024/T024A now provide request-time deployment observation, classification, opaque tenant projections, and Admin-bounded full evidence only. The next integrated phase is governed deployment evidence policy and operational attention, covering T018/T019/T024B/T025/T029A/T029B/T029C with T026 migration design/readback where schema inventory requires it. Public runtime wiring, migration apply, production deployment, protected-user-path verification, rollback verification, and full-spec closeout remain pending."
     },
     "ci": {
       "status": "pass_for_latest_slice",
-      "pull_request": 3859,
-      "head_sha": "374f8415f21ddd28f633d0ff0ad629b9d7d27118",
-      "ci_run_id": "30581378193",
-      "frontend_surface_dispatch_run_id": "30581377616",
-      "remaining_scope_scorecard_run_id": "30581377012",
-      "completion_cleanup_readback_run_id": "30581377730",
-      "docs_agent_run_id": "30581377649",
-      "context_kernel_report_run_id": "30581377641"
+      "pull_request": 3905,
+      "head_sha": "febc4f57dc866e2e6f5c150afb414fa3d91869cb",
+      "ci_run_id": "30584421394",
+      "frontend_surface_dispatch_run_id": "30584421396",
+      "remaining_scope_scorecard_run_id": "30584421434",
+      "completion_cleanup_readback_run_id": "30584421390",
+      "docs_agent_run_id": "30584421339",
+      "context_kernel_report_run_id": "30584421604"
     },
     "t024_post_merge": {
       "status": "complete_on_main",
@@ -169,9 +176,54 @@
       "observation_limit": 256,
       "evidence_bound_bytes": 32768,
       "classification_status": "not_computed",
-      "t024a_classification_implemented": false,
+      "t024a_classification_implemented": true,
       "t024b_exposure_policy_implemented": false,
       "repository_persistence": false,
+      "runtime_wiring": false,
+      "database_migration_applied": false,
+      "production_deployment": false,
+      "secrets_included": false
+    },
+    "t024a_post_merge": {
+      "status": "complete_on_main",
+      "pull_request": 3905,
+      "validated_head_sha": "febc4f57dc866e2e6f5c150afb414fa3d91869cb",
+      "merge_sha": "f850636ed4e8cc29e966ebb8adffa8973e3955ac",
+      "main_readback_sha": "f850636ed4e8cc29e966ebb8adffa8973e3955ac",
+      "projection_service": "http-generic-api/activationDeploymentProjectionService.js",
+      "regression_test": "http-generic-api/test-activation-deployment-projection-service.mjs",
+      "runtime_contract_regression_host": "http-generic-api/test-runtime-verification-contract.mjs",
+      "implementation_note": "implementation/pr-2f-deployment-classification-and-exposure.md",
+      "service_blob_sha": "26dd6bd90b362c97307da37073e472e94f526086",
+      "test_blob_sha": "4e322aa682bc31eab989fa981df5ccc9ec344fda",
+      "runtime_contract_blob_sha": "de80c122564dd50a0a7a2e19306c853018ce4ddf",
+      "implementation_note_blob_sha": "f155c60c62a53b4b7e95b230cde5f7315dbabd23",
+      "ci_status": "pass",
+      "frontend_surface_dispatch_status": "pass",
+      "post_merge_frontend_surface_dispatch_run_id": "30584801418",
+      "post_merge_custom_gpt_contract_guard_run_id": "30584801447",
+      "review_threads_resolved": true,
+      "deployment_states": [
+        "current",
+        "deploying",
+        "stale",
+        "diverged",
+        "unknown"
+      ],
+      "exposure_levels": [
+        "none",
+        "opaque",
+        "diagnostic",
+        "admin_full"
+      ],
+      "tenant_public_maximum_exposure": "diagnostic",
+      "admin_service_maximum_exposure": "admin_full",
+      "opaque_release_identifier_stable": true,
+      "header_body_runtime_version_consistent": true,
+      "release_order_inferred_from_sha_or_opaque_id": false,
+      "tenant_full_sha_exposure": false,
+      "deployment_mismatch_reconnect_required": false,
+      "t024b_policy_registry_implemented": false,
       "runtime_wiring": false,
       "database_migration_applied": false,
       "production_deployment": false,
@@ -316,6 +368,7 @@
         "T022",
         "T023",
         "T024",
+        "T024A",
         "T027",
         "T028",
         "T029"
