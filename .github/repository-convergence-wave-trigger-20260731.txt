@@ -1,0 +1,8 @@
+Repository convergence wave trigger.
+
+Expected main: 467b10cf3ac29c839399324a8076ccab5f7c7988
+Targets:
+- gpt/spec-014-retail-commerce-operations-growth-20260731 @ 1a05236c149228e744ad90e78e6414a4c853ae94
+- gpt/spec-kit-work-map-integration-fabric-20260731 @ 093e90e8994390b794c1f64ccc8db67e90f8399a
+
+No protected-branch, Production, database, provider, credential, deployment, or external-write authorization is carried by this marker.
