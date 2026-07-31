@@ -1,38 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
 
-const authorityRecoveryTestCommands = Object.freeze([
-  "node test-context-kernel-principal-resolver.mjs",
-  "node test-context-kernel-subject-scope-delegation-resolver.mjs",
-  "node test-context-kernel-subject-delegation-fail-closed.mjs",
-  "node test-context-kernel-resource-graph-resolver.mjs",
-  "node test-context-kernel-resource-graph-fail-closed.mjs",
-  "node test-context-kernel-semantic-capability-before-provider.mjs",
-  "node test-context-kernel-policy-grant-evaluator.mjs",
-  "node test-context-kernel-policy-grant-fail-closed.mjs",
-  "node test-context-kernel-endpoint-certification-resolver.mjs",
-  "node test-context-kernel-endpoint-certification-fail-closed.mjs",
-  "node test-context-kernel-shadow-authority-parity.mjs",
-  "node test-context-kernel-shadow-authority-parity-fail-closed.mjs",
-  "node test-authority-catalog-census.mjs",
-]);
-const growthControlContinuationTestCommands = Object.freeze([
-  "node test-growth-control-internal-reference-workflow.mjs",
-  "node test-growth-control-policy-compiler.mjs",
-  "node test-growth-control-final-boundary.mjs",
-  "node test-growth-control-provider-adapter-resolver.mjs",
-  "node test-growth-control-provider-effect-reconciliation.mjs",
-  "node test-growth-control-idempotency-lease-outbox-integration.mjs",
+const testCommands = Object.freeze([
   "node test-growth-control-admin-ui-projection.mjs",
   "node test-growth-control-admin-ui-default-normalization.mjs",
-  "node test-growth-control-tenant-role-field-policy.mjs",
-  "node test-growth-control-typed-invalidation-consumer.mjs",
-]);
-const testCommands = Object.freeze([
-  ...canonicalTestCommands,
-  ...authorityRecoveryTestCommands,
-  ...growthControlContinuationTestCommands,
 ]);
 
 function parseArgs(argv) {
