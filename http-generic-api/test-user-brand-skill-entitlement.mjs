@@ -370,6 +370,25 @@ const resourceAuthorityInactive = await authorizeAgentToolCall({
 assert.equal(resourceAuthorityInactive.allowed, false);
 assert(resourceAuthorityInactive.blockers.includes("user_brand_skill_resource_authority_inactive"));
 
+const resourcePermissionInsufficient = await authorizeAgentToolCall({
+  tool_name: "wordpress_publish",
+  context: {
+    agent_id: "content-agent",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    brand_key: "brand-1",
+    resource_type: "site",
+    resource_ref: "site-1",
+  },
+  pool: buildPool({
+    policy: selfServicePolicy,
+    grants: [exactGrant],
+    resourceGrants: [{ ...exactResourceGrant, permission: "view" }],
+  }),
+});
+assert.equal(resourcePermissionInsufficient.allowed, false);
+assert(resourcePermissionInsufficient.blockers.includes("user_brand_skill_resource_permission_insufficient"));
+
 const resourceBrandBindingInactive = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",
   context: {
