@@ -201,7 +201,9 @@ export async function chunkActivationAwarenessResponse(body, req, sourceToolKey,
       max_response_chars: req?.query?.max_response_chars,
       chunk_ttl_minutes: req?.query?.chunk_ttl_minutes,
     },
+    auth: req?.auth || null,
     source_tool_key: sourceToolKey,
+    source_surface: "activation_awareness",
   }, deps);
 }
 
