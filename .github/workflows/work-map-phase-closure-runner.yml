@@ -1,3 +1,4 @@
+# One-shot closure runner retriggered after generated-evidence stabilization.
 name: Work Map Phase Closure Runner
 
 on:
