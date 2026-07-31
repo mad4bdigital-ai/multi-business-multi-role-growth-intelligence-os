@@ -1,3 +1,4 @@
+# Temporary migration helper: all transformations are fail-closed and must be materialized before cleanup.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
