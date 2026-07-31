@@ -6,7 +6,7 @@
   "work_map_root": "docs/work-maps",
   "work_map_index": "README.md",
   "coverage_matrix": "work-map-coverage-matrix.md",
-  "intentional_unclassified_registry": ".specify/work-map-intentional-unclassified.json",
+  "schema_classification_registry": ".specify/work-map-schema-classification-registry.json",
   "manifest_filename": "work-map-integration.json",
   "template_filename": "work-map-integration-template.json",
   "review_states": [
@@ -32,7 +32,7 @@
   ],
   "schema_classification_policy": {
     "default": "blocked",
-    "generator_rules_are_canonical": true,
+    "generator_and_registry_are_canonical": true,
     "allow_intentional_unclassified": true,
     "intentional_exception_requires_owner": true,
     "intentional_exception_requires_existing_map_assessment": true,
@@ -64,7 +64,7 @@
   ],
   "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from all repository Work Maps and the effective generated schema coverage.",
   "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready.",
-  "classification_contract": "No schema object may remain unclassified by accident. The generator must classify every object into an existing domain and map, or an exact object must be recorded as an intentional, approved, owned, expiring exception.",
+  "classification_contract": "No schema object may remain unclassified by accident. The generator and classification registry must classify every object into an existing domain and map, or the exact object must be recorded as an intentional, approved, owned, expiring exception in the same registry.",
   "legacy_behavior": "Existing Spec Kits without a work-map-integration.json remain grandfathered until they opt in. New Spec Kits are never grandfathered.",
   "secrets_included": false
 }
