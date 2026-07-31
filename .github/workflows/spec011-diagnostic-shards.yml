@@ -1,6 +1,9 @@
 name: Spec 011 Diagnostic Shards
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - gpt/spec-011-t601-admin-ui-projection-20260731
