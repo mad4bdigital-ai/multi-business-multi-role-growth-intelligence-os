@@ -1,0 +1,240 @@
+name: Work Map Semantic Reconciliation
+
+on:
+  pull_request:
+    branches:
+      - ops/workmap-semantic-reconcile-base-20260731
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: workmap-semantic-reconcile-20260731
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'ops/workmap-semantic-reconcile-trigger-20260731'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact Work Map branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/spec-kit-work-map-integration-fabric-20260731
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Merge current main and resolve the bounded semantic conflict set
+        shell: bash
+        env:
+          EXPECTED_WORKMAP_HEAD: 093e90e8994390b794c1f64ccc8db67e90f8399a
+          EXPECTED_MAIN_HEAD: 467b10cf3ac29c839399324a8076ccab5f7c7988
+          TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
+        run: |
+          set -euo pipefail
+          git config user.name "workmap-semantic-reconcile[bot]"
+          git config user.email "workmap-semantic-reconcile[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+
+          actual_workmap="$(git rev-parse HEAD)"
+          actual_main="$(git rev-parse origin/main)"
+          [[ "$actual_workmap" == "$EXPECTED_WORKMAP_HEAD" ]] || {
+            echo "Work Map head moved: expected $EXPECTED_WORKMAP_HEAD, got $actual_workmap" >&2
+            exit 1
+          }
+          [[ "$actual_main" == "$EXPECTED_MAIN_HEAD" ]] || {
+            echo "main moved: expected $EXPECTED_MAIN_HEAD, got $actual_main" >&2
+            exit 1
+          }
+
+          set +e
+          git merge --no-ff --no-commit origin/main
+          merge_status=$?
+          set -e
+          if [[ $merge_status -ne 0 ]]; then
+            conflicts="$(git diff --name-only --diff-filter=U | sort)"
+            expected_conflicts="$(cat <<'EOF'
+.github/workflows/ci.yml
+docs/work-maps/README.md
+docs/work-maps/data-model-domain-map.md
+docs/work-maps/repository-automation-map.md
+docs/work-maps/work-map-coverage-matrix.md
+http-generic-api/scripts/run-test-manifest.mjs
+EOF
+)"
+            [[ "$conflicts" == "$expected_conflicts" ]] || {
+              echo "Unexpected conflict set:" >&2
+              printf '%s\n' "$conflicts" >&2
+              git merge --abort || true
+              exit 1
+            }
+          fi
+
+          # Keep the reviewed parallel CI topology from the Work Map branch.
+          git checkout --ours .github/workflows/ci.yml
+
+          # Start the runner from current main so no newer tests or progress evidence are lost.
+          git checkout --theirs http-generic-api/scripts/run-test-manifest.mjs
+
+          # Generated documents are rebuilt from the reconciled source tree.
+          git checkout --theirs \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/repository-automation-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/scripts/run-test-manifest.mjs')
+          text = path.read_text()
+
+          marker = 'function parseArgs(argv) {'
+          helpers = '''function parsePositiveInteger(value, flag) {
+            if (!/^\\d+$/.test(value || "")) throw new Error(`${flag} must be a positive integer.`);
+            const parsed = Number.parseInt(value, 10);
+            if (!Number.isSafeInteger(parsed) || parsed < 1) throw new Error(`${flag} must be a positive integer.`);
+            return parsed;
+          }
+
+          function stableShardIndex(command, shardCount) {
+            const digest = createHash("sha256").update(command, "utf8").digest();
+            return digest.readUInt32BE(0) % shardCount;
+          }
+
+          '''
+          if helpers.strip() not in text:
+            text = text.replace(marker, helpers + marker, 1)
+
+          text = text.replace(
+            '    reportFile: defaultReportFile(),\n',
+            '    reportFile: defaultReportFile(),\n    shardIndex: null,\n    shardCount: null,\n',
+            1,
+          )
+
+          old_flags = '''    else if (arg === "--report-file") options.reportFile = readValue("--report-file");
+              else if (arg.startsWith("--report-file=")) options.reportFile = arg.slice("--report-file=".length);
+              else throw new Error(`Unknown argument: ${arg}`);'''
+          new_flags = '''    else if (arg === "--report-file") options.reportFile = readValue("--report-file");
+              else if (arg.startsWith("--report-file=")) options.reportFile = arg.slice("--report-file=".length);
+              else if (arg === "--shard-index") options.shardIndex = parsePositiveInteger(readValue("--shard-index"), "--shard-index");
+              else if (arg.startsWith("--shard-index=")) options.shardIndex = parsePositiveInteger(arg.slice("--shard-index=".length), "--shard-index");
+              else if (arg === "--shard-count") options.shardCount = parsePositiveInteger(readValue("--shard-count"), "--shard-count");
+              else if (arg.startsWith("--shard-count=")) options.shardCount = parsePositiveInteger(arg.slice("--shard-count=".length), "--shard-count");
+              else throw new Error(`Unknown argument: ${arg}`);'''
+          if old_flags not in text:
+            raise SystemExit('Unable to locate runner flag parsing block')
+          text = text.replace(old_flags, new_flags, 1)
+
+          old_return = '''  return options;
+          }'''
+          new_return = '''  const hasShardIndex = options.shardIndex !== null;
+            const hasShardCount = options.shardCount !== null;
+            if (hasShardIndex !== hasShardCount) {
+              throw new Error("--shard-index and --shard-count must be provided together.");
+            }
+            if (hasShardIndex && options.shardIndex > options.shardCount) {
+              throw new Error("--shard-index cannot exceed --shard-count.");
+            }
+
+            return options;
+          }'''
+          if old_return not in text:
+            raise SystemExit('Unable to locate runner options return block')
+          text = text.replace(old_return, new_return, 1)
+
+          text = text.replace(
+            '    grep: options.grep,\n',
+            '    grep: options.grep,\n    shardIndex: options.shardIndex,\n    shardCount: options.shardCount,\n',
+            1,
+          )
+
+          old_selection = '''  const selectedCommands = options.grep
+              ? indexedCommands.filter(({ command }) => command.includes(options.grep))
+              : indexedCommands;'''
+          new_selection = '''  const matchingCommands = options.grep
+              ? indexedCommands.filter(({ command }) => command.includes(options.grep))
+              : indexedCommands;
+            const selectedCommands = options.shardCount === null
+              ? matchingCommands
+              : matchingCommands.filter(
+                  ({ command }) => stableShardIndex(command, options.shardCount) === options.shardIndex - 1,
+                );'''
+          if old_selection not in text:
+            raise SystemExit('Unable to locate runner command-selection block')
+          text = text.replace(old_selection, new_selection, 1)
+
+          path.write_text(text)
+          PY
+
+          git add \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/run-test-manifest.mjs \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/repository-automation-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
+
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+          node --check http-generic-api/scripts/run-test-manifest.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-run-test-manifest-sharding.mjs
+          node http-generic-api/test-platform-work-map-generator.mjs
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
+          git add docs/work-maps http-generic-api/scripts/run-test-manifest.mjs .github/workflows/ci.yml
+          git diff --check --cached
+
+          git diff --name-only origin/main...HEAD > /tmp/workmap-feature-before-commit.txt
+          # The merge is not committed yet, so use the staged + existing branch paths for a bounded guard.
+          { git diff --name-only --cached; git diff --name-only origin/main...$EXPECTED_WORKMAP_HEAD; } | sort -u > /tmp/workmap-effective-paths.txt
+          unexpected="$(grep -Ev '^(\.github/workflows/(ci\.yml|docs-agent\.yml|openapi-auto-sync\.yml|spec-kit-work-map-(autofix|integration)\.yml)|\.specify/|docs/(auto-docs-agent/pr-3936\.md|spec-kit-work-map-integration-governance\.md|work-maps/)|http-generic-api/(scripts/|test-))' /tmp/workmap-effective-paths.txt || true)"
+          [[ -z "$unexpected" ]] || {
+            echo "Unexpected Work Map phase paths:" >&2
+            printf '%s\n' "$unexpected" >&2
+            git merge --abort || true
+            exit 1
+          }
+
+          git commit -m "chore: reconcile Work Map governance with current main"
+          final_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+          cat > workmap-semantic-reconciliation.json <<EOF
+          {
+            "schema_version": "repository_workmap_semantic_reconciliation.v1",
+            "status": "updated",
+            "previous_workmap_sha": "$actual_workmap",
+            "main_sha": "$actual_main",
+            "final_workmap_sha": "$final_head",
+            "conflict_count": 6,
+            "generated_maps_rebuilt": true,
+            "parallel_ci_preserved": true,
+            "latest_test_catalog_preserved": true,
+            "test_progress_evidence_preserved": true,
+            "force_push": false,
+            "main_mutated": false,
+            "production_mutated": false,
+            "database_mutated": false,
+            "provider_call_executed": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload semantic reconciliation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: workmap-semantic-reconciliation
+          path: workmap-semantic-reconciliation.json
+          if-no-files-found: error
+          retention-days: 14
