@@ -126,20 +126,31 @@ function denied(policy, reason, operation = null, extras = {}) {
   };
 }
 
+function resolveUniqueContextCandidate(rows = []) {
+  const candidates = Array.isArray(rows) ? rows : [];
+  if (candidates.length > 1) {
+    return { candidate: null, ambiguous: true, candidate_count: candidates.length };
+  }
+  const [candidate = null] = candidates;
+  return { candidate, ambiguous: false, candidate_count: candidate ? 1 : 0 };
+}
+
 async function resolveActiveMembership(pool, tenantId, userId) {
   const [rows] = await pool.query(
     `SELECT m.role, m.status, t.status AS tenant_status
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE m.tenant_id = ? AND m.user_id = ?
-      LIMIT 1`,
+      LIMIT 2`,
     [tenantId, userId]
   );
-  const membership = rows[0] || null;
+  const resolution = resolveUniqueContextCandidate(rows);
+  if (resolution.ambiguous) return resolution;
+  const membership = resolution.candidate;
   if (!membership || normalize(membership.status) !== "active" || normalize(membership.tenant_status) !== "active") {
-    return null;
+    return { candidate: null, ambiguous: false, candidate_count: membership ? 1 : 0 };
   }
-  return membership;
+  return resolution;
 }
 
 async function resolveBrandWorkspace(pool, tenantId, brandKey) {
@@ -150,14 +161,16 @@ async function resolveBrandWorkspace(pool, tenantId, brandKey) {
         AND workspace_type = 'brand'
         AND linked_brand_key = ?
       ORDER BY bootstrap_status = 'ready' DESC, updated_at DESC, workspace_id ASC
-      LIMIT 1`,
+      LIMIT 2`,
     [tenantId, brandKey]
   );
-  return rows[0] || null;
+  return resolveUniqueContextCandidate(rows);
 }
 
 async function resolveActiveResourceAuthority(pool, grant, { tenantId, userId, resourceType, resourceRef }) {
-  if (!grant?.resource_grant_id) return null;
+  if (!grant?.resource_grant_id) {
+    return { candidate: null, ambiguous: false, candidate_count: 0 };
+  }
   const [rows] = await pool.query(
     `SELECT grant_id, permission
        FROM workspace_resource_grants
@@ -168,10 +181,10 @@ async function resolveActiveResourceAuthority(pool, grant, { tenantId, userId, r
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
         AND resource_type = ?
         AND resource_ref = ?
-      LIMIT 1`,
+      LIMIT 2`,
     [grant.resource_grant_id, tenantId, userId, resourceType, resourceRef]
   );
-  return rows[0] || null;
+  return resolveUniqueContextCandidate(rows);
 }
 
 async function verifyCurrentResourceBrandBinding(pool, {
@@ -181,19 +194,37 @@ async function verifyCurrentResourceBrandBinding(pool, {
   resourceRef,
 }) {
   try {
-    const workspace = resourceType === "workspace"
+    const workspaceResolution = resourceType === "workspace"
       ? await resolveBrandWorkspace(pool, tenantId, brandKey)
-      : null;
+      : { candidate: null, ambiguous: false };
+    if (workspaceResolution.ambiguous) {
+      return {
+        binding: null,
+        reason: "user_brand_skill_workspace_ambiguous",
+        candidate_count: workspaceResolution.candidate_count,
+      };
+    }
     const binding = await assertRequestedResourceBelongsToBrand(pool, {
       tenantId,
       brandKey,
-      workspace,
+      workspace: workspaceResolution.candidate,
       requestedResourceType: resourceType,
       requestedResourceRef: resourceRef,
     });
-    return binding?.verified === true ? binding : null;
-  } catch {
-    return null;
+    return {
+      binding: binding?.verified === true ? binding : null,
+      reason: null,
+      candidate_count: binding?.verified === true ? 1 : 0,
+    };
+  } catch (error) {
+    if (error?.code === "BRAND_SKILL_RESOURCE_BINDING_AMBIGUOUS") {
+      return {
+        binding: null,
+        reason: "user_brand_skill_resource_brand_binding_ambiguous",
+        candidate_count: 2,
+      };
+    }
+    return { binding: null, reason: null, candidate_count: 0 };
   }
 }
 
@@ -229,10 +260,22 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
        FROM brand_skill_policies p
        JOIN agent_skills s ON s.skill_id = p.skill_id AND s.status = 'active'
       WHERE p.tenant_id = ? AND p.brand_key = ? AND s.skill_key = ? AND p.status = 'active'
-      LIMIT 1`,
+      LIMIT 2`,
     [tenantId, brandKey, skillKey]
   );
-  const policy = policyRows[0] || null;
+  const policyResolution = resolveUniqueContextCandidate(policyRows);
+  if (policyResolution.ambiguous) {
+    return {
+      configured: true,
+      granted: false,
+      grant_id: null,
+      operation: null,
+      policy_id: null,
+      reason: "brand_skill_policy_ambiguous",
+      candidate_count: policyResolution.candidate_count,
+    };
+  }
+  const policy = policyResolution.candidate;
   if (!policy) {
     return {
       configured: explicitEnforcement,
@@ -249,7 +292,13 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     return denied(policy, "user_brand_skill_grant_user_required");
   }
 
-  const membership = await resolveActiveMembership(pool, tenantId, userId);
+  const membershipResolution = await resolveActiveMembership(pool, tenantId, userId);
+  if (membershipResolution.ambiguous) {
+    return denied(policy, "user_brand_skill_membership_ambiguous", null, {
+      candidate_count: membershipResolution.candidate_count,
+    });
+  }
+  const membership = membershipResolution.candidate;
   if (!membership) {
     return denied(policy, "user_brand_skill_membership_inactive");
   }
@@ -291,12 +340,19 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
   let canonicalResourceType = requestedResourceType;
   let canonicalResourceRef = requestedResourceRef;
   if (requiresResourceBinding) {
-    resourceBrandBinding = await verifyCurrentResourceBrandBinding(pool, {
+    const bindingResolution = await verifyCurrentResourceBrandBinding(pool, {
       tenantId,
       brandKey,
       resourceType: requestedResourceType,
       resourceRef: requestedResourceRef,
     });
+    if (bindingResolution.reason) {
+      return denied(policy, bindingResolution.reason, operation, {
+        membership_role: membership.role || null,
+        candidate_count: bindingResolution.candidate_count,
+      });
+    }
+    resourceBrandBinding = bindingResolution.binding;
     if (!resourceBrandBinding) {
       return denied(policy, "user_brand_skill_resource_brand_binding_inactive", operation, {
         membership_role: membership.role || null,
@@ -318,7 +374,7 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
           OR
           (? = 0 AND (resource_type IS NULL OR (resource_type = ? AND resource_ref = ?)))
         )
-      LIMIT 1`,
+      LIMIT 2`,
     [
       tenantId,
       userId,
@@ -335,7 +391,14 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
       canonicalResourceRef,
     ]
   );
-  const grant = grantRows[0] || null;
+  const grantResolution = resolveUniqueContextCandidate(grantRows);
+  if (grantResolution.ambiguous) {
+    return denied(policy, "user_brand_skill_grant_ambiguous", operation, {
+      membership_role: membership.role || null,
+      candidate_count: grantResolution.candidate_count,
+    });
+  }
+  const grant = grantResolution.candidate;
   if (!grant) {
     return denied(policy, "user_brand_skill_grant_missing", operation, {
       membership_role: membership.role || null,
@@ -345,12 +408,19 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
   let resourceAuthority = null;
   let requiredResourcePermission = null;
   if (requiresResourceBinding) {
-    resourceAuthority = await resolveActiveResourceAuthority(pool, grant, {
+    const authorityResolution = await resolveActiveResourceAuthority(pool, grant, {
       tenantId,
       userId,
       resourceType: canonicalResourceType,
       resourceRef: canonicalResourceRef,
     });
+    if (authorityResolution.ambiguous) {
+      return denied(policy, "user_brand_skill_resource_authority_ambiguous", operation, {
+        membership_role: membership.role || null,
+        candidate_count: authorityResolution.candidate_count,
+      });
+    }
+    resourceAuthority = authorityResolution.candidate;
     if (!resourceAuthority) {
       return denied(policy, "user_brand_skill_resource_authority_inactive", operation, {
         membership_role: membership.role || null,
