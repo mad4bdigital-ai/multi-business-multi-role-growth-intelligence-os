@@ -15,6 +15,8 @@ import {
   validateGrowthControlObservabilitySample,
 } from "../../domain/growthControlPlane/growthControlObservability.js";
 
+const READABLE_KPI_STATUSES = Object.freeze(["ready", "active", "deprecated"]);
+
 function text(value, field, max = 191) {
   const normalized = String(value ?? "").trim();
   if (!normalized || normalized.length > max) {
@@ -104,6 +106,16 @@ function assertBindingScope(binding, input = {}) {
     );
   }
 }
+function assertReadableDefinition(definition) {
+  if (!definition || !READABLE_KPI_STATUSES.includes(String(definition.status))) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_KPI_DEFINITION_NOT_READY",
+      "The governed KPI definition is unavailable or not ready for observations.",
+      409,
+      [],
+    );
+  }
+}
 
 export function createGrowthControlAnalyticsObservabilityService({ repository } = {}) {
   const store = repositoryContract(repository);
@@ -114,8 +126,8 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const brandKeys = fixedScope ? [fixedScope.brandKey] : list(input.brandKeys ?? input.brand_keys, "brandKeys");
     const normalizedKpiKeys = list(input.normalizedKpiKeys ?? input.normalized_kpi_keys, "normalizedKpiKeys", { canonical: true });
     const rowLimit = limit(input.limit, 5000);
-    const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 1000 });
-    const candidateBindings = await store.listActivityKpiBindings({ tenantId, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: READABLE_KPI_STATUSES, limit: 1000 });
+    const candidateBindings = await store.listActivityKpiBindings({ tenantId, normalizedKpiKeys, statuses: READABLE_KPI_STATUSES, limit: 5000 });
     const bindings = candidateBindings.filter((binding) => bindingMatchesScope(binding, { tenantId, workspaceIds, brandKeys }));
     const observations = await store.listNormalizedMetricObservations({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, periodStart: input.periodStart ?? input.period_start ?? null, periodEnd: input.periodEnd ?? input.period_end ?? null, limit: rowLimit });
     return buildGrowthControlPortfolioProjection({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, definitions, bindings, observations: observations.map(projectionObservation), now: input.now || new Date() });
@@ -137,8 +149,8 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const tenantId = input.tenantId ?? input.tenant_id ?? null;
     const workspaceIds = list(input.workspaceIds ?? input.workspace_ids, "workspaceIds");
     const brandKeys = list(input.brandKeys ?? input.brand_keys, "brandKeys");
-    const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 1000 });
-    const candidateBindings = await store.listActivityKpiBindings({ tenantId, activityBindingIds, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: READABLE_KPI_STATUSES, limit: 1000 });
+    const candidateBindings = await store.listActivityKpiBindings({ tenantId, activityBindingIds, normalizedKpiKeys, statuses: READABLE_KPI_STATUSES, limit: 5000 });
     const bindings = candidateBindings.filter((binding) => bindingMatchesScope(binding, { tenantId, workspaceIds, brandKeys }));
     return buildGrowthControlKpiCatalogProjection({ definitions, bindings, activityBindingIds: activityBindingIds.length ? activityBindingIds : null });
   }
@@ -175,7 +187,7 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No governed KPI binding exists for the observation.", 404);
     assertBindingScope(binding, input);
     const definition = await store.getKpiDefinition({ normalizedKpiKey: binding.normalizedKpiKey, definitionVersion: binding.definitionVersion });
-    if (!definition) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_DEFINITION_NOT_FOUND", "The governed KPI definition was not found.", 404);
+    assertReadableDefinition(definition);
     const observation = normalizeGrowthControlMetricObservation(input, { definition, binding, now: input.now || new Date() });
     const readback = await store.appendNormalizedMetricObservation({ observation, idempotencyKey });
     if (!readback || readback.observationSha256 !== observation.observationSha256) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_READBACK_MISMATCH", "Metric observation readback did not match the normalized observation.", 500);
@@ -202,4 +214,4 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   return Object.freeze({ projectAdminPortfolio, projectTenantPortfolio, projectKpiCatalog, projectAdminOperationalHealth, projectTenantOperationalHealth, recordMetricObservation, recordDecisionEvidence, recordObservabilitySample });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope });
+export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ READABLE_KPI_STATUSES, text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope, assertReadableDefinition });
