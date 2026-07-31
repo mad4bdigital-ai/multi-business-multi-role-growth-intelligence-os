@@ -22,6 +22,8 @@ const duplicateCommands = testCommands.filter((command, index) => testCommands.i
 assert.deepEqual(duplicateCommands, [], "test manifest must not contain duplicate commands");
 
 for (const requiredCommand of [
+  "node test-agent-capability-admin-tool-registry.mjs",
+  "node test-agent-capability-coverage.mjs",
   "node test-cms-authority-reconciliation.mjs",
   "node test-database-table-lifecycle-registry-upsert.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
