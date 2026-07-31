@@ -13,15 +13,20 @@ on:
       - "http-generic-api/scripts/spec-kit-work-map-*.mjs"
       - "http-generic-api/scripts/work-map-schema-classification.mjs"
       - "http-generic-api/scripts/work-map-schema-classification-contract.mjs"
+      - "http-generic-api/scripts/pipeline-connectivity-check.mjs"
       - "http-generic-api/test-work-map-schema-classification.mjs"
       - "http-generic-api/test-work-map-schema-classification-contract.mjs"
       - "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+      - "http-generic-api/test-pipeline-connectivity-check.mjs"
+      - ".specify/pipeline-connectivity-contract.json"
       - ".github/workflows/spec-kit-work-map-integration.yml"
+      - ".github/workflows/spec-kit-work-map-autofix.yml"
+      - ".github/workflows/docs-agent.yml"
   push:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: spec-kit-work-map-integration-${{ github.ref }}
@@ -35,7 +40,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-node@v6
         with:
@@ -46,28 +51,18 @@ jobs:
           node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
           node --check http-generic-api/test-work-map-schema-classification.mjs
           node --check http-generic-api/test-work-map-schema-classification-contract.mjs
           node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
 
-      - name: Regenerate Work Maps on same-repository pull requests
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          HEAD_BRANCH: ${{ github.head_ref }}
+      - name: Validate inter-pipeline connectivity
         run: |
-          set -euo pipefail
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          if git diff --quiet -- docs/work-maps; then
-            echo "Generated Work Maps are already current; no commit created."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/work-maps
-          git commit -m "docs(work-maps): regenerate platform maps"
-          git push origin "HEAD:${HEAD_BRANCH}"
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
 
       - name: Verify generated Work Maps are current
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
