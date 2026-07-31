@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ueacp-live-evidence-clean-reconstruction-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reconstruct:
