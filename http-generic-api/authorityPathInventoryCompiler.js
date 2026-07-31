@@ -7,42 +7,16 @@ export const AUTHORITY_PATH_INVENTORY_LIMITS = Object.freeze({
   maxGaps: 8192,
 });
 
-const AUTHORITY_MODES = Object.freeze(new Set([
-  "admin_only",
-  "tenant_only",
-  "shared",
-  "internal",
-]));
-
-const OPERATION_MODES = Object.freeze(new Set([
-  "read_only",
-  "preview",
-  "shadow",
-  "plan",
-  "mutation",
-  "internal",
-]));
-
-const CALLABILITY_STATES = Object.freeze(new Set([
-  "callable",
-  "authorization_gated",
-  "blocked",
-  "deprecated",
-  "unknown",
-]));
-
-const STATUS_STATES = Object.freeze(new Set([
-  "active",
-  "inactive",
-  "blocked",
-  "deprecated",
-  "unknown",
-]));
-
+const LIMIT_KEYS = Object.freeze(Object.keys(AUTHORITY_PATH_INVENTORY_LIMITS));
+const MAX_CONFIGURED_LIMIT = 100_000;
+const AUTHORITY_MODES = Object.freeze(new Set(["admin_only", "tenant_only", "shared", "internal"]));
+const OPERATION_MODES = Object.freeze(new Set(["read_only", "preview", "shadow", "plan", "mutation", "internal"]));
+const CALLABILITY_STATES = Object.freeze(new Set(["callable", "authorization_gated", "blocked", "deprecated", "unknown"]));
+const STATUS_STATES = Object.freeze(new Set(["active", "inactive", "blocked", "deprecated", "unknown"]));
+const HTTP_METHODS = Object.freeze(new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]));
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
 const ROUTE_PATTERN = /^\/[A-Za-z0-9_./:{}-]{0,510}$/;
-const HTTP_METHODS = Object.freeze(new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]));
-const FORBIDDEN_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
 
 export class AuthorityPathInventoryError extends Error {
   constructor(code, message, details = {}) {
@@ -73,18 +47,18 @@ function canonicalHash(value) {
   return crypto.createHash("sha256").update(JSON.stringify(stableSortObject(value))).digest("hex");
 }
 
-function assertNoSecretKeys(value, path = "root", seen = new WeakSet()) {
+function assertNoSensitiveValues(value, path = "root", seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   for (const [key, nested] of Object.entries(value)) {
-    if (FORBIDDEN_KEY_PATTERN.test(key)) {
+    if (SENSITIVE_KEY_PATTERN.test(key) && nested !== false && nested !== null && nested !== undefined) {
       throw new AuthorityPathInventoryError(
         "authority_path_secret_field_forbidden",
-        "Authority path inventory input contains a forbidden secret-bearing field.",
+        "Authority path inventory input contains a forbidden secret-bearing value.",
         { path: `${path}.${key}` },
       );
     }
-    assertNoSecretKeys(nested, `${path}.${key}`, seen);
+    assertNoSensitiveValues(nested, `${path}.${key}`, seen);
   }
 }
 
@@ -101,8 +75,7 @@ function requireToken(value, fieldName) {
 }
 
 function optionalToken(value, fieldName) {
-  if (value === null || value === undefined || value === "") return null;
-  return requireToken(value, fieldName);
+  return value === null || value === undefined || value === "" ? null : requireToken(value, fieldName);
 }
 
 function requireEnum(value, allowed, fieldName) {
@@ -140,13 +113,39 @@ function normalizeTimestamp(value, fieldName) {
   return parsed.toISOString();
 }
 
+function normalizeLimit(value, key) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 1 || number > MAX_CONFIGURED_LIMIT) {
+    throw new AuthorityPathInventoryError(
+      "authority_path_invalid_limit",
+      "Authority path inventory limits must be bounded positive safe integers.",
+      { key, value, minimum: 1, maximum: MAX_CONFIGURED_LIMIT },
+    );
+  }
+  return number;
+}
+
+function resolveLimits(limits = AUTHORITY_PATH_INVENTORY_LIMITS) {
+  if (!limits || typeof limits !== "object" || Array.isArray(limits)) {
+    throw new AuthorityPathInventoryError("authority_path_invalid_limits", "limits must be an object.");
+  }
+  const unknownKeys = Object.keys(limits).filter((key) => !LIMIT_KEYS.includes(key)).sort();
+  if (unknownKeys.length) {
+    throw new AuthorityPathInventoryError(
+      "authority_path_invalid_limits",
+      "Authority path inventory limits contain unknown keys.",
+      { unknown_keys: unknownKeys },
+    );
+  }
+  return Object.freeze(LIMIT_KEYS.reduce((result, key) => {
+    result[key] = normalizeLimit(limits[key] ?? AUTHORITY_PATH_INVENTORY_LIMITS[key], key);
+    return result;
+  }, {}));
+}
+
 function normalizeStringList(value, fieldName, maxItems) {
   if (!Array.isArray(value)) {
-    throw new AuthorityPathInventoryError(
-      "authority_path_invalid_list",
-      `${fieldName} must be an array.`,
-      { field: fieldName },
-    );
+    throw new AuthorityPathInventoryError("authority_path_invalid_list", `${fieldName} must be an array.`, { field: fieldName });
   }
   if (value.length > maxItems) {
     throw new AuthorityPathInventoryError(
@@ -155,16 +154,12 @@ function normalizeStringList(value, fieldName, maxItems) {
       { field: fieldName, max_items: maxItems, observed: value.length },
     );
   }
-  const normalized = value.map((item, index) => requireToken(item, `${fieldName}[${index}]`));
-  return [...new Set(normalized)].sort();
+  return [...new Set(value.map((item, index) => requireToken(item, `${fieldName}[${index}]`)))].sort();
 }
 
 function normalizeRequirements(value = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new AuthorityPathInventoryError(
-      "authority_path_invalid_requirements",
-      "requirements must be an object.",
-    );
+    throw new AuthorityPathInventoryError("authority_path_invalid_requirements", "requirements must be an object.");
   }
   return {
     approval: normalizeBoolean(value.approval ?? false, "requirements.approval"),
@@ -180,31 +175,29 @@ function normalizePath(rawPath, sourceKey, limits) {
   if (!rawPath || typeof rawPath !== "object" || Array.isArray(rawPath)) {
     throw new AuthorityPathInventoryError("authority_path_invalid_record", "Each authority path must be an object.");
   }
-  assertNoSecretKeys(rawPath, `source:${sourceKey}`);
+  assertNoSensitiveValues(rawPath, `source:${sourceKey}`);
 
   const route = rawPath.route === null || rawPath.route === undefined || rawPath.route === ""
     ? null
     : String(rawPath.route).trim();
-  if (route !== null && !ROUTE_PATTERN.test(route)) {
-    throw new AuthorityPathInventoryError(
-      "authority_path_invalid_route",
-      "route must be an absolute bounded route template.",
-      { route },
-    );
-  }
-
   const method = rawPath.method === null || rawPath.method === undefined || rawPath.method === ""
     ? null
     : String(rawPath.method).trim().toUpperCase();
+  if (route !== null && !ROUTE_PATTERN.test(route)) {
+    throw new AuthorityPathInventoryError("authority_path_invalid_route", "route must be an absolute bounded route template.", { route });
+  }
   if (method !== null && !HTTP_METHODS.has(method)) {
+    throw new AuthorityPathInventoryError("authority_path_invalid_method", "method contains an unsupported HTTP method.", { method });
+  }
+  if ((route === null) !== (method === null)) {
     throw new AuthorityPathInventoryError(
-      "authority_path_invalid_method",
-      "method contains an unsupported HTTP method.",
-      { method },
+      "authority_path_incomplete_http_identity",
+      "route and method must either both be present or both be absent.",
+      { route, method },
     );
   }
 
-  const normalized = {
+  return {
     path_key: requireToken(rawPath.path_key, "path_key"),
     canonical_tool_key: optionalToken(rawPath.canonical_tool_key, "canonical_tool_key"),
     route,
@@ -235,27 +228,27 @@ function normalizePath(rawPath, sourceKey, limits) {
     requirements: normalizeRequirements(rawPath.requirements),
     secrets_included: false,
   };
-
-  return normalized;
 }
 
 function classifyMissingFields(path) {
   const missing = [];
-  const alwaysRequired = [
+  const requiredFields = [
     "handler_key",
     "actor_source",
     "subject_source",
+    "workspace_scope_source",
     "resource_authority_source",
     "capability_authority_source",
+    "provider_scope_source",
+    "credential_scope_source",
     "risk_class",
     "revision_source",
     "freshness_source",
     "revocation_source",
     "invalidation_source",
+    "atomicity_policy",
   ];
-  for (const field of alwaysRequired) {
-    if (!path[field]) missing.push(field);
-  }
+  for (const field of requiredFields) if (!path[field]) missing.push(field);
   if (path.authority_mode !== "internal" && !path.tenant_scope_source) missing.push("tenant_scope_source");
   if (["mutation", "plan"].includes(path.operation_mode)) {
     if (!path.requirements.readback) missing.push("requirements.readback");
@@ -265,28 +258,32 @@ function classifyMissingFields(path) {
   return missing.sort();
 }
 
+function contractComparable(path) {
+  const { source_registry: _sourceRegistry, ...contract } = path;
+  return contract;
+}
+
 export function compileAuthorityPathInventory({
   source_snapshots: sourceSnapshots,
   expected_source_keys: expectedSourceKeys = [],
   limits = AUTHORITY_PATH_INVENTORY_LIMITS,
 } = {}) {
+  const resolvedLimits = resolveLimits(limits);
   if (!Array.isArray(sourceSnapshots)) {
-    throw new AuthorityPathInventoryError(
-      "authority_path_invalid_sources",
-      "source_snapshots must be an array.",
-    );
+    throw new AuthorityPathInventoryError("authority_path_invalid_sources", "source_snapshots must be an array.");
   }
-  if (sourceSnapshots.length > limits.maxSources) {
+  if (sourceSnapshots.length > resolvedLimits.maxSources) {
     throw new AuthorityPathInventoryError(
       "authority_path_limit_exceeded",
       "source_snapshots exceeds its configured bound.",
-      { max_sources: limits.maxSources, observed: sourceSnapshots.length },
+      { max_sources: resolvedLimits.maxSources, observed: sourceSnapshots.length },
     );
   }
-  assertNoSecretKeys(sourceSnapshots, "source_snapshots");
+  assertNoSensitiveValues(sourceSnapshots, "source_snapshots");
 
-  const expected = normalizeStringList(expectedSourceKeys, "expected_source_keys", limits.maxSources);
+  const expected = normalizeStringList(expectedSourceKeys, "expected_source_keys", resolvedLimits.maxSources);
   const sources = [];
+  const seenSourceKeys = new Set();
   const byPathKey = new Map();
   const gaps = [];
   let observedPathRows = 0;
@@ -297,40 +294,52 @@ export function compileAuthorityPathInventory({
       throw new AuthorityPathInventoryError("authority_path_invalid_source", "Each source snapshot must be an object.");
     }
     const sourceKey = requireToken(source.source_key, `source_snapshots[${sourceIndex}].source_key`);
-    const paths = Array.isArray(source.paths) ? source.paths : null;
-    if (!paths) {
+    if (seenSourceKeys.has(sourceKey)) {
+      throw new AuthorityPathInventoryError(
+        "authority_path_duplicate_source",
+        "Each authority source snapshot key must be unique.",
+        { source_key: sourceKey },
+      );
+    }
+    seenSourceKeys.add(sourceKey);
+    if (!Array.isArray(source.paths)) {
       throw new AuthorityPathInventoryError(
         "authority_path_invalid_source_paths",
         "Each source snapshot must provide a paths array.",
         { source_key: sourceKey },
       );
     }
-    observedPathRows += paths.length;
-    if (observedPathRows > limits.maxPaths) {
+
+    observedPathRows += source.paths.length;
+    if (observedPathRows > resolvedLimits.maxPaths) {
       throw new AuthorityPathInventoryError(
         "authority_path_limit_exceeded",
         "Combined authority path rows exceed their configured bound.",
-        { max_paths: limits.maxPaths, observed_at_least: observedPathRows },
+        { max_paths: resolvedLimits.maxPaths, observed_at_least: observedPathRows },
       );
     }
 
-    const normalizedSource = {
+    sources.push({
       source_key: sourceKey,
       source_identity: requireToken(source.source_identity, `source_snapshots[${sourceIndex}].source_identity`),
       observed_at: normalizeTimestamp(source.observed_at, `source_snapshots[${sourceIndex}].observed_at`),
       complete: normalizeBoolean(source.complete ?? false, `source_snapshots[${sourceIndex}].complete`),
-      path_count: paths.length,
+      path_count: source.paths.length,
       secrets_included: false,
-    };
-    sources.push(normalizedSource);
+    });
 
-    for (const rawPath of paths) {
-      const path = normalizePath(rawPath, sourceKey, limits);
+    for (const rawPath of source.paths) {
+      const path = normalizePath(rawPath, sourceKey, resolvedLimits);
+      const pathHash = canonicalHash(contractComparable(path));
       const existing = byPathKey.get(path.path_key);
-      const comparable = { ...path, source_keys: undefined };
-      const pathHash = canonicalHash(comparable);
       if (!existing) {
-        byPathKey.set(path.path_key, { ...path, source_keys: [sourceKey], contract_sha256: pathHash });
+        const { source_registry: sourceRegistry, ...contract } = path;
+        byPathKey.set(path.path_key, {
+          ...contract,
+          source_keys: [sourceKey],
+          source_registries: [sourceRegistry],
+          contract_sha256: pathHash,
+        });
         continue;
       }
       if (existing.contract_sha256 !== pathHash) {
@@ -338,19 +347,19 @@ export function compileAuthorityPathInventory({
           code: "conflicting_path_contract",
           path_key: path.path_key,
           source_keys: [...new Set([...existing.source_keys, sourceKey])].sort(),
+          source_registries: [...new Set([...existing.source_registries, path.source_registry])].sort(),
           blocking: true,
         });
         continue;
       }
       existing.source_keys = [...new Set([...existing.source_keys, sourceKey])].sort();
+      existing.source_registries = [...new Set([...existing.source_registries, path.source_registry])].sort();
     }
   }
 
   const sourceKeys = sources.map((source) => source.source_key).sort();
   for (const expectedSource of expected) {
-    if (!sourceKeys.includes(expectedSource)) {
-      gaps.push({ code: "missing_expected_source", source_key: expectedSource, blocking: true });
-    }
+    if (!sourceKeys.includes(expectedSource)) gaps.push({ code: "missing_expected_source", source_key: expectedSource, blocking: true });
   }
   for (const source of sources) {
     if (!source.complete) gaps.push({ code: "source_snapshot_incomplete", source_key: source.source_key, blocking: true });
@@ -360,23 +369,17 @@ export function compileAuthorityPathInventory({
   for (const path of paths) {
     const missingFields = classifyMissingFields(path);
     if (missingFields.length) {
-      gaps.push({
-        code: "path_classification_incomplete",
-        path_key: path.path_key,
-        missing_fields: missingFields,
-        blocking: true,
-      });
+      gaps.push({ code: "path_classification_incomplete", path_key: path.path_key, missing_fields: missingFields, blocking: true });
     }
     if (path.status === "deprecated" && !path.replacement_path_key) {
       gaps.push({ code: "deprecated_path_without_replacement", path_key: path.path_key, blocking: true });
     }
   }
-
-  if (gaps.length > limits.maxGaps) {
+  if (gaps.length > resolvedLimits.maxGaps) {
     throw new AuthorityPathInventoryError(
       "authority_path_limit_exceeded",
       "Authority path inventory gaps exceed their configured bound.",
-      { max_gaps: limits.maxGaps, observed: gaps.length },
+      { max_gaps: resolvedLimits.maxGaps, observed: gaps.length },
     );
   }
 
@@ -384,6 +387,7 @@ export function compileAuthorityPathInventory({
   const report = {
     contract: "mad4b.ueacp.authority-path-inventory.v1",
     status: blockingGaps.length === 0 ? "ready_for_human_closure_review" : "incomplete",
+    limits: resolvedLimits,
     sources: sources.sort((left, right) => left.source_key.localeCompare(right.source_key)),
     expected_source_keys: expected,
     summary: {
@@ -419,6 +423,9 @@ export function compileAuthorityPathInventory({
 export const _testingAuthorityPathInventoryCompiler = {
   canonicalHash,
   classifyMissingFields,
+  contractComparable,
   deepFreeze,
   normalizePath,
+  resolveLimits,
+  assertNoSensitiveValues,
 };
