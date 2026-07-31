@@ -131,6 +131,7 @@ await stage("runtime_overlay_isolation", async () => {
   const preparedRuns = [];
   const deliveredRuns = [];
   const sessionListQueries = [];
+  const chunkCalls = [];
   const runtimePool = {
     source: "tenant-activation-test-pool",
     async query(sql, params) {
@@ -204,6 +205,7 @@ await stage("runtime_overlay_isolation", async () => {
           asset_keys: [`asset:${subject.tenant_id}:${subject.workspace_key}:${subject.brand_key}`],
           secrets_included: false,
         },
+        transport_chunk_fixture: "x".repeat(6000),
         secrets_included: false,
       };
     },
@@ -226,7 +228,10 @@ await stage("runtime_overlay_isolation", async () => {
       assert.equal(pool, runtimePool);
       deliveredRuns.push(payload);
     },
-    chunkResponse: async (body) => body,
+    chunkResponse: async (body, options) => {
+      chunkCalls.push({ body, options });
+      return body;
+    },
   }));
 
   const server = await listen(app);
@@ -314,7 +319,7 @@ await stage("runtime_overlay_isolation", async () => {
       ["tenant-b", "user-b", 1],
     ]);
 
-    const responseA = await fetch(`${base}/tenant/activation/session-context?response_profile=full`, {
+    const responseA = await fetch(`${base}/tenant/activation/session-context?response_profile=full&max_response_chars=5000`, {
       headers: { "x-test-auth-mode": "tenant-a" },
     });
     assert.equal(responseA.status, 200);
@@ -331,7 +336,7 @@ await stage("runtime_overlay_isolation", async () => {
     assert.equal(bodyA.product_guidance.tenant_id, "tenant-a");
     assert.equal(bodyA.secrets_included, false);
 
-    const responseB = await fetch(`${base}/tenant/activation/session-context?response_profile=full`, {
+    const responseB = await fetch(`${base}/tenant/activation/session-context?response_profile=full&max_response_chars=5000`, {
       headers: { "x-test-auth-mode": "tenant-b" },
     });
     assert.equal(responseB.status, 200);
@@ -352,6 +357,11 @@ await stage("runtime_overlay_isolation", async () => {
     assert.equal(observedContexts.every((entry) => entry.query.context_scope === undefined), true);
     assert.deepEqual(dashboardCalls.map((entry) => entry.tenantId), ["tenant-a", "tenant-b"]);
     assert.equal(preparedRuns.length, 2);
+    assert.deepEqual(chunkCalls.map((entry) => entry.options.auth.tenant_id), ["tenant-a", "tenant-b"]);
+    assert.deepEqual(chunkCalls.map((entry) => entry.options.auth.user_id), ["user-a", "user-b"]);
+    assert.equal(chunkCalls.every((entry) => entry.options.auth.mode === "user_jwt"), true);
+    assert.equal(chunkCalls.every((entry) => entry.options.source_surface === "tenant_activation_session_context"), true);
+    assert.equal(chunkCalls.every((entry) => entry.options.auth !== entry.options.response_options), true);
 
     const legacy = await fetch(`${base}/activation/session-context`);
     assert.equal(legacy.status, 404);

@@ -137,7 +137,9 @@ export function buildActivationHardRunRoutes({ requireBackendApiKey } = {}) {
           max_chars: Number(req.body?.max_response_chars || 40000),
           chunk_ttl_minutes: Number(req.body?.chunk_ttl_minutes || 20),
         },
+        auth: req?.auth || null,
         source_tool_key: "activation_hard_run",
+        source_surface: "activation_hard_run",
       });
       return res.status(statusCode).json(transportBody);
     } catch (err) {
