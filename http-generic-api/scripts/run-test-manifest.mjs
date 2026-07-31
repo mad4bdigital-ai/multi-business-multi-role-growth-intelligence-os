@@ -20,6 +20,8 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-context-kernel-shadow-authority-parity.mjs",
   "node test-context-kernel-shadow-authority-parity-fail-closed.mjs",
   "node test-authority-catalog-census.mjs",
+  "node test-authority-path-inventory-compiler.mjs",
+  "node test-authority-data-foundation-planner.mjs",
 ]);
 
 const growthControlContinuationTestCommands = Object.freeze([

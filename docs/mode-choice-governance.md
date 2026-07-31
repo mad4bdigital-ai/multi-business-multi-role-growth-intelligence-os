@@ -103,9 +103,29 @@ This policy applies to admin GPTs, tenant GPTs, platform tools, and future conne
 
 Execution surfaces should call the planner before any mode-bearing mutation and call the recorder before dispatching the selected mode. The persisted trace is evidence of the selection decision; it is not by itself authority to execute the target operation.
 
+## First integrated execution surface
+
+`http-generic-api/hostingerSshProbeModeChoiceBoundary.js` and `routes/jobRoutes.js` apply the general contract to queued Hostinger SSH target probes:
+
+- the boundary recognizes `job_type=hostinger_ssh_target_probe` for both top-level and nested `request_payload` forms;
+- `target_id` is required before a choice plan is produced;
+- the valid runner modes are `queue_worker`, `detached_process`, `cron_worker`, and `external_runner`;
+- every mode exposes its risk class, side-effect class, execution-surface scope, and expected evidence;
+- a missing selection returns HTTP 409 with all modes, the recommended mode, and `job_created=false` / `dispatch_attempted=false`;
+- a selected mode receives one shared execution trace, is written to the execution-log ledger, and only then reaches `executionFacade.submitJob(...)`;
+- failed evidence write/readback returns HTTP 503 and blocks job creation and dispatch;
+- the job-submission response includes the selected mode, selection source, choice id, execution-log id, and `evidence_recorded=true`;
+- a fallback after a failed mode requires a fresh explicit selection;
+- a policy-mandated mode is accepted only from trusted internal request context, never from the caller payload;
+- the mode-choice record does not bypass the existing approval, target, credential, queue, worker, or SSH execution gates.
+
+This route-level boundary is intentionally before generic async normalization, so the legacy `queue_worker` fallback cannot silently create or dispatch a Hostinger probe job through the public `/jobs` submission surface.
+
 ## Readiness interpretation
 
 The code contract and regression suite can be complete while `general-mode-choice-governance-v1` remains operationally pending. That readiness check should become ready only after at least one real governed surface records and reads back a `mode_choice_selection` execution-log entry for the deployed runtime. A unit-test stub or policy migration alone is not live execution evidence.
+
+The Hostinger probe integration is the first eligible deployed surface. CI proves the code path, ordering, and fail-closed behavior; production readiness still requires one real submission with an explicit or internally mandated mode and a confirmed execution-log row.
 
 ## Registry evidence
 
