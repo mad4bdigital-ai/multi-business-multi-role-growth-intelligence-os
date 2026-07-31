@@ -29,5 +29,13 @@
     ".tsx",
     ".yaml",
     ".yml"
+  ],
+  "approved_findings": [
+    {
+      "path": "http-generic-api/src/infrastructure/growthControlPlane/growthControlPlaneRepository.js",
+      "rule_id": "zero_scope_fallback",
+      "line": 445,
+      "reason": "Temporary platform-scope approval-hold compatibility sentinel; remove when approval_holds stores explicit nullable platform scope."
+    }
   ]
 }

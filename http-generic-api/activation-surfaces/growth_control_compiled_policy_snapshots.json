@@ -1,0 +1,30 @@
+{
+  "surface_key": "growth_control_compiled_policy_snapshots",
+  "display_name": "Growth Control Compiled Policy Snapshots",
+  "description": "Tenant-scoped immutable compiled policy evidence without policy payloads or actor metadata.",
+  "source_table": "growth_control_compiled_policy_snapshots",
+  "result_key_column": "policy_snapshot_id",
+  "result_label_column": "workflow_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": null,
+  "active_status_values": [],
+  "result_columns": [
+    "policy_snapshot_id",
+    "tenant_id",
+    "workspace_id",
+    "brand_key",
+    "activity_binding_id",
+    "workflow_key",
+    "workflow_version",
+    "policy_hash_sha256",
+    "version_set_hash_sha256",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 221,
+  "status": "active",
+  "notes": "Repo-managed read-only evidence surface. Policy snapshot JSON, policy version payloads, idempotency keys, actor fields, provider flags, external-write flags, and secret indicators are intentionally excluded."
+}

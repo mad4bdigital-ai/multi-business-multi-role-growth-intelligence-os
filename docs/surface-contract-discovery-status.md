@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 458
+- Migrations with detected surfaces: 459
 - Migrations reported here: 80
-- OpenAPI operations detected: 1069
-- OpenAPI paths detected: 987
+- OpenAPI operations detected: 1086
+- OpenAPI paths detected: 1002
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,7 +32,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 457/458 (99.78%)
+- Documentation complete migrations: 458/459 (99.78%)
 - Documentation gap migrations: 1
 - Gap severity: high=20, medium=1, low=0
 - SQL route coverage in OpenAPI: 31/31 (100.00%)
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 15 | 12 |
 | tools | 783 | 282 |
-| views | 500 | 198 |
+| views | 501 | 199 |
 | policies | 195 | 134 |
 | routes | 701 | 289 |
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 457 |
-| no_credential_payload_read | 457 |
-| no_raw_secrets | 457 |
-| no_external_send | 457 |
-| no_external_write | 458 |
-| secrets_included_false | 458 |
+| no_provider_call | 458 |
+| no_credential_payload_read | 458 |
+| no_raw_secrets | 458 |
+| no_external_send | 458 |
+| no_external_write | 459 |
+| secrets_included_false | 459 |
 
 ### Route Classification Coverage
 
@@ -97,7 +97,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1020_sprint69_multi_surface_tenant_agent_runtime.sql` | critical_review | 1421 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
-| `193_sprint67_workspace_resource_authority_foundation.sql` | critical_review | 1084 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
+| `193_sprint67_workspace_resource_authority_foundation.sql` | critical_review | 1083 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `200_sprint68_workspace_invitation_control_tools.sql` | critical_review | 1077 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `199_sprint68_workspace_ownership_member_control_tools.sql` | critical_review | 1076 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `194_sprint66_tenant_infrastructure_readiness_tools.sql` | critical_review | 932 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
