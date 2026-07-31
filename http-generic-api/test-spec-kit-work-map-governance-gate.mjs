@@ -24,7 +24,7 @@ function fixture() {
     work_map_root: "docs/work-maps",
     work_map_index: "README.md",
     coverage_matrix: "work-map-coverage-matrix.md",
-    schema_classification_registry: ".specify/work-map-schema-classification-registry.json",
+    intentional_unclassified_registry: ".specify/work-map-intentional-unclassified.json",
     manifest_filename: "work-map-integration.json",
     template_filename: "work-map-integration-template.json",
     review_states: ["draft", "ready_for_implementation"],
@@ -39,18 +39,11 @@ function fixture() {
     implementation_exempt_prefixes: ["specs", "docs"],
   };
   write(root, ".specify/spec-kit-work-map-integration-policy.json", JSON.stringify(policy));
-  write(root, ".specify/work-map-schema-classification-registry.json", JSON.stringify({
+  write(root, ".specify/work-map-intentional-unclassified.json", JSON.stringify({
     schema_version: 1,
-    registry_key: "fixture",
-    default_disposition: "blocked",
-    rules: [{
-      rule_key: "container",
-      match: { prefixes: ["container_"] },
-      domain: "Platform resources & graph",
-      existing_map_refs: ["platform-resource-graph-map", "policy-authority-map"],
-      rationale: "Container resources extend the existing platform graph and authority maps.",
-    }],
-    intentional_unclassified: [],
+    policy_key: "fixture",
+    default_disposition: "forbidden",
+    entries: [],
     secrets_included: false,
   }));
   write(root, "docs/work-maps/README.md", `# Dynamic Platform Work Maps\n\n> Source hash: \`${"a".repeat(64)}\`\n\n## Maps\n\n- [platform resource graph map](./platform-resource-graph-map.md)\n- [policy authority map](./policy-authority-map.md)\n`);
@@ -73,6 +66,12 @@ function finalize(manifest) {
   };
   apply(manifest.work_map_decisions);
   apply(manifest.domain_decisions);
+  for (const row of Object.values(manifest.dimension_discovery.registry_gap_clusters || {})) {
+    row.disposition = "covered_by_existing_map";
+    row.rationale = "The fixture gap is explicitly covered by the existing platform resource graph map.";
+    row.owner = "platform-architecture";
+    row.evidence_refs = ["docs/work-maps/platform-resource-graph-map.md"];
+  }
   manifest.review_state = "ready_for_implementation";
   manifest.dimension_discovery.unresolved = [];
   manifest.dimension_discovery.no_new_dimensions_rationale = "All discovered dimensions are represented by the existing fixture maps and no additional map is necessary.";
@@ -100,12 +99,11 @@ function finalize(manifest) {
 
 {
   const { root, policy } = fixture();
-  const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
-  assert.equal(effectiveRegistry.uncategorized_objects.length, 0);
+  const { registry } = buildEffectiveWorkMapRegistry({ root, policy });
   const manifest = finalize(buildScaffoldManifest("001-example", {
     root,
     policy,
-    registry: effectiveRegistry,
+    registry,
     owner: "platform-architecture",
   }));
   write(root, "specs/001-example/work-map-integration.json", JSON.stringify(manifest));
@@ -133,11 +131,11 @@ function finalize(manifest) {
 
 {
   const { root, policy } = fixture();
-  const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+  const { registry } = buildEffectiveWorkMapRegistry({ root, policy });
   const manifest = finalize(buildScaffoldManifest("001-example", {
     root,
     policy,
-    registry: effectiveRegistry,
+    registry,
     owner: "platform-architecture",
   }));
   manifest.registry.fingerprint = "stale";
