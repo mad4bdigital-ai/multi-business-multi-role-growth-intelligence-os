@@ -1,0 +1,104 @@
+name: Exact-Head Work Map Autofix Runner
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/work-map-autofix-runner.yml
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: exact-head-work-map-autofix-runner
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Regenerate target Work Maps
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
+      EXPECTED_HEAD_SHA: d2ad7db6d8abb375aa3cb030bdb451e581a8af08
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Pin exact authorized target
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Target moved to ${remote_head_sha}; refusing stale autofix."
+            exit 1
+          fi
+
+      - name: Validate source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and prove idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Generator modified files outside docs/work-maps:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Commit with branch lease and dispatch gates
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/work-maps; then
+            echo "Generated Work Maps are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps
+          git commit -m "docs(work-maps): regenerate governed platform maps"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Target moved to ${remote_head_sha}; refusing stale push."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_sha="$(git rev-parse HEAD)"
+          readback_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${pushed_sha}" = "${readback_sha}"
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+          echo "Updated target to ${pushed_sha}."
