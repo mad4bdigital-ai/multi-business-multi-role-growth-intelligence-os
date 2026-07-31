@@ -15,11 +15,29 @@ import {
 
 function createFakeChunkPool() {
   const rows = new Map();
+  const state = { ttl_update_count: 0 };
   return {
     rows,
+    state,
     async query(sql, params = []) {
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
-        const [chunkId, sourceToolKey, hash, bytes, serialized, cursorPolicy, redactionStatus, createdAtMs, expiresAt] = params;
+        const [
+          chunkId,
+          sourceToolKey,
+          hash,
+          bytes,
+          serialized,
+          cursorPolicy,
+          redactionStatus,
+          ownerTenantId,
+          ownerUserId,
+          ownerWorkspaceId,
+          ownerPrincipalType,
+          ownerPrincipalId,
+          sourceSurface,
+          createdAtMs,
+          expiresAt,
+        ] = params;
         rows.set(chunkId, {
           chunk_id: chunkId,
           source_tool_key: sourceToolKey,
@@ -29,6 +47,12 @@ function createFakeChunkPool() {
           cursor_policy: cursorPolicy,
           redaction_status: redactionStatus,
           secrets_included: 0,
+          owner_tenant_id: ownerTenantId,
+          owner_user_id: ownerUserId,
+          owner_workspace_id: ownerWorkspaceId,
+          owner_principal_type: ownerPrincipalType,
+          owner_principal_id: ownerPrincipalId,
+          source_surface: sourceSurface,
           created_at: new Date(createdAtMs),
           expires_at: new Date(expiresAt),
         });
@@ -39,9 +63,18 @@ function createFakeChunkPool() {
         return [[...(row ? [row] : [])]];
       }
       if (sql.includes("UPDATE governed_tool_response_chunks")) {
-        const [candidate, , chunkId] = params;
+        const [candidate, , chunkId, privileged, ownerTenantId, ownerUserId, ownerWorkspaceId, ownerPrincipalType, ownerPrincipalId] = params;
         const row = rows.get(chunkId);
         if (!row) return [{ affectedRows: 0 }];
+        const ownerMatches = Number(privileged || 0) === 1 || (
+          row.owner_tenant_id === ownerTenantId
+          && row.owner_user_id === ownerUserId
+          && row.owner_workspace_id === ownerWorkspaceId
+          && row.owner_principal_type === ownerPrincipalType
+          && row.owner_principal_id === ownerPrincipalId
+        );
+        if (!ownerMatches) return [{ affectedRows: 0 }];
+        state.ttl_update_count += 1;
         if (new Date(candidate).getTime() > new Date(row.expires_at).getTime()) row.expires_at = new Date(candidate);
         return [{ affectedRows: 1 }];
       }
@@ -54,6 +87,9 @@ async function main() {
   const now = Date.parse("2026-06-18T20:00:00.000Z");
   const pool = createFakeChunkPool();
   const deps = { pool, now };
+  const tenantA = { tenant_id: "tenant-a", user_id: "user-a", workspace_id: "workspace-a" };
+  const tenantB = { tenant_id: "tenant-b", user_id: "user-b", workspace_id: "workspace-b" };
+  const admin = { is_admin: true, user_id: "admin-user" };
   const largeBody = {
     ok: true,
     items: Array.from({ length: 200 }, (_, index) => ({
@@ -65,6 +101,7 @@ async function main() {
   const firstChunk = await maybeChunkToolResponseBody(largeBody, {
     response_options: { max_chars: 5000 },
     source_tool_key: "test_response_chunking",
+    auth: tenantA,
   }, deps);
 
   assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy, "chunk_read_before_alternative_surface");
@@ -89,6 +126,28 @@ async function main() {
   assert.equal(firstChunk.cache.cursor_policy, "utf16_code_unit_cursor_v1");
   assert.match(firstChunk.cache.response_sha256, /^[0-9a-f]{64}$/);
   assert.ok(pool.rows.has(firstChunk.chunk_id), "SQL persistence must complete before chunk_id is returned");
+  const initialExpiry = new Date(pool.rows.get(firstChunk.chunk_id).expires_at).getTime();
+  await assert.rejects(
+    () => readCachedToolResponseChunk({
+      chunk_id: firstChunk.chunk_id,
+      cursor: 0,
+      max_chars: 5000,
+      auth: tenantB,
+    }, { pool, now: now + 500 }),
+    (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
+  );
+  assert.equal(new Date(pool.rows.get(firstChunk.chunk_id).expires_at).getTime(), initialExpiry);
+  assert.equal(pool.state.ttl_update_count, 0, "cross-tenant memory denial must not extend durable TTL");
+
+  const ownerMemoryRead = await readCachedToolResponseChunk({
+    chunk_id: firstChunk.chunk_id,
+    cursor: 0,
+    max_chars: 5000,
+    auth: tenantA,
+  }, { pool, now: now + 750 });
+  assert.equal(ownerMemoryRead.source, "tool_response_cache");
+  assert.equal(ownerMemoryRead.cache.read_count, 1, "denied reads must not increment memory read count");
+  assert.equal(pool.state.ttl_update_count, 1);
 
   const requestedTtl = resolveToolResponseChunkTtlMs({ response_options: { max_chars: 5000, chunk_ttl_minutes: 45 } }, JSON.stringify(largeBody).length);
   assert.ok(requestedTtl >= 45 * 60 * 1000);
@@ -100,15 +159,29 @@ async function main() {
     max_response_chars: 5000,
     chunk_ttl_minutes: 45,
     source_tool_key: "test_top_level_response_chunking",
+    auth: tenantA,
   }, deps);
   assert.equal(topLevelChunk.response_chunked, true, "top-level response options must be honored");
   assert.ok(topLevelChunk.cache.ttl_ms >= 45 * 60 * 1000);
 
   assert.equal(evictToolResponseChunkMemoryCache(firstChunk.chunk_id), true);
+  const ttlUpdatesBeforeDurableDenial = pool.state.ttl_update_count;
+  await assert.rejects(
+    () => readCachedToolResponseChunk({
+      chunk_id: firstChunk.chunk_id,
+      cursor: 0,
+      max_chars: 5000,
+      auth: tenantB,
+    }, { pool, now: now + 900 }),
+    (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
+  );
+  assert.equal(pool.state.ttl_update_count, ttlUpdatesBeforeDurableDenial);
+
   const recoveredFirstChunk = await readCachedToolResponseChunk({
     chunk_id: firstChunk.chunk_id,
     cursor: 0,
     max_chars: 5000,
+    auth: tenantA,
   }, { pool, now: now + 1000 });
   assert.equal(recoveredFirstChunk.source, "governed_tool_response_chunk_store");
   assert.equal(recoveredFirstChunk.chunk, firstChunk.chunk);
@@ -118,6 +191,7 @@ async function main() {
     chunk_id: firstChunk.chunk_id,
     cursor: recoveredFirstChunk.page.next_cursor,
     max_chars: 5000,
+    auth: tenantA,
   }, { pool, now: now + 2000 });
 
   assert.equal(secondChunk.response_chunked, true);
@@ -127,6 +201,25 @@ async function main() {
   assert.ok(secondChunk.cache.read_count >= 2);
   assert.equal(secondChunk.cache.extended_on_read, true);
 
+  const adminRead = await readCachedToolResponseChunk({
+    chunk_id: firstChunk.chunk_id,
+    cursor: 0,
+    max_chars: 5000,
+    auth: admin,
+  }, { pool, now: now + 2500 });
+  assert.equal(adminRead.chunk_id, firstChunk.chunk_id);
+
+  const ttlUpdatesBeforeUnresolvedRead = pool.state.ttl_update_count;
+  await assert.rejects(
+    () => readCachedToolResponseChunk({
+      chunk_id: firstChunk.chunk_id,
+      cursor: 0,
+      max_chars: 5000,
+    }, { pool, now: now + 2600 }),
+    (err) => err?.status === 404 && err?.code === "response_chunk_not_found",
+  );
+  assert.equal(pool.state.ttl_update_count, ttlUpdatesBeforeUnresolvedRead);
+
   let reconstructed = "";
   let cursor = 0;
   do {
@@ -134,6 +227,7 @@ async function main() {
       chunk_id: firstChunk.chunk_id,
       cursor,
       max_chars: 5000,
+      auth: tenantA,
     }, { pool, now: now + 3000 + cursor });
     reconstructed += page.chunk;
     cursor = page.page.next_cursor;
@@ -207,7 +301,12 @@ async function main() {
 
   const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
   assert.ok(systemLayerRoutes.includes("response_chunk_read"), "system layer must expose response_chunk_read for admin and tenant callers");
-  assert.ok(systemLayerRoutes.includes("await readCachedToolResponseChunk(args)"), "system layer chunk reads must await durable recovery");
+  assert.equal(systemLayerRoutes.includes("await readCachedToolResponseChunk(args)"), false, "system layer chunk reads must not trust caller arguments as principal context");
+  assert.ok(systemLayerRoutes.includes('source_surface: "system_layer_response_chunk_read"'), "system layer chunk reads must bind a trusted source surface");
+  assert.ok(systemLayerRoutes.includes("...(args || {})"), "system layer chunk reads must preserve pagination arguments before overriding auth");
+  assert.ok(systemLayerRoutes.includes("auth,"), "system layer chunk reads must receive middleware auth separately");
+  assert.ok(systemLayerRoutes.includes('"system_tools_list"'), "system tools list chunk ownership must use a fixed trusted source");
+  assert.ok(systemLayerRoutes.includes('"admin_system_tools_call"'), "admin system calls must use a fixed trusted source surface");
   assert.ok(systemLayerRoutes.includes("buildSystemToolsListResponse"), "system layer tools list must be bounded and page-aware");
   assert.ok(systemLayerRoutes.includes("bounded_paginated_chunkable"), "system layer tools list must advertise bounded chunkable mode");
   assert.ok(systemLayerRoutes.includes("chunk_ttl_minutes"), "system layer must expose controllable chunk TTL options");
