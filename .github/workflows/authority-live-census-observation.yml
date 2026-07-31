@@ -1,6 +1,11 @@
 name: Authority Live Census Observation
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/authority-live-census-observation.mjs"
+      - ".github/workflows/authority-live-census-observation.yml"
   pull_request:
     branches: [main]
     paths:
@@ -20,11 +25,13 @@ jobs:
   governed-live-read-only-census:
     name: Governed Live Read-Only Authority Census
     if: >-
+      (github.event_name == 'push' && github.ref_name == 'main') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.base.ref == 'main' &&
        github.head_ref == 'gpt/011-ueacp-live-authority-census-observation-20260731' &&
        github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'workflow_dispatch' && github.ref_name == 'gpt/011-ueacp-live-authority-census-observation-20260731')
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref_name == 'main' || github.ref_name == 'gpt/011-ueacp-live-authority-census-observation-20260731'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -34,7 +41,7 @@ jobs:
       EVIDENCE_PATH: ${{ runner.temp }}/authority-live-census-observation.json
       OBSERVED_REF: ${{ github.event.pull_request.base.sha || github.sha }}
     steps:
-      - name: Checkout exact observation branch
+      - name: Checkout exact observation ref
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -79,19 +86,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record evidence reference on pull request
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Record evidence summary
+        if: always()
         run: |
-          set -euo pipefail
-          SUMMARY=$(node -e '
-            const fs = require("node:fs");
-            const v = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, "utf8"));
-            process.stdout.write(`schema=${v.database_server.schema_name} objects=${v.summary.object_count} columns=${v.summary.column_count} views=${v.summary.view_count} foreign_keys=${v.summary.foreign_key_count} sha256=${v.observation_sha256}`);
-          ')
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
-            -f body="AUTHORITY_LIVE_CENSUS_OBSERVATION result=pass run_id=${GITHUB_RUN_ID} ${SUMMARY} artifact=authority-live-census-observation-${GITHUB_RUN_ID} read_only=true database_mutation=false migration_apply=false secrets_included=false"
+          if [[ -f "$EVIDENCE_PATH" ]]; then
+            node -e '
+              const fs = require("node:fs");
+              const v = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, "utf8"));
+              console.log(`AUTHORITY_LIVE_CENSUS_SUMMARY schema=${v.database_server.schema_name} objects=${v.summary.object_count} columns=${v.summary.column_count} views=${v.summary.view_count} foreign_keys=${v.summary.foreign_key_count} sha256=${v.observation_sha256}`);
+            '
+          fi
