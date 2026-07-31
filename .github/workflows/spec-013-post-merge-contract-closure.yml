@@ -1,0 +1,241 @@
+name: Spec 013 Post-Merge Contract Closure
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-013-post-merge-contract-closure-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/spec-013-post-merge-contract-closure-20260731' &&
+      github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out governed repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/spec-013-post-merge-contract-closure-20260731
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply bounded runtime, OpenAPI, and regression repairs
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          routes_path = Path('http-generic-api/routes/systemLayerRoutes.js')
+          routes = routes_path.read_text()
+          old_admin = '''  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
+            const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+            return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+          });'''
+          new_admin = '''  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
+            try {
+              const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+              return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
+            } catch (error) {
+              return sendSystemToolCatalogError(res, error, "admin_system_tool_catalog_list_failed");
+            }
+          });'''
+          assert routes.count(old_admin) == 1, 'admin catalog handler shape changed'
+          routes_path.write_text(routes.replace(old_admin, new_admin))
+
+          root_openapi_path = Path('http-generic-api/openapi.yaml')
+          root_openapi = root_openapi_path.read_text()
+          replacements = {
+            'security: [backendBearerAuth: [], backendApiKeyAuth: []]': 'security: [{ backendBearerAuth: [] }, { backendApiKeyAuth: [] }]',
+            'security: [adminBearerAuth: [], backendApiKeyAuth: []]': 'security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]',
+          }
+          replacement_counts = {}
+          for old, new in replacements.items():
+            count = root_openapi.count(old)
+            assert count > 0, f'expected combined security form not found: {old}'
+            replacement_counts[old] = count
+            root_openapi = root_openapi.replace(old, new)
+          root_openapi_path.write_text(root_openapi)
+          print({'root_openapi_security_replacements': replacement_counts})
+
+          contract_path = Path('specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml')
+          contract = contract_path.read_text()
+          old_global = '''security:
+            - bearerAuth: []'''
+          new_global = '''security:
+            - bearerAuth: []
+            - backendApiKeyAuth: []'''
+          assert contract.count(old_global) == 1, 'Spec 013 global security shape changed'
+          contract = contract.replace(old_global, new_global)
+          old_observability = '''      security:
+                - bearerAuth: [admin]'''
+          new_observability = '''      security:
+                - bearerAuth: [admin]
+                - backendApiKeyAuth: []'''
+          assert contract.count(old_observability) == 1, 'Spec 013 observability security shape changed'
+          contract = contract.replace(old_observability, new_observability)
+          old_schemes = '''    bearerAuth:
+                type: http
+                scheme: bearer
+                bearerFormat: JWT'''
+          new_schemes = '''    bearerAuth:
+                type: http
+                scheme: bearer
+                bearerFormat: JWT
+              backendApiKeyAuth:
+                type: apiKey
+                in: header
+                name: x-api-key'''
+          assert contract.count(old_schemes) == 1, 'Spec 013 security schemes shape changed'
+          contract_path.write_text(contract.replace(old_schemes, new_schemes))
+
+          platform_test_path = Path('http-generic-api/test-platform-routes.mjs')
+          platform_test = platform_test_path.read_text()
+          anchor = '''{
+            const r = await get("/system/tools/runtime_endpoint_preview");'''
+          inserted = '''{
+            const r = await get("/admin/system/tools?cursor=not-a-valid-catalog-cursor");
+            ok("Catalog V2 admin invalid cursor returns 400", r.status === 400, `got ${r.status}`);
+            ok("Catalog V2 admin invalid cursor returns stable error", r.body.error?.code === "SYSTEM_TOOL_CATALOG_CURSOR_INVALID", JSON.stringify(r.body));
+            ok("Catalog V2 admin invalid cursor excludes secrets", r.body.secrets_included === false, JSON.stringify(r.body));
+          }
+          {
+            const r = await get("/system/tools/runtime_endpoint_preview");'''
+          assert platform_test.count(anchor) == 1, 'Catalog V2 platform test anchor changed'
+          platform_test_path.write_text(platform_test.replace(anchor, inserted))
+
+          regression_path = Path('http-generic-api/test-system-tool-catalog-v2-post-merge-contract.mjs')
+          regression_path.write_text('''import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import YAML from "yaml";
+
+          const routes = readFileSync("routes/systemLayerRoutes.js", "utf8");
+          const root = YAML.parse(readFileSync("openapi.yaml", "utf8"));
+          const spec = YAML.parse(readFileSync("../specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml", "utf8"));
+
+          const adminHandler = routes.match(/router\.get\("\\\/admin\\\/system\\\/tools"[\\s\\S]*?\n  \}\);/u)?.[0] || "";
+          assert.match(adminHandler, /try\s*\{/u, "admin Catalog V2 list route must catch async cursor errors");
+          assert.match(adminHandler, /sendSystemToolCatalogError/u, "admin Catalog V2 list route must return the stable catalog error envelope");
+          assert.match(adminHandler, /admin_system_tool_catalog_list_failed/u);
+
+          function assertAlternatives(document, path, method, schemes) {
+            const security = document.paths?.[path]?.[method]?.security ?? document.security;
+            assert.ok(Array.isArray(security), `${method.toUpperCase()} ${path} must declare security alternatives`);
+            for (const scheme of schemes) {
+              assert.ok(security.some((entry) => Object.keys(entry || {}).length === 1 && Object.hasOwn(entry, scheme)), `${method.toUpperCase()} ${path} must allow ${scheme} independently`);
+            }
+            assert.ok(security.every((entry) => Object.keys(entry || {}).length === 1), `${method.toUpperCase()} ${path} must not require multiple auth schemes in one Security Requirement Object`);
+          }
+
+          for (const [path, method, schemes] of [
+            ["/system/tools", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
+            ["/system/tools/{toolName}", "get", ["backendBearerAuth", "backendApiKeyAuth"]],
+            ["/system/capabilities/resolve", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
+            ["/system/tools/catalog-observability", "get", ["adminBearerAuth", "backendApiKeyAuth"]],
+            ["/system/tools/call", "post", ["backendBearerAuth", "backendApiKeyAuth"]],
+          ]) assertAlternatives(root, path, method, schemes);
+
+          assert.doesNotMatch(readFileSync("openapi.yaml", "utf8"), /security:\s*\[(?:backendBearerAuth|adminBearerAuth):\s*\[\],\s*backendApiKeyAuth:\s*\[\]\]/u);
+          assertAlternatives(spec, "/system/tools", "get", ["bearerAuth", "backendApiKeyAuth"]);
+          assertAlternatives(spec, "/system/tools/{toolName}", "get", ["bearerAuth", "backendApiKeyAuth"]);
+          assertAlternatives(spec, "/system/capabilities/resolve", "post", ["bearerAuth", "backendApiKeyAuth"]);
+          assertAlternatives(spec, "/system/tools/catalog-observability", "get", ["bearerAuth", "backendApiKeyAuth"]);
+          assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.name, "x-api-key");
+          assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.in, "header");
+
+          console.log("System Tool Catalog V2 post-merge runtime and OpenAPI contract regressions passed");
+          '''.replace(/^          /gm, ''))
+
+          manifest_path = Path('http-generic-api/scripts/test-manifest.mjs')
+          manifest = manifest_path.read_text()
+          command = '  "node test-system-tool-catalog-v2-post-merge-contract.mjs",\n'
+          anchor = '  "node test-status-component-readiness-freshness.mjs",\n'
+          assert command not in manifest, 'regression already registered unexpectedly'
+          assert manifest.count(anchor) == 1, 'manifest anchor changed'
+          manifest_path.write_text(manifest.replace(anchor, command + anchor))
+          PY
+
+      - name: Run focused Catalog V2 closure regressions
+        working-directory: http-generic-api
+        run: |
+          node --check routes/systemLayerRoutes.js
+          node --check test-system-tool-catalog-v2-post-merge-contract.mjs
+          node test-system-tool-catalog-v2.mjs
+          node test-system-tool-catalog-v2-post-merge-contract.mjs
+          node test-system-layer-response-fallback.mjs
+          node test-platform-routes.mjs
+
+      - name: Refresh bounded generated artifacts
+        working-directory: http-generic-api
+        run: |
+          git fetch origin main --depth=1
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/generate-custom-gpt-schemas.mjs --write
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          npm run schemas:guard
+
+      - name: Enforce bounded write set
+        shell: bash
+        run: |
+          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
+          test ${#CHANGED[@]} -gt 0
+          UNEXPECTED=""
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              http-generic-api/routes/systemLayerRoutes.js|\
+              http-generic-api/openapi.yaml|\
+              http-generic-api/test-platform-routes.mjs|\
+              http-generic-api/test-system-tool-catalog-v2-post-merge-contract.mjs|\
+              http-generic-api/scripts/test-manifest.mjs|\
+              specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml|\
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
+              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
+              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
+              http-generic-api/openapi.gpt-action.local-connector.yaml)
+                ;;
+              *) UNEXPECTED+="$file"$'\n' ;;
+            esac
+          done
+          if [[ -n "$UNEXPECTED" ]]; then
+            echo '::error::Repair changed files outside the bounded allowlist'
+            printf '%s' "$UNEXPECTED"
+            exit 1
+          fi
+          git diff --check
+
+      - name: Commit bounded repair
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "fix(spec-013): close post-merge catalog contracts"
+          git push origin HEAD:fix/spec-013-post-merge-contract-closure-20260731
