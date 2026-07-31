@@ -20,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->') && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}
+  group: ${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || (github.event.action == 'reopened' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]' && contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')) && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
