@@ -50,10 +50,17 @@ function fixture(intentional = []) {
   return root;
 }
 
-function classificationFor(generated, objectName) {
-  const row = generated.catalog.find((candidate) => candidate.object_name === objectName);
-  assert(row, `Expected generated catalog to contain ${objectName}`);
-  return row;
+function assertInventoryRow(mapText, {
+  objectName,
+  objectType = "table",
+  domain,
+  classification,
+}) {
+  const row = `| \`${objectName}\` | ${objectType} | ${domain} | ${classification} |`;
+  assert(
+    mapText.includes(row),
+    `Expected generated inventory to contain classification row: ${row}`,
+  );
 }
 
 const indexText = [
@@ -79,20 +86,25 @@ const indexText = [
 
   assert.equal(generated.metrics.total_discovered_objects, 3);
   assert.equal(generated.metrics.unresolved_unclassified_objects, 1);
-  assert.equal(generated.metrics.registry_classified_objects, 1);
+  assert.equal(generated.metrics.classified_objects, 2);
+  assert.equal(generated.metrics.classification_coverage_percent, 66.67);
 
-  const builtin = classificationFor(generated, "users");
-  assert.equal(builtin.classification_source, "builtin");
-
-  const registered = classificationFor(generated, REGISTRY_OBJECT);
-  assert.equal(registered.classification_source, "registry");
-  assert.equal(registered.matched_rule, "quasar_fixture_objects");
-  assert.equal(registered.domain, "Platform resources & graph");
-
-  const unresolved = classificationFor(generated, UNRESOLVED_OBJECT);
-  assert.equal(unresolved.classification_source, "unresolved");
-  assert.equal(unresolved.matched_rule, null);
-  assert.equal(unresolved.domain, null);
+  const inventory = generated.maps["data-model-domain-map.md"];
+  assertInventoryRow(inventory, {
+    objectName: "users",
+    domain: "Tenancy & identity",
+    classification: "generated_domain_rule",
+  });
+  assertInventoryRow(inventory, {
+    objectName: REGISTRY_OBJECT,
+    domain: "Platform resources & graph",
+    classification: "registry:quasar_fixture_objects",
+  });
+  assertInventoryRow(inventory, {
+    objectName: UNRESOLVED_OBJECT,
+    domain: "Other / unresolved",
+    classification: "unmatched",
+  });
 
   assert.match(generated.maps["work-map-coverage-matrix.md"], new RegExp(UNRESOLVED_OBJECT));
   assert.match(generated.maps["platform-resource-graph-map.md"], new RegExp(REGISTRY_OBJECT));
@@ -120,8 +132,19 @@ const indexText = [
   const generated = buildSchemaIntelligenceMaps({ repoRoot: root });
   assert.equal(generated.metrics.unresolved_unclassified_objects, 0);
   assert.equal(generated.metrics.intentional_unclassified_objects, 1);
-  assert.equal(classificationFor(generated, REGISTRY_OBJECT).classification_source, "registry");
-  assert.equal(classificationFor(generated, UNRESOLVED_OBJECT).classification_source, "intentional_unclassified");
+  assert.equal(generated.metrics.total_accounted_objects, 3);
+
+  const inventory = generated.maps["data-model-domain-map.md"];
+  assertInventoryRow(inventory, {
+    objectName: REGISTRY_OBJECT,
+    domain: "Platform resources & graph",
+    classification: "registry:quasar_fixture_objects",
+  });
+  assertInventoryRow(inventory, {
+    objectName: UNRESOLVED_OBJECT,
+    domain: "Other / intentionally unclassified",
+    classification: "intentional_exception",
+  });
   assert.match(generated.maps["work-map-coverage-matrix.md"], /Intentionally unclassified schema objects/);
 
   const result = validateSchemaClassification({
