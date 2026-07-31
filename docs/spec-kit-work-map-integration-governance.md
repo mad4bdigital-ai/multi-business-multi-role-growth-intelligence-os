@@ -11,7 +11,8 @@ The automation consumes existing generated sources:
 - `docs/work-maps/README.md`
 - `docs/work-maps/work-map-coverage-matrix.md`
 - every Work Map listed by the index
-- `.specify/work-map-schema-classification-registry.json`
+- `http-generic-api/scripts/platform-work-map-schema-intelligence.mjs`
+- `.specify/work-map-intentional-unclassified.json`
 
 The Work Maps remain generator-owned. A Spec Kit never edits generated map files to satisfy the gate.
 
@@ -20,8 +21,8 @@ The Work Maps remain generator-owned. A Spec Kit never edits generated map files
 ```text
 Repository sources
 → generated Work Maps
-→ coverage matrix
-→ schema classification registry
+→ canonical generator classification
+→ unresolved/intentional classification gate
 → effective Work Map registry
 → Spec Kit scaffold
 → explicit map/domain decisions
@@ -69,55 +70,57 @@ A new map is proposal-only and requires separate approval. The proposing Spec Ki
 
 ## Schema classification
 
-The generated coverage matrix may expose schema objects that the current generator taxonomy did not classify. Such objects are not silently accepted.
+The canonical schema-intelligence generator classifies every discovered table and view into an existing platform domain. Its rules were extended to cover the previously uncategorized Dynamic Container, Context Kernel connection ownership, canonical identifier, Growth Dashboard, operation artifact, operational alert, platform outbox, secret movement, repository automation, SQL cache policy, and governed projection surfaces.
 
-Each object must be resolved by exactly one rule in:
+The classification gate regenerates the schema-intelligence maps in memory and requires:
 
 ```text
-.specify/work-map-schema-classification-registry.json
+accounted objects = discovered objects
+unresolved objects = 0
 ```
 
-A classification rule must provide:
-
-- one domain;
-- existing Work Map references;
-- a bounded matcher;
-- architectural rationale.
-
-Unknown or ambiguously matched objects fail CI.
+A newly introduced object that does not match an existing domain is emitted as `Other / unresolved` and fails CI. Classification changes are made in the existing generator and existing Work Map patterns; they do not create a new map automatically.
 
 ## Intentional unclassified exceptions
 
-An object may remain intentionally unclassified only when the registry contains an exact exception with:
+An object may remain intentionally unclassified only through an exact entry in:
+
+```text
+.specify/work-map-intentional-unclassified.json
+```
+
+The entry requires:
 
 - object name and type;
 - owner;
-- rationale;
-- nearest existing maps reviewed;
-- review gate;
-- expiry date no more than 90 days away.
+- detailed rationale;
+- at least two nearest existing maps reviewed;
+- proof that reuse, extension, map composition, and generator/taxonomy extension were considered;
+- approval reference;
+- follow-up gate;
+- expiring timestamp.
 
-Expired, stale, unowned, map-less, inferred, or overlapping exceptions fail closed.
+Permanent, expired, stale, unowned, map-less, inferred, or incomplete exceptions fail closed. The current registry contains no exceptions.
 
 ## Staleness
 
-The manifest binds:
+The Spec Kit manifest binds:
 
 - Work Map index source hash;
 - coverage matrix source hash;
-- effective registry fingerprint;
+- Work Map registry fingerprint;
 - map and domain counts;
-- classification registry hash;
-- remaining unresolved classification count.
+- remaining taxonomy-gap clusters.
 
-When maps, migrations, schema taxonomy, or classification rules change, affected manifests become stale and must be regenerated or reviewed.
+The classification gate independently binds the live generator output to migrations and the intentional-exception registry. When maps, migrations, schema taxonomy, or classification rules change, CI regenerates the live classification report and rejects unresolved drift.
 
 ## CI commands
 
 ```text
-node http-generic-api/scripts/work-map-schema-classification.mjs --ci
+node http-generic-api/scripts/work-map-classification-gate.mjs --ci
 node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-node http-generic-api/test-work-map-schema-classification.mjs
+node http-generic-api/test-work-map-classification-gate.mjs
+node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
 ```
 
 The dedicated workflow is:
