@@ -211,6 +211,20 @@ Only then may the result become a separately approved `new_work_map_candidate`. 
 
 Existing Spec Kits without `work-map-integration.json` are grandfathered until they opt in. New Spec Kits are never grandfathered. Once a legacy Spec Kit adds the manifest, future changes remain governed by the new gate.
 
+## Phase convergence and final validation readback
+
+The implementation phase must converge as one ancestry-preserving wave rather than by repeatedly rebasing or forcing the feature branch. The completed convergence cycle for the initial delivery used these controls:
+
+- pin the moving `main` line at `ece5f0e253beb50cf61cc9773e541e536834e4fc`;
+- merge that pinned ancestry into the feature branch through a normal two-parent merge commit `115c59b759e9de027845760cac7d7cf22ef2a6ec`;
+- require `behind_by = 0` and a merge base equal to the pinned `main` SHA;
+- publish generator-owned documentation only through Docs Agent, producing generated head `998eab89d0411c2f783aae0308972d52ff517d4b`;
+- remove `docs-agent-write` after the generated diff is committed, so final validation is preview-only and cannot recursively move the reviewed head;
+- run CI and Spec Kit Work Map Integration on the final human-authored closeout head;
+- repeat the ancestry readback immediately before merge and reject the merge if `main` moved, the head changed, a review thread reopened, or a required gate is not successful.
+
+This record is operational evidence, not authority to bypass a gate. A bot-authored generated commit whose pull-request runs are marked `action_required` is not accepted as final evidence. The final closeout must be a meaningful human-authored governance change outside the Work Map generator source set, leaving the generated maps current while allowing all required checks to execute on the exact reviewed head.
+
 ## Safety boundary
 
 The automation is repository governance only. It does not:
