@@ -508,6 +508,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey
     "$TaskTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)",
     "$TaskPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest",
     "Register-ScheduledTask -TaskName $TaskName -Action $TaskAction -Trigger $TaskTrigger -Principal $TaskPrincipal -Force | Out-Null",
+    "Start-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue",
     "Start-Service $NodeService -ErrorAction SilentlyContinue",
     "Start-Sleep -Seconds 3",
     `Write-Host 'Done. Tunnel: ${psQuote(tunnelUrl)}'`,
