@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { validatePipelineConnectivity } from "./scripts/pipeline-connectivity-check.mjs";
 
 function write(root, relative, content) {
@@ -118,6 +119,18 @@ function setup() {
   const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
   assert.ok(codes.has("REQUIRED_COMMAND_DISCONNECTED"));
   assert.ok(codes.has("ARTIFACT_CONSUMER_DISCONNECTED"));
+}
+
+{
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const workflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml"), "utf8");
+  const concurrencyBlock = workflow.slice(workflow.indexOf("concurrency:"), workflow.indexOf("jobs:"));
+  assert.ok(concurrencyBlock.includes("format('spec-kit-work-map-noop-{0}', github.run_id)"), "Unauthorised reopened events must use a run-unique no-op concurrency group");
+  assert.ok(concurrencyBlock.includes("github.event.action == 'reopened'"), "Concurrency authorization must require a reopened event");
+  assert.ok(concurrencyBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"), "Concurrency authorization must require a same-repository head");
+  assert.ok(concurrencyBlock.includes("github.actor != 'github-actions[bot]'"), "Concurrency authorization must reject bot-authored reopened events");
+  assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Concurrency authorization must require the explicit marker");
+  assert.ok(concurrencyBlock.includes("cancel-in-progress: true"), "Authorized retries must retain cancellation semantics within their trusted group");
 }
 
 console.log("Pipeline connectivity contract regression passed");
