@@ -48,6 +48,7 @@ const staticDiscoveryCommands = [
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-pr-create-rest-fallback.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
+  "node test-governed-migration-dependency-gate.mjs",
   "node test-hostinger-apply-policy-safe-field-names.mjs",
   "node test-hostinger-deploy-restart-tool-exports.mjs",
   "node test-hostinger-ssh-probe-mode-choice-boundary.mjs",
