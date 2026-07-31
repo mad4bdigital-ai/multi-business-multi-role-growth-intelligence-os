@@ -2,17 +2,19 @@
 
 ## Purpose
 
-Every new Spec Kit must evaluate the complete generated platform Work Map registry before implementation. The gate prevents directional specifications from integrating only the surfaces that the author remembered while omitting data, authority, connectors, workflows, observability, delivery, lifecycle, or other platform dimensions.
+Every new Spec Kit must evaluate the complete generated platform Work Map registry before implementation. The gate prevents directional specifications from integrating only the surfaces the author remembered while omitting data, authority, connectors, workflows, observability, delivery, lifecycle, or other platform dimensions.
 
 ## Authoritative sources
 
-The automation consumes existing generated sources:
+The automation consumes and extends the existing generated sources:
 
 - `docs/work-maps/README.md`
 - `docs/work-maps/work-map-coverage-matrix.md`
 - every Work Map listed by the index
+- `http-generic-api/scripts/platform-work-map-generator.mjs`
 - `http-generic-api/scripts/platform-work-map-schema-intelligence.mjs`
-- `.specify/work-map-intentional-unclassified.json`
+- `.specify/work-map-schema-classification-registry.json`
+- `.specify/spec-kit-work-map-integration-policy.json`
 
 The Work Maps remain generator-owned. A Spec Kit never edits generated map files to satisfy the gate.
 
@@ -20,9 +22,9 @@ The Work Maps remain generator-owned. A Spec Kit never edits generated map files
 
 ```text
 Repository sources
-→ generated Work Maps
-→ canonical generator classification
-→ unresolved/intentional classification gate
+→ existing Work Map generator
+→ canonical schema classification registry
+→ complete existing-map coverage
 → effective Work Map registry
 → Spec Kit scaffold
 → explicit map/domain decisions
@@ -36,7 +38,7 @@ Repository sources
 
 Create the normal Spec Kit files, then run:
 
-```text
+```bash
 node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs \
   --scaffold NNN-feature-name \
   --owner platform-team
@@ -68,26 +70,39 @@ reuse existing map
 
 A new map is proposal-only and requires separate approval. The proposing Spec Kit cannot use that proposed map as readiness evidence in the same delivery cycle.
 
-## Schema classification
+## Complete schema classification
 
-The canonical schema-intelligence generator classifies every discovered table and view into an existing platform domain. Its rules were extended to cover the previously uncategorized Dynamic Container, Context Kernel connection ownership, canonical identifier, Growth Dashboard, operation artifact, operational alert, platform outbox, secret movement, repository automation, SQL cache policy, and governed projection surfaces.
-
-The classification gate regenerates the schema-intelligence maps in memory and requires:
+Every discovered table and view must resolve to one of two states:
 
 ```text
-accounted objects = discovered objects
-unresolved objects = 0
+classified into an existing domain and Work Map set
+or
+intentionally unclassified through an approved bounded exception
 ```
 
-A newly introduced object that does not match an existing domain is emitted as `Other / unresolved` and fails CI. Classification changes are made in the existing generator and existing Work Map patterns; they do not create a new map automatically.
+Accidental or unresolved classification is forbidden.
+
+The canonical registry is:
+
+```text
+.specify/work-map-schema-classification-registry.json
+```
+
+A normal classification rule contains:
+
+- a stable rule key;
+- deterministic exact, prefix, or suffix matchers;
+- one existing platform domain;
+- references to one or more existing Work Maps;
+- a rationale.
+
+Overlapping matching rules are ambiguous and fail closed. The generator uses `existing_map_refs` to extend current maps and the coverage matrix rather than creating new maps.
+
+The current rules classify the previously uncategorized Dynamic Container, Context Kernel connection ownership, canonical identifier, Growth Dashboard, operation artifact, operational alert, platform outbox, secret movement, repository automation, SQL cache policy, and governed projection surfaces.
 
 ## Intentional unclassified exceptions
 
-An object may remain intentionally unclassified only through an exact entry in:
-
-```text
-.specify/work-map-intentional-unclassified.json
-```
+An object may remain intentionally unclassified only through an exact entry in the canonical classification registry.
 
 The entry requires:
 
@@ -95,12 +110,16 @@ The entry requires:
 - owner;
 - detailed rationale;
 - at least two nearest existing maps reviewed;
-- proof that reuse, extension, map composition, and generator/taxonomy extension were considered;
-- approval reference;
-- follow-up gate;
-- expiring timestamp.
+- review gate;
+- expiry date no more than 90 days away.
 
-Permanent, expired, stale, unowned, map-less, inferred, or incomplete exceptions fail closed. The current registry contains no exceptions.
+Permanent, expired, stale, unowned, map-less, inferred, or incomplete exceptions fail closed. The expected steady state is:
+
+```json
+{
+  "intentional_unclassified": []
+}
+```
 
 ## Staleness
 
@@ -109,18 +128,44 @@ The Spec Kit manifest binds:
 - Work Map index source hash;
 - coverage matrix source hash;
 - Work Map registry fingerprint;
+- classification registry hash;
 - map and domain counts;
-- remaining taxonomy-gap clusters.
+- unresolved and intentional exception counts.
 
-The classification gate independently binds the live generator output to migrations and the intentional-exception registry. When maps, migrations, schema taxonomy, or classification rules change, CI regenerates the live classification report and rejects unresolved drift.
+When maps, migrations, schema taxonomy, classification rules, or exception records change, generated documentation and Spec Kit manifests become stale and must be regenerated or reviewed again.
+
+## Implementation readiness
+
+A runtime or repository-governance change is blocked unless:
+
+- every map decision exists;
+- every domain decision exists;
+- integrated and extended decisions bind requirements, tasks, acceptance tests, and evidence;
+- cross-map dependencies are valid;
+- no unresolved schema object exists;
+- intentional exceptions are current and approved;
+- dimension discovery has no unresolved entry;
+- the registry fingerprint is current;
+- `review_state` is `ready_for_implementation`;
+- `implementation_readiness.status` is `ready`.
+
+Documentation-only drafting may retain unresolved decisions, but it never creates implementation authority.
 
 ## CI commands
 
-```text
-node http-generic-api/scripts/work-map-classification-gate.mjs --ci
+```bash
+node http-generic-api/scripts/platform-work-map-generator.mjs --check
+node http-generic-api/scripts/work-map-schema-classification.mjs
 node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-node http-generic-api/test-work-map-classification-gate.mjs
-node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+```
+
+Regression tests:
+
+```bash
+cd http-generic-api
+node test-work-map-schema-classification.mjs
+node test-spec-kit-work-map-governance-gate.mjs
+node test-spec-kit-completion-gate.mjs
 ```
 
 The dedicated workflow is:
@@ -128,6 +173,12 @@ The dedicated workflow is:
 ```text
 .github/workflows/spec-kit-work-map-integration.yml
 ```
+
+## Discovery of new platform dimensions
+
+A missing dimension is first treated as a possible gap in current taxonomy or map composition. The reviewer must compare it with the closest existing maps and document why reuse, extension, composition, and generator extension are insufficient.
+
+Only then may the result become a separately approved `new_work_map_candidate`. That proposal does not create implementation readiness in the same cycle.
 
 ## Legacy behavior
 
@@ -144,3 +195,5 @@ The automation is repository governance only. It does not:
 - execute external writes;
 - approve runtime authority;
 - modify generated Work Maps manually.
+
+Generated manifests and maps must not include credentials, signed URLs, raw provider payloads, raw database rows, private document contents, or unnecessary personal information.
