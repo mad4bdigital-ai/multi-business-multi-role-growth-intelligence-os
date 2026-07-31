@@ -74,6 +74,13 @@ The independent Spec 012 test manifest runs:
 
 The suite proves deterministic compilation, version pinning, visibility, tenant ceilings, no-secret handling, exact approval/readback, invalidation failure behavior, governed rollback, SQL ordering/scoping, unregistered migrations, contract completeness, and absence of route wiring.
 
+## Final head provenance
+
+- Latest `main` observed before the final human-authored CI head: `c86161e48359eb5be3a3567036d7d343b14cfe1e`.
+- The only newer `main` delta from the branch merge base was documentation and Work Map output outside the 22-file phase write set; no phase file overlap was present.
+- Deterministic frontend artifacts were regenerated, bounded-write verified, and committed by `PR Generated Artifact Refresh` at `d2154e34ce4f16a4cea55eb9654539ad03af68d6`.
+- This provenance update creates the human-authored verification head after automation output; it does not authorize or apply migrations, wire runtime routes, deploy, restart, or mutate production.
+
 ## Explicit non-effects
 
 This phase performs no:
