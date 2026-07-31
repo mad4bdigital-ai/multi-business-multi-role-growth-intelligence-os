@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "915a0c8ed94731b7c9340743272e678ee101e44af947bcd93ced9322c46d4848",
+    "source_digest": "38f445014fa2bd6a8f0088304c5a16f92710c79913d292ccfe07a5ddf096df52",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -351,7 +351,7 @@
       },
       {
         "file": "routes/agentRegistryRoutes.js",
-        "sha256": "dbc50bd7911e663c911409055395a1ebf144f21831339207c61c49ae294dfcfb",
+        "sha256": "97d795ac3de6f3e27f17a1e9b6dcfd2d2957853236287efddcafa7d1cc4e5e66",
         "present": true
       },
       {
@@ -63144,7 +63144,7 @@
       "family_key": "agent-registry",
       "label": "agent registry",
       "source_file": "routes/agentRegistryRoutes.js",
-      "source_digest": "dbc50bd7911e663c911409055395a1ebf144f21831339207c61c49ae294dfcfb",
+      "source_digest": "97d795ac3de6f3e27f17a1e9b6dcfd2d2957853236287efddcafa7d1cc4e5e66",
       "mount_prefix": "/",
       "mount_order": 20397,
       "split_from_mixed_scope_file": false,
