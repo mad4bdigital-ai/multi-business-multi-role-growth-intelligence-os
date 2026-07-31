@@ -1,9 +1,42 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
 
-const testCommands = Object.freeze([
-  ...spec011Commands,
+const authorityRecoveryTestCommands = Object.freeze([
+  "node test-context-kernel-principal-resolver.mjs",
+  "node test-context-kernel-subject-scope-delegation-resolver.mjs",
+  "node test-context-kernel-subject-delegation-fail-closed.mjs",
+  "node test-context-kernel-resource-graph-resolver.mjs",
+  "node test-context-kernel-resource-graph-fail-closed.mjs",
+  "node test-context-kernel-semantic-capability-before-provider.mjs",
+  "node test-context-kernel-policy-grant-evaluator.mjs",
+  "node test-context-kernel-policy-grant-fail-closed.mjs",
+  "node test-context-kernel-endpoint-certification-resolver.mjs",
+  "node test-context-kernel-endpoint-certification-fail-closed.mjs",
+  "node test-context-kernel-shadow-authority-parity.mjs",
+  "node test-context-kernel-shadow-authority-parity-fail-closed.mjs",
+  "node test-authority-catalog-census.mjs",
+]);
+
+const growthControlContinuationTestCommands = Object.freeze([
+  "node test-growth-control-internal-reference-workflow.mjs",
+  "node test-growth-control-policy-compiler.mjs",
+  "node test-growth-control-final-boundary.mjs",
+  "node test-growth-control-provider-adapter-resolver.mjs",
+  "node test-growth-control-provider-effect-reconciliation.mjs",
+  "node test-growth-control-idempotency-lease-outbox-integration.mjs",
+  "node test-growth-control-admin-ui-projection.mjs",
+  "node test-growth-control-admin-ui-default-normalization.mjs",
+  "node test-growth-control-tenant-role-field-policy.mjs",
+  "node test-growth-control-typed-invalidation-consumer.mjs",
+]);
+
+export const testCommands = Object.freeze([
+  ...canonicalTestCommands,
+  ...authorityRecoveryTestCommands,
+  ...growthControlContinuationTestCommands,
 ]);
 
 function parseArgs(argv) {
@@ -91,8 +124,8 @@ function runCommand(command) {
   return result.status ?? 1;
 }
 
-function main() {
-  const options = parseArgs(process.argv.slice(2));
+export function runTestManifest(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
   const selectedCommands = options.grep
     ? testCommands.filter((command) => command.includes(options.grep))
     : testCommands;
@@ -101,12 +134,12 @@ function main() {
     selectedCommands.forEach((command, index) => {
       console.log(`${index + 1}. ${command}`);
     });
-    return;
+    return 0;
   }
 
   if (!selectedCommands.length) {
     console.error("No test commands matched.");
-    process.exit(1);
+    return 1;
   }
 
   for (let index = 0; index < selectedCommands.length; index += 1) {
@@ -116,14 +149,22 @@ function main() {
     if (status !== 0) {
       const escaped = command.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
       console.error(`::error title=Test command failed::${escaped} exited with status ${status}`);
-      process.exit(status);
+      return status;
     }
   }
+  return 0;
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error?.message || error);
-  process.exit(1);
+function isDirectExecution() {
+  if (!process.argv[1]) return false;
+  return pathToFileURL(path.resolve(process.argv[1])).href === pathToFileURL(fileURLToPath(import.meta.url)).href;
+}
+
+if (isDirectExecution()) {
+  try {
+    process.exitCode = runTestManifest();
+  } catch (error) {
+    console.error(error?.message || error);
+    process.exitCode = 1;
+  }
 }
