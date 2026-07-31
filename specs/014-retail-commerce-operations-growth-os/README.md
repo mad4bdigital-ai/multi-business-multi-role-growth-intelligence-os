@@ -1,8 +1,59 @@
 # Spec 014 — Brand-Scoped Commerce Enablement, Retail Operations, WordPress/WooCommerce, Growth, and Workspace Files
 
-This Spec Kit defines Brand-scoped commerce authority, a Commerce Enablement Fabric, Solution Blueprints, reuse of the repository's WordPress phases A–P, WooCommerce discovery/REST/bridge/projection modes, ERPNext and Platform Native modes, operations monitoring, and Workspace File Fabric with Google Drive.
+## الغرض
 
-Normative details are in:
+تعرّف هذه الحزمة معمارًا يمكّن كل Tenant وBrand من اكتشاف قدرات المنصة والأنظمة المتصلة، مقارنة حلول التجارة الإلكترونية، اختيار Blueprint مناسبة، تنفيذها بخطة محكومة، ومتابعة التشغيل بعد الإطلاق.
+
+الأنماط تشمل Platform Native وERPNext وWordPress/WooCommerce القياسية والمحكومة والهجينة، إضافة إلى Google Drive وWorkspace File Fabric.
+
+## المبادئ الحاكمة
+
+- Brand إلزامية لكل عملية تجارة.
+- مصدر كتابة واحد لكل Domain داخل Brand.
+- Capability Discovery وBlueprint Recommendation لا تمنح Authority.
+- Capability Availability منفصلة عن Implementation Maturity.
+- WordPress A–P يعاد استخدامها كـSite Lifecycle Capability Packs.
+- Active Plugin لا يثبت Compatibility.
+- WooCommerce Standard لا يثبت Atomic Unique-item Safety بين القنوات.
+- Governed Bridge مطلوبة للـStrict Shared Inventory Invariants.
+- Exact Brand Connections وWebhook Inbox وReadback وCertification إلزامية.
+- كل Launch تشمل Backup وRollback وQA وObservability وReconciliation.
+
+## Commerce Enablement Fabric
+
+```text
+Tenant → Workspace → Brand → Goal
+→ Assets and Connections → Capability Graph
+→ Solution Blueprints → Readiness and Gaps
+→ Implementation Plan → Launch Gates → Operations Cockpit
+```
+
+## الأنماط الأساسية
+
+- Platform Native Commerce؛
+- ERPNext Commerce Authority؛
+- WooCommerce Standard Brand Store؛
+- WooCommerce Governed Bridge؛
+- WooCommerce + ERPNext؛
+- Headless WooCommerce؛
+- WordPress Content + External Commerce؛
+- Existing Store Operational Takeover؛
+- Content-led Lead Commerce.
+
+## WordPress A–P
+
+تغطي المحتوى والـBuilders والإعدادات والنماذج والوسائط والمستخدمين وSEO وAnalytics وPerformance وSecurity وObservability وBackup وRelease وIntegrity وQA وProduction Cutover.
+
+## WooCommerce
+
+تغطي Discovery وStandard REST وGoverned Bridge وProjection، بالإضافة إلى Products وVariations وInventory وCheckout وOrders وCustomers وCoupons وPayments وRefunds وShipping وWebhooks وScheduled Actions وExtension Compatibility.
+
+## واجهات المستخدم
+
+- Enablement Center لاختيار Blueprint وعرض القدرات والفجوات والخطة؛
+- Operations Cockpit لمتابعة المتجر والموقع والطلبات والدفع والمخزون والـWebhooks والأداء والأمن والنسخ الاحتياطي والقياس والحوادث والمصالحة.
+
+## الوثائق المعيارية
 
 - `brand-scoped-commerce-authority.md`
 - `commerce-enablement-and-solution-blueprints.md`
@@ -15,17 +66,6 @@ Normative details are in:
 - `contracts/wordpress-woocommerce-adapter.schema.json`
 - `contracts/commerce-provider-adapter.schema.json`
 
-Core invariants:
+## حدود الإثبات
 
-1. Brand is mandatory for commerce.
-2. One writer exists per bounded domain per Brand.
-3. Capability discovery and Blueprint recommendation do not grant authority.
-4. Availability and implementation maturity are separate.
-5. Existing WordPress A–P capabilities are reused rather than duplicated.
-6. Active plugins do not prove compatibility.
-7. Standard WooCommerce does not claim cross-channel atomic unique-item safety.
-8. A governed Bridge is required for strict shared inventory invariants.
-9. Exact Brand connections, Webhook Inbox, readback, certification, backup, rollback, QA, observability, and reconciliation are required.
-10. Documentation, demos, and mocks are not production evidence.
-
-This PR is specification-only and performs no Runtime, database, provider, WordPress, WooCommerce, Google Drive, DNS, payment, catalog, or production mutation.
+هذه PR مواصفة فقط. لم يحدث Runtime أو Database أو Provider أو WordPress أو WooCommerce أو Google Drive أو DNS أو Payment أو Catalog أو Production mutation، ولا تحتوي Secrets.
