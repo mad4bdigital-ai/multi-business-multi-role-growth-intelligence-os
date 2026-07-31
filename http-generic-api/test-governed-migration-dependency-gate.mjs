@@ -30,6 +30,31 @@ assert.deepEqual(migrationEvidence(MIGRATION_1007), {
   statement_count: 1,
 });
 
+const protectedRegionSql = `
+-- A SELECT token inside a comment is not a boundary.
+SET @dynamic_sql := 'SELECT 1; SELECT 2; still one string';
+/* SELECT 99; remains comment text. */
+SELECT JSON_OBJECT('message', 'alpha; SELECT beta', 'enabled', true) AS payload;
+SELECT "quoted; SELECT text" AS note;
+`;
+const protectedStatements = splitMigrationSqlStatements(protectedRegionSql);
+assert.equal(protectedStatements.length, 3);
+assert.match(protectedStatements[0], /^--[\s\S]*SET\s+@dynamic_sql/i);
+assert.match(protectedStatements[0], /SELECT 1; SELECT 2; still one string/);
+assert.match(protectedStatements[1], /^\/\*[\s\S]*SELECT\s+JSON_OBJECT/i);
+assert.match(protectedStatements[1], /alpha; SELECT beta/);
+assert.match(protectedStatements[2], /^SELECT\s+"quoted; SELECT text"/i);
+
+const hostingerPolicySql = readFileSync(
+  new URL("./migrations/20260730_hostinger_production_resync_policy.sql", import.meta.url),
+  "utf8",
+);
+const hostingerPolicyStatements = splitMigrationSqlStatements(hostingerPolicySql);
+assert.equal(hostingerPolicyStatements.length, 10);
+assert.match(hostingerPolicyStatements[7], /^INSERT\s+INTO/i);
+assert.match(hostingerPolicyStatements[8], /^SELECT\b/i);
+assert.match(hostingerPolicyStatements[9], /^SELECT\b/i);
+
 const registry = await loadGovernedMigrationDependencyRegistry();
 assert.equal(registry.schema_version, "governed_migration_dependencies.v1");
 assert.equal(registry.secrets_included, false);
