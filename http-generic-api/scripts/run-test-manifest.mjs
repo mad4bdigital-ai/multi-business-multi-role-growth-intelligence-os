@@ -19,6 +19,7 @@ const authorityRecoveryTestCommands = Object.freeze([
 ]);
 const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-internal-reference-workflow.mjs",
+  "node test-growth-control-policy-compiler.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,
