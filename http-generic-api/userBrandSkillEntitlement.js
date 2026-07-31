@@ -58,15 +58,28 @@ function inferOperationFromSignal(signal = "") {
   return null;
 }
 
+function strongerOperation(currentOperation, candidateOperation) {
+  if (!currentOperation) return candidateOperation || null;
+  if (!candidateOperation || candidateOperation === currentOperation) return currentOperation;
+  if (currentOperation === "*" || candidateOperation === "*") return "*";
+  const currentPermission = requiredResourcePermissionForBrandSkillOperation(currentOperation);
+  const candidatePermission = requiredResourcePermissionForBrandSkillOperation(candidateOperation);
+  const currentRank = resourcePermissionRank(currentPermission);
+  const candidateRank = resourcePermissionRank(candidatePermission);
+  if (candidateRank > currentRank) return candidateOperation;
+  if (candidateRank < currentRank) return currentOperation;
+  return "*";
+}
+
 function inferEffectControlOperation(args = {}) {
   if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  let inferred = null;
   for (const key of EFFECT_CONTROL_KEYS) {
     const value = args[key];
     if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") continue;
-    const operation = inferOperationFromSignal(`${key} ${String(value)}`);
-    if (operation) return operation;
+    inferred = strongerOperation(inferred, inferOperationFromSignal(`${key} ${String(value)}`));
   }
-  return null;
+  return inferred;
 }
 
 function elevateOperationByEffectControl(structuralOperation, controlOperation) {
