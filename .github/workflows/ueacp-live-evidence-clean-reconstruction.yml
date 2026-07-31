@@ -1,0 +1,118 @@
+name: UEACP Live Evidence Clean Reconstruction
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - .github/workflows/ueacp-live-evidence-clean-reconstruction.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ueacp-live-evidence-clean-reconstruction-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  reconstruct:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/011-ueacp-live-evidence-migration-readiness-clean-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout clean target branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/011-ueacp-live-evidence-migration-readiness-clean-20260731
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Reconstruct exact integrated wave
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_BRANCH='gpt/011-ueacp-live-evidence-migration-readiness-wave-20260731'
+          TARGET_BRANCH='gpt/011-ueacp-live-evidence-migration-readiness-clean-20260731'
+          WORKFLOW='.github/workflows/ueacp-live-evidence-clean-reconstruction.yml'
+          git fetch origin main "$SOURCE_BRANCH" "$TARGET_BRANCH"
+
+          paths=(
+            '.github/scripts/authority-live-census-observation.mjs'
+            'http-generic-api/authorityLiveCensusAdapter.js'
+            'http-generic-api/authorityLiveEvidenceOrchestrator.js'
+            'http-generic-api/scripts/authority-live-evidence-review.mjs'
+            'http-generic-api/test-authority-live-census-observer-contract.mjs'
+            'http-generic-api/test-authority-live-census-adapter.mjs'
+            'http-generic-api/test-authority-live-evidence-orchestrator.mjs'
+            'http-generic-api/test-authority-live-evidence-fail-closed.mjs'
+            'specs/011-unified-effective-authority-control-plane/authority-evidence-source-ownership-phase-closeout.md'
+            'specs/011-unified-effective-authority-control-plane/authority-live-evidence-migration-readiness-phase.md'
+            'specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-authorization.schema.json'
+            'specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-packet.schema.json'
+          )
+          git checkout "origin/$SOURCE_BRANCH" -- "${paths[@]}"
+          git checkout origin/main -- http-generic-api/scripts/run-test-manifest.mjs
+
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/run-test-manifest.mjs')
+          text = path.read_text()
+          anchor = '  "node test-authority-ownership-review.mjs",\n'
+          additions = ''.join([
+              '  "node test-authority-live-census-observer-contract.mjs",\n',
+              '  "node test-authority-live-census-adapter.mjs",\n',
+              '  "node test-authority-live-evidence-orchestrator.mjs",\n',
+              '  "node test-authority-live-evidence-fail-closed.mjs",\n',
+          ])
+          if anchor not in text:
+              raise SystemExit('authority ownership review manifest anchor is missing')
+          for line in additions.splitlines(keepends=True):
+              text = text.replace(line, '')
+          text = text.replace(anchor, anchor + additions)
+          path.write_text(text)
+          PY
+
+          rm -f "$WORKFLOW"
+
+          expected=$(cat <<'EOF'
+          .github/scripts/authority-live-census-observation.mjs
+          http-generic-api/authorityLiveCensusAdapter.js
+          http-generic-api/authorityLiveEvidenceOrchestrator.js
+          http-generic-api/scripts/authority-live-evidence-review.mjs
+          http-generic-api/scripts/run-test-manifest.mjs
+          http-generic-api/test-authority-live-census-adapter.mjs
+          http-generic-api/test-authority-live-census-observer-contract.mjs
+          http-generic-api/test-authority-live-evidence-fail-closed.mjs
+          http-generic-api/test-authority-live-evidence-orchestrator.mjs
+          specs/011-unified-effective-authority-control-plane/authority-evidence-source-ownership-phase-closeout.md
+          specs/011-unified-effective-authority-control-plane/authority-live-evidence-migration-readiness-phase.md
+          specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-authorization.schema.json
+          specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-packet.schema.json
+          EOF
+          )
+          actual=$(git diff --name-only origin/main | sort)
+          test "$actual" = "$(printf '%s\n' "$expected" | sort)"
+
+          test "$(grep -c 'node test-authority-live-census-observer-contract.mjs' http-generic-api/scripts/run-test-manifest.mjs)" -eq 1
+          test "$(grep -c 'node test-authority-live-census-adapter.mjs' http-generic-api/scripts/run-test-manifest.mjs)" -eq 1
+          test "$(grep -c 'node test-authority-live-evidence-orchestrator.mjs' http-generic-api/scripts/run-test-manifest.mjs)" -eq 1
+          test "$(grep -c 'node test-authority-live-evidence-fail-closed.mjs' http-generic-api/scripts/run-test-manifest.mjs)" -eq 1
+          ! grep -q 'COLUMN_DEFAULT' .github/scripts/authority-live-census-observation.mjs
+
+          node --check .github/scripts/authority-live-census-observation.mjs
+          node --check http-generic-api/authorityLiveCensusAdapter.js
+          node --check http-generic-api/authorityLiveEvidenceOrchestrator.js
+          node --check http-generic-api/scripts/authority-live-evidence-review.mjs
+          (
+            cd http-generic-api
+            node test-authority-live-census-observer-contract.mjs
+            node test-authority-live-census-adapter.mjs
+            node test-authority-live-evidence-orchestrator.mjs
+            node test-authority-live-evidence-fail-closed.mjs
+          )
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(spec-011): reconstruct governed live evidence wave on current main'
+          git push origin "HEAD:$TARGET_BRANCH"
