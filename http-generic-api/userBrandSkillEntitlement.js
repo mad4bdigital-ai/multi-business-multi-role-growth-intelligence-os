@@ -51,13 +51,15 @@ function isConsequentialAction(toolName = "", args = {}, action = null) {
 
 export function inferBrandSkillOperation(toolName = "", args = {}, action = null, context = {}) {
   const explicit = normalize(context.operation_intent || context.operation || "");
-  if (explicit) return explicit;
-
-  const operation = inferOperationFromSignal(
+  const inferred = inferOperationFromSignal(
     `${toolName} ${action?.action_key || ""} ${Object.keys(args || {}).join("_")}`
   );
-  if (operation) return operation;
-  return isConsequentialAction(toolName, args, action) ? null : "use";
+  if (inferred) {
+    if (explicit && explicit !== inferred) return null;
+    return inferred;
+  }
+  if (explicit && context.brand_skill_operation_intent_trusted === true) return explicit;
+  return isConsequentialAction(toolName, args, action) ? null : explicit || "use";
 }
 
 function denied(policy, reason, operation = null, extras = {}) {
