@@ -2,23 +2,108 @@ function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function parseArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined || value === "") return [];
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizedSet(value) {
+  return new Set(parseArray(value).map((item) => normalize(item)).filter(Boolean));
+}
+
+function operationAllowed(value, operation) {
+  const allowed = normalizedSet(value);
+  return allowed.has("*") || allowed.has(normalize(operation));
+}
+
+function inferOperationFromSignal(signal = "") {
+  const normalized = normalize(signal);
+  const rules = [
+    [/(?:^|[._-])(delete|remove)(?:$|[._-])/, "delete"],
+    [/(?:^|[._-])revoke(?:$|[._-])/, "revoke"],
+    [/(?:^|[._-])publish(?:$|[._-])/, "publish"],
+    [/(?:^|[._-])send(?:$|[._-])/, "send"],
+    [/(?:^|[._-])(create|insert|add)(?:$|[._-])/, "create"],
+    [/(?:^|[._-])(update|edit|patch|write|sync)(?:$|[._-])/, "update"],
+    [/(?:^|[._-])(dispatch|trigger)(?:$|[._-])/, "dispatch"],
+    [/(?:^|[._-])(deploy|restart|apply|execute|run|migrate|rollback|install|uninstall|start|stop|approve)(?:$|[._-])/, "execute"],
+  ];
+  for (const [pattern, operation] of rules) {
+    if (pattern.test(normalized)) return operation;
+  }
+  return null;
+}
+
+function isConsequentialAction(toolName = "", args = {}, action = null) {
+  const capabilityClass = normalize(action?.runtime_capability_class);
+  if (["mcp_connector", "http_transport_executor", "system_control", "data_write"].includes(capabilityClass)) {
+    return true;
+  }
+  const argumentKeys = Object.keys(args && typeof args === "object" && !Array.isArray(args) ? args : {});
+  return Boolean(inferOperationFromSignal(`${toolName} ${action?.action_key || ""} ${argumentKeys.join("_")}`));
+}
+
 export function inferBrandSkillOperation(toolName = "", args = {}, action = null, context = {}) {
   const explicit = normalize(context.operation_intent || context.operation || "");
   if (explicit) return explicit;
 
-  const signals = [
-    normalize(`${toolName} ${Object.keys(args || {}).join(" ")}`),
-    normalize(action?.action_key || ""),
-  ];
-  for (const signal of signals) {
-    if (/(delete|remove|revoke)/.test(signal)) return "delete";
-    if (/(publish|send)/.test(signal)) return "publish";
-    if (/(create|insert|add)/.test(signal)) return "create";
-    if (/(update|edit|patch|write)/.test(signal)) return "update";
-    if (/(dispatch|trigger)/.test(signal)) return "dispatch";
-    if (/(deploy|restart|apply|execute|run)/.test(signal)) return "execute";
+  const operation = inferOperationFromSignal(
+    `${toolName} ${action?.action_key || ""} ${Object.keys(args || {}).join("_")}`
+  );
+  if (operation) return operation;
+  return isConsequentialAction(toolName, args, action) ? null : "use";
+}
+
+function denied(policy, reason, operation = null, extras = {}) {
+  return {
+    configured: true,
+    granted: false,
+    grant_id: null,
+    operation,
+    policy_id: policy?.policy_id || null,
+    reason,
+    ...extras,
+  };
+}
+
+async function resolveActiveMembership(pool, tenantId, userId) {
+  const [rows] = await pool.query(
+    `SELECT m.role, m.status, t.status AS tenant_status
+       FROM memberships m
+       JOIN tenants t ON t.tenant_id = m.tenant_id
+      WHERE m.tenant_id = ? AND m.user_id = ?
+      LIMIT 1`,
+    [tenantId, userId]
+  );
+  const membership = rows[0] || null;
+  if (!membership || normalize(membership.status) !== "active" || normalize(membership.tenant_status) !== "active") {
+    return null;
   }
-  return "use";
+  return membership;
+}
+
+async function resolveActiveResourceAuthority(pool, grant, { tenantId, userId, resourceType, resourceRef }) {
+  if (!grant?.resource_grant_id) return null;
+  const [rows] = await pool.query(
+    `SELECT grant_id, permission
+       FROM workspace_resource_grants
+      WHERE grant_id = ?
+        AND tenant_id = ?
+        AND grantee_user_id = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        AND resource_type = ?
+        AND resource_ref = ?
+      LIMIT 1`,
+    [grant.resource_grant_id, tenantId, userId, resourceType, resourceRef]
+  );
+  return rows[0] || null;
 }
 
 export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}, {
@@ -47,7 +132,9 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
   }
 
   const [policyRows] = await pool.query(
-    `SELECT p.policy_id, p.activation_mode
+    `SELECT p.policy_id, p.activation_mode, p.allowed_roles_json,
+            p.allowed_agent_ids_json, p.allowed_operations_json,
+            p.requires_resource_binding
        FROM brand_skill_policies p
        JOIN agent_skills s ON s.skill_id = p.skill_id AND s.status = 'active'
       WHERE p.tenant_id = ? AND p.brand_key = ? AND s.skill_key = ? AND p.status = 'active'
@@ -65,46 +152,110 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     };
   }
   if (normalize(policy.activation_mode) === "disabled") {
-    return {
-      configured: true,
-      granted: false,
-      grant_id: null,
-      operation: null,
-      policy_id: policy.policy_id,
-      reason: "brand_skill_policy_disabled",
-    };
+    return denied(policy, "brand_skill_policy_disabled");
   }
   if (!userId) {
-    return {
-      configured: true,
-      granted: false,
-      grant_id: null,
-      operation: null,
-      policy_id: policy.policy_id,
-      reason: "user_brand_skill_grant_user_required",
-    };
+    return denied(policy, "user_brand_skill_grant_user_required");
+  }
+
+  const membership = await resolveActiveMembership(pool, tenantId, userId);
+  if (!membership) {
+    return denied(policy, "user_brand_skill_membership_inactive");
+  }
+  const allowedRoles = normalizedSet(policy.allowed_roles_json);
+  if (allowedRoles.size && !allowedRoles.has(normalize(membership.role))) {
+    return denied(policy, "user_brand_skill_role_no_longer_allowed", null, {
+      membership_role: membership.role || null,
+    });
+  }
+  const allowedAgents = new Set(parseArray(policy.allowed_agent_ids_json).map((item) => String(item || "").trim()).filter(Boolean));
+  if (allowedAgents.size && !allowedAgents.has(agentId)) {
+    return denied(policy, "user_brand_skill_agent_no_longer_allowed", null, {
+      membership_role: membership.role || null,
+    });
   }
 
   const operation = inferBrandSkillOperation(toolName, args, action, context);
+  if (!operation) {
+    return denied(policy, "brand_skill_operation_unresolved", null, {
+      membership_role: membership.role || null,
+    });
+  }
+  if (!operationAllowed(policy.allowed_operations_json, operation)) {
+    return denied(policy, "brand_skill_operation_no_longer_allowed", operation, {
+      membership_role: membership.role || null,
+    });
+  }
+
   const resourceType = String(context.resource_type || "").trim();
   const resourceRef = String(context.resource_ref || context.target_ref || "").trim();
+  const requiresResourceBinding = Number(policy.requires_resource_binding || 0) === 1;
+  if (requiresResourceBinding && (!resourceType || !resourceRef)) {
+    return denied(policy, "user_brand_skill_resource_scope_required", operation, {
+      membership_role: membership.role || null,
+    });
+  }
+
   const [grantRows] = await pool.query(
-    `SELECT grant_id, resource_type, resource_ref
+    `SELECT grant_id, resource_grant_id, resource_type, resource_ref
        FROM v_effective_user_brand_skill_grants
       WHERE tenant_id = ? AND user_id = ? AND brand_key = ? AND agent_id = ? AND skill_key = ?
+        AND policy_id = ?
         AND (JSON_CONTAINS(allowed_operations_json, JSON_QUOTE('*'))
              OR JSON_CONTAINS(allowed_operations_json, JSON_QUOTE(?)))
-        AND (resource_type IS NULL OR (resource_type = ? AND resource_ref = ?))
+        AND (
+          (? = 1 AND resource_type = ? AND resource_ref = ?)
+          OR
+          (? = 0 AND (resource_type IS NULL OR (resource_type = ? AND resource_ref = ?)))
+        )
       LIMIT 1`,
-    [tenantId, userId, brandKey, agentId, skillKey, operation, resourceType, resourceRef]
+    [
+      tenantId,
+      userId,
+      brandKey,
+      agentId,
+      skillKey,
+      policy.policy_id,
+      operation,
+      requiresResourceBinding ? 1 : 0,
+      resourceType,
+      resourceRef,
+      requiresResourceBinding ? 1 : 0,
+      resourceType,
+      resourceRef,
+    ]
   );
   const grant = grantRows[0] || null;
+  if (!grant) {
+    return denied(policy, "user_brand_skill_grant_missing", operation, {
+      membership_role: membership.role || null,
+    });
+  }
+
+  let resourceAuthority = null;
+  if (requiresResourceBinding) {
+    resourceAuthority = await resolveActiveResourceAuthority(pool, grant, {
+      tenantId,
+      userId,
+      resourceType,
+      resourceRef,
+    });
+    if (!resourceAuthority) {
+      return denied(policy, "user_brand_skill_resource_authority_inactive", operation, {
+        membership_role: membership.role || null,
+      });
+    }
+  }
+
   return {
     configured: true,
-    granted: Boolean(grant),
-    grant_id: grant?.grant_id || null,
+    granted: true,
+    grant_id: grant.grant_id,
     operation,
     policy_id: policy.policy_id,
-    reason: grant ? null : "user_brand_skill_grant_missing",
+    membership_role: membership.role || null,
+    resource_authority_valid: requiresResourceBinding ? true : null,
+    resource_grant_id: resourceAuthority?.grant_id || grant.resource_grant_id || null,
+    reason: null,
   };
 }
