@@ -21,7 +21,7 @@ permissions:
 
 concurrency:
   group: spec-kit-work-map-artifacts-${{ github.repository }}-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   regenerate:
