@@ -5,7 +5,7 @@ import { promises as fs } from 'node:fs';
 const workflow = await fs.readFile('../.github/workflows/response-chunk-ownership-governed-rollout.yml', 'utf8');
 const runner = await fs.readFile('../.github/ops/response-chunk-ownership-governed-rollout.mjs', 'utf8');
 const runtimeClosure = await fs.readFile('../.github/ops/response-chunk-ownership-runtime-closure.mjs', 'utf8');
-const manifest = await fs.readFile('./scripts/test-manifest.mjs', 'utf8');
+const registeredPromotionSuite = await fs.readFile('./test-production-promotion-convergence-workflows.mjs', 'utf8');
 const migration = await fs.readFile('./migrations/20260728_governed_response_chunk_ownership.sql', 'utf8');
 
 assert.match(workflow, /issue_comment:/);
@@ -48,6 +48,9 @@ assert.match(runtimeClosure, /secrets_included: false/);
 assert.match(migration, /requires_migration_first_rollout/);
 assert.match(migration, /legacy_backfill',FALSE/);
 assert.match(migration, /'high',0,1,1/);
-assert.match(manifest, /node test-response-chunk-ownership-governed-rollout-control\.mjs/);
+assert.match(
+  registeredPromotionSuite,
+  /await import\("\.\/test-response-chunk-ownership-governed-rollout-control\.mjs"\)/,
+);
 
 console.log('response chunk ownership governed rollout control contract: pass');
