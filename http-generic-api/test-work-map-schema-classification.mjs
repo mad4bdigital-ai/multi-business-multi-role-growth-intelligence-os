@@ -5,6 +5,9 @@ import path from "node:path";
 import { buildSchemaIntelligenceMaps } from "./scripts/platform-work-map-schema-intelligence.mjs";
 import { validateSchemaClassification } from "./scripts/work-map-schema-classification.mjs";
 
+const REGISTRY_OBJECT = "quasar_zeta_rows";
+const UNRESOLVED_OBJECT = "novel_unmapped_dimension_records";
+
 function write(root, relative, content) {
   const file = path.join(root, relative);
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -16,12 +19,19 @@ function registry(intentional = []) {
     schema_version: 1,
     registry_key: "work_map_schema_classification_registry_v1",
     default_disposition: "blocked",
+    explicit_only_namespaces: [],
     rules: [{
-      rule_key: "canonical_identifier_registries",
-      match: { prefixes: ["canonical_identifier_"] },
+      rule_key: "quasar_fixture_objects",
+      scope: "governed_family",
+      match: { prefixes: ["quasar_"] },
+      family_owner: "platform-architecture",
+      future_object_policy: "same_domain_by_contract",
+      boundary: "Only synthetic quasar fixture objects created by this isolated regression test belong to this family.",
+      positive_examples: [REGISTRY_OBJECT],
+      negative_examples: ["customer_records"],
       domain: "Platform resources & graph",
       existing_map_refs: ["platform-resource-graph-map", "policy-authority-map", "data-model-domain-map"],
-      rationale: "Canonical identifier registries extend the existing resource and authority maps."
+      rationale: "Synthetic quasar fixture objects prove registry classification independently from production keyword rules."
     }],
     intentional_unclassified: intentional,
     secrets_included: false
@@ -34,10 +44,16 @@ function fixture(intentional = []) {
   write(root, ".specify/work-map-schema-classification-registry.json", JSON.stringify(registry(intentional), null, 2));
   write(root, "http-generic-api/migrations/001_fixture.sql", [
     "CREATE TABLE users (id BIGINT PRIMARY KEY);",
-    "CREATE TABLE canonical_identifier_contract_registry (id BIGINT PRIMARY KEY);",
-    "CREATE TABLE novel_unmapped_dimension_records (id BIGINT PRIMARY KEY);",
+    `CREATE TABLE ${REGISTRY_OBJECT} (id BIGINT PRIMARY KEY);`,
+    `CREATE TABLE ${UNRESOLVED_OBJECT} (id BIGINT PRIMARY KEY);`,
   ].join("\n"));
   return root;
+}
+
+function classificationFor(generated, objectName) {
+  const row = generated.catalog.find((candidate) => candidate.object_name === objectName);
+  assert(row, `Expected generated catalog to contain ${objectName}`);
+  return row;
 }
 
 const indexText = [
@@ -52,11 +68,34 @@ const indexText = [
 
 {
   const root = fixture();
-  const generated = buildSchemaIntelligenceMaps({ repoRoot: root });
+  const previousCwd = process.cwd();
+  process.chdir(os.tmpdir());
+  let generated;
+  try {
+    generated = buildSchemaIntelligenceMaps({ repoRoot: root });
+  } finally {
+    process.chdir(previousCwd);
+  }
+
   assert.equal(generated.metrics.total_discovered_objects, 3);
   assert.equal(generated.metrics.unresolved_unclassified_objects, 1);
-  assert.match(generated.maps["work-map-coverage-matrix.md"], /novel_unmapped_dimension_records/);
-  assert.match(generated.maps["platform-resource-graph-map.md"], /canonical_identifier_contract_registry/);
+  assert.equal(generated.metrics.registry_classified_objects, 1);
+
+  const builtin = classificationFor(generated, "users");
+  assert.equal(builtin.classification_source, "builtin");
+
+  const registered = classificationFor(generated, REGISTRY_OBJECT);
+  assert.equal(registered.classification_source, "registry");
+  assert.equal(registered.matched_rule, "quasar_fixture_objects");
+  assert.equal(registered.domain, "Platform resources & graph");
+
+  const unresolved = classificationFor(generated, UNRESOLVED_OBJECT);
+  assert.equal(unresolved.classification_source, "unresolved");
+  assert.equal(unresolved.matched_rule, null);
+  assert.equal(unresolved.domain, null);
+
+  assert.match(generated.maps["work-map-coverage-matrix.md"], new RegExp(UNRESOLVED_OBJECT));
+  assert.match(generated.maps["platform-resource-graph-map.md"], new RegExp(REGISTRY_OBJECT));
 
   const result = validateSchemaClassification({
     root,
@@ -69,7 +108,7 @@ const indexText = [
 
 {
   const exception = {
-    object_name: "novel_unmapped_dimension_records",
+    object_name: UNRESOLVED_OBJECT,
     object_type: "table",
     owner: "platform-architecture",
     rationale: "Temporary bounded exception while existing map reuse and taxonomy extension are reviewed.",
@@ -81,6 +120,8 @@ const indexText = [
   const generated = buildSchemaIntelligenceMaps({ repoRoot: root });
   assert.equal(generated.metrics.unresolved_unclassified_objects, 0);
   assert.equal(generated.metrics.intentional_unclassified_objects, 1);
+  assert.equal(classificationFor(generated, REGISTRY_OBJECT).classification_source, "registry");
+  assert.equal(classificationFor(generated, UNRESOLVED_OBJECT).classification_source, "intentional_unclassified");
   assert.match(generated.maps["work-map-coverage-matrix.md"], /Intentionally unclassified schema objects/);
 
   const result = validateSchemaClassification({
