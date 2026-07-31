@@ -107,6 +107,7 @@
     "required": [
       "README.md",
       "spec.md",
+      "business-activity-brownfield-review.md",
       "business-activity-profile-and-inheritance.md",
       "brand-scoped-commerce-authority.md",
       "commerce-enablement-and-solution-blueprints.md",
