@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";
 
+// Keep synthetic fixtures isolated so repository manifests cannot hide validator regressions.
 const isolatedRoot = mkdtempSync(path.join(tmpdir(), "resource-api-callability-"));
 process.on("exit", () => rmSync(isolatedRoot, { recursive: true, force: true }));
 
