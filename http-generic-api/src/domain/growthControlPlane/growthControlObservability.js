@@ -193,7 +193,7 @@ export function evaluateGrowthControlSloSnapshot({ samples = [], tenantId = null
   const end = date(windowEnd, "windowEnd");
   if (end.timestamp < start.timestamp) throw new GrowthControlPlaneError("GROWTH_CONTROL_OBSERVABILITY_WINDOW_INVALID", "windowEnd must not precede windowStart.", 422);
   const expectedTenant = tenantId == null ? null : String(tenantId);
-  const brands = brandKeys == null ? null : new Set(brandKeys.map(String));
+  const brands = brandKeys == null || brandKeys.length === 0 ? null : new Set(brandKeys.map(String));
   const typed = samples.map(validateGrowthControlObservabilitySample);
   if (expectedTenant && typed.some((sample) => sample.tenantId && sample.tenantId !== expectedTenant)) throw new GrowthControlPlaneError("GROWTH_CONTROL_OBSERVABILITY_CROSS_TENANT_SAMPLE", "SLO evaluation rejected a cross-tenant sample.", 403);
   const selected = typed.filter((sample) => {
@@ -245,7 +245,7 @@ function finding(input, index) {
 export function buildGrowthControlReconciliationProjection({ findings = [], tenantId = null, brandKeys = null } = {}) {
   if (!Array.isArray(findings) || findings.length > MAX_FINDINGS) throw new GrowthControlPlaneError("GROWTH_CONTROL_RECONCILIATION_FINDING_LIMIT_EXCEEDED", `Reconciliation projection is limited to ${MAX_FINDINGS} findings.`, 422);
   const expectedTenant = tenantId == null ? null : String(tenantId);
-  const brands = brandKeys == null ? null : new Set(brandKeys.map(String));
+  const brands = brandKeys == null || brandKeys.length === 0 ? null : new Set(brandKeys.map(String));
   const typed = findings.map(finding);
   if (expectedTenant && typed.some((item) => item.tenantId && item.tenantId !== expectedTenant)) throw new GrowthControlPlaneError("GROWTH_CONTROL_RECONCILIATION_CROSS_TENANT_FINDING", "Reconciliation rejected a cross-tenant finding.", 403);
   const selected = typed.filter((item) => (!expectedTenant || item.tenantId === expectedTenant) && (!brands || brands.has(item.brandKey))).sort((a, b) => b.detectedAt.localeCompare(a.detectedAt) || a.findingId.localeCompare(b.findingId));
