@@ -2,20 +2,7 @@
 
 تعرّف هذه الحزمة معمارًا يمكّن كل Tenant وBrand من اكتشاف قدرات المنصة والأنظمة المتصلة، مقارنة حلول التجارة الإلكترونية، اختيار Blueprint مناسبة، تنفيذها بخطة محكومة، ومتابعة التشغيل بعد الإطلاق.
 
-الأنماط تشمل Platform Native وERPNext وWordPress/WooCommerce القياسية والمحكومة والهجينة، إضافة إلى Google Drive وWorkspace File Fabric.
-
-المبادئ الحاكمة:
-
-- Brand إلزامية لكل عملية تجارة.
-- مصدر كتابة واحد لكل Domain داخل Brand.
-- Capability Discovery وBlueprint Recommendation لا تمنح Authority.
-- Capability Availability منفصلة عن Implementation Maturity.
-- WordPress A–P يعاد استخدامها كـSite Lifecycle Capability Packs.
-- Active Plugin لا يثبت Compatibility.
-- WooCommerce Standard لا يثبت Atomic Unique-item Safety بين القنوات.
-- Governed Bridge مطلوبة للـStrict Shared Inventory Invariants.
-- Exact Brand Connections وWebhook Inbox وReadback وCertification إلزامية.
-- كل Launch تشمل Backup وRollback وQA وObservability وReconciliation.
+تشمل الأنماط Platform Native وERPNext وWordPress/WooCommerce القياسية والمحكومة والهجينة، إضافة إلى Google Drive وWorkspace File Fabric.
 
 ```text
 Tenant → Workspace → Brand → Goal
@@ -23,6 +10,19 @@ Tenant → Workspace → Brand → Goal
 → Solution Blueprints → Readiness and Gaps
 → Implementation Plan → Launch Gates → Operations Cockpit
 ```
+
+المبادئ:
+
+- Brand إلزامية لكل تجارة.
+- مصدر كتابة واحد لكل Domain داخل Brand.
+- Discovery وRecommendation لا تمنح Authority.
+- Availability منفصلة عن Implementation Maturity.
+- WordPress A–P يعاد استخدامها كـLifecycle Capability Packs.
+- Active Plugin لا يثبت Compatibility.
+- Woo Standard لا يثبت Atomic Unique-item Safety بين القنوات.
+- Governed Bridge مطلوبة للـStrict Shared Inventory Invariants.
+- Exact Brand Connections وWebhook Inbox وReadback وCertification إلزامية.
+- كل Launch تشمل Backup وRollback وQA وObservability وReconciliation.
 
 الأنماط الأساسية:
 
