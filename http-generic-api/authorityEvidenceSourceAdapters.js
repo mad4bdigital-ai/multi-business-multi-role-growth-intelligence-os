@@ -20,6 +20,7 @@ export const AUTHORITY_EVIDENCE_SOURCE_LIMITS = Object.freeze({
 });
 
 const SOURCE_FAMILY_SET = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
+const REQUIRED_SOURCE_FAMILIES = Object.freeze([...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
@@ -131,6 +132,19 @@ function stringList(value, field, maxItems) {
     );
   }
   return [...new Set(value.map((item, index) => token(item, `${field}[${index}]`)))].sort();
+}
+
+function requireCompleteFamilyContract(expectedFamilies) {
+  const missing = REQUIRED_SOURCE_FAMILIES.filter((family) => !expectedFamilies.includes(family));
+  const extra = expectedFamilies.filter((family) => !SOURCE_FAMILY_SET.has(family));
+  if (missing.length || extra.length || expectedFamilies.length !== REQUIRED_SOURCE_FAMILIES.length) {
+    throw new AuthorityEvidenceSourceError(
+      "authority_evidence_incomplete_family_contract",
+      "The v1 authority evidence contract requires all registered source families.",
+      { missing_source_families: missing, extra_source_families: extra },
+    );
+  }
+  return REQUIRED_SOURCE_FAMILIES;
 }
 
 function normalizeSafety(value, field) {
@@ -291,17 +305,12 @@ export function buildAuthorityEvidenceSourceBundle({
     );
   }
   assertNoSensitiveValues(sources, "sources");
-  const expectedFamilies = stringList(expectedSourceFamilies, "expected_source_families", AUTHORITY_EVIDENCE_SOURCE_FAMILIES.length)
-    .map((family) => {
-      if (!SOURCE_FAMILY_SET.has(family)) {
-        throw new AuthorityEvidenceSourceError(
-          "authority_evidence_unknown_source_family",
-          "Expected source family is not registered.",
-          { source_family: family },
-        );
-      }
-      return family;
-    });
+  const requestedFamilies = stringList(
+    expectedSourceFamilies,
+    "expected_source_families",
+    AUTHORITY_EVIDENCE_SOURCE_FAMILIES.length,
+  );
+  const expectedFamilies = requireCompleteFamilyContract(requestedFamilies);
 
   const normalizedSources = sources.map((source, index) => normalizeSource(source, index, limits));
   const sourceKeys = new Set();
@@ -376,5 +385,6 @@ export const _testingAuthorityEvidenceSourceAdapters = {
   hash,
   normalizePagination,
   normalizeSource,
+  requireCompleteFamilyContract,
   assertNoSensitiveValues,
 };
