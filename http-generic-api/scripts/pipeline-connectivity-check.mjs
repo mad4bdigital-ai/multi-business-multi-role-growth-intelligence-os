@@ -59,7 +59,7 @@ function executableCommands(text) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const run = line.match(/^\s*run:\s*(.*?)\s*$/);
+    const run = line.match(/^\s*(?:-\s*)?run:\s*(.*?)\s*$/);
     if (!run) continue;
 
     const value = run[1];
