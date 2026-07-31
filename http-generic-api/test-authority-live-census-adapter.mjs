@@ -6,6 +6,12 @@ import {
   adaptAuthorityLiveCensusObservation,
 } from "./authorityLiveCensusAdapter.js";
 
+function rehash(payload) {
+  const { observation_sha256: _ignored, ...unsigned } = payload;
+  payload.observation_sha256 = _testingAuthorityLiveCensusAdapter.sha256(unsigned);
+  return payload;
+}
+
 function observation(overrides = {}) {
   const payload = {
     contract: "mad4b.ueacp.live-authority-catalog-observation.v1",
@@ -41,10 +47,10 @@ function observation(overrides = {}) {
       { TABLE_SCHEMA: "platform", TABLE_NAME: "v_effective_capabilities", TABLE_TYPE: "VIEW", ENGINE: null, TABLE_ROWS: null },
     ],
     columns: [
-      { TABLE_NAME: "platform_semantic_capabilities", COLUMN_NAME: "capability_key", ORDINAL_POSITION: 1, DATA_TYPE: "varchar", COLUMN_TYPE: "varchar(191)", IS_NULLABLE: "NO", COLUMN_DEFAULT: null, COLUMN_KEY: "PRI", EXTRA: "", COLLATION_NAME: "utf8mb4_unicode_ci" },
-      { TABLE_NAME: "platform_semantic_capabilities", COLUMN_NAME: "revision", ORDINAL_POSITION: 2, DATA_TYPE: "bigint", COLUMN_TYPE: "bigint(20)", IS_NULLABLE: "NO", COLUMN_DEFAULT: "0", COLUMN_KEY: "", EXTRA: "", COLLATION_NAME: null },
-      { TABLE_NAME: "resource_authority_bindings", COLUMN_NAME: "binding_key", ORDINAL_POSITION: 1, DATA_TYPE: "varchar", COLUMN_TYPE: "varchar(191)", IS_NULLABLE: "NO", COLUMN_DEFAULT: null, COLUMN_KEY: "PRI", EXTRA: "", COLLATION_NAME: "utf8mb4_unicode_ci" },
-      { TABLE_NAME: "resource_authority_bindings", COLUMN_NAME: "updated_at", ORDINAL_POSITION: 2, DATA_TYPE: "datetime", COLUMN_TYPE: "datetime(6)", IS_NULLABLE: "NO", COLUMN_DEFAULT: null, COLUMN_KEY: "", EXTRA: "", COLLATION_NAME: null },
+      { TABLE_NAME: "platform_semantic_capabilities", COLUMN_NAME: "capability_key", ORDINAL_POSITION: 1, DATA_TYPE: "VARCHAR", COLUMN_TYPE: "varchar(191)", IS_NULLABLE: "NO", COLUMN_KEY: "PRI", EXTRA: "", COLLATION_NAME: "utf8mb4_unicode_ci" },
+      { TABLE_NAME: "platform_semantic_capabilities", COLUMN_NAME: "revision", ORDINAL_POSITION: 2, DATA_TYPE: "BIGINT", COLUMN_TYPE: "bigint(20)", IS_NULLABLE: "NO", COLUMN_KEY: "", EXTRA: "", COLLATION_NAME: null },
+      { TABLE_NAME: "resource_authority_bindings", COLUMN_NAME: "binding_key", ORDINAL_POSITION: 1, DATA_TYPE: "VARCHAR", COLUMN_TYPE: "varchar(191)", IS_NULLABLE: "NO", COLUMN_KEY: "PRI", EXTRA: "", COLLATION_NAME: "utf8mb4_unicode_ci" },
+      { TABLE_NAME: "resource_authority_bindings", COLUMN_NAME: "updated_at", ORDINAL_POSITION: 2, DATA_TYPE: "DATETIME", COLUMN_TYPE: "datetime(6)", IS_NULLABLE: "NO", COLUMN_KEY: "", EXTRA: "", COLLATION_NAME: null },
     ],
     indexes: [
       { TABLE_NAME: "platform_semantic_capabilities", INDEX_NAME: "PRIMARY", NON_UNIQUE: 0, SEQ_IN_INDEX: 1, COLUMN_NAME: "capability_key", SUB_PART: null, INDEX_TYPE: "BTREE" },
@@ -97,8 +103,7 @@ function observation(overrides = {}) {
     secrets_included: false,
     ...overrides,
   };
-  payload.observation_sha256 = _testingAuthorityLiveCensusAdapter.sha256(payload);
-  return payload;
+  return rehash(payload);
 }
 
 const adapted = adaptAuthorityLiveCensusObservation(observation());
@@ -109,25 +114,42 @@ assert.equal(adapted.columns.length, 4);
 assert.equal(adapted.indexes.length, 2);
 assert.equal(adapted.foreign_keys.length, 1);
 assert.equal(adapted.views.length, 1);
-assert.equal(adapted.view_dependencies.length, 1);
+assert.equal(adapted.columns[0].column_name, "capability_key");
+assert.equal(adapted.columns[0].data_type, "varchar");
+assert.equal(adapted.columns[0].nullable, false);
+assert.equal("is_nullable" in adapted.columns[0], false);
+assert.equal("column_default_present" in adapted.columns[0], false);
+assert.equal(adapted.indexes[0].unique, true);
+assert.equal("non_unique" in adapted.indexes[0], false);
+assert.equal(adapted.foreign_keys[0].referenced_object_name, "platform_semantic_capabilities");
+assert.equal(adapted.foreign_keys[0].referenced_column_name, "capability_key");
+assert.equal(adapted.views[0].view_name, "v_effective_capabilities");
+assert.equal(adapted.views[0].updatable, false);
+assert.equal(adapted.views[0].raw_definition_included, false);
 assert.equal(adapted.objects.find((item) => item.object_name === "platform_semantic_capabilities").ownership_classification, "authority_source_candidate");
 assert.equal(adapted.objects.find((item) => item.object_name === "v_effective_capabilities").ownership_classification, "derived_projection_candidate");
-assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("system_tool_catalog", "BASE TABLE"), "unclassified");
-assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("authority_decision_logs", "BASE TABLE"), "evidence_ledger_candidate");
-assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("tenant_memberships", "BASE TABLE"), "authority_source_candidate");
+assert.equal(adapted.summary.authority_source_candidate_count, 2);
+assert.equal(adapted.summary.derived_projection_candidate_count, 1);
+assert.equal(adapted.summary.evidence_ledger_candidate_count, 0);
+assert.equal(adapted.revision_support.length, 2);
 assert.equal(adapted.revision_support[0].requires_authoritative_owner_review, true);
-assert.equal(adapted.same_cycle_readback.verified, true);
+assert.equal(adapted.unresolved_revision_candidates.length, 1);
+assert.equal(adapted.unresolved_revision_candidates[0].object_name, "resource_authority_bindings");
+assert.equal(adapted.live_observation.same_cycle_readback_verified, true);
+assert.equal(adapted.live_observation.view_dependency_count, 1);
+assert.match(adapted.live_observation.view_dependencies_sha256, /^[a-f0-9]{64}$/);
 assert.equal(adapted.closure_state.t002_complete, false);
 assert.equal(adapted.closure_state.t021_authorized, false);
-assert.equal(adapted.closure_state.migration_apply_authorized, false);
 assert.equal(adapted.read_only, true);
 assert.equal(adapted.applies_sql, false);
-assert.equal(adapted.database_mutation_executed, false);
 assert.equal(adapted.provider_calls, false);
 assert.equal(adapted.credential_payload_read, false);
 assert.equal(adapted.external_writes, false);
 assert.equal(adapted.secrets_included, false);
 assert.equal(Object.isFrozen(adapted), true);
+assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("system_tool_catalog", "BASE TABLE"), "unclassified");
+assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("authority_decision_logs", "BASE TABLE"), "evidence_ledger_candidate");
+assert.equal(_testingAuthorityLiveCensusAdapter.classifyObject("tenant_memberships", "BASE TABLE"), "authority_source_candidate");
 
 assert.throws(
   () => adaptAuthorityLiveCensusObservation({ ...observation(), status: "tampered" }),
@@ -143,11 +165,44 @@ assert.throws(
 
 const countMismatch = observation();
 countMismatch.summary = { ...countMismatch.summary, object_count: 4 };
-countMismatch.observation_sha256 = _testingAuthorityLiveCensusAdapter.sha256({ ...countMismatch, observation_sha256: undefined });
+rehash(countMismatch);
 assert.throws(
   () => adaptAuthorityLiveCensusObservation(countMismatch),
-  (error) => error instanceof AuthorityLiveCensusAdapterError
-    && ["authority_live_census_stale_hash", "authority_live_census_count_mismatch"].includes(error.code),
+  (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_count_mismatch",
+);
+
+const rawDefault = observation();
+rawDefault.columns = rawDefault.columns.map((column, index) => index === 0 ? { ...column, COLUMN_DEFAULT: "forbidden" } : column);
+rehash(rawDefault);
+assert.throws(
+  () => adaptAuthorityLiveCensusObservation(rawDefault),
+  (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_raw_column_default_forbidden",
+);
+
+const revisionMismatch = observation();
+revisionMismatch.revision_support = revisionMismatch.revision_support.map((item) => (
+  item.object_name === "resource_authority_bindings" ? { ...item, support: "absent", temporal_freshness_columns: [] } : item
+));
+rehash(revisionMismatch);
+assert.throws(
+  () => adaptAuthorityLiveCensusObservation(revisionMismatch),
+  (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_revision_support_mismatch",
+);
+
+const invalidViewHash = observation();
+invalidViewHash.views = [{ ...invalidViewHash.views[0], definition_sha256: "invalid" }];
+rehash(invalidViewHash);
+assert.throws(
+  () => adaptAuthorityLiveCensusObservation(invalidViewHash),
+  (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_invalid_view_hash",
+);
+
+const incompleteQueries = observation();
+incompleteQueries.queries_executed = incompleteQueries.queries_executed.slice(0, -1);
+rehash(incompleteQueries);
+assert.throws(
+  () => adaptAuthorityLiveCensusObservation(incompleteQueries),
+  (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_incomplete_query_contract",
 );
 
 const secretBearing = observation({ access_token: "forbidden" });
@@ -158,8 +213,7 @@ assert.throws(
 
 const readbackMismatch = observation();
 readbackMismatch.same_cycle_readback = { ...readbackMismatch.same_cycle_readback, object_count: 2 };
-const { observation_sha256: _ignored, ...unsignedReadbackMismatch } = readbackMismatch;
-readbackMismatch.observation_sha256 = _testingAuthorityLiveCensusAdapter.sha256(unsignedReadbackMismatch);
+rehash(readbackMismatch);
 assert.throws(
   () => adaptAuthorityLiveCensusObservation(readbackMismatch),
   (error) => error instanceof AuthorityLiveCensusAdapterError && error.code === "authority_live_census_readback_count_mismatch",
