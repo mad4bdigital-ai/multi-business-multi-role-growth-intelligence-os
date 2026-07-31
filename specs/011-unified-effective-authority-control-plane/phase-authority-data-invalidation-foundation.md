@@ -17,6 +17,7 @@ Close the design gate that must precede UEACP T021–T024 and T050–T055. The p
 
 The phase reports `ready_for_additive_migration_design` only when:
 
+- a reviewed Admin/Tenant authority-path inventory artifact is bound by SHA-256 and reference;
 - all twelve logical authority families are present exactly once;
 - every item is approved and none is blocked;
 - reuse/extend objects exist in the observed schema;
@@ -30,8 +31,9 @@ A passing report authorizes only additive migration design. It does not authoriz
 ## Operational flow
 
 ```text
-read-only live census
-→ immutable census fingerprint
+reviewed Admin/Tenant authority-path inventory
++ read-only live census
+→ immutable evidence fingerprints
 → human ownership classification
 → deterministic assessment
 → additive migration design plan
