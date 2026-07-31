@@ -7,28 +7,18 @@
   "delivery_mode": "multi_pr",
   "branch": "gpt/spec-014-retail-commerce-operations-growth-20260731",
   "created_at": "2026-07-30T21:47:00Z",
-  "deepened_at": "2026-07-31T00:05:00Z",
+  "deepened_at": "2026-07-31T00:18:00Z",
   "baseline": {
     "default_branch": "main",
     "review_started_from_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
     "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
-    "evidence_timestamp": "2026-07-31T00:05:00Z",
+    "evidence_timestamp": "2026-07-31T00:18:00Z",
     "production_behavior_verified": false,
     "classification": "repository_brownfield_review_only"
   },
   "spec_kit": {
     "constitution_version": "1.0.0",
-    "lifecycle": [
-      "specify",
-      "clarify",
-      "plan",
-      "tasks",
-      "implement",
-      "verify",
-      "merge",
-      "deploy",
-      "closeout"
-    ]
+    "lifecycle": ["specify", "clarify", "plan", "tasks", "implement", "verify", "merge", "deploy", "closeout"]
   },
   "scope": {
     "includes": [
@@ -135,8 +125,6 @@
     "brand_site_profile_resolves_exact_hostname_role_connections_and_revisions",
     "brand_connections_are_brand_owned_or_explicitly_delegated",
     "no_silent_fallback_across_brand_workspace_or_personal_connection_scope",
-    "public_storefront_brand_resolves_from_governed_hostname_or_surface",
-    "internal_surfaces_pin_an_authorized_brand_context",
     "all_commerce_storage_idempotency_cache_outbox_inbox_and_search_keys_preserve_brand",
     "commerce_enablement_is_a_versioned_capability_and_solution_blueprint_fabric",
     "capability_availability_is_separate_from_implementation_maturity",
@@ -168,7 +156,6 @@
     "google_identity_and_google_drive_consent_are_separate",
     "personal_connections_never_inherit_by_workspace_membership",
     "workspace_file_delete_defaults_to_trash",
-    "public_sharing_external_sharing_and_permanent_delete_are_separate_high_risk_capabilities",
     "provider_credentials_signed_urls_raw_payloads_and_private_content_remain_outside_logs_evidence_and_agent_context",
     "frontend_and_agent_tools_share_the_same_governed_application_services"
   ],
@@ -256,15 +243,9 @@
     "secrets_included": false
   },
   "delivery": {
-    "specification_pr": {
-      "number": 3922,
-      "status": "open_draft"
-    },
+    "specification_pr": {"number": 3922, "status": "open_draft"},
     "implementation_prs": [],
-    "closeout_pr": {
-      "number": null,
-      "status": "pending"
-    }
+    "closeout_pr": {"number": null, "status": "pending"}
   },
   "production_mutation": false,
   "provider_write": false,
