@@ -28,6 +28,31 @@ const COMPOUND_FAMILIES = Object.freeze([
   "durable-execution",
   "sequential-plan",
 ]);
+const BROAD_FAMILY_RULES = Object.freeze([
+  Object.freeze(["authorization", /(?:authorization|authentication|authn|authz|identity|principal|permission|grant)/u]),
+  Object.freeze(["tenant", /(?:tenant|workspace|organization)/u]),
+  Object.freeze(["admin", /(?:admin|operator)/u]),
+  Object.freeze(["frontend", /(?:frontend|ui|surface|dispatch)/u]),
+  Object.freeze(["openapi", /(?:openapi|swagger)/u]),
+  Object.freeze(["migration", /(?:migration|mariadb|mysql|database|schema)/u]),
+  Object.freeze(["provider", /(?:provider|connector|integration)/u]),
+  Object.freeze(["workflow", /(?:workflow|orchestrator|orchestration|queue|outbox)/u]),
+  Object.freeze(["execution", /(?:execution|executor|runtime|lease|idempotency)/u]),
+  Object.freeze(["operation", /(?:operation|action|mutation|command)/u]),
+  Object.freeze(["capability", /(?:capability|entitlement|feature-flag)/u]),
+  Object.freeze(["policy", /(?:policy|rule|constraint|field-access)/u]),
+  Object.freeze(["catalog", /(?:catalog|registry|census|inventory)/u]),
+  Object.freeze(["contracts", /(?:contract|envelope|descriptor|manifest)/u]),
+  Object.freeze(["tools", /(?:tool|gpt|agent)/u]),
+  Object.freeze(["routing", /(?:route|router|endpoint|http)/u]),
+  Object.freeze(["memory", /(?:memory|bootstrap|context)/u]),
+  Object.freeze(["repository", /(?:repository|branch|pull-request|github)/u]),
+  Object.freeze(["resources", /(?:resource|portfolio|metric|kpi)/u]),
+  Object.freeze(["audit", /(?:audit|evidence|telemetry|log)/u]),
+  Object.freeze(["deployment", /(?:deploy|production|hostinger|release)/u]),
+  Object.freeze(["artifacts", /(?:artifact|generated|generation|digest|hash)/u]),
+  Object.freeze(["automation", /(?:automation|workflow-guard|overlap)/u]),
+]);
 
 function parseArgs(argv) {
   const options = {
@@ -142,12 +167,21 @@ function commandTestStem(command) {
   return path.basename(testFile).replace(/^test-/u, "").replace(/\.mjs$/u, "");
 }
 
+function generalBucket(stem) {
+  const initial = stem.charAt(0).toLowerCase();
+  if (initial >= "a" && initial <= "f") return "general-a-f";
+  if (initial >= "g" && initial <= "l") return "general-g-l";
+  if (initial >= "m" && initial <= "r") return "general-m-r";
+  return "general-s-z";
+}
+
 export function deriveDiagnosticFamily(command) {
   const stem = commandTestStem(command);
   const compound = COMPOUND_FAMILIES.find((family) => stem === family || stem.startsWith(`${family}-`));
   if (compound) return compound;
-  const tokens = stem.split("-").filter(Boolean);
-  return tokens.slice(0, Math.min(2, tokens.length)).join("-") || "misc";
+  const broad = BROAD_FAMILY_RULES.find((entry) => entry[1].test(stem));
+  if (broad) return broad[0];
+  return generalBucket(stem);
 }
 
 function safeSlug(value) {
