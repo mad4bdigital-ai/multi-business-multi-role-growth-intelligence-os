@@ -27,8 +27,11 @@ assert.equal(migrationStatements.length, 10);
 assert.match(migrationStatements[0], /SET\s+@repository_main_moved_coordination_type/i);
 assert.match(migrationStatements[7], /^INSERT\s+INTO\s+execution_policies/i);
 assert.match(migrationStatements[8], /^SELECT\s+[\s\S]*production_sync_status_registered/i);
+assert.match(migrationStatements[8], /FROM\s+information_schema\.COLUMNS/i);
 assert.match(migrationStatements[9], /^SELECT\s+[\s\S]*repository_main_moved_trigger_policy_v1/i);
+assert.match(migrationStatements[9], /FROM\s+execution_policies/i);
 assert.doesNotMatch(migrationStatements[7], /production_sync_status_registered/i);
+assert.doesNotMatch(migrationStatements[8], /FROM\s+execution_policies/i);
 
 const migration1006 = readFileSync(
   new URL("./migrations/1006_sprint69_agent_capability_evidence_coverage.sql", import.meta.url),
