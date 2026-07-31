@@ -9,6 +9,8 @@ on:
       - "src/**"
       - "specs/012-unified-admin-tenant-context-kernel/**"
       - "docs/context-kernel/**"
+      - ".github/scripts/governed-local-connector-production-closure.mjs"
+      - ".github/workflows/governed-local-connector-production-closure.yml"
       - ".github/workflows/context-kernel-hardcoding-report.yml"
 
 permissions:
