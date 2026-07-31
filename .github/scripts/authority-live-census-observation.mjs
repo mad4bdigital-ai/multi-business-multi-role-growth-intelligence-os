@@ -81,27 +81,27 @@ assert(schemaName, "Live database schema identity is unavailable.");
 const objects = boundedRows(await adminDbSelect(
   "schema_objects",
   "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME",
-), "schema_objects", 4096);
+), "schema_objects", 2048);
 
 const columns = boundedRows(await adminDbSelect(
   "schema_columns",
   "SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, ORDINAL_POSITION",
-), "schema_columns", 100000);
+), "schema_columns", 32768);
 
 const indexes = boundedRows(await adminDbSelect(
   "schema_indexes",
   "SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, SUB_PART, INDEX_TYPE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX",
-), "schema_indexes", 100000);
+), "schema_indexes", 32768);
 
 const foreignKeys = boundedRows(await adminDbSelect(
   "schema_foreign_keys",
   "SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, REFERENCED_TABLE_SCHEMA, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION",
-), "schema_foreign_keys", 50000);
+), "schema_foreign_keys", 16384);
 
 const views = boundedRows(await adminDbSelect(
   "schema_views",
   "SELECT TABLE_SCHEMA, TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, SECURITY_TYPE, SHA2(COALESCE(VIEW_DEFINITION, ''), 256) AS definition_sha256 FROM information_schema.VIEWS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME",
-), "schema_views", 4096);
+), "schema_views", 2048);
 
 const viewDependencies = boundedRows(await adminDbSelect(
   "view_dependencies",
