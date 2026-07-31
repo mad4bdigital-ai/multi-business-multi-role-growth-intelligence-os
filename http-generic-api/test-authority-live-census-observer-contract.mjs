@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { AUTHORITY_EVIDENCE_SOURCE_FAMILIES } from "./authorityEvidenceSourceAdapters.js";
+import { _testingAuthorityLiveEvidenceReview } from "./scripts/authority-live-evidence-review.mjs";
+
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const observerPath = path.resolve(testDirectory, "../.github/scripts/authority-live-census-observation.mjs");
 const source = readFileSync(observerPath, "utf8");
@@ -46,4 +49,29 @@ assert.match(source, /same_cycle_readback:\s*\{[\s\S]*verified: true/);
 assert.match(source, /payload\.observation_sha256 = sha256\(payload\)/);
 assert.match(source, /fs\.writeFileSync\(evidencePath/);
 
-console.log("authority live census observer contract tests passed");
+const exactSnapshots = AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map((sourceFamily) => ({
+  source_family: sourceFamily,
+}));
+const exactCollectors = _testingAuthorityLiveEvidenceReview.collectorsFromSnapshots(exactSnapshots);
+assert.deepEqual(Object.keys(exactCollectors).sort(), [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
+
+assert.throws(
+  () => _testingAuthorityLiveEvidenceReview.collectorsFromSnapshots([
+    ...exactSnapshots.slice(0, -1),
+    { source_family: AUTHORITY_EVIDENCE_SOURCE_FAMILIES[0] },
+  ]),
+  /Duplicate authority source snapshot/,
+);
+assert.throws(
+  () => _testingAuthorityLiveEvidenceReview.collectorsFromSnapshots([
+    ...exactSnapshots.slice(0, -1),
+    { source_family: "unknown_authority_source" },
+  ]),
+  /Unknown authority source family/,
+);
+assert.throws(
+  () => _testingAuthorityLiveEvidenceReview.collectorsFromSnapshots(exactSnapshots.slice(0, -1)),
+  /exactly 8 authority source snapshots/,
+);
+
+console.log("authority live census observer and replay contract tests passed");
