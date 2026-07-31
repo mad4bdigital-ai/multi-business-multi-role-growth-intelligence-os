@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "policy_key": "work_map_intentional_unclassified_registry_v1",
+  "default_disposition": "forbidden",
+  "entries": [],
+  "entry_contract": {
+    "required_fields": [
+      "object_name",
+      "object_type",
+      "owner",
+      "rationale",
+      "nearest_existing_map_refs",
+      "reviewed_reuse_options",
+      "approval_ref",
+      "expires_at",
+      "follow_up_gate"
+    ],
+    "allowed_reviewed_reuse_options": [
+      "reuse_existing_map",
+      "extend_existing_map",
+      "compose_existing_maps",
+      "extend_existing_generator_or_taxonomy"
+    ],
+    "minimum_nearest_existing_maps": 2,
+    "expiry_required": true,
+    "permanent_exceptions_forbidden": true
+  },
+  "contract": "Every discovered schema object must be classified into an existing platform domain and Work Map. An object may remain intentionally unclassified only through a bounded, approved, expiring registry entry after existing-map reuse and extension options are documented.",
+  "secrets_included": false
+}
