@@ -1,0 +1,191 @@
+name: Spec 011 Phase 3 Closeout Sync Once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731
+    paths:
+      - .github/workflows/spec011-phase3-closeout-sync-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-phase3-closeout-sync-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout closeout branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731
+          fetch-depth: 0
+
+      - name: Merge latest main and semantically reconcile evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch="gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731"
+          completion="specs/011-durable-governed-execution-and-agent-delegation/completion.json"
+          manifest="specs/011-durable-governed-execution-and-agent-delegation/manifest.json"
+          workflow=".github/workflows/spec011-phase3-closeout-sync-once.yml"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          pre_head="$(git rev-parse HEAD)"
+          merge_base="$(git merge-base "$pre_head" origin/main)"
+          mkdir -p /tmp/spec011-json-merge
+
+          for path in "$completion" "$manifest"; do
+            name="$(basename "$path")"
+            git show "$merge_base:$path" > "/tmp/spec011-json-merge/base-$name"
+            git show "$pre_head:$path" > "/tmp/spec011-json-merge/ours-$name"
+            git show "origin/main:$path" > "/tmp/spec011-json-merge/latest-$name"
+          done
+
+          git merge --no-ff --no-commit origin/main || true
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/spec011-json-merge')
+          missing = object()
+
+          def merge_value(base, ours, latest, path='$'):
+              if ours == base:
+                  return latest
+              if latest == base:
+                  return ours
+              if ours == latest:
+                  return ours
+
+              if isinstance(base, dict) and isinstance(ours, dict) and isinstance(latest, dict):
+                  result = {}
+                  keys = list(latest.keys())
+                  for key in ours.keys():
+                      if key not in keys:
+                          keys.append(key)
+                  for key in base.keys():
+                      if key not in keys:
+                          keys.append(key)
+
+                  for key in keys:
+                      b = base.get(key, missing)
+                      o = ours.get(key, missing)
+                      l = latest.get(key, missing)
+                      child = f'{path}.{key}'
+
+                      if o is missing and b is missing:
+                          if l is not missing:
+                              result[key] = l
+                          continue
+                      if l is missing and b is missing:
+                          if o is not missing:
+                              result[key] = o
+                          continue
+                      if o is missing:
+                          if l == b:
+                              continue
+                          raise RuntimeError(f'conflicting deletion at {child}')
+                      if l is missing:
+                          if o == b:
+                              continue
+                          raise RuntimeError(f'conflicting deletion at {child}')
+                      if b is missing:
+                          if o == l:
+                              result[key] = o
+                          elif isinstance(o, dict) and isinstance(l, dict):
+                              result[key] = merge_value({}, o, l, child)
+                          elif isinstance(o, list) and isinstance(l, list):
+                              result[key] = merge_value([], o, l, child)
+                          else:
+                              raise RuntimeError(f'conflicting addition at {child}')
+                      else:
+                          result[key] = merge_value(b, o, l, child)
+                  return result
+
+              if isinstance(base, list) and isinstance(ours, list) and isinstance(latest, list):
+                  def numbered(items):
+                      return all(isinstance(item, dict) and 'number' in item for item in items)
+
+                  if numbered(base) and numbered(ours) and numbered(latest):
+                      base_by = {item['number']: item for item in base}
+                      ours_by = {item['number']: item for item in ours}
+                      latest_by = {item['number']: item for item in latest}
+                      order = [item['number'] for item in latest]
+                      for item in ours:
+                          if item['number'] not in order:
+                              order.append(item['number'])
+                      result = []
+                      for number in order:
+                          b = base_by.get(number, missing)
+                          o = ours_by.get(number, missing)
+                          l = latest_by.get(number, missing)
+                          child = f'{path}[number={number}]'
+                          if o is missing and b is missing:
+                              result.append(l)
+                          elif l is missing and b is missing:
+                              result.append(o)
+                          elif o is missing:
+                              if l != b:
+                                  raise RuntimeError(f'conflicting array deletion at {child}')
+                          elif l is missing:
+                              if o != b:
+                                  raise RuntimeError(f'conflicting array deletion at {child}')
+                          elif b is missing:
+                              if o == l:
+                                  result.append(o)
+                              else:
+                                  result.append(merge_value({}, o, l, child))
+                          else:
+                              result.append(merge_value(b, o, l, child))
+                      return result
+
+                  result = list(latest)
+                  for item in ours:
+                      if item not in base and item not in result:
+                          result.append(item)
+                  for item in base:
+                      if item not in ours and item in result and item in latest:
+                          result.remove(item)
+                  return result
+
+              raise RuntimeError(
+                  f'conflicting scalar change at {path}: base={base!r}, ours={ours!r}, latest={latest!r}'
+              )
+
+          for name, target in [
+              ('completion.json', Path('specs/011-durable-governed-execution-and-agent-delegation/completion.json')),
+              ('manifest.json', Path('specs/011-durable-governed-execution-and-agent-delegation/manifest.json')),
+          ]:
+              base = json.loads((root / f'base-{name}').read_text())
+              ours = json.loads((root / f'ours-{name}').read_text())
+              latest = json.loads((root / f'latest-{name}').read_text())
+              merged = merge_value(base, ours, latest)
+              target.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + '\n')
+          PY
+
+          git add "$completion" "$manifest"
+
+          unresolved="$(git diff --name-only --diff-filter=U)"
+          if [[ -n "$unresolved" ]]; then
+            echo "Unresolved merge paths remain:" >&2
+            echo "$unresolved" >&2
+            exit 1
+          fi
+
+          python3 -m json.tool "$completion" >/dev/null
+          python3 -m json.tool "$manifest" >/dev/null
+
+          rm -f "$workflow"
+          git add -A
+          git commit -m "chore(spec-011): sync delegation closeout evidence with main"
+          git push origin "HEAD:$branch"
