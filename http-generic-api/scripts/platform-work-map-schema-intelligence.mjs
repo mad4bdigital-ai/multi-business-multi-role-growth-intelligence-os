@@ -6,38 +6,46 @@ const DOMAIN_RULES = [
   ["Activation & onboarding", /activation|onboarding|bootstrap|guidance|attention_rule|operational_tile|signal_inbox/i],
   ["Assets & packages", /asset|package|pack_attachment|copy_location|variant|equivalence/i],
   ["Commercial & usage", /commercial|credit|usage|billing|pricing|meter|subscription|entitlement/i],
-  ["Repository & development", /repo_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i],
-  ["Platform resources & graph", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i],
-  ["Delivery & support", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event/i],
+  ["Repository & development", /repo_|repository_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i],
+  ["Platform resources & graph", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config|canonical_identifier|platform_data_table/i],
+  ["Delivery & support", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event|platform_outbox|operation_generated_artifact/i],
   ["Migration & lifecycle", /migration|database_table_lifecycle|database_lifecycle|checkpoint|validation_repair|recovery|repair_run/i],
-  ["Tenancy & identity", /tenant|membership|user|role|workspace|actor|invitation|plan|assistance/i],
-  ["Brand & business", /brand|business_activity|business_type|customer|contact|campaign|audience|persona|segment|market/i],
+  ["Tenancy & identity", /tenant|membership|user|role|workspace|actor|invitation|plan|assistance|(^|_)containers?$|container_(closure|classification|relationship|resource_binding|resource_dimension|effective_context|projection|cache|canary|shadow|identity|override|resolution)/i],
+  ["Brand & business", /brand|business_activity|business_type|customer|contact|campaign|audience|persona|segment|market|growth_dashboard/i],
   ["Agents & intelligence", /agent|skill|plugin|logic|engine|model|prompt|knowledge|intelligence/i],
-  ["Workflow & tasks", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action/i],
-  ["Connectors & providers", /connector|connected_system|installation|credential|provider|app_integration|user_app_connection|webhook|oauth|cloudflare|hostinger|wordpress|n8n|local_gateway|device|browser_runtime|remote_runtime|local_project_path|cms_|site_inspection/i],
-  ["Governance & authority", /policy|permission|grant|authority|quota|budget|compliance|access|rate_limit|auth_|secret_reference|platform_secrets|preflight/i],
+  ["Workflow & tasks", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action|operation_run_ownership/i],
+  ["Connectors & providers", /connector|connected_system|installation|credential|provider|app_integration|user_app_connection|webhook|oauth|cloudflare|hostinger|wordpress|n8n|local_gateway|device|browser_runtime|remote_runtime|local_project_path|cms_|site_inspection|connection_ownership|context_kernel_connection/i],
+  ["Governance & authority", /policy|permission|grant|authority|quota|budget|compliance|access|rate_limit|auth_|secret_reference|platform_secrets|platform_secret_movement|platform_governed|preflight/i],
   ["Sessions & memory", /session|conversation|turn|memory|scope_link|archive|insight|graph_memory|request_envelope/i],
-  ["Observability & release", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison/i],
+  ["Observability & release", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison|operational_alert/i],
   ["Developer & API", /developer|api_|endpoint|tool|schema|upload|openapi/i],
 ];
 
 const MAP_SPECS = [
   ["agent-skill-plugin-map.md", "Agent, Skill, Plugin, and Intelligence Map", /agent|skill|plugin|logic|engine|model|prompt|knowledge/i, ["Intent", "Agent resolution", "Skill grants", "Logic / engine", "Model policy", "Tool / plugin binding", "Execution evidence"]],
-  ["workflow-task-orchestration-map.md", "Workflow, Task, and Orchestration Map", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action|snapshot/i, ["Intent / event", "Task route", "Execution plan", "Workflow binding", "Step runs", "Approval / hold", "Snapshot / readback"]],
-  ["policy-authority-map.md", "Policy, Permission, and Authority Map", /policy|permission|grant|authority|quota|budget|entitlement|compliance|access|role_assignment|credential_binding|rate_limit/i, ["Actor context", "Role / entitlement", "Permission grant", "Resource authority", "Budget / quota", "Runtime policy", "Allow / block evidence"]],
-  ["connector-provider-map.md", "Connector, Provider, and Connected App Map", /connector|connected_system|installation|credential|provider|app_integration|user_app_connection|webhook|oauth|cloudflare|hostinger|wordpress|n8n|local_gateway|device/i, ["App / provider", "Connected system", "Installation", "Credential binding", "Permission grant", "Connector route", "Provider result", "Execution evidence"]],
-  ["observability-release-map.md", "Observability, Audit, and Release Map", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison/i, ["Runtime event", "Execution evidence", "Audit / telemetry", "Readiness views", "Incident / repair", "Release gate", "DR certification"]],
+  ["workflow-task-orchestration-map.md", "Workflow, Task, and Orchestration Map", /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action|snapshot|operation_run_ownership/i, ["Intent / event", "Task route", "Execution plan", "Workflow binding", "Step runs", "Approval / hold", "Snapshot / readback"]],
+  ["policy-authority-map.md", "Policy, Permission, and Authority Map", /policy|permission|grant|authority|quota|budget|entitlement|compliance|access|role_assignment|credential_binding|rate_limit|platform_secret_movement|platform_governed|container_/i, ["Actor context", "Role / entitlement", "Permission grant", "Resource authority", "Budget / quota", "Runtime policy", "Allow / block evidence"]],
+  ["connector-provider-map.md", "Connector, Provider, and Connected App Map", /connector|connected_system|installation|credential|provider|app_integration|user_app_connection|webhook|oauth|cloudflare|hostinger|wordpress|n8n|local_gateway|device|connection_ownership|context_kernel_connection/i, ["App / provider", "Connected system", "Installation", "Credential binding", "Permission grant", "Connector route", "Provider result", "Execution evidence"]],
+  ["observability-release-map.md", "Observability, Audit, and Release Map", /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison|operational_alert/i, ["Runtime event", "Execution evidence", "Audit / telemetry", "Readiness views", "Incident / repair", "Release gate", "DR certification"]],
   ["activation-onboarding-map.md", "Activation, Bootstrap, and Onboarding Map", /activation|onboarding|bootstrap|guidance|attention_rule|operational_tile|signal_inbox/i, ["Session start", "Bootstrap authority", "Authorization envelope", "Surface discovery", "Onboarding state", "Attention / guidance", "Activation evidence"]],
   ["asset-package-map.md", "Asset, Package, and Variant Map", /asset|package|pack_attachment|copy_location|variant|equivalence/i, ["Source asset", "Ownership link", "Package version", "Variant", "Patch / merge", "Private distribution", "Runtime consumption"]],
   ["commercial-usage-map.md", "Commercial, Credit, Entitlement, and Usage Map", /commercial|credit|usage|billing|pricing|meter|subscription|entitlement/i, ["Commercial profile", "Plan / entitlement", "Credit balance", "Usage meter", "Limit / quota", "Eligibility decision", "Execution evidence"]],
-  ["repository-development-map.md", "Repository, Development, and Deployment Map", /repo_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i, ["Repository source", "Candidate / proposal", "Install diff", "Patch branch", "CI classification", "Merge gate", "Deployment parity", "Readback"]],
-  ["platform-resource-graph-map.md", "Platform Resource, Capability, and Graph Map", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i, ["Intent / decision", "Capability source", "Contract surface", "Resource type", "Adapter / recipe", "Graph projection", "Validation evidence"]],
-  ["delivery-support-map.md", "Output Delivery, Support, and Communication Map", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event/i, ["Output artifact", "Recipient allowlist", "Sink routing", "Delivery event", "Ticket / thread", "Timeline / tracking", "Readback"]],
+  ["repository-development-map.md", "Repository, Development, and Deployment Map", /repo_|repository_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i, ["Repository source", "Candidate / proposal", "Install diff", "Patch branch", "CI classification", "Merge gate", "Deployment parity", "Readback"]],
+  ["platform-resource-graph-map.md", "Platform Resource, Capability, and Graph Map", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config|canonical_identifier|platform_data_table|container_/i, ["Intent / decision", "Capability source", "Contract surface", "Resource type", "Adapter / recipe", "Graph projection", "Validation evidence"]],
+  ["delivery-support-map.md", "Output Delivery, Support, and Communication Map", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event|platform_outbox|operation_generated_artifact/i, ["Output artifact", "Recipient allowlist", "Sink routing", "Delivery event", "Ticket / thread", "Timeline / tracking", "Readback"]],
   ["migration-lifecycle-map.md", "Migration, Data Lifecycle, and Recovery Map", /migration|database_table_lifecycle|database_lifecycle|checkpoint|validation_repair|recovery|repair_run/i, ["Migration candidate", "Preflight", "Authorization", "Apply / record", "Lifecycle registry", "Checkpoint", "Repair / recovery", "Readiness"]],
 ].map(([file, title, pattern, flow]) => ({ file, title, pattern, flow }));
 
 function readText(file) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+}
+
+function readJson(file, fallback = null) {
+  try {
+    return JSON.parse(readText(file));
+  } catch {
+    return fallback;
+  }
 }
 
 function listFiles(dir, predicate = () => true) {
@@ -70,8 +78,22 @@ function hashFiles(root, files) {
   return hash.digest("hex");
 }
 
-function classify(name) {
-  return DOMAIN_RULES.find(([, pattern]) => pattern.test(name))?.[0] || "Other / uncategorized";
+function loadIntentionalUnclassified(repoRoot) {
+  const file = path.join(repoRoot, ".specify/work-map-intentional-unclassified.json");
+  const registry = readJson(file, { entries: [] }) || { entries: [] };
+  const entries = Array.isArray(registry.entries) ? registry.entries : [];
+  return {
+    file,
+    registry,
+    names: new Set(entries.map((entry) => entry?.object_name).filter(Boolean)),
+  };
+}
+
+function classify(name, intentionalNames) {
+  const domain = DOMAIN_RULES.find(([, pattern]) => pattern.test(name))?.[0];
+  if (domain) return domain;
+  if (intentionalNames.has(name)) return "Other / intentionally unclassified";
+  return "Other / unresolved";
 }
 
 function mermaidId(value) {
@@ -107,13 +129,13 @@ function tableBlocks(text) {
   return blocks;
 }
 
-function parseCatalog(repoRoot) {
+function parseCatalog(repoRoot, intentionalNames) {
   const files = listFiles(path.join(repoRoot, "http-generic-api/migrations"), (file) => file.endsWith(".sql"));
   const tables = new Map();
   const views = new Map();
   const policies = new Map();
   const ensure = (map, name, type) => {
-    if (!map.has(name)) map.set(name, { name, type, domain: classify(name), sources: new Set(), columns: new Set(), refs: new Set() });
+    if (!map.has(name)) map.set(name, { name, type, domain: classify(name, intentionalNames), sources: new Set(), columns: new Set(), refs: new Set() });
     return map.get(name);
   };
 
@@ -198,7 +220,7 @@ function renderSpecialized(repoRoot, catalog, spec) {
   return `# ${spec.title}\n\n${header(repoRoot, sources.length ? sources : catalog.files)}\n\`\`\`mermaid\nflowchart TD\n  subgraph OperatingFlow["Governed operating flow"]\n${flowNodes}\n${flowEdges}\n  end\n  subgraph DiscoveredSchema["Discovered schema objects"]\n${nodes || "  Empty[No matching schema objects discovered]"}\n${edges}\n  end\n\`\`\`\n\n## Discovered object inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${objects.length ? inventoryRows(objects) : "| _none_ | - | - | 0 | 0 | - |"}\n\n## Coverage counters\n\n- Matching schema objects: **${objects.length}**\n- Diagram objects shown: **${ranked.length}**\n- Source migrations: **${sources.length}**\n`;
 }
 
-function renderDataModel(repoRoot, catalog) {
+function renderDataModel(repoRoot, catalog, sources) {
   const all = [...catalog.tables, ...catalog.views];
   const domains = uniq(all.map((object) => object.domain));
   const nodes = domains.map((domain) => {
@@ -210,7 +232,7 @@ function renderDataModel(repoRoot, catalog) {
     const objects = all.filter((item) => item.domain === domain);
     return `| ${domain} | ${objects.filter((item) => item.type === "table").length} | ${objects.filter((item) => item.type === "view").length} | ${objects.slice(0, 10).map((item) => `\`${item.name}\``).join(", ")}${objects.length > 10 ? ", ..." : ""} |`;
   }).join("\n");
-  return `# Platform Data Model Domain Map\n\n${header(repoRoot, catalog.files)}\n\`\`\`mermaid\nflowchart LR\n${nodes}\n\`\`\`\n\n## Domain summary\n\n| Domain | Tables | Views | Sample objects |\n|---|---:|---:|---|\n${rows}\n\n## Full schema inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${inventoryRows(all)}\n`;
+  return `# Platform Data Model Domain Map\n\n${header(repoRoot, sources)}\n\`\`\`mermaid\nflowchart LR\n${nodes}\n\`\`\`\n\n## Domain summary\n\n| Domain | Tables | Views | Sample objects |\n|---|---:|---:|---|\n${rows}\n\n## Full schema inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${inventoryRows(all)}\n`;
 }
 
 function renderMemory(repoRoot, catalog, memory) {
@@ -225,7 +247,7 @@ function renderPolicy(repoRoot, catalog, content) {
   return `${content}\n## Discovered policy keys\n\n| Policy key | Source migrations |\n|---|---:|\n${policies || "| _none_ | 0 |"}\n`;
 }
 
-function renderCoverage(repoRoot, catalog, mapNames) {
+function renderCoverage(repoRoot, catalog, mapNames, sources) {
   const all = [...catalog.tables, ...catalog.views];
   const domains = uniq(all.map((object) => object.domain));
   const rows = domains.map((domain) => {
@@ -233,30 +255,35 @@ function renderCoverage(repoRoot, catalog, mapNames) {
     const maps = MAP_SPECS.filter((spec) => objects.some((object) => spec.pattern.test(object.name))).map((spec) => spec.file);
     if (domain === "Sessions & memory") maps.push("session-memory-map.md");
     maps.push("data-model-domain-map.md");
-    const status = domain === "Other / uncategorized" ? "taxonomy gap" : "covered";
+    const status = domain === "Other / unresolved" ? "unresolved taxonomy gap" : domain === "Other / intentionally unclassified" ? "intentional exception" : "covered";
     return `| ${domain} | ${objects.filter((item) => item.type === "table").length} | ${objects.filter((item) => item.type === "view").length} | ${uniq(maps).map((name) => `\`${name}\``).join(", ")} | ${status} |`;
   }).join("\n");
-  const uncategorized = all.filter((object) => object.domain === "Other / uncategorized");
-  return `# Work Map Coverage Matrix\n\n${header(repoRoot, catalog.files)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Uncategorized schema objects\n\n${uncategorized.length ? uncategorized.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n`;
+  const unresolved = all.filter((object) => object.domain === "Other / unresolved");
+  const intentional = all.filter((object) => object.domain === "Other / intentionally unclassified");
+  return `# Work Map Coverage Matrix\n\n${header(repoRoot, sources)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Unresolved schema objects\n\n${unresolved.length ? unresolved.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n\n## Intentionally unclassified schema objects\n\n${intentional.length ? intentional.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n`;
 }
 
 export function buildSchemaIntelligenceMaps({ repoRoot }) {
-  const catalog = parseCatalog(repoRoot);
+  const intentional = loadIntentionalUnclassified(repoRoot);
+  const catalog = parseCatalog(repoRoot, intentional.names);
   const memory = parseMemory(repoRoot);
+  const sharedSources = uniq([...catalog.files, memory.file, intentional.file]);
   const maps = {
-    "data-model-domain-map.md": renderDataModel(repoRoot, catalog),
+    "data-model-domain-map.md": renderDataModel(repoRoot, catalog, sharedSources),
     "session-memory-map.md": renderMemory(repoRoot, catalog, memory),
   };
   for (const spec of MAP_SPECS) {
     const content = renderSpecialized(repoRoot, catalog, spec);
     maps[spec.file] = spec.file === "policy-authority-map.md" ? renderPolicy(repoRoot, catalog, content) : content;
   }
-  maps["work-map-coverage-matrix.md"] = renderCoverage(repoRoot, catalog, Object.keys(maps));
+  maps["work-map-coverage-matrix.md"] = renderCoverage(repoRoot, catalog, Object.keys(maps), sharedSources);
   const all = [...catalog.tables, ...catalog.views];
-  const classified = all.filter((object) => object.domain !== "Other / uncategorized").length;
+  const unresolved = all.filter((object) => object.domain === "Other / unresolved");
+  const intentionalObjects = all.filter((object) => object.domain === "Other / intentionally unclassified");
+  const classified = all.length - unresolved.length - intentionalObjects.length;
   return {
     maps,
-    sourceFiles: uniq([...catalog.files, memory.file]),
+    sourceFiles: sharedSources,
     metrics: {
       migrations_scanned: catalog.files.length,
       tables_discovered: catalog.tables.length,
@@ -265,9 +292,12 @@ export function buildSchemaIntelligenceMaps({ repoRoot }) {
       memory_states_discovered: memory.states.length,
       domain_count: uniq(all.map((object) => object.domain)).length,
       specialized_map_count: MAP_SPECS.length,
-      uncategorized_objects: all.length - classified,
+      unresolved_unclassified_objects: unresolved.length,
+      intentional_unclassified_objects: intentionalObjects.length,
       classified_objects: classified,
       classification_coverage_percent: all.length ? Number(((classified / all.length) * 100).toFixed(2)) : 100,
+      total_accounted_objects: classified + intentionalObjects.length,
+      total_discovered_objects: all.length,
     },
   };
 }
