@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "897e5bd56a77f38e6fec01360cf57e88407bc0c55985452273b9e5f3cad221f5",
+    "source_digest": "8a2930458c55a8953fbc1ca409ae02ccf55074c272cd08b22389032bd8d8c68a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "0b68e52f0c9650c80df7fc7ab82b812175f25bb0a6d66cb96d75dbc913875f07",
+        "sha256": "9502464445198b5d63ab5baf7460694d3b6437fdfbf3c9ae18e348ba7650f6e4",
         "present": true
       },
       {
@@ -82,6 +82,11 @@
       {
         "file": "openapi/github-repository-main-moved-webhook.yaml",
         "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
+        "present": true
+      },
+      {
+        "file": "openapi/growth-control-analytics-observability.openapi.yaml",
+        "sha256": "0084ffb7eaeeaa1484e8a385b129ca5c60e54b485366f933f4dcb0fb2248644f",
         "present": true
       },
       {
@@ -1031,16 +1036,17 @@
     "mixed_scope_route_file_count": 26,
     "operation_count": 1030,
     "openapi_documented_count": 1014,
-    "openapi_canonical_documented_count": 629,
-    "openapi_generated_index_count": 385,
+    "openapi_canonical_documented_count": 637,
+    "openapi_generated_index_count": 377,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 385,
+    "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
-      "equivalent": 1014,
-      "exempt": 16
+      "equivalent": 1011,
+      "exempt": 16,
+      "mismatch": 3
     },
-    "auth_contract_gap_count": 0,
+    "auth_contract_gap_count": 3,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 625,
     "unresolved_operation_class_count": 565,
@@ -24843,7 +24849,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -24860,9 +24866,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -24913,7 +24919,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -24930,9 +24936,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -24983,7 +24989,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -25000,9 +25006,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25050,26 +25056,26 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendApiKeyAuth"
+            ]
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25119,26 +25125,26 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendApiKeyAuth"
+            ]
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25188,26 +25194,26 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
                 "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
+            "state": "mismatch",
+            "reasons": [
+              "runtime:backendApiKeyAuth|backendBearerAuth",
+              "openapi:backendApiKeyAuth"
+            ]
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": true,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25230,15 +25236,33 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "GET /admin/control-plane/analytics/kpis",
-        "GET /admin/control-plane/analytics/portfolio",
-        "GET /admin/control-plane/operations/dashboard",
-        "POST /internal/control-plane/analytics/observations",
-        "POST /internal/control-plane/operations/samples",
-        "POST /internal/control-plane/operations/decision-evidence"
+      "openapi_detail_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "POST /internal/control-plane/analytics/observations",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendApiKeyAuth"
+          ]
+        },
+        {
+          "signature": "POST /internal/control-plane/operations/samples",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendApiKeyAuth"
+          ]
+        },
+        {
+          "signature": "POST /internal/control-plane/operations/decision-evidence",
+          "state": "mismatch",
+          "reasons": [
+            "runtime:backendApiKeyAuth|backendBearerAuth",
+            "openapi:backendApiKeyAuth"
+          ]
+        }
       ],
-      "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /internal/control-plane/operations/decision-evidence"
       ],
@@ -25274,7 +25298,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
@@ -25370,7 +25394,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 13,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -25414,7 +25438,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -25428,9 +25452,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25474,7 +25498,7 @@
             ]
           },
           "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
             "security_declared": true,
             "security_alternatives": [
               [
@@ -25488,9 +25512,9 @@
             "reasons": []
           },
           "openapi_documented": true,
-          "openapi_canonical_documented": false,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -25511,10 +25535,7 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "GET /tenant/control-plane/analytics/portfolio",
-        "GET /tenant/control-plane/operations/dashboard"
-      ],
+      "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
@@ -25532,7 +25553,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -25547,7 +25568,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 5,
+        "score": 4,
         "class": "medium"
       },
       "wave": "F1-tenant-shell"
@@ -85741,7 +85762,6 @@
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
       ],
@@ -85756,7 +85776,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
@@ -88405,7 +88425,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "openapi_detail_contract_gap",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -88422,7 +88442,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
