@@ -25,6 +25,15 @@ const files = {
     "  return rows[0] ?? null;",
     "}",
   ].join("\n"),
+  "ordered.js": [
+    "export async function latest(pool, proposalId) {",
+    "  const [rows] = await pool.query(",
+    "    'SELECT * FROM approvals WHERE proposal_id = ? ORDER BY created_at DESC, approval_id DESC LIMIT 2',",
+    "    [proposalId],",
+    "  );",
+    "  return rows[0] ?? null;",
+    "}",
+  ].join("\n"),
   "unsafe.js": [
     "export function first(rows) {",
     "  return rows[0] ?? null;",
@@ -59,6 +68,10 @@ try {
   }), true);
   assert.equal(hasScannerVisibleSelectionProof({
     repositoryRoot: root,
+    finding: proofFinding("ordered.js", 6),
+  }), true);
+  assert.equal(hasScannerVisibleSelectionProof({
+    repositoryRoot: root,
     finding: proofFinding("unsafe.js", 2),
   }), false);
   assert.equal(hasScannerVisibleSelectionProof({
@@ -85,10 +98,10 @@ try {
   });
 
   const findings = report.findings.filter((finding) => finding.rule_id === "first_candidate_selection");
-  assert.equal(findings.length, 4);
-  assert.equal(findings.filter((finding) => finding.suppressed).length, 2);
+  assert.equal(findings.length, 5);
+  assert.equal(findings.filter((finding) => finding.suppressed).length, 3);
   assert.equal(report.summary.runtime_finding_count, 2);
-  assert.equal(report.summary.suppressed_count, 2);
+  assert.equal(report.summary.suppressed_count, 3);
   assert.deepEqual(
     findings.filter((finding) => !finding.suppressed).map((finding) => finding.path).sort(),
     ["unsafe.js", "wrong-variable.js"],
