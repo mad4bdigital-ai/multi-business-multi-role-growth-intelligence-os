@@ -6,6 +6,9 @@ import {
   projectTenantActivityBinding,
   projectTenantConfigurationVersion
 } from "../../domain/growthControlPlane/tenantGrowthControlProjection.js";
+import {
+  buildTenantGrowthControlFieldPolicy,
+} from "../../domain/growthControlPlane/tenantGrowthControlViewPolicy.js";
 
 function buildPage(items, limit, offset) {
   const hasMore = items.length > limit;
@@ -15,6 +18,16 @@ function buildPage(items, limit, offset) {
       nextCursor: hasMore ? encodeTenantGrowthControlCursor(offset + limit) : null,
       hasMore
     })
+  });
+}
+
+function projectionScope(principal, scope) {
+  return Object.freeze({
+    tenantId: principal.tenantId,
+    workspaceId: scope.workspaceId,
+    brandKey: scope.brandKey,
+    tenantRole: principal.tenantRole,
+    workspaceBootstrapStatus: scope.bootstrapStatus
   });
 }
 
@@ -49,16 +62,15 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       limit: query.limit + 1,
       offset: query.offset
     });
-    const result = buildPage(rows.map(projectTenantConfigurationVersion), query.limit, query.offset);
+    const result = buildPage(
+      rows.map((row) => projectTenantConfigurationVersion(row, principal.tenantRole)),
+      query.limit,
+      query.offset
+    );
     return Object.freeze({
       ...result,
-      scope: Object.freeze({
-        tenantId: principal.tenantId,
-        workspaceId: scope.workspaceId,
-        brandKey: scope.brandKey,
-        tenantRole: principal.tenantRole,
-        workspaceBootstrapStatus: scope.bootstrapStatus
-      }),
+      scope: projectionScope(principal, scope),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("configuration_version", principal.tenantRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
@@ -76,16 +88,15 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       limit: query.limit + 1,
       offset: query.offset
     });
-    const result = buildPage(rows.map(projectTenantActivityBinding), query.limit, query.offset);
+    const result = buildPage(
+      rows.map((row) => projectTenantActivityBinding(row, principal.tenantRole)),
+      query.limit,
+      query.offset
+    );
     return Object.freeze({
       ...result,
-      scope: Object.freeze({
-        tenantId: principal.tenantId,
-        workspaceId: scope.workspaceId,
-        brandKey: scope.brandKey,
-        tenantRole: principal.tenantRole,
-        workspaceBootstrapStatus: scope.bootstrapStatus
-      }),
+      scope: projectionScope(principal, scope),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("activity_binding", principal.tenantRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
@@ -96,3 +107,8 @@ export function createTenantGrowthControlProjectionService({ repository }) {
 
   return Object.freeze({ listConfigurationVersions, listActivityBindings });
 }
+
+export const _testingTenantGrowthControlProjectionService = Object.freeze({
+  buildPage,
+  projectionScope,
+});
