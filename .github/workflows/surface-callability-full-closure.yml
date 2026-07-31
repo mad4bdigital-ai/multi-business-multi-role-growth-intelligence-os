@@ -21,19 +21,24 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - name: Check out target branch
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-node@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
+
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci
+
       - name: Apply integrated runtime and contract patches
         working-directory: http-generic-api
         run: |
@@ -41,13 +46,18 @@ jobs:
           python3 scripts/surface-callability-closure/patch_workspace.py
           python3 scripts/surface-callability-closure/patch_agent_surfaces.py
           python3 scripts/surface-callability-closure/patch_infrastructure.py
-      - name: Generate contracts and Surface evidence
+
+      - name: Generate dynamic callability contracts
+        working-directory: http-generic-api
+        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Regenerate frontend and Surface evidence
         working-directory: http-generic-api
         run: |
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
           npm run frontend:dispatch:generate
           node scripts/surface-contract-discovery.mjs --write
-      - name: Validate integrated closure wave
+
+      - name: Validate patched source syntax
         working-directory: http-generic-api
         run: |
           node --check routes/tenantLifecycleRoutes.js
@@ -57,11 +67,27 @@ jobs:
           node --check agentSurfaceRuntimeService.js
           node --check scripts/resource-api-callability-contracts.mjs
           node --check scripts/surface-contract-sql-registry-extractor.mjs
-          node test-surface-contract-sql-registry-extractor.mjs
-          node test-resource-api-callability-effect-classes.mjs
-          node test-multi-surface-agent-runtime.mjs
-          node test-resource-api-coverage.mjs
-          node test-surface-callability-full-closure.mjs
+
+      - name: Validate SQL registry extraction contracts
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Validate callability effect and auth contracts
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Validate multi-surface agent runtime
+        working-directory: http-generic-api
+        run: node test-multi-surface-agent-runtime.mjs
+
+      - name: Validate resource API coverage
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Validate full Surface queue closure
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
+
       - name: Enforce queue zero and closed write set
         shell: bash
         run: |
@@ -111,6 +137,7 @@ jobs:
           if missing: raise SystemExit('missing_surface_closure_writes:' + ','.join(missing))
           print({'changed_files': len(changed), 'unexpected': 0, 'queue_items': 0})
           PY
+
       - name: Commit integrated product and evidence
         shell: bash
         run: |
