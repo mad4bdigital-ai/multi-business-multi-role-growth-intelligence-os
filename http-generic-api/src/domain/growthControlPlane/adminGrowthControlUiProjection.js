@@ -95,6 +95,7 @@ function buildFields({ configKey, schemaVersion, schema, defaults, path = [], re
   const hasChildren = normalized.type === "object" && plainObject(schema.properties);
 
   if (path.length) {
+    const defaultValue = valueAtPath(defaults, path);
     const field = {
       fieldId: stableSha256({ configKey, schemaVersion, path: pathText }).slice(0, 20),
       path: pathText,
@@ -106,7 +107,7 @@ function buildFields({ configKey, schemaVersion, schema, defaults, path = [], re
       required: Boolean(required),
       readOnly: component === "constant",
       constraints: constraintsFor(schema),
-      defaultValue: valueAtPath(defaults, path),
+      defaultValue: defaultValue === undefined ? null : defaultValue,
       options: Array.isArray(schema.enum) ? [...schema.enum] : null,
       constantValue: Object.hasOwn(schema, "const") ? schema.const : null,
       item: normalized.type === "array" ? itemDescriptor(schema) : null,
