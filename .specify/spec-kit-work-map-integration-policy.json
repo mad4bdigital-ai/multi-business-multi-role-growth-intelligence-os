@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "policy_key": "spec_kit_work_map_integration_gate_v1",
+  "enforcement_mode": "new_spec_kits_and_opted_in_changed_scope_fail_closed",
+  "spec_root": "specs",
+  "work_map_root": "docs/work-maps",
+  "work_map_index": "README.md",
+  "coverage_matrix": "work-map-coverage-matrix.md",
+  "manifest_filename": "work-map-integration.json",
+  "template_filename": "work-map-integration-template.json",
+  "review_states": [
+    "draft",
+    "ready_for_implementation"
+  ],
+  "decision_states": [
+    "needs_analysis",
+    "integrate",
+    "reuse",
+    "extend",
+    "not_applicable",
+    "deferred_with_risk",
+    "blocked"
+  ],
+  "taxonomy_gap_dispositions": [
+    "needs_analysis",
+    "covered_by_existing_map",
+    "new_work_map_candidate",
+    "taxonomy_backlog",
+    "not_relevant_to_feature"
+  ],
+  "minimum_rationale_length": 24,
+  "implementation_exempt_prefixes": [
+    "specs",
+    "docs"
+  ],
+  "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from the repository Work Maps and coverage matrix.",
+  "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, and taxonomy-gap decisions must be resolved and implementation_readiness.status must be ready.",
+  "legacy_behavior": "Existing Spec Kits without a work-map-integration.json remain grandfathered until they opt in. New Spec Kits are never grandfathered.",
+  "secrets_included": false
+}
