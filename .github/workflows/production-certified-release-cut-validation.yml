@@ -1,0 +1,262 @@
+name: Certified Production Release Cut Validation
+
+on:
+  pull_request:
+    branches:
+      - "gpt/validate-certified-release-base-*"
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: certified-production-release-cut-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  certified-release-cut-ci:
+    name: Validate certified immutable release cut
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/validate-certified-release-candidate-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify certified cut, candidate tree, and Production ancestry
+        id: verify
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -Eeuo pipefail
+
+          for value in "$HEAD_SHA" "$BASE_SHA"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::validation refs must resolve to lowercase 40-character SHAs"
+              exit 1
+            }
+          done
+          [[ "$HEAD_REF" == gpt/validate-certified-release-candidate-* ]]
+          [[ "$BASE_REF" == gpt/validate-certified-release-base-* ]]
+
+          git fetch --no-tags origin \
+            "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
+            "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+
+          HEAD_READBACK="$(git rev-parse "refs/remotes/origin/$HEAD_REF")"
+          BASE_READBACK="$(git rev-parse "refs/remotes/origin/$BASE_REF")"
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          CURRENT_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+
+          [[ "$HEAD_READBACK" == "$HEAD_SHA" ]]
+          [[ "$BASE_READBACK" == "$BASE_SHA" ]]
+          [[ "$CURRENT_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CURRENT_PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          FIRST_PARENT="$(git rev-parse "${HEAD_SHA}^1")"
+          [[ "$FIRST_PARENT" == "$BASE_SHA" ]] || {
+            echo "::error::candidate first parent must be the certified release cut"
+            exit 1
+          }
+
+          PARENT_COUNT="$(git rev-list --parents -n 1 "$HEAD_SHA" | awk '{print NF-1}')"
+          (( PARENT_COUNT >= 2 )) || {
+            echo "::error::candidate must preserve certified cut and Production ancestry"
+            exit 1
+          }
+
+          git diff --quiet "$BASE_SHA" "$HEAD_SHA" || {
+            echo "::error::candidate tree differs from certified release cut"
+            git diff --stat "$BASE_SHA" "$HEAD_SHA"
+            exit 1
+          }
+
+          git merge-base --is-ancestor "$BASE_SHA" "$CURRENT_MAIN_SHA" || {
+            echo "::error::certified release cut is not contained by current main"
+            exit 1
+          }
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$HEAD_SHA" || {
+            echo "::error::candidate does not contain current Production ancestry"
+            exit 1
+          }
+
+          {
+            echo "head_sha=$HEAD_SHA"
+            echo "base_sha=$BASE_SHA"
+            echo "head_ref=$HEAD_REF"
+            echo "base_ref=$BASE_REF"
+            echo "main_sha_initial=$CURRENT_MAIN_SHA"
+            echo "production_sha=$CURRENT_PRODUCTION_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Full CI on exact certified candidate
+        id: dispatch
+        shell: bash
+        env:
+          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
+          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
+        run: |
+          set -Eeuo pipefail
+          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run ci.yml --repo "$REPOSITORY" --ref "$HEAD_REF"
+
+          RUN_ID=""
+          for _ in $(seq 1 60); do
+            RUN_ID="$(gh run list \
+              --repo "$REPOSITORY" \
+              --workflow ci.yml \
+              --branch "$HEAD_REF" \
+              --event workflow_dispatch \
+              --limit 50 \
+              --json databaseId,headSha,createdAt \
+              --jq "map(select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
+            [[ -n "$RUN_ID" ]] && break
+            sleep 5
+          done
+          [[ -n "$RUN_ID" ]] || {
+            echo "::error::unable to resolve certified candidate CI run"
+            exit 1
+          }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+          DEADLINE="$(( $(date +%s) + 3300 ))"
+          while (( $(date +%s) < DEADLINE )); do
+            RUN_JSON="$(gh run view "$RUN_ID" --repo "$REPOSITORY" --json status,conclusion)"
+            STATUS="$(jq -r '.status // ""' <<<"$RUN_JSON")"
+            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$RUN_JSON")"
+            if [[ "$STATUS" == completed ]]; then
+              [[ "$CONCLUSION" == success ]] || {
+                echo "::error::certified candidate CI concluded $CONCLUSION"
+                exit 1
+              }
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::certified candidate CI did not complete before deadline"
+          exit 1
+
+      - name: Verify Full CI and final immutable readback
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
+          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
+          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
+          BASE_REF: ${{ steps.verify.outputs.base_ref }}
+          MAIN_SHA_INITIAL: ${{ steps.verify.outputs.main_sha_initial }}
+          PRODUCTION_SHA: ${{ steps.verify.outputs.production_sha }}
+        run: |
+          set -Eeuo pipefail
+          gh run view "$RUN_ID" \
+            --repo "$REPOSITORY" \
+            --json databaseId,event,headSha,status,conclusion,jobs \
+            > "$RUNNER_TEMP/certified-release-ci.json"
+
+          node - "$RUNNER_TEMP/certified-release-ci.json" "$HEAD_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const [file, expectedSha] = process.argv.slice(2);
+          const run = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (run.event !== 'workflow_dispatch') throw new Error(`unexpected event: ${run.event}`);
+          if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
+          if (run.status !== 'completed' || run.conclusion !== 'success') {
+            throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
+          }
+          const required = new Set([
+            'Syntax Check',
+            'Unit & Integration Tests',
+            'Execution Resolver Gate',
+            'Architecture Drift Detection',
+          ]);
+          for (const job of run.jobs || []) {
+            if (job.conclusion === 'success') required.delete(job.name);
+          }
+          if (required.size) throw new Error(`missing successful jobs: ${[...required].join(', ')}`);
+          NODE
+
+          git fetch --no-tags origin \
+            "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
+            "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+
+          HEAD_FINAL="$(git rev-parse "refs/remotes/origin/$HEAD_REF")"
+          BASE_FINAL="$(git rev-parse "refs/remotes/origin/$BASE_REF")"
+          MAIN_SHA_FINAL="$(git rev-parse refs/remotes/origin/main)"
+          PRODUCTION_SHA_FINAL="$(git rev-parse refs/remotes/origin/Production)"
+
+          [[ "$HEAD_FINAL" == "$HEAD_SHA" ]]
+          [[ "$BASE_FINAL" == "$BASE_SHA" ]]
+          [[ "$PRODUCTION_SHA_FINAL" == "$PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved during certified-cut validation"
+            exit 1
+          }
+          git diff --quiet "$BASE_SHA" "$HEAD_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" "$MAIN_SHA_FINAL" || {
+            echo "::error::current main no longer contains certified release cut"
+            exit 1
+          }
+          git merge-base --is-ancestor "$PRODUCTION_SHA" "$HEAD_SHA"
+
+          jq -n \
+            --arg candidate_sha "$HEAD_SHA" \
+            --arg certified_cut_sha "$BASE_SHA" \
+            --arg candidate_branch "$HEAD_REF" \
+            --arg validation_base_branch "$BASE_REF" \
+            --arg production_sha "$PRODUCTION_SHA" \
+            --arg main_sha_initial "$MAIN_SHA_INITIAL" \
+            --arg main_sha_final "$MAIN_SHA_FINAL" \
+            --arg ci_run_id "$RUN_ID" \
+            '{
+              schema_version: "certified_production_release_cut.v1",
+              ok: true,
+              release_mode: "certified_release_cut",
+              candidate_sha: $candidate_sha,
+              certified_cut_sha: $certified_cut_sha,
+              candidate_branch: $candidate_branch,
+              validation_base_branch: $validation_base_branch,
+              production_sha: $production_sha,
+              main_sha_initial: $main_sha_initial,
+              main_sha_final: $main_sha_final,
+              ci_run_id: $ci_run_id,
+              candidate_tree_matches_certified_cut: true,
+              certified_cut_is_ancestor_of_current_main: true,
+              candidate_contains_production: true,
+              candidate_and_base_refs_immutable_during_validation: true,
+              production_ref_stable_during_validation: true,
+              main_tip_may_advance: true,
+              merge_executed: false,
+              deployment_executed: false,
+              migration_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$EVIDENCE_PATH"
+          test -s "$EVIDENCE_PATH"
+
+      - name: Upload certified release-cut evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-production-release-cut-${{ steps.verify.outputs.head_sha }}
+          path: |
+            ${{ env.EVIDENCE_PATH }}
+            ${{ runner.temp }}/certified-release-ci.json
+          if-no-files-found: error
+          retention-days: 30
