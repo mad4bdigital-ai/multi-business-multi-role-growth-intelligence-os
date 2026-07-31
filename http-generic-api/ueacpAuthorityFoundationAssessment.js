@@ -114,7 +114,7 @@ function normalizeString(value, fieldName, { minimum = 1, maximum = 2000 } = {})
   if (normalized.length < minimum || normalized.length > maximum) {
     throw new UeacpAuthorityFoundationAssessmentError(
       "ueacp_foundation_invalid_text",
-      `${fieldName} must be between ${minimum} and ${maximum} characters.`,
+      `${fieldName} must be between ${minimum} and ${maximum} characters.",
       { field: fieldName },
     );
   }
@@ -125,7 +125,7 @@ function normalizeEvidenceRefs(value, fieldName) {
   if (!Array.isArray(value) || value.length === 0 || value.length > 20) {
     throw new UeacpAuthorityFoundationAssessmentError(
       "ueacp_foundation_invalid_evidence",
-      `${fieldName} must contain between 1 and 20 evidence references.`,
+      `${fieldName} must contain between 1 and 20 evidence references.",
       { field: fieldName },
     );
   }
@@ -133,7 +133,7 @@ function normalizeEvidenceRefs(value, fieldName) {
   if (refs.length === 0 || refs.some((item) => item.length > 300)) {
     throw new UeacpAuthorityFoundationAssessmentError(
       "ueacp_foundation_invalid_evidence",
-      `${fieldName} contains an invalid evidence reference.`,
+      `${fieldName} contains an invalid evidence reference.",
       { field: fieldName },
     );
   }
@@ -145,7 +145,7 @@ function normalizeObjectNames(value, fieldName) {
   if (!Array.isArray(value) || value.length > 20) {
     throw new UeacpAuthorityFoundationAssessmentError(
       "ueacp_foundation_invalid_objects",
-      `${fieldName} must be an array with at most 20 object names.`,
+      `${fieldName} must be an array with at most 20 object names.",
       { field: fieldName },
     );
   }
@@ -198,7 +198,11 @@ function normalizeClassification(raw, objectByName, revisionByName) {
     );
   }
 
-  const disposition = requireEnum(raw.disposition, UEACP_AUTHORITY_FOUNDATION_DISPOSITIONS, "disposition");
+  const disposition = requireEnum(
+    raw.disposition,
+    UEACP_AUTHORITY_FOUNDATION_DISPOSITIONS,
+    "disposition",
+  );
   const revisionStrategy = requireEnum(
     raw.revision_strategy,
     UEACP_AUTHORITY_FOUNDATION_REVISION_STRATEGIES,
@@ -311,20 +315,6 @@ function normalizeClassification(raw, objectByName, revisionByName) {
   };
 }
 
-export function createUeacpAuthorityCensusFingerprint(census) {
-  assertCensus(census);
-  return sha256({
-    schema_name: census.schema_name,
-    database_server: census.database_server,
-    objects: census.objects,
-    columns: census.columns,
-    indexes: census.indexes,
-    foreign_keys: census.foreign_keys,
-    views: census.views,
-    revision_support: census.revision_support,
-  }, "ueacp-authority-census-v1");
-}
-
 export function assessUeacpAuthorityFoundation({
   census,
   classificationBundle,
@@ -338,6 +328,13 @@ export function assessUeacpAuthorityFoundation({
     );
   }
   assertNoSensitiveKeys(classificationBundle, "classification_bundle");
+  if (classificationBundle.contract !== "mad4b.ueacp-authority-foundation-classification.v1") {
+    throw new UeacpAuthorityFoundationAssessmentError(
+      "ueacp_foundation_invalid_contract",
+      "The authority ownership classification contract is not supported.",
+      { contract: classificationBundle.contract ?? null },
+    );
+  }
 
   const schemaName = normalizeString(census.schema_name, "census.schema_name", { maximum: 190 });
   const required = [...new Set(requiredLogicalKeys.map((key) => requireToken(key, "requiredLogicalKeys")))].sort();
@@ -375,6 +372,7 @@ export function assessUeacpAuthorityFoundation({
       );
     }
     logicalKeys.add(classification.logical_key);
+
     for (const objectName of classification.object_names) {
       if (!objectOwners.has(objectName)) objectOwners.set(objectName, []);
       objectOwners.get(objectName).push(classification);
@@ -393,9 +391,15 @@ export function assessUeacpAuthorityFoundation({
   }
 
   const missingLogicalKeys = required.filter((key) => !logicalKeys.has(key));
-  const unexpectedLogicalKeys = classifications.map((item) => item.logical_key).filter((key) => !required.includes(key));
-  const blockedLogicalKeys = classifications.filter((item) => item.disposition === "blocked").map((item) => item.logical_key);
-  const unapprovedLogicalKeys = classifications.filter((item) => !item.approved).map((item) => item.logical_key);
+  const unexpectedLogicalKeys = classifications
+    .map((item) => item.logical_key)
+    .filter((key) => !required.includes(key));
+  const blockedLogicalKeys = classifications
+    .filter((item) => item.disposition === "blocked")
+    .map((item) => item.logical_key);
+  const unapprovedLogicalKeys = classifications
+    .filter((item) => !item.approved)
+    .map((item) => item.logical_key);
   const migrationActions = classifications
     .filter((item) => item.migration_action !== "none")
     .map((item) => ({
@@ -405,19 +409,41 @@ export function assessUeacpAuthorityFoundation({
       revision_strategy: item.revision_strategy,
     }));
 
-  const censusFingerprint = createUeacpAuthorityCensusFingerprint(census);
+  const censusFingerprint = sha256({
+    schema_name: census.schema_name,
+    database_server: census.database_server,
+    objects: census.objects,
+    columns: census.columns,
+    indexes: census.indexes,
+    foreign_keys: census.foreign_keys,
+    views: census.views,
+    revision_support: census.revision_support,
+  }, "ueacp-authority-census-v1");
+
   const suppliedFingerprint = String(classificationBundle.census_sha256 ?? "").trim().toLowerCase();
   const censusBound = SHA256_PATTERN.test(suppliedFingerprint) && suppliedFingerprint === censusFingerprint;
+  const authorityPathInventorySha256 = String(
+    classificationBundle.authority_path_inventory_sha256 ?? "",
+  ).trim().toLowerCase();
+  const authorityPathInventoryRef = String(
+    classificationBundle.authority_path_inventory_ref ?? "",
+  ).trim();
+  const authorityPathInventoryBound = SHA256_PATTERN.test(authorityPathInventorySha256)
+    && authorityPathInventoryRef.length >= 3
+    && authorityPathInventoryRef.length <= 300;
   const complete = missingLogicalKeys.length === 0
     && unexpectedLogicalKeys.length === 0
     && blockedLogicalKeys.length === 0
     && unapprovedLogicalKeys.length === 0
-    && censusBound;
+    && censusBound
+    && authorityPathInventoryBound;
 
   const normalizedBundle = {
     contract: "mad4b.ueacp-authority-foundation-classification.v1",
     schema_name: schemaName,
     census_sha256: censusFingerprint,
+    authority_path_inventory_sha256: authorityPathInventorySha256,
+    authority_path_inventory_ref: authorityPathInventoryRef,
     classification_source: normalizeString(
       classificationBundle.classification_source,
       "classification_source",
@@ -435,6 +461,9 @@ export function assessUeacpAuthorityFoundation({
     census_sha256: censusFingerprint,
     supplied_census_sha256: suppliedFingerprint || null,
     census_bound: censusBound,
+    authority_path_inventory_sha256: authorityPathInventorySha256 || null,
+    authority_path_inventory_ref: authorityPathInventoryRef || null,
+    authority_path_inventory_bound: authorityPathInventoryBound,
     assessment_sha256: assessmentSha256,
     classifications,
     migration_actions: migrationActions,
@@ -444,9 +473,10 @@ export function assessUeacpAuthorityFoundation({
       blocked_logical_keys: blockedLogicalKeys,
       unapproved_logical_keys: unapprovedLogicalKeys,
       census_fingerprint_mismatch: !censusBound,
+      authority_path_inventory_missing: !authorityPathInventoryBound,
     },
     closure_state: {
-      t001_inventory_evidence_ready: complete,
+      t001_authority_path_inventory_complete: complete,
       t002_live_table_ownership_complete: complete,
       t021_revision_design_authorized: complete,
       t022_t024_storage_design_authorized: complete,
@@ -463,6 +493,20 @@ export function assessUeacpAuthorityFoundation({
       runtime_authority_changed: false,
     },
   });
+}
+
+export function createUeacpAuthorityCensusFingerprint(census) {
+  assertCensus(census);
+  return sha256({
+    schema_name: census.schema_name,
+    database_server: census.database_server,
+    objects: census.objects,
+    columns: census.columns,
+    indexes: census.indexes,
+    foreign_keys: census.foreign_keys,
+    views: census.views,
+    revision_support: census.revision_support,
+  }, "ueacp-authority-census-v1");
 }
 
 export const _testingUeacpAuthorityFoundationAssessment = Object.freeze({
