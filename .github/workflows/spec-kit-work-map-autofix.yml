@@ -20,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: spec-kit-work-map-autofix-${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
