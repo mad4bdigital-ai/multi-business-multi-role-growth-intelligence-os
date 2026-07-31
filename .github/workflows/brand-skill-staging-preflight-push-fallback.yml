@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'push' && 'brand-skill-staging-preflight-push-fallback-3809' || format('brand-skill-staging-preflight-push-fallback-pr-{0}', github.event.pull_request.number) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC') && 'brand-skill-staging-preflight-push-fallback-3809-v2' || format('brand-skill-staging-preflight-observation-{0}', github.run_id) }}
+  cancel-in-progress: false
 
 jobs:
   static-contract:
@@ -39,6 +39,9 @@ jobs:
             'push:',
             'branches: [main]',
             'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC',
+            'brand-skill-staging-preflight-push-fallback-3809-v2',
+            'brand-skill-staging-preflight-observation-{0}',
+            'github.run_id',
             'id: eligibility',
             'TRIGGER_ACTOR_ID: ${{ github.actor_id }}',
             'TRIGGER_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}',
