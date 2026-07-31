@@ -1,0 +1,147 @@
+name: Spec Kit Work Map Convergence Runner
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/spec-kit-work-map-convergence-runner.yml
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: spec-kit-work-map-convergence-runner
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    name: Converge Work Map branch with latest main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Merge, regenerate, validate, and push target branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            echo "Convergence attempt ${attempt}."
+            git fetch --no-tags origin main "${TARGET_BRANCH}"
+            target_sha="$(git rev-parse "origin/${TARGET_BRANCH}")"
+            main_sha="$(git rev-parse origin/main)"
+            git checkout --detach "${target_sha}"
+            git reset --hard "${target_sha}"
+            git clean -fd
+
+            echo "Target ${target_sha}; main ${main_sha}."
+            if git merge-base --is-ancestor "${main_sha}" "${target_sha}"; then
+              echo "Target already contains latest main."
+              rm -f .github/workflows/spec-kit-work-map-main-sync.yml
+              git add -A .github/workflows/spec-kit-work-map-main-sync.yml
+              if git diff --cached --quiet; then
+                echo "No reconciliation commit is required."
+                reconciled_sha="${target_sha}"
+              else
+                git commit -m "chore: remove completed Work Map synchronizer"
+                reconciled_sha="$(git rev-parse HEAD)"
+              fi
+            else
+              set +e
+              git merge --no-ff --no-commit "${main_sha}"
+              merge_status=$?
+              set -e
+
+              if [[ ${merge_status} -ne 0 ]]; then
+                mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+                printf 'Detected conflicts:\n'
+                printf ' - %s\n' "${conflicts[@]}"
+                for path in "${conflicts[@]}"; do
+                  case "${path}" in
+                    docs/work-maps/*)
+                      git checkout --ours -- "${path}"
+                      git add "${path}"
+                      ;;
+                    *)
+                      echo "Unexpected semantic conflict: ${path}"
+                      exit 1
+                      ;;
+                  esac
+                done
+              fi
+
+              unresolved="$(git diff --name-only --diff-filter=U)"
+              if [[ -n "${unresolved}" ]]; then
+                echo "Unresolved conflicts remain:"
+                printf '%s\n' "${unresolved}"
+                exit 1
+              fi
+
+              node http-generic-api/scripts/platform-work-map-generator.mjs --write
+              node http-generic-api/scripts/platform-work-map-generator.mjs --check
+              git add docs/work-maps
+              rm -f .github/workflows/spec-kit-work-map-main-sync.yml
+              git add -A .github/workflows/spec-kit-work-map-main-sync.yml
+
+              if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- . ':!http-generic-api/package-lock.json'; then
+                echo "Conflict markers detected."
+                exit 1
+              fi
+
+              git commit -m "chore: merge latest main into Work Map integration branch"
+              reconciled_sha="$(git rev-parse HEAD)"
+            fi
+
+            node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+            node --check http-generic-api/scripts/work-map-schema-classification.mjs
+            node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+            node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+            node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+            node http-generic-api/scripts/pipeline-connectivity-check.mjs
+            node http-generic-api/test-pipeline-connectivity-check.mjs
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
+            node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+            node http-generic-api/test-platform-work-map-generator.mjs
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            git diff --check HEAD^ HEAD
+
+            remote_target_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            if [[ "${remote_target_sha}" != "${target_sha}" ]]; then
+              echo "Target moved from ${target_sha} to ${remote_target_sha}; retrying."
+              continue
+            fi
+
+            if [[ "${reconciled_sha}" != "${target_sha}" ]]; then
+              git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+            fi
+            pushed_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            if [[ "${pushed_sha}" != "${reconciled_sha}" ]]; then
+              echo "Push readback mismatch. Expected ${reconciled_sha}, found ${pushed_sha}."
+              exit 1
+            fi
+
+            gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+            gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+            echo "Reconciled target head: ${reconciled_sha}"
+            exit 0
+          done
+
+          echo "Target kept moving during all attempts."
+          exit 1
