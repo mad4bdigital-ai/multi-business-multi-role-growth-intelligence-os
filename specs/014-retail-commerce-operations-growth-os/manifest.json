@@ -13,8 +13,9 @@
     "review_started_from_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
     "branch_ancestry_base_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
     "latest_main_observed_sha": "0cd3196b7b44b29ee751ae9bf64b60faf70aa50b",
-    "branch_requires_main_resynchronization": true,
-    "evidence_timestamp": "2026-07-31T01:31:00Z",
+    "main_synchronization_merge_sha": "b9f61f09374dde10ae5f15a01f6be9f41700899d",
+    "branch_requires_main_resynchronization": false,
+    "evidence_timestamp": "2026-07-31T02:10:00Z",
     "production_behavior_verified": false,
     "classification": "repository_brownfield_review_only"
   },
