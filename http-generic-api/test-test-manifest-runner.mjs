@@ -10,6 +10,14 @@ const suiteSource = fs.readFileSync(
   new URL("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs", import.meta.url),
   "utf8",
 );
+const generatedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/pr-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
+const ciAutostartWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/ci-autostart-recovery.yml", import.meta.url),
+  "utf8",
+);
 
 assert.equal(
   packageJson.scripts.test,
@@ -54,5 +62,36 @@ assert.match(suiteSource, /scripts\/run-test-manifest\.mjs/);
 assert.match(suiteSource, /scripts\/run-adaptive-authorization-verification-manifest\.mjs/);
 assert.match(suiteSource, /stdio:\s*"inherit"/);
 assert.match(suiteSource, /shell:\s*false/);
+
+for (const workflowSource of [generatedRefreshWorkflow, ciAutostartWorkflow]) {
+  assert.ok(
+    workflowSource.includes("github.event.pull_request.head.repo.full_name == github.repository"),
+    "certification automation must stay restricted to same-repository pull requests",
+  );
+  assert.ok(
+    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'gpt/')"),
+    "existing governed gpt branch support must remain enabled",
+  );
+  assert.ok(
+    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'cert/')"),
+    "non-protected certification branch support must remain enabled",
+  );
+}
+assert.ok(
+  generatedRefreshWorkflow.includes("github.actor != 'github-actions[bot]'"),
+  "generated refresh must prevent bot recursion",
+);
+assert.ok(
+  generatedRefreshWorkflow.includes("contents: write"),
+  "generated refresh requires bounded branch write permission",
+);
+assert.ok(
+  ciAutostartWorkflow.includes("actions: write"),
+  "CI recovery requires workflow dispatch permission",
+);
+assert.ok(
+  ciAutostartWorkflow.includes("!github.event.pull_request.draft"),
+  "CI recovery must not dispatch for draft pull requests",
+);
 
 console.log("test-manifest-runner checks passed");
