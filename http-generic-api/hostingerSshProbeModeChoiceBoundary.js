@@ -21,6 +21,14 @@ function compact(value, max = 191) {
   return text.length > max ? text.slice(0, max) : text;
 }
 
+function boundaryError(status, code, message, details = null) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  if (details) error.details = details;
+  return error;
+}
+
 function nestedRequestPayload(body = {}) {
   const nested = asObject(body.request_payload);
   return Object.keys(nested).length ? nested : body;
@@ -37,12 +45,12 @@ function explicitRunnerMode(payload = {}) {
   return raw ? normalizeHostingerSshProbeRunnerMode(raw) : null;
 }
 
-function explicitMandatedRunnerMode(payload = {}) {
+function trustedMandatedRunnerMode(context = {}) {
   const raw = compact(
-    payload.policy_mandated_runner_mode
-      || payload.policyMandatedRunnerMode
-      || payload.mandated_runner_mode
-      || payload.mandatedRunnerMode,
+    context.policy_mandated_runner_mode
+      || context.policyMandatedRunnerMode
+      || context.mandated_runner_mode
+      || context.mandatedRunnerMode,
     64,
   );
   return raw ? normalizeHostingerSshProbeRunnerMode(raw) : null;
@@ -127,7 +135,7 @@ export function hostingerSshProbeRunnerModeOptions() {
   return Object.values(HOSTINGER_SSH_PROBE_RUNNER_MODES).map(modeOption);
 }
 
-export function buildHostingerSshProbeModeChoice(body = {}) {
+export function buildHostingerSshProbeModeChoice(body = {}, { mandatedMode = null } = {}) {
   const requestBody = asObject(body);
   const jobType = compact(requestBody.job_type || requestBody.jobType || "http_execute", 128);
   if (jobType !== HOSTINGER_SSH_PROBE_JOB_TYPE) {
@@ -141,21 +149,28 @@ export function buildHostingerSshProbeModeChoice(body = {}) {
   }
 
   const payload = nestedRequestPayload(requestBody);
-  const targetId = compact(payload.target_id || payload.targetId, 191) || "unresolved_target";
+  const targetId = compact(payload.target_id || payload.targetId, 191);
+  if (!targetId) {
+    throw boundaryError(
+      400,
+      "mode_choice_target_required",
+      "target_id is required before Hostinger SSH probe runner modes can be selected.",
+    );
+  }
+
   const plan = buildModeChoicePlan({
     surfaceKey: HOSTINGER_SSH_PROBE_MODE_CHOICE_SURFACE,
     targetScope: {
       scope_type: "remote_runtime_target",
       scope_ref: targetId,
       tenant_id: compact(payload.tenant_id || payload.tenantId, 64) || null,
-      user_id: compact(payload.user_id || payload.userId, 64) || null,
       resource_type: "hostinger_ssh_target_probe",
       resource_id: targetId,
     },
     modes: hostingerSshProbeRunnerModeOptions(),
     recommendedMode: HOSTINGER_SSH_PROBE_RUNNER_MODES.QUEUE_WORKER,
     selectedMode: explicitRunnerMode(payload),
-    mandatedMode: explicitMandatedRunnerMode(payload),
+    mandatedMode,
     fallbackFromMode: explicitFallbackMode(payload),
   });
 
@@ -236,9 +251,12 @@ export async function governHostingerSshProbeJobSubmission({
   persistSelection = persistModeChoiceSelection,
   skipSurfaceAuthority = false,
 } = {}) {
+  const context = asObject(requestContext);
   let decision;
   try {
-    decision = buildHostingerSshProbeModeChoice(body);
+    decision = buildHostingerSshProbeModeChoice(body, {
+      mandatedMode: trustedMandatedRunnerMode(context),
+    });
   } catch (error) {
     return structuredFailure(error, "mode_choice_plan_failed", 400);
   }
@@ -283,7 +301,6 @@ export async function governHostingerSshProbeJobSubmission({
   }
 
   const traced = requestBodyWithTraceAndMode(decision.request_body, plan);
-  const context = asObject(requestContext);
   let evidence;
   try {
     evidence = await persistSelection({
@@ -354,7 +371,7 @@ export function attachModeChoiceSubmissionEvidence(responseBody, governance) {
 export const _testingHostingerSshProbeModeChoiceBoundary = Object.freeze({
   nestedRequestPayload,
   explicitRunnerMode,
-  explicitMandatedRunnerMode,
+  trustedMandatedRunnerMode,
   explicitFallbackMode,
   requestBodyWithTraceAndMode,
 });
