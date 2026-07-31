@@ -2,7 +2,7 @@
 set -euo pipefail
 
 EXPECTED_WORKMAP_HEAD="093e90e8994390b794c1f64ccc8db67e90f8399a"
-EXPECTED_MAIN_HEAD="467b10cf3ac29c839399324a8076ccab5f7c7988"
+EXPECTED_MAIN_HEAD="06e356d8ff47962311c7dc5667416a1966e1ce08"
 TARGET_BRANCH="gpt/spec-kit-work-map-integration-fabric-20260731"
 
 cp .github/scripts/compose-test-runner-sharding.py /tmp/compose-test-runner-sharding.py
