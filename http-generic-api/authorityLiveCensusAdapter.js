@@ -115,9 +115,21 @@ function integer(value) {
   return Number.isSafeInteger(number) ? number : null;
 }
 
+function semanticTokenForms(token) {
+  const normalized = String(token || "").trim().toLowerCase();
+  if (!normalized) return new Set();
+  const forms = new Set([normalized, `${normalized}s`, `${normalized}es`]);
+  if (/[^aeiou]y$/.test(normalized)) forms.add(`${normalized.slice(0, -1)}ies`);
+  return forms;
+}
+
 function hasSemanticToken(name, token) {
-  const escaped = String(token).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[_-])${escaped}(?:s)?([_-]|$)`).test(String(name || "").toLowerCase());
+  const forms = semanticTokenForms(token);
+  return String(name || "")
+    .toLowerCase()
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .some((segment) => forms.has(segment));
 }
 
 function classifyObject(objectName, objectType) {
