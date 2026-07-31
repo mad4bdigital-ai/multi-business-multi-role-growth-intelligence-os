@@ -9,6 +9,9 @@
   "statement_count": 5,
   "requested_by": "mad4bdigital-ai",
   "requested_at": "2026-07-31T13:24:00Z",
+  "trigger_revision": 2,
+  "retriggered_at": "2026-07-31T13:41:00Z",
+  "retrigger_reason": "workflow_preexisted_on_default_branch_after_fallback_installation",
   "database_mutation_authorized": false,
   "apply_authorized": false
 }
