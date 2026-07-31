@@ -105,4 +105,7 @@ for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
   assert.doesNotMatch(workflow, /migration_authorized=true/i);
 }
 
+// Compose the independently reviewable migration-first response-chunk rollout contract into this already registered operational suite.
+await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
+
 console.log("Production promotion convergence workflow contract test passed");
